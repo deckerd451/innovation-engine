@@ -252,4 +252,89 @@
             message: `Remove ${username} from project team`,
             content,
             sha: fileData.sha,
-            branch: 'main
+            branch: 'main'
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update project file');
+        }
+        
+        // Reload team members
+        loadTeamMembers(projectId);
+        displayMatches(projectId, 'matches-container');
+        alert(`${username} has been removed from the team.`);
+      } catch (error) {
+        alert(`Error removing team member: ${error.message}`);
+      }
+    }
+    
+    // Add a team member
+    async function addTeamMember(projectId, username) {
+      const token = getToken();
+      if (!token) {
+        alert('Please log in to manage team members');
+        return;
+      }
+      
+      try {
+        // Get the project file
+        const projects = await getAllProjects();
+        const project = projects.find(p => p.id === projectId);
+        if (!project) throw new Error('Project not found');
+        
+        // Check if team is already full
+        if (project.team_members.length >= project.team_size) {
+          alert('The team is already at maximum capacity.');
+          return;
+        }
+        
+        // Check if user is already in team
+        if (project.team_members.includes(username)) {
+          alert('This user is already in the team.');
+          return;
+        }
+        
+        // Add user to team members
+        project.team_members.push(username);
+        
+        // Update project file
+        const filePath = `${dataPath}/projects/${projectId}.json`;
+        const existingFile = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`, {
+          headers: { 'Authorization': `token ${token}` }
+        });
+        
+        if (!existingFile.ok) throw new Error('Project file not found');
+        
+        const fileData = await existingFile.json();
+        const content = btoa(JSON.stringify(project, null, 2));
+        
+        const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: `Add ${username} to project team`,
+            content,
+            sha: fileData.sha,
+            branch: 'main'
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update project file');
+        }
+        
+        // Reload team members
+        loadTeamMembers(projectId);
+        displayMatches(projectId, 'matches-container');
+        alert(`${username} has been added to the team.`);
+      } catch (error) {
+        alert(`Error adding team member: ${error.message}`);
+      }
+    }
+  </script>
+</body>
+</html>
