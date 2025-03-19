@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Project | Innovation Engine</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="register.html">Register</a>
+      <a href="projects.html" class="active">Projects</a>
+      <a href="teams.html">Teams</a>
+      <div id="authSection"></div>
+    </nav>
+  </header>
+
+  <main>
+    <section id="projectsSection">
+      <h1>Create New Project</h1>
+      
+      <form id="projectForm">
+        <div class="form-group">
+          <label for="projectTitle">Project Title</label>
+          <input type="text" id="projectTitle" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="projectDescription">Description</label>
+          <textarea id="projectDescription" rows="4" required></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="projectSkills">Required Skills (comma separated)</label>
+          <input type="text" id="projectSkills" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="projectTimeline">Timeline</label>
+          <input type="text" id="projectTimeline" placeholder="e.g., 2 weeks, 3 months">
+        </div>
+        
+        <div class="form-group">
+          <label for="projectTeamSize">Team Size</label>
+          <input type="number" id="projectTeamSize" min="1" value="3">
+        </div>
+        
+        <button type="submit">Create Project</button>
+      </form>
+    </section>
+    
+    <section id="projectListSection">
+      <h2>Existing Projects</h2>
+      <div id="projectList">Loading projects...</div>
+    </section>
+  </main>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/dataManager.js"></script>
+  <script>
+    // Check authentication
+    document.addEventListener('DOMContentLoaded', function() {
+      updateAuthUI();
+      loadProjects();
+    });
+    
+    function updateAuthUI() {
+      const authSection = document.getElementById('authSection');
+      if (isLoggedIn()) {
+        const userData = JSON.parse(localStorage.getItem('user_data'));
+        authSection.innerHTML = `
+          <span>Hello, ${userData.login}</span>
+          <button onclick="logout()">Logout</button>
+        `;
+        document.getElementById('projectForm').style.display = 'block';
+      } else {
+        authSection.innerHTML = `<button onclick="initiateLogin()">Login with GitHub</button>`;
+        document.getElementById('projectForm').style.display = 'none';
+      }
+    }
+    
+    // Handle project creation
+    document.getElementById('projectForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      if (!isLoggedIn()) {
+        alert('Please log in with GitHub first');
+        initiateLogin();
+        return;
+      }
+      
+      const projectData = {
+        title: document.getElementById('projectTitle').value,
+        description: document.getElementById('projectDescription').value,
+        required_skills: document.getElementById('projectSkills').value.split(',').map(skill => skill.trim()),
+        timeline: document.getElementById('projectTimeline').value,
+        team_size: parseInt(document.getElementById('projectTeamSize').value)
+      };
+      
+      try {
+        await createProject(projectData);
+        alert('Project created successfully!');
+        document.getElementById('projectForm').reset();
+        loadProjects(); // Refresh the project list
+      } catch (error) {
+        alert('Error creating project: ' + error.message);
+      }
+    });
+    
+    // Load and display projects
+    async function loadProjects() {
+      const projectList = document.getElementById('projectList');
+      projectList.innerHTML = 'Loading projects...';
+      
+      try {
+        const projects = await getAllProjects();
+        
+        if (projects.length === 0) {
+          projectList.innerHTML = '<p>No projects found. Create one!</p>';
+          return;
+        }
+        
+        let html = '';
+        projects.forEach(project => {
+          html += `
+            <div class="project-card">
+              <h3>${project.title}</h3>
+              <p>${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}</p>
+              <div class="skills">
+                <strong>Required Skills:</strong>
+                ${project.required_skills.map(skill => 
+                  `<span class="skill-tag">${skill}</span>`
+                ).join('')}
+              </div>
+              <p><strong>Status:</strong> ${project.status}</p>
+              <p><strong>Team:</strong> ${project.team_members.length}/${project.team_size}</p>
+              <a href="teams.html?project=${project.id}" class="button">View & Build Team</a>
+            </div>
+          `;
+        });
+        
+        projectList.innerHTML = html;
+      } catch (error) {
+        projectList.innerHTML = `<p>Error loading projects: ${error.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
