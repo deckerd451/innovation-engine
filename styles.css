@@ -1,0 +1,69 @@
+/* styles.css - Main styling for Innovation Engine */
+
+/* Global Variables */
+:root {
+    /* Color palette */
+    --primary: #FFD700; /* Gold */
+    --primary-dark: #FFC000;
+    --secondary: #00BFFF; /* Deep Sky Blue */
+    --secondary-dark: #0099CC;
+    --background: #121212;
+    --surface: #1E1E1E;
+    --surface-light: #2D2D2D;
+    --text-primary: #FFFFFF;
+    --text-secondary: #AAAAAA;
+    --success: #00FF00;
+    --success-dark: #00CC00;
+    --warning: #FFA500;
+    --error: #FF0000;
+    --error-light: rgba(255, 0, 0, 0.1);
+    
+    /* Sizing */
+    --container-width: 1200px;
+    --border-radius: 8px;
+    --border-radius-sm: 4px;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    
+    /* Typography */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.25rem;
+    --font-size-xl: 1.5rem;
+    --font-size-xxl: 2rem;
+}
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    position: relative;
+    background-color: var(--background);
+    color: var(--text-primary);
+    font-family: Arial, sans-serif;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    margin-bottom: var(--spacing-md);
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+h1 {
+    font-size: var(--font-size-xxl);
+    color: var(--primary);
+}
+
+h2 {
+    font-size: var(
