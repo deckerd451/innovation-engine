@@ -1,0 +1,57 @@
+<form id="registrationForm">
+  <h2>Team Member Registration</h2>
+  
+  <div class="form-group">
+    <label for="fullName">Full Name</label>
+    <input type="text" id="fullName" required>
+  </div>
+  
+  <div class="form-group">
+    <label for="skills">Skills (comma separated)</label>
+    <input type="text" id="skills" placeholder="e.g., javascript, design, marketing">
+  </div>
+  
+  <div class="form-group">
+    <label for="bio">Brief Bio</label>
+    <textarea id="bio" rows="4"></textarea>
+  </div>
+  
+  <div class="form-group">
+    <label for="portfolio">Portfolio URL</label>
+    <input type="url" id="portfolio">
+  </div>
+  
+  <button type="submit">Register</button>
+</form>
+
+<script src="../js/auth.js"></script>
+<script>
+  document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!isLoggedIn()) {
+      alert('Please log in with GitHub first');
+      initiateLogin();
+      return;
+    }
+    
+    const userData = JSON.parse(localStorage.getItem('user_data'));
+    const memberData = {
+      github_username: userData.login,
+      avatar_url: userData.avatar_url,
+      full_name: document.getElementById('fullName').value,
+      skills: document.getElementById('skills').value.split(',').map(skill => skill.trim()),
+      bio: document.getElementById('bio').value,
+      portfolio: document.getElementById('portfolio').value,
+      created_at: new Date().toISOString()
+    };
+    
+    try {
+      await saveTeamMember(memberData);
+      alert('Registration successful!');
+      window.location.href = '/pages/projects.html';
+    } catch (error) {
+      alert('Error saving profile: ' + error.message);
+    }
+  });
+</script>
