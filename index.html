@@ -1,0 +1,543 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Innovation Engine - Team Builder</title>
+    <meta name="description" content="Build your perfect team by selecting required skills">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* Reset and General Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            position: relative;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            overflow-x: hidden;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .panel img {
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+            transition: transform 0.5s ease, opacity 0.5s ease;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #FFD700;
+        }
+
+        .instructions {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            max-width: 600px;
+        }
+
+        .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .team-member-card {
+            position: relative;
+            width: 150px;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .team-member-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .team-member-card img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border: 3px solid #FFD700;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .member-name {
+            margin-top: 8px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .skill-tags {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .skill-tag {
+            background-color: rgba(255, 215, 0, 0.2);
+            color: #FFD700;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+        }
+
+        .match-notification {
+            display: none;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00FF00;
+            border-radius: 8px;
+            color: #00FF00;
+        }
+
+        .match-notification a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #00FF00;
+            color: #121212;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .match-notification a:hover {
+            background-color: #00CC00;
+        }
+
+        .input-container {
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .input-container label {
+            display: block;
+            margin-bottom: 8px;
+            text-align: left;
+            color: #FFD700;
+        }
+
+        .input-container input {
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #FFD700;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border-radius: 5px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .input-container button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background-color: #FFD700;
+            color: #121212;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .input-container button:hover {
+            background-color: #FFC000;
+        }
+
+        .no-results {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: rgba(255, 0, 0, 0.1);
+            border: 1px solid #FF0000;
+            border-radius: 8px;
+            color: #FF0000;
+            display: none;
+        }
+
+        .selected-skills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+            justify-content: center;
+        }
+
+        .selected-skill {
+            background-color: rgba(255, 215, 0, 0.3);
+            color: #FFD700;
+            padding: 5px 10px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+        }
+
+        .selected-skill span {
+            margin-right: 5px;
+        }
+
+        .remove-skill {
+            cursor: pointer;
+            color: #FF6B6B;
+            margin-left: 5px;
+        }
+
+        footer {
+            padding: 20px;
+            margin-top: 40px;
+            border-top: 1px solid #333;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: #FFD700;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: #FFC000;
+        }
+
+        @media (max-width: 768px) {
+            .panel {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .instructions {
+                font-size: 1rem;
+            }
+            
+            .team-member-card {
+                width: 120px;
+            }
+            
+            .team-member-card img {
+                width: 120px;
+                height: 120px;
+            }
+        }
+
+        /* Focus states for accessibility */
+        input:focus, button:focus, a:focus {
+            outline: 2px solid #00BFFF;
+            outline-offset: 2px;
+        }
+
+        /* Skip to content link for accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #FFD700;
+            color: #121212;
+            padding: 8px;
+            z-index: 100;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <div id="main">
+        <article class="post featured">
+            <header class="major">
+                <div class="panel">
+                    <h1>INNOVATION ENGINE</h1>
+                    <p class="instructions">Input the skills you are looking for to build your ideal team. Add multiple skills separated by commas.</p>
+                    
+                    <!-- Input for skills with accessible label -->
+                    <div class="input-container">
+                        <label for="skillInput">Required Skills:</label>
+                        <input 
+                            type="text" 
+                            id="skillInput" 
+                            placeholder="E.g., javascript, design, marketing" 
+                            aria-describedby="skillHelp" 
+                            onkeydown="handleKeyPress(event)" 
+                        />
+                        <div id="skillHelp" class="sr-only">Separate multiple skills with commas</div>
+                        <button onclick="updateSkills()" aria-label="Find matching team members">Find Team Members</button>
+                    </div>
+
+                    <!-- Display for selected skills -->
+                    <div class="selected-skills" id="selectedSkillsContainer">
+                        <!-- Selected skills will be shown here -->
+                    </div>
+
+                    <!-- No results message -->
+                    <div id="noResults" class="no-results">
+                        No team members found with the selected skills. Try different skills or broader terms.
+                    </div>
+
+                    <!-- Card container for team members -->
+                    <div class="card-container" id="cardContainer" role="list" aria-label="Matching team members">
+                        <!-- Cards will be dynamically inserted here -->
+                    </div>
+
+                    <!-- Match notification -->
+                    <div id="matchNotification" class="match-notification">
+                        <p>You have found team members with matching skills! Continue adding skills or proceed to the next step.</p>
+                        <a href="next-level.html" aria-label="Proceed to team assembly">Assemble Your Team</a>
+                    </div>
+                </div>
+            </header>
+        </article>
+    </div>
+
+    <footer>
+        <div class="footer-links">
+            <a href="https://charlestonhacks.mailchimpsites.com/" aria-label="About Innovation Engine">About</a>
+<a href="mailto:hello@charlestonhacks.com" aria-label="Contact Us">Contact</a>
+
+            <a href="#" aria-label="Privacy Policy">Privacy Policy</a>
+            <a href="#" aria-label="Terms of Service">Terms</a>
+        </div>
+    </footer>
+
+    <script>
+        // Team member data with skills
+        const teamMembers = [
+            { 
+                id: 1,
+                img: "images/Descartes.png", 
+                name: "Descartes", 
+                skills: ["graphic design", "2d", "assets", "community building", "innovation"], 
+                link: "doug.html" 
+            },
+            { 
+                id: 2,
+                img: "images/Alexandor.png", 
+                name: "Alexandor", 
+                skills: ["python", "machine learning", "entrepreneurship", "leadership"], 
+                link: "dave.html" 
+            },
+            { 
+                id: 3,
+                img: "images/Medusa.png", 
+                name: "Medusa", 
+                skills: ["marketing", "leadership", "community building"], 
+                link: "aya.html" 
+            },
+            { 
+                id: 4,
+                img: "images/Elara.png", 
+                name: "Elara", 
+                skills: ["project management", "grant writing", "scrum"], 
+                link: "bradley.html" 
+            },
+            { 
+                id: 5,
+                img: "images/Aegis.png", 
+                name: "Aegis", 
+                skills: ["javascript", ".net", "css"], 
+                link: "amin.html" 
+            },
+            { 
+                id: 6,
+                img: "images/Astrid.png", 
+                name: "Astrid", 
+                skills: ["javascript", "vue", "css"], 
+                link: "astrid.html" 
+            }
+        ];
+
+        // Global variable to store the project skills
+        let projectSkills = [];
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for URL parameters that might contain skills
+            const urlParams = new URLSearchParams(window.location.search);
+            const skillParam = urlParams.get('skills');
+            
+            if (skillParam) {
+                const skillInput = document.getElementById("skillInput");
+                skillInput.value = decodeURIComponent(skillParam);
+                updateSkills();
+            }
+        });
+
+        // Get users that match the project skills with ranking
+        function getMatchingUsers(projectSkills) {
+            if (!projectSkills.length) return [];
+            
+            return teamMembers
+                .map(member => {
+                    // Count the number of matching skills
+                    const matchingSkills = member.skills.filter(skill => 
+                        projectSkills.some(projectSkill => 
+                            skill.toLowerCase().includes(projectSkill.toLowerCase()) || 
+                            projectSkill.toLowerCase().includes(skill.toLowerCase())
+                        )
+                    );
+                    
+                    return {
+                        ...member,
+                        matchCount: matchingSkills.length,
+                        matchingSkillList: matchingSkills
+                    };
+                })
+                .filter(member => member.matchCount > 0)
+                .sort((a, b) => b.matchCount - a.matchCount); // Sort by number of matches
+        }
+
+        // Sanitize input to prevent XSS
+        function sanitizeInput(input) {
+            const div = document.createElement('div');
+            div.textContent = input;
+            return div.innerHTML;
+        }
+
+        // Display matched user cards
+        function displayUserCards() {
+            const cardContainer = document.getElementById("cardContainer");
+            const noResults = document.getElementById("noResults");
+            const matchNotification = document.getElementById("matchNotification");
+            
+            cardContainer.innerHTML = ''; // Clear previous cards
+
+            const matchedUsers = getMatchingUsers(projectSkills);
+
+            if (matchedUsers.length === 0) {
+                noResults.style.display = 'block';
+                matchNotification.style.display = 'none';
+                return;
+            }
+            
+            noResults.style.display = 'none';
+            matchNotification.style.display = 'block';
+
+            matchedUsers.forEach(user => {
+                const card = document.createElement("div");
+                card.className = "team-member-card";
+                card.setAttribute("role", "listitem");
+                card.setAttribute("aria-label", `${user.name} with skills in ${user.skills.join(', ')}`);
+                
+                // Create the card content with proper sanitization
+                card.innerHTML = `
+                    <a href="${sanitizeInput(user.link)}" aria-label="View ${sanitizeInput(user.name)}'s profile">
+                        <img 
+                            src="${sanitizeInput(user.img)}" 
+                            alt="${sanitizeInput(user.name)}" 
+                            width="150" 
+                            height="150"
+                            loading="lazy"
+                        />
+                        <div class="member-name">${sanitizeInput(user.name)}</div>
+                    </a>
+                `;
+                
+                // Add skill tags
+                const skillTagsContainer = document.createElement("div");
+                skillTagsContainer.className = "skill-tags";
+                
+                // Only show matching skills, limited to 3 for space
+                user.matchingSkillList.slice(0, 3).forEach(skill => {
+                    const skillTag = document.createElement("span");
+                    skillTag.className = "skill-tag";
+                    skillTag.textContent = skill;
+                    skillTagsContainer.appendChild(skillTag);
+                });
+                
+                card.appendChild(skillTagsContainer);
+                cardContainer.appendChild(card);
+            });
+        }
+
+        // Update selected skills display
+        function updateSelectedSkillsDisplay() {
+            const container = document.getElementById("selectedSkillsContainer");
+            container.innerHTML = '';
+            
+            projectSkills.forEach(skill => {
+                const skillElement = document.createElement("div");
+                skillElement.className = "selected-skill";
+                skillElement.innerHTML = `
+                    <span>${sanitizeInput(skill)}</span>
+                    <span class="remove-skill" onclick="removeSkill('${sanitizeInput(skill)}')" aria-label="Remove ${sanitizeInput(skill)} skill">&times;</span>
+                `;
+                container.appendChild(skillElement);
+            });
+        }
+
+        // Remove a specific skill
+        function removeSkill(skillToRemove) {
+            projectSkills = projectSkills.filter(skill => skill !== skillToRemove);
+            updateSelectedSkillsDisplay();
+            displayUserCards();
+            
+            // Update the input field to reflect the current skills
+            document.getElementById("skillInput").value = projectSkills.join(', ');
+        }
+
+        // Update project skills based on user input
+        function updateSkills() {
+            const skillInput = document.getElementById("skillInput").value;
+            
+            // Skip if input is empty
+            if (!skillInput.trim()) return;
+            
+            // Parse and clean the input
+            projectSkills = skillInput
+                .split(',')
+                .map(skill => skill.trim())
+                .filter(skill => skill.length > 0);
+            
+            updateSelectedSkillsDisplay();
+            displayUserCards();
+            
+            // Clear the input field for new entries
+            document.getElementById("skillInput").value = '';
+            
+            // Update URL with current skills for sharing/bookmarking
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('skills', projectSkills.join(','));
+            history.pushState({}, '', newUrl);
+        }
+
+        // Listen for Enter key press
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                updateSkills();
+            }
+        }
+    </script>
+</body>
+</html>
