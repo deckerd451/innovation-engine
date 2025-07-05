@@ -1,0 +1,425 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Innovation Engine - Team Builder</title>
+    <meta name="description" content="Build your perfect team by selecting required skills">
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: 'Inter', Arial, sans-serif;
+            overflow-x: hidden;
+            text-align: center;
+        }
+        .panel {
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px;
+        }
+        h1 { color: #FFD700; }
+        .input-container { margin-bottom: 20px; max-width: 500px; margin-left: auto; margin-right: auto; }
+        .input-container label { color: #FFD700; }
+        .input-container input, .input-container select {
+            padding: 12px; font-size: 16px; border: 2px solid #FFD700; background-color: #2c2c2c;
+            color: #fff; border-radius: 5px; width: 100%; margin-bottom: 10px;
+        }
+        .input-container button {
+            padding: 12px 24px; font-size: 16px; background: #FFD700; color: #121212; border-radius: 5px;
+            border: none; cursor: pointer; transition: background 0.3s;
+        }
+        .input-container button:hover { background: #FFC000; }
+        .card-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin: 20px 0; }
+        .team-member-card {
+            background: #222; border-radius: 8px; padding: 12px 8px 10px; box-shadow: 0 0 10px #FFD70040;
+            width: 200px; display: flex; flex-direction: column; align-items: center; position: relative;
+        }
+        .team-member-card img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #FFD700; margin-bottom: 8px; }
+        .member-name { font-weight: bold; color: #FFD700; }
+        .badge { background: #333; border-left: 4px solid #FFD700; color: #FFD700; border-radius: 3px; padding: 2px 8px; font-size: 0.9em; margin: 6px 0; }
+        .skill-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; justify-content: center; }
+        .skill-tag { background: rgba(255,215,0,0.2); color: #FFD700; padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; }
+        .profile-bar { width: 100%; background: #333; height: 6px; border-radius: 3px; margin: 8px 0 4px 0; overflow: hidden; }
+        .profile-bar-inner { height: 100%; background: #FFD700; }
+        .endorse-btn { background: #FFD700; color: #121212; font-weight: bold; border: none; border-radius: 3px; padding: 2px 10px; cursor: pointer; font-size: 0.85em; margin: 2px 0 0 0; }
+        .endorse-btn:disabled { background: #ccc; color: #666; }
+        .endorsements { font-size: .85em; color: #FFD700; margin-left: 7px; vertical-align: middle; }
+        .user-status { font-size: .85em; color: #00FF87; margin: 4px 0; }
+        .leaderboard { margin: 20px auto; background: #222; border-radius: 8px; padding: 15px; width: 90%; max-width: 600px; box-shadow: 0 0 10px #FFD70040;}
+        .leaderboard h2 { color: #FFD700; font-size: 1.3em; margin-bottom: 12px;}
+        .leaderboard-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+        .leaderboard-rank { font-weight: bold; color: #FFD700; width: 24px; }
+        .leaderboard-name { flex: 1; text-align: left; }
+        .leaderboard-skill { color: #FFD700; }
+        .profile-complete { color: #00FF87; font-size: .93em; margin-top: 6px; }
+        .profile-incomplete { color: #FF6B6B; font-size: .93em; margin-top: 6px; }
+        .profile-section { margin: 15px 0; }
+        .proficiency-select { width: 100px; margin-bottom: 10px; }
+        @media (max-width: 800px) {
+            .card-container, .leaderboard { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+<div id="main">
+    <article class="post featured">
+        <header class="major">
+            <div class="panel">
+                <!-- Profile Creation -->
+                <section id="matchmaking-section">
+                    <h1>Create Your Profile</h1>
+                    <form id="skills-form">
+                        <div class="input-container">
+                            <input type="text" id="first-name" placeholder="First Name" required>
+                            <input type="text" id="last-name" placeholder="Last Name" required>
+                            <input type="email" name="_replyto" id="email" placeholder="Email" required>
+                            <label style="color:#FFD700;">Professional Skills (comma separated)</label>
+                            <input type="text" id="skills-input" placeholder="e.g. aws, fullstack, java, python" required autocomplete="off">
+                            <div id="skills-proficiency-container"></div>
+                            <div id="autocomplete-skills-input" style="position:absolute; z-index:1000; background:#fff; color:#000; border:1px solid #ccc; display:none;"></div>
+                            <label style="color:#FFD700;">Upload Your Photo</label>
+                            <input type="file" id="photo-input" accept="image/*" required>
+                            <img id="preview" src="#" alt="Image Preview" style="display: none; max-width: 120px; margin-top: 10px; border-radius: 5px; border: 2px solid #FFD700;" />
+                            <label style="color:#FFD700;">Short Bio <span style="color:#888">(Optional)</span></label>
+                            <input type="text" id="bio-input" placeholder="Tell us about yourself" maxlength="120">
+                            <label style="color:#FFD700;">Current Availability</label>
+                            <select id="availability-input">
+                                <option value="Available">Available</option>
+                                <option value="Busy">Busy</option>
+                                <option value="Not Looking">Not Looking</option>
+                            </select>
+                            <button type="submit">Register & Subscribe</button>
+                        </div>
+                        <div class="profile-bar" id="profile-bar"><div class="profile-bar-inner" style="width:0%"></div></div>
+                        <div id="profile-progress-msg" class="profile-incomplete"></div>
+                    </form>
+                    <p id="success-message" style="display:none; color: green;">Added Successfully!</p>
+                </section>
+
+                <!-- Leaderboard Section -->
+                <div class="leaderboard" id="leaderboard-section" style="display:none;">
+                    <h2>Top Endorsed Skills</h2>
+                    <div id="leaderboard-rows"></div>
+                </div>
+
+                <!-- Individual Search -->
+                <h1>Individual Search</h1>
+                <div class="input-container">
+                    <label style="font-size: 16px; color: #FFD700;">Required Skills</label>
+                    <input type="text" id="teamSkillsInput" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
+                    <div id="autocomplete-team-skills" style="position:absolute; z-index:1000; background:#fff; color:#000; border:1px solid #ccc; display:none;"></div>
+                    <button id="find-team-btn" type="button">Get People</button>
+                    <label style="font-size: 16px; color: #FFD700;">Search by First/Last Name</label>
+                    <input type="text" id="nameInput" placeholder="e.g. John, Doug, Will, Dave" autocomplete="off">
+                    <button id="search-name-btn" type="button">Find by Name</button>
+                </div>
+                <div id="matchNotification" style="margin-bottom: 6px; color: gold; display: none;"></div>
+                <div id="noResults" style="margin-bottom: 6px; color: red; display: none;"></div>
+                <div id="cardContainer" class="card-container" role="list" aria-label="Matching team members"></div>
+
+                <!-- Team Builder -->
+                <h1 style="margin-top: 10px;">Team Builder</h1>
+                <div class="input-container">
+                    <p class="instructions" style="max-width: 400px; margin-bottom: 10px;">
+                        Let’s build your team. Enter required skills and number of people needed.
+                    </p>
+                    <label style="font-size: 16px;">Required Skills</label>
+                    <input type="text" id="team-skills-input" placeholder="e.g. aws, fullstack, java, python" autocomplete="off"/>
+                    <div id="autocomplete-teams-skills" style="position:absolute; z-index:1000; background:#fff; color:#000; border:1px solid #ccc; display:none;"></div>
+                    <label style="font-size: 16px;">Team Size</label>
+                    <input type="number" id="teamSize" placeholder="e.g. 3" min="1" max="6"/>
+                    <button onclick="buildBestTeam()">Build Team</button>
+                </div>
+                <div class="card-container" id="bestTeamContainer" role="list" aria-label="Best matched team"></div>
+            </div>
+        </header>
+    </article>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const supabaseUrl = 'https://hvmotpzhliufzomewzfl.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s';
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+// ---------------------- PROFILE BAR/COMPLETION ----------------------
+function updateProfileProgress() {
+    const fields = [
+        document.getElementById("first-name").value.trim(),
+        document.getElementById("last-name").value.trim(),
+        document.getElementById("email").value.trim(),
+        document.getElementById("skills-input").value.trim(),
+        document.getElementById("photo-input").value,
+        document.getElementById("availability-input").value,
+    ];
+    let filled = fields.filter(Boolean).length;
+    let percent = Math.floor((filled / fields.length) * 100);
+    document.querySelector("#profile-bar .profile-bar-inner").style.width = percent + "%";
+    let msg = percent == 100 ? "Profile Complete!" : "Profile incomplete, fill all fields";
+    document.getElementById("profile-progress-msg").textContent = msg;
+    document.getElementById("profile-progress-msg").className = percent == 100 ? "profile-complete" : "profile-incomplete";
+}
+document.querySelectorAll("#skills-form input, #skills-form select").forEach(el => el.addEventListener("input", updateProfileProgress));
+
+// ---------------------- SKILL PROFICIENCY LOGIC ----------------------
+const skillProficiencies = {};
+document.getElementById("skills-input").addEventListener('input', function() {
+    const skills = this.value.split(',').map(s => s.trim()).filter(Boolean);
+    const container = document.getElementById('skills-proficiency-container');
+    container.innerHTML = '';
+    skills.forEach(skill => {
+        if (!skill) return;
+        if (!(skill in skillProficiencies)) skillProficiencies[skill] = "Intermediate";
+        container.innerHTML += `
+          <div style="margin-bottom: 7px;">
+            <span style="color:#FFD700;">${skill}</span>
+            <select class="proficiency-select" data-skill="${skill}">
+              <option value="Beginner" ${skillProficiencies[skill]=="Beginner"?"selected":""}>Beginner</option>
+              <option value="Intermediate" ${skillProficiencies[skill]=="Intermediate"?"selected":""}>Intermediate</option>
+              <option value="Expert" ${skillProficiencies[skill]=="Expert"?"selected":""}>Expert</option>
+            </select>
+          </div>
+        `;
+    });
+    // Update model on change
+    document.querySelectorAll('.proficiency-select').forEach(sel => {
+        sel.addEventListener('change', function() { skillProficiencies[this.dataset.skill] = this.value; });
+    });
+});
+
+// ------------------ IMAGE PREVIEW -------------------
+document.getElementById('photo-input').addEventListener('change', function(){
+    const file = this.files[0];
+    const preview = document.getElementById('preview');
+    if(file){
+        const reader = new FileReader();
+        reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+        reader.readAsDataURL(file);
+    }
+});
+
+// ----------------- AUTOCOMPLETE (skills) -------------
+let dynamicSkills = [];
+async function fetchUniqueSkills() {
+    try {
+        const { data, error } = await supabaseClient.from('skills').select('skills');
+        if (error) throw error;
+        dynamicSkills = [...new Set(data.flatMap(item => item.skills.split(',').map(skill => skill.trim().toLowerCase())))];
+    } catch (error) { dynamicSkills = []; }
+}
+function setupAutocomplete(inputId, boxId) {
+    const input = document.getElementById(inputId);
+    const box = document.getElementById(boxId);
+    input.addEventListener('input', () => {
+        const userInput = input.value.toLowerCase().trim().split(',').pop().trim();
+        box.innerHTML = ''; if (!userInput || !dynamicSkills.length) { box.style.display = 'none'; return; }
+        const matches = dynamicSkills.filter(skill => skill.includes(userInput)).slice(0, 10);
+        if (!matches.length) { box.style.display = 'none'; return; }
+        matches.forEach(skill => {
+            const item = document.createElement('div');
+            item.textContent = skill; item.style.padding = '5px'; item.style.cursor = 'pointer';
+            item.onclick = () => {
+                const parts = input.value.split(','); parts.pop(); parts.push(skill);
+                input.value = parts.map(p => p.trim()).join(', ');
+                box.innerHTML = ''; box.style.display = 'none';
+                input.dispatchEvent(new Event("input"));
+            };
+            box.appendChild(item);
+        });
+        const rect = input.getBoundingClientRect();
+        box.style.left = `${rect.left + window.scrollX}px`;
+        box.style.top = `${rect.bottom + window.scrollY}px`;
+        box.style.width = `${rect.width}px`;
+        box.style.display = 'block';
+    });
+    document.addEventListener('click', (e) => { if (!box.contains(e.target) && e.target !== input) box.style.display = 'none'; });
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    await fetchUniqueSkills();
+    setupAutocomplete('skills-input','autocomplete-skills-input');
+    setupAutocomplete('teamSkillsInput','autocomplete-team-skills');
+    setupAutocomplete('team-skills-input','autocomplete-teams-skills');
+    loadLeaderboard();
+});
+
+// ------------------ PROFILE SUBMIT ---------------------
+document.getElementById('skills-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const firstName = document.getElementById('first-name').value.trim();
+    const lastName = document.getElementById('last-name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const rawSkills = document.getElementById('skills-input').value.trim().replace(/,\s*$/, '');
+    const skillsArr = rawSkills.split(',').map(s => s.trim()).filter(Boolean);
+    const profs = skillsArr.map(skill => skillProficiencies[skill] || "Intermediate");
+    const skillsWithProfs = skillsArr.map((skill,i) => `${skill}(${profs[i]})`).join(',');
+    const bio = document.getElementById('bio-input').value.trim();
+    const avail = document.getElementById('availability-input').value;
+    const photoInput = document.getElementById('photo-input').files[0];
+    if (!photoInput) { alert('Please select an image.'); return; }
+    const fileExt = photoInput.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabaseClient.storage.from('hacksbucket').upload(fileName, photoInput);
+    if (uploadError) { alert('Upload error: ' + uploadError.message); return; }
+    const imageUrl = `${supabaseUrl}/storage/v1/object/public/hacksbucket/${fileName}`;
+    const { error } = await supabaseClient.from('skills').insert({
+        first_name: firstName, last_name: lastName, email: email, skills: skillsWithProfs,
+        image_url: imageUrl, bio: bio, availability: avail, endorsements: "{}", created_at: new Date().toISOString()
+    });
+    if (error) { alert('Error inserting data: ' + error.message); } 
+    else { alert('Registration successful!'); document.getElementById('skills-form').reset();
+        document.getElementById("profile-bar").querySelector(".profile-bar-inner").style.width = "0%";
+        document.getElementById("profile-progress-msg").textContent = "";
+        fetchUniqueSkills();
+        loadLeaderboard();
+    }
+});
+
+// ----------- INDIVIDUAL SEARCH -------------
+document.getElementById('find-team-btn').addEventListener('click', findMatchingUsers);
+async function findMatchingUsers() {
+    const skillsInput = document.getElementById('teamSkillsInput').value.trim();
+    const cardContainer = document.getElementById('cardContainer');
+    cardContainer.innerHTML = '';
+    if (!skillsInput) { alert('Please enter at least one skill.'); return; }
+    const requiredSkills = skillsInput.toLowerCase().split(',').map(skill => skill.trim());
+    const { data, error } = await supabaseClient.from('skills').select('*');
+    if (error) { cardContainer.innerHTML = '<span style="color:red;">Error fetching data.</span>'; return; }
+    function isFuzzyMatch(userSkill, requiredSkill) {
+        userSkill = userSkill.toLowerCase(); requiredSkill = requiredSkill.toLowerCase();
+        return userSkill.includes(requiredSkill) || requiredSkill.includes(userSkill) || userSkill === requiredSkill;
+    }
+    const matchedUsers = data.filter(user => {
+        const userSkillsRaw = user.skills.split(',').map(s => s.trim());
+        return requiredSkills.every(skill =>
+            userSkillsRaw.some(us => isFuzzyMatch(us.replace(/\(.*?\)/,''), skill))
+        );
+    });
+    renderUserCards(matchedUsers, cardContainer);
+}
+
+// ----------- SEARCH BY NAME -------------
+document.getElementById('search-name-btn').addEventListener('click', searchUserByName);
+async function searchUserByName() {
+    const nameInput = document.getElementById('nameInput').value.trim().toLowerCase();
+    const cardContainer = document.getElementById('cardContainer');
+    cardContainer.innerHTML = '';
+    if (!nameInput) { alert('Please enter a name.'); return; }
+    const { data, error } = await supabaseClient.from('skills').select('*');
+    if (error) { cardContainer.innerHTML = '<span style="color:red;">Error fetching data.</span>'; return; }
+    const matchedUsers = data.filter(user => {
+        const fullName = `${user.first_name} ${user.last_name}`.toLowerCase();
+        return fullName.includes(nameInput) || user.first_name.toLowerCase().includes(nameInput) || user.last_name.toLowerCase().includes(nameInput);
+    });
+    renderUserCards(matchedUsers, cardContainer);
+}
+
+// ----------- TEAM BUILDER -------------
+window.buildBestTeam = async function() {
+    const skillInputRaw = document.getElementById('team-skills-input').value;
+    const teamSize = parseInt(document.getElementById('teamSize').value, 10);
+    const container = document.getElementById('bestTeamContainer');
+    container.innerHTML = '';
+    const skillInput = skillInputRaw.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+    if (!skillInput.length || isNaN(teamSize) || teamSize < 1) { alert('Enter skills & team size.'); return; }
+    const { data: users, error } = await supabaseClient.from('skills').select('*');
+    if (error || !users) { container.innerHTML = '<span style="color:white;">Error loading users.</span>'; return; }
+    // Score by how many required skills are matched
+    const scored = users
+        .map(user => {
+            const userSkillsRaw = user.skills.split(',').map(s => s.trim());
+            const matchingSkills = skillInput.filter(skill =>
+                userSkillsRaw.some(us => us.replace(/\(.*?\)/,'').toLowerCase().includes(skill))
+            );
+            return matchingSkills.length ? {...user, matchingSkills, matchCount: matchingSkills.length} : null;
+        })
+        .filter(Boolean)
+        .sort((a,b) => b.matchCount-a.matchCount)
+        .slice(0, teamSize);
+    renderUserCards(scored, container);
+};
+
+// ----------- USER CARD RENDERING, ENDORSEMENTS, BADGES, STATUS -------------
+async function renderUserCards(users, container) {
+    if (!users.length) { container.innerHTML = '<span style="color:#FF6B6B;">No matching users found.</span>'; return; }
+    // For demo: LocalStorage for userId, and endorsements
+    let myEmail = localStorage.getItem("demo_user_email") || prompt("Enter your email for endorsements:");
+    localStorage.setItem("demo_user_email", myEmail);
+    for (let user of users) {
+        // Skill badges
+        let skillBadges = user.skills.split(',').map(skill => {
+            const match = skill.match(/(.*?)\((.*?)\)/);
+            let label = match ? match[1] : skill, prof = match ? match[2] : "Intermediate";
+            return `<span class="skill-tag">${label} <span style="font-size:0.8em;opacity:.7;">[${prof}]</span></span>`;
+        }).join(' ');
+        // Endorsements
+        let endorsements = {};
+        try { endorsements = user.endorsements ? JSON.parse(user.endorsements) : {}; } catch {}
+        container.innerHTML += `
+            <div class="team-member-card">
+                ${user.image_url ? `<img src="${user.image_url}" alt="${user.first_name}" />` : ''}
+                <div class="member-name">${user.first_name} ${user.last_name}</div>
+                ${user.bio ? `<div style="color:#FFD700;font-size:.96em;margin:3px 0;">${user.bio}</div>` : ''}
+                <div class="user-status">Status: ${user.availability || 'Available'}</div>
+                <div class="profile-section">${skillBadges}</div>
+                <div class="profile-section">
+                    ${Object.keys(endorsements).length ? Object.entries(endorsements).map(([skill, count]) =>
+                        `<span style="color:#FFD700;">${skill}: <span class="endorsements">${count} <i class="fa fa-thumbs-up"></i></span></span>`
+                    ).join(' | ') : '<span style="color:#888;">No endorsements yet</span>'}
+                </div>
+                <button class="endorse-btn" ${user.email===myEmail?'disabled':''}
+                    onclick="endorseSkill('${user.email}')">+ Endorse</button>
+            </div>
+        `;
+    }
+}
+// ----------- ENDORSE FUNCTION -------------
+window.endorseSkill = async function(email) {
+    let myEmail = localStorage.getItem("demo_user_email");
+    if (!myEmail) return alert("Enter your email above and reload.");
+    // For demo, fetch user, increment first skill endorsement
+    const { data, error } = await supabaseClient.from('skills').select('*').eq('email',email);
+    if (error || !data || !data.length) return alert("User not found");
+    let user = data[0];
+    let endorsements = {};
+    try { endorsements = user.endorsements ? JSON.parse(user.endorsements) : {}; } catch {}
+    let skill = user.skills.split(',')[0].replace(/\(.*?\)/,'');
+    endorsements[skill] = (endorsements[skill]||0)+1;
+    await supabaseClient.from('skills').update({endorsements: JSON.stringify(endorsements)}).eq('email',email);
+    alert("Endorsed! Refresh to see update.");
+    loadLeaderboard();
+};
+
+// ----------- LEADERBOARD -------------
+async function loadLeaderboard() {
+    const { data, error } = await supabaseClient.from('skills').select('*');
+    if (error || !data) { document.getElementById('leaderboard-section').style.display='none'; return; }
+    // Aggregate all endorsements across skills/users
+    let aggregate = {};
+    for (let user of data) {
+        let end = {};
+        try { end = user.endorsements ? JSON.parse(user.endorsements) : {}; } catch {}
+        for (let [skill, count] of Object.entries(end)) {
+            aggregate[skill] = (aggregate[skill]||0) + count;
+        }
+    }
+    // Top 5
+    let top = Object.entries(aggregate).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const rows = top.length ? top.map(([skill,count],i)=>`
+        <div class="leaderboard-row">
+            <span class="leaderboard-rank">#${i+1}</span>
+            <span class="leaderboard-name">${skill}</span>
+            <span class="leaderboard-skill">${count} <i class="fa fa-thumbs-up"></i></span>
+        </div>
+    `).join('') : '<div>No endorsements yet.</div>';
+    document.getElementById('leaderboard-section').style.display = top.length?'block':'none';
+    document.getElementById('leaderboard-rows').innerHTML = rows;
+}
+</script>
+</body>
+</html>
