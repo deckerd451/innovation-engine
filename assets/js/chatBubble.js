@@ -1,10 +1,11 @@
-// ===============================================
-// CharlestonHacks Chat Bubble (Stable + Self-Hosted Final)
-// ===============================================
-// ✅ Combines the stability of self-hosted loading
-// ✅ Keeps full working Medusa detection + drag logic
-// ✅ Adds queued click, telemetry off, and fade transitions
-// ===============================================
+// ================================================================
+// CharlestonHacks Chat Bubble (Self-Hosted Final with Pulse & Drag)
+// ================================================================
+// ✅ Always visible with smooth fade-in
+// ✅ Pulses when Medusa element is visible
+// ✅ Self-hosted WidgetBot crate loader (no telemetry)
+// ✅ Responsive drag-and-drop with screen-edge snapping
+// ================================================================
 
 export function setupChatBubble() {
   // ----- 🧹 Cleanup stray duplicates -----
@@ -12,11 +13,10 @@ export function setupChatBubble() {
     if (i > 0) b.remove();
   });
 
-  // ----- 🛑 Stop if already initialized -----
   if (window.CH_BUBBLE_INITIALIZED && document.getElementById('discord-bubble')) return;
   window.CH_BUBBLE_INITIALIZED = true;
 
-  // ----- 🎨 Inject global styles -----
+  // ----- 🎨 Global Styles -----
   if (!document.getElementById('chat-bubble-style')) {
     const style = document.createElement('style');
     style.id = 'chat-bubble-style';
@@ -50,12 +50,23 @@ export function setupChatBubble() {
 
       #discord-bubble:hover {
         transform: scale(1.12);
-        box-shadow: 0 0 30px rgba(114, 137, 218, 0.9);
+        box-shadow: 0 0 30px rgba(114,137,218,0.9);
       }
 
       #discord-bubble.dragging {
         opacity: 0.8;
         cursor: grabbing;
+      }
+
+      /* 🔆 Pulse Animation when Medusa visible */
+      #discord-bubble.pulsing {
+        animation: bubblePulse 1.8s ease-in-out infinite;
+        box-shadow: 0 0 35px rgba(114,137,218,1), 0 0 10px rgba(255,255,255,0.6);
+      }
+
+      @keyframes bubblePulse {
+        0%,100% { transform: scale(1); box-shadow: 0 0 20px rgba(114,137,218,0.6); }
+        50% { transform: scale(1.1); box-shadow: 0 0 40px rgba(114,137,218,0.95); }
       }
 
       @media (max-width: 600px) {
@@ -67,7 +78,7 @@ export function setupChatBubble() {
         }
       }
 
-      /* WidgetBot iframe handling */
+      /* WidgetBot iframe fade-in */
       iframe[src*="widgetbot.io"] {
         pointer-events: none !important;
         opacity: 0 !important;
@@ -81,7 +92,7 @@ export function setupChatBubble() {
     document.head.appendChild(style);
   }
 
-  // ----- 💠 Create bubble -----
+  // ----- 💠 Create Bubble -----
   const discordBubble = document.createElement('div');
   discordBubble.id = 'discord-bubble';
   discordBubble.innerHTML = `
@@ -90,7 +101,7 @@ export function setupChatBubble() {
     </svg>
   `;
 
-  // ----- 📍 Restore saved position -----
+  // ----- 📍 Restore Saved Position -----
   const savedPos = JSON.parse(localStorage.getItem('discordBubblePos'));
   if (savedPos?.left && savedPos?.top) {
     discordBubble.style.left = savedPos.left;
@@ -98,34 +109,50 @@ export function setupChatBubble() {
     discordBubble.style.transform = 'none';
   }
   document.body.appendChild(discordBubble);
+  requestAnimationFrame(() => discordBubble.classList.add('visible'));
 
-  // ----- 🖱️ Drag + Drop -----
+  // ----- 🖱️ Responsive Drag & Drop -----
   let dragging = false, offsetX = 0, offsetY = 0;
+
   const startDrag = (e) => {
     dragging = true;
     discordBubble.classList.add('dragging');
     const rect = discordBubble.getBoundingClientRect();
-    offsetX = (e.clientX || e.touches[0].clientX) - rect.left;
-    offsetY = (e.clientY || e.touches[0].clientY) - rect.top;
+    const evt = e.touches ? e.touches[0] : e;
+    offsetX = evt.clientX - rect.left;
+    offsetY = evt.clientY - rect.top;
   };
+
   const drag = (e) => {
     if (!dragging) return;
     e.preventDefault();
-    const x = e.clientX || e.touches[0].clientX;
-    const y = e.clientY || e.touches[0].clientY;
-    discordBubble.style.left = `${x - offsetX}px`;
-    discordBubble.style.top = `${y - offsetY}px`;
+    const evt = e.touches ? e.touches[0] : e;
+    const x = evt.clientX - offsetX;
+    const y = evt.clientY - offsetY;
+    const maxX = window.innerWidth - discordBubble.offsetWidth;
+    const maxY = window.innerHeight - discordBubble.offsetHeight;
+    // Clamp position within viewport
+    const left = Math.min(Math.max(0, x), maxX);
+    const top = Math.min(Math.max(0, y), maxY);
+    discordBubble.style.left = `${left}px`;
+    discordBubble.style.top = `${top}px`;
     discordBubble.style.transform = 'none';
   };
+
   const endDrag = () => {
     if (!dragging) return;
     dragging = false;
     discordBubble.classList.remove('dragging');
+    // Snap to edge (left/right)
+    const rect = discordBubble.getBoundingClientRect();
+    const snapLeft = rect.left < window.innerWidth / 2 ? 16 : window.innerWidth - rect.width - 16;
+    discordBubble.style.left = `${snapLeft}px`;
     localStorage.setItem('discordBubblePos', JSON.stringify({
       left: discordBubble.style.left,
       top: discordBubble.style.top
     }));
   };
+
   discordBubble.addEventListener('mousedown', startDrag);
   discordBubble.addEventListener('touchstart', startDrag, { passive: true });
   window.addEventListener('mousemove', drag);
@@ -144,39 +171,42 @@ export function setupChatBubble() {
     }
   });
 
-  // ----- 👁️ Reveal When Medusa Appears -----
+  // ----- 👁️ Pulse When Medusa Appears -----
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach(entry => {
-        if (entry.isIntersecting) discordBubble.classList.add('visible');
-        else discordBubble.classList.remove('visible');
+        if (entry.isIntersecting) {
+          discordBubble.classList.add('pulsing');
+        } else {
+          setTimeout(() => discordBubble.classList.remove('pulsing'), 1000);
+        }
       });
     },
     { threshold: 0.4 }
   );
 
   const medusaImage = document.querySelector(
-    'img[src*="Medusa.png"], img[src*="medusa"], #medusa, .medusa-card'
+    'img[src*="Medusa"], #medusa, .medusa-card'
   );
   if (medusaImage) {
     observer.observe(medusaImage);
-    console.log('👁️ Chat bubble visibility now linked to Medusa card.');
+    console.log('👁️ Chat bubble glow linked to Medusa card.');
   } else {
-    console.warn('⚠️ Medusa card not found — bubble stays hidden by default.');
+    console.warn('⚠️ Medusa card not found — bubble will remain steady.');
   }
 
   // ----- 🕐 Self-Hosted WidgetBot Loader -----
   window.addEventListener('load', () => {
     window.WidgetBot = { disableTelemetry: true };
     const script = document.createElement('script');
-    script.src = 'assets/js/widgetbot-crate.js'; // local version
+    script.src = 'assets/js/widgetbot-crate.js';
     script.async = true;
     script.defer = true;
 
     script.onload = () => {
       if (!window.CrateInstance && window.Crate) {
         window.CrateInstance = new window.Crate({
-          server: '1365587542975713320',
+          server: '1365587542975713320', // CharlestonHacks
           channel: '1365587543696867384'
         });
         console.log('🟢 WidgetBot initialized successfully (self-hosted).');
