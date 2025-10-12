@@ -1,11 +1,11 @@
 // ===============================================
-// CharlestonHacks Chat Bubble (Resilient Final Build)
+// CharlestonHacks Chat Bubble (Self-Hosted Final Build)
 // ===============================================
-// - Auto-fallback between jsDelivr and unpkg
+// - Loads WidgetBot crate locally (no CDN issues)
 // - Telemetry disabled (no CORS spam)
 // - Queues clicks until WidgetBot ready
 // - Keeps Medusa visibility + drag persistence
-// - Never breaks page even if WidgetBot offline
+// - Never breaks if offline or WidgetBot fails
 // ===============================================
 
 export function setupChatBubble() {
@@ -17,7 +17,7 @@ export function setupChatBubble() {
   if (window.CH_BUBBLE_INITIALIZED && document.getElementById('discord-bubble')) return;
   window.CH_BUBBLE_INITIALIZED = true;
 
-  // 🎨 Style
+  // 🎨 Inject style
   if (!document.getElementById('chat-bubble-style')) {
     const style = document.createElement('style');
     style.id = 'chat-bubble-style';
@@ -76,7 +76,7 @@ export function setupChatBubble() {
     document.head.appendChild(style);
   }
 
-  // 💬 Bubble DOM
+  // 💬 Create and inject bubble
   const discordBubble = document.createElement('div');
   discordBubble.id = 'discord-bubble';
   discordBubble.innerHTML = `
@@ -84,6 +84,7 @@ export function setupChatBubble() {
       <path d="M12 3C7.03 3 2.73 6.11 1 10.5c1.73 4.39 6.03 7.5 11 7.5s9.27-3.11 11-7.5C21.27 6.11 16.97 3 12 3zm0 12c-2.48 0-4.5-1.79-4.5-4s2.02-4 4.5-4 4.5 1.79 4.5 4-2.02 4-4.5 4z"/>
     </svg>
   `;
+  document.body.appendChild(discordBubble);
 
   // 📍 Restore saved position
   const savedPos = JSON.parse(localStorage.getItem('discordBubblePos'));
@@ -92,9 +93,8 @@ export function setupChatBubble() {
     discordBubble.style.top = savedPos.top;
     discordBubble.style.transform = 'none';
   }
-  document.body.appendChild(discordBubble);
 
-  // 🖱️ Drag logic
+  // 🖱️ Drag & drop
   let dragging = false, offsetX = 0, offsetY = 0;
   const startDrag = (e) => {
     dragging = true;
@@ -128,7 +128,7 @@ export function setupChatBubble() {
   window.addEventListener('mouseup', endDrag);
   window.addEventListener('touchend', endDrag);
 
-  // 👁️ Reveal with Medusa
+  // 👁️ Auto-reveal when Medusa visible
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach(entry => {
@@ -144,7 +144,7 @@ export function setupChatBubble() {
     console.log('👁️ Chat bubble visibility linked to Medusa card.');
   }
 
-  // ⚡ Click toggle logic
+  // ⚡ Click toggle
   let pendingToggle = false;
   discordBubble.addEventListener('click', () => {
     if (window.CrateInstance) {
@@ -155,56 +155,40 @@ export function setupChatBubble() {
     }
   });
 
-  // 🕐 Lazy-load + fallback WidgetBot loader
+  // 🕐 Load WidgetBot from local file (self-hosted)
   window.addEventListener('load', () => {
     window.WidgetBot = { disableTelemetry: true };
+    const script = document.createElement('script');
+    script.src = 'assets/js/widgetbot-crate.js'; // 👈 self-hosted copy
+    script.async = true;
+    script.defer = true;
 
-    const loadWidgetBot = (src) => {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.defer = true;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.body.appendChild(script);
-      });
-    };
-
-    const initCrate = () => {
-      if (window.Crate && !window.CrateInstance) {
+    script.onload = () => {
+      if (!window.CrateInstance && window.Crate) {
         window.CrateInstance = new window.Crate({
-          server: '1365587542975713320',
-          channel: '1365587543696867384'
+          server: '1365587542975713320', // CharlestonHacks server
+          channel: '1365587543696867384' // Target channel
         });
-        console.log('🟢 WidgetBot initialized successfully (telemetry off).');
+        console.log('🟢 WidgetBot initialized successfully (self-hosted).');
         if (pendingToggle) {
           window.CrateInstance.toggle();
           pendingToggle = false;
         }
-      } else if (!window.Crate) {
-        console.error('❌ WidgetBot script loaded but Crate not found.');
+      } else {
+        console.error('❌ WidgetBot loaded but Crate not found.');
       }
     };
 
-    // Try jsDelivr first, then fallback to unpkg
-    loadWidgetBot('https://cdn.jsdelivr.net/npm/@widgetbot/crate@3')
-      .then(() => setTimeout(initCrate, 600))
-      .catch(() => {
-        console.warn('⚠️ jsDelivr failed — using unpkg mirror.');
-        loadWidgetBot('https://unpkg.com/@widgetbot/crate@3')
-          .then(() => setTimeout(initCrate, 600))
-          .catch(() => {
-            console.error('❌ Both WidgetBot CDNs failed to load.');
-            const msg = document.createElement('div');
-            msg.textContent = 'Chat temporarily unavailable.';
-            msg.style.cssText = `
-              position:fixed;bottom:100px;right:24px;
-              color:#aaa;font-size:13px;z-index:9999;
-            `;
-            document.body.appendChild(msg);
-          });
-      });
+    script.onerror = () => {
+      console.error('❌ Failed to load local WidgetBot crate script.');
+      const msg = document.createElement('div');
+      msg.textContent = 'Chat temporarily unavailable.';
+      msg.style.cssText =
+        'position:fixed;bottom:100px;right:24px;color:#aaa;font-size:13px;z-index:9999;';
+      document.body.appendChild(msg);
+    };
+
+    document.body.appendChild(script);
   });
 
   console.log('✨ CharlestonHacks Chat Bubble active.');
