@@ -1,18 +1,25 @@
 // ===============================================
 // CharlestonHacks Chat Bubble
 // ===============================================
-// - Prevents duplicate bubbles across imports
-// - Adds elegant Charleston Night Mode styling
-// - Stores bubble position in localStorage
+// - Prevents duplicate bubbles across imports or reloads
+// - Adds Charleston Night Mode styling
+// - Stores drag position persistently via localStorage
 // - Handles drag + click toggle for WidgetBot
+// - Ensures only one CrateInstance and one DOM bubble exist
+// - Auto-shows when Medusa card becomes visible
 // ===============================================
 
 export function setupChatBubble() {
-  // ----- Prevent duplicate initialization -----
+  // ----- 🧹 Cleanup stray duplicates before anything -----
+  document.querySelectorAll('#discord-bubble').forEach((b, i) => {
+    if (i > 0) b.remove(); // remove extra copies if any
+  });
+
+  // ----- 🛑 Stop if already initialized -----
   if (window.CH_BUBBLE_INITIALIZED && document.getElementById('discord-bubble')) return;
   window.CH_BUBBLE_INITIALIZED = true;
 
-  // ----- Create and inject global style block -----
+  // ----- 🎨 Inject global bubble + WidgetBot styling -----
   if (!document.getElementById('chat-bubble-style')) {
     const style = document.createElement('style');
     style.id = 'chat-bubble-style';
@@ -33,8 +40,15 @@ export function setupChatBubble() {
         font-size: 28px;
         cursor: grab;
         user-select: none;
-        transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.3s ease;
+        transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.4s ease;
         z-index: 9999;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #discord-bubble.visible {
+        opacity: 1;
+        pointer-events: auto;
       }
 
       #discord-bubble:hover {
@@ -47,12 +61,6 @@ export function setupChatBubble() {
         cursor: grabbing;
       }
 
-      #discord-bubble.hidden {
-        opacity: 0;
-        pointer-events: none;
-        transform: scale(0.9);
-      }
-
       @media (max-width: 600px) {
         #discord-bubble {
           width: 50px;
@@ -62,6 +70,7 @@ export function setupChatBubble() {
         }
       }
 
+      /* WidgetBot iframe handling */
       iframe[src*="widgetbot.io"] {
         pointer-events: none !important;
         opacity: 0 !important;
@@ -74,7 +83,7 @@ export function setupChatBubble() {
     document.head.appendChild(style);
   }
 
-  // ----- Load WidgetBot Crate if not already loaded -----
+  // ----- 💬 Load WidgetBot Crate if not already loaded -----
   if (!window.Crate && !document.getElementById('widgetbot-crate')) {
     const crateScript = document.createElement('script');
     crateScript.id = 'widgetbot-crate';
@@ -82,15 +91,22 @@ export function setupChatBubble() {
     crateScript.async = true;
     crateScript.defer = true;
     crateScript.onload = () => {
-      window.CrateInstance = new window.Crate({
-        server: '1365587542975713320', // CharlestonHacks server ID
-        channel: '1365587543696867384' // Channel ID
-      });
+      if (!window.CrateInstance) {
+        window.CrateInstance = new window.Crate({
+          server: '1365587542975713320', // CharlestonHacks server ID
+          channel: '1365587543696867384' // Channel ID
+        });
+        console.log('🟢 WidgetBot initialized successfully.');
+      } else {
+        console.log('🟢 WidgetBot instance already active — skipped re-init.');
+      }
     };
     document.body.appendChild(crateScript);
+  } else {
+    console.log('🟢 WidgetBot already loaded — skipping crate script injection.');
   }
 
-  // ----- Create the bubble element -----
+  // ----- 💠 Create and inject the bubble -----
   const discordBubble = document.createElement('div');
   discordBubble.id = 'discord-bubble';
   discordBubble.innerHTML = `
@@ -99,7 +115,7 @@ export function setupChatBubble() {
     </svg>
   `;
 
-  // ----- Restore saved position if it exists -----
+  // ----- 📍 Restore saved position (if any) -----
   const savedPos = JSON.parse(localStorage.getItem('discordBubblePos'));
   if (savedPos && savedPos.left && savedPos.top) {
     discordBubble.style.left = savedPos.left;
@@ -109,7 +125,7 @@ export function setupChatBubble() {
 
   document.body.appendChild(discordBubble);
 
-  // ----- Drag-and-drop logic -----
+  // ----- 🖱️ Drag + Drop Handling -----
   let dragging = false, offsetX = 0, offsetY = 0;
 
   const startDrag = (e) => {
@@ -147,12 +163,36 @@ export function setupChatBubble() {
   window.addEventListener('mouseup', endDrag);
   window.addEventListener('touchend', endDrag);
 
-  // ----- Toggle Discord chat when clicked -----
+  // ----- ⚡ Click to Toggle WidgetBot -----
   discordBubble.addEventListener('click', () => {
     if (window.CrateInstance) {
       window.CrateInstance.toggle();
     } else {
-      console.warn('WidgetBot not yet ready.');
+      console.warn('⚠️ WidgetBot not yet ready — please wait a moment.');
     }
   });
+
+  // ----- 👁️ Auto-Reveal When Medusa Appears -----
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          discordBubble.classList.add('visible');
+        } else {
+          discordBubble.classList.remove('visible');
+        }
+      });
+    },
+    { threshold: 0.4 } // reveal when ~40% of Medusa is visible
+  );
+
+  const medusaImage = document.querySelector('img[src*="Medusa.png"], img[src*="medusa"], #medusa, .medusa-card');
+  if (medusaImage) {
+    observer.observe(medusaImage);
+    console.log('👁️ Chat bubble visibility now linked to Medusa card.');
+  } else {
+    console.warn('⚠️ Medusa card not found — bubble stays hidden by default.');
+  }
+
+  console.log('✨ CharlestonHacks Chat Bubble active.');
 }
