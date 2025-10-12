@@ -1,25 +1,22 @@
 // ===============================================
-// CharlestonHacks Chat Bubble
+// CharlestonHacks Chat Bubble (Stable + Self-Hosted Final)
 // ===============================================
-// - Prevents duplicate bubbles across imports or reloads
-// - Adds Charleston Night Mode styling
-// - Stores drag position persistently via localStorage
-// - Handles drag + click toggle for WidgetBot
-// - Ensures only one CrateInstance and one DOM bubble exist
-// - Auto-shows when Medusa card becomes visible
+// ✅ Combines the stability of self-hosted loading
+// ✅ Keeps full working Medusa detection + drag logic
+// ✅ Adds queued click, telemetry off, and fade transitions
 // ===============================================
 
 export function setupChatBubble() {
-  // ----- 🧹 Cleanup stray duplicates before anything -----
+  // ----- 🧹 Cleanup stray duplicates -----
   document.querySelectorAll('#discord-bubble').forEach((b, i) => {
-    if (i > 0) b.remove(); // remove extra copies if any
+    if (i > 0) b.remove();
   });
 
   // ----- 🛑 Stop if already initialized -----
   if (window.CH_BUBBLE_INITIALIZED && document.getElementById('discord-bubble')) return;
   window.CH_BUBBLE_INITIALIZED = true;
 
-  // ----- 🎨 Inject global bubble + WidgetBot styling -----
+  // ----- 🎨 Inject global styles -----
   if (!document.getElementById('chat-bubble-style')) {
     const style = document.createElement('style');
     style.id = 'chat-bubble-style';
@@ -74,6 +71,7 @@ export function setupChatBubble() {
       iframe[src*="widgetbot.io"] {
         pointer-events: none !important;
         opacity: 0 !important;
+        transition: opacity 0.4s ease;
       }
       iframe[src*="widgetbot.io"].visible {
         pointer-events: auto !important;
@@ -83,30 +81,7 @@ export function setupChatBubble() {
     document.head.appendChild(style);
   }
 
-  // ----- 💬 Load WidgetBot Crate if not already loaded -----
-  if (!window.Crate && !document.getElementById('widgetbot-crate')) {
-    const crateScript = document.createElement('script');
-    crateScript.id = 'widgetbot-crate';
-    crateScript.src = 'https://cdn.jsdelivr.net/npm/@widgetbot/crate@3';
-    crateScript.async = true;
-    crateScript.defer = true;
-    crateScript.onload = () => {
-      if (!window.CrateInstance) {
-        window.CrateInstance = new window.Crate({
-          server: '1365587542975713320', // CharlestonHacks server ID
-          channel: '1365587543696867384' // Channel ID
-        });
-        console.log('🟢 WidgetBot initialized successfully.');
-      } else {
-        console.log('🟢 WidgetBot instance already active — skipped re-init.');
-      }
-    };
-    document.body.appendChild(crateScript);
-  } else {
-    console.log('🟢 WidgetBot already loaded — skipping crate script injection.');
-  }
-
-  // ----- 💠 Create and inject the bubble -----
+  // ----- 💠 Create bubble -----
   const discordBubble = document.createElement('div');
   discordBubble.id = 'discord-bubble';
   discordBubble.innerHTML = `
@@ -115,19 +90,17 @@ export function setupChatBubble() {
     </svg>
   `;
 
-  // ----- 📍 Restore saved position (if any) -----
+  // ----- 📍 Restore saved position -----
   const savedPos = JSON.parse(localStorage.getItem('discordBubblePos'));
-  if (savedPos && savedPos.left && savedPos.top) {
+  if (savedPos?.left && savedPos?.top) {
     discordBubble.style.left = savedPos.left;
     discordBubble.style.top = savedPos.top;
     discordBubble.style.transform = 'none';
   }
-
   document.body.appendChild(discordBubble);
 
-  // ----- 🖱️ Drag + Drop Handling -----
+  // ----- 🖱️ Drag + Drop -----
   let dragging = false, offsetX = 0, offsetY = 0;
-
   const startDrag = (e) => {
     dragging = true;
     discordBubble.classList.add('dragging');
@@ -135,17 +108,15 @@ export function setupChatBubble() {
     offsetX = (e.clientX || e.touches[0].clientX) - rect.left;
     offsetY = (e.clientY || e.touches[0].clientY) - rect.top;
   };
-
   const drag = (e) => {
     if (!dragging) return;
     e.preventDefault();
-    const clientX = e.clientX || e.touches[0].clientX;
-    const clientY = e.clientY || e.touches[0].clientY;
-    discordBubble.style.left = `${clientX - offsetX}px`;
-    discordBubble.style.top = `${clientY - offsetY}px`;
+    const x = e.clientX || e.touches[0].clientX;
+    const y = e.clientY || e.touches[0].clientY;
+    discordBubble.style.left = `${x - offsetX}px`;
+    discordBubble.style.top = `${y - offsetY}px`;
     discordBubble.style.transform = 'none';
   };
-
   const endDrag = () => {
     if (!dragging) return;
     dragging = false;
@@ -155,7 +126,6 @@ export function setupChatBubble() {
       top: discordBubble.style.top
     }));
   };
-
   discordBubble.addEventListener('mousedown', startDrag);
   discordBubble.addEventListener('touchstart', startDrag, { passive: true });
   window.addEventListener('mousemove', drag);
@@ -163,36 +133,75 @@ export function setupChatBubble() {
   window.addEventListener('mouseup', endDrag);
   window.addEventListener('touchend', endDrag);
 
-  // ----- ⚡ Click to Toggle WidgetBot -----
+  // ----- ⚡ Click Toggle -----
+  let pendingToggle = false;
   discordBubble.addEventListener('click', () => {
     if (window.CrateInstance) {
       window.CrateInstance.toggle();
     } else {
-      console.warn('⚠️ WidgetBot not yet ready — please wait a moment.');
+      pendingToggle = true;
+      console.log('⏳ WidgetBot loading — will auto-open when ready...');
     }
   });
 
-  // ----- 👁️ Auto-Reveal When Medusa Appears -----
+  // ----- 👁️ Reveal When Medusa Appears -----
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          discordBubble.classList.add('visible');
-        } else {
-          discordBubble.classList.remove('visible');
-        }
+        if (entry.isIntersecting) discordBubble.classList.add('visible');
+        else discordBubble.classList.remove('visible');
       });
     },
-    { threshold: 0.4 } // reveal when ~40% of Medusa is visible
+    { threshold: 0.4 }
   );
 
-  const medusaImage = document.querySelector('img[src*="Medusa.png"], img[src*="medusa"], #medusa, .medusa-card');
+  const medusaImage = document.querySelector(
+    'img[src*="Medusa.png"], img[src*="medusa"], #medusa, .medusa-card'
+  );
   if (medusaImage) {
     observer.observe(medusaImage);
     console.log('👁️ Chat bubble visibility now linked to Medusa card.');
   } else {
     console.warn('⚠️ Medusa card not found — bubble stays hidden by default.');
   }
+
+  // ----- 🕐 Self-Hosted WidgetBot Loader -----
+  window.addEventListener('load', () => {
+    window.WidgetBot = { disableTelemetry: true };
+    const script = document.createElement('script');
+    script.src = 'assets/js/widgetbot-crate.js'; // local version
+    script.async = true;
+    script.defer = true;
+
+    script.onload = () => {
+      if (!window.CrateInstance && window.Crate) {
+        window.CrateInstance = new window.Crate({
+          server: '1365587542975713320',
+          channel: '1365587543696867384'
+        });
+        console.log('🟢 WidgetBot initialized successfully (self-hosted).');
+        if (pendingToggle) {
+          window.CrateInstance.toggle();
+          pendingToggle = false;
+        }
+      } else {
+        console.error('❌ WidgetBot loaded but Crate not found.');
+      }
+    };
+
+    script.onerror = () => {
+      console.error('❌ Failed to load local WidgetBot crate script.');
+      const msg = document.createElement('div');
+      msg.textContent = 'Chat temporarily unavailable.';
+      msg.style.cssText = `
+        position:fixed;bottom:100px;right:24px;
+        color:#aaa;font-size:13px;z-index:9999;
+      `;
+      document.body.appendChild(msg);
+    };
+
+    document.body.appendChild(script);
+  });
 
   console.log('✨ CharlestonHacks Chat Bubble active.');
 }
