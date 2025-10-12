@@ -2,7 +2,7 @@
   "name": "Charleston Hackathon",
   "short_name": "CharlestonHacks",
   "description": "Charleston Hackathon web application",
-  "start_url": "/index.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
