@@ -2334,6 +2334,15 @@ main, .main-wrapper, .media-container {
   opacity: 0;
   pointer-events: none;
 }
+@media (max-width: 600px) {
+  #discord-bubble {
+    width: 48px;
+    height: 48px;
+    bottom: 16px;
+    right: 16px;
+  }
+}
+
 
 
 
