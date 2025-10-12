@@ -2320,6 +2320,21 @@ main, .main-wrapper, .media-container {
   padding: 8px 12px;
   border-radius: 6px;
 }
+#discord-bubble {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+#discord-bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 16px rgba(88, 101, 242, 0.7);
+}
+
+#discord-bubble.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 
 
 
