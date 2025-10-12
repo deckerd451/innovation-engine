@@ -348,7 +348,39 @@ skipBtn.addEventListener('keyup', e => {
     };
 
     initCardFlip(CONFIG);
-    startBTCPriceTracker('btcPrice');
+    // ===============================================
+// 🎯 Bitcoin Tracker Visibility (Linked to Mystery Card)
+// ===============================================
+// Shows the BTC graphic only when the mission card
+// image source contains "Mystery.png".
+// Adds smooth fade + golden pulse animation.
+// ===============================================
+
+const btcElement = document.getElementById('btcPrice');
+const missionImage = document.getElementById('missionImage');
+
+// Target card filename
+const TARGET_CARD = 'Mystery.png';
+
+// Hide by default
+btcElement.classList.remove('visible');
+
+// Observe when the mission image source changes
+const observer = new MutationObserver(() => {
+  const currentSrc = missionImage.getAttribute('src') || '';
+  if (currentSrc.includes(TARGET_CARD)) {
+    btcElement.classList.add('visible');
+  } else {
+    btcElement.classList.remove('visible');
+  }
+});
+
+// Start observing for changes
+observer.observe(missionImage, { attributes: true, attributeFilter: ['src'] });
+
+// Initialize BTC price tracker, display controlled by visibility logic
+startBTCPriceTracker('btcPrice');
+
     startCountdown('countdown', '2025-10-03T00:00:00-04:00');
 
     const buttons = document.querySelectorAll('.clickable-area');
