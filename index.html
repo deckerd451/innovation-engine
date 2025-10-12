@@ -1,90 +1,167 @@
-// ===============================================
-// CharlestonHacks Card Flip Logic (Enhanced)
-// ===============================================
-// ✅ Flips between random cards
-// ✅ Plays sound & video
-// ✅ Shows BTC tracker when Descartes.png appears
-// ✅ Triggers chat bubble when Medusa.png appears
-// ===============================================
-
-import { setupChatBubble } from './chatBubble.js';
-
-export function initCardFlip(CONFIG) {
-  const missionImage = document.getElementById('missionImage');
-  const missionVideo = document.getElementById('missionVideo');
-  const cardFrame    = document.getElementById('cardFrame');
-  const btcElement   = document.getElementById('btcPrice');
-
-  if (!missionImage || !missionVideo || !cardFrame) return;
-
-  const getRandomCardImage = () =>
-    CONFIG.cardImages[Math.floor(Math.random() * CONFIG.cardImages.length)];
-
-  const getRandomFlipClass = () =>
-    Math.random() > 0.5 ? 'flip-image-x' : 'flip-image-y';
-
-  const getRandomVideo = () =>
-    CONFIG.videos[Math.floor(Math.random() * CONFIG.videos.length)];
-
-  const playSound = (key) => {
-    const audio = CONFIG.sounds[key];
-    if (audio) {
-      audio.currentTime = 0;
-      audio.volume = key === 'cardflip' ? 0.45 : 0.7;
-      audio.play().catch(() => {});
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <!-- —— Redirect for magic link (neuron) —— -->
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('source') === 'neuron') {
+      window.location.href = '/neural.html?' + params.toString();
     }
-  };
+  </script>
 
-  // ---- BTC Visibility Logic ----
-  function updateBTCVisibility(src) {
-    if (!btcElement) return;
-    if (src.includes('Descartes.png')) btcElement.classList.add('visible');
-    else btcElement.classList.remove('visible');
-  }
+  <!-- —— Google Analytics —— -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-6NDKG07DY6');
+  </script>
 
-  let videoPlaying = false;
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CharlestonHacks - Home</title>
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC." />
+  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
+  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated." />
+  <meta property="og:image" content="images/websitepanel.webp" />
+  <meta property="og:url" content="https://charlestonhacks.com" />
+  <meta name="twitter:card" content="summary_large_image" />
 
-  missionImage.addEventListener('click', () => {
-    if (videoPlaying) return;
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#ff6600" />
+  <link rel="canonical" href="https://charlestonhacks.com" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
 
-    const flipClass = getRandomFlipClass();
-    const newImage = getRandomCardImage();
+<body>
+  <!-- —— Full-screen neural background —— -->
+  <canvas id="neural-bg"></canvas>
 
-    missionImage.src = newImage;
-    missionImage.classList.add(flipClass);
-    playSound('cardflip');
+  <noscript>
+    <div style="background:#111;color:white;text-align:center;padding:1em;">
+      ⚠️ JavaScript is disabled. For the full CharlestonHacks experience, please enable JavaScript.
+    </div>
+  </noscript>
 
-    if (newImage.includes('Medusa.png')) setupChatBubble();
-    updateBTCVisibility(newImage);
+  <!-- —— Splash Screen —— -->
+  <div id="splash-overlay" role="dialog" aria-modal="true" tabindex="-1">
+    <div id="splash-content">
+      <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
+      <h1 id="splash-title">Welcome to CharlestonHacks</h1>
+      <p id="splash-desc">Loading…</p>
 
-    setTimeout(() => missionImage.classList.remove(flipClass), 1200);
+      <label id="dont-show-label" style="margin-top:1em; display:flex; align-items:center; gap:.5em;">
+        <input type="checkbox" id="dont-show-again" /> Don’t show this welcome screen again
+      </label>
 
-    const videoSrc = getRandomVideo();
-    missionVideo.src = videoSrc;
-    missionVideo.style.display = 'block';
-    cardFrame.style.display = 'block';
-    setTimeout(() => (missionVideo.style.opacity = 1), 100);
+      <div id="splash-buttons" class="button-container">
+        <button id="community-site-btn" class="btn">Community Site</button>
+        <button id="public-site-btn" class="btn">Public Site</button>
+        <button id="skip-splash-btn" class="btn">Skip</button>
+      </div>
 
-    missionVideo.muted = false;
-    window.matchMedia('(max-width: 600px)').matches
-      ? missionVideo.removeAttribute('controls')
-      : missionVideo.setAttribute('controls', '');
+      <p id="splash-copyright" style="font-size:.8rem; opacity:.7; margin-top:2rem;">
+        © 2025 CharlestonHacks. All rights reserved.
+      </p>
+    </div>
+  </div>
 
-    missionVideo.load();
-    missionVideo.play();
-    videoPlaying = true;
+  <!-- —— Sounds —— -->
+  <audio id="cardflipSound" src="assets/atmospherel.m4a" preload="auto"></audio>
+  <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
+  <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
 
-    missionVideo.onended = () => {
-      missionVideo.pause();
-      missionVideo.style.display = 'none';
-      missionVideo.style.opacity = 0;
-      cardFrame.style.display = 'none';
-      videoPlaying = false;
+  <!-- —— Main Card —— -->
+  <main>
+    <div class="main-wrapper">
+      <div class="media-container" aria-label="Toggle mission content" tabindex="0">
+        <div id="countdown" aria-live="polite"></div>
+
+        <!-- ✅ Bitcoin graphic -->
+        <div id="btcPrice" aria-live="polite">
+          <img
+            src="images/bitcoin-coin.svg"
+            alt="Bitcoin"
+            style="width:24px;height:24px;margin-right:6px;vertical-align:middle;"
+          />
+          <span id="btcValue">--</span>
+        </div>
+
+        <img id="missionImage" src="icons/card.png" alt="Big Playing Card" style="z-index:3;" />
+        <img id="cardFrame" src="images/cardframe2.svg" alt="Card Frame" style="display:none;" />
+        <video id="missionVideo" muted playsinline controls style="display:none; opacity:0;">
+          <source src="" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+
+        <!-- Clickable Areas (Buttons) -->
+        <button class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
+          <img src="images/informationbutton.webp" alt="Info" />
+        </button>
+        <button class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Read event documentation and resources.">
+          <img src="images/crestn.svg" alt="Crest" />
+        </button>
+        <button class="clickable-area top-right" data-sound="chime" data-url="2card.html" data-info="Explore the innovation engine.">
+          <img src="images/innovationenginebutton.webp" alt="Innovation" />
+        </button>
+        <button class="clickable-area middle-left" data-sound="chime" data-url="experimental.html" data-info="Experiment in the sandbox environment.">
+          <img src="images/experiment.webp" alt="Experiment" />
+        </button>
+        <button class="clickable-area middle-right" data-sound="chime" data-url="swag.html" data-info="View and order event swag.">
+          <img src="images/case.webp" alt="Case" />
+        </button>
+        <button class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Catch up on the latest news.">
+          <img src="images/newsbutton.webp" alt="News" />
+        </button>
+        <button class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor CharlestonHacks and unlock perks.">
+          <img src="images/keysn.svg" alt="Keys" />
+        </button>
+        <button class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Play the card match game.">
+          <img src="images/peoplebutton.webp" alt="People" />
+        </button>
+
+        <div id="infoLine" class="info-line">
+          <span id="infoParticle"></span><span id="infoText"></span>
+        </div>
+      </div>
+    </div>
+
+    <section class="icons-container">
+      <a href="https://github.com/sponsors/deckerd451" target="_blank"><i class="fas fa-heart"></i></a>
+      <a href="2card.html"><i class="fas fa-people-arrows"></i></a>
+      <a href="subscribe.html"><i class="fas fa-bell"></i></a>
+      <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank"><i class="fab fa-linkedin"></i></a>
+      <a href="https://www.instagram.com/charlestonhacks/" target="_blank"><i class="fab fa-instagram"></i></a>
+      <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
+      <a href="https://www.facebook.com/deckerdb26354" target="_blank"><i class="fab fa-facebook"></i></a>
+    </section>
+  </main>
+
+  <!-- —— Splash Logic —— -->
+  <script src="assets/js/splash.js"></script>
+
+  <!-- —— Main Logic —— -->
+  <script type="module">
+    import { CONFIG } from './assets/js/config.js';
+    import { initCardFlip } from './assets/js/cardFlip.js';
+    import { startBTCPriceTracker } from './assets/js/btc.js';
+    import { startCountdown } from './assets/js/countdown.js';
+
+    CONFIG.sounds = {
+      cardflip: document.getElementById('cardflipSound'),
+      chime:    document.getElementById('chimeSound'),
+      keys:     document.getElementById('keysSound'),
     };
-  });
 
-  missionImage.setAttribute('tabindex', '0');
-  missionImage.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') missionImage.click();
-  });
-}
+    initCardFlip(CONFIG);
+    startBTCPriceTracker('btcPrice');
+    startCountdown('countdown', '2025-10-03T00:00:00-04:00');
+  </script>
+
+  <script type="module" src="assets/js/neuralBackground.js"></script>
+</body>
+</html>
