@@ -2342,6 +2342,35 @@ main, .main-wrapper, .media-container {
     right: 16px;
   }
 }
+/* ——— Bitcoin Graphic Visibility + Animation ——— */
+#btcPrice {
+  display: none;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.6s ease, transform 0.4s ease;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 20;
+}
+
+#btcPrice.visible {
+  display: block;
+  opacity: 1;
+  transform: scale(1);
+  animation: btcPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes btcPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(255, 200, 0, 0.6));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(255, 200, 0, 1));
+    transform: scale(1.08);
+  }
+}
 
 
 
