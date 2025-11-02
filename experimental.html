@@ -61,12 +61,7 @@
       overflow: hidden;
       background: #222;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .gallery-item:hover {
-      transform: translateY(-5px) scale(1.05);
-      box-shadow: 0 0 20px rgba(255, 85, 85, 0.4);
+      transition: transform 0.3s ease, box-shadow 0.4s ease;
     }
 
     .gallery-item img {
@@ -75,54 +70,12 @@
       display: block;
     }
 
-    /* Animated Placeholder */
-    .placeholder-card {
-      animation: pulse 2.5s infinite;
-      box-shadow: 0 0 10px rgba(255, 85, 85, 0.3);
+    /* Glow on hover */
+    .gallery-item:hover {
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 0 0 25px rgba(255, 80, 80, 0.7), 0 0 45px rgba(255, 60, 60, 0.4);
     }
 
-    @keyframes pulse {
-      0% { box-shadow: 0 0 6px rgba(255, 85, 85, 0.2); }
-      50% { box-shadow: 0 0 22px rgba(255, 85, 85, 0.6); }
-      100% { box-shadow: 0 0 6px rgba(255, 85, 85, 0.2); }
-    }
-
-    .placeholder-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(24, 24, 24, 0.7);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: #ff6666;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      overflow: hidden;
-      text-align: center;
-    }
-
-    .placeholder-overlay::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: -75%;
-      width: 50%;
-      height: 100%;
-      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.25), transparent);
-      animation: shimmer 3s infinite;
-    }
-
-    @keyframes shimmer {
-      0% { left: -75%; }
-      100% { left: 125%; }
-    }
-
-    /* Footer */
     footer {
       background-color: transparent;
       text-align: center;
@@ -184,8 +137,8 @@
   <main class="gallery-container">
     <div id="gallery" class="gallery">
 
-      <a class="gallery-item" href="https://deckerd451.github.io/dex/" target="_blank" rel="noopener noreferrer">
-        <img src="images/xcard.png" alt="Neural Network Project">
+      <a class="gallery-item" href="https://deckerd451.github.io/new-synapse/" target="_blank" rel="noopener noreferrer">
+        <img src="images/xcard.png" alt="Neural Interactive Experimental">
       </a>
 
       <a class="gallery-item" href="https://hackathon-chs-git-main-maxs-projects-ff8c32db.vercel.app/" target="_blank" rel="noopener noreferrer">
@@ -194,12 +147,6 @@
 
       <a class="gallery-item" href="https://v1-kismet-ai-cf8d11c9-03a7-4434-9ff9-67e0ea49bb1a.build-preview.cloudflare.dev" target="_blank" rel="noopener noreferrer">
         <img src="images/kismetcard.png" alt="Cloudflare Project">
-      </a>
-
-      <!-- Animated Placeholder Card -->
-      <a class="gallery-item placeholder-card" href="https://deckerd451.github.io/new-synapse/" target="_blank" rel="noopener noreferrer">
-        <img src="images/placeholder.png" alt="New Synapse Project Placeholder">
-        <div class="placeholder-overlay">Loading Neural Synapse…</div>
       </a>
 
     </div>
