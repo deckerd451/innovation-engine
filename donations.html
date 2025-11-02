@@ -1,66 +1,186 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-US">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Donate to CharlestonHacks</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+  <meta name="theme-color" content="#ff6600" />
+
+  <!-- Font Awesome for icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  />
+
   <link rel="stylesheet" href="styles.css" />
-  <!-- Font Awesome CSS for icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* --- Neural background container --- */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #0d0d0d;
+      color: white;
+      font-family: "Inter", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+
+    canvas#neural-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    main.container {
+      position: relative;
+      z-index: 2;
+      padding: 2rem;
+      max-width: 600px;
+    }
+
+    header.header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: #ff6600;
+      text-shadow: 0 0 20px rgba(255, 102, 0, 0.5);
+    }
+
+    header.header p {
+      font-size: 1.1rem;
+      color: #ccc;
+      margin-bottom: 2rem;
+    }
+
+    .card-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+    }
+
+    .team-member-card {
+      background: rgba(20, 20, 20, 0.85);
+      border-radius: 16px;
+      box-shadow: 0 0 25px rgba(255, 102, 0, 0.25);
+      padding: 2rem;
+      text-align: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      max-width: 340px;
+      width: 100%;
+      backdrop-filter: blur(6px);
+    }
+
+    .team-member-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 0 35px rgba(255, 102, 0, 0.6);
+    }
+
+    .team-member-card img {
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
+      margin-bottom: 1rem;
+      border-radius: 50%;
+      background-color: #111;
+      padding: 10px;
+      box-shadow: 0 0 15px rgba(255, 102, 0, 0.3);
+    }
+
+    .member-name {
+      font-size: 1.3rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      color: white;
+    }
+
+    .user-status {
+      color: #bbb;
+      margin-bottom: 1.2rem;
+      font-size: 1rem;
+    }
+
+    .endorse-btn {
+      background-color: #ff6600;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 0.8rem 1.4rem;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .endorse-btn:hover {
+      background-color: #ff8533;
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255, 102, 0, 0.6);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: #aaa;
+      z-index: 2;
+      position: relative;
+    }
+
+    @media (max-width: 600px) {
+      header.header h1 {
+        font-size: 1.6rem;
+      }
+      .team-member-card {
+        padding: 1.5rem;
+      }
+      .member-name {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
 </head>
+
 <body>
+  <!-- Neural Background -->
+  <canvas id="neural-bg"></canvas>
+
   <main class="container">
-    <!-- ... other content ... -->
+    <header class="header">
+      <h1>Support CharlestonHacks</h1>
+      <p>Your contribution helps grow the creative tech community in Charleston.</p>
+    </header>
+
     <section class="card-container">
       <!-- GitHub Sponsors Card -->
       <div class="team-member-card">
         <img src="images/gh.png" alt="GitHub Sponsors" />
         <div class="member-name">GitHub Sponsors</div>
         <p class="user-status">Become a recurring sponsor</p>
-        <button class="endorse-btn" onclick="window.open('https://github.com/sponsors/deckerd451', '_blank')">
-          <i class="fab fa-github fa-sm"></i> Sponsor on GitHub
+        <button
+          class="endorse-btn"
+          onclick="window.open('https://github.com/sponsors/deckerd451', '_blank')"
+        >
+          <i class="fab fa-github fa-lg" style="margin-right: 6px;"></i>
+          Sponsor on GitHub
         </button>
       </div>
-
-      <!-- BTCPay Donate Card -->
-      <div class="team-member-card">
-        <img src="images/bit.png" alt="Bitcoin Donation" />
-        <div class="member-name">Donate with Bitcoin</div>
-        <p class="user-status">Secure & borderless</p>
-        <!-- Updated BTCPay donation form -->
-        <form class="endorse-btn" method="POST" action="https://<YOUR-BTCPAY-SERVER>/api/v1/invoices" onsubmit="onBTCPayFormSubmit(event); return false;">
-          <input type="hidden" name="storeId" value="<YOUR_STORE_ID>" />
-          <input type="hidden" name="price" value="10" />
-          <input type="hidden" name="currency" value="USD" />
-          <input type="hidden" name="checkoutDesc" value="Donation to CharlestonHacks" />
-          <input type="hidden" name="jsonResponse" value="true" />
-          <button type="submit">
-            <i class="fab fa-bitcoin fa-sm"></i> Donate BTC
-          </button>
-        </form>
-      </div>
     </section>
-    <!-- ... other content ... -->
   </main>
 
-  <footer> ... </footer>
+  <footer>© 2025 CharlestonHacks. All rights reserved.</footer>
 
-  <!-- BTCPay modal script and form handler -->
-  <script src="https://<YOUR-BTCPAY-SERVER>/modal/btcpay.js"></script>
-  <script>
-    function onBTCPayFormSubmit(event) {
-      event.preventDefault();
-      var form = event.target;
-      var xhr = new XMLHttpRequest();
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText) {
-          var response = JSON.parse(xhr.responseText);
-          window.btcpay.showInvoice(response.invoiceId);  // Open the BTCPay invoice modal
-        }
-      };
-      xhr.open("POST", form.action, true);
-      xhr.send(new FormData(form));
-    }
-  </script>
+  <!-- Neural background animation script -->
+  <script type="module" src="assets/js/neuralBackground.js"></script>
 </body>
 </html>
