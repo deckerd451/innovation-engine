@@ -40,7 +40,7 @@
     #splash-overlay {
       position: fixed;
       inset: 0;
-      background: radial-gradient(circle at center, rgba(15,15,25,0.95) 0%, rgba(0,0,0,0.98) 100%);
+      background: radial-gradient(circle at center, rgba(15,15,25,0.96) 0%, rgba(0,0,0,0.98) 100%);
       backdrop-filter: blur(12px);
       display: none;
       align-items: center;
@@ -56,24 +56,33 @@
       display: flex;
       opacity: 1;
       transform: scale(1);
+      animation: bgPulse 5s ease-in-out infinite;
     }
 
     #splash-overlay.fade-out {
       opacity: 0;
       transform: scale(0.98);
       transition: opacity 1s ease, transform 1.2s cubic-bezier(0.86, 0, 0.07, 1);
+      animation: none;
+    }
+
+    /* —— Pulsing glow —— */
+    @keyframes bgPulse {
+      0%   { background-color: rgba(15,15,25,0.96); box-shadow: 0 0 30px rgba(255,102,0,0.2) inset; }
+      50%  { background-color: rgba(20,20,30,0.96); box-shadow: 0 0 60px rgba(255,102,0,0.5) inset; }
+      100% { background-color: rgba(15,15,25,0.96); box-shadow: 0 0 30px rgba(255,102,0,0.2) inset; }
     }
 
     #splash-content {
       text-align: center;
       color: white;
       max-width: 400px;
-      animation: glow 2.5s ease-in-out infinite alternate;
+      animation: textGlow 2.8s ease-in-out infinite alternate;
     }
 
-    @keyframes glow {
+    @keyframes textGlow {
       from { text-shadow: 0 0 10px rgba(255,102,0,0.3); }
-      to { text-shadow: 0 0 20px rgba(255,102,0,0.7); }
+      to   { text-shadow: 0 0 25px rgba(255,102,0,0.8); }
     }
 
     #splash-logo {
@@ -105,6 +114,16 @@
     .btn:hover {
       transform: scale(1.05);
       box-shadow: 0 0 25px rgba(255,102,0,0.6);
+    }
+
+    /* —— Neural background pulse sync —— */
+    canvas#neural-bg.splash-active {
+      animation: neuralPulse 5s ease-in-out infinite;
+    }
+
+    @keyframes neuralPulse {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.3) saturate(1.2); }
     }
   </style>
 </head>
@@ -204,17 +223,19 @@
     </section>
   </main>
 
-  <!-- —— Splash Logic (animated) —— -->
+  <!-- —— Splash Logic (with background sync) —— -->
   <script>
   (function () {
     const overlay = document.getElementById('splash-overlay');
     const dontShow = document.getElementById('dont-show-again');
     const communityBtn = document.getElementById('community-site-btn');
     const publicBtn = document.getElementById('public-site-btn');
+    const bgCanvas = document.getElementById('neural-bg');
     const key = 'chs_splash_seen_once';
 
     function hideSplash(immediate = false) {
       overlay.classList.add('fade-out');
+      bgCanvas.classList.remove('splash-active');
       setTimeout(() => {
         overlay.style.display = 'none';
         document.body.classList.remove('splash-active');
@@ -234,6 +255,7 @@
       }
 
       overlay.style.display = 'flex';
+      bgCanvas.classList.add('splash-active');
       setTimeout(() => overlay.classList.add('active'), 100);
       document.body.classList.add('splash-active');
 
