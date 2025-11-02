@@ -11,11 +11,7 @@
   <link rel="stylesheet" href="styles.css">
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       min-height: 100vh;
@@ -25,17 +21,16 @@
       overflow-x: hidden;
     }
 
-    /* Header Image */
+    /* Header */
     .events-header-img {
       display: block;
-      margin: 20px auto 10px auto;
+      margin: 20px auto 10px;
       width: 400px;
       height: auto;
       cursor: pointer;
       transition: transform 0.3s ease, filter 0.3s ease;
       filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
     }
-
     .events-header-img:hover {
       transform: scale(1.05);
       filter: drop-shadow(0 0 12px rgba(255, 100, 100, 0.6));
@@ -51,11 +46,7 @@
       cursor: pointer;
       transition: color 0.3s ease, transform 0.3s ease;
     }
-
-    h1.page-title:hover {
-      color: #ff5555;
-      transform: scale(1.05);
-    }
+    h1.page-title:hover { color: #ff5555; transform: scale(1.05); }
 
     @media (max-width: 800px) { 
       .events-header-img { width: 300px; } 
@@ -85,12 +76,13 @@
     }
 
     .gallery-item {
+      position: relative;
       width: 100%;
       max-width: 300px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
       border-radius: 8px;
       overflow: hidden;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
     .gallery-item:hover {
@@ -102,6 +94,25 @@
       width: 100%;
       height: auto;
       display: block;
+    }
+
+    /* External link overlay */
+    .external-icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.2rem;
+      color: #fff;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      transform: translateY(-5px);
+      text-shadow: 0 0 8px rgba(255, 100, 100, 0.8);
+      pointer-events: none;
+    }
+
+    .gallery-item.external:hover .external-icon {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     /* Footer */
@@ -145,15 +156,6 @@
       .footer-back-button img { max-width: 92vw; }
     }
   </style>
-
-  <!-- Google Tag -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){ dataLayer.push(arguments); }
-    gtag('js', new Date());
-    gtag('config', 'G-6NDKG07DY6');
-  </script>
 </head>
 
 <body>
@@ -172,20 +174,24 @@
   <main class="gallery-container">
     <div id="gallery" class="gallery">
 
-      <a href="https://harborhack-2025.devpost.com/" class="gallery-item" target="_blank" rel="noopener noreferrer">
+      <a href="https://harborhack-2025.devpost.com/" class="gallery-item external" target="_blank" rel="noopener noreferrer">
         <img src="images/hh25.jpg" alt="HarborHack 2025" />
+        <i class="fas fa-arrow-up-right-from-square external-icon"></i>
       </a>
 
-      <a href="https://www.meetup.com/charlestonhacks/events/308597228/" class="gallery-item" target="_blank" rel="noopener noreferrer">
+      <a href="https://www.meetup.com/charlestonhacks/events/308597228/" class="gallery-item external" target="_blank" rel="noopener noreferrer">
         <img src="images/chrc.webp" alt="CharlestonHacks Running Club" />
+        <i class="fas fa-arrow-up-right-from-square external-icon"></i>
       </a>
 
-      <a href="https://www.meetup.com/charlestonhacks/events/308305047" class="gallery-item" target="_blank" rel="noopener noreferrer">
+      <a href="https://www.meetup.com/charlestonhacks/events/308305047" class="gallery-item external" target="_blank" rel="noopener noreferrer">
         <img src="images/full2.jpg" alt="CharlestonHacks Digital Nomad 3" />
+        <i class="fas fa-arrow-up-right-from-square external-icon"></i>
       </a>
 
-      <a href="https://www.meetup.com/charlestonhacks/events/307916870" class="gallery-item" target="_blank" rel="noopener noreferrer">
+      <a href="https://www.meetup.com/charlestonhacks/events/307916870" class="gallery-item external" target="_blank" rel="noopener noreferrer">
         <img src="images/dn poster dave.webp" alt="CharlestonHacks Digital Nomad 2" />
+        <i class="fas fa-arrow-up-right-from-square external-icon"></i>
       </a>
 
       <a href="innovationengine.html" class="gallery-item">
@@ -196,8 +202,9 @@
         <img src="images/AIFF.jpg" alt="Tech Week" />
       </a>
 
-      <a href="https://www.meetup.com/charlestonhacks/events/306342295/" class="gallery-item" target="_blank" rel="noopener noreferrer">
+      <a href="https://www.meetup.com/charlestonhacks/events/306342295/" class="gallery-item external" target="_blank" rel="noopener noreferrer">
         <img src="images/dn.jpg" alt="Charleston Hacks Event" />
+        <i class="fas fa-arrow-up-right-from-square external-icon"></i>
       </a>
 
       <a href="harborhack24.html" class="gallery-item">
@@ -223,6 +230,7 @@
       <a href="summerhack.html" class="gallery-item">
         <img src="images/HACK ONE PAGER4-01.jpg" alt="Summer Hack" />
       </a>
+
     </div>
   </main>
 
@@ -235,20 +243,5 @@
     </div>
     <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
-
-  <!-- LightGallery -->
-  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/lightgallery.umd.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      if (typeof lightGallery !== 'undefined') {
-        lightGallery(document.getElementById('gallery'), {
-          selector: 'a img',
-          download: false,
-          counter: true,
-          closable: true
-        });
-      }
-    });
-  </script>
 </body>
 </html>
