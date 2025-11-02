@@ -19,52 +19,44 @@
       --border-radius: 8px;
     }
 
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       background: var(--background-color);
       color: var(--text-color);
-      min-height: 100vh;
       font-family: 'Britannic Bold', Arial, sans-serif;
       text-align: center;
-      margin: 0;
+      min-height: 100vh;
       position: relative;
     }
+
     body::before {
       content: "";
       position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
+      inset: 0;
       background: url('images/background.webp') no-repeat center center;
       background-size: cover;
-      z-index: -1;
       opacity: 0.8;
-      pointer-events: none;
+      z-index: -1;
     }
 
     .main-content {
       max-width: 1200px;
       margin: 0 auto;
       padding: 24px 12px 60px 12px;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
     }
 
     .logo {
       display: block;
       margin: 0 auto 18px auto;
       width: min(100%, 360px);
-      max-width: 90vw;
       height: auto;
       filter: drop-shadow(0 2px 16px #222);
-      transition: transform 0.3s ease, opacity 0.3s ease;
+      transition: transform 0.3s ease;
     }
-    .logo:hover { transform: scale(1.05); opacity: 0.9; }
+    .logo:hover { transform: scale(1.05); }
 
     .subtitle {
-      color: var(--text-color);
       font-size: 1.2rem;
       opacity: 0.85;
       margin-bottom: 24px;
@@ -74,43 +66,40 @@
       display: grid;
       grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
       gap: 24px;
-      margin: 24px 0;
       width: 100%;
       justify-items: center;
+      margin-top: 24px;
     }
 
     .swag-item {
       background: #232323;
       border-radius: var(--border-radius);
-      padding: 18px 12px 12px 12px;
-      text-align: center;
+      padding: 16px 12px;
       box-shadow: 0 2px 12px #0008;
-      transition: box-shadow 0.25s, transform 0.15s;
-      position: relative;
+      transition: transform 0.2s;
     }
+    .swag-item:hover { transform: translateY(-4px); }
 
+    /* Remove any object-fit or transform conflicts for lightGallery */
     .swag-item img {
-      width: 92px;
-      height: 92px;
-      object-fit: contain;
-      margin-bottom: 8px;
-      border-radius: 10px;
+      width: 100px;
+      height: auto;
+      border-radius: 8px;
+      border: 2px solid #ffd70033;
       box-shadow: 0 0 8px #ffd70080;
-      cursor: zoom-in;
       background: #1a1a1a;
-      transition: transform 0.21s, box-shadow 0.2s;
-      border: 2.5px solid #ffd70033;
+      cursor: pointer;
+      transition: box-shadow 0.3s;
     }
 
     .swag-item img:hover {
-      transform: scale(1.13) rotate(-2deg);
-      box-shadow: 0 0 24px #ffd700cc;
+      box-shadow: 0 0 16px #ffd700cc;
     }
 
     .swag-item label {
       color: var(--secondary-color);
       font-size: 1.1em;
-      margin-top: 4px;
+      margin-top: 6px;
       display: block;
       font-weight: bold;
     }
@@ -118,7 +107,7 @@
     .vote-btn {
       margin-top: 8px;
       padding: 8px 22px;
-      font-size: 1.08em;
+      font-size: 1.05em;
       background: linear-gradient(135deg,#ffd700,#ff6b35);
       color: #1a1a1a;
       border-radius: 8px;
@@ -127,23 +116,18 @@
       font-weight: bold;
       box-shadow: 0 2px 12px #ffd70066;
       transition: background 0.3s;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
     }
     .vote-btn:hover { background: #FFC000; }
 
     .success-message {
       color: #00FF87;
       font-weight: bold;
-      text-align: center;
       margin-top: 18px;
-      font-size: 1.15em;
-      animation: fadeIn 0.5s;
+      font-size: 1.1em;
     }
 
     .leaderboard {
-      margin: 32px auto 0 auto;
+      margin: 40px auto 0 auto;
       background: #2a2a2a;
       border-radius: 8px;
       padding: 15px;
@@ -156,18 +140,23 @@
     .leaderboard-row {
       display: flex;
       justify-content: space-between;
-      align-items: center;
       margin: 6px 0;
-      font-size: 1.09em;
       color: #ffd700;
     }
 
-    .leaderboard-rank { font-weight: bold; color: #ffd700; width: 24px; }
+    .leaderboard-rank { font-weight: bold; width: 24px; }
     .leaderboard-swag { flex: 1; text-align: left; }
     .leaderboard-count { color: #ffd700; }
 
-    @media (max-width: 800px) { .swag-grid { grid-template-columns: 1fr 1fr;} }
-    @media (max-width: 480px) { .swag-grid { grid-template-columns: 1fr;} }
+    /* Caption background for readability */
+    .lg-sub-html {
+      background: rgba(0, 0, 0, 0.6) !important;
+      padding: 12px !important;
+      border-radius: 6px !important;
+    }
+
+    @media (max-width: 800px) { .swag-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 480px) { .swag-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 
@@ -216,14 +205,26 @@
     const swagGrid = document.getElementById('swagGrid');
     const successMsg = document.getElementById('successMsg');
     const leaderboardRows = document.getElementById('leaderboard-rows');
+    let swagVotes = {};
 
-    function renderSwagItems() {
+    async function fetchVotes() {
+      const { data, error } = await supabaseClient.from('swag_votes').select('*');
+      if (error) { console.error(error); return {}; }
+      const votes = {};
+      data.forEach(row => { votes[row.swag] = row.votes; });
+      return votes;
+    }
+
+    async function renderSwagItems() {
+      swagVotes = await fetchVotes();
       swagGrid.innerHTML = '';
       swagItems.forEach(item => {
+        const votes = swagVotes[item.name] || 0;
         const swagDiv = document.createElement('div');
         swagDiv.className = 'swag-item';
         swagDiv.innerHTML = `
-          <a href="${item.img}" data-lg-size="1400-933" data-sub-html="<h4>${item.name}</h4>">
+          <a href="${item.img}" data-lg-size="1400-933" 
+             data-sub-html="<h4 style='color:#FFD700;'>${item.name}</h4><p style='color:white;'>Votes: ${votes}</p>">
             <img src="${item.img}" alt="${item.name}">
           </a>
           <label>${item.name}</label>
@@ -234,7 +235,6 @@
         swagGrid.appendChild(swagDiv);
       });
 
-      // Initialize lightbox
       lightGallery(swagGrid, {
         selector: 'a',
         plugins: [lgZoom, lgThumbnail],
@@ -258,22 +258,16 @@
 
         let currentVotes = data?.votes || 0;
         if (data) {
-          const { error: updateError } = await supabaseClient
-            .from('swag_votes')
-            .update({ votes: currentVotes + 1 })
-            .eq('swag', swagName);
-          if (updateError) throw updateError;
+          await supabaseClient.from('swag_votes').update({ votes: currentVotes + 1 }).eq('swag', swagName);
         } else {
-          const { error: insertError } = await supabaseClient
-            .from('swag_votes')
-            .insert([{ swag: swagName, votes: 1 }]);
-          if (insertError) throw insertError;
+          await supabaseClient.from('swag_votes').insert([{ swag: swagName, votes: 1 }]);
         }
 
         successMsg.textContent = `You voted for "${swagName}"!`;
         successMsg.style.display = "block";
         setTimeout(() => successMsg.style.display = "none", 1500);
         loadLeaderboard();
+        renderSwagItems(); // refresh with updated vote counts
       } catch (err) {
         console.error("Voting error:", err);
         successMsg.textContent = `Vote failed: ${err.message}`;
@@ -307,8 +301,8 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      renderSwagItems();
+    document.addEventListener('DOMContentLoaded', async () => {
+      await renderSwagItems();
       loadLeaderboard();
     });
   </script>
