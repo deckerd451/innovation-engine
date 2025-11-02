@@ -25,7 +25,6 @@
       color: #fff;
     }
 
-    /* Header Image */
     .news-header-img {
       display: block;
       margin: 20px auto;
@@ -37,7 +36,6 @@
     @media (max-width: 650px) { .news-header-img { width: 250px; } }
     @media (max-width: 480px) { .news-header-img { width: 200px; } }
 
-    /* Gallery Layout */
     .gallery-container {
       max-width: 1200px;
       margin: 0 auto;
@@ -52,6 +50,7 @@
     }
 
     .gallery-item {
+      position: relative;
       width: 100%;
       max-width: 300px;
       border-radius: 8px;
@@ -71,7 +70,25 @@
       display: block;
     }
 
-    /* Footer */
+    /* Placeholder Overlay */
+    .placeholder-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(24, 24, 24, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #ff5555;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      pointer-events: none;
+    }
+
     footer {
       background-color: transparent;
       text-align: center;
@@ -130,37 +147,37 @@
   </div>
 
   <!-- Gallery -->
-<!-- Gallery Thumbnails -->
   <main class="gallery-container">
-<div id="gallery" class="gallery">
-  <a class="gallery-item" href="https://deckerd451.github.io/dex/
-" target="_blank" rel="noopener noreferrer">
-  <img src="images/xcard.png" alt="Neural Network Project">
-</a>
-<a class="gallery-item" href="https://hackathon-chs-git-main-maxs-projects-ff8c32db.vercel.app/" target="_blank" rel="noopener noreferrer">
-  <img src="images/x2.png" alt="IE Hackathon Project">
-</a>
-  <a class="gallery-item" href="https://v1-kismet-ai-cf8d11c9-03a7-4434-9ff9-67e0ea49bb1a.build-preview.cloudflare.dev" target="_blank" rel="noopener noreferrer">
-  <img src="images/kismetcard.png" alt="cloudflare Project">
-</a>
-</div>
-    </main>
+    <div id="gallery" class="gallery">
 
-<!-- Video Modal -->
-<div id="videoModal" class="modal hidden">
-  <div class="modal-content">
-    <span class="close-btn" aria-label="Close video">&times;</span>
-    <iframe 
-  id="videoFrame" 
-  width="100%" 
-  height="100%" 
-  frameborder="0" 
-  allowfullscreen 
-  allow="autoplay; encrypted-media">
-</iframe>
+      <a class="gallery-item" href="https://deckerd451.github.io/dex/" target="_blank" rel="noopener noreferrer">
+        <img src="images/xcard.png" alt="Neural Network Project">
+      </a>
 
+      <a class="gallery-item" href="https://hackathon-chs-git-main-maxs-projects-ff8c32db.vercel.app/" target="_blank" rel="noopener noreferrer">
+        <img src="images/x2.png" alt="IE Hackathon Project">
+      </a>
+
+      <a class="gallery-item" href="https://v1-kismet-ai-cf8d11c9-03a7-4434-9ff9-67e0ea49bb1a.build-preview.cloudflare.dev" target="_blank" rel="noopener noreferrer">
+        <img src="images/kismetcard.png" alt="Cloudflare Project">
+      </a>
+
+      <!-- Placeholder Card -->
+      <a class="gallery-item" href="https://deckerd451.github.io/new-synapse/" target="_blank" rel="noopener noreferrer">
+        <img src="images/placeholder.png" alt="New Synapse Project Placeholder">
+        <div class="placeholder-overlay">Coming Soon</div>
+      </a>
+
+    </div>
+  </main>
+
+  <!-- Video Modal -->
+  <div id="videoModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" aria-label="Close video">&times;</span>
+      <iframe id="videoFrame" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+    </div>
   </div>
-</div>
 
   <!-- Footer -->
   <footer>
@@ -171,36 +188,37 @@
     </div>
     <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
-<script>
-  const galleryItems = document.querySelectorAll('.gallery-item[data-video]');
-  const modal = document.getElementById('videoModal');
-  const iframe = document.getElementById('videoFrame');
-  const closeBtn = document.querySelector('.close-btn');
 
-  galleryItems.forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      const videoURL = item.getAttribute('data-video');
-      iframe.src = videoURL;
-      modal.classList.remove('hidden');
+  <script>
+    const galleryItems = document.querySelectorAll('.gallery-item[data-video]');
+    const modal = document.getElementById('videoModal');
+    const iframe = document.getElementById('videoFrame');
+    const closeBtn = document.querySelector('.close-btn');
+
+    galleryItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const videoURL = item.getAttribute('data-video');
+        iframe.src = videoURL;
+        modal.classList.remove('hidden');
+      });
     });
-  });
 
-  closeBtn.addEventListener('click', () => {
-    iframe.src = '';
-    modal.classList.add('hidden');
-  });
-
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
+    closeBtn.addEventListener('click', () => {
       iframe.src = '';
       modal.classList.add('hidden');
-    }
-  });
-</script>
-  <!-- —— Neural background module —— -->
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        iframe.src = '';
+        modal.classList.add('hidden');
+      }
+    });
+  </script>
+
+  <!-- Neural background -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
 
 </body>
 </html>
-
