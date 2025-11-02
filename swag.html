@@ -2,10 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>CharlestonHacks Swag Voting</title>
+  <title>CharlestonHacks Swag</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Britannic+Bold:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <!-- LightGallery CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/css/lightgallery.min.css">
 
   <style>
     :root {
@@ -22,9 +25,9 @@
       color: var(--text-color);
       min-height: 100vh;
       font-family: 'Britannic Bold', Arial, sans-serif;
-      position: relative;
       text-align: center;
       margin: 0;
+      position: relative;
     }
     body::before {
       content: "";
@@ -47,7 +50,6 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      background: transparent;
     }
 
     .logo {
@@ -59,31 +61,13 @@
       filter: drop-shadow(0 2px 16px #222);
       transition: transform 0.3s ease, opacity 0.3s ease;
     }
-    .logo:hover {
-      transform: scale(1.05);
-      opacity: 0.9;
-    }
-
-    .section-title {
-      color: var(--secondary-color);
-      font-size: 2.1rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      text-align: center;
-      letter-spacing: 0.04em;
-      text-shadow: 0 2px 12px #000;
-      background: linear-gradient(135deg, #ffd700, #ff6b35);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
+    .logo:hover { transform: scale(1.05); opacity: 0.9; }
 
     .subtitle {
       color: var(--text-color);
       font-size: 1.2rem;
       opacity: 0.85;
       margin-bottom: 24px;
-      text-align: center;
     }
 
     .swag-grid {
@@ -121,7 +105,6 @@
     .swag-item img:hover {
       transform: scale(1.13) rotate(-2deg);
       box-shadow: 0 0 24px #ffd700cc;
-      z-index: 2;
     }
 
     .swag-item label {
@@ -129,9 +112,7 @@
       font-size: 1.1em;
       margin-top: 4px;
       display: block;
-      cursor: pointer;
       font-weight: bold;
-      letter-spacing: 0.02em;
     }
 
     .vote-btn {
@@ -150,7 +131,6 @@
       margin-left: auto;
       margin-right: auto;
     }
-
     .vote-btn:hover { background: #FFC000; }
 
     .success-message {
@@ -172,12 +152,7 @@
       box-shadow: 0 0 10px rgba(255,215,0,0.25);
     }
 
-    .leaderboard h2 {
-      color: #ffd700;
-      font-size: 1.3em;
-      margin-bottom: 12px;
-    }
-
+    .leaderboard h2 { color: #ffd700; font-size: 1.3em; margin-bottom: 12px; }
     .leaderboard-row {
       display: flex;
       justify-content: space-between;
@@ -191,18 +166,13 @@
     .leaderboard-swag { flex: 1; text-align: left; }
     .leaderboard-count { color: #ffd700; }
 
-    @media (max-width: 800px) {
-      .swag-grid { grid-template-columns: 1fr 1fr;}
-    }
-    @media (max-width: 480px) {
-      .swag-grid { grid-template-columns: 1fr;}
-    }
+    @media (max-width: 800px) { .swag-grid { grid-template-columns: 1fr 1fr;} }
+    @media (max-width: 480px) { .swag-grid { grid-template-columns: 1fr;} }
   </style>
 </head>
 
 <body>
   <div class="main-content">
-    <!-- Clickable logo that returns to index.html -->
     <a href="index.html">
       <img src="icons/header swag.webp" alt="CharlestonHacks Logo" class="logo" />
     </a>
@@ -221,23 +191,27 @@
     </div>
   </div>
 
-  <!-- ==================== SUPABASE SCRIPT ==================== -->
+  <!-- LightGallery JS -->
+  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/lightgallery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/plugins/zoom/lg-zoom.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/plugins/thumbnail/lg-thumbnail.min.js"></script>
+
+  <!-- Supabase + Main Script -->
   <script type="module">
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.2/+esm";
 
-    // --- Supabase Setup ---
     const SUPABASE_URL = "https://hvmotpzhliufzomewzfl.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s";
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const swagItems = [
-  { name: "T-Shirt", img: "icons/tshirt.webp" },
-  { name: "Sticker", img: "icons/sticker.webp" },
-  { name: "Hat", img: "icons/hat.webp" },
-  { name: "Hoodie", img: "icons/hoodie.webp" },
-  { name: "Mug", img: "icons/mug.webp" },
-  { name: "Gauntlet", img: "icons/gauntlet.webp" }
-];
+      { name: "T-Shirt", img: "icons/tshirt.webp" },
+      { name: "Sticker", img: "icons/sticker.webp" },
+      { name: "Hat", img: "icons/hat.webp" },
+      { name: "Hoodie", img: "icons/hoodie.webp" },
+      { name: "Mug", img: "icons/mug.webp" },
+      { name: "Gauntlet", img: "icons/gauntlet.webp" }
+    ];
 
     const swagGrid = document.getElementById('swagGrid');
     const successMsg = document.getElementById('successMsg');
@@ -249,13 +223,23 @@
         const swagDiv = document.createElement('div');
         swagDiv.className = 'swag-item';
         swagDiv.innerHTML = `
-          <img src="${item.img}" alt="${item.name}">
+          <a href="${item.img}" data-lg-size="1400-933" data-sub-html="<h4>${item.name}</h4>">
+            <img src="${item.img}" alt="${item.name}">
+          </a>
           <label>${item.name}</label>
           <button class="vote-btn" data-swag="${item.name}">
             <i class="fa fa-thumbs-up"></i> Vote
           </button>
         `;
         swagGrid.appendChild(swagDiv);
+      });
+
+      // Initialize lightbox
+      lightGallery(swagGrid, {
+        selector: 'a',
+        plugins: [lgZoom, lgThumbnail],
+        licenseKey: '0000-0000-000-0000',
+        speed: 400,
       });
     }
 
@@ -273,7 +257,6 @@
           .single();
 
         let currentVotes = data?.votes || 0;
-
         if (data) {
           const { error: updateError } = await supabaseClient
             .from('swag_votes')
@@ -310,13 +293,12 @@
         data.forEach(row => (swagCounts[row.swag] = row.votes));
         const sorted = Object.entries(swagCounts).sort((a, b) => b[1] - a[1]);
         leaderboardRows.innerHTML = sorted
-          .map(
-            ([swag, count], i) => `
-              <div class="leaderboard-row">
-                <span class="leaderboard-rank">${i + 1}.</span>
-                <span class="leaderboard-swag">${swag}</span>
-                <span class="leaderboard-count">${count} <i class="fa fa-thumbs-up"></i></span>
-              </div>`
+          .map(([swag, count], i) => `
+            <div class="leaderboard-row">
+              <span class="leaderboard-rank">${i + 1}.</span>
+              <span class="leaderboard-swag">${swag}</span>
+              <span class="leaderboard-count">${count} <i class="fa fa-thumbs-up"></i></span>
+            </div>`
           )
           .join('');
       } catch (err) {
