@@ -5,15 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Donate to CharlestonHacks</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- Font Awesome CSS for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 <body>
   <main class="container">
-    <header class="header">
-      <h1>Support CharlestonHacks</h1>
-      <p>Your contribution helps grow the creative tech community.</p>
-    </header>
-
+    <!-- ... other content ... -->
     <section class="card-container">
       <!-- GitHub Sponsors Card -->
       <div class="team-member-card">
@@ -21,7 +18,7 @@
         <div class="member-name">GitHub Sponsors</div>
         <p class="user-status">Become a recurring sponsor</p>
         <button class="endorse-btn" onclick="window.open('https://github.com/sponsors/deckerd451', '_blank')">
-          <i class="fab fa-github"></i> Sponsor on GitHub
+          <i class="fab fa-github fa-sm"></i> Sponsor on GitHub
         </button>
       </div>
 
@@ -30,23 +27,40 @@
         <img src="images/bit.png" alt="Bitcoin Donation" />
         <div class="member-name">Donate with Bitcoin</div>
         <p class="user-status">Secure & borderless</p>
-        <form method="POST" action="https://your-btcpay-server-url.com/api/v1/invoices" target="_blank">
-          <input type="hidden" name="storeId" value="YOUR_STORE_ID" />
+        <!-- Updated BTCPay donation form -->
+        <form class="endorse-btn" method="POST" action="https://<YOUR-BTCPAY-SERVER>/api/v1/invoices" onsubmit="onBTCPayFormSubmit(event); return false;">
+          <input type="hidden" name="storeId" value="<YOUR_STORE_ID>" />
           <input type="hidden" name="price" value="10" />
           <input type="hidden" name="currency" value="USD" />
           <input type="hidden" name="checkoutDesc" value="Donation to CharlestonHacks" />
-          <button type="submit" class="endorse-btn">
-            <i class="fab fa-bitcoin"></i> Donate BTC
+          <input type="hidden" name="jsonResponse" value="true" />
+          <button type="submit">
+            <i class="fab fa-bitcoin fa-sm"></i> Donate BTC
           </button>
         </form>
       </div>
     </section>
-
-    <p class="profile-complete" style="text-align:center; margin-top:20px;">Thank you for supporting innovation and community tech in Charleston!</p>
+    <!-- ... other content ... -->
   </main>
 
-  <footer>
-    <p style="text-align:center; font-size:0.9em; color:#666; padding:1em 0;">&copy; 2025 CharlestonHacks. All rights reserved.</p>
-  </footer>
+  <footer> ... </footer>
+
+  <!-- BTCPay modal script and form handler -->
+  <script src="https://<YOUR-BTCPAY-SERVER>/modal/btcpay.js"></script>
+  <script>
+    function onBTCPayFormSubmit(event) {
+      event.preventDefault();
+      var form = event.target;
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText) {
+          var response = JSON.parse(xhr.responseText);
+          window.btcpay.showInvoice(response.invoiceId);  // Open the BTCPay invoice modal
+        }
+      };
+      xhr.open("POST", form.action, true);
+      xhr.send(new FormData(form));
+    }
+  </script>
 </body>
 </html>
