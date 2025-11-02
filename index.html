@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
-  <!-- —— Redirect if landed via magic link —— -->
+  <!-- —— Neuron redirect —— -->
   <script>
     const params = new URLSearchParams(window.location.search);
     if (params.get('source') === 'neuron') {
@@ -21,22 +21,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>CharlestonHacks - Home</title>
-  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
-  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated." />
-  <meta property="og:image" content="images/websitepanel.webp" />
-  <meta property="og:url" content="https://charlestonhacks.com" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
-  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#ff6600">
-  <link rel="canonical" href="https://charlestonhacks.com" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators."/>
+  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events"/>
+  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated."/>
+  <meta property="og:image" content="images/websitepanel.webp"/>
+  <meta property="og:url" content="https://charlestonhacks.com"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <link rel="icon" href="favicon.ico" type="image/x-icon"/>
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#ff6600"/>
+  <link rel="canonical" href="https://charlestonhacks.com"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
+  <!-- —— Neural background —— -->
   <canvas id="neural-bg"></canvas>
 
   <noscript>
@@ -45,7 +46,7 @@
     </div>
   </noscript>
 
-  <!-- —— Splash Screen —— -->
+  <!-- —— Splash (first time only) —— -->
   <div id="splash-overlay" role="dialog" aria-modal="true" tabindex="-1">
     <div id="splash-content">
       <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
@@ -68,12 +69,12 @@
     </div>
   </div>
 
-  <!-- —— Audio assets —— -->
+  <!-- —— Audio —— -->
   <audio id="cardflipSound" src="assets/atmospherel.m4a" preload="auto"></audio>
   <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
   <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
 
-  <!-- —— Main Interactive Card —— -->
+  <!-- —— Main content —— -->
   <main>
     <div class="main-wrapper">
       <div class="media-container" aria-label="Toggle mission content" tabindex="0">
@@ -86,7 +87,7 @@
           <source src="" type="video/mp4" />
         </video>
 
-        <!-- —— Clickable Buttons —— -->
+        <!-- Clickable areas -->
         <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
           <img src="images/informationbutton.webp" alt="Info" />
         </button>
@@ -170,7 +171,7 @@
   })();
   </script>
 
-  <!-- —— Card + Chat logic —— -->
+  <!-- —— Main logic (card + chat) —— -->
   <script type="module">
     import { CONFIG } from './assets/js/config.js';
     import { initCardFlip } from './assets/js/cardFlip.js';
@@ -188,18 +189,34 @@
     startBTCPriceTracker('btcPrice');
     startCountdown('countdown', '2025-10-03T00:00:00-04:00');
 
-    // 💬 Setup chat bubble, but only reveal it when card is clicked
+    // init bubble (creates it, but keeps it hidden)
     setupChatBubble();
+
+    // show bubble only after main card clicked (no Medusa, no scroll observer)
     const mediaContainer = document.querySelector('.media-container');
-    const showBubble = () => {
+    const revealBubble = () => {
       const bubble = document.getElementById('discord-bubble');
       if (bubble) bubble.classList.add('visible');
-      mediaContainer.removeEventListener('click', showBubble);
+      mediaContainer.removeEventListener('click', revealBubble);
     };
-    mediaContainer.addEventListener('click', showBubble);
+    mediaContainer.addEventListener('click', revealBubble);
   </script>
 
-  <!-- —— Neural Background —— -->
+  <!-- —— Neural background —— -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
+
+  <!-- —— Optional: filter noisy WidgetBot console errors —— -->
+  <script>
+    (function () {
+      const origError = console.error ? console.error.bind(console) : null;
+      if (!origError) return;
+      console.error = (...args) => {
+        // hide WidgetBot/Sentry CORS noise
+        if (args.some(a => typeof a === 'string' && a.includes('bugs.widgetbot.co'))) return;
+        if (args.some(a => typeof a === 'string' && a.includes('https://bugs.widgetbot.co'))) return;
+        origError(...args);
+      };
+    })();
+  </script>
 </body>
 </html>
