@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
-  <!-- —— Neuron redirect if landed via magic link —— -->
+  <!-- —— Neuron redirect —— -->
   <script>
     const params = new URLSearchParams(window.location.search);
     if (params.get('source') === 'neuron') {
@@ -46,7 +46,7 @@
     </div>
   </noscript>
 
-  <!-- —— Splash Screen (first-time only) —— -->
+  <!-- —— Splash Screen —— -->
   <div id="splash-overlay" role="dialog" aria-modal="true" tabindex="-1">
     <div id="splash-content">
       <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
@@ -131,7 +131,7 @@
     </section>
   </main>
 
-  <!-- —— Splash logic: show once only —— -->
+  <!-- —— Splash logic —— -->
   <script>
   (function () {
     const splashOverlay = document.getElementById('splash-overlay');
@@ -161,24 +161,23 @@
       }
       splashOverlay.style.display = 'flex';
       document.body.classList.add('splash-active');
-
       communityBtn.addEventListener('click', dismissSplash);
       publicBtn.addEventListener('click', () => {
         dismissSplash();
         window.location.href = 'https://charlestonhacks.mailchimpsites.com/';
       });
     }
-
     window.addEventListener('DOMContentLoaded', maybeShowSplash);
   })();
   </script>
 
-  <!-- —— Card logic —— -->
+  <!-- —— Card + Chat logic —— -->
   <script type="module">
     import { CONFIG } from './assets/js/config.js';
     import { initCardFlip } from './assets/js/cardFlip.js';
     import { startBTCPriceTracker } from './assets/js/btc.js';
     import { startCountdown } from './assets/js/countdown.js';
+    import { setupChatBubble } from './assets/js/chatBubble.js'; // ✅ Modular chat
 
     CONFIG.sounds = {
       cardflip: document.getElementById('cardflipSound'),
@@ -189,88 +188,10 @@
     initCardFlip(CONFIG);
     startBTCPriceTracker('btcPrice');
     startCountdown('countdown', '2025-10-03T00:00:00-04:00');
-
-    const buttons = document.querySelectorAll('.clickable-area');
-    const infoLine = document.getElementById('infoLine');
-    const infoText = document.getElementById('infoText');
-
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sound = document.getElementById(btn.dataset.sound + 'Sound');
-        if (sound) sound.play();
-        if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
-      });
-      btn.addEventListener('mouseover', () => {
-        infoLine.style.opacity = '1';
-        infoText.textContent = btn.dataset.info || '';
-      });
-      btn.addEventListener('mouseout', () => {
-        infoLine.style.opacity = '0';
-        infoText.textContent = '';
-      });
-    });
+    setupChatBubble(); // ✅ Clean Discord bubble
   </script>
 
   <!-- —— Neural Background —— -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
-
-  <!-- —— Discord Bubble (hidden until card click, draggable/minimizable) —— -->
-  <div id="discord-bubble" style="display:none; position:fixed; bottom:20px; right:20px; z-index:9999;">
-    <iframe id="discord-frame"
-      src="https://e.widgetbot.io/channels/1094842772766146600/1094842772766146603"
-      height="80" width="80"
-      style="border:none; border-radius:50%; box-shadow:0 0 20px rgba(0,0,0,0.4); transition:all .3s ease;"
-      title="CharlestonHacks Discord">
-    </iframe>
-    <button id="discord-minimize" style="position:absolute; top:-10px; right:-10px; background:#ff6600; border:none; border-radius:50%; width:24px; height:24px; color:white; font-size:14px; cursor:pointer;">–</button>
-  </div>
-
-  <script>
-    const mediaContainer = document.querySelector('.media-container');
-    const discordBubble = document.getElementById('discord-bubble');
-    const discordFrame = document.getElementById('discord-frame');
-    const discordMinimize = document.getElementById('discord-minimize');
-    let bubbleShown = false;
-    let minimized = false;
-
-    mediaContainer.addEventListener('click', () => {
-      if (!bubbleShown) {
-        discordBubble.style.display = 'block';
-        bubbleShown = true;
-      }
-    });
-
-    discordMinimize.addEventListener('click', () => {
-      minimized = !minimized;
-      if (minimized) {
-        discordFrame.style.width = '50px';
-        discordFrame.style.height = '50px';
-        discordFrame.style.opacity = '0.7';
-        discordMinimize.textContent = '+';
-      } else {
-        discordFrame.style.width = '80px';
-        discordFrame.style.height = '80px';
-        discordFrame.style.opacity = '1';
-        discordMinimize.textContent = '–';
-      }
-    });
-
-    // Make draggable
-    let isDragging = false, offsetX, offsetY;
-    discordBubble.addEventListener('mousedown', e => {
-      isDragging = true;
-      offsetX = e.clientX - discordBubble.offsetLeft;
-      offsetY = e.clientY - discordBubble.offsetTop;
-    });
-    window.addEventListener('mousemove', e => {
-      if (isDragging) {
-        discordBubble.style.left = e.clientX - offsetX + 'px';
-        discordBubble.style.top = e.clientY - offsetY + 'px';
-        discordBubble.style.right = 'auto';
-        discordBubble.style.bottom = 'auto';
-      }
-    });
-    window.addEventListener('mouseup', () => isDragging = false);
-  </script>
 </body>
 </html>
