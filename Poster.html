@@ -1,217 +1,241 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CharlestonHacks Events</title>
-    
-    <!-- External Libraries -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/css/lightgallery.min.css">
-    <!-- Your custom global styles -->
-    <link rel="stylesheet" href="styles.css">
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CharlestonHacks Events</title>
 
-        html, body {
-            min-height: 100vh;
-            background-color: #181818;
-            font-family: Arial, sans-serif;
-            color: #fff;
-        }
+  <!-- External Libraries -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/css/lightgallery.min.css">
+  <link rel="stylesheet" href="styles.css">
 
-        /* Responsive header image - matching card game .logo */
-        .events-header-img {
-            display: block;
-            margin: 20px auto 20px auto;
-            width: 400px;
-            height: auto;
-        }
-        @media (max-width: 800px) {
-            .events-header-img {
-                width: 300px;
-                margin-top: 10px;
-            }
-        }
-        @media (max-width: 650px) {
-            .events-header-img {
-                width: 250px;
-            }
-        }
-        @media (max-width: 480px) {
-            .events-header-img {
-                width: 200px;
-            }
-        }
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        /* Gallery */
-        .gallery-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+    html, body {
+      min-height: 100vh;
+      background-color: #181818;
+      font-family: Arial, sans-serif;
+      color: #fff;
+      overflow-x: hidden;
+    }
 
-        .gallery {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            justify-items: center;
-        }
+    /* Header Image */
+    .events-header-img {
+      display: block;
+      margin: 20px auto 10px auto;
+      width: 400px;
+      height: auto;
+      cursor: pointer;
+      transition: transform 0.3s ease, filter 0.3s ease;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
+    }
 
-        .gallery-item {
-            width: 100%;
-            max-width: 300px;
-            transition: transform 0.3s ease;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
+    .events-header-img:hover {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 12px rgba(255, 100, 100, 0.6));
+    }
 
-        .gallery-item:hover {
-            transform: translateY(-5px);
-        }
+    /* Title */
+    h1.page-title {
+      text-align: center;
+      font-size: 2.5rem;
+      margin-top: 10px;
+      margin-bottom: 20px;
+      color: #fff;
+      cursor: pointer;
+      transition: color 0.3s ease, transform 0.3s ease;
+    }
 
-        .gallery-item img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
+    h1.page-title:hover {
+      color: #ff5555;
+      transform: scale(1.05);
+    }
 
-        /* Footer */
-        footer {
-            background-color: #1a1a1a;
-            text-align: center;
-            padding: 32px 20px 64px;
-            margin-top: 40px;
-            position: relative;
-        }
+    @media (max-width: 800px) { 
+      .events-header-img { width: 300px; } 
+      h1.page-title { font-size: 2rem; } 
+    }
+    @media (max-width: 650px) { 
+      .events-header-img { width: 250px; } 
+      h1.page-title { font-size: 1.8rem; } 
+    }
+    @media (max-width: 480px) { 
+      .events-header-img { width: 200px; } 
+      h1.page-title { font-size: 1.6rem; } 
+    }
 
-        /* Back button at bottom */
-        .footer-back-button {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 32px;
-        }
-        .footer-back-button img {
-            max-width: 240px;
-            width: 60vw;
-            height: auto;
-            transition: transform 0.3s ease;
-        }
-        .footer-back-button img:hover {
-            transform: scale(1.05);
-        }
+    /* Gallery */
+    .gallery-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
 
-        /* Responsive */
-        @media (max-width: 900px) {
-            .gallery {
-                grid-template-columns: 1fr 1fr;
-            }
-            .gallery-item {
-                max-width: 95vw;
-            }
-        }
-        @media (max-width: 768px) {
-            .gallery {
-                grid-template-columns: 1fr;
-            }
-        }
-        @media (max-width: 500px) {
-            .footer-back-button img {
-                max-width: 92vw;
-            }
-        }
-    </style>
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      justify-items: center;
+    }
+
+    .gallery-item {
+      width: 100%;
+      max-width: 300px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .gallery-item:hover {
+      transform: translateY(-5px) scale(1.03);
+      box-shadow: 0 0 25px rgba(255, 80, 80, 0.7);
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Footer */
+    footer {
+      background-color: transparent;
+      text-align: center;
+      padding: 32px 20px 64px;
+      margin-top: 40px;
+      position: relative;
+    }
+
+    .footer-back-button {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 32px;
+    }
+
+    .footer-back-button img {
+      max-width: 240px;
+      width: 60vw;
+      height: auto;
+      transition: transform 0.3s ease;
+    }
+
+    .footer-back-button img:hover {
+      transform: scale(1.05);
+    }
+
+    @media (max-width: 900px) {
+      .gallery { grid-template-columns: 1fr 1fr; }
+      .gallery-item { max-width: 95vw; }
+    }
+
+    @media (max-width: 768px) {
+      .gallery { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 500px) {
+      .footer-back-button img { max-width: 92vw; }
+    }
+  </style>
+
+  <!-- Google Tag -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-6NDKG07DY6');
+  </script>
 </head>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
 
-  gtag('config', 'G-6NDKG07DY6');
-</script>
 <body>
-    <!-- Responsive Header Image Centered -->
-    <div style="width: 100%; text-align: center;">
-        <img src="images/header events.webp" alt="CharlestonHacks Events" class="events-header-img">
+
+  <!-- Header -->
+  <div style="text-align: center;">
+    <a href="index.html">
+      <img src="images/header events.webp" alt="CharlestonHacks Events" class="events-header-img" />
+    </a>
+    <a href="index.html" style="text-decoration: none;">
+      <h1 class="page-title">CharlestonHacks Events</h1>
+    </a>
+  </div>
+
+  <!-- Gallery -->
+  <main class="gallery-container">
+    <div id="gallery" class="gallery">
+
+      <a href="https://harborhack-2025.devpost.com/" class="gallery-item">
+        <img src="images/hh25.jpg" alt="HarborHack 2025" />
+      </a>
+      <a href="https://www.meetup.com/charlestonhacks/events/308597228/" class="gallery-item">
+        <img src="images/chrc.webp" alt="CharlestonHacks Running Club" />
+      </a>
+      <a href="https://www.meetup.com/charlestonhacks/events/308305047" class="gallery-item">
+        <img src="images/full2.jpg" alt="CharlestonHacks Digital Nomad 3" />
+      </a>
+      <a href="https://www.meetup.com/charlestonhacks/events/307916870" class="gallery-item">
+        <img src="images/dn poster dave.webp" alt="CharlestonHacks Digital Nomad 2" />
+      </a>
+      <a href="innovationengine.html" class="gallery-item">
+        <img src="images/ieposter.jpg" alt="Innovation Engine" />
+      </a>
+      <a href="techweek.html" class="gallery-item">
+        <img src="images/AIFF.jpg" alt="Tech Week" />
+      </a>
+      <a href="https://www.meetup.com/charlestonhacks/events/306342295/" class="gallery-item">
+        <img src="images/dn.jpg" alt="Charleston Hacks Event" />
+      </a>
+      <a href="harborhack24.html" class="gallery-item">
+        <img src="images/hh24poster.png" alt="Harbor Hack 2024" />
+      </a>
+      <a href="meetupmashup.html" class="gallery-item">
+        <img src="images/mashup1.jpg" alt="Meetup Mashup" />
+      </a>
+      <a href="hacknights24.html" class="gallery-item">
+        <img src="images/hnposter24.jpg" alt="Hack Nights 2024" />
+      </a>
+      <a href="hackops.html" class="gallery-item">
+        <img src="images/hoposter24.jpg" alt="Hack Ops" />
+      </a>
+      <a href="harborhack23.html" class="gallery-item">
+        <img src="images/Hackers Wanted.jpeg" alt="Harbor Hack 2023" />
+      </a>
+      <a href="summerhack.html" class="gallery-item">
+        <img src="images/HACK ONE PAGER4-01.jpg" alt="Summer Hack" />
+      </a>
     </div>
+  </main>
 
-    <!-- Main Gallery -->
-    <main class="gallery-container">
-        <div id="gallery" class="gallery">
-            <a href="https://harborhack-2025.devpost.com/" class="gallery-item">
-                <img src="images/hh25.jpg" alt="HarborHack 2025">
-            <a href="https://www.meetup.com/charlestonhacks/events/308597228/" class="gallery-item">
-                <img src="images/chrc.webp" alt="CharlestonHacks Running Club">
-            </a>
-            <a href="https://www.meetup.com/charlestonhacks/events/308305047" class="gallery-item">
-                <img src="images/full2.jpg" alt="CharlestonHacks Digital Nomad 3">
-            </a>
-            <a href="https://www.meetup.com/charlestonhacks/events/307916870" class="gallery-item">
-                <img src="images/dn poster dave.webp" alt="CharlestonHacks Digital Nomad 2">
-            </a>
-            <a href="innovationengine.html" class="gallery-item">
-                <img src="images/ieposter.jpg" alt="Innovation Engine">
-            </a>
-            <a href="techweek.html" class="gallery-item">
-                <img src="images/AIFF.jpg" alt="Tech Week">
-            </a>
-            <a href="https://www.meetup.com/charlestonhacks/events/306342295/" class="gallery-item">
-                <img src="images/dn.jpg" alt="Charleston Hacks Event">
-            </a>
-            <a href="harborhack24.html" class="gallery-item">
-                <img src="images/hh24poster.png" alt="Harbor Hack 2024">
-            </a>
-            <a href="meetupmashup.html" class="gallery-item">
-                <img src="images/mashup1.jpg" alt="Meetup Mashup">
-            </a>
-            <a href="hacknights24.html" class="gallery-item">
-                <img src="images/hnposter24.jpg" alt="Hack Nights 2024">
-            </a>
-            <a href="hackops.html" class="gallery-item">
-                <img src="images/hoposter24.jpg" alt="Hack Ops">
-            </a>
-            <a href="harborhack23.html" class="gallery-item">
-                <img src="images/Hackers Wanted.jpeg" alt="Harbor Hack 2023">
-            </a>
-            <a href="summerhack.html" class="gallery-item">
-                <img src="images/HACK ONE PAGER4-01.jpg" alt="Summer Hack">
-            </a>
-        </div>
-    </main>
+  <!-- Footer -->
+  <footer>
+    <div class="footer-back-button">
+      <a href="index.html">
+        <img src="assets/chbackbuttonred.png" alt="Back to Home" />
+      </a>
+    </div>
+    <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
+  </footer>
 
-    <!-- Footer -->
-    <footer>
-        <div class="footer-back-button">
-            <a href="index.html">
-                <img src="assets/chbackbuttonred.png" alt="Back to Home">
-            </a>
-        </div>
-        <p style="margin-top:16px;">&copy; 2025 CharlestonHacks</p>
-    </footer>
-
-    <!-- LightGallery JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/lightgallery.umd.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize LightGallery only for image files
-            if (typeof lightGallery !== 'undefined') {
-                lightGallery(document.getElementById('gallery'), {
-                    selector: 'a[href$=".jpg"] img, a[href$=".png"] img, a[href$=".jpeg"] img',
-                    download: false,
-                    counter: true,
-                    closable: true
-                });
-            }
+  <!-- LightGallery -->
+  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/lightgallery.umd.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof lightGallery !== 'undefined') {
+        lightGallery(document.getElementById('gallery'), {
+          selector: 'a img',
+          download: false,
+          counter: true,
+          closable: true
         });
-    </script>
+      }
+    });
+  </script>
 </body>
 </html>
