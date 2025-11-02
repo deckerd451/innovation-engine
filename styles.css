@@ -2342,3 +2342,16 @@ main, .main-wrapper, .media-container {
     right: 16px;
   }
 }
+/* --- Fix for unclickable buttons on main card --- */
+#neural-bg,
+#missionImage,
+#missionVideo {
+  pointer-events: none !important;
+}
+
+.clickable-area {
+  position: absolute;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
