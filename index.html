@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
-  <!-- —— Neuron redirect —— -->
+  <!-- —— Redirect if landed via magic link —— -->
   <script>
     const params = new URLSearchParams(window.location.search);
     if (params.get('source') === 'neuron') {
@@ -21,23 +21,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>CharlestonHacks - Home</title>
-  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators."/>
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events"/>
-  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated."/>
-  <meta property="og:image" content="images/websitepanel.webp"/>
-  <meta property="og:url" content="https://charlestonhacks.com"/>
-  <meta name="twitter:card" content="summary_large_image"/>
-  <link rel="icon" href="favicon.ico" type="image/x-icon"/>
-  <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
-  <link rel="manifest" href="/manifest.json"/>
-  <meta name="theme-color" content="#ff6600"/>
-  <link rel="canonical" href="https://charlestonhacks.com"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
+  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
+  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated." />
+  <meta property="og:image" content="images/websitepanel.webp" />
+  <meta property="og:url" content="https://charlestonhacks.com" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ff6600">
+  <link rel="canonical" href="https://charlestonhacks.com" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
-  <!-- —— Full-screen neural background —— -->
   <canvas id="neural-bg"></canvas>
 
   <noscript>
@@ -85,10 +84,9 @@
         <img id="cardFrame" src="images/cardframe2.svg" alt="Card Frame" style="display:none;" />
         <video id="missionVideo" muted playsinline controls style="display:none; opacity:0;">
           <source src="" type="video/mp4" />
-          Your browser does not support the video tag.
         </video>
 
-        <!-- —— Interactive Buttons —— -->
+        <!-- —— Clickable Buttons —— -->
         <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
           <img src="images/informationbutton.webp" alt="Info" />
         </button>
@@ -135,7 +133,6 @@
   <script>
   (function () {
     const splashOverlay = document.getElementById('splash-overlay');
-    const dontShowBox   = document.getElementById('dont-show-again');
     const communityBtn  = document.getElementById('community-site-btn');
     const publicBtn     = document.getElementById('public-site-btn');
     const splashKey     = 'chs_splash_seen_once';
@@ -168,6 +165,7 @@
         window.location.href = 'https://charlestonhacks.mailchimpsites.com/';
       });
     }
+
     window.addEventListener('DOMContentLoaded', maybeShowSplash);
   })();
   </script>
@@ -178,7 +176,7 @@
     import { initCardFlip } from './assets/js/cardFlip.js';
     import { startBTCPriceTracker } from './assets/js/btc.js';
     import { startCountdown } from './assets/js/countdown.js';
-    import { setupChatBubble } from './assets/js/chatBubble.js'; // ✅ advanced bubble
+    import { setupChatBubble } from './assets/js/chatBubble.js';
 
     CONFIG.sounds = {
       cardflip: document.getElementById('cardflipSound'),
@@ -189,7 +187,16 @@
     initCardFlip(CONFIG);
     startBTCPriceTracker('btcPrice');
     startCountdown('countdown', '2025-10-03T00:00:00-04:00');
-    setupChatBubble(); // ✅ Initialize CharlestonHacks glowing bubble
+
+    // 💬 Setup chat bubble, but only reveal it when card is clicked
+    setupChatBubble();
+    const mediaContainer = document.querySelector('.media-container');
+    const showBubble = () => {
+      const bubble = document.getElementById('discord-bubble');
+      if (bubble) bubble.classList.add('visible');
+      mediaContainer.removeEventListener('click', showBubble);
+    };
+    mediaContainer.addEventListener('click', showBubble);
   </script>
 
   <!-- —— Neural Background —— -->
