@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CharlestonHacks Docs</title>
+  <title>CharlestonHacks Experimental Zone</title>
 
   <!-- External Libraries -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -11,154 +11,125 @@
   <link rel="stylesheet" href="styles.css">
 
   <!-- Page Styles -->
-<style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  html, body {
-    min-height: 100vh;
-    background-color: #181818;
-    font-family: Arial, sans-serif;
-    color: #fff;
-  }
+    html, body {
+      min-height: 100vh;
+      background-color: #181818;
+      font-family: Arial, sans-serif;
+      color: #fff;
+    }
 
-  .news-header-img {
-    display: block;
-    margin: 20px auto;
-    width: 400px;
-    height: auto;
-  }
+    .news-header-img {
+      display: block;
+      margin: 20px auto;
+      width: 400px;
+      height: auto;
+    }
 
-  @media (max-width: 800px) { .news-header-img { width: 300px; margin-top: 10px; } }
-  @media (max-width: 650px) { .news-header-img { width: 250px; } }
-  @media (max-width: 480px) { .news-header-img { width: 200px; } }
+    @media (max-width: 800px) { .news-header-img { width: 300px; margin-top: 10px; } }
+    @media (max-width: 650px) { .news-header-img { width: 250px; } }
+    @media (max-width: 480px) { .news-header-img { width: 200px; } }
 
-  .gallery-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-  }
+    .gallery-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
 
-  .gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    justify-items: center;
-  }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      justify-items: center;
+    }
 
-  .gallery-item {
-    position: relative;
-    width: 100%;
-    max-width: 300px;
-    border-radius: 8px;
-    overflow: hidden;
-    background: #222;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
+    .gallery-item {
+      position: relative;
+      width: 100%;
+      max-width: 300px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #222;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease;
+    }
 
-  .gallery-item:hover {
-    transform: translateY(-5px) scale(1.05);
-  }
+    .gallery-item:hover {
+      transform: translateY(-5px) scale(1.05);
+    }
 
-  .gallery-item img {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
+    .gallery-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
 
-  /* Placeholder Animation */
-  .placeholder-card {
-    animation: pulse 2.5s infinite;
-    box-shadow: 0 0 10px rgba(255, 85, 85, 0.4);
-  }
+    /* Placeholder Overlay */
+    .placeholder-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(24, 24, 24, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #ff5555;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      pointer-events: none;
+    }
 
-  @keyframes pulse {
-    0% { box-shadow: 0 0 5px rgba(255, 85, 85, 0.2); }
-    50% { box-shadow: 0 0 20px rgba(255, 85, 85, 0.6); }
-    100% { box-shadow: 0 0 5px rgba(255, 85, 85, 0.2); }
-  }
+    footer {
+      background-color: transparent;
+      text-align: center;
+      padding: 32px 20px 64px;
+      margin-top: 40px;
+      position: relative;
+    }
 
-  /* Shimmer overlay */
-  .placeholder-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(24, 24, 24, 0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.4rem;
-    font-weight: bold;
-    color: #ff5555;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    overflow: hidden;
-  }
+    .footer-back-button {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 32px;
+    }
 
-  .placeholder-overlay::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -75%;
-    width: 50%;
-    height: 100%;
-    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.25), transparent);
-    animation: shimmer 3s infinite;
-  }
+    .footer-back-button img {
+      max-width: 240px;
+      width: 60vw;
+      height: auto;
+      transition: transform 0.3s ease;
+    }
 
-  @keyframes shimmer {
-    0% { left: -75%; }
-    100% { left: 125%; }
-  }
+    .footer-back-button img:hover {
+      transform: scale(1.05);
+    }
 
-  footer {
-    background-color: transparent;
-    text-align: center;
-    padding: 32px 20px 64px;
-    margin-top: 40px;
-    position: relative;
-  }
+    @media (max-width: 900px) {
+      .gallery { grid-template-columns: 1fr 1fr; }
+      .gallery-item { max-width: 95vw; }
+    }
 
-  .footer-back-button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: 32px;
-  }
+    @media (max-width: 768px) {
+      .gallery { grid-template-columns: 1fr; }
+    }
 
-  .footer-back-button img {
-    max-width: 240px;
-    width: 60vw;
-    height: auto;
-    transition: transform 0.3s ease;
-  }
+    @media (max-width: 500px) {
+      .footer-back-button img { max-width: 92vw; }
+    }
+  </style>
 
-  .footer-back-button img:hover {
-    transform: scale(1.05);
-  }
-
-  @media (max-width: 900px) {
-    .gallery { grid-template-columns: 1fr 1fr; }
-    .gallery-item { max-width: 95vw; }
-  }
-
-  @media (max-width: 768px) {
-    .gallery { grid-template-columns: 1fr; }
-  }
-
-  @media (max-width: 500px) {
-    .footer-back-button img { max-width: 92vw; }
-  }
-</style>
-
-
-  <!-- Google Tag -->
+  <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -170,51 +141,43 @@
 
 <body>
 
-  <!-- Header -->
+  <!-- Header Image -->
   <div style="text-align: center;">
-    <img src="images/header docs.webp" alt="CharlestonHacks Docs" class="news-header-img" />
-  </div>
-
-  <!-- CTA -->
-  <div style="text-align: center;">
-    <button class="survey-button" onclick="document.getElementById('hcd-feedback').scrollIntoView({ behavior: 'smooth' });">
-      Take the Survey
-    </button>
+    <img src="images/ez.png" alt="CharlestonHacks Experimental Zone" class="news-header-img" />
   </div>
 
   <!-- Gallery -->
   <main class="gallery-container">
     <div id="gallery" class="gallery">
-      <div class="gallery-item" data-video="https://www.youtube.com/embed/BkqZVR5uipU?autoplay=1">
-        <img src="images/workshop.png" alt="CharlestonHacks Workshop Product 102">
-      </div>
+
+      <a class="gallery-item" href="https://deckerd451.github.io/dex/" target="_blank" rel="noopener noreferrer">
+        <img src="images/xcard.png" alt="Neural Network Project">
+      </a>
+
+      <a class="gallery-item" href="https://hackathon-chs-git-main-maxs-projects-ff8c32db.vercel.app/" target="_blank" rel="noopener noreferrer">
+        <img src="images/x2.png" alt="IE Hackathon Project">
+      </a>
+
+      <a class="gallery-item" href="https://v1-kismet-ai-cf8d11c9-03a7-4434-9ff9-67e0ea49bb1a.build-preview.cloudflare.dev" target="_blank" rel="noopener noreferrer">
+        <img src="images/kismetcard.png" alt="Cloudflare Project">
+      </a>
+
+      <!-- Placeholder Card -->
+      <a class="gallery-item" href="https://deckerd451.github.io/new-synapse/" target="_blank" rel="noopener noreferrer">
+        <img src="images/placeholder.png" alt="New Synapse Project Placeholder">
+        <div class="placeholder-overlay">Coming Soon</div>
+      </a>
+
     </div>
   </main>
 
   <!-- Video Modal -->
-  <div id="videoModal" class="modal">
+  <div id="videoModal" class="modal hidden">
     <div class="modal-content">
       <span class="close-btn" aria-label="Close video">&times;</span>
-      <iframe 
-        id="videoFrame" 
-        width="100%" 
-        height="100%" 
-        frameborder="0" 
-        allowfullscreen 
-        allow="autoplay; encrypted-media">
-      </iframe>
+      <iframe id="videoFrame" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
     </div>
   </div>
-
-  <!-- HCD Feedback Form -->
-  <section id="hcd-feedback">
-    <h2>HCD Software Feedback Survey</h2>
-    <iframe 
-      class="hcd-form"
-      src="https://docs.google.com/forms/d/e/1FAIpQLSca94zDIxSJ-1d4QyA7h7Txk-Towj4xObsJzQAu9wyU4Di4TQ/viewform?embedded=true">
-      Loading…
-    </iframe>
-  </section>
 
   <!-- Footer -->
   <footer>
@@ -226,41 +189,36 @@
     <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
 
-  <!-- Scripts -->
   <script>
-    const galleryItems = document.querySelectorAll('.gallery-item');
+    const galleryItems = document.querySelectorAll('.gallery-item[data-video]');
     const modal = document.getElementById('videoModal');
     const iframe = document.getElementById('videoFrame');
     const closeBtn = document.querySelector('.close-btn');
 
-    if (modal && iframe) {
-      galleryItems.forEach(item => {
-        item.addEventListener('click', () => {
-          const videoURL = item.getAttribute('data-video');
-          iframe.src = videoURL;
-          modal.classList.add('show');
-        });
+    galleryItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const videoURL = item.getAttribute('data-video');
+        iframe.src = videoURL;
+        modal.classList.remove('hidden');
       });
+    });
 
-      closeBtn.addEventListener('click', () => {
+    closeBtn.addEventListener('click', () => {
+      iframe.src = '';
+      modal.classList.add('hidden');
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
         iframe.src = '';
-        modal.classList.remove('show');
-      });
-
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          iframe.src = '';
-          modal.classList.remove('show');
-        }
-      });
-
-      window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.classList.contains('show')) {
-          iframe.src = '';
-          modal.classList.remove('show');
-        }
-      });
-    }
+        modal.classList.add('hidden');
+      }
+    });
   </script>
+
+  <!-- Neural background -->
+  <script type="module" src="assets/js/neuralBackground.js"></script>
+
 </body>
 </html>
