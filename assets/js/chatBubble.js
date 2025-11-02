@@ -1,23 +1,11 @@
-// ===============================================
-// CharlestonHacks Chat Bubble (Final Version)
-// ===============================================
-// - Glowing draggable bubble
-// - WidgetBot Crate loader (no GraphQL spam)
-// - Position persistence via localStorage
-// - Prevents duplicate bubbles
-// - Shows when main card is clicked
-// ===============================================
-
+// CharlestonHacks Chat Bubble – card-click version
 export function setupChatBubble() {
-  // 🧹 Cleanup stray duplicates
-  document.querySelectorAll('#discord-bubble').forEach((b, i) => {
-    if (i > 0) b.remove();
-  });
-
+  // prevent duplicates
+  document.querySelectorAll('#discord-bubble').forEach((b, i) => i > 0 && b.remove());
   if (window.CH_BUBBLE_INITIALIZED && document.getElementById('discord-bubble')) return;
   window.CH_BUBBLE_INITIALIZED = true;
 
-  // 🎨 Inject bubble styles
+  // styles
   if (!document.getElementById('chat-bubble-style')) {
     const style = document.createElement('style');
     style.id = 'chat-bubble-style';
@@ -38,7 +26,7 @@ export function setupChatBubble() {
         font-size: 28px;
         cursor: grab;
         user-select: none;
-        transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.4s ease;
+        transition: transform .25s ease, box-shadow .25s ease, opacity .4s ease;
         z-index: 9999;
         opacity: 0;
         pointer-events: none;
@@ -52,7 +40,7 @@ export function setupChatBubble() {
         box-shadow: 0 0 30px rgba(114,137,218,0.9);
       }
       #discord-bubble.dragging {
-        opacity: 0.8;
+        opacity: .8;
         cursor: grabbing;
       }
       @media (max-width: 600px) {
@@ -67,84 +55,90 @@ export function setupChatBubble() {
     document.head.appendChild(style);
   }
 
-  // 💬 Load WidgetBot Crate
+  // load WidgetBot crate (once)
   if (!window.Crate && !document.getElementById('widgetbot-crate')) {
-    const script = document.createElement('script');
-    script.id = 'widgetbot-crate';
-    script.src = 'https://cdn.jsdelivr.net/npm/@widgetbot/crate@3';
-    script.async = true;
-    script.onload = () => {
+    const s = document.createElement('script');
+    s.id = 'widgetbot-crate';
+    s.src = 'https://cdn.jsdelivr.net/npm/@widgetbot/crate@3';
+    s.async = true;
+    s.defer = true;
+    s.onload = () => {
       if (!window.CrateInstance) {
         window.CrateInstance = new window.Crate({
-          server: '1365587542975713320', // CharlestonHacks server
-          channel: '1365587543696867384' // Main chat channel
+          server: '1365587542975713320',
+          channel: '1365587543696867384'
         });
-        console.log('🟢 WidgetBot initialized successfully.');
+        console.log('🟢 WidgetBot ready');
       }
     };
-    document.body.appendChild(script);
+    document.body.appendChild(s);
   }
 
-  // 💠 Create bubble
-  const discordBubble = document.createElement('div');
-  discordBubble.id = 'discord-bubble';
-  discordBubble.innerHTML = `
+  // create bubble
+  const bubble = document.createElement('div');
+  bubble.id = 'discord-bubble';
+  bubble.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="white" viewBox="0 0 24 24">
       <path d="M12 3C7.03 3 2.73 6.11 1 10.5c1.73 4.39 6.03 7.5 11 7.5s9.27-3.11 11-7.5C21.27 6.11 16.97 3 12 3zm0 12c-2.48 0-4.5-1.79-4.5-4s2.02-4 4.5-4 4.5 1.79 4.5 4-2.02 4-4.5 4z"/>
     </svg>
   `;
 
-  // 📍 Restore saved position
-  const saved = JSON.parse(localStorage.getItem('discordBubblePos'));
-  if (saved?.left && saved?.top) {
-    discordBubble.style.left = saved.left;
-    discordBubble.style.top = saved.top;
+  // restore position
+  const saved = JSON.parse(localStorage.getItem('discordBubblePos') || 'null');
+  if (saved && saved.left && saved.top) {
+    bubble.style.left = saved.left;
+    bubble.style.top = saved.top;
+    bubble.style.right = 'auto';
+    bubble.style.bottom = 'auto';
   }
 
-  document.body.appendChild(discordBubble);
+  document.body.appendChild(bubble);
 
-  // 🖱️ Drag + Drop
+  // drag
   let dragging = false, offsetX = 0, offsetY = 0;
   const startDrag = e => {
     dragging = true;
-    discordBubble.classList.add('dragging');
-    const rect = discordBubble.getBoundingClientRect();
-    offsetX = (e.clientX || e.touches[0].clientX) - rect.left;
-    offsetY = (e.clientY || e.touches[0].clientY) - rect.top;
+    bubble.classList.add('dragging');
+    const rect = bubble.getBoundingClientRect();
+    const point = e.touches ? e.touches[0] : e;
+    offsetX = point.clientX - rect.left;
+    offsetY = point.clientY - rect.top;
   };
-  const drag = e => {
+  const moveDrag = e => {
     if (!dragging) return;
     e.preventDefault();
-    const x = e.clientX || e.touches[0].clientX;
-    const y = e.clientY || e.touches[0].clientY;
-    discordBubble.style.left = `${x - offsetX}px`;
-    discordBubble.style.top = `${y - offsetY}px`;
+    const point = e.touches ? e.touches[0] : e;
+    bubble.style.left = point.clientX - offsetX + 'px';
+    bubble.style.top  = point.clientY - offsetY + 'px';
+    bubble.style.right = 'auto';
+    bubble.style.bottom = 'auto';
   };
-  const endDrag = () => {
+  const stopDrag = () => {
     if (!dragging) return;
     dragging = false;
-    discordBubble.classList.remove('dragging');
+    bubble.classList.remove('dragging');
     localStorage.setItem('discordBubblePos', JSON.stringify({
-      left: discordBubble.style.left,
-      top: discordBubble.style.top
+      left: bubble.style.left,
+      top: bubble.style.top
     }));
   };
 
-  discordBubble.addEventListener('mousedown', startDrag);
-  discordBubble.addEventListener('touchstart', startDrag, { passive: true });
-  window.addEventListener('mousemove', drag);
-  window.addEventListener('touchmove', drag, { passive: false });
-  window.addEventListener('mouseup', endDrag);
-  window.addEventListener('touchend', endDrag);
+  bubble.addEventListener('mousedown', startDrag);
+  window.addEventListener('mousemove', moveDrag);
+  window.addEventListener('mouseup', stopDrag);
+  bubble.addEventListener('touchstart', startDrag, { passive: true });
+  window.addEventListener('touchmove', moveDrag, { passive: false });
+  window.addEventListener('touchend', stopDrag);
 
-  // ⚡ Toggle WidgetBot Crate
-  discordBubble.addEventListener('click', () => {
+  // toggle crate
+  bubble.addEventListener('click', () => {
+    if (bubble.classList.contains('dragging')) return; // don't toggle on drag
     if (window.CrateInstance) {
       window.CrateInstance.toggle();
     } else {
-      console.warn('⚠️ WidgetBot not yet ready — please wait.');
+      console.warn('⚠️ WidgetBot not ready yet.');
     }
   });
 
-  console.log('✨ CharlestonHacks Chat Bubble ready.');
+  console.log('✨ CharlestonHacks chat bubble injected');
 }
