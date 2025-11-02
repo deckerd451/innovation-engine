@@ -41,6 +41,35 @@
       pointer-events: none;
     }
 
+    /* --- Home button --- */
+    .home-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      background: rgba(255, 102, 0, 0.9);
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.3s ease;
+      box-shadow: 0 0 12px rgba(255, 102, 0, 0.5);
+    }
+
+    .home-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(255, 102, 0, 0.8);
+    }
+
+    .home-btn i {
+      color: white;
+      font-size: 1.3rem;
+    }
+
     main.container {
       position: relative;
       z-index: 2;
@@ -154,6 +183,11 @@
 <body>
   <!-- Neural Background -->
   <canvas id="neural-bg"></canvas>
+
+  <!-- Home Button -->
+  <button class="home-btn" onclick="window.location.href='index.html'" aria-label="Return Home">
+    <i class="fas fa-home"></i>
+  </button>
 
   <main class="container">
     <header class="header">
