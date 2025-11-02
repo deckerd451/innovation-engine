@@ -69,7 +69,7 @@
       position: relative;
       z-index: 2;
       max-width: 600px;
-      margin: 6rem auto 0 auto; /* <-- shifted down instead of vertical centering */
+      margin: 6rem auto 0 auto; /* prevents top cut-off */
       padding: 2rem 1rem;
     }
 
@@ -160,6 +160,12 @@
       color: #aaa;
       z-index: 2;
       position: relative;
+      opacity: 0;
+      transition: opacity 1.5s ease;
+    }
+
+    footer.visible {
+      opacity: 1;
     }
 
     @media (max-width: 600px) {
@@ -210,8 +216,20 @@
     </section>
   </main>
 
-  <footer>© 2025 CharlestonHacks. All rights reserved.</footer>
+  <footer id="footer">© 2025 CharlestonHacks. All rights reserved.</footer>
 
   <script type="module" src="assets/js/neuralBackground.js"></script>
+
+  <!-- Footer fade-in logic -->
+  <script>
+    const footer = document.getElementById('footer');
+    window.addEventListener('scroll', () => {
+      const scrollY = window.scrollY + window.innerHeight;
+      const docHeight = document.body.offsetHeight;
+      if (scrollY >= docHeight - 100) {
+        footer.classList.add('visible');
+      }
+    });
+  </script>
 </body>
 </html>
