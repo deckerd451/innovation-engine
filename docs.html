@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CharlestonHacks Experimental Zone</title>
+  <title>CharlestonHacks Docs</title>
 
   <!-- External Libraries -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -12,45 +12,67 @@
 
   <!-- Page Styles -->
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       min-height: 100vh;
       background-color: #181818;
       font-family: Arial, sans-serif;
       color: #fff;
+      scroll-behavior: smooth;
     }
 
+    /* Header */
     .news-header-img {
       display: block;
       margin: 20px auto;
       width: 400px;
       height: auto;
     }
-
-    @media (max-width: 800px) { .news-header-img { width: 300px; margin-top: 10px; } }
+    @media (max-width: 800px) { .news-header-img { width: 300px; } }
     @media (max-width: 650px) { .news-header-img { width: 250px; } }
     @media (max-width: 480px) { .news-header-img { width: 200px; } }
 
+    /* Take the Survey Button */
+    .survey-button {
+      display: inline-block;
+      background: #ff4444;
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      margin: 10px auto 30px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background 0.3s ease, transform 0.2s ease;
+      animation: pulse 2.5s infinite;
+    }
+    .survey-button:hover {
+      background: #ff6666;
+      transform: scale(1.05);
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.6); }
+      70% { box-shadow: 0 0 0 20px rgba(255, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+    }
+
+    /* Gallery */
     .gallery-container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 20px;
     }
-
     .gallery {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 20px;
       justify-items: center;
     }
-
     .gallery-item {
-      position: relative;
       width: 100%;
       max-width: 300px;
       border-radius: 8px;
@@ -58,59 +80,106 @@
       background: #222;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
       transition: transform 0.3s ease;
+      cursor: pointer;
     }
-
     .gallery-item:hover {
       transform: translateY(-5px) scale(1.05);
     }
-
     .gallery-item img {
       width: 100%;
       height: auto;
       display: block;
     }
 
-    /* Placeholder Overlay */
-    .placeholder-overlay {
-      position: absolute;
+    /* Modal */
+    .modal {
+      position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(24, 24, 24, 0.7);
-      display: flex;
+      display: none;
       justify-content: center;
       align-items: center;
-      font-size: 1.4rem;
-      font-weight: bold;
-      color: #ff5555;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      pointer-events: none;
+      background: rgba(0,0,0,0.9);
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .modal.show {
+      display: flex;
+      opacity: 1;
+    }
+    .modal.hide {
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .modal-content {
+      position: relative;
+      width: 90%;
+      max-width: 900px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 32px;
+      color: #fff;
+      cursor: pointer;
+      z-index: 10;
+      transition: color 0.3s ease;
+    }
+    .close-btn:hover {
+      color: #ff4444;
     }
 
+    /* Feedback Form */
+    #hcd-feedback {
+      max-width: 900px;
+      margin: 60px auto;
+      padding: 20px;
+      text-align: center;
+      background: #202020;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    #hcd-feedback h2 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #ff4444;
+      letter-spacing: 0.5px;
+    }
+    iframe.hcd-form {
+      width: 100%;
+      height: 1800px;
+      border: none;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    /* Footer */
     footer {
-      background-color: transparent;
       text-align: center;
       padding: 32px 20px 64px;
       margin-top: 40px;
-      position: relative;
     }
-
     .footer-back-button {
       display: flex;
       justify-content: center;
       align-items: center;
       margin-top: 32px;
     }
-
     .footer-back-button img {
       max-width: 240px;
       width: 60vw;
       height: auto;
       transition: transform 0.3s ease;
     }
-
     .footer-back-button img:hover {
       transform: scale(1.05);
     }
@@ -119,17 +188,16 @@
       .gallery { grid-template-columns: 1fr 1fr; }
       .gallery-item { max-width: 95vw; }
     }
-
     @media (max-width: 768px) {
       .gallery { grid-template-columns: 1fr; }
     }
-
     @media (max-width: 500px) {
       .footer-back-button img { max-width: 92vw; }
+      iframe.hcd-form { height: 2000px; }
     }
   </style>
 
-  <!-- Google tag (gtag.js) -->
+  <!-- Google Tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -141,43 +209,51 @@
 
 <body>
 
-  <!-- Header Image -->
+  <!-- Header -->
   <div style="text-align: center;">
-    <img src="images/ez.png" alt="CharlestonHacks Experimental Zone" class="news-header-img" />
+    <img src="images/header docs.webp" alt="CharlestonHacks Docs" class="news-header-img" />
+  </div>
+
+  <!-- CTA -->
+  <div style="text-align: center;">
+    <button class="survey-button" onclick="document.getElementById('hcd-feedback').scrollIntoView({ behavior: 'smooth' });">
+      Take the Survey
+    </button>
   </div>
 
   <!-- Gallery -->
   <main class="gallery-container">
     <div id="gallery" class="gallery">
-
-      <a class="gallery-item" href="https://deckerd451.github.io/dex/" target="_blank" rel="noopener noreferrer">
-        <img src="images/xcard.png" alt="Neural Network Project">
-      </a>
-
-      <a class="gallery-item" href="https://hackathon-chs-git-main-maxs-projects-ff8c32db.vercel.app/" target="_blank" rel="noopener noreferrer">
-        <img src="images/x2.png" alt="IE Hackathon Project">
-      </a>
-
-      <a class="gallery-item" href="https://v1-kismet-ai-cf8d11c9-03a7-4434-9ff9-67e0ea49bb1a.build-preview.cloudflare.dev" target="_blank" rel="noopener noreferrer">
-        <img src="images/kismetcard.png" alt="Cloudflare Project">
-      </a>
-
-      <!-- Placeholder Card -->
-      <a class="gallery-item" href="https://deckerd451.github.io/new-synapse/" target="_blank" rel="noopener noreferrer">
-        <img src="images/placeholder.png" alt="New Synapse Project Placeholder">
-        <div class="placeholder-overlay">Coming Soon</div>
-      </a>
-
+      <div class="gallery-item" data-video="https://www.youtube.com/embed/BkqZVR5uipU?autoplay=1">
+        <img src="images/workshop.png" alt="CharlestonHacks Workshop Product 102">
+      </div>
     </div>
   </main>
 
   <!-- Video Modal -->
-  <div id="videoModal" class="modal hidden">
+  <div id="videoModal" class="modal">
     <div class="modal-content">
       <span class="close-btn" aria-label="Close video">&times;</span>
-      <iframe id="videoFrame" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+      <iframe 
+        id="videoFrame" 
+        width="100%" 
+        height="100%" 
+        frameborder="0" 
+        allowfullscreen 
+        allow="autoplay; encrypted-media">
+      </iframe>
     </div>
   </div>
+
+  <!-- HCD Feedback Form -->
+  <section id="hcd-feedback">
+    <h2>HCD Software Feedback Survey</h2>
+    <iframe 
+      class="hcd-form"
+      src="https://docs.google.com/forms/d/e/1FAIpQLSca94zDIxSJ-1d4QyA7h7Txk-Towj4xObsJzQAu9wyU4Di4TQ/viewform?embedded=true">
+      Loading…
+    </iframe>
+  </section>
 
   <!-- Footer -->
   <footer>
@@ -189,36 +265,41 @@
     <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
 
+  <!-- Scripts -->
   <script>
-    const galleryItems = document.querySelectorAll('.gallery-item[data-video]');
+    const galleryItems = document.querySelectorAll('.gallery-item');
     const modal = document.getElementById('videoModal');
     const iframe = document.getElementById('videoFrame');
     const closeBtn = document.querySelector('.close-btn');
 
-    galleryItems.forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        const videoURL = item.getAttribute('data-video');
-        iframe.src = videoURL;
-        modal.classList.remove('hidden');
+    if (modal && iframe) {
+      galleryItems.forEach(item => {
+        item.addEventListener('click', () => {
+          const videoURL = item.getAttribute('data-video');
+          iframe.src = videoURL;
+          modal.classList.add('show');
+        });
       });
-    });
 
-    closeBtn.addEventListener('click', () => {
-      iframe.src = '';
-      modal.classList.add('hidden');
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
+      closeBtn.addEventListener('click', () => {
         iframe.src = '';
-        modal.classList.add('hidden');
-      }
-    });
+        modal.classList.remove('show');
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          iframe.src = '';
+          modal.classList.remove('show');
+        }
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('show')) {
+          iframe.src = '';
+          modal.classList.remove('show');
+        }
+      });
+    }
   </script>
-
-  <!-- Neural background -->
-  <script type="module" src="assets/js/neuralBackground.js"></script>
-
 </body>
 </html>
