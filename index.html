@@ -119,10 +119,12 @@
       </div>
     </div>
 
+    <!-- —— Icon bar (now includes Discord chat icon) —— -->
     <section class="icons-container">
       <a href="https://github.com/sponsors/deckerd451" target="_blank" aria-label="Sponsor CharlestonHacks"><i class="fas fa-heart"></i></a>
       <a href="2card.html" aria-label="Innovation Engine"><i class="fas fa-people-arrows"></i></a>
       <a href="subscribe.html" aria-label="Subscribe"><i class="fas fa-bell"></i></a>
+      <a href="#" id="chat-launch" aria-label="Join Discord Chat"><i class="fab fa-discord"></i></a>
       <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
       <a href="https://www.instagram.com/charlestonhacks/" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
       <a href="mailto:hello@charlestonhacks.com" aria-label="Email"><i class="fas fa-envelope"></i></a>
@@ -171,7 +173,7 @@
   })();
   </script>
 
-  <!-- —— Main logic (card + chat + click fix) —— -->
+  <!-- —— Main logic (card + chat) —— -->
   <script type="module">
     import { CONFIG } from './assets/js/config.js';
     import { initCardFlip } from './assets/js/cardFlip.js';
@@ -188,9 +190,11 @@
     initCardFlip(CONFIG);
     startBTCPriceTracker('btcPrice');
     startCountdown('countdown', '2025-10-03T00:00:00-04:00');
+
+    // Initialize the hidden Discord chat bubble
     setupChatBubble();
 
-    // clickable buttons logic
+    // Enable clickable icons + hover info
     const buttons = document.querySelectorAll('.clickable-area');
     const infoLine = document.getElementById('infoLine');
     const infoText = document.getElementById('infoText');
@@ -209,18 +213,14 @@
         infoLine.style.opacity = '0';
         infoText.textContent = '';
       });
-      // stop clicks from triggering chat bubble
-      btn.addEventListener('click', e => e.stopPropagation());
     });
 
-    // reveal chat bubble only on card click
-    const mediaContainer = document.querySelector('.media-container');
-    const revealBubble = () => {
+    // 💬 Discord chat icon opens chat bubble
+    document.getElementById('chat-launch').addEventListener('click', (e) => {
+      e.preventDefault();
       const bubble = document.getElementById('discord-bubble');
       if (bubble) bubble.classList.add('visible');
-      mediaContainer.removeEventListener('click', revealBubble);
-    };
-    mediaContainer.addEventListener('click', revealBubble);
+    });
   </script>
 
   <!-- —— Neural background —— -->
