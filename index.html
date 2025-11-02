@@ -19,132 +19,102 @@
   </script>
 
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, viewport-fit=cover, initial-scale=1.0" />
   <title>CharlestonHacks - Home</title>
   <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC."/>
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events"/>
-  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated."/>
-  <meta property="og:image" content="images/websitepanel.webp"/>
-  <meta property="og:url" content="https://charlestonhacks.com"/>
-  <meta name="twitter:card" content="summary_large_image"/>
   <link rel="icon" href="favicon.ico" type="image/x-icon"/>
   <meta name="theme-color" content="#ff6600"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="styles.css" />
 
+  <!-- —— Discord Embed Styles —— -->
   <style>
-    body {
-      margin: 0;
-      padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
-      overflow-x: hidden;
-    }
-
-    /* —— Discord Bubble —— */
     #discord-bubble {
       display: none;
       position: fixed;
       bottom: 20px;
       right: 20px;
       z-index: 9999;
+      width: 340px;
+      height: 480px;
+      background: #23272a;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 25px rgba(0,0,0,0.5);
       touch-action: none;
-      transition: transform 0.3s ease, opacity 0.3s ease;
       animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-
-    #discord-bubble.bouncing {
-      animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    #discord-frame {
-      border: none;
-      border-radius: 50%;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
-      transition: all 0.3s ease;
-    }
-
     #discord-minimize {
       position: absolute;
       top: -10px;
       right: -10px;
       background: #ff6600;
+      color: white;
       border: none;
       border-radius: 50%;
       width: 24px;
       height: 24px;
-      color: white;
-      font-size: 14px;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      font-weight: bold;
+      font-size: 14px;
     }
-
     #discord-badge {
       position: absolute;
-      top: -4px;
-      left: -4px;
+      top: 6px;
+      left: 6px;
       background: red;
       color: white;
-      font-size: 12px;
       width: 16px;
       height: 16px;
       border-radius: 50%;
+      font-size: 11px;
       display: none;
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      box-shadow: 0 0 8px rgba(255,0,0,0.7);
       animation: pulseBadge 1.5s infinite ease-in-out;
+      box-shadow: 0 0 10px rgba(255,0,0,0.7);
     }
-
-    /* —— Animations —— */
+    @keyframes pulseBadge {
+      0%,100% { transform: scale(1); box-shadow: 0 0 6px rgba(255,0,0,0.5); }
+      50% { transform: scale(1.3); box-shadow: 0 0 14px rgba(255,0,0,0.8); }
+    }
     @keyframes bounceIn {
       0% { transform: scale(0.5); opacity: 0; }
       60% { transform: scale(1.1); opacity: 1; }
       100% { transform: scale(1); }
     }
-
-    @keyframes pulseBadge {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 6px rgba(255,0,0,0.5); }
-      50% { transform: scale(1.3); box-shadow: 0 0 16px rgba(255,0,0,0.8); }
-    }
-
     @media (max-width: 600px) {
-      #discord-frame { width: 60px !important; height: 60px !important; }
-      #discord-bubble { bottom: 16px; right: 16px; }
+      #discord-bubble {
+        width: 90vw;
+        height: 65vh;
+        bottom: 10px;
+        right: 10px;
+      }
       #discord-minimize { top: -8px; right: -8px; width: 22px; height: 22px; font-size: 12px; }
     }
   </style>
 </head>
 
 <body>
-  <!-- —— Neural Background —— -->
+  <!-- —— Background —— -->
   <canvas id="neural-bg"></canvas>
 
-  <noscript>
-    <div style="background:#111;color:white;text-align:center;padding:1em;">
-      ⚠️ Please enable JavaScript for the full CharlestonHacks experience.
-    </div>
-  </noscript>
-
-  <!-- —— Splash Screen —— -->
-  <div id="splash-overlay" role="dialog" aria-modal="true">
+  <!-- —— Splash Screen (first visit only) —— -->
+  <div id="splash-overlay" style="display:none;">
     <div id="splash-content">
       <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
-      <h1 id="splash-title">Welcome to CharlestonHacks</h1>
-      <p id="splash-desc">Loading…</p>
-
-      <label id="dont-show-label" style="margin-top:1em; display:flex; align-items:center; gap:.5em; font-size:.9rem;">
-        <input type="checkbox" id="dont-show-again" />
-        Don’t show this welcome screen again
+      <h1>Welcome to CharlestonHacks</h1>
+      <p>Loading...</p>
+      <label style="display:flex;align-items:center;gap:.5em;">
+        <input type="checkbox" id="dont-show-again" /> Don’t show this again
       </label>
-
-      <div id="splash-buttons" class="button-container">
+      <div>
         <button id="community-site-btn" class="btn">Community Site</button>
         <button id="public-site-btn" class="btn">Public Site</button>
       </div>
-
-      <p style="font-size:.8rem; opacity:.7; margin-top:2rem;">
-        © 2025 CharlestonHacks. All rights reserved.
-      </p>
+      <p style="font-size:.8rem;opacity:.7;margin-top:1rem;">© 2025 CharlestonHacks</p>
     </div>
   </div>
 
@@ -157,167 +127,92 @@
   <main>
     <div class="main-wrapper">
       <div class="media-container" tabindex="0">
-        <div id="countdown"></div>
-        <div id="btcPrice"></div>
-
-        <img id="missionImage" src="icons/card.png" alt="Main Card" style="z-index:3;" />
-        <img id="cardFrame" src="images/cardframe2.svg" alt="Card Frame" style="display:none;" />
-
-        <!-- —— Buttons —— -->
-        <button class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster."><img src="images/informationbutton.webp" alt="Info" /></button>
-        <button class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Read documentation."><img src="images/crestn.svg" alt="Docs" /></button>
-        <button class="clickable-area top-right" data-sound="chime" data-url="2card.html" data-info="Explore Innovation Engine."><img src="images/innovationenginebutton.webp" alt="Innovation" /></button>
-        <button class="clickable-area middle-left" data-sound="chime" data-url="experimental.html" data-info="Experiment in the sandbox."><img src="images/experiment.webp" alt="Experiment" /></button>
-        <button class="clickable-area middle-right" data-sound="chime" data-url="swag.html" data-info="Order event swag."><img src="images/case.webp" alt="Case" /></button>
-        <button class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Catch up on news."><img src="images/newsbutton.webp" alt="News" /></button>
-        <button class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor CharlestonHacks."><img src="images/keysn.svg" alt="Keys" /></button>
-        <button class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Play the card match game."><img src="images/peoplebutton.webp" alt="People" /></button>
+        <img id="missionImage" src="icons/card.png" alt="Main Card" />
+        <button class="clickable-area top-left" data-url="Poster.html"><img src="images/informationbutton.webp" alt="Info"></button>
+        <button class="clickable-area top-center" data-url="docs.html"><img src="images/crestn.svg" alt="Docs"></button>
+        <button class="clickable-area top-right" data-url="2card.html"><img src="images/innovationenginebutton.webp" alt="Innovation"></button>
       </div>
     </div>
-
     <section class="icons-container">
       <a href="https://github.com/sponsors/deckerd451" target="_blank"><i class="fas fa-heart"></i></a>
       <a href="2card.html"><i class="fas fa-people-arrows"></i></a>
       <a href="subscribe.html"><i class="fas fa-bell"></i></a>
       <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank"><i class="fab fa-linkedin"></i></a>
-      <a href="https://www.instagram.com/charlestonhacks/" target="_blank"><i class="fab fa-instagram"></i></a>
-      <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
     </section>
   </main>
 
-  <!-- —— Splash Logic —— -->
-  <script>
-    (function () {
-      const splashOverlay = document.getElementById('splash-overlay');
-      const communityBtn = document.getElementById('community-site-btn');
-      const publicBtn = document.getElementById('public-site-btn');
-      const splashKey = 'chs_splash_seen_once';
-      function hideSplash(immediate = false) {
-        splashOverlay.classList.add('fade-out');
-        setTimeout(() => splashOverlay.style.display = 'none', immediate ? 0 : 600);
-      }
-      function dismissSplash() {
-        localStorage.setItem(splashKey, 'true');
-        hideSplash();
-      }
-      function maybeShowSplash() {
-        if (localStorage.getItem(splashKey) === 'true') { hideSplash(true); return; }
-        splashOverlay.style.display = 'flex';
-        communityBtn.addEventListener('click', dismissSplash);
-        publicBtn.addEventListener('click', () => { dismissSplash(); window.location.href = 'https://charlestonhacks.mailchimpsites.com/'; });
-      }
-      window.addEventListener('DOMContentLoaded', maybeShowSplash);
-    })();
-  </script>
-
-  <!-- —— Neural Background —— -->
-  <script type="module" src="assets/js/neuralBackground.js"></script>
-
-  <!-- —— Discord Bubble —— -->
+  <!-- —— Discord Chat Bubble —— -->
   <div id="discord-bubble">
     <div id="discord-badge">!</div>
-    <iframe id="discord-frame"
-      src="https://e.widgetbot.io/channels/1094842772766146600/1094842772766146603"
-      height="80" width="80" title="CharlestonHacks Discord"></iframe>
+    <widgetbot
+      id="discord-widget"
+      server="YOUR_SERVER_ID"
+      channel="YOUR_CHANNEL_ID"
+      width="100%"
+      height="100%"
+    ></widgetbot>
     <button id="discord-minimize">–</button>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@widgetbot/html-embed"></script>
+
+  <!-- —— Logic —— -->
   <script>
+    const splashKey = 'chs_splash_seen_once';
+    const splash = document.getElementById('splash-overlay');
     const discordBubble = document.getElementById('discord-bubble');
-    const discordFrame = document.getElementById('discord-frame');
     const discordMinimize = document.getElementById('discord-minimize');
     const discordBadge = document.getElementById('discord-badge');
     const mediaContainer = document.querySelector('.media-container');
-    let bubbleShown = false, minimized = false;
-    const bubbleStateKey = 'chs_discord_state_v1';
+    let minimized = false, shown = false;
 
-    const savedState = JSON.parse(localStorage.getItem(bubbleStateKey) || '{}');
-    if (savedState.visible) { discordBubble.style.display = 'block'; bubbleShown = true; }
-    if (savedState.minimized) { toggleMinimize(true); }
-    if (savedState.position) {
-      discordBubble.style.left = savedState.position.x + 'px';
-      discordBubble.style.top = savedState.position.y + 'px';
-    } else { discordBubble.style.right = '20px'; discordBubble.style.bottom = '20px'; }
+    // SPLASH
+    window.addEventListener('DOMContentLoaded', () => {
+      if (localStorage.getItem(splashKey) === 'true') return;
+      splash.style.display = 'flex';
+      document.getElementById('community-site-btn').onclick = dismissSplash;
+      document.getElementById('public-site-btn').onclick = () => {
+        dismissSplash(); window.location.href = 'https://charlestonhacks.mailchimpsites.com/';
+      };
+    });
+    function dismissSplash() {
+      if (document.getElementById('dont-show-again').checked) localStorage.setItem(splashKey, 'true');
+      splash.style.display = 'none';
+    }
 
+    // Discord Bubble Logic
     mediaContainer.addEventListener('click', () => {
-      if (!bubbleShown) {
-        discordBubble.style.display = 'flex';
+      if (!shown) {
+        discordBubble.style.display = 'block';
         discordBubble.classList.add('bouncing');
-        bubbleShown = true;
-        saveState();
+        shown = true;
       }
     });
 
-    discordMinimize.addEventListener('click', () => {
+    discordMinimize.onclick = () => {
       minimized = !minimized;
-      toggleMinimize(minimized);
-      discordBadge.style.display = 'none';
-      saveState();
-    });
-
-    function toggleMinimize(state) {
-      minimized = state;
       if (minimized) {
-        discordFrame.style.width = '50px';
-        discordFrame.style.height = '50px';
-        discordFrame.style.opacity = '0.7';
+        discordBubble.style.width = '80px';
+        discordBubble.style.height = '80px';
+        discordBubble.style.borderRadius = '50%';
         discordMinimize.textContent = '+';
       } else {
-        discordFrame.style.width = '80px';
-        discordFrame.style.height = '80px';
-        discordFrame.style.opacity = '1';
+        discordBubble.style.width = window.innerWidth < 600 ? '90vw' : '340px';
+        discordBubble.style.height = window.innerWidth < 600 ? '65vh' : '480px';
+        discordBubble.style.borderRadius = '16px';
         discordMinimize.textContent = '–';
+        discordBadge.style.display = 'none';
       }
-    }
-
-    // Simulate new message badge (or integrate real event later)
-    setTimeout(() => {
-      if (minimized) discordBadge.style.display = 'flex';
-    }, 15000);
-
-    // Drag and mobile support
-    let isDragging = false, offsetX, offsetY;
-    const startDrag = e => {
-      isDragging = true;
-      const touch = e.touches ? e.touches[0] : e;
-      offsetX = touch.clientX - discordBubble.offsetLeft;
-      offsetY = touch.clientY - discordBubble.offsetTop;
     };
-    const moveDrag = e => {
-      if (!isDragging) return;
-      const touch = e.touches ? e.touches[0] : e;
-      discordBubble.style.left = touch.clientX - offsetX + 'px';
-      discordBubble.style.top = touch.clientY - offsetY + 'px';
-      discordBubble.style.right = 'auto';
-      discordBubble.style.bottom = 'auto';
-    };
-    const endDrag = () => {
-      if (isDragging) { isDragging = false; saveState(); }
-    };
-    discordBubble.addEventListener('mousedown', startDrag);
-    window.addEventListener('mousemove', moveDrag);
-    window.addEventListener('mouseup', endDrag);
-    discordBubble.addEventListener('touchstart', startDrag);
-    window.addEventListener('touchmove', moveDrag);
-    window.addEventListener('touchend', endDrag);
 
-    function saveState() {
-      const rect = discordBubble.getBoundingClientRect();
-      localStorage.setItem(bubbleStateKey, JSON.stringify({
-        visible: bubbleShown,
-        minimized,
-        position: { x: rect.left, y: rect.top }
-      }));
-    }
+    // Fake badge trigger
+    setTimeout(() => { if (minimized) discordBadge.style.display = 'flex'; }, 15000);
 
-    window.addEventListener('resize', () => {
-      if (window.innerWidth < 600) {
-        discordBubble.style.left = 'auto';
-        discordBubble.style.top = 'auto';
-        discordBubble.style.right = '16px';
-        discordBubble.style.bottom = '16px';
-      }
-    });
+    // Draggable
+    let drag = false, offsetX, offsetY;
+    discordBubble.addEventListener('mousedown', e => { drag = true; offsetX = e.clientX - discordBubble.offsetLeft; offsetY = e.clientY - discordBubble.offsetTop; });
+    window.addEventListener('mousemove', e => { if (drag) { discordBubble.style.left = e.clientX - offsetX + 'px'; discordBubble.style.top = e.clientY - offsetY + 'px'; discordBubble.style.right = 'auto'; discordBubble.style.bottom = 'auto'; }});
+    window.addEventListener('mouseup', () => drag = false);
   </script>
 </body>
 </html>
