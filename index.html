@@ -81,7 +81,7 @@
         <div id="countdown" aria-live="polite"></div>
         <div id="btcPrice" aria-live="polite"></div>
 
-        <img id="missionImage" src="icons/card.png" alt="Big Playing Card" style="z-index:3;" />
+        <img id="missionImage" src="icons/card.png" alt="Big Playing Card" style="z-index:2;" />
         <img id="cardFrame" src="images/cardframe2.svg" alt="Card Frame" style="display:none;" />
         <video id="missionVideo" muted playsinline controls style="display:none; opacity:0;">
           <source src="" type="video/mp4" />
@@ -171,7 +171,7 @@
   })();
   </script>
 
-  <!-- —— Main logic (card + chat) —— -->
+  <!-- —— Main logic (card + chat + click fix) —— -->
   <script type="module">
     import { CONFIG } from './assets/js/config.js';
     import { initCardFlip } from './assets/js/cardFlip.js';
@@ -188,11 +188,32 @@
     initCardFlip(CONFIG);
     startBTCPriceTracker('btcPrice');
     startCountdown('countdown', '2025-10-03T00:00:00-04:00');
-
-    // init bubble (creates it, but keeps it hidden)
     setupChatBubble();
 
-    // show bubble only after main card clicked (no Medusa, no scroll observer)
+    // clickable buttons logic
+    const buttons = document.querySelectorAll('.clickable-area');
+    const infoLine = document.getElementById('infoLine');
+    const infoText = document.getElementById('infoText');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sound = document.getElementById(btn.dataset.sound + 'Sound');
+        if (sound) sound.play();
+        if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
+      });
+      btn.addEventListener('mouseover', () => {
+        infoLine.style.opacity = '1';
+        infoText.textContent = btn.dataset.info || '';
+      });
+      btn.addEventListener('mouseout', () => {
+        infoLine.style.opacity = '0';
+        infoText.textContent = '';
+      });
+      // stop clicks from triggering chat bubble
+      btn.addEventListener('click', e => e.stopPropagation());
+    });
+
+    // reveal chat bubble only on card click
     const mediaContainer = document.querySelector('.media-container');
     const revealBubble = () => {
       const bubble = document.getElementById('discord-bubble');
@@ -211,9 +232,7 @@
       const origError = console.error ? console.error.bind(console) : null;
       if (!origError) return;
       console.error = (...args) => {
-        // hide WidgetBot/Sentry CORS noise
         if (args.some(a => typeof a === 'string' && a.includes('bugs.widgetbot.co'))) return;
-        if (args.some(a => typeof a === 'string' && a.includes('https://bugs.widgetbot.co'))) return;
         origError(...args);
       };
     })();
