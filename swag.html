@@ -57,7 +57,11 @@
       max-width: 90vw;
       height: auto;
       filter: drop-shadow(0 2px 16px #222);
-      transition: width 0.3s;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .logo:hover {
+      transform: scale(1.05);
+      opacity: 0.9;
     }
 
     .section-title {
@@ -198,7 +202,11 @@
 
 <body>
   <div class="main-content">
-    <img src="icons/header swag.webp" alt="CharlestonHacks Logo" class="logo" />
+    <!-- Clickable logo that returns to index.html -->
+    <a href="index.html">
+      <img src="icons/header swag.webp" alt="CharlestonHacks Logo" class="logo" />
+    </a>
+
     <span class="section-title"><i class="fas fa-gift"></i> Swag Voting</span>
     <div class="subtitle">
       Vote for your favorite swag! See what's trending below.<br>
@@ -223,7 +231,6 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s";
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // --- Swag Items List ---
     const swagItems = [
       { name: "T-Shirt", img: "icons/tshirt.webp" },
       { name: "Sticker", img: "icons/sticker.webp" },
@@ -237,7 +244,6 @@
     const successMsg = document.getElementById('successMsg');
     const leaderboardRows = document.getElementById('leaderboard-rows');
 
-    // --- Render Swag Items ---
     function renderSwagItems() {
       swagGrid.innerHTML = '';
       swagItems.forEach(item => {
@@ -254,7 +260,6 @@
       });
     }
 
-    // --- Voting Handler ---
     swagGrid.addEventListener('click', async e => {
       const voteBtn = e.target.closest('.vote-btn');
       if (!voteBtn) return;
@@ -297,7 +302,6 @@
       }
     });
 
-    // --- Load Leaderboard ---
     async function loadLeaderboard() {
       try {
         const { data, error } = await supabaseClient.from('swag_votes').select('*');
@@ -322,7 +326,6 @@
       }
     }
 
-    // --- INIT ---
     document.addEventListener('DOMContentLoaded', () => {
       renderSwagItems();
       loadLeaderboard();
