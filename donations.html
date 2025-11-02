@@ -16,17 +16,12 @@
 
   <link rel="stylesheet" href="styles.css" />
   <style>
-    /* --- Neural background container --- */
     body {
       margin: 0;
-      overflow: hidden;
+      overflow-x: hidden;
       background-color: #0d0d0d;
       color: white;
       font-family: "Inter", Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       min-height: 100vh;
       text-align: center;
     }
@@ -73,8 +68,9 @@
     main.container {
       position: relative;
       z-index: 2;
-      padding: 2rem;
       max-width: 600px;
+      margin: 6rem auto 0 auto; /* <-- shifted down instead of vertical centering */
+      padding: 2rem 1rem;
     }
 
     header.header h1 {
@@ -94,7 +90,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 2rem;
     }
 
@@ -159,7 +155,7 @@
 
     footer {
       text-align: center;
-      margin-top: 2rem;
+      margin-top: 3rem;
       font-size: 0.85rem;
       color: #aaa;
       z-index: 2;
@@ -175,6 +171,9 @@
       }
       .member-name {
         font-size: 1.1rem;
+      }
+      main.container {
+        margin-top: 5rem;
       }
     }
   </style>
@@ -196,7 +195,6 @@
     </header>
 
     <section class="card-container">
-      <!-- GitHub Sponsors Card -->
       <div class="team-member-card">
         <img src="images/gh.png" alt="GitHub Sponsors" />
         <div class="member-name">GitHub Sponsors</div>
@@ -214,7 +212,6 @@
 
   <footer>© 2025 CharlestonHacks. All rights reserved.</footer>
 
-  <!-- Neural background animation script -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
 </body>
 </html>
