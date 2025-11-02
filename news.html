@@ -22,25 +22,23 @@
         }
         .news-header-img {
             display: block;
-            margin: 20px auto 20px auto;
+            margin: 20px auto;
             width: 400px;
             height: auto;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .news-header-img:hover {
+            transform: scale(1.05);
+            opacity: 0.9;
         }
         @media (max-width: 800px) {
-            .news-header-img {
-                width: 300px;
-                margin-top: 10px;
-            }
+            .news-header-img { width: 300px; margin-top: 10px; }
         }
         @media (max-width: 650px) {
-            .news-header-img {
-                width: 250px;
-            }
+            .news-header-img { width: 250px; }
         }
         @media (max-width: 480px) {
-            .news-header-img {
-                width: 200px;
-            }
+            .news-header-img { width: 200px; }
         }
         .gallery-container {
             max-width: 1200px;
@@ -93,40 +91,36 @@
             transform: scale(1.05);
         }
         @media (max-width: 900px) {
-            .gallery {
-                grid-template-columns: 1fr 1fr;
-            }
-            .gallery-item {
-                max-width: 95vw;
-            }
+            .gallery { grid-template-columns: 1fr 1fr; }
+            .gallery-item { max-width: 95vw; }
         }
         @media (max-width: 768px) {
-            .gallery {
-                grid-template-columns: 1fr;
-            }
+            .gallery { grid-template-columns: 1fr; }
         }
         @media (max-width: 500px) {
-            .footer-back-button img {
-                max-width: 92vw;
-            }
+            .footer-back-button img { max-width: 92vw; }
         }
     </style>
 </head>
-    <!-- Google tag (gtag.js) -->
+
+<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-
   gtag('config', 'G-6NDKG07DY6');
 </script>
+
 <body>
-    <!-- Responsive Header Image Centered (no text) -->
+    <!-- Clickable Header Image -->
     <div style="width: 100%; text-align: center;">
-        <img src="images/header news.webp" alt="CharlestonHacks News" class="news-header-img">
+        <a href="index.html">
+            <img src="images/header news.webp" alt="CharlestonHacks News" class="news-header-img">
+        </a>
     </div>
-    <!-- Main Gallery (grid layout) -->
+
+    <!-- Main Gallery -->
     <main class="gallery-container">
         <div id="gallery" class="gallery">
             <a href="https://charlestoncitypaper.com/2024/11/22/deteriorating-mural-to-be-restored-possibly-find-new-home/" class="gallery-item" target="_blank" rel="noopener">
@@ -137,14 +131,13 @@
             </a>
             <a href="https://charlestoncitypaper.com/2024/07/04/locals-looking-to-ai-to-solve-present-future-problems/" class="gallery-item" target="_blank" rel="noopener">
                 <img src="images/news1.jpg" alt="AI article">
-                
             </a>
-             <a href="https://charlestoncitypaper.com/2025/10/02/weekend-hackathon-to-push-power-of-vibe-coding-to-edge/" class="gallery-item" target="_blank" rel="noopener">
-                <img src="images/IMG_6162.jpg" alt="AI article">
-                
+            <a href="https://charlestoncitypaper.com/2025/10/02/weekend-hackathon-to-push-power-of-vibe-coding-to-edge/" class="gallery-item" target="_blank" rel="noopener">
+                <img src="images/IMG_6162.jpg" alt="Hackathon article">
             </a>
         </div>
     </main>
+
     <!-- Footer -->
     <footer>
         <div class="footer-back-button">
