@@ -44,6 +44,22 @@
       padding: 2rem 1rem;
     }
 
+    /* Header image styling */
+    .donate-header {
+      display: block;
+      margin: 2rem auto 1.5rem auto;
+      max-width: 420px;
+      width: 90%;
+      height: auto;
+      transition: transform 0.3s ease, filter 0.3s ease;
+      filter: drop-shadow(0 0 12px rgba(255, 102, 0, 0.4));
+    }
+
+    .donate-header:hover {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 18px rgba(255, 102, 0, 0.7));
+    }
+
     header.header h1 {
       font-size: 2rem;
       margin-bottom: 0.5rem;
@@ -124,7 +140,7 @@
       box-shadow: 0 0 20px rgba(255, 102, 0, 0.6);
     }
 
-    /* Footer (from Events page) */
+    /* Footer */
     footer {
       background-color: transparent;
       text-align: center;
@@ -177,6 +193,11 @@
   <!-- Neural Background -->
   <canvas id="neural-bg"></canvas>
 
+  <!-- Clickable donate header -->
+  <a href="index.html">
+    <img src="images/donateheader.webp" alt="CharlestonHacks Donate Header" class="donate-header" />
+  </a>
+
   <main class="container">
     <header class="header">
       <h1>Support CharlestonHacks</h1>
@@ -199,7 +220,7 @@
     </section>
   </main>
 
-  <!-- Footer (reused from Events page) -->
+  <!-- Footer -->
   <footer>
     <div class="footer-back-button">
       <a href="index.html">
