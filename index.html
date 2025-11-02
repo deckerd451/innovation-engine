@@ -4,8 +4,8 @@
   <!-- —— Neuron redirect —— -->
   <script>
     const params = new URLSearchParams(window.location.search);
-    if (params.get('source') === 'neuron') {
-      window.location.href = '/neural.html?' + params.toString();
+    if (params.get("source") === "neuron") {
+      window.location.href = "/neural.html?" + params.toString();
     }
   </script>
 
@@ -13,27 +13,18 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){ dataLayer.push(arguments); }
-    gtag('js', new Date());
-    gtag('config', 'G-6NDKG07DY6');
+    function gtag() { dataLayer.push(arguments); }
+    gtag("js", new Date());
+    gtag("config", "G-6NDKG07DY6");
   </script>
 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>CharlestonHacks - Home</title>
-  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators."/>
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events"/>
-  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated."/>
-  <meta property="og:image" content="images/websitepanel.webp"/>
-  <meta property="og:url" content="https://charlestonhacks.com"/>
-  <meta name="twitter:card" content="summary_large_image"/>
-  <link rel="icon" href="favicon.ico" type="image/x-icon"/>
-  <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
-  <link rel="manifest" href="/manifest.json"/>
-  <meta name="theme-color" content="#ff6600"/>
-  <link rel="canonical" href="https://charlestonhacks.com"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#ff6600" />
 </head>
 
 <body>
@@ -41,29 +32,25 @@
   <canvas id="neural-bg"></canvas>
 
   <noscript>
-    <div style="background:#111;color:white;text-align:center;padding:1em;font-size:1rem;">
-      ⚠️ JavaScript is disabled. For the full CharlestonHacks experience, please enable JavaScript.
+    <div style="background:#111;color:white;text-align:center;padding:1em;">
+      ⚠️ JavaScript is disabled. Please enable JavaScript.
     </div>
   </noscript>
 
-  <!-- —— Splash (first time only) —— -->
-  <div id="splash-overlay" role="dialog" aria-modal="true" tabindex="-1">
+  <!-- —— Splash screen —— -->
+  <div id="splash-overlay">
     <div id="splash-content">
       <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
       <h1 id="splash-title">Welcome to CharlestonHacks</h1>
-      <p id="splash-desc">Loading…</p>
-
-      <label id="dont-show-label" style="margin-top:1em; display:flex; align-items:center; gap:.5em; font-size:.9rem;">
-        <input type="checkbox" id="dont-show-again" />
-        Don’t show this welcome screen again
+      <p>Loading…</p>
+      <label style="margin-top:1em;display:flex;align-items:center;gap:.5em;">
+        <input type="checkbox" id="dont-show-again" /> Don’t show this again
       </label>
-
-      <div id="splash-buttons" class="button-container">
+      <div class="button-container">
         <button id="community-site-btn" class="btn">Community Site</button>
         <button id="public-site-btn" class="btn">Public Site</button>
       </div>
-
-      <p id="splash-copyright" style="font-size:.8rem; opacity:.7; margin-top:2rem;">
+      <p style="font-size:.8rem;opacity:.7;margin-top:2rem;">
         © 2025 CharlestonHacks. All rights reserved.
       </p>
     </div>
@@ -74,166 +61,122 @@
   <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
   <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
 
-  <!-- —— Main content —— -->
+  <!-- —— Main card —— -->
   <main>
     <div class="main-wrapper">
-      <div class="media-container" aria-label="Toggle mission content" tabindex="0">
-        <div id="countdown" aria-live="polite"></div>
-        <div id="btcPrice" aria-live="polite"></div>
+      <div class="media-container" tabindex="0">
+        <div id="countdown"></div>
+        <div id="btcPrice"></div>
 
-        <img id="missionImage" src="icons/card.png" alt="Big Playing Card" style="z-index:2;" />
+        <img id="missionImage" src="icons/card.png" alt="Big Playing Card" />
         <img id="cardFrame" src="images/cardframe2.svg" alt="Card Frame" style="display:none;" />
-        <video id="missionVideo" muted playsinline controls style="display:none; opacity:0;">
+        <video id="missionVideo" muted playsinline controls style="display:none;opacity:0;">
           <source src="" type="video/mp4" />
         </video>
 
-        <!-- Clickable areas -->
-        <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
+        <!-- Clickable buttons -->
+        <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Event poster">
           <img src="images/informationbutton.webp" alt="Info" />
         </button>
-        <button type="button" class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Read event documentation and resources.">
-          <img src="images/crestn.svg" alt="Crest" />
+        <button type="button" class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Docs & resources">
+          <img src="images/crestn.svg" alt="Docs" />
         </button>
-        <button type="button" class="clickable-area top-right" data-sound="chime" data-url="2card.html" data-info="Explore the innovation engine.">
+        <button type="button" class="clickable-area top-right" data-sound="chime" data-url="2card.html" data-info="Innovation engine">
           <img src="images/innovationenginebutton.webp" alt="Innovation" />
         </button>
-        <button type="button" class="clickable-area middle-left" data-sound="chime" data-url="experimental.html" data-info="Experiment in the sandbox environment.">
+        <button type="button" class="clickable-area middle-left" data-sound="chime" data-url="experimental.html" data-info="Sandbox">
           <img src="images/experiment.webp" alt="Experiment" />
         </button>
-        <button type="button" class="clickable-area middle-right" data-sound="chime" data-url="swag.html" data-info="View and order event swag.">
-          <img src="images/case.webp" alt="Case" />
+        <button type="button" class="clickable-area middle-right" data-sound="chime" data-url="swag.html" data-info="Event swag">
+          <img src="images/case.webp" alt="Swag" />
         </button>
-        <button type="button" class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Catch up on the latest news.">
+        <button type="button" class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Latest news">
           <img src="images/newsbutton.webp" alt="News" />
         </button>
-        <button type="button" class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor CharlestonHacks and unlock perks.">
+        <button type="button" class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor">
           <img src="images/keysn.svg" alt="Keys" />
         </button>
-        <button type="button" class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Play the card match game.">
+        <button type="button" class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Card Match Game">
           <img src="images/peoplebutton.webp" alt="People" />
         </button>
 
-        <div id="infoLine" class="info-line">
-          <span id="infoParticle"></span><span id="infoText"></span>
-        </div>
+        <div id="infoLine"><span id="infoText"></span></div>
       </div>
     </div>
 
-    <!-- —— Icon bar (now includes Discord chat icon) —— -->
+    <!-- —— Sidebar Icons (now includes Discord) —— -->
     <section class="icons-container">
-      <a href="https://github.com/sponsors/deckerd451" target="_blank" aria-label="Sponsor CharlestonHacks"><i class="fas fa-heart"></i></a>
+      <a href="https://github.com/sponsors/deckerd451" target="_blank" aria-label="Sponsor"><i class="fas fa-heart"></i></a>
       <a href="2card.html" aria-label="Innovation Engine"><i class="fas fa-people-arrows"></i></a>
       <a href="subscribe.html" aria-label="Subscribe"><i class="fas fa-bell"></i></a>
       <a href="#" id="chat-launch" aria-label="Join Discord Chat"><i class="fab fa-discord"></i></a>
-      <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-      <a href="https://www.instagram.com/charlestonhacks/" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-      <a href="mailto:hello@charlestonhacks.com" aria-label="Email"><i class="fas fa-envelope"></i></a>
-      <a href="https://www.facebook.com/deckerdb26354" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+      <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank"><i class="fab fa-linkedin"></i></a>
+      <a href="https://www.instagram.com/charlestonhacks/" target="_blank"><i class="fab fa-instagram"></i></a>
+      <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
+      <a href="https://www.facebook.com/deckerdb26354" target="_blank"><i class="fab fa-facebook"></i></a>
     </section>
   </main>
 
-  <!-- —— Splash logic —— -->
-  <script>
-  (function () {
-    const splashOverlay = document.getElementById('splash-overlay');
-    const communityBtn  = document.getElementById('community-site-btn');
-    const publicBtn     = document.getElementById('public-site-btn');
-    const splashKey     = 'chs_splash_seen_once';
-
-    function hideSplash(immediate = false) {
-      splashOverlay.classList.add('fade-out');
-      document.body.classList.remove('splash-active');
-      setTimeout(() => {
-        splashOverlay.style.display = 'none';
-      }, immediate ? 0 : 700);
-    }
-
-    function dismissSplash() {
-      localStorage.setItem(splashKey, 'true');
-      hideSplash();
-    }
-
-    function maybeShowSplash() {
-      const seen = localStorage.getItem(splashKey);
-      if (seen === 'true') {
-        hideSplash(true);
-        return;
-      }
-      splashOverlay.style.display = 'flex';
-      document.body.classList.add('splash-active');
-
-      communityBtn.addEventListener('click', dismissSplash);
-      publicBtn.addEventListener('click', () => {
-        dismissSplash();
-        window.location.href = 'https://charlestonhacks.mailchimpsites.com/';
-      });
-    }
-
-    window.addEventListener('DOMContentLoaded', maybeShowSplash);
-  })();
-  </script>
-
-  <!-- —— Main logic (card + chat) —— -->
+  <!-- —— Scripts —— -->
   <script type="module">
-    import { CONFIG } from './assets/js/config.js';
-    import { initCardFlip } from './assets/js/cardFlip.js';
-    import { startBTCPriceTracker } from './assets/js/btc.js';
-    import { startCountdown } from './assets/js/countdown.js';
-    import { setupChatBubble } from './assets/js/chatBubble.js';
+    import { CONFIG } from "./assets/js/config.js";
+    import { initCardFlip } from "./assets/js/cardFlip.js";
+    import { startBTCPriceTracker } from "./assets/js/btc.js";
+    import { startCountdown } from "./assets/js/countdown.js";
+    import { setupChatBubble } from "./assets/js/chatBubble.js";
 
     CONFIG.sounds = {
-      cardflip: document.getElementById('cardflipSound'),
-      chime: document.getElementById('chimeSound'),
-      keys: document.getElementById('keysSound'),
+      cardflip: document.getElementById("cardflipSound"),
+      chime: document.getElementById("chimeSound"),
+      keys: document.getElementById("keysSound"),
     };
 
     initCardFlip(CONFIG);
-    startBTCPriceTracker('btcPrice');
-    startCountdown('countdown', '2025-10-03T00:00:00-04:00');
-
-    // Initialize the hidden Discord chat bubble
+    startBTCPriceTracker("btcPrice");
+    startCountdown("countdown", "2025-10-03T00:00:00-04:00");
     setupChatBubble();
 
-    // Enable clickable icons + hover info
-    const buttons = document.querySelectorAll('.clickable-area');
-    const infoLine = document.getElementById('infoLine');
-    const infoText = document.getElementById('infoText');
+    // Clickable areas
+    const buttons = document.querySelectorAll(".clickable-area");
+    const infoLine = document.getElementById("infoLine");
+    const infoText = document.getElementById("infoText");
 
     buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sound = document.getElementById(btn.dataset.sound + 'Sound');
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sound = document.getElementById(btn.dataset.sound + "Sound");
         if (sound) sound.play();
         if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
       });
-      btn.addEventListener('mouseover', () => {
-        infoLine.style.opacity = '1';
-        infoText.textContent = btn.dataset.info || '';
+      btn.addEventListener("mouseover", () => {
+        infoLine.style.opacity = "1";
+        infoText.textContent = btn.dataset.info || "";
       });
-      btn.addEventListener('mouseout', () => {
-        infoLine.style.opacity = '0';
-        infoText.textContent = '';
+      btn.addEventListener("mouseout", () => {
+        infoLine.style.opacity = "0";
+        infoText.textContent = "";
       });
     });
 
-    // 💬 Discord chat icon opens chat bubble
-    document.getElementById('chat-launch').addEventListener('click', (e) => {
+    // Discord chat icon opens chat
+    document.getElementById("chat-launch").addEventListener("click", e => {
       e.preventDefault();
-      const bubble = document.getElementById('discord-bubble');
-      if (bubble) bubble.classList.add('visible');
+      const bubble = document.getElementById("discord-bubble");
+      if (bubble) bubble.classList.add("visible");
     });
   </script>
 
   <!-- —— Neural background —— -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
 
-  <!-- —— Optional: filter noisy WidgetBot console errors —— -->
+  <!-- —— Silence WidgetBot CORS noise —— -->
   <script>
     (function () {
-      const origError = console.error ? console.error.bind(console) : null;
-      if (!origError) return;
+      const orig = console.error ? console.error.bind(console) : null;
+      if (!orig) return;
       console.error = (...args) => {
-        if (args.some(a => typeof a === 'string' && a.includes('bugs.widgetbot.co'))) return;
-        origError(...args);
+        if (args.some(a => typeof a === "string" && a.includes("bugs.widgetbot.co"))) return;
+        orig(...args);
       };
     })();
   </script>
