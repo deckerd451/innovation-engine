@@ -2371,6 +2371,22 @@ main, .main-wrapper, .media-container {
     transform: scale(1.08);
   }
 }
+/* Neural canvas should never capture clicks */
+#neural-bg {
+  position: fixed; inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Interactive layers above background */
+.media-container { position: relative; z-index: 2; }
+.clickable-area { pointer-events: auto; }
+
+/* Social icons above media if needed */
+.icons-container { position: relative; z-index: 3; }
+
+/* Splash sits on top when visible */
+#splash-overlay { position: fixed; inset: 0; z-index: 10000; }
 
 
 
