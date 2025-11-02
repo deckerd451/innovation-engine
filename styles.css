@@ -2342,24 +2342,30 @@ main, .main-wrapper, .media-container {
     right: 16px;
   }
 }
-/* --- Final Fix for Clickable Buttons + Card Flip --- */
+/* --- Click Fix: Ensure overlay buttons are clickable --- */
 
-/* Keep background and video non-interactive */
+/* Backgrounds and video can't block anything */
 #neural-bg,
 #missionVideo {
   pointer-events: none !important;
 }
 
-/* Allow card to flip but sit under the buttons */
-#missionImage {
+/* The card container can still receive clicks (for flip) */
+.media-container {
   pointer-events: auto !important;
   position: relative;
-  z-index: 1 !important;
+  z-index: 1;
 }
 
-/* Make sure all clickable icons/buttons are on top and interactive */
+/* The visible card image should NOT block the overlay icons */
+#missionImage {
+  pointer-events: none !important;
+  z-index: 1;
+}
+
+/* Overlay icons/buttons sit on top and remain clickable */
 .clickable-area {
-  position: absolute;
+  position: absolute !important;
   z-index: 9999 !important;
   pointer-events: auto !important;
 }
