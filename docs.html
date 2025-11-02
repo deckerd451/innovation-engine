@@ -29,8 +29,7 @@
       width: 400px;
       height: auto;
     }
-
-    @media (max-width: 800px) { .news-header-img { width: 300px; margin-top: 10px; } }
+    @media (max-width: 800px) { .news-header-img { width: 300px; } }
     @media (max-width: 650px) { .news-header-img { width: 250px; } }
     @media (max-width: 480px) { .news-header-img { width: 200px; } }
 
@@ -49,23 +48,30 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       transition: background 0.3s ease, transform 0.2s ease;
+      animation: pulse 2.5s infinite;
     }
-    .survey-button:hover { background: #ff6666; transform: scale(1.05); }
+    .survey-button:hover {
+      background: #ff6666;
+      transform: scale(1.05);
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.6); }
+      70% { box-shadow: 0 0 0 20px rgba(255, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+    }
 
-    /* Gallery Layout */
+    /* Gallery */
     .gallery-container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 20px;
     }
-
     .gallery {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 20px;
       justify-items: center;
     }
-
     .gallery-item {
       width: 100%;
       max-width: 300px;
@@ -74,38 +80,62 @@
       background: #222;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
       transition: transform 0.3s ease;
+      cursor: pointer;
     }
-    .gallery-item:hover { transform: translateY(-5px) scale(1.05); }
-    .gallery-item img { width: 100%; height: auto; display: block; }
+    .gallery-item:hover {
+      transform: translateY(-5px) scale(1.05);
+    }
+    .gallery-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
 
     /* Modal */
     .modal {
-      display: none;
       position: fixed;
-      z-index: 1000;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8);
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
       justify-content: center;
       align-items: center;
+      background: rgba(0,0,0,0.9);
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .modal.show {
+      display: flex;
+      opacity: 1;
+    }
+    .modal.hide {
+      opacity: 0;
+      transition: opacity 0.4s ease;
     }
     .modal-content {
       position: relative;
       width: 90%;
-      max-width: 800px;
+      max-width: 900px;
+      aspect-ratio: 16 / 9;
       background: #000;
-      border-radius: 10px;
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
     }
     .close-btn {
       position: absolute;
       top: 10px;
       right: 15px;
-      font-size: 28px;
+      font-size: 32px;
       color: #fff;
       cursor: pointer;
       z-index: 10;
+      transition: color 0.3s ease;
+    }
+    .close-btn:hover {
+      color: #ff4444;
     }
 
     /* Feedback Form */
@@ -116,7 +146,7 @@
       text-align: center;
       background: #202020;
       border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
     #hcd-feedback h2 {
       font-size: 28px;
@@ -150,13 +180,17 @@
       height: auto;
       transition: transform 0.3s ease;
     }
-    .footer-back-button img:hover { transform: scale(1.05); }
+    .footer-back-button img:hover {
+      transform: scale(1.05);
+    }
 
     @media (max-width: 900px) {
       .gallery { grid-template-columns: 1fr 1fr; }
       .gallery-item { max-width: 95vw; }
     }
-    @media (max-width: 768px) { .gallery { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) {
+      .gallery { grid-template-columns: 1fr; }
+    }
     @media (max-width: 500px) {
       .footer-back-button img { max-width: 92vw; }
       iframe.hcd-form { height: 2000px; }
@@ -197,13 +231,13 @@
   </main>
 
   <!-- Video Modal -->
-  <div id="videoModal" class="modal hidden">
+  <div id="videoModal" class="modal">
     <div class="modal-content">
       <span class="close-btn" aria-label="Close video">&times;</span>
       <iframe 
         id="videoFrame" 
         width="100%" 
-        height="450" 
+        height="100%" 
         frameborder="0" 
         allowfullscreen 
         allow="autoplay; encrypted-media">
@@ -243,19 +277,26 @@
         item.addEventListener('click', () => {
           const videoURL = item.getAttribute('data-video');
           iframe.src = videoURL;
-          modal.style.display = 'flex';
+          modal.classList.add('show');
         });
       });
 
       closeBtn.addEventListener('click', () => {
         iframe.src = '';
-        modal.style.display = 'none';
+        modal.classList.remove('show');
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          iframe.src = '';
+          modal.classList.remove('show');
+        }
       });
 
       window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.style.display === 'flex') {
+        if (e.key === 'Escape' && modal.classList.contains('show')) {
           iframe.src = '';
-          modal.style.display = 'none';
+          modal.classList.remove('show');
         }
       });
     }
