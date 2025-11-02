@@ -2342,21 +2342,24 @@ main, .main-wrapper, .media-container {
     right: 16px;
   }
 }
-/* --- Fix for unclickable buttons on main card --- */
+/* --- Final Fix for Clickable Buttons + Card Flip --- */
+
+/* Keep background and video non-interactive */
 #neural-bg,
 #missionVideo {
   pointer-events: none !important;
 }
 
-.media-container,
+/* Allow card to flip but sit under the buttons */
 #missionImage {
   pointer-events: auto !important;
+  position: relative;
+  z-index: 1 !important;
 }
 
-
+/* Make sure all clickable icons/buttons are on top and interactive */
 .clickable-area {
   position: absolute;
   z-index: 9999 !important;
   pointer-events: auto !important;
 }
-
