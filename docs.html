@@ -12,11 +12,7 @@
 
   <!-- Page Styles -->
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       min-height: 100vh;
@@ -26,7 +22,7 @@
       scroll-behavior: smooth;
     }
 
-    /* Header Image */
+    /* Header */
     .news-header-img {
       display: block;
       margin: 20px auto;
@@ -38,7 +34,7 @@
     @media (max-width: 650px) { .news-header-img { width: 250px; } }
     @media (max-width: 480px) { .news-header-img { width: 200px; } }
 
-    /* Call-to-Action Button */
+    /* Take the Survey Button */
     .survey-button {
       display: inline-block;
       background: #ff4444;
@@ -54,11 +50,7 @@
       letter-spacing: 1px;
       transition: background 0.3s ease, transform 0.2s ease;
     }
-
-    .survey-button:hover {
-      background: #ff6666;
-      transform: scale(1.05);
-    }
+    .survey-button:hover { background: #ff6666; transform: scale(1.05); }
 
     /* Gallery Layout */
     .gallery-container {
@@ -83,18 +75,40 @@
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
       transition: transform 0.3s ease;
     }
+    .gallery-item:hover { transform: translateY(-5px) scale(1.05); }
+    .gallery-item img { width: 100%; height: auto; display: block; }
 
-    .gallery-item:hover {
-      transform: translateY(-5px) scale(1.05);
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      position: relative;
+      width: 90%;
+      max-width: 800px;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 28px;
+      color: #fff;
+      cursor: pointer;
+      z-index: 10;
     }
 
-    .gallery-item img {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    /* Feedback Form Section */
+    /* Feedback Form */
     #hcd-feedback {
       max-width: 900px;
       margin: 60px auto;
@@ -104,14 +118,12 @@
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
-
     #hcd-feedback h2 {
       font-size: 28px;
       margin-bottom: 20px;
       color: #ff4444;
       letter-spacing: 0.5px;
     }
-
     iframe.hcd-form {
       width: 100%;
       height: 1800px;
@@ -122,47 +134,36 @@
 
     /* Footer */
     footer {
-      background-color: transparent;
       text-align: center;
       padding: 32px 20px 64px;
       margin-top: 40px;
-      position: relative;
     }
-
     .footer-back-button {
       display: flex;
       justify-content: center;
       align-items: center;
       margin-top: 32px;
     }
-
     .footer-back-button img {
       max-width: 240px;
       width: 60vw;
       height: auto;
       transition: transform 0.3s ease;
     }
-
-    .footer-back-button img:hover {
-      transform: scale(1.05);
-    }
+    .footer-back-button img:hover { transform: scale(1.05); }
 
     @media (max-width: 900px) {
       .gallery { grid-template-columns: 1fr 1fr; }
       .gallery-item { max-width: 95vw; }
     }
-
-    @media (max-width: 768px) {
-      .gallery { grid-template-columns: 1fr; }
-    }
-
+    @media (max-width: 768px) { .gallery { grid-template-columns: 1fr; } }
     @media (max-width: 500px) {
       .footer-back-button img { max-width: 92vw; }
       iframe.hcd-form { height: 2000px; }
     }
   </style>
 
-  <!-- Google tag (gtag.js) -->
+  <!-- Google Tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -174,12 +175,12 @@
 
 <body>
 
-  <!-- Header Image -->
+  <!-- Header -->
   <div style="text-align: center;">
     <img src="images/header docs.webp" alt="CharlestonHacks Docs" class="news-header-img" />
   </div>
 
-  <!-- CTA Button -->
+  <!-- CTA -->
   <div style="text-align: center;">
     <button class="survey-button" onclick="document.getElementById('hcd-feedback').scrollIntoView({ behavior: 'smooth' });">
       Take the Survey
@@ -190,12 +191,27 @@
   <main class="gallery-container">
     <div id="gallery" class="gallery">
       <div class="gallery-item" data-video="https://www.youtube.com/embed/BkqZVR5uipU?autoplay=1">
-        <img src="images/workshop.png" alt="Lesson 1">
+        <img src="images/workshop.png" alt="CharlestonHacks Workshop Product 102">
       </div>
     </div>
   </main>
 
-  <!-- Embedded HCD Feedback Form -->
+  <!-- Video Modal -->
+  <div id="videoModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" aria-label="Close video">&times;</span>
+      <iframe 
+        id="videoFrame" 
+        width="100%" 
+        height="450" 
+        frameborder="0" 
+        allowfullscreen 
+        allow="autoplay; encrypted-media">
+      </iframe>
+    </div>
+  </div>
+
+  <!-- HCD Feedback Form -->
   <section id="hcd-feedback">
     <h2>HCD Software Feedback Survey</h2>
     <iframe 
@@ -215,34 +231,34 @@
     <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
 
-  <!-- Video Modal Script -->
+  <!-- Scripts -->
   <script>
     const galleryItems = document.querySelectorAll('.gallery-item');
     const modal = document.getElementById('videoModal');
     const iframe = document.getElementById('videoFrame');
     const closeBtn = document.querySelector('.close-btn');
 
-    galleryItems.forEach(item => {
-      item.addEventListener('click', () => {
-        const videoURL = item.getAttribute('data-video');
-        iframe.src = videoURL;
-        modal.classList.remove('hidden');
+    if (modal && iframe) {
+      galleryItems.forEach(item => {
+        item.addEventListener('click', () => {
+          const videoURL = item.getAttribute('data-video');
+          iframe.src = videoURL;
+          modal.style.display = 'flex';
+        });
       });
-    });
 
-    if (closeBtn) {
       closeBtn.addEventListener('click', () => {
         iframe.src = '';
-        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+          iframe.src = '';
+          modal.style.display = 'none';
+        }
       });
     }
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-        iframe.src = '';
-        modal.classList.add('hidden');
-      }
-    });
   </script>
 </body>
 </html>
