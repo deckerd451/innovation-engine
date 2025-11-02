@@ -34,98 +34,6 @@
   <link rel="canonical" href="https://charlestonhacks.com"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="styles.css" />
-
-  <style>
-    /* —— Splash Screen Animation —— */
-    #splash-overlay {
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(circle at center, rgba(15,15,25,0.96) 0%, rgba(0,0,0,0.98) 100%);
-      backdrop-filter: blur(12px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      z-index: 9999;
-      opacity: 0;
-      transform: scale(1.05);
-      transition: opacity 1s ease, transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    #splash-overlay.active {
-      display: flex;
-      opacity: 1;
-      transform: scale(1);
-      animation: bgPulse 5s ease-in-out infinite;
-    }
-
-    #splash-overlay.fade-out {
-      opacity: 0;
-      transform: scale(0.98);
-      transition: opacity 1s ease, transform 1.2s cubic-bezier(0.86, 0, 0.07, 1);
-      animation: none;
-    }
-
-    /* —— Pulsing glow —— */
-    @keyframes bgPulse {
-      0%   { background-color: rgba(15,15,25,0.96); box-shadow: 0 0 30px rgba(255,102,0,0.2) inset; }
-      50%  { background-color: rgba(20,20,30,0.96); box-shadow: 0 0 60px rgba(255,102,0,0.5) inset; }
-      100% { background-color: rgba(15,15,25,0.96); box-shadow: 0 0 30px rgba(255,102,0,0.2) inset; }
-    }
-
-    #splash-content {
-      text-align: center;
-      color: white;
-      max-width: 400px;
-      animation: textGlow 2.8s ease-in-out infinite alternate;
-    }
-
-    @keyframes textGlow {
-      from { text-shadow: 0 0 10px rgba(255,102,0,0.3); }
-      to   { text-shadow: 0 0 25px rgba(255,102,0,0.8); }
-    }
-
-    #splash-logo {
-      width: 140px;
-      height: auto;
-      margin-bottom: 1rem;
-      filter: drop-shadow(0 0 15px rgba(255,102,0,0.5));
-    }
-
-    .button-container {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
-
-    .btn {
-      background: linear-gradient(135deg, #ff6600, #ff8533);
-      border: none;
-      color: #fff;
-      padding: 0.6rem 1.4rem;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: transform 0.25s ease, box-shadow 0.3s ease;
-      box-shadow: 0 0 20px rgba(255,102,0,0.3);
-    }
-
-    .btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 25px rgba(255,102,0,0.6);
-    }
-
-    /* —— Neural background pulse sync —— */
-    canvas#neural-bg.splash-active {
-      animation: neuralPulse 5s ease-in-out infinite;
-    }
-
-    @keyframes neuralPulse {
-      0%, 100% { filter: brightness(1); }
-      50% { filter: brightness(1.3) saturate(1.2); }
-    }
-  </style>
 </head>
 
 <body>
@@ -223,40 +131,35 @@
     </section>
   </main>
 
-  <!-- —— Splash Logic (with background sync) —— -->
+  <!-- —— Splash Logic (replaced with clean version) —— -->
   <script>
   (function () {
-    const overlay = document.getElementById('splash-overlay');
-    const dontShow = document.getElementById('dont-show-again');
-    const communityBtn = document.getElementById('community-site-btn');
-    const publicBtn = document.getElementById('public-site-btn');
-    const bgCanvas = document.getElementById('neural-bg');
-    const key = 'chs_splash_seen_once';
+    const splashOverlay = document.getElementById('splash-overlay');
+    const dontShowBox   = document.getElementById('dont-show-again');
+    const communityBtn  = document.getElementById('community-site-btn');
+    const publicBtn     = document.getElementById('public-site-btn');
+    const splashKey     = 'chs_splash_seen_once';
 
     function hideSplash(immediate = false) {
-      overlay.classList.add('fade-out');
-      bgCanvas.classList.remove('splash-active');
+      splashOverlay.classList.add('fade-out');
+      document.body.classList.remove('splash-active');
       setTimeout(() => {
-        overlay.style.display = 'none';
-        document.body.classList.remove('splash-active');
-      }, immediate ? 0 : 1000);
+        splashOverlay.style.display = 'none';
+      }, immediate ? 0 : 700);
     }
 
     function dismissSplash() {
-      if (dontShow.checked) localStorage.setItem(key, 'true');
+      localStorage.setItem(splashKey, 'true');
       hideSplash();
     }
 
     function maybeShowSplash() {
-      const seen = localStorage.getItem(key);
+      const seen = localStorage.getItem(splashKey);
       if (seen === 'true') {
-        overlay.style.display = 'none';
+        hideSplash(true);
         return;
       }
-
-      overlay.style.display = 'flex';
-      bgCanvas.classList.add('splash-active');
-      setTimeout(() => overlay.classList.add('active'), 100);
+      splashOverlay.style.display = 'flex';
       document.body.classList.add('splash-active');
 
       communityBtn.addEventListener('click', dismissSplash);
@@ -270,22 +173,45 @@
   })();
   </script>
 
-  <!-- —— Main Card + Background Logic —— -->
+  <!-- —— Main Logic —— -->
   <script type="module">
     import { CONFIG } from './assets/js/config.js';
     import { initCardFlip } from './assets/js/cardFlip.js';
     import { startBTCPriceTracker } from './assets/js/btc.js';
     import { startCountdown } from './assets/js/countdown.js';
+
     CONFIG.sounds = {
       cardflip: document.getElementById('cardflipSound'),
       chime: document.getElementById('chimeSound'),
       keys: document.getElementById('keysSound'),
     };
+
     initCardFlip(CONFIG);
     startBTCPriceTracker('btcPrice');
     startCountdown('countdown', '2025-10-03T00:00:00-04:00');
+
+    const buttons = document.querySelectorAll('.clickable-area');
+    const infoLine = document.getElementById('infoLine');
+    const infoText = document.getElementById('infoText');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sound = document.getElementById(btn.dataset.sound + 'Sound');
+        if (sound) sound.play();
+        if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
+      });
+      btn.addEventListener('mouseover', () => {
+        infoLine.style.opacity = '1';
+        infoText.textContent = btn.dataset.info || '';
+      });
+      btn.addEventListener('mouseout', () => {
+        infoLine.style.opacity = '0';
+        infoText.textContent = '';
+      });
+    });
   </script>
 
+  <!-- —— Neural Background —— -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
 </body>
 </html>
