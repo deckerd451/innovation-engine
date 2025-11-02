@@ -23,6 +23,7 @@
       background-color: #181818;
       font-family: Arial, sans-serif;
       color: #fff;
+      scroll-behavior: smooth;
     }
 
     /* Header Image */
@@ -36,6 +37,28 @@
     @media (max-width: 800px) { .news-header-img { width: 300px; margin-top: 10px; } }
     @media (max-width: 650px) { .news-header-img { width: 250px; } }
     @media (max-width: 480px) { .news-header-img { width: 200px; } }
+
+    /* Call-to-Action Button */
+    .survey-button {
+      display: inline-block;
+      background: #ff4444;
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      margin: 10px auto 30px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    .survey-button:hover {
+      background: #ff6666;
+      transform: scale(1.05);
+    }
 
     /* Gallery Layout */
     .gallery-container {
@@ -69,6 +92,32 @@
       width: 100%;
       height: auto;
       display: block;
+    }
+
+    /* Feedback Form Section */
+    #hcd-feedback {
+      max-width: 900px;
+      margin: 60px auto;
+      padding: 20px;
+      text-align: center;
+      background: #202020;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    #hcd-feedback h2 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #ff4444;
+      letter-spacing: 0.5px;
+    }
+
+    iframe.hcd-form {
+      width: 100%;
+      height: 1800px;
+      border: none;
+      border-radius: 8px;
+      background: #fff;
     }
 
     /* Footer */
@@ -109,6 +158,7 @@
 
     @media (max-width: 500px) {
       .footer-back-button img { max-width: 92vw; }
+      iframe.hcd-form { height: 2000px; }
     }
   </style>
 
@@ -129,31 +179,31 @@
     <img src="images/header docs.webp" alt="CharlestonHacks Docs" class="news-header-img" />
   </div>
 
+  <!-- CTA Button -->
+  <div style="text-align: center;">
+    <button class="survey-button" onclick="document.getElementById('hcd-feedback').scrollIntoView({ behavior: 'smooth' });">
+      Take the Survey
+    </button>
+  </div>
+
   <!-- Gallery -->
-<!-- Gallery Thumbnails -->
   <main class="gallery-container">
-<div id="gallery" class="gallery">
-  <div class="gallery-item" data-video="https://www.youtube.com/embed/BkqZVR5uipU?autoplay=1">
-    <img src="images/workshop.png" alt="Lesson 1">
-  </div>
-</div>
-    </main>
+    <div id="gallery" class="gallery">
+      <div class="gallery-item" data-video="https://www.youtube.com/embed/BkqZVR5uipU?autoplay=1">
+        <img src="images/workshop.png" alt="Lesson 1">
+      </div>
+    </div>
+  </main>
 
-<!-- Video Modal -->
-<div id="videoModal" class="modal hidden">
-  <div class="modal-content">
-    <span class="close-btn" aria-label="Close video">&times;</span>
+  <!-- Embedded HCD Feedback Form -->
+  <section id="hcd-feedback">
+    <h2>HCD Software Feedback Survey</h2>
     <iframe 
-  id="videoFrame" 
-  width="100%" 
-  height="100%" 
-  frameborder="0" 
-  allowfullscreen 
-  allow="autoplay; encrypted-media">
-</iframe>
-
-  </div>
-</div>
+      class="hcd-form"
+      src="https://docs.google.com/forms/d/e/1FAIpQLSca94zDIxSJ-1d4QyA7h7Txk-Towj4xObsJzQAu9wyU4Di4TQ/viewform?embedded=true">
+      Loading…
+    </iframe>
+  </section>
 
   <!-- Footer -->
   <footer>
@@ -164,32 +214,35 @@
     </div>
     <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
-<script>
-  const galleryItems = document.querySelectorAll('.gallery-item');
-  const modal = document.getElementById('videoModal');
-  const iframe = document.getElementById('videoFrame');
-  const closeBtn = document.querySelector('.close-btn');
 
-  galleryItems.forEach(item => {
-    item.addEventListener('click', () => {
-      const videoURL = item.getAttribute('data-video');
-      iframe.src = videoURL;
-      modal.classList.remove('hidden');
+  <!-- Video Modal Script -->
+  <script>
+    const galleryItems = document.querySelectorAll('.gallery-item');
+    const modal = document.getElementById('videoModal');
+    const iframe = document.getElementById('videoFrame');
+    const closeBtn = document.querySelector('.close-btn');
+
+    galleryItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const videoURL = item.getAttribute('data-video');
+        iframe.src = videoURL;
+        modal.classList.remove('hidden');
+      });
     });
-  });
 
-  closeBtn.addEventListener('click', () => {
-    iframe.src = '';
-    modal.classList.add('hidden');
-  });
-
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      iframe.src = '';
-      modal.classList.add('hidden');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        iframe.src = '';
+        modal.classList.add('hidden');
+      });
     }
-  });
-</script>
 
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+        iframe.src = '';
+        modal.classList.add('hidden');
+      }
+    });
+  </script>
 </body>
 </html>
