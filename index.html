@@ -161,6 +161,7 @@
       }
       splashOverlay.style.display = 'flex';
       document.body.classList.add('splash-active');
+
       communityBtn.addEventListener('click', dismissSplash);
       publicBtn.addEventListener('click', () => {
         dismissSplash();
@@ -177,7 +178,7 @@
     import { initCardFlip } from './assets/js/cardFlip.js';
     import { startBTCPriceTracker } from './assets/js/btc.js';
     import { startCountdown } from './assets/js/countdown.js';
-    import { setupChatBubble } from './assets/js/chatBubble.js'; // ✅ Modular chat
+    import { setupChatBubble } from './assets/js/chatBubble.js'; // ✅ advanced bubble
 
     CONFIG.sounds = {
       cardflip: document.getElementById('cardflipSound'),
@@ -188,7 +189,7 @@
     initCardFlip(CONFIG);
     startBTCPriceTracker('btcPrice');
     startCountdown('countdown', '2025-10-03T00:00:00-04:00');
-    setupChatBubble(); // ✅ Clean Discord bubble
+    setupChatBubble(); // ✅ Initialize CharlestonHacks glowing bubble
   </script>
 
   <!-- —— Neural Background —— -->
