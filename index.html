@@ -28,20 +28,18 @@
   <meta property="og:url" content="https://charlestonhacks.com"/>
   <meta name="twitter:card" content="summary_large_image"/>
   <link rel="icon" href="favicon.ico" type="image/x-icon"/>
-  <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
   <meta name="theme-color" content="#ff6600"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="styles.css" />
 
   <style>
-    /* —— Mobile Safe Area & Basic Fixes —— */
     body {
       margin: 0;
       padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
       overflow-x: hidden;
     }
 
-    /* —— Discord Bubble Styling —— */
+    /* —— Discord Bubble —— */
     #discord-bubble {
       display: none;
       position: fixed;
@@ -79,30 +77,40 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
 
-    /* —— Bounce Animation —— */
+    #discord-badge {
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      background: red;
+      color: white;
+      font-size: 12px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      box-shadow: 0 0 8px rgba(255,0,0,0.7);
+      animation: pulseBadge 1.5s infinite ease-in-out;
+    }
+
+    /* —— Animations —— */
     @keyframes bounceIn {
       0% { transform: scale(0.5); opacity: 0; }
       60% { transform: scale(1.1); opacity: 1; }
       100% { transform: scale(1); }
     }
 
-    /* —— Mobile Responsiveness —— */
+    @keyframes pulseBadge {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 6px rgba(255,0,0,0.5); }
+      50% { transform: scale(1.3); box-shadow: 0 0 16px rgba(255,0,0,0.8); }
+    }
+
     @media (max-width: 600px) {
-      #discord-frame {
-        width: 60px !important;
-        height: 60px !important;
-      }
-      #discord-bubble {
-        bottom: 16px;
-        right: 16px;
-      }
-      #discord-minimize {
-        top: -8px;
-        right: -8px;
-        width: 22px;
-        height: 22px;
-        font-size: 12px;
-      }
+      #discord-frame { width: 60px !important; height: 60px !important; }
+      #discord-bubble { bottom: 16px; right: 16px; }
+      #discord-minimize { top: -8px; right: -8px; width: 22px; height: 22px; font-size: 12px; }
     }
   </style>
 </head>
@@ -117,7 +125,7 @@
     </div>
   </noscript>
 
-  <!-- —— Splash Screen (first-time only) —— -->
+  <!-- —— Splash Screen —— -->
   <div id="splash-overlay" role="dialog" aria-modal="true">
     <div id="splash-content">
       <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
@@ -145,7 +153,7 @@
   <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
   <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
 
-  <!-- —— Main Interactive Card —— -->
+  <!-- —— Main Card —— -->
   <main>
     <div class="main-wrapper">
       <div class="media-container" tabindex="0">
@@ -154,11 +162,8 @@
 
         <img id="missionImage" src="icons/card.png" alt="Main Card" style="z-index:3;" />
         <img id="cardFrame" src="images/cardframe2.svg" alt="Card Frame" style="display:none;" />
-        <video id="missionVideo" muted playsinline controls style="display:none; opacity:0;">
-          <source src="" type="video/mp4" />
-        </video>
 
-        <!-- —— Card Buttons —— -->
+        <!-- —— Buttons —— -->
         <button class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster."><img src="images/informationbutton.webp" alt="Info" /></button>
         <button class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Read documentation."><img src="images/crestn.svg" alt="Docs" /></button>
         <button class="clickable-area top-right" data-sound="chime" data-url="2card.html" data-info="Explore Innovation Engine."><img src="images/innovationenginebutton.webp" alt="Innovation" /></button>
@@ -167,8 +172,6 @@
         <button class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Catch up on news."><img src="images/newsbutton.webp" alt="News" /></button>
         <button class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor CharlestonHacks."><img src="images/keysn.svg" alt="Keys" /></button>
         <button class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Play the card match game."><img src="images/peoplebutton.webp" alt="People" /></button>
-
-        <div id="infoLine" class="info-line"><span id="infoParticle"></span><span id="infoText"></span></div>
       </div>
     </div>
 
@@ -179,7 +182,6 @@
       <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank"><i class="fab fa-linkedin"></i></a>
       <a href="https://www.instagram.com/charlestonhacks/" target="_blank"><i class="fab fa-instagram"></i></a>
       <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
-      <a href="https://www.facebook.com/deckerdb26354" target="_blank"><i class="fab fa-facebook"></i></a>
     </section>
   </main>
 
@@ -208,42 +210,12 @@
     })();
   </script>
 
-  <!-- —— Core Card Logic —— -->
-  <script type="module">
-    import { CONFIG } from './assets/js/config.js';
-    import { initCardFlip } from './assets/js/cardFlip.js';
-    import { startBTCPriceTracker } from './assets/js/btc.js';
-    import { startCountdown } from './assets/js/countdown.js';
-
-    CONFIG.sounds = {
-      cardflip: document.getElementById('cardflipSound'),
-      chime: document.getElementById('chimeSound'),
-      keys: document.getElementById('keysSound'),
-    };
-
-    initCardFlip(CONFIG);
-    startBTCPriceTracker('btcPrice');
-    startCountdown('countdown', '2025-10-03T00:00:00-04:00');
-
-    const buttons = document.querySelectorAll('.clickable-area');
-    const infoLine = document.getElementById('infoLine');
-    const infoText = document.getElementById('infoText');
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sound = document.getElementById(btn.dataset.sound + 'Sound');
-        if (sound) sound.play();
-        if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
-      });
-      btn.addEventListener('mouseover', () => { infoLine.style.opacity = '1'; infoText.textContent = btn.dataset.info || ''; });
-      btn.addEventListener('mouseout', () => { infoLine.style.opacity = '0'; infoText.textContent = ''; });
-    });
-  </script>
-
   <!-- —— Neural Background —— -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
 
-  <!-- —— Discord Bubble (draggable + persistent + animated) —— -->
+  <!-- —— Discord Bubble —— -->
   <div id="discord-bubble">
+    <div id="discord-badge">!</div>
     <iframe id="discord-frame"
       src="https://e.widgetbot.io/channels/1094842772766146600/1094842772766146603"
       height="80" width="80" title="CharlestonHacks Discord"></iframe>
@@ -254,6 +226,7 @@
     const discordBubble = document.getElementById('discord-bubble');
     const discordFrame = document.getElementById('discord-frame');
     const discordMinimize = document.getElementById('discord-minimize');
+    const discordBadge = document.getElementById('discord-badge');
     const mediaContainer = document.querySelector('.media-container');
     let bubbleShown = false, minimized = false;
     const bubbleStateKey = 'chs_discord_state_v1';
@@ -264,14 +237,11 @@
     if (savedState.position) {
       discordBubble.style.left = savedState.position.x + 'px';
       discordBubble.style.top = savedState.position.y + 'px';
-    } else {
-      discordBubble.style.right = '20px';
-      discordBubble.style.bottom = '20px';
-    }
+    } else { discordBubble.style.right = '20px'; discordBubble.style.bottom = '20px'; }
 
     mediaContainer.addEventListener('click', () => {
       if (!bubbleShown) {
-        discordBubble.style.display = 'block';
+        discordBubble.style.display = 'flex';
         discordBubble.classList.add('bouncing');
         bubbleShown = true;
         saveState();
@@ -281,6 +251,7 @@
     discordMinimize.addEventListener('click', () => {
       minimized = !minimized;
       toggleMinimize(minimized);
+      discordBadge.style.display = 'none';
       saveState();
     });
 
@@ -299,7 +270,12 @@
       }
     }
 
-    // Draggable on desktop + touchmove on mobile
+    // Simulate new message badge (or integrate real event later)
+    setTimeout(() => {
+      if (minimized) discordBadge.style.display = 'flex';
+    }, 15000);
+
+    // Drag and mobile support
     let isDragging = false, offsetX, offsetY;
     const startDrag = e => {
       isDragging = true;
@@ -334,7 +310,6 @@
       }));
     }
 
-    // Auto adjust on mobile (snap to bottom-right)
     window.addEventListener('resize', () => {
       if (window.innerWidth < 600) {
         discordBubble.style.left = 'auto';
