@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Britannic+Bold:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
   <style>
     :root {
       --primary-color: #FF0000;
@@ -14,6 +15,7 @@
       --background-color: black;
       --border-radius: 8px;
     }
+
     * { box-sizing: border-box; }
     body {
       background: var(--background-color);
@@ -35,6 +37,7 @@
       opacity: 0.8;
       pointer-events: none;
     }
+
     .main-content {
       max-width: 1200px;
       margin: 0 auto;
@@ -46,6 +49,7 @@
       justify-content: flex-start;
       background: transparent;
     }
+
     .logo {
       display: block;
       margin: 0 auto 18px auto;
@@ -55,6 +59,7 @@
       filter: drop-shadow(0 2px 16px #222);
       transition: width 0.3s;
     }
+
     .section-title {
       color: var(--secondary-color);
       font-size: 2.1rem;
@@ -68,6 +73,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+
     .subtitle {
       color: var(--text-color);
       font-size: 1.2rem;
@@ -75,6 +81,7 @@
       margin-bottom: 24px;
       text-align: center;
     }
+
     .swag-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
@@ -83,6 +90,7 @@
       width: 100%;
       justify-items: center;
     }
+
     .swag-item {
       background: #232323;
       border-radius: var(--border-radius);
@@ -92,6 +100,7 @@
       transition: box-shadow 0.25s, transform 0.15s;
       position: relative;
     }
+
     .swag-item img {
       width: 92px;
       height: 92px;
@@ -104,11 +113,13 @@
       transition: transform 0.21s, box-shadow 0.2s;
       border: 2.5px solid #ffd70033;
     }
+
     .swag-item img:hover {
       transform: scale(1.13) rotate(-2deg);
       box-shadow: 0 0 24px #ffd700cc;
       z-index: 2;
     }
+
     .swag-item label {
       color: var(--secondary-color);
       font-size: 1.1em;
@@ -118,6 +129,7 @@
       font-weight: bold;
       letter-spacing: 0.02em;
     }
+
     .vote-btn {
       margin-top: 8px;
       padding: 8px 22px;
@@ -134,7 +146,9 @@
       margin-left: auto;
       margin-right: auto;
     }
+
     .vote-btn:hover { background: #FFC000; }
+
     .success-message {
       color: #00FF87;
       font-weight: bold;
@@ -143,6 +157,7 @@
       font-size: 1.15em;
       animation: fadeIn 0.5s;
     }
+
     .leaderboard {
       margin: 32px auto 0 auto;
       background: #2a2a2a;
@@ -152,7 +167,13 @@
       max-width: 600px;
       box-shadow: 0 0 10px rgba(255,215,0,0.25);
     }
-    .leaderboard h2 { color: #ffd700; font-size: 1.3em; margin-bottom: 12px; }
+
+    .leaderboard h2 {
+      color: #ffd700;
+      font-size: 1.3em;
+      margin-bottom: 12px;
+    }
+
     .leaderboard-row {
       display: flex;
       justify-content: space-between;
@@ -161,9 +182,11 @@
       font-size: 1.09em;
       color: #ffd700;
     }
+
     .leaderboard-rank { font-weight: bold; color: #ffd700; width: 24px; }
     .leaderboard-swag { flex: 1; text-align: left; }
     .leaderboard-count { color: #ffd700; }
+
     @media (max-width: 800px) {
       .swag-grid { grid-template-columns: 1fr 1fr;}
     }
@@ -172,6 +195,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="main-content">
     <img src="icons/header swag.webp" alt="CharlestonHacks Logo" class="logo" />
@@ -180,14 +204,25 @@
       Vote for your favorite swag! See what's trending below.<br>
       <span style="color:#FFD700; font-weight:bold;">Leaderboard shows top-voted swag.</span>
     </div>
+
     <div class="swag-grid" id="swagGrid"></div>
     <div class="success-message" id="successMsg" style="display:none;"></div>
+
     <div class="leaderboard" id="leaderboard-section">
       <h2>Most Popular Swag</h2>
       <div id="leaderboard-rows"></div>
     </div>
   </div>
-  <script>
+
+  <!-- ==================== SUPABASE SCRIPT ==================== -->
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.2/+esm";
+
+    // --- Supabase Setup ---
+    const SUPABASE_URL = "https://hvmotpzhliufzomewzfl.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s";
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
     // --- Swag Items List ---
     const swagItems = [
       { name: "T-Shirt", img: "icons/tshirt.webp" },
@@ -198,92 +233,91 @@
       { name: "Gauntlet", img: "icons/gauntlet.webp" }
     ];
 
-    // --- DOM Elements ---
     const swagGrid = document.getElementById('swagGrid');
     const successMsg = document.getElementById('successMsg');
     const leaderboardRows = document.getElementById('leaderboard-rows');
 
-    // --- Supabase Setup ---
-    // You must have your Supabase client setup
-    // Example: const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    // --- Render Swag Items with Vote Buttons ---
+    // --- Render Swag Items ---
     function renderSwagItems() {
       swagGrid.innerHTML = '';
       swagItems.forEach(item => {
         const swagDiv = document.createElement('div');
         swagDiv.className = 'swag-item';
         swagDiv.innerHTML = `
-          <img src="${item.img}" alt="${item.name}" data-large="${item.img}" data-caption="${item.name}">
+          <img src="${item.img}" alt="${item.name}">
           <label>${item.name}</label>
-          <button class="vote-btn" data-swag="${item.name}"><i class="fa fa-thumbs-up"></i> Vote</button>
+          <button class="vote-btn" data-swag="${item.name}">
+            <i class="fa fa-thumbs-up"></i> Vote
+          </button>
         `;
         swagGrid.appendChild(swagDiv);
       });
     }
 
     // --- Voting Handler ---
-    swagGrid.addEventListener('click', async function(e) {
+    swagGrid.addEventListener('click', async e => {
       const voteBtn = e.target.closest('.vote-btn');
-      if(!voteBtn) return;
-      const swagName = voteBtn.getAttribute('data-swag');
+      if (!voteBtn) return;
+      const swagName = voteBtn.dataset.swag;
       voteBtn.disabled = true;
 
       try {
-        // Fetch current swag votes from Supabase
-        let { data, error } = await supabaseClient.from('swag_votes').select('*').eq('swag', swagName).single();
-        let currentVotes = data && data.votes ? data.votes : 0;
-        // Update votes
-        if(data) {
-          const { error: updateError } = await supabaseClient.from('swag_votes').update({ votes: currentVotes + 1 }).eq('swag', swagName);
-          if(updateError) throw updateError;
+        const { data, error } = await supabaseClient
+          .from('swag_votes')
+          .select('*')
+          .eq('swag', swagName)
+          .single();
+
+        let currentVotes = data?.votes || 0;
+
+        if (data) {
+          const { error: updateError } = await supabaseClient
+            .from('swag_votes')
+            .update({ votes: currentVotes + 1 })
+            .eq('swag', swagName);
+          if (updateError) throw updateError;
         } else {
-          // If swag doesn't exist, insert it
-          const { error: insertError } = await supabaseClient.from('swag_votes').insert([{ swag: swagName, votes: 1 }]);
-          if(insertError) throw insertError;
+          const { error: insertError } = await supabaseClient
+            .from('swag_votes')
+            .insert([{ swag: swagName, votes: 1 }]);
+          if (insertError) throw insertError;
         }
+
         successMsg.textContent = `You voted for "${swagName}"!`;
         successMsg.style.display = "block";
-        setTimeout(() => { successMsg.style.display = "none"; }, 1800);
+        setTimeout(() => successMsg.style.display = "none", 1500);
         loadLeaderboard();
       } catch (err) {
         console.error("Voting error:", err);
         successMsg.textContent = `Vote failed: ${err.message}`;
         successMsg.style.display = "block";
-        setTimeout(() => { successMsg.style.display = "none"; }, 2500);
+        setTimeout(() => successMsg.style.display = "none", 2500);
       } finally {
         voteBtn.disabled = false;
       }
     });
 
-    // --- Leaderboard Loader ---
+    // --- Load Leaderboard ---
     async function loadLeaderboard() {
       try {
         const { data, error } = await supabaseClient.from('swag_votes').select('*');
         if (error) throw error;
         const swagCounts = {};
-        swagItems.forEach(item => swagCounts[item.name] = 0);
-        data.forEach(row => {
-          swagCounts[row.swag] = row.votes;
-        });
-        const sortedSwag = Object.entries(swagCounts).sort(([, countA], [, countB]) => countB - countA);
-        leaderboardRows.innerHTML = '';
-        if (sortedSwag.length === 0) {
-          leaderboardRows.innerHTML = '<p>No votes yet. Be the first!</p>';
-          return;
-        }
-        sortedSwag.forEach(([swag, count], idx) => {
-          const row = document.createElement('div');
-          row.className = 'leaderboard-row';
-          row.innerHTML = `
-            <span class="leaderboard-rank">${idx + 1}.</span>
-            <span class="leaderboard-swag">${swag}</span>
-            <span class="leaderboard-count">${count} <i class="fa fa-thumbs-up"></i></span>
-          `;
-          leaderboardRows.appendChild(row);
-        });
-      } catch (error) {
-        console.error("Error loading leaderboard:", error.message);
+        swagItems.forEach(item => (swagCounts[item.name] = 0));
+        data.forEach(row => (swagCounts[row.swag] = row.votes));
+        const sorted = Object.entries(swagCounts).sort((a, b) => b[1] - a[1]);
+        leaderboardRows.innerHTML = sorted
+          .map(
+            ([swag, count], i) => `
+              <div class="leaderboard-row">
+                <span class="leaderboard-rank">${i + 1}.</span>
+                <span class="leaderboard-swag">${swag}</span>
+                <span class="leaderboard-count">${count} <i class="fa fa-thumbs-up"></i></span>
+              </div>`
+          )
+          .join('');
+      } catch (err) {
+        console.error("Error loading leaderboard:", err);
         leaderboardRows.innerHTML = '<p style="color:red;">Failed to load leaderboard.</p>';
       }
     }
