@@ -36,40 +36,11 @@
       pointer-events: none;
     }
 
-    /* --- Home button --- */
-    .home-btn {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      z-index: 10;
-      background: rgba(255, 102, 0, 0.9);
-      border: none;
-      border-radius: 50%;
-      width: 48px;
-      height: 48px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.3s ease;
-      box-shadow: 0 0 12px rgba(255, 102, 0, 0.5);
-    }
-
-    .home-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 0 20px rgba(255, 102, 0, 0.8);
-    }
-
-    .home-btn i {
-      color: white;
-      font-size: 1.3rem;
-    }
-
     main.container {
       position: relative;
       z-index: 2;
       max-width: 600px;
-      margin: 6rem auto 0 auto; /* prevents top cut-off */
+      margin: 6rem auto 0 auto;
       padding: 2rem 1rem;
     }
 
@@ -153,19 +124,33 @@
       box-shadow: 0 0 20px rgba(255, 102, 0, 0.6);
     }
 
+    /* Footer (from Events page) */
     footer {
+      background-color: transparent;
       text-align: center;
-      margin-top: 3rem;
-      font-size: 0.85rem;
-      color: #aaa;
-      z-index: 2;
+      padding: 32px 20px 64px;
+      margin-top: 40px;
       position: relative;
-      opacity: 0;
-      transition: opacity 1.5s ease;
+      z-index: 2;
     }
 
-    footer.visible {
-      opacity: 1;
+    .footer-back-button {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 32px;
+    }
+
+    .footer-back-button img {
+      max-width: 240px;
+      width: 60vw;
+      height: auto;
+      transition: transform 0.3s ease;
+    }
+
+    .footer-back-button img:hover {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 8px rgba(255, 80, 80, 0.6));
     }
 
     @media (max-width: 600px) {
@@ -181,6 +166,9 @@
       main.container {
         margin-top: 5rem;
       }
+      .footer-back-button img {
+        max-width: 92vw;
+      }
     }
   </style>
 </head>
@@ -188,11 +176,6 @@
 <body>
   <!-- Neural Background -->
   <canvas id="neural-bg"></canvas>
-
-  <!-- Home Button -->
-  <button class="home-btn" onclick="window.location.href='index.html'" aria-label="Return Home">
-    <i class="fas fa-home"></i>
-  </button>
 
   <main class="container">
     <header class="header">
@@ -216,20 +199,18 @@
     </section>
   </main>
 
-  <footer id="footer">© 2025 CharlestonHacks. All rights reserved.</footer>
+  <!-- Footer (reused from Events page) -->
+  <footer>
+    <div class="footer-back-button">
+      <a href="index.html">
+        <img src="assets/chbackbuttonred.png" alt="Back to Home" />
+      </a>
+    </div>
+    <p style="margin-top: 16px; font-size: 16px;">
+      © 2025 CharlestonHacks. All rights reserved.
+    </p>
+  </footer>
 
   <script type="module" src="assets/js/neuralBackground.js"></script>
-
-  <!-- Footer fade-in logic -->
-  <script>
-    const footer = document.getElementById('footer');
-    window.addEventListener('scroll', () => {
-      const scrollY = window.scrollY + window.innerHeight;
-      const docHeight = document.body.offsetHeight;
-      if (scrollY >= docHeight - 100) {
-        footer.classList.add('visible');
-      }
-    });
-  </script>
 </body>
 </html>
