@@ -84,10 +84,10 @@
     }
     .swag-item:hover { transform: translateY(-4px); }
 
-    /* SIMPLIFIED: just larger images */
+    /* Responsive image scaling */
     .swag-item img {
-      width: 160px;   /* was 92px */
-      height: auto;   /* let aspect ratio flow */
+      width: 200px; /* Default desktop */
+      height: auto;
       margin-bottom: 10px;
       border-radius: 10px;
       border: 2px solid #ffd70033;
@@ -100,6 +100,20 @@
     .swag-item img:hover {
       transform: scale(1.08);
       box-shadow: 0 0 20px #ffd700cc;
+    }
+
+    /* Scale down on tablets */
+    @media (max-width: 1024px) {
+      .swag-item img {
+        width: 160px;
+      }
+    }
+
+    /* Smaller yet on phones */
+    @media (max-width: 600px) {
+      .swag-item img {
+        width: 130px;
+      }
     }
 
     .swag-item label {
