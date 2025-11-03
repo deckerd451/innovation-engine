@@ -22,10 +22,10 @@
       color: var(--text-color);
       min-height: 100vh;
       font-family: 'Britannic Bold', Arial, sans-serif;
-      position: relative;
       text-align: center;
       margin: 0;
     }
+
     body::before {
       content: "";
       position: fixed;
@@ -42,12 +42,6 @@
       max-width: 1200px;
       margin: 0 auto;
       padding: 24px 12px 60px 12px;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      background: transparent;
     }
 
     .logo {
@@ -64,26 +58,11 @@
       opacity: 0.9;
     }
 
-    .section-title {
-      color: var(--secondary-color);
-      font-size: 2.1rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      text-align: center;
-      letter-spacing: 0.04em;
-      text-shadow: 0 2px 12px #000;
-      background: linear-gradient(135deg, #ffd700, #ff6b35);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
     .subtitle {
       color: var(--text-color);
       font-size: 1.2rem;
       opacity: 0.85;
       margin-bottom: 24px;
-      text-align: center;
     }
 
     .swag-grid {
@@ -98,46 +77,43 @@
     .swag-item {
       background: #232323;
       border-radius: var(--border-radius);
-      padding: 18px 12px 12px 12px;
+      padding: 20px;
       text-align: center;
       box-shadow: 0 2px 12px #0008;
-      transition: box-shadow 0.25s, transform 0.15s;
-      position: relative;
+      transition: transform 0.2s;
     }
+    .swag-item:hover { transform: translateY(-4px); }
 
+    /* SIMPLIFIED: just larger images */
     .swag-item img {
-      width: 92px;
-      height: 92px;
-      object-fit: contain;
-      margin-bottom: 8px;
+      width: 160px;   /* was 92px */
+      height: auto;   /* let aspect ratio flow */
+      margin-bottom: 10px;
       border-radius: 10px;
-      box-shadow: 0 0 8px #ffd70080;
-      cursor: zoom-in;
+      border: 2px solid #ffd70033;
+      box-shadow: 0 0 12px #ffd70080;
       background: #1a1a1a;
-      transition: transform 0.21s, box-shadow 0.2s;
-      border: 2.5px solid #ffd70033;
+      transition: transform 0.25s, box-shadow 0.25s;
+      cursor: pointer;
     }
 
     .swag-item img:hover {
-      transform: scale(1.13) rotate(-2deg);
-      box-shadow: 0 0 24px #ffd700cc;
-      z-index: 2;
+      transform: scale(1.08);
+      box-shadow: 0 0 20px #ffd700cc;
     }
 
     .swag-item label {
       color: var(--secondary-color);
-      font-size: 1.1em;
+      font-size: 1.2em;
       margin-top: 4px;
       display: block;
-      cursor: pointer;
       font-weight: bold;
-      letter-spacing: 0.02em;
     }
 
     .vote-btn {
-      margin-top: 8px;
-      padding: 8px 22px;
-      font-size: 1.08em;
+      margin-top: 10px;
+      padding: 10px 24px;
+      font-size: 1.05em;
       background: linear-gradient(135deg,#ffd700,#ff6b35);
       color: #1a1a1a;
       border-radius: 8px;
@@ -146,9 +122,6 @@
       font-weight: bold;
       box-shadow: 0 2px 12px #ffd70066;
       transition: background 0.3s;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
     }
 
     .vote-btn:hover { background: #FFC000; }
@@ -156,14 +129,12 @@
     .success-message {
       color: #00FF87;
       font-weight: bold;
-      text-align: center;
       margin-top: 18px;
-      font-size: 1.15em;
-      animation: fadeIn 0.5s;
+      font-size: 1.1em;
     }
 
     .leaderboard {
-      margin: 32px auto 0 auto;
+      margin: 40px auto 0 auto;
       background: #2a2a2a;
       border-radius: 8px;
       padding: 15px;
@@ -191,18 +162,13 @@
     .leaderboard-swag { flex: 1; text-align: left; }
     .leaderboard-count { color: #ffd700; }
 
-    @media (max-width: 800px) {
-      .swag-grid { grid-template-columns: 1fr 1fr;}
-    }
-    @media (max-width: 480px) {
-      .swag-grid { grid-template-columns: 1fr;}
-    }
+    @media (max-width: 800px) { .swag-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 480px) { .swag-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 
 <body>
   <div class="main-content">
-    <!-- Clickable logo that returns to index.html -->
     <a href="index.html">
       <img src="icons/header swag.webp" alt="CharlestonHacks Logo" class="logo" />
     </a>
@@ -221,23 +187,21 @@
     </div>
   </div>
 
-  <!-- ==================== SUPABASE SCRIPT ==================== -->
   <script type="module">
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.2/+esm";
 
-    // --- Supabase Setup ---
     const SUPABASE_URL = "https://hvmotpzhliufzomewzfl.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s";
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const swagItems = [
-  { name: "T-Shirt", img: "icons/tshirt.webp" },
-  { name: "Sticker", img: "icons/sticker.webp" },
-  { name: "Hat", img: "icons/hat.webp" },
-  { name: "Hoodie", img: "icons/hoodie.webp" },
-  { name: "Mug", img: "icons/mug.webp" },
-  { name: "Gauntlet", img: "icons/gauntlet.webp" }
-];
+      { name: "T-Shirt", img: "icons/tshirt.webp" },
+      { name: "Sticker", img: "icons/sticker.webp" },
+      { name: "Hat", img: "icons/hat.webp" },
+      { name: "Hoodie", img: "icons/hoodie.webp" },
+      { name: "Mug", img: "icons/mug.webp" },
+      { name: "Gauntlet", img: "icons/gauntlet.webp" }
+    ];
 
     const swagGrid = document.getElementById('swagGrid');
     const successMsg = document.getElementById('successMsg');
