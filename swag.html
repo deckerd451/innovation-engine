@@ -46,15 +46,21 @@
       padding: 24px 12px 60px 12px;
     }
 
+    /* --- Header Logo --- */
     .logo {
       display: block;
       margin: 0 auto 18px auto;
       width: min(100%, 360px);
       height: auto;
-      filter: drop-shadow(0 2px 16px #222);
-      transition: transform 0.3s ease;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
     }
-    .logo:hover { transform: scale(1.05); }
+    .logo:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
+    }
 
     .subtitle {
       font-size: 1.2rem;
@@ -80,7 +86,6 @@
     }
     .swag-item:hover { transform: translateY(-4px); }
 
-    /* Remove any object-fit or transform conflicts for lightGallery */
     .swag-item img {
       width: 100px;
       height: auto;
@@ -148,7 +153,6 @@
     .leaderboard-swag { flex: 1; text-align: left; }
     .leaderboard-count { color: #ffd700; }
 
-    /* Caption background for readability */
     .lg-sub-html {
       background: rgba(0, 0, 0, 0.6) !important;
       padding: 12px !important;
@@ -163,7 +167,7 @@
 <body>
   <div class="main-content">
     <a href="index.html">
-      <img src="icons/header swag.webp" alt="CharlestonHacks Logo" class="logo" />
+      <img src="images/donateheader.webp" alt="CharlestonHacks Logo" class="logo" />
     </a>
 
     <div class="subtitle">
@@ -194,12 +198,12 @@
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const swagItems = [
-      { name: "T-Shirt", img: "icons/tshirt.webp" },
-      { name: "Sticker", img: "icons/sticker.webp" },
-      { name: "Hat", img: "icons/hat.webp" },
-      { name: "Hoodie", img: "icons/hoodie.webp" },
-      { name: "Mug", img: "icons/mug.webp" },
-      { name: "Gauntlet", img: "icons/gauntlet.webp" }
+      { name: "T-Shirt", img: "images/tshirt.webp" },
+      { name: "Sticker", img: "images/sticker.webp" },
+      { name: "Hat", img: "images/hat.webp" },
+      { name: "Hoodie", img: "images/hoodie.webp" },
+      { name: "Mug", img: "images/mug.webp" },
+      { name: "Gauntlet", img: "images/gauntlet.webp" }
     ];
 
     const swagGrid = document.getElementById('swagGrid');
@@ -267,7 +271,7 @@
         successMsg.style.display = "block";
         setTimeout(() => successMsg.style.display = "none", 1500);
         loadLeaderboard();
-        renderSwagItems(); // refresh with updated vote counts
+        renderSwagItems();
       } catch (err) {
         console.error("Voting error:", err);
         successMsg.textContent = `Vote failed: ${err.message}`;
