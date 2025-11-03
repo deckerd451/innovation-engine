@@ -28,16 +28,21 @@
       background-attachment: scroll;
       transition: background 0.5s;
     }
-    .logo {
-      width: 400px;
-      height: auto;
+    /* Clickable Logo */
+    .logo-link {
+      display: inline-block;
       margin-top: 20px;
       transition: transform 0.3s ease, filter 0.3s ease;
     }
-    .logo:hover {
+    .logo-link:hover {
       transform: scale(1.05);
       filter: drop-shadow(0 0 10px #39FF14);
     }
+    .logo {
+      width: 400px;
+      height: auto;
+    }
+
     .game-container {
       display: grid;
       grid-template-columns: repeat(4, 220px);
@@ -107,6 +112,7 @@
       overflow-y: auto;
       display: none;
     }
+
     /* MODAL */
     .modal-overlay {
       display: none;
@@ -118,7 +124,9 @@
       justify-content: center;
       align-items: center;
     }
-    .modal-overlay.active { display: flex; }
+    .modal-overlay.active {
+      display: flex;
+    }
     .modal-content {
       background: #181818;
       color: #fff;
@@ -135,6 +143,10 @@
       margin-top: 0;
       font-size: 2rem;
       margin-bottom: 10px;
+    }
+    .modal-content p {
+      font-size: 1.1rem;
+      margin: 0 0 18px 0;
     }
     .modal-btn, #profiles-btn {
       padding: 14px 32px;
@@ -167,6 +179,7 @@
     }
     .modal-close:hover { color: #39FF14; }
 
+    /* Footer */
     footer {
       background: transparent;
       margin-top: auto;
@@ -187,12 +200,8 @@
       font-size: 18px;
       transition: color 0.3s ease;
     }
-    .footer-icons a:hover { color: #FF6347; }
-    .footer-back-button {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-top: 32px;
+    .footer-icons a:hover {
+      color: #FF6347;
     }
     .footer-back-button img {
       max-width: 240px;
@@ -200,7 +209,9 @@
       height: auto;
       transition: transform 0.3s ease;
     }
-    .footer-back-button img:hover { transform: scale(1.05); }
+    .footer-back-button img:hover {
+      transform: scale(1.05);
+    }
     #theme-toggle {
       display: inline-block;
       margin: 20px auto 10px auto;
@@ -212,7 +223,9 @@
       text-decoration: underline;
       transition: color 0.3s;
     }
-    #theme-toggle:hover { color: #FF6347; }
+    #theme-toggle:hover {
+      color: #FF6347;
+    }
 
     @media (max-width: 800px) {
       .game-container {
@@ -242,9 +255,9 @@ gtag('config', 'G-6NDKG07DY6');
 
 <body>
 
-<!-- ✅ Clickable logo that links to home -->
-<a href="index.html" id="logo-link">
-  <img src="images/about us dark.webp" alt="About Us Logo Dark Theme" class="logo">
+<!-- ✅ Clickable logo at top -->
+<a href="index.html" class="logo-link">
+  <img src="images/about us dark.webp" alt="CharlestonHacks Logo" class="logo">
 </a>
 
 <div class="stats">
@@ -284,7 +297,7 @@ gtag('config', 'G-6NDKG07DY6');
     <a href="index.html"><img src="assets/chbackbuttonred.png" alt="Back to Home"></a>
   </div>
   <button id="theme-toggle" type="button">Toggle Theme</button>
-  <p>Background music “background music.mp3” by ZHRØ — 
+  <p>Background music "background music.mp3" by ZHRØ —
     <a href="https://freesound.org/s/544416/" target="_blank">Link</a> — License: Attribution 4.0
   </p>
   <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
@@ -296,8 +309,8 @@ gtag('config', 'G-6NDKG07DY6');
 <audio id="victory-sound" src="assets/chime.mp3" preload="auto"></audio>
 
 <script>
-// Same game + theme logic as before (no logo restart)
 (function () {
+  // --- THEME LOGIC ---
   const THEME_KEY = "chhacks_theme";
   const themeToggle = document.getElementById('theme-toggle');
   const themeSound = new Audio('assets/viramiller.mp3');
@@ -319,24 +332,32 @@ gtag('config', 'G-6NDKG07DY6');
     applyTheme(currentTheme);
     themeSound.play();
   });
+
   // --- GAME LOGIC ---
   const characters = ['astrid','medusa','alexandor','aegis','descartes','elara','wolf','hermes','merlin','mystery'];
-  const backstories = { astrid:'Astrid - A Valkyrie...', medusa:'Medusa - ...', alexandor:'Alexandor - ...', aegis:'Aegis - ...', descartes:'Descartes - ...', elara:'Elara - ...', wolf:'Wolf - ...', hermes:'Hermes - ...', merlin:'Merlin - ...', mystery:'? - A Mystery...' };
+  const backstories = {
+    'astrid':'Astrid - A Valkyrie...',
+    'medusa':'Medusa - ...',
+    'alexandor':'Alexandor - ...',
+    'aegis':'Aegis - ...',
+    'descartes':'Descartes - ...',
+    'elara':'Elara - ...',
+    'wolf':'Wolf - ...',
+    'hermes':'Hermes - ...',
+    'merlin':'Merlin - ...',
+    'mystery':'? - A Mystery...'
+  };
   const gameContainer=document.getElementById('game-container');
   const backstoryContainer=document.getElementById('backstory');
   const timerDisplay=document.getElementById('timer');
   const movesDisplay=document.getElementById('moves');
-  const videoContainer=document.getElementById('video-container');
-  const video=document.getElementById('video');
-  const videoSource=document.getElementById('video-source');
-  const closeVideoButton=document.getElementById('close-video');
-  const backgroundMusic=document.getElementById('background-music');
   const victoryModal=document.getElementById('victory-modal');
   const victoryMessage=document.getElementById('victory-message');
   const playAgainBtn=document.getElementById('play-again-btn');
   const profilesBtn=document.getElementById('profiles-btn');
   const modalCloseBtn=document.getElementById('modal-close-btn');
   let flippedCards=[], matchedCards=[], timer=0, moves=0, intervalId;
+
   function startTimer(){intervalId=setInterval(()=>{timer++;timerDisplay.textContent=`Time: ${timer}s`;},1000);}
   function stopTimer(){clearInterval(intervalId);}
   function createCards(){
@@ -395,7 +416,6 @@ gtag('config', 'G-6NDKG07DY6');
   });
   modalCloseBtn.addEventListener('click',()=>victoryModal.classList.remove('active'));
   profilesBtn.addEventListener('click',()=>window.location.href='profiles.html');
-  closeVideoButton.addEventListener('click',()=>{videoContainer.style.display='none';video.pause();});
   shuffleCards();startTimer();
 })();
 </script>
