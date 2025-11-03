@@ -25,6 +25,21 @@
   <link rel="stylesheet" href="styles.css">
 
   <style>
+    /* Header Image */
+    .header-img {
+      display: block;
+      margin: 20px auto 10px auto;
+      width: 420px;
+      max-width: 90%;
+      height: auto;
+      transition: transform 0.3s ease, filter 0.3s ease;
+    }
+
+    .header-img:hover {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 12px rgba(255, 85, 85, 0.6));
+    }
+
     /* Clickable Title Styling */
     .header h1 {
       cursor: pointer;
@@ -42,6 +57,12 @@
       margin-top: 6px;
       color: #ccc;
     }
+
+    @media (max-width: 600px) {
+      .header-img {
+        width: 300px;
+      }
+    }
   </style>
 </head>
 
@@ -53,10 +74,17 @@
 
   <div class="container">
     <header class="header">
+
+      <!-- ✅ Clickable Header Image -->
+      <a href="index.html">
+        <img src="images/ieheader.webp" alt="Innovation Engine Header" class="header-img">
+      </a>
+
       <a href="index.html" style="text-decoration: none;">
         <h1>Innovation Engine</h1>
       </a>
       <p>Making Invisible Networks Visible</p>
+
       <div class="auth-controls">
         <span class="user-badge hidden" id="user-badge"></span>
         <button class="logout-btn action-btn hidden" id="logout-btn">
@@ -136,31 +164,23 @@
           <!-- Search Tab -->
           <div id="search" class="tab-content-pane">
             <h2 class="section-title">Individual Search</h2>
-
-            <!-- Skills Search -->
             <div class="input-wrapper">
               <label for="teamSkillsInput">Required Skills</label>
               <input type="text" id="teamSkillsInput" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
               <div id="autocomplete-team-skills" class="autocomplete-box"></div>
             </div>
-
             <button id="find-team-btn" type="button" class="action-btn">Get People</button>
             <br><br>
 
-            <!-- Name Search -->
             <div class="input-wrapper">
               <label for="nameInput">Search by First/Last Name</label>
               <input type="text" id="nameInput" placeholder="e.g. John, Doug, Will, Dave" autocomplete="off">
               <div id="autocomplete-names" class="autocomplete-box"></div>
             </div>
-
             <button id="search-name-btn" type="button" class="action-btn">Find by Name</button>
 
-            <!-- Notifications -->
             <div id="matchNotification" class="notification match-notification hidden"></div>
             <div id="noResults" class="notification no-results-notification hidden"></div>
-
-            <!-- Search Results -->
             <div id="cardContainer" class="card-container" role="list" aria-label="Matching team members"></div>
           </div>
 
