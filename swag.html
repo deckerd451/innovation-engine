@@ -2,13 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>CharlestonHacks Swag</title>
+  <title>CharlestonHacks Swag Voting</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Britannic+Bold:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-
-  <!-- LightGallery CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/css/lightgallery.min.css">
 
   <style>
     :root {
@@ -19,100 +16,128 @@
       --border-radius: 8px;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
+    * { box-sizing: border-box; }
     body {
       background: var(--background-color);
       color: var(--text-color);
-      font-family: 'Britannic Bold', Arial, sans-serif;
-      text-align: center;
       min-height: 100vh;
+      font-family: 'Britannic Bold', Arial, sans-serif;
       position: relative;
+      text-align: center;
+      margin: 0;
     }
-
     body::before {
       content: "";
       position: fixed;
-      inset: 0;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
       background: url('images/background.webp') no-repeat center center;
       background-size: cover;
-      opacity: 0.8;
       z-index: -1;
+      opacity: 0.8;
+      pointer-events: none;
     }
 
     .main-content {
       max-width: 1200px;
       margin: 0 auto;
       padding: 24px 12px 60px 12px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      background: transparent;
     }
 
-    /* --- Header Logo --- */
     .logo {
       display: block;
       margin: 0 auto 18px auto;
       width: min(100%, 360px);
+      max-width: 90vw;
       height: auto;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      cursor: pointer;
+      filter: drop-shadow(0 2px 16px #222);
+      transition: transform 0.3s ease, opacity 0.3s ease;
     }
     .logo:hover {
       transform: scale(1.05);
-      box-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
+      opacity: 0.9;
+    }
+
+    .section-title {
+      color: var(--secondary-color);
+      font-size: 2.1rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-align: center;
+      letter-spacing: 0.04em;
+      text-shadow: 0 2px 12px #000;
+      background: linear-gradient(135deg, #ffd700, #ff6b35);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .subtitle {
+      color: var(--text-color);
       font-size: 1.2rem;
       opacity: 0.85;
       margin-bottom: 24px;
+      text-align: center;
     }
 
     .swag-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
       gap: 24px;
+      margin: 24px 0;
       width: 100%;
       justify-items: center;
-      margin-top: 24px;
     }
 
     .swag-item {
       background: #232323;
       border-radius: var(--border-radius);
-      padding: 16px 12px;
+      padding: 18px 12px 12px 12px;
+      text-align: center;
       box-shadow: 0 2px 12px #0008;
-      transition: transform 0.2s;
+      transition: box-shadow 0.25s, transform 0.15s;
+      position: relative;
     }
-    .swag-item:hover { transform: translateY(-4px); }
 
     .swag-item img {
-      width: 100px;
-      height: auto;
-      border-radius: 8px;
-      border: 2px solid #ffd70033;
+      width: 92px;
+      height: 92px;
+      object-fit: contain;
+      margin-bottom: 8px;
+      border-radius: 10px;
       box-shadow: 0 0 8px #ffd70080;
+      cursor: zoom-in;
       background: #1a1a1a;
-      cursor: pointer;
-      transition: box-shadow 0.3s;
+      transition: transform 0.21s, box-shadow 0.2s;
+      border: 2.5px solid #ffd70033;
     }
 
     .swag-item img:hover {
-      box-shadow: 0 0 16px #ffd700cc;
+      transform: scale(1.13) rotate(-2deg);
+      box-shadow: 0 0 24px #ffd700cc;
+      z-index: 2;
     }
 
     .swag-item label {
       color: var(--secondary-color);
       font-size: 1.1em;
-      margin-top: 6px;
+      margin-top: 4px;
       display: block;
+      cursor: pointer;
       font-weight: bold;
+      letter-spacing: 0.02em;
     }
 
     .vote-btn {
       margin-top: 8px;
       padding: 8px 22px;
-      font-size: 1.05em;
+      font-size: 1.08em;
       background: linear-gradient(135deg,#ffd700,#ff6b35);
       color: #1a1a1a;
       border-radius: 8px;
@@ -121,18 +146,24 @@
       font-weight: bold;
       box-shadow: 0 2px 12px #ffd70066;
       transition: background 0.3s;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
     }
+
     .vote-btn:hover { background: #FFC000; }
 
     .success-message {
       color: #00FF87;
       font-weight: bold;
+      text-align: center;
       margin-top: 18px;
-      font-size: 1.1em;
+      font-size: 1.15em;
+      animation: fadeIn 0.5s;
     }
 
     .leaderboard {
-      margin: 40px auto 0 auto;
+      margin: 32px auto 0 auto;
       background: #2a2a2a;
       border-radius: 8px;
       padding: 15px;
@@ -141,32 +172,37 @@
       box-shadow: 0 0 10px rgba(255,215,0,0.25);
     }
 
-    .leaderboard h2 { color: #ffd700; font-size: 1.3em; margin-bottom: 12px; }
+    .leaderboard h2 {
+      color: #ffd700;
+      font-size: 1.3em;
+      margin-bottom: 12px;
+    }
+
     .leaderboard-row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       margin: 6px 0;
+      font-size: 1.09em;
       color: #ffd700;
     }
 
-    .leaderboard-rank { font-weight: bold; width: 24px; }
+    .leaderboard-rank { font-weight: bold; color: #ffd700; width: 24px; }
     .leaderboard-swag { flex: 1; text-align: left; }
     .leaderboard-count { color: #ffd700; }
 
-    .lg-sub-html {
-      background: rgba(0, 0, 0, 0.6) !important;
-      padding: 12px !important;
-      border-radius: 6px !important;
+    @media (max-width: 800px) {
+      .swag-grid { grid-template-columns: 1fr 1fr;}
     }
-
-    @media (max-width: 800px) { .swag-grid { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 480px) { .swag-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 480px) {
+      .swag-grid { grid-template-columns: 1fr;}
+    }
   </style>
 </head>
 
 <body>
   <div class="main-content">
-    <!-- Clickable glowing header -->
+    <!-- Clickable logo that returns to index.html -->
     <a href="index.html">
       <img src="icons/header swag.webp" alt="CharlestonHacks Logo" class="logo" />
     </a>
@@ -185,66 +221,41 @@
     </div>
   </div>
 
-  <!-- LightGallery JS -->
-  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/lightgallery.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/plugins/zoom/lg-zoom.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.6.0/plugins/thumbnail/lg-thumbnail.min.js"></script>
-
-  <!-- Supabase + Main Script -->
+  <!-- ==================== SUPABASE SCRIPT ==================== -->
   <script type="module">
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.2/+esm";
 
+    // --- Supabase Setup ---
     const SUPABASE_URL = "https://hvmotpzhliufzomewzfl.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s";
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const swagItems = [
-      { name: "T-Shirt", img: "icons/tshirt.webp" },
-      { name: "Sticker", img: "icons/sticker.webp" },
-      { name: "Hat", img: "icons/hat.webp" },
-      { name: "Hoodie", img: "icons/hoodie.webp" },
-      { name: "Mug", img: "icons/mug.webp" },
-      { name: "Gauntlet", img: "icons/gauntlet.webp" }
-    ];
+  { name: "T-Shirt", img: "icons/tshirt.webp" },
+  { name: "Sticker", img: "icons/sticker.webp" },
+  { name: "Hat", img: "icons/hat.webp" },
+  { name: "Hoodie", img: "icons/hoodie.webp" },
+  { name: "Mug", img: "icons/mug.webp" },
+  { name: "Gauntlet", img: "icons/gauntlet.webp" }
+];
 
     const swagGrid = document.getElementById('swagGrid');
     const successMsg = document.getElementById('successMsg');
     const leaderboardRows = document.getElementById('leaderboard-rows');
-    let swagVotes = {};
 
-    async function fetchVotes() {
-      const { data, error } = await supabaseClient.from('swag_votes').select('*');
-      if (error) { console.error(error); return {}; }
-      const votes = {};
-      data.forEach(row => { votes[row.swag] = row.votes; });
-      return votes;
-    }
-
-    async function renderSwagItems() {
-      swagVotes = await fetchVotes();
+    function renderSwagItems() {
       swagGrid.innerHTML = '';
       swagItems.forEach(item => {
-        const votes = swagVotes[item.name] || 0;
         const swagDiv = document.createElement('div');
         swagDiv.className = 'swag-item';
         swagDiv.innerHTML = `
-          <a href="${item.img}" data-lg-size="1400-933" 
-             data-sub-html="<h4 style='color:#FFD700;'>${item.name}</h4><p style='color:white;'>Votes: ${votes}</p>">
-            <img src="${item.img}" alt="${item.name}">
-          </a>
+          <img src="${item.img}" alt="${item.name}">
           <label>${item.name}</label>
           <button class="vote-btn" data-swag="${item.name}">
             <i class="fa fa-thumbs-up"></i> Vote
           </button>
         `;
         swagGrid.appendChild(swagDiv);
-      });
-
-      lightGallery(swagGrid, {
-        selector: 'a',
-        plugins: [lgZoom, lgThumbnail],
-        licenseKey: '0000-0000-000-0000',
-        speed: 400,
       });
     }
 
@@ -262,17 +273,24 @@
           .single();
 
         let currentVotes = data?.votes || 0;
+
         if (data) {
-          await supabaseClient.from('swag_votes').update({ votes: currentVotes + 1 }).eq('swag', swagName);
+          const { error: updateError } = await supabaseClient
+            .from('swag_votes')
+            .update({ votes: currentVotes + 1 })
+            .eq('swag', swagName);
+          if (updateError) throw updateError;
         } else {
-          await supabaseClient.from('swag_votes').insert([{ swag: swagName, votes: 1 }]);
+          const { error: insertError } = await supabaseClient
+            .from('swag_votes')
+            .insert([{ swag: swagName, votes: 1 }]);
+          if (insertError) throw insertError;
         }
 
         successMsg.textContent = `You voted for "${swagName}"!`;
         successMsg.style.display = "block";
         setTimeout(() => successMsg.style.display = "none", 1500);
         loadLeaderboard();
-        renderSwagItems();
       } catch (err) {
         console.error("Voting error:", err);
         successMsg.textContent = `Vote failed: ${err.message}`;
@@ -292,12 +310,13 @@
         data.forEach(row => (swagCounts[row.swag] = row.votes));
         const sorted = Object.entries(swagCounts).sort((a, b) => b[1] - a[1]);
         leaderboardRows.innerHTML = sorted
-          .map(([swag, count], i) => `
-            <div class="leaderboard-row">
-              <span class="leaderboard-rank">${i + 1}.</span>
-              <span class="leaderboard-swag">${swag}</span>
-              <span class="leaderboard-count">${count} <i class="fa fa-thumbs-up"></i></span>
-            </div>`
+          .map(
+            ([swag, count], i) => `
+              <div class="leaderboard-row">
+                <span class="leaderboard-rank">${i + 1}.</span>
+                <span class="leaderboard-swag">${swag}</span>
+                <span class="leaderboard-count">${count} <i class="fa fa-thumbs-up"></i></span>
+              </div>`
           )
           .join('');
       } catch (err) {
@@ -306,8 +325,8 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      await renderSwagItems();
+    document.addEventListener('DOMContentLoaded', () => {
+      renderSwagItems();
       loadLeaderboard();
     });
   </script>
