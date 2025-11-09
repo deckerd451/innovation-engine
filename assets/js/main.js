@@ -1,7 +1,5 @@
 // UPDATED FILE: assets/js/main.js
-// This version of main.js includes a safer implementation of getMyProfileId
-// using maybeSingle() instead of single() to avoid 406 errors when no
-// matching profile exists. It preserves all existing functionality.
+// Safe implementation with magic link login and text-compatible search (no DB schema change needed)
 
 import { supabaseClient as supabase } from './supabaseClient.js';
 import { showNotification } from './utils.js';
@@ -15,9 +13,6 @@ import { initProfileForm } from './profile.js';
 let SKILL_SUGGESTIONS = [];
 let SKILL_COLORS = {}; // { skill: hexColor }
 
-/**
- * Load color codes for skills from the DB
- */
 async function loadSkillColors() {
   try {
     const { data, error } = await supabase.from('skill_colors').select('skill, color');
@@ -33,26 +28,14 @@ async function loadSkillColors() {
   }
 }
 
-/**
- * Safe normalize any skill/interest field into array of strings
- */
 function normalizeField(value) {
   if (!value) return [];
-  if (Array.isArray(value)) {
-    return value.map(s => String(s).trim()).filter(Boolean);
-  }
-  if (typeof value === 'string') {
-    return value.split(/[,;|]/).map(s => s.trim()).filter(Boolean);
-  }
-  if (typeof value === 'object') {
-    return Object.values(value).map(s => String(s).trim()).filter(Boolean);
-  }
+  if (Array.isArray(value)) return value.map(s => String(s).trim()).filter(Boolean);
+  if (typeof value === 'string') return value.split(/[,;|]/).map(s => s.trim()).filter(Boolean);
+  if (typeof value === 'object') return Object.values(value).map(s => String(s).trim()).filter(Boolean);
   return [];
 }
 
-/**
- * Debounce util
- */
 function debounce(fn, ms = 150) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
@@ -82,7 +65,6 @@ async function loadSkillSuggestions() {
   try {
     const { data, error } = await supabase.from('community').select('skills, interests');
     if (error) return console.warn('[Suggest] load error:', error.message);
-
     const bag = new Set();
     (data || []).forEach(r => {
       const allVals = [].concat(r.skills || []).concat(r.interests || []);
@@ -114,7 +96,6 @@ function attachAutocomplete(rootId, inputId, boxSelector) {
     const parts = (input.value || '').split(',');
     const lastRaw = parts[parts.length - 1].trim().toLowerCase();
     if (!lastRaw) return closeBox();
-
     const matches = SKILL_SUGGESTIONS.filter(s => s.startsWith(lastRaw)).slice(0, 8);
     if (!matches.length) return closeBox();
 
@@ -156,7 +137,7 @@ async function initAuth() {
         options: { emailRedirectTo: window.location.href },
       });
       if (error) showNotification('Failed to send magic link.', 'error');
-      else showNotification('Magic link sent! Check your inbox.', 'success');
+      else showNotification('✅ Magic link sent! Check your inbox.', 'success');
     });
   }
 
@@ -195,28 +176,24 @@ async function initAuth() {
 }
 
 /* =========================================================
-2) Connections (Mutual Requests)
+2) Connections
 ========================================================= */
 async function getMyProfileId() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
 
-  // Use maybeSingle() to avoid 406 errors when no profile exists
   const { data: profile, error: profileError, status } = await supabase
     .from('community')
     .select('id')
     .eq('user_id', user.id)
     .maybeSingle();
 
-  // If another error occurred (status not 406) log it
   if (profileError && status !== 406) {
-    console.warn('[getMyProfileId] Error fetching profile:', profileError.message);
+    console.warn('[getMyProfileId] Error:', profileError.message);
     return null;
   }
 
-  // If no data (status 406) or profile missing, return null
-  if (!profile) return null;
-  return profile.id;
+  return profile?.id || null;
 }
 
 async function connectToUser(targetId) {
@@ -240,7 +217,7 @@ async function connectToUser(targetId) {
 }
 
 /* =========================================================
-3) Notifications Dropdown 🔔
+3) Notifications
 ========================================================= */
 async function initNotifications() {
   const btn = document.getElementById('notifications-btn');
@@ -330,18 +307,16 @@ function initNotificationsRealtime() {
 }
 
 /* =========================================================
-Helper: Build User Card with Skills + Connect Button
+Helper: User Cards
 ========================================================= */
 function generateUserCard(person) {
   const card = document.createElement('div');
   card.className = 'user-card';
-
   const avatar = person.image_url || 'https://via.placeholder.com/80';
   const name = person.name || 'Anonymous User';
   const email = person.email || '';
   const availability = person.availability || 'Unknown';
 
-  // Normalize both skills & interests
   const skills = normalizeField(person.skills);
   const interests = normalizeField(person.interests);
 
@@ -365,21 +340,16 @@ function generateUserCard(person) {
     <button class="connect-btn" data-user-id="${person.id}">🤝 Connect</button>
   `;
 
-  // Endorse buttons
   card.querySelectorAll('.endorse-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const targetId = btn.getAttribute('data-user-id');
-      const skill = btn.getAttribute('data-skill');
-      await endorseSkill(targetId, skill);
+      await endorseSkill(btn.dataset.userId, btn.dataset.skill);
     });
   });
 
-  // Connect button
   card.querySelector('.connect-btn').addEventListener('click', async (e) => {
     e.stopPropagation();
-    const targetId = e.target.getAttribute('data-user-id');
-    await connectToUser(targetId);
+    await connectToUser(e.target.dataset.userId);
   });
 
   return card;
@@ -393,11 +363,10 @@ function initTabs() {
   const panes = document.querySelectorAll('.tab-content-pane');
   buttons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      buttons.forEach((b) => b.classList.remove('active'));
-      panes.forEach((p) => p.classList.remove('active-tab-pane'));
+      buttons.forEach(b => b.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('active-tab-pane'));
       btn.classList.add('active');
-      const target = btn.dataset.tab;
-      document.getElementById(target)?.classList.add('active-tab-pane');
+      document.getElementById(btn.dataset.tab)?.classList.add('active-tab-pane');
     });
   });
 }
@@ -410,18 +379,21 @@ function initSearch() {
   const searchNameBtn = root.querySelector('#search-name-btn');
   const skillsInput = root.querySelector('#teamSkillsInput');
 
-  // --- Search by Required Skills ---
+  // --- Text-Compatible Skill Search ---
   if (findTeamBtn && skillsInput) {
     findTeamBtn.addEventListener('click', async () => {
       const required = parseRequiredSkills(skillsInput.value);
       if (!required.length) return;
 
       try {
-        // Proper use of .cs. for ARRAY columns
+        const orFilters = required
+          .map(skill => `(skills.ilike.%${skill}%,interests.ilike.%${skill}%)`)
+          .join(',');
+
         const { data, error } = await supabase
           .from('community')
           .select('*')
-          .or(`skills.cs.{${required.join(',')}},interests.cs.{${required.join(',')}}`);
+          .or(orFilters);
 
         if (error) {
           console.error('[Search] Supabase error:', error);
@@ -429,7 +401,6 @@ function initSearch() {
           return;
         }
 
-        // Filter users that have *all* required skills
         const strictMatches = filterAllOfRequired(data, required);
         await renderResults(strictMatches);
 
@@ -461,13 +432,12 @@ function initSearch() {
         await renderResults(data);
 
       } catch (err) {
-        console.error('[Search] Unexpected error:', err);
+        console.error('[Search] Unexpected name search error:', err);
         showNotification('Unexpected name search error', 'error');
       }
     });
   }
 
-  // --- Autocomplete setup ---
   attachAutocomplete('search', 'teamSkillsInput', '#autocomplete-team-skills');
 }
 
@@ -518,8 +488,7 @@ async function renderResults(data) {
   matchNotification.classList.remove('hidden');
 
   data.forEach(person => {
-    const card = generateUserCard(person);
-    cardContainer.appendChild(card);
+    cardContainer.appendChild(generateUserCard(person));
   });
 }
 
