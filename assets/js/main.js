@@ -1,11 +1,11 @@
 // UPDATED FILE: assets/js/main.js
 // Safe implementation with magic link login and text-compatible search (no DB schema change needed)
 
-import { supabaseClient as supabase } from './supabaseClient.js';
-import { showNotification } from './utils.js';
-import { loadLeaderboard } from './leaderboard.js';
-import { initSynapseView } from './synapse.js';
-import { initProfileForm } from './profile.js';
+import { supabaseClient as supabase } from "./supabaseClient.js";
+import { showNotification } from "./utils.js";
+import { loadLeaderboard } from "./leaderboard.js";
+import { initSynapseView } from "./synapse.js";
+import { initProfileForm } from "./profile.js";
 
 /* =========================================================
 0) Helpers + Globals
@@ -15,67 +15,80 @@ let SKILL_COLORS = {}; // { skill: hexColor }
 
 async function loadSkillColors() {
   try {
-    const { data, error } = await supabase.from('skill_colors').select('skill, color');
+    const { data, error } = await supabase
+      .from("skill_colors")
+      .select("skill, color");
     if (error) throw error;
     SKILL_COLORS = {};
-    data?.forEach(row => {
+    data?.forEach((row) => {
       if (row.skill && row.color) {
         SKILL_COLORS[row.skill.toLowerCase()] = row.color;
       }
     });
   } catch (err) {
-    console.warn('[Skill Colors] Load error:', err);
+    console.warn("[Skill Colors] Load error:", err);
   }
 }
 
 function normalizeField(value) {
   if (!value) return [];
-  if (Array.isArray(value)) return value.map(s => String(s).trim()).filter(Boolean);
-  if (typeof value === 'string') return value.split(/[,;|]/).map(s => s.trim()).filter(Boolean);
-  if (typeof value === 'object') return Object.values(value).map(s => String(s).trim()).filter(Boolean);
+  if (Array.isArray(value))
+    return value.map((s) => String(s).trim()).filter(Boolean);
+  if (typeof value === "string")
+    return value.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+  if (typeof value === "object")
+    return Object.values(value).map((s) => String(s).trim()).filter(Boolean);
   return [];
 }
 
 function debounce(fn, ms = 150) {
   let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
 }
 
 function normaliseArray(a) {
   if (!a) return [];
-  const arr = Array.isArray(a) ? a : a.toString().split(',');
-  return arr.map(s => s && s.toString().trim().toLowerCase()).filter(Boolean);
+  const arr = Array.isArray(a) ? a : a.toString().split(",");
+  return arr.map((s) => s && s.toString().trim().toLowerCase()).filter(Boolean);
 }
 
 function parseRequiredSkills(raw) {
-  return (raw || '')
-    .split(',')
-    .map(s => s.trim().toLowerCase())
+  return (raw || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 }
 
 function filterAllOfRequired(candidates, requiredSkills) {
-  return (candidates || []).filter(p => {
-    const have = new Set([...normaliseArray(p.skills), ...normaliseArray(p.interests)]);
-    return requiredSkills.every(req => have.has(req));
+  return (candidates || []).filter((p) => {
+    const have = new Set([
+      ...normaliseArray(p.skills),
+      ...normaliseArray(p.interests),
+    ]);
+    return requiredSkills.every((req) => have.has(req));
   });
 }
 
 async function loadSkillSuggestions() {
   try {
-    const { data, error } = await supabase.from('community').select('skills, interests');
-    if (error) return console.warn('[Suggest] load error:', error.message);
+    const { data, error } = await supabase
+      .from("community")
+      .select("skills, interests");
+    if (error) return console.warn("[Suggest] load error:", error.message);
     const bag = new Set();
-    (data || []).forEach(r => {
+    (data || []).forEach((r) => {
       const allVals = [].concat(r.skills || []).concat(r.interests || []);
-      allVals.forEach(val => {
+      allVals.forEach((val) => {
         if (!val) return;
-        normalizeField(val).forEach(skill => bag.add(skill.toLowerCase()));
+        normalizeField(val).forEach((skill) => bag.add(skill.toLowerCase()));
       });
     });
     SKILL_SUGGESTIONS = Array.from(bag).sort();
   } catch (e) {
-    console.warn('[Suggest] unexpected:', e);
+    console.warn("[Suggest] unexpected:", e);
   }
 }
 
@@ -87,78 +100,97 @@ function attachAutocomplete(rootId, inputId, boxSelector) {
   if (!input || !box) return;
 
   const wrapper = input.parentElement;
-  if (getComputedStyle(wrapper).position === 'static') wrapper.style.position = 'relative';
+  if (getComputedStyle(wrapper).position === "static")
+    wrapper.style.position = "relative";
 
-  const closeBox = () => { box.innerHTML = ''; box.style.display = 'none'; };
-  const openBox  = () => { box.style.display = 'block'; };
+  const closeBox = () => {
+    box.innerHTML = "";
+    box.style.display = "none";
+  };
+  const openBox = () => {
+    box.style.display = "block";
+  };
 
   const render = debounce(() => {
-    const parts = (input.value || '').split(',');
+    const parts = (input.value || "").split(",");
     const lastRaw = parts[parts.length - 1].trim().toLowerCase();
     if (!lastRaw) return closeBox();
-    const matches = SKILL_SUGGESTIONS.filter(s => s.startsWith(lastRaw)).slice(0, 8);
+    const matches = SKILL_SUGGESTIONS.filter((s) =>
+      s.startsWith(lastRaw)
+    ).slice(0, 8);
     if (!matches.length) return closeBox();
 
-    box.innerHTML = matches.map(s => `<div class="autocomplete-item" data-skill="${s}">${s}</div>`).join('');
+    box.innerHTML = matches
+      .map(
+        (s) => `<div class="autocomplete-item" data-skill="${s}">${s}</div>`
+      )
+      .join("");
     openBox();
-    box.querySelectorAll('.autocomplete-item').forEach(el => {
-      el.addEventListener('click', () => {
-        parts[parts.length - 1] = ' ' + el.dataset.skill;
-        input.value = parts.map(p => p.trim()).filter(Boolean).join(', ') + ', ';
+    box.querySelectorAll(".autocomplete-item").forEach((el) => {
+      el.addEventListener("click", () => {
+        parts[parts.length - 1] = " " + el.dataset.skill;
+        input.value =
+          parts
+            .map((p) => p.trim())
+            .filter(Boolean)
+            .join(", ") + ", ";
         input.focus();
         closeBox();
       });
     });
   }, 120);
 
-  input.addEventListener('input', render);
-  input.addEventListener('focus', render);
-  input.addEventListener('blur', () => setTimeout(closeBox, 120));
+  input.addEventListener("input", render);
+  input.addEventListener("focus", render);
+  input.addEventListener("blur", () => setTimeout(closeBox, 120));
 }
 
 /* =========================================================
 1) Auth
 ========================================================= */
 async function initAuth() {
-  const loginForm = document.getElementById('login-form');
-  const loginSection = document.getElementById('login-section');
-  const profileSection = document.getElementById('profile-section');
-  const logoutBtn = document.getElementById('logout-btn');
-  const userBadge = document.getElementById('user-badge');
+  const loginForm = document.getElementById("login-form");
+  const loginSection = document.getElementById("login-section");
+  const profileSection = document.getElementById("profile-section");
+  const logoutBtn = document.getElementById("logout-btn");
+  const userBadge = document.getElementById("user-badge");
 
   if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = document.getElementById('login-email').value.trim();
-      if (!email) return showNotification('Enter a valid email.', 'error');
+      const email = document.getElementById("login-email").value.trim();
+      if (!email) return showNotification("Enter a valid email.", "error");
 
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: window.location.href },
       });
-      if (error) showNotification('Failed to send magic link.', 'error');
-      else showNotification('✅ Magic link sent! Check your inbox.', 'success');
+      if (error) showNotification("Failed to send magic link.", "error");
+      else showNotification("✅ Magic link sent! Check your inbox.", "success");
     });
   }
 
   function setLoggedInUI(user) {
-    loginSection?.classList.add('hidden');
-    profileSection?.classList.remove('hidden');
-    logoutBtn?.classList.remove('hidden');
+    loginSection?.classList.add("hidden");
+    profileSection?.classList.remove("hidden");
+    logoutBtn?.classList.remove("hidden");
     if (userBadge) {
       userBadge.textContent = `Signed in as ${user.email}`;
-      userBadge.classList.remove('hidden');
+      userBadge.classList.remove("hidden");
     }
   }
 
   function setLoggedOutUI() {
-    loginSection?.classList.remove('hidden');
-    profileSection?.classList.add('hidden');
-    logoutBtn?.classList.add('hidden');
-    userBadge?.classList.add('hidden');
+    loginSection?.classList.remove("hidden");
+    profileSection?.classList.add("hidden");
+    logoutBtn?.classList.add("hidden");
+    userBadge?.classList.add("hidden");
   }
 
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
   if (user) setLoggedInUI(user);
   else if (error) setLoggedOutUI();
 
@@ -167,11 +199,11 @@ async function initAuth() {
     else setLoggedOutUI();
   });
 
-  logoutBtn?.addEventListener('click', async () => {
+  logoutBtn?.addEventListener("click", async () => {
     await supabase.auth.signOut();
-    showNotification('Signed out.', 'success');
+    showNotification("Signed out.", "success");
     setLoggedOutUI();
-    document.getElementById('skills-form')?.reset();
+    document.getElementById("skills-form")?.reset();
   });
 }
 
@@ -179,17 +211,20 @@ async function initAuth() {
 2) Connections
 ========================================================= */
 async function getMyProfileId() {
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
   if (error || !user) return null;
 
   const { data: profile, error: profileError, status } = await supabase
-    .from('community')
-    .select('id')
-    .eq('user_id', user.id)
+    .from("community")
+    .select("id")
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (profileError && status !== 406) {
-    console.warn('[getMyProfileId] Error:', profileError.message);
+    console.warn("[getMyProfileId] Error:", profileError.message);
     return null;
   }
 
@@ -198,21 +233,21 @@ async function getMyProfileId() {
 
 async function connectToUser(targetId) {
   const me = await getMyProfileId();
-  if (!me) return showNotification('Login required.', 'error');
-  if (me === targetId) return showNotification('Cannot connect to yourself.', 'error');
+  if (!me) return showNotification("Login required.", "error");
+  if (me === targetId) return showNotification("Cannot connect to yourself.", "error");
 
-  const { error } = await supabase.from('connections').insert({
+  const { error } = await supabase.from("connections").insert({
     from_user_id: me,
     to_user_id: targetId,
-    status: 'pending',
-    type: 'manual',
+    status: "pending",
+    type: "manual",
   });
 
   if (error) {
-    console.error('[Connect] Insert error:', error);
-    showNotification('Request already exists or failed.', 'warning');
+    console.error("[Connect] Insert error:", error);
+    showNotification("Request already exists or failed.", "warning");
   } else {
-    showNotification('Connection request sent!', 'success');
+    showNotification("Connection request sent!", "success");
   }
 }
 
@@ -220,50 +255,52 @@ async function connectToUser(targetId) {
 3) Notifications
 ========================================================= */
 async function initNotifications() {
-  const btn = document.getElementById('notifications-btn');
-  const badge = document.getElementById('notifications-badge');
-  const dropdown = document.getElementById('notifications-dropdown');
-  const list = document.getElementById('notifications-list');
+  const btn = document.getElementById("notifications-btn");
+  const badge = document.getElementById("notifications-badge");
+  const dropdown = document.getElementById("notifications-dropdown");
+  const list = document.getElementById("notifications-list");
   if (!btn || !badge || !dropdown || !list) return;
 
-  btn.addEventListener('click', () => dropdown.classList.toggle('hidden'));
+  btn.addEventListener("click", () => dropdown.classList.toggle("hidden"));
 
   async function loadNotifications() {
     const me = await getMyProfileId();
     if (!me) {
-      badge.classList.add('hidden');
-      list.textContent = 'Login required';
+      badge.classList.add("hidden");
+      list.textContent = "Login required";
       return;
     }
 
     const { data, error } = await supabase
-      .from('connections')
-      .select('id, from_user_id')
-      .eq('to_user_id', me)
-      .eq('status', 'pending');
+      .from("connections")
+      .select("id, from_user_id")
+      .eq("to_user_id", me)
+      .eq("status", "pending");
 
     if (error || !data?.length) {
-      badge.classList.add('hidden');
-      list.textContent = 'No new requests';
+      badge.classList.add("hidden");
+      list.textContent = "No new requests";
       return;
     }
 
     badge.textContent = data.length;
-    badge.classList.remove('hidden');
+    badge.classList.remove("hidden");
 
-    const ids = data.map(r => r.from_user_id);
+    const ids = data.map((r) => r.from_user_id);
     const { data: users } = await supabase
-      .from('community')
-      .select('id, name, email')
-      .in('id', ids);
+      .from("community")
+      .select("id, name, email")
+      .in("id", ids);
 
     const names = {};
-    users?.forEach(u => { names[u.id] = u.name || u.email; });
+    users?.forEach((u) => {
+      names[u.id] = u.name || u.email;
+    });
 
-    list.innerHTML = '';
-    data.forEach(req => {
-      const el = document.createElement('div');
-      el.className = 'notif-item';
+    list.innerHTML = "";
+    data.forEach((req) => {
+      const el = document.createElement("div");
+      el.className = "notif-item";
       el.innerHTML = `
         <span>${names[req.from_user_id] || req.from_user_id}</span>
         <button class="accept-btn" data-id="${req.id}">Accept</button>
@@ -272,23 +309,22 @@ async function initNotifications() {
       list.appendChild(el);
     });
 
-    list.querySelectorAll('.accept-btn').forEach(btn => {
+    list.querySelectorAll(".accept-btn").forEach((btn) => {
       btn.onclick = async () => {
-        await supabase.from('connections')
-          .update({ status: 'accepted' })
-          .eq('id', btn.dataset.id);
-        showNotification('Connection accepted!', 'success');
+        await supabase
+          .from("connections")
+          .update({ status: "accepted" })
+          .eq("id", btn.dataset.id);
+        showNotification("Connection accepted!", "success");
         loadNotifications();
-        loadLeaderboard('connectors');
+        loadLeaderboard("connectors");
       };
     });
 
-    list.querySelectorAll('.decline-btn').forEach(btn => {
+    list.querySelectorAll(".decline-btn").forEach((btn) => {
       btn.onclick = async () => {
-        await supabase.from('connections')
-          .delete()
-          .eq('id', btn.dataset.id);
-        showNotification('Request declined.', 'info');
+        await supabase.from("connections").delete().eq("id", btn.dataset.id);
+        showNotification("Request declined.", "info");
         loadNotifications();
       };
     });
@@ -299,10 +335,15 @@ async function initNotifications() {
 }
 
 function initNotificationsRealtime() {
-  supabase.channel('connections-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => {
-      initNotifications();
-    })
+  supabase
+    .channel("connections-changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "connections" },
+      () => {
+        initNotifications();
+      }
+    )
     .subscribe();
 }
 
@@ -310,44 +351,46 @@ function initNotificationsRealtime() {
 Helper: User Cards
 ========================================================= */
 function generateUserCard(person) {
-  const card = document.createElement('div');
-  card.className = 'user-card';
-  const avatar = person.image_url || 'https://via.placeholder.com/80';
-  const name = person.name || 'Anonymous User';
-  const email = person.email || '';
-  const availability = person.availability || 'Unknown';
+  const card = document.createElement("div");
+  card.className = "user-card";
+  const avatar = person.image_url || "https://via.placeholder.com/80";
+  const name = person.name || "Anonymous User";
+  const email = person.email || "";
+  const availability = person.availability || "Unknown";
 
   const skills = normalizeField(person.skills);
   const interests = normalizeField(person.interests);
 
-  const skillChips = [...skills, ...interests].map(skill => {
-    const lower = skill.toLowerCase();
-    const color = SKILL_COLORS[lower] || '#555';
-    return `
+  const skillChips = [...skills, ...interests]
+    .map((skill) => {
+      const lower = skill.toLowerCase();
+      const color = SKILL_COLORS[lower] || "#555";
+      return `
       <div class="skill-chip" style="background-color:${color}">
         <span>${skill}</span>
         <button class="endorse-btn" data-user-id="${person.id}" data-skill="${skill}">+</button>
       </div>
     `;
-  }).join('');
+    })
+    .join("");
 
   card.innerHTML = `
     <img src="${avatar}" alt="${name}" class="user-avatar">
     <h3>${name}</h3>
-    ${email ? `<p class="email">${email}</p>` : ''}
+    ${email ? `<p class="email">${email}</p>` : ""}
     <p class="availability">Availability: ${availability}</p>
     <div class="skills-list">${skillChips}</div>
     <button class="connect-btn" data-user-id="${person.id}">🤝 Connect</button>
   `;
 
-  card.querySelectorAll('.endorse-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+  card.querySelectorAll(".endorse-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       await endorseSkill(btn.dataset.userId, btn.dataset.skill);
     });
   });
 
-  card.querySelector('.connect-btn').addEventListener('click', async (e) => {
+  card.querySelector(".connect-btn").addEventListener("click", async (e) => {
     e.stopPropagation();
     await connectToUser(e.target.dataset.userId);
   });
@@ -359,86 +402,87 @@ function generateUserCard(person) {
 4) Tabs + Search
 ========================================================= */
 function initTabs() {
-  const buttons = document.querySelectorAll('.tab-button');
-  const panes = document.querySelectorAll('.tab-content-pane');
+  const buttons = document.querySelectorAll(".tab-button");
+  const panes = document.querySelectorAll(".tab-content-pane");
   buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      buttons.forEach(b => b.classList.remove('active'));
-      panes.forEach(p => p.classList.remove('active-tab-pane'));
-      btn.classList.add('active');
-      document.getElementById(btn.dataset.tab)?.classList.add('active-tab-pane');
+    btn.addEventListener("click", () => {
+      buttons.forEach((b) => b.classList.remove("active"));
+      panes.forEach((p) => p.classList.remove("active-tab-pane"));
+      btn.classList.add("active");
+      document
+        .getElementById(btn.dataset.tab)
+        ?.classList.add("active-tab-pane");
     });
   });
 }
 
 function initSearch() {
-  const root = document.getElementById('search');
+  const root = document.getElementById("search");
   if (!root) return;
 
-  const findTeamBtn = root.querySelector('#find-team-btn');
-  const searchNameBtn = root.querySelector('#search-name-btn');
-  const skillsInput = root.querySelector('#teamSkillsInput');
+  const findTeamBtn = root.querySelector("#find-team-btn");
+  const searchNameBtn = root.querySelector("#search-name-btn");
+  const skillsInput = root.querySelector("#teamSkillsInput");
 
   // --- Text-Compatible Skill Search ---
   if (findTeamBtn && skillsInput) {
-    findTeamBtn.addEventListener('click', async () => {
+    findTeamBtn.addEventListener("click", async () => {
       const required = parseRequiredSkills(skillsInput.value);
       if (!required.length) return;
 
       try {
+        // ✅ Correct Supabase OR syntax
         const orFilters = required
-          .map(skill => `(skills.ilike.%${skill}%,interests.ilike.%${skill}%)`)
-          .join(',');
+          .map((skill) => `skills.ilike.%${skill}%,interests.ilike.%${skill}%`)
+          .join(",");
 
         const { data, error } = await supabase
-          .from('community')
-          .select('*')
+          .from("community")
+          .select("*")
           .or(orFilters);
 
         if (error) {
-          console.error('[Search] Supabase error:', error);
-          showNotification('Search failed: ' + error.message, 'error');
+          console.error("[Search] Supabase error:", error);
+          showNotification("Search failed: " + error.message, "error");
           return;
         }
 
         const strictMatches = filterAllOfRequired(data, required);
         await renderResults(strictMatches);
-
       } catch (err) {
-        console.error('[Search] Unexpected error:', err);
-        showNotification('Unexpected search error', 'error');
+        console.error("[Search] Unexpected error:", err);
+        showNotification("Unexpected search error", "error");
       }
     });
   }
 
   // --- Search by Name ---
   if (searchNameBtn) {
-    searchNameBtn.addEventListener('click', async () => {
-      const name = root.querySelector('#nameInput')?.value.trim();
+    searchNameBtn.addEventListener("click", async () => {
+      const name = root.querySelector("#nameInput")?.value.trim();
       if (!name) return;
 
       try {
         const { data, error } = await supabase
-          .from('community')
-          .select('*')
-          .ilike('name', `%${name}%`);
+          .from("community")
+          .select("*")
+          .ilike("name", `%${name}%`);
 
         if (error) {
-          console.error('[Search] Name error:', error);
-          showNotification('Name search failed: ' + error.message, 'error');
+          console.error("[Search] Name error:", error);
+          showNotification("Name search failed: " + error.message, "error");
           return;
         }
 
         await renderResults(data);
-
       } catch (err) {
-        console.error('[Search] Unexpected name search error:', err);
-        showNotification('Unexpected name search error', 'error');
+        console.error("[Search] Unexpected name search error:", err);
+        showNotification("Unexpected name search error", "error");
       }
     });
   }
 
-  attachAutocomplete('search', 'teamSkillsInput', '#autocomplete-team-skills');
+  attachAutocomplete("search", "teamSkillsInput", "#autocomplete-team-skills");
 }
 
 /* =========================================================
@@ -446,10 +490,10 @@ function initSearch() {
 ========================================================= */
 async function endorseSkill(userId, skill) {
   const me = await getMyProfileId();
-  if (!me) return showNotification('Login required.', 'error');
-  if (!skill) return showNotification('Invalid skill.', 'error');
+  if (!me) return showNotification("Login required.", "error");
+  if (!skill) return showNotification("Invalid skill.", "error");
 
-  const { error } = await supabase.from('endorsements').insert({
+  const { error } = await supabase.from("endorsements").insert({
     endorsed_user_id: userId,
     endorsed_by: me,
     skill,
@@ -457,10 +501,10 @@ async function endorseSkill(userId, skill) {
   });
 
   if (error) {
-    console.error('[Endorse] Error:', error);
-    showNotification('Could not endorse.', 'error');
+    console.error("[Endorse] Error:", error);
+    showNotification("Could not endorse.", "error");
   } else {
-    showNotification(`You endorsed ${skill}`, 'success');
+    showNotification(`You endorsed ${skill}`, "success");
   }
 }
 
@@ -468,26 +512,26 @@ async function endorseSkill(userId, skill) {
 6) Render Results
 ========================================================= */
 async function renderResults(data) {
-  const cardContainer = document.getElementById('cardContainer');
-  const noResults = document.getElementById('noResults');
-  const matchNotification = document.getElementById('matchNotification');
+  const cardContainer = document.getElementById("cardContainer");
+  const noResults = document.getElementById("noResults");
+  const matchNotification = document.getElementById("matchNotification");
 
   if (!cardContainer || !noResults || !matchNotification) return;
 
-  cardContainer.innerHTML = '';
-  noResults.classList.add('hidden');
-  matchNotification.classList.add('hidden');
+  cardContainer.innerHTML = "";
+  noResults.classList.add("hidden");
+  matchNotification.classList.add("hidden");
 
   if (!data || data.length === 0) {
-    noResults.textContent = 'No matching users found.';
-    noResults.classList.remove('hidden');
+    noResults.textContent = "No matching users found.";
+    noResults.classList.remove("hidden");
     return;
   }
 
   matchNotification.textContent = `Found ${data.length} result(s).`;
-  matchNotification.classList.remove('hidden');
+  matchNotification.classList.remove("hidden");
 
-  data.forEach(person => {
+  data.forEach((person) => {
     cardContainer.appendChild(generateUserCard(person));
   });
 }
@@ -495,8 +539,8 @@ async function renderResults(data) {
 /* =========================================================
 7) Bootstrap
 ========================================================= */
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('[Main] App Initialized');
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("[Main] App Initialized");
 
   await initAuth();
   initTabs();
