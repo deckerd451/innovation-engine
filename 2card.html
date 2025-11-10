@@ -149,46 +149,6 @@
         .flip-image {
             animation: flipImage .5s ease forwards;
         }
-
-        .header-text {
-            font-size: 20px;
-            margin-bottom: 20px;
-            color: #FF0000;
-        }
-
-        .footer-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-            padding: 10px;
-        }
-
-        .footer-container a {
-            font-size: 24px;
-            margin: 5px;
-            color: #FF0000;
-            transition: color 0.3s ease;
-        }
-
-        .footer-container a:hover {
-            color: #FF4500;
-        }
-
-        @media (max-width: 768px) {
-            .footer-container a {
-                font-size: 20px;
-                margin: 3px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .footer-container a {
-                font-size: 18px;
-                margin: 2px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -198,11 +158,76 @@
         Your browser does not support the audio element.
     </audio>
 
+    <!-- Restart Button -->
+    <button id="restart-btn" style="
+        position: fixed; 
+        bottom: 20px; 
+        left: 20px; 
+        padding: 10px 15px; 
+        background: rgba(0, 0, 0, 0.8); 
+        color: #00FF00; 
+        font-size: 16px; 
+        border: 2px solid #00FF00; 
+        border-radius: 5px; 
+        cursor: pointer; 
+        z-index: 1000;">
+        🔄 Restart
+    </button>
+
+    <script>
+        document.getElementById("restart-btn").addEventListener("click", function() {
+            document.body.style.transition = "opacity 0.5s ease";
+            document.body.style.opacity = "0";
+            setTimeout(() => location.reload(), 500);
+        });
+    </script>
+
+    <!-- Mute/Unmute Button -->
+    <button id="mute-btn" style="
+        position: fixed; 
+        bottom: 20px; 
+        right: 20px; 
+        padding: 10px 15px; 
+        background: rgba(0, 0, 0, 0.8); 
+        color: #00FF00; 
+        font-size: 16px; 
+        border: 2px solid #00FF00; 
+        border-radius: 5px; 
+        cursor: pointer; 
+        z-index: 1000;">
+        🔊 Mute
+    </button>
+
+    <script>
+        // Mute/Unmute functionality for the background music
+        const music = document.getElementById("background-music");
+        const muteBtn = document.getElementById("mute-btn");
+
+        // Check localStorage to see if music is muted
+        const isMuted = localStorage.getItem("musicMuted") === "true";
+        if (isMuted) {
+            music.muted = true;
+            muteBtn.textContent = "🔇 Unmute"; // Initial state if muted
+        }
+
+        muteBtn.addEventListener("click", () => {
+            // Toggle mute/unmute
+            if (music.muted) {
+                music.muted = false;
+                muteBtn.textContent = "🔊 Mute";
+                localStorage.setItem("musicMuted", "false"); // Store mute state
+            } else {
+                music.muted = true;
+                muteBtn.textContent = "🔇 Unmute";
+                localStorage.setItem("musicMuted", "true"); // Store mute state
+            }
+        });
+    </script>
+
     <div id="main">
         <article class="post featured">
             <header class="major">
                 <div class="panel">
-                    <div class="header-text">The CharlestonHacks Community</div>
                     <div class="card-container">
                         <a id="missionImage1" onclick="toggleMissionContent(event)">
                             <img src="images/Front.png" alt="CharlestonHacks" />
@@ -226,50 +251,12 @@
     </div>
 
     <footer>
-        <div class="footer-container">
-            <a href="index.html">
-                <i class="fas fa-home"></i>
-            </a>
-            <a id="restart-btn">
-                <i class="fas fa-redo"></i>
-            </a>
-            <a id="mute-btn">
-                <i class="fas fa-volume-up"></i>
-            </a>
-        </div>
+        <a href="index.html">
+            <i class="fas fa-home"></i>
+        </a>
     </footer>
 
     <script>
-        document.getElementById("restart-btn").addEventListener("click", function() {
-            document.body.style.transition = "opacity 0.5s ease";
-            document.body.style.opacity = "0";
-            setTimeout(() => location.reload(), 500);
-        });
-
-        // Mute/Unmute functionality for the background music
-        const music = document.getElementById("background-music");
-        const muteBtn = document.getElementById("mute-btn");
-
-        // Check localStorage to see if music is muted
-        const isMuted = localStorage.getItem("musicMuted") === "true";
-        if (isMuted) {
-            music.muted = true;
-            muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>'; // Initial state if muted
-        }
-
-        muteBtn.addEventListener("click", () => {
-            // Toggle mute/unmute
-            if (music.muted) {
-                music.muted = false;
-                muteBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-                localStorage.setItem("musicMuted", "false"); // Store mute state
-            } else {
-                music.muted = true;
-                muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
-                localStorage.setItem("musicMuted", "true"); // Store mute state
-            }
-        });
-
         // Define the cards, each with its own link and message
         const cardImages = [
             { img: "images/Descartes.png", link: "doug.html", message: "Descartes Level" },
