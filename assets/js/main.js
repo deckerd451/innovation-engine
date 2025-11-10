@@ -1,5 +1,5 @@
-// UPDATED FILE: assets/js/main.js
-// Safe implementation with magic link login and text-compatible search (no DB schema change needed)
+// PUBLIC VERSION: assets/js/main.js
+// Removed all Supabase Auth logic — site loads immediately for everyone.
 
 import { supabaseClient as supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
@@ -15,15 +15,11 @@ let SKILL_COLORS = {}; // { skill: hexColor }
 
 async function loadSkillColors() {
   try {
-    const { data, error } = await supabase
-      .from("skill_colors")
-      .select("skill, color");
+    const { data, error } = await supabase.from("skill_colors").select("skill, color");
     if (error) throw error;
     SKILL_COLORS = {};
     data?.forEach((row) => {
-      if (row.skill && row.color) {
-        SKILL_COLORS[row.skill.toLowerCase()] = row.color;
-      }
+      if (row.skill && row.color) SKILL_COLORS[row.skill.toLowerCase()] = row.color;
     });
   } catch (err) {
     console.warn("[Skill Colors] Load error:", err);
@@ -32,12 +28,9 @@ async function loadSkillColors() {
 
 function normalizeField(value) {
   if (!value) return [];
-  if (Array.isArray(value))
-    return value.map((s) => String(s).trim()).filter(Boolean);
-  if (typeof value === "string")
-    return value.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
-  if (typeof value === "object")
-    return Object.values(value).map((s) => String(s).trim()).filter(Boolean);
+  if (Array.isArray(value)) return value.map((s) => String(s).trim()).filter(Boolean);
+  if (typeof value === "string") return value.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+  if (typeof value === "object") return Object.values(value).map((s) => String(s).trim()).filter(Boolean);
   return [];
 }
 
@@ -56,10 +49,7 @@ function normaliseArray(a) {
 }
 
 function parseRequiredSkills(raw) {
-  return (raw || "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+  return (raw || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
 }
 
 function filterAllOfRequired(candidates, requiredSkills) {
@@ -74,9 +64,7 @@ function filterAllOfRequired(candidates, requiredSkills) {
 
 async function loadSkillSuggestions() {
   try {
-    const { data, error } = await supabase
-      .from("community")
-      .select("skills, interests");
+    const { data, error } = await supabase.from("community").select("skills, interests");
     if (error) return console.warn("[Suggest] load error:", error.message);
     const bag = new Set();
     (data || []).forEach((r) => {
@@ -115,25 +103,17 @@ function attachAutocomplete(rootId, inputId, boxSelector) {
     const parts = (input.value || "").split(",");
     const lastRaw = parts[parts.length - 1].trim().toLowerCase();
     if (!lastRaw) return closeBox();
-    const matches = SKILL_SUGGESTIONS.filter((s) =>
-      s.startsWith(lastRaw)
-    ).slice(0, 8);
+    const matches = SKILL_SUGGESTIONS.filter((s) => s.startsWith(lastRaw)).slice(0, 8);
     if (!matches.length) return closeBox();
 
     box.innerHTML = matches
-      .map(
-        (s) => `<div class="autocomplete-item" data-skill="${s}">${s}</div>`
-      )
+      .map((s) => `<div class="autocomplete-item" data-skill="${s}">${s}</div>`)
       .join("");
     openBox();
     box.querySelectorAll(".autocomplete-item").forEach((el) => {
       el.addEventListener("click", () => {
         parts[parts.length - 1] = " " + el.dataset.skill;
-        input.value =
-          parts
-            .map((p) => p.trim())
-            .filter(Boolean)
-            .join(", ") + ", ";
+        input.value = parts.map((p) => p.trim()).filter(Boolean).join(", ") + ", ";
         input.focus();
         closeBox();
       });
@@ -146,209 +126,28 @@ function attachAutocomplete(rootId, inputId, boxSelector) {
 }
 
 /* =========================================================
-1) Auth
+1) Simplified User Connections / Endorsements (no auth)
 ========================================================= */
-async function initAuth() {
-  const loginForm = document.getElementById("login-form");
-  const loginSection = document.getElementById("login-section");
-  const profileSection = document.getElementById("profile-section");
-  const logoutBtn = document.getElementById("logout-btn");
-  const userBadge = document.getElementById("user-badge");
-
-  if (loginForm) {
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = document.getElementById("login-email").value.trim();
-      if (!email) return showNotification("Enter a valid email.", "error");
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: window.location.href },
-      });
-      if (error) showNotification("Failed to send magic link.", "error");
-      else showNotification("✅ Magic link sent! Check your inbox.", "success");
-    });
-  }
-
-  function setLoggedInUI(user) {
-    loginSection?.classList.add("hidden");
-    profileSection?.classList.remove("hidden");
-    logoutBtn?.classList.remove("hidden");
-    if (userBadge) {
-      userBadge.textContent = `Signed in as ${user.email}`;
-      userBadge.classList.remove("hidden");
-    }
-  }
-
-  function setLoggedOutUI() {
-    loginSection?.classList.remove("hidden");
-    profileSection?.classList.add("hidden");
-    logoutBtn?.classList.add("hidden");
-    userBadge?.classList.add("hidden");
-  }
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (user) setLoggedInUI(user);
-  else if (error) setLoggedOutUI();
-
-  supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) setLoggedInUI(session.user);
-    else setLoggedOutUI();
-  });
-
-  logoutBtn?.addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    showNotification("Signed out.", "success");
-    setLoggedOutUI();
-    document.getElementById("skills-form")?.reset();
-  });
-}
-
-/* =========================================================
-2) Connections
-========================================================= */
-async function getMyProfileId() {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error || !user) return null;
-
-  const { data: profile, error: profileError, status } = await supabase
-    .from("community")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (profileError && status !== 406) {
-    console.warn("[getMyProfileId] Error:", profileError.message);
-    return null;
-  }
-
-  return profile?.id || null;
-}
-
 async function connectToUser(targetId) {
-  const me = await getMyProfileId();
-  if (!me) return showNotification("Login required.", "error");
-  if (me === targetId) return showNotification("Cannot connect to yourself.", "error");
+  showNotification("Connection feature requires login (currently disabled).", "info");
+}
 
-  const { error } = await supabase.from("connections").insert({
-    from_user_id: me,
-    to_user_id: targetId,
-    status: "pending",
-    type: "manual",
-  });
-
-  if (error) {
-    console.error("[Connect] Insert error:", error);
-    showNotification("Request already exists or failed.", "warning");
-  } else {
-    showNotification("Connection request sent!", "success");
-  }
+async function endorseSkill(userId, skill) {
+  showNotification(`You endorsed ${skill} (mock mode, no login required).`, "success");
 }
 
 /* =========================================================
-3) Notifications
+2) Notifications (mocked)
 ========================================================= */
-async function initNotifications() {
-  const btn = document.getElementById("notifications-btn");
-  const badge = document.getElementById("notifications-badge");
-  const dropdown = document.getElementById("notifications-dropdown");
-  const list = document.getElementById("notifications-list");
-  if (!btn || !badge || !dropdown || !list) return;
-
-  btn.addEventListener("click", () => dropdown.classList.toggle("hidden"));
-
-  async function loadNotifications() {
-    const me = await getMyProfileId();
-    if (!me) {
-      badge.classList.add("hidden");
-      list.textContent = "Login required";
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("connections")
-      .select("id, from_user_id")
-      .eq("to_user_id", me)
-      .eq("status", "pending");
-
-    if (error || !data?.length) {
-      badge.classList.add("hidden");
-      list.textContent = "No new requests";
-      return;
-    }
-
-    badge.textContent = data.length;
-    badge.classList.remove("hidden");
-
-    const ids = data.map((r) => r.from_user_id);
-    const { data: users } = await supabase
-      .from("community")
-      .select("id, name, email")
-      .in("id", ids);
-
-    const names = {};
-    users?.forEach((u) => {
-      names[u.id] = u.name || u.email;
-    });
-
-    list.innerHTML = "";
-    data.forEach((req) => {
-      const el = document.createElement("div");
-      el.className = "notif-item";
-      el.innerHTML = `
-        <span>${names[req.from_user_id] || req.from_user_id}</span>
-        <button class="accept-btn" data-id="${req.id}">Accept</button>
-        <button class="decline-btn" data-id="${req.id}">Decline</button>
-      `;
-      list.appendChild(el);
-    });
-
-    list.querySelectorAll(".accept-btn").forEach((btn) => {
-      btn.onclick = async () => {
-        await supabase
-          .from("connections")
-          .update({ status: "accepted" })
-          .eq("id", btn.dataset.id);
-        showNotification("Connection accepted!", "success");
-        loadNotifications();
-        loadLeaderboard("connectors");
-      };
-    });
-
-    list.querySelectorAll(".decline-btn").forEach((btn) => {
-      btn.onclick = async () => {
-        await supabase.from("connections").delete().eq("id", btn.dataset.id);
-        showNotification("Request declined.", "info");
-        loadNotifications();
-      };
-    });
-  }
-
-  loadNotifications();
-  setInterval(loadNotifications, 30000);
+function initNotifications() {
+  console.log("[Notifications] Disabled in public mode");
 }
-
 function initNotificationsRealtime() {
-  supabase
-    .channel("connections-changes")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "connections" },
-      () => {
-        initNotifications();
-      }
-    )
-    .subscribe();
+  console.log("[Realtime Notifications] Disabled in public mode");
 }
 
 /* =========================================================
-Helper: User Cards
+3) Helper: User Cards
 ========================================================= */
 function generateUserCard(person) {
   const card = document.createElement("div");
@@ -369,8 +168,7 @@ function generateUserCard(person) {
       <div class="skill-chip" style="background-color:${color}">
         <span>${skill}</span>
         <button class="endorse-btn" data-user-id="${person.id}" data-skill="${skill}">+</button>
-      </div>
-    `;
+      </div>`;
     })
     .join("");
 
@@ -409,9 +207,7 @@ function initTabs() {
       buttons.forEach((b) => b.classList.remove("active"));
       panes.forEach((p) => p.classList.remove("active-tab-pane"));
       btn.classList.add("active");
-      document
-        .getElementById(btn.dataset.tab)
-        ?.classList.add("active-tab-pane");
+      document.getElementById(btn.dataset.tab)?.classList.add("active-tab-pane");
     });
   });
 }
@@ -424,22 +220,17 @@ function initSearch() {
   const searchNameBtn = root.querySelector("#search-name-btn");
   const skillsInput = root.querySelector("#teamSkillsInput");
 
-  // --- Text-Compatible Skill Search ---
   if (findTeamBtn && skillsInput) {
     findTeamBtn.addEventListener("click", async () => {
       const required = parseRequiredSkills(skillsInput.value);
       if (!required.length) return;
 
       try {
-        // ✅ Correct Supabase OR syntax
         const orFilters = required
           .map((skill) => `skills.ilike.%${skill}%,interests.ilike.%${skill}%`)
           .join(",");
 
-        const { data, error } = await supabase
-          .from("community")
-          .select("*")
-          .or(orFilters);
+        const { data, error } = await supabase.from("community").select("*").or(orFilters);
 
         if (error) {
           console.error("[Search] Supabase error:", error);
@@ -456,17 +247,13 @@ function initSearch() {
     });
   }
 
-  // --- Search by Name ---
   if (searchNameBtn) {
     searchNameBtn.addEventListener("click", async () => {
       const name = root.querySelector("#nameInput")?.value.trim();
       if (!name) return;
 
       try {
-        const { data, error } = await supabase
-          .from("community")
-          .select("*")
-          .ilike("name", `%${name}%`);
+        const { data, error } = await supabase.from("community").select("*").ilike("name", `%${name}%`);
 
         if (error) {
           console.error("[Search] Name error:", error);
@@ -486,30 +273,7 @@ function initSearch() {
 }
 
 /* =========================================================
-5) Endorsements
-========================================================= */
-async function endorseSkill(userId, skill) {
-  const me = await getMyProfileId();
-  if (!me) return showNotification("Login required.", "error");
-  if (!skill) return showNotification("Invalid skill.", "error");
-
-  const { error } = await supabase.from("endorsements").insert({
-    endorsed_user_id: userId,
-    endorsed_by: me,
-    skill,
-    created_at: new Date().toISOString(),
-  });
-
-  if (error) {
-    console.error("[Endorse] Error:", error);
-    showNotification("Could not endorse.", "error");
-  } else {
-    showNotification(`You endorsed ${skill}`, "success");
-  }
-}
-
-/* =========================================================
-6) Render Results
+5) Render Results
 ========================================================= */
 async function renderResults(data) {
   const cardContainer = document.getElementById("cardContainer");
@@ -537,12 +301,11 @@ async function renderResults(data) {
 }
 
 /* =========================================================
-7) Bootstrap
+6) Bootstrap (no auth)
 ========================================================= */
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("[Main] App Initialized");
+  console.log("[Main] Public Mode Initialized");
 
-  await initAuth();
   initTabs();
   initSynapseView();
   initProfileForm();
