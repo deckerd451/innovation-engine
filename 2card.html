@@ -1,251 +1,365 @@
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-  />
-  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
-  <meta property="og:description" content="CharlestonHacks promotes tech events. Join us for exciting events and stay updated." />
-  <meta property="og:image" content="images/reactiveh.png" />
-  <meta property="og:url" content="https://charlestonhacks.com" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <title>Innovation Engine - CharlestonHacks</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Home</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* Reset and General Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
-  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
-  <link rel="manifest" href="manifest.json" />
+        body {
+            position: relative;
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow-x: hidden;
+            text-align: center;
+        }
 
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://hvmotpzhliufzomewzfl.supabase.co">
+        .panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="styles.css">
+        .panel img {
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+            transition: transform 1s ease, opacity 1s ease;
+            loading: lazy; /* Lazy loading images */
+        }
+
+        @media (max-width: 768px) {
+            .panel img {
+                max-width: 90%;
+            }
+        }
+
+        @keyframes rotateImage {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes flipImage {
+            0% { transform: rotateY(0deg); }
+            50% { transform: rotateY(180deg); }
+            100% { transform: rotateY(360deg); }
+        }
+
+        @keyframes shakeImage {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-10px); }
+        }
+
+        .rotate-image {
+            animation: rotateImage 4s ease forwards;
+        }
+
+        .flip-image {
+            animation: flipImage .5s ease forwards;
+        }
+
+        .shake-image {
+            animation: shakeImage .5s ease forwards;
+        }
+
+        #hackerMessage {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: #00FF00;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 18px;
+            display: none;
+            z-index: 2;
+        }
+
+        footer a {
+            color: #00FF00;
+            font-size: 30px;
+            margin: 0 15px;
+            transition: color 0.3s ease;
+        }
+
+        footer a:hover {
+            color: #39FF14;
+        }
+
+        .card-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .card-container img.hacker-card {
+            border: 3px solid #FFD700;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #FFD700;
+        }
+
+        .link-container {
+            display: none;
+            margin-top: 20px;
+            font-size: 20px;
+            color: #00FF00;
+        }
+
+        .link-container a {
+            color: #00FF00;
+            text-decoration: none;
+        }
+
+        .link-container a:hover {
+            color: #39FF14;
+        }
+
+        .loading-indicator {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+
+        @keyframes spinImage {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spin-image {
+            animation: spinImage 3s linear infinite;
+        }
+
+        .flip-image {
+            animation: flipImage .5s ease forwards;
+        }
+
+        .header-text {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #FF0000;
+        }
+
+        .footer-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            padding: 10px;
+        }
+
+        .footer-container a {
+            font-size: 24px;
+            margin: 5px;
+            color: #FF0000;
+            transition: color 0.3s ease;
+        }
+
+        .footer-container a:hover {
+            color: #FF4500;
+        }
+
+        @media (max-width: 768px) {
+            .footer-container a {
+                font-size: 20px;
+                margin: 3px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .footer-container a {
+                font-size: 18px;
+                margin: 2px;
+            }
+        }
+    </style>
 </head>
+<body>
+    <!-- Background Music -->
+    <audio id="background-music" autoplay loop>
+        <source src="assets/music.mp3" type="audio/mp3">
+        Your browser does not support the audio element.
+    </audio>
 
-<body class="two-card-page">
-  <a href="index.html" title="Back to Home"><i class="fas fa-home home-icon"></i></a>
+    <div id="main">
+        <article class="post featured">
+            <header class="major">
+                <div class="panel">
+                    <div class="header-text">The CharlestonHacks Community</div>
+                    <div class="card-container">
+                        <a id="missionImage1" onclick="toggleMissionContent(event)">
+                            <img src="images/Front.png" alt="CharlestonHacks" />
+                        </a>
+                        <a id="missionImage2" onclick="toggleMissionContent(event)">
+                            <img src="images/Front.png" alt="CharlestonHacks" />
+                        </a>
+                    </div>
 
-  <div id="achievements" class="achievements" aria-live="polite"></div>
+                    <div id="hackerMessage">Hacker card selected!</div>
+                    <audio id="hackerSound" src="sounds/hackerSound.mp3"></audio>
 
-  <div class="container">
-    <header class="header">
-      <h1>Innovation Engine</h1>
-      <p>Making Invisible Networks Visible</p>
-      <div class="auth-controls">
-        <span class="user-badge hidden" id="user-badge"></span>
-        <button class="logout-btn action-btn hidden" id="logout-btn">
-          <i class="fas fa-sign-out-alt"></i> Logout
-        </button>
-      </div>
-    </header>
-
-    <main class="panels-wrapper">
-      <div class="panel large">
-
-        <!-- LOGIN SECTION -->
-        <div id="login-section">
-          <h2 class="section-title">Login</h2>
-          <form id="login-form">
-            <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email" />
-            <button id="login-button" type="submit" class="action-btn">Send Magic Link</button>
-          </form>
-        </div>
-
-        <!-- PROFILE SECTION (hidden until logged in) -->
-        <div id="profile-section" class="hidden">
-
-          <!-- Tab Navigation -->
-          <div class="tab-nav">
-            <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
-            <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
-            <button class="tab-button" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
-            <button class="tab-button" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
-            <button class="tab-button" data-tab="synapse"><i class="fas fa-project-diagram"></i> Synapse View</button>
-          </div>
-
-          <!-- Profile Tab -->
-          <div id="profile" class="tab-content-pane active-tab-pane">
-            <section id="matchmaking-section">
-              <h2 class="section-title">Create Your Profile</h2>
-              <form id="skills-form">
-                <div class="input-container">
-                  <input type="text" id="first-name" placeholder="First Name" required autocomplete="given-name">
-                  <input type="text" id="last-name" placeholder="Last Name" required autocomplete="family-name">
-                  <input type="email" id="email" placeholder="Email" required autocomplete="email">
-
-                  <label for="skills-input">Professional Skills (comma separated)</label>
-                  <div class="input-wrapper">
-                    <input type="text" id="skills-input" placeholder="e.g. aws, fullstack, java, python" required autocomplete="off">
-                    <div id="autocomplete-skills-input" class="autocomplete-box"></div>
-                  </div>
-                  <div id="skills-proficiency-container"></div>
-
-                  <label for="photo-input">Upload Your Photo</label>
-                  <input type="file" id="photo-input" accept="image/*" required>
-                  <img id="preview" src="#" alt="Image Preview" class="image-preview hidden" />
-
-                  <label for="bio-input">Short Bio (optional)</label>
-                  <input type="text" id="bio-input" placeholder="Tell us about yourself" maxlength="120">
-
-                  <label for="availability-input">Current Availability</label>
-                  <select id="availability-input">
-                    <option value="Available">Available</option>
-                    <option value="Busy">Busy</option>
-                    <option value="Not Looking">Not Looking</option>
-                  </select>
-
-                  <label>
-                    <input type="checkbox" id="newsletter-opt-in"> Subscribe to CharlestonHacks Newsletter
-                  </label>
-
-                  <button type="submit" class="action-btn">Save Profile</button>
+                    <!-- Link Container (hidden by default) -->
+                    <div id="link-container" class="link-container">
+                        <p>Matched Cards! Proceed to the next level:</p>
+                        <a href="next-level.html" rel="noopener noreferrer">Go to Next Level</a>
+                    </div>
                 </div>
-                <div class="profile-bar"><div class="profile-bar-inner"></div></div>
-                <div id="profile-progress-msg" class="profile-incomplete"></div>
-              </form>
-              <p id="success-message" class="success-message hidden">Profile saved successfully!</p>
-            </section>
-          </div>
-
-<!-- Search Tab -->
-<div id="search" class="tab-content-pane">
-  <h2 class="section-title">Individual Search</h2>
-
-  <!-- Skills Search -->
-  <div class="input-wrapper">
-    <label for="teamSkillsInput">Required Skills</label>
-    <input 
-      type="text" 
-      id="teamSkillsInput" 
-      placeholder="e.g. aws, fullstack, java, python" 
-      autocomplete="off">
-    
-    <!-- Predictive dropdown for skills -->
-    <div id="autocomplete-team-skills" class="autocomplete-box"></div>
-  </div>
-
-  <button id="find-team-btn" type="button" class="action-btn">Get People</button>
-  <br><br>
-
-  <!-- Name Search -->
-  <div class="input-wrapper">
-    <label for="nameInput">Search by First/Last Name</label>
-    <input 
-      type="text" 
-      id="nameInput" 
-      placeholder="e.g. John, Doug, Will, Dave" 
-      autocomplete="off">
-    
-    <!-- Predictive dropdown for names -->
-    <div id="autocomplete-names" class="autocomplete-box"></div>
-  </div>
-
-  <button id="search-name-btn" type="button" class="action-btn">Find by Name</button>
-
-  <!-- Notifications -->
-  <div id="matchNotification" class="notification match-notification hidden"></div>
-  <div id="noResults" class="notification no-results-notification hidden"></div>
-
-  <!-- Search Results -->
-  <div id="cardContainer" 
-       class="card-container" 
-       role="list" 
-       aria-label="Matching team members"></div>
-</div>
-
-
- <!-- Team Builder Tab -->
-<div id="team-builder" class="tab-content-pane">
-  <h2 class="section-title">Team Builder</h2>
-  <div class="input-container">
-    <p class="instructions">Enter required skills and team size.</p>
-
-    <!-- Skills Input with predictive dropdown -->
-    <div class="input-wrapper">
-      <input 
-        type="text" 
-        id="team-skills-input" 
-        placeholder="e.g. aws, fullstack, java, python" 
-        autocomplete="off">
-      <div id="autocomplete-team-builder" class="autocomplete-box"></div>
+            </header>
+        </article>
     </div>
 
-    <!-- Team Size -->
-    <input 
-      type="number" 
-      id="teamSize" 
-      placeholder="Team size" 
-      min="1" 
-      max="6">
+    <footer>
+        <div class="footer-container">
+            <a href="index.html">
+                <i class="fas fa-home"></i>
+            </a>
+            <a id="restart-btn">
+                <i class="fas fa-redo"></i>
+            </a>
+            <a id="mute-btn">
+                <i class="fas fa-volume-up"></i>
+            </a>
+        </div>
+    </footer>
 
-    <button id="buildTeamBtn" type="button" class="action-btn">Build Team</button>
-  </div>
+    <script>
+        document.getElementById("restart-btn").addEventListener("click", function() {
+            document.body.style.transition = "opacity 0.5s ease";
+            document.body.style.opacity = "0";
+            setTimeout(() => location.reload(), 500);
+        });
 
-  <!-- Generated Team Cards -->
-  <div class="card-container" id="bestTeamContainer" role="list"></div>
-</div>
+        // Mute/Unmute functionality for the background music
+        const music = document.getElementById("background-music");
+        const muteBtn = document.getElementById("mute-btn");
 
+        // Check localStorage to see if music is muted
+        const isMuted = localStorage.getItem("musicMuted") === "true";
+        if (isMuted) {
+            music.muted = true;
+            muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>'; // Initial state if muted
+        }
 
-<!-- Leaderboard Tab -->
-<div id="leaderboard" class="tab-content-pane">
-  <div class="leaderboard">
-    <h2>Leaderboard</h2>
+        muteBtn.addEventListener("click", () => {
+            // Toggle mute/unmute
+            if (music.muted) {
+                music.muted = false;
+                muteBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                localStorage.setItem("musicMuted", "false"); // Store mute state
+            } else {
+                music.muted = true;
+                muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                localStorage.setItem("musicMuted", "true"); // Store mute state
+            }
+        });
 
-    <!-- Leaderboard Tabs -->
-    <div class="leaderboard-tabs">
-      <button class="lb-tab active" data-type="skills">
-        <i class="fas fa-star"></i> Top Skills
-      </button>
-      <button class="lb-tab" data-type="connectors">
-        <i class="fas fa-link"></i> Top Connectors
-      </button>
-      <button class="lb-tab" data-type="rising">
-        <i class="fas fa-rocket"></i> Rising Stars
-      </button>
-    </div>
+        // Define the cards, each with its own link and message
+        const cardImages = [
+            { img: "images/Descartes.png", link: "doug.html", message: "Descartes Level" },
+            { img: "images/Alexandor.png", link: "dave.html", message: "Alexandor Level" },
+            { img: "images/Medusa.png", link: "aya.html", message: "Medusa Level" },
+            { img: "images/Elara.png", link: "bradley.html", message: "Elara Level" },
+            { img: "images/Aegis.png", link: "amin.html", message: "Aegis Level" },
+            { img: "images/Astrid.png", link: "images/Astridstory.png", message: "Astrid Level" },
+            { img: "images/hacker.png", link: "cardmatchgame.html", message: "Hacker Level" }
+        ];
 
-    <!-- Results -->
-    <div id="leaderboard-rows" class="leaderboard-rows"></div>
-  </div>
-</div>
+        let selectedImages = [];
+        let selectedCards = [];
 
+        function getRandomImage() {
+            const randomIndex = Math.floor(Math.random() * cardImages.length);
+            return cardImages[randomIndex];
+        }
 
-         <div id="synapse" class="tab-content-pane">
-  <h2 class="section-title">Synapse View</h2>
- <canvas id="synapseCanvas" style="width:100%; height:600px;"></canvas>
-</div>
+        let hackerCardRevealed = false;
 
+        function revealHackerCard(card) {
+            card.classList.add("hacker-card");
+            hackerCardRevealed = true;
 
-        </div><!-- /profile-section -->
+            const hackerMessage = document.getElementById("hackerMessage");
+            const hackerSound = document.getElementById("hackerSound");
 
-      </div>
-    </main>
-  </div>
+            hackerMessage.innerHTML = `
+                <p>Hacker card selected!</p>
+                <a href="cardmatchgame.html" id="proceedLink" style="color: #00FF00; text-decoration: none; font-size: 20px;">
+                    Proceed to Next Level
+                </a>
+            `;
+            hackerMessage.style.display = "block";
+            hackerSound.play();
 
-  <!-- Endorse Skill Modal -->
-  <!--
-    This modal is displayed when a user chooses to endorse another user's skills.
-    It is hidden by default via the `.hidden` class on the root element.  The
-    modal consists of a semi‑transparent backdrop and an inner content panel
-    containing a close button and a list of skills that can be endorsed.  The
-    JavaScript function `openEndorseModal` toggles this element's display.
-  -->
-  <div id="endorseSkillModal" class="modal hidden">
-    <div class="modal-content">
-      <button class="close-button" aria-label="Close modal">&times;</button>
-      <h2>Endorse Skills</h2>
-      <!-- The list of skills for the selected user will be injected here -->
-      <div id="endorse-skill-list"></div>
-    </div>
-  </div>
+            setTimeout(() => {
+                hackerMessage.style.display = "none";
+            }, 3000);
+        }
 
-<!-- Scripts -->
-<script type="module" src="assets/js/main.js"></script>
-<script type="module" src="assets/js/login.js"></script>
-<script type="module" src="assets/js/profile.js"></script>
+        let isSecondCardSpinning = false;
 
+        function toggleMissionContent(event) {
+            const image = event.target;
+            const newImage = getRandomImage();
+            image.src = newImage.img;
+
+            selectedImages.push(newImage.img);
+            selectedCards.push(image);
+
+            image.classList.add("flip-image");
+
+            if (selectedImages.length === 1) {
+                const secondCard = document.querySelectorAll('.card-container img')[1];
+                if (!isSecondCardSpinning) {
+                    secondCard.classList.add("spin-image");
+                    isSecondCardSpinning = true;
+                }
+            } else if (selectedImages.length === 2) {
+                const [firstCard, secondCard] = selectedImages;
+                const firstCardObj = cardImages.find(card => card.img === firstCard);
+                const secondCardObj = cardImages.find(card => card.img === secondCard);
+
+                if (firstCard === secondCard) {
+                    const linkContainer = document.getElementById("link-container");
+                    linkContainer.innerHTML = `
+                        <p>Matched Card! Proceed to ${firstCardObj.message}:</p>
+                        <a href="${firstCardObj.link}" style="color: #00FF00; text-decoration: none; font-size: 20px;">
+                            Go to ${firstCardObj.message}
+                        </a>
+                    `;
+                    linkContainer.style.display = "block";
+                } else {
+                    setTimeout(() => {
+                        selectedCards.forEach(card => {
+                            card.src = "images/Front.png";
+                            card.classList.remove("flip-image");
+                        });
+                        selectedImages = [];
+                        selectedCards = [];
+                        if (isSecondCardSpinning) {
+                            document.querySelectorAll('.card-container img')[1].classList.remove("spin-image");
+                            isSecondCardSpinning = false;
+                        }
+                    }, 1000);
+                }
+            }
+        }
+    </script>
 </body>
 </html>
