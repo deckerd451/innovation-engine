@@ -62,7 +62,7 @@
       margin-bottom: 24px;
     }
 
-    /* Swag Grid Layout */
+    /* Swag Grid */
     .swag-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -99,12 +99,8 @@
       box-shadow: 0 0 20px #ffd700cc;
     }
 
-    @media (max-width: 1024px) {
-      .swag-item img { width: 160px; }
-    }
-    @media (max-width: 600px) {
-      .swag-item img { width: 130px; }
-    }
+    @media (max-width: 1024px) { .swag-item img { width: 160px; } }
+    @media (max-width: 600px) { .swag-item img { width: 130px; } }
 
     .swag-item label {
       color: var(--secondary-color);
@@ -128,13 +124,6 @@
       transition: background 0.3s;
     }
     .vote-btn:hover { background: #FFC000; }
-
-    .success-message {
-      color: #00FF87;
-      font-weight: bold;
-      margin-top: 18px;
-      font-size: 1.1em;
-    }
 
     .leaderboard {
       margin: 40px auto 0 auto;
@@ -161,10 +150,6 @@
       color: #ffd700;
     }
 
-    .leaderboard-rank { font-weight: bold; width: 24px; }
-    .leaderboard-swag { flex: 1; text-align: left; }
-    .leaderboard-count { color: #ffd700; }
-
     /* Lightbox */
     .lightbox {
       position: fixed;
@@ -178,27 +163,22 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.3s ease;
+      padding: 20px;
     }
-
-    .lightbox.active {
-      opacity: 1;
-      pointer-events: all;
-    }
+    .lightbox.active { opacity: 1; pointer-events: all; }
 
     .lightbox img {
       max-width: 90vw;
-      max-height: 75vh;
+      max-height: 65vh;
       border-radius: 12px;
       box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
       transform: scale(0.85);
       transition: transform 0.3s ease;
-      user-select: none;
     }
-
     .lightbox.active img { transform: scale(1); }
 
     .lightbox .caption {
-      margin-top: 18px;
+      margin-top: 16px;
       color: #ffd700;
       font-size: 1.2rem;
       text-shadow: 0 0 6px #000;
@@ -212,18 +192,51 @@
       font-size: 2.5rem;
       color: #ffd700;
       cursor: pointer;
-      user-select: none;
       transition: transform 0.2s;
     }
-
     .lightbox .arrow:hover { transform: translateY(-50%) scale(1.2); }
     .lightbox .arrow.left { left: 25px; }
     .lightbox .arrow.right { right: 25px; }
 
+    .lightbox .vote-btn {
+      margin-top: 20px;
+      font-size: 1.1rem;
+      padding: 12px 28px;
+    }
+
+    .lightbox .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 25px;
+      font-size: 1.8rem;
+      color: #ffd700;
+      cursor: pointer;
+    }
+
+    .vote-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,215,0,0.95);
+      color: #111;
+      padding: 16px 28px;
+      border-radius: 10px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      box-shadow: 0 0 20px #ffd700aa;
+      z-index: 10000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .vote-overlay.active { opacity: 1; pointer-events: all; }
+
     @media (max-width: 600px) {
-      .lightbox img { max-width: 95vw; max-height: 65vh; }
+      .lightbox img { max-width: 95vw; max-height: 55vh; }
       .lightbox .caption { font-size: 1rem; }
       .lightbox .arrow { font-size: 2rem; left: 12px; right: 12px; }
+      .lightbox .vote-btn { font-size: 1rem; padding: 10px 20px; }
     }
   </style>
 </head>
@@ -240,7 +253,6 @@
     </div>
 
     <div class="swag-grid" id="swagGrid"></div>
-    <div class="success-message" id="successMsg" style="display:none;"></div>
 
     <div class="leaderboard" id="leaderboard-section">
       <h2>Most Popular Swag</h2>
@@ -250,18 +262,24 @@
 
   <!-- Lightbox Modal -->
   <div class="lightbox" id="lightbox">
+    <i class="fa-solid fa-xmark close-btn" id="closeLightbox"></i>
     <i class="fa-solid fa-chevron-left arrow left"></i>
     <img src="" alt="Enlarged Swag" />
     <i class="fa-solid fa-chevron-right arrow right"></i>
     <div class="caption" id="lightboxCaption"></div>
+    <button class="vote-btn" id="lightboxVote"><i class="fa fa-thumbs-up"></i> Vote</button>
   </div>
+
+  <!-- Vote Overlay -->
+  <div class="vote-overlay" id="voteOverlay">Vote Registered!</div>
 
   <script type="module">
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.2/+esm";
 
-    const SUPABASE_URL = "https://hvmotpzhliufzomewzfl.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s";
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabase = createClient(
+      "https://hvmotpzhliufzomewzfl.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s"
+    );
 
     const swagItems = [
       { name: "T-Shirt", img: "icons/tshirt.webp" },
@@ -274,13 +292,15 @@
     ];
 
     const swagGrid = document.getElementById('swagGrid');
-    const successMsg = document.getElementById('successMsg');
     const leaderboardRows = document.getElementById('leaderboard-rows');
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = lightbox.querySelector('img');
     const lightboxCaption = document.getElementById('lightboxCaption');
+    const lightboxVote = document.getElementById('lightboxVote');
     const leftArrow = lightbox.querySelector('.arrow.left');
     const rightArrow = lightbox.querySelector('.arrow.right');
+    const closeLightbox = document.getElementById('closeLightbox');
+    const voteOverlay = document.getElementById('voteOverlay');
 
     let currentIndex = 0;
 
@@ -290,7 +310,7 @@
         const swagDiv = document.createElement('div');
         swagDiv.className = 'swag-item';
         swagDiv.innerHTML = `
-          <img src="${item.img}" alt="${item.name}" data-index="${index}" data-name="${item.name}">
+          <img src="${item.img}" alt="${item.name}" data-index="${index}">
           <label>${item.name}</label>
           <button class="vote-btn" data-swag="${item.name}">
             <i class="fa fa-thumbs-up"></i> Vote
@@ -300,7 +320,6 @@
       });
     }
 
-    // Show Lightbox
     function showLightbox(index) {
       const item = swagItems[index];
       if (!item) return;
@@ -310,7 +329,6 @@
       lightbox.classList.add('active');
     }
 
-    // Navigation
     function nextImage() {
       currentIndex = (currentIndex + 1) % swagItems.length;
       showLightbox(currentIndex);
@@ -320,18 +338,9 @@
       showLightbox(currentIndex);
     }
 
-    // Swipe Support
-    let startX = 0;
-    lightbox.addEventListener('touchstart', e => startX = e.touches[0].clientX);
-    lightbox.addEventListener('touchend', e => {
-      const endX = e.changedTouches[0].clientX;
-      if (endX - startX > 50) prevImage();
-      else if (startX - endX > 50) nextImage();
-    });
-
-    // Arrow & Keyboard Controls
-    leftArrow.addEventListener('click', e => { e.stopPropagation(); prevImage(); });
-    rightArrow.addEventListener('click', e => { e.stopPropagation(); nextImage(); });
+    leftArrow.onclick = prevImage;
+    rightArrow.onclick = nextImage;
+    closeLightbox.onclick = () => lightbox.classList.remove('active');
     document.addEventListener('keydown', e => {
       if (!lightbox.classList.contains('active')) return;
       if (e.key === 'ArrowRight') nextImage();
@@ -339,80 +348,51 @@
       if (e.key === 'Escape') lightbox.classList.remove('active');
     });
 
-    // Close Lightbox
     lightbox.addEventListener('click', e => {
       if (e.target === lightbox) lightbox.classList.remove('active');
     });
 
-    // Voting & Lightbox Click Handling
-    swagGrid.addEventListener('click', async e => {
-      const img = e.target.closest('img');
-      if (img) {
-        showLightbox(parseInt(img.dataset.index));
-        return;
-      }
-
-      const voteBtn = e.target.closest('.vote-btn');
-      if (!voteBtn) return;
-      const swagName = voteBtn.dataset.swag;
-      voteBtn.disabled = true;
-
+    async function voteForSwag(swagName) {
       try {
-        const { data, error } = await supabaseClient
-          .from('swag_votes')
-          .select('*')
-          .eq('swag', swagName)
-          .single();
-
+        const { data, error } = await supabase.from('swag_votes').select('*').eq('swag', swagName).single();
         let currentVotes = data?.votes || 0;
-
-        if (data) {
-          const { error: updateError } = await supabaseClient
-            .from('swag_votes')
-            .update({ votes: currentVotes + 1 })
-            .eq('swag', swagName);
-          if (updateError) throw updateError;
-        } else {
-          const { error: insertError } = await supabaseClient
-            .from('swag_votes')
-            .insert([{ swag: swagName, votes: 1 }]);
-          if (insertError) throw insertError;
-        }
-
-        successMsg.textContent = `You voted for "${swagName}"!`;
-        successMsg.style.display = "block";
-        setTimeout(() => successMsg.style.display = "none", 1500);
+        if (data)
+          await supabase.from('swag_votes').update({ votes: currentVotes + 1 }).eq('swag', swagName);
+        else
+          await supabase.from('swag_votes').insert([{ swag: swagName, votes: 1 }]);
+        showVoteOverlay(swagName);
         loadLeaderboard();
       } catch (err) {
         console.error("Voting error:", err);
-        successMsg.textContent = `Vote failed: ${err.message}`;
-        successMsg.style.display = "block";
-        setTimeout(() => successMsg.style.display = "none", 2500);
-      } finally {
-        voteBtn.disabled = false;
       }
-    });
+    }
+
+    function showVoteOverlay(swagName) {
+      voteOverlay.textContent = `Vote Registered for ${swagName}!`;
+      voteOverlay.classList.add('active');
+      setTimeout(() => voteOverlay.classList.remove('active'), 1500);
+    }
+
+    lightboxVote.onclick = () => voteForSwag(swagItems[currentIndex].name);
+
+    swagGrid.onclick = e => {
+      const img = e.target.closest('img');
+      if (img) { showLightbox(parseInt(img.dataset.index)); return; }
+      const btn = e.target.closest('.vote-btn');
+      if (btn) voteForSwag(btn.dataset.swag);
+    };
 
     async function loadLeaderboard() {
-      try {
-        const { data, error } = await supabaseClient.from('swag_votes').select('*');
-        if (error) throw error;
-        const swagCounts = {};
-        swagItems.forEach(item => (swagCounts[item.name] = 0));
-        data.forEach(row => (swagCounts[row.swag] = row.votes));
-        const sorted = Object.entries(swagCounts).sort((a,b) => b[1] - a[1]);
-        leaderboardRows.innerHTML = sorted
-          .map(([swag,count],i) => `
-            <div class="leaderboard-row">
-              <span class="leaderboard-rank">${i+1}.</span>
-              <span class="leaderboard-swag">${swag}</span>
-              <span class="leaderboard-count">${count} <i class="fa fa-thumbs-up"></i></span>
-            </div>
-          `).join('');
-      } catch (err) {
-        console.error("Error loading leaderboard:", err);
-        leaderboardRows.innerHTML = '<p style="color:red;">Failed to load leaderboard.</p>';
-      }
+      const { data } = await supabase.from('swag_votes').select('*');
+      const counts = {};
+      swagItems.forEach(i => counts[i.name] = 0);
+      data?.forEach(r => counts[r.swag] = r.votes);
+      leaderboardRows.innerHTML = Object.entries(counts)
+        .sort((a,b) => b[1]-a[1])
+        .map(([s,c],i)=>`
+          <div class="leaderboard-row">
+            <span>${i+1}.</span><span>${s}</span><span>${c} <i class="fa fa-thumbs-up"></i></span>
+          </div>`).join('');
     }
 
     document.addEventListener('DOMContentLoaded', () => {
