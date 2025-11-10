@@ -86,29 +86,13 @@
       </a>
 
       <p style="color:#ccc; margin-top:6px;">Making Invisible Networks Visible</p>
-
-      <div class="auth-controls">
-        <span class="user-badge hidden" id="user-badge"></span>
-        <button class="logout-btn action-btn hidden" id="logout-btn">
-          <i class="fas fa-sign-out-alt"></i> Logout
-        </button>
-      </div>
     </header>
 
     <main class="panels-wrapper">
       <div class="panel large">
 
-        <!-- LOGIN SECTION -->
-        <div id="login-section">
-          <h2 class="section-title">Login</h2>
-          <form id="login-form">
-            <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email" />
-            <button id="login-button" type="submit" class="action-btn">Send Magic Link</button>
-          </form>
-        </div>
-
-        <!-- PROFILE SECTION -->
-        <div id="profile-section" class="hidden">
+        <!-- PROFILE SECTION (Public Access) -->
+        <div id="profile-section">
 
           <!-- Tab Navigation -->
           <div class="tab-nav">
@@ -230,7 +214,6 @@
 
   <!-- Scripts -->
   <script type="module" src="assets/js/main.js"></script>
-  <script type="module" src="assets/js/login.js"></script>
   <script type="module" src="assets/js/profile.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
 </body>
