@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles.css" />
 
   <style>
+    body { margin: 0; overflow-x: hidden; background: #000; color: #fff; }
     .header-img {
       display: block; margin: 20px auto; width: 420px; max-width: 90%; height: auto;
       filter: drop-shadow(0 0 6px rgba(255,255,255,0.3)); cursor: pointer;
@@ -18,6 +19,24 @@
     }
     .header-img:hover { transform: scale(1.05); filter: drop-shadow(0 0 12px rgba(255, 100, 100, 0.6)); }
     footer { text-align:center; padding:32px 20px 64px; margin-top:40px; }
+
+    /* Full-screen Synapse View */
+    #synapse.fullscreen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: radial-gradient(circle at center, #000 60%, #001b1b 100%);
+      z-index: 200;
+      display: none;
+    }
+    #synapse.fullscreen.active-tab-pane { display: block; }
+    #synapse-container {
+      width: 100%; height: 100%;
+      overflow: hidden;
+    }
+    #synapse-svg {
+      width: 100%; height: 100%;
+    }
   </style>
 </head>
 
@@ -85,10 +104,9 @@
             <div id="leaderboard-rows"></div>
           </div>
 
-          <!-- SYNAPSE -->
-          <div id="synapse" class="tab-content-pane">
-            <h2>Synapse Network</h2>
-            <div id="synapse-container" style="width:100%; height:500px;">
+          <!-- SYNAPSE (Full Screen) -->
+          <div id="synapse" class="tab-content-pane fullscreen">
+            <div id="synapse-container">
               <svg id="synapse-svg"></svg>
             </div>
           </div>
@@ -115,5 +133,27 @@
   <script type="module" src="assets/js/main.js"></script>
   <script type="module" src="assets/js/synapse.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
+
+  <!-- Hide header/footer in full-screen Synapse mode -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const buttons = document.querySelectorAll(".tab-button");
+      const header = document.querySelector("header");
+      const footer = document.querySelector("footer");
+      buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (btn.dataset.tab === "synapse") {
+            header.style.display = "none";
+            footer.style.display = "none";
+            document.getElementById("neural-bg").style.display = "none";
+          } else {
+            header.style.display = "";
+            footer.style.display = "";
+            document.getElementById("neural-bg").style.display = "";
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>
