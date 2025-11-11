@@ -1,58 +1,54 @@
 // /assets/js/supabaseClient.js
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+import { createClient } from "@supabase/supabase-js";
 
-// 🔹 Your Supabase credentials
-export const SUPABASE_URL = 'https://hvmotpzhliufzomewzfl.supabase.co';
-export const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s';
+// 🧠 Initialize Supabase
+export const supabase = createClient(
+  "https://hvmotpzhliufzomewzfl.supabase.co", // ✅ your Supabase URL
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s"
+);
 
-// 🔹 Create the Supabase client
-export const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-});
-
-console.log('✅ Supabase Client initialized successfully');
-
-// 🔹 Ensure community user exists or is created
+// 🧩 Ensures that the current authenticated user has a matching row
+// in the "community" table (required for connections, endorsements, etc.)
 export async function ensureCommunityUser() {
   try {
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError) throw userError;
-    if (!user) return null;
+    // 🔐 Get current user
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    const user = authData?.user;
+    if (!user) throw new Error("No authenticated user found.");
 
-    // Check if user already exists in community
-    const { data: existing, error: selectError } = await supabaseClient
-      .from('community')
-      .select('id')
-      .eq('email', user.email)
+    // 🧠 Check if a community profile already exists
+    const { data: existing, error: fetchError } = await supabase
+      .from("community")
+      .select("id, name, email")
+      .eq("email", user.email)
       .maybeSingle();
 
-    if (selectError) throw selectError;
+    if (fetchError) throw fetchError;
 
-    // If not found, insert it
-    if (!existing) {
-      const { error: insertError } = await supabaseClient.from('community').insert([
+    // ✅ Already exists → return it
+    if (existing) return existing;
+
+    // 🧱 Otherwise create a new record
+    const { data: newProfile, error: insertError } = await supabase
+      .from("community")
+      .insert([
         {
-          id: user.id,
+          name: user.user_metadata?.full_name || user.email.split("@")[0],
           email: user.email,
-          name: user.user_metadata?.full_name || user.email,
-          user_role: 'member',
+          user_id: user.id,
           created_at: new Date().toISOString(),
         },
-      ]);
-      if (insertError) throw insertError;
-      console.log('🧠 Added new community user:', user.email);
-    } else {
-      console.log('👤 Community user already exists:', user.email);
-    }
+      ])
+      .select()
+      .single();
 
-    return user;
+    if (insertError) throw insertError;
+
+    console.log("🆕 Created new community profile:", newProfile);
+    return newProfile;
   } catch (err) {
-    console.error('⚠️ ensureCommunityUser error:', err.message);
-    return null;
+    console.error("❌ ensureCommunityUser failed:", err);
+    throw err;
   }
 }
