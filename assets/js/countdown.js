@@ -5,7 +5,14 @@ export function startCountdown(elementId, eventDateStr) {
   function updateCountdown() {
     const eventDate = new Date(eventDateStr);
     const now = new Date();
-    let diff = Math.max(0, eventDate - now);
+    const diff = eventDate - now;
+
+    // 🟢 When countdown is over:
+    if (diff <= 0) {
+      countdownEl.innerHTML = `<span class="coming-soon">Next Event Coming Soon!</span>`;
+      clearInterval(timer); // stop updates
+      return;
+    }
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
@@ -23,5 +30,5 @@ export function startCountdown(elementId, eventDateStr) {
   }
 
   updateCountdown();
-  setInterval(updateCountdown, 1000);
+  const timer = setInterval(updateCountdown, 1000);
 }
