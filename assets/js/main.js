@@ -373,19 +373,25 @@ function generateUserCard(person) {
 /* =========================================================
 4) Tabs + Search
 ========================================================= */
-function initTabs() {
-  const buttons = document.querySelectorAll('.tab-button');
-  const panes = document.querySelectorAll('.tab-content-pane');
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      buttons.forEach((b) => b.classList.remove('active'));
-      panes.forEach((p) => p.classList.remove('active-tab-pane'));
-      btn.classList.add('active');
-      const target = btn.dataset.tab;
-      document.getElementById(target)?.classList.add('active-tab-pane');
+export function initTabs() {
+  const buttons = document.querySelectorAll(".tab-button");
+  const panes = document.querySelectorAll(".tab-content-pane");
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-tab");
+      buttons.forEach(b => b.classList.remove("active"));
+      panes.forEach(p => p.classList.remove("active-tab-pane"));
+      btn.classList.add("active");
+      document.getElementById(target).classList.add("active-tab-pane");
     });
   });
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  initTabs();
+});
+
 
 function initSearch() {
   const root = document.getElementById('search');
