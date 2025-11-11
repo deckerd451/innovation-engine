@@ -1,25 +1,33 @@
-// =============================================
-// CharlestonHacks Synapse View (v2.2 Optimized)
-// =============================================
+// =====================================================
+// CharlestonHacks Synapse View 3.0 — Fullscreen Network
+// =====================================================
+// Features:
+// ✅ Stable Supabase-backed community graph
+// ✅ Auto-create users (no FK errors)
+// ✅ Connect/disconnect between users
+// ✅ Realtime updates & link pulses
+// ✅ ESC key exit
+// ✅ Performance HUD overlay
+// =====================================================
 
 import { supabase, ensureCommunityUser, showNotification } from "./supabaseClient.js";
 const d3 = window.d3;
 
-let svg, zoomGroup, simulation, link, node, tooltip, channel;
+let svg, zoomGroup, simulation, link, node, tooltip, channel, hudInterval;
 let nodes = [];
 let links = [];
 let width, height;
 let theme = "dark";
 let isSynapseActive = false;
+let lastLatency = null;
 
-// =======================
-// MAIN INIT FUNCTION
-// =======================
+// =============================
+// MAIN ENTRY POINT
+// =============================
 export async function initSynapseView() {
   const container = document.getElementById("synapse-container");
   if (!container) return;
 
-  // Cleanup
   d3.select("#synapse-svg").selectAll("*").remove();
   width = container.clientWidth;
   height = container.clientHeight;
@@ -38,35 +46,35 @@ export async function initSynapseView() {
   isSynapseActive = true;
   document.addEventListener("keydown", handleKeyPress);
 
-  // Load data
+  createHUD();
   await ensureCommunityUser();
   await loadGraphData();
   drawGraph();
   setupRealtime();
   startPulseAnimation();
+  startHUDUpdates();
 }
 
-// =======================
-// LOAD COMMUNITY DATA
-// =======================
+// =============================
+// LOAD COMMUNITY & CONNECTIONS
+// =============================
 async function loadGraphData() {
+  const t0 = performance.now();
   try {
-    const [{ data: community, error: userError }, { data: connections, error: connError }] = await Promise.all([
+    const [{ data: community, error: cErr }, { data: connections, error: connErr }] = await Promise.all([
       supabase.from("community").select("id, name, email, image_url, skills"),
       supabase.from("connections").select("from_user_id, to_user_id")
     ]);
 
-    if (userError) throw userError;
-    if (connError) throw connError;
+    if (cErr) throw cErr;
+    if (connErr) throw connErr;
 
     nodes = (community || []).map((u) => ({
       id: u.id,
       name: u.name || "Anonymous",
       email: u.email,
       image_url: u.image_url,
-      skills: Array.isArray(u.skills)
-        ? u.skills.join(", ")
-        : u.skills || "unspecified"
+      skills: Array.isArray(u.skills) ? u.skills.join(", ") : (u.skills || "unspecified")
     }));
 
     links = (connections || []).map((c) => ({
@@ -76,18 +84,21 @@ async function loadGraphData() {
   } catch (err) {
     console.error("[Synapse] Load error:", err);
     showNotification("Error loading network data", "error");
+  } finally {
+    const t1 = performance.now();
+    lastLatency = Math.round(t1 - t0);
   }
 }
 
-// =======================
-// DRAW FORCE GRAPH
-// =======================
+// =============================
+// DRAW NETWORK
+// =============================
 function drawGraph() {
   simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id((d) => d.id).distance(100))
-    .force("charge", d3.forceManyBody().strength(-150))
+    .force("link", d3.forceLink(links).id((d) => d.id).distance(110))
+    .force("charge", d3.forceManyBody().strength(-180))
     .force("center", d3.forceCenter(width / 2, height / 2))
-    .velocityDecay(0.4);
+    .velocityDecay(0.35);
 
   const linkGroup = zoomGroup.append("g")
     .attr("stroke", theme === "dark" ? "#0ff" : "#f90")
@@ -111,19 +122,19 @@ function drawGraph() {
     if (d.image_url) {
       g.append("image")
         .attr("xlink:href", d.image_url)
-        .attr("width", 46)
-        .attr("height", 46)
-        .attr("x", -23)
-        .attr("y", -23)
-        .attr("clip-path", "circle(23px at 23px 23px)");
+        .attr("width", 48)
+        .attr("height", 48)
+        .attr("x", -24)
+        .attr("y", -24)
+        .attr("clip-path", "circle(24px at 24px 24px)");
     } else {
       g.append("circle")
-        .attr("r", 23)
+        .attr("r", 24)
         .attr("fill", theme === "dark" ? "#00ffff" : "#ff9900");
       g.append("text")
         .attr("text-anchor", "middle")
         .attr("dy", "0.35em")
-        .attr("font-size", 13)
+        .attr("font-size", 14)
         .text(d.name?.[0]?.toUpperCase() || "?");
     }
   });
@@ -152,43 +163,40 @@ function drawGraph() {
   });
 
   const zoom = d3.zoom()
-    .scaleExtent([0.3, 4])
+    .scaleExtent([0.3, 5])
     .on("zoom", (event) => zoomGroup.attr("transform", event.transform));
 
   svg.call(zoom).on("dblclick.zoom", null);
 }
 
-// =======================
-// DRAG FUNCTION
-// =======================
+// =============================
+// DRAGGING
+// =============================
 function drag(simulation) {
-  function dragstarted(event, d) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    d.fx = d.x;
-    d.fy = d.y;
-  }
-  function dragged(event, d) {
-    d.fx = event.x;
-    d.fy = event.y;
-  }
-  function dragended(event, d) {
-    if (!event.active) simulation.alphaTarget(0);
-    d.fx = null;
-    d.fy = null;
-  }
-  return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
+  return d3.drag()
+    .on("start", (e, d) => {
+      if (!e.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x; d.fy = d.y;
+    })
+    .on("drag", (e, d) => {
+      d.fx = e.x; d.fy = e.y;
+    })
+    .on("end", (e, d) => {
+      if (!e.active) simulation.alphaTarget(0);
+      d.fx = null; d.fy = null;
+    });
 }
 
-// =======================
-// TOOLTIP LINK HIGHLIGHT
-// =======================
+// =============================
+// LINK HIGHLIGHT
+// =============================
 function highlightLinks(nodeId, active) {
   link.transition().duration(150)
     .attr("stroke-opacity", (l) =>
       !active
         ? 0.3
         : l.source.id === nodeId || l.target.id === nodeId
-        ? 0.8
+        ? 0.9
         : 0.05
     )
     .attr("stroke", (l) =>
@@ -200,9 +208,9 @@ function highlightLinks(nodeId, active) {
     );
 }
 
-// =======================
-// PROFILE MODAL (CONNECT)
-// =======================
+// =============================
+// PROFILE MODAL + CONNECT
+// =============================
 async function openProfileModal(event, user) {
   document.querySelectorAll(".profile-modal").forEach((el) => el.remove());
   const modal = document.createElement("div");
@@ -232,7 +240,6 @@ async function openProfileModal(event, user) {
     return;
   }
 
-  // ✅ Ensure community profile exists before connecting
   await ensureCommunityUser();
 
   const { data: existing } = await supabase
@@ -252,11 +259,7 @@ async function openProfileModal(event, user) {
     const { error } = await supabase
       .from("connections")
       .insert({ from_user_id: currentUserId, to_user_id: user.id });
-    if (error) {
-      console.error(error);
-      alert("Error connecting: " + error.message);
-      return;
-    }
+    if (error) return alert("Error connecting: " + error.message);
     showNotification(`Connected with ${user.name}!`);
     triggerPulse(user.id);
     connectBtn.classList.add("hidden");
@@ -269,20 +272,16 @@ async function openProfileModal(event, user) {
       .delete()
       .eq("from_user_id", currentUserId)
       .eq("to_user_id", user.id);
-    if (error) {
-      console.error(error);
-      alert("Error disconnecting: " + error.message);
-      return;
-    }
+    if (error) return alert("Error disconnecting: " + error.message);
     showNotification(`Disconnected from ${user.name}`);
     disconnectBtn.classList.add("hidden");
     connectBtn.classList.remove("hidden");
   });
 }
 
-// =======================
-// REALTIME CONNECTIONS
-// =======================
+// =============================
+// REALTIME LISTENERS
+// =============================
 function setupRealtime() {
   if (channel) channel.unsubscribe();
   channel = supabase
@@ -309,9 +308,9 @@ function setupRealtime() {
     .subscribe();
 }
 
-// =======================
+// =============================
 // PULSE ANIMATION
-// =======================
+// =============================
 function startPulseAnimation() {
   function animate() {
     link.each(function () {
@@ -337,9 +336,48 @@ function triggerPulse(nodeId) {
     .attr("stroke-opacity", 0.3);
 }
 
-// =======================
-// KEYBOARD SHORTCUTS
-// =======================
+// =============================
+// HUD: Performance Overlay
+// =============================
+function createHUD() {
+  const hud = document.createElement("div");
+  hud.id = "synapse-hud";
+  hud.style.cssText = `
+    position: fixed;
+    top: 10px;
+    left: 14px;
+    background: rgba(0, 10, 20, 0.7);
+    color: #0ff;
+    font-family: monospace;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    z-index: 1000;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 10px rgba(0,255,255,0.2);
+  `;
+  hud.innerHTML = `<div>🧠 Synapse HUD</div><div>Nodes: 0</div><div>Connections: 0</div><div>Latency: …</div>`;
+  document.body.appendChild(hud);
+}
+
+function startHUDUpdates() {
+  const hud = document.getElementById("synapse-hud");
+  if (!hud) return;
+  hudInterval = setInterval(() => {
+    const latencyDisplay = lastLatency ? `${lastLatency} ms` : "–";
+    hud.innerHTML = `
+      <div>🧠 Synapse HUD</div>
+      <div>Nodes: ${nodes.length}</div>
+      <div>Connections: ${links.length}</div>
+      <div>Latency: ${latencyDisplay}</div>
+      <div style="font-size:11px;opacity:0.6;">Press Esc to exit</div>
+    `;
+  }, 1500);
+}
+
+// =============================
+// EXIT HANDLER
+// =============================
 function handleKeyPress(e) {
   if (e.key === "Escape" && isSynapseActive) {
     exitSynapseView();
@@ -353,8 +391,10 @@ function exitSynapseView() {
   document.querySelector("#synapse").classList.remove("active-tab-pane");
   document.querySelector("#profile-section").classList.remove("hidden");
   isSynapseActive = false;
+  clearInterval(hudInterval);
   d3.selectAll(".profile-modal").remove();
   d3.select(".synapse-tooltip").remove();
+  document.getElementById("synapse-hud")?.remove();
   if (channel) channel.unsubscribe();
   console.log("🧩 Synapse View closed");
 }
