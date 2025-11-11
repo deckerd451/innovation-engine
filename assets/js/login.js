@@ -1,84 +1,98 @@
-// login.js
+// assets/js/login.js
+// CharlestonHacks Innovation Engine – Public-Mode-Ready Login Controller
+// -------------------------------------------------------------
+
 import { supabaseClient as supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
-import { initProfileForm } from "./profile.js";
 
-// ============================
-// Send Magic Link
-// ============================
-export async function handleLogin(email) {
-  try {
+// 🔧 Toggle this flag to enable / disable login requirement
+const LOGIN_DISABLED = true;
+
+// Main elements
+const loginSection = document.getElementById("login-section");
+const profileSection = document.getElementById("profile-section");
+const userBadge = document.getElementById("user-badge");
+const logoutBtn = document.getElementById("logout-btn");
+
+// -------------------------------------------------------------
+// 🚪 1) PUBLIC-MODE SHORT-CIRCUIT
+// -------------------------------------------------------------
+if (LOGIN_DISABLED) {
+  console.log("🔓 Login disabled — public mode active.");
+  if (loginSection) loginSection.classList.add("hidden");
+  if (profileSection) profileSection.classList.remove("hidden");
+
+  // Fake a “guest” session so rest of site works as usual
+  window.currentUser = {
+    id: "guest-" + crypto.randomUUID(),
+    email: "guest@charlestonhacks.com",
+    role: "guest"
+  };
+
+  if (userBadge) {
+    userBadge.textContent = "Guest Mode";
+    userBadge.classList.remove("hidden");
+  }
+  if (logoutBtn) logoutBtn.classList.add("hidden");
+
+  // Optionally create a record in localStorage for persistence
+  if (!localStorage.getItem("guest_id")) {
+    localStorage.setItem("guest_id", window.currentUser.id);
+  }
+
+  // Skip Supabase auth listener entirely
+  console.log("✅ Public mode initialized – skipping auth setup.");
+} else {
+  // -------------------------------------------------------------
+  // 🔐 2) NORMAL LOGIN FLOW (Magic Link Auth)
+  // -------------------------------------------------------------
+  const loginForm = document.getElementById("login-form");
+  const loginEmail = document.getElementById("login-email");
+
+  // When user submits email
+  loginForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = loginEmail.value.trim();
+    if (!email) return showNotification("Please enter an email address.");
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/2card.html`,
-        shouldCreateUser: false, // 👈 ADD THIS LINE
-      },
+        emailRedirectTo: window.location.origin
+      }
     });
 
     if (error) {
-      console.error("[Login] Magic link error:", error);
-      showNotification("Login failed: " + error.message, "error");
+      console.error("❌ Magic link error:", error.message);
+      return showNotification("Error sending link. Try again.");
+    }
+    showNotification("Magic link sent! Check your inbox.");
+  });
+
+  // Listen for auth state changes
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log("🔄 Auth event:", event);
+    if (session?.user) {
+      const user = session.user;
+      window.currentUser = user;
+      if (userBadge) {
+        userBadge.textContent = user.email;
+        userBadge.classList.remove("hidden");
+      }
+      if (loginSection) loginSection.classList.add("hidden");
+      if (profileSection) profileSection.classList.remove("hidden");
+      logoutBtn?.classList.remove("hidden");
     } else {
-      showNotification("✅ Check your email for the magic link.", "success");
-    }
-  } catch (err) {
-    console.error("[Login] Unexpected error:", err);
-    showNotification("Unexpected login error.", "error");
-  }
-}
-
-// ============================
-// Logout
-// ============================
-export async function handleLogout() {
-  await supabase.auth.signOut();
-  showNotification("You have been logged out.", "info");
-  document.getElementById("skills-form")?.reset();
-}
-
-// ============================
-// Initialize on page load
-// ============================
-document.addEventListener("DOMContentLoaded", async () => {
-  console.log("[Login] Initializing…");
-
-  // Restore session if user is already signed in
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error) {
-    console.error("[Login] Session error:", error.message);
-    showNotification("Auth error: " + error.message, "error");
-  }
-
-  if (session?.user) {
-    console.log("[Login] User restored:", session.user.email);
-    showNotification(`Signed in as ${session.user.email}`, "success");
-    initProfileForm();
-  } else {
-    console.log("[Login] No active session.");
-  }
-
-  // Auth state change listener
-  supabase.auth.onAuthStateChange((event, session) => {
-    console.log("[Auth Event]", event);
-
-    if (event === "SIGNED_IN" && session?.user) {
-      console.log("[Auth] Signed in:", session.user.email);
-      showNotification(`Welcome, ${session.user.email}`, "success");
-      initProfileForm();
-    }
-
-    if (event === "SIGNED_OUT") {
-      console.log("[Auth] Signed out");
-      showNotification("You are signed out.", "info");
-    }
-
-    if (event === "TOKEN_REFRESHED") {
-      console.log("[Auth] Token refreshed");
-    }
-
-    if (event === "USER_UPDATED") {
-      console.log("[Auth] User updated");
+      if (loginSection) loginSection.classList.remove("hidden");
+      if (profileSection) profileSection.classList.add("hidden");
+      logoutBtn?.classList.add("hidden");
     }
   });
-});
+
+  // Logout button
+  logoutBtn?.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem("guest_id");
+    showNotification("Logged out successfully.");
+  });
+}
