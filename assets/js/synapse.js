@@ -1,24 +1,24 @@
 // assets/js/synapse.js
-// CharlestonHacks Synapse View
-// Live D3 graph with Supabase integration, controls, and real-time sync
+// CharlestonHacks Synapse View (Animated Energy Pulse Edition)
 
 import { supabaseClient as supabase } from "./supabaseClient.js";
 const d3 = window.d3;
 
-// === Global Variables ===
+// === Globals ===
 let svg, zoom, simulation, link, node, tooltip;
 let nodes = [], links = [];
-let theme = "dark"; // default
-let channel;
-let zoomGroup;
+let theme = "dark";
+let zoomGroup, channel;
+let pulseInterval;
 
-// === Initialize Synapse View ===
+// === Init Synapse View ===
 export async function initSynapseView() {
   const container = document.getElementById("synapse-container");
   if (!container) return;
 
-  // Clear previous SVG
+  // Reset
   d3.select("#synapse-svg").selectAll("*").remove();
+  clearInterval(pulseInterval);
 
   const width = container.clientWidth;
   const height = container.clientHeight;
@@ -35,11 +35,11 @@ export async function initSynapseView() {
     .attr("class", "synapse-tooltip")
     .style("opacity", 0);
 
-  // Load data
-  const { data: community, error: communityError } = await supabase
+  // === Load Data ===
+  const { data: community, error: commErr } = await supabase
     .from("community")
     .select("id, name, email, image_url, skills");
-  if (communityError) return console.error("Community load error:", communityError);
+  if (commErr) return console.error("Community load error:", commErr);
 
   const { data: connections } = await supabase
     .from("connections")
@@ -52,18 +52,19 @@ export async function initSynapseView() {
     image_url: u.image_url,
     skills: Array.isArray(u.skills)
       ? u.skills.join(", ")
-      : u.skills || "unspecified",
+      : u.skills || "unspecified"
   }));
 
   links = (connections || []).map(c => ({
     source: c.from_user_id,
-    target: c.to_user_id,
+    target: c.to_user_id
   }));
 
   drawGraph(width, height);
   setupRealtime();
   setupControls();
   setupKeyboardShortcuts();
+  startPulseAnimation();
 }
 
 // === Draw Graph ===
@@ -72,19 +73,23 @@ function drawGraph(width, height) {
     .force("link", d3.forceLink(links).id(d => d.id).distance(90))
     .force("charge", d3.forceManyBody().strength(-120))
     .force("center", d3.forceCenter(width / 2, height / 2))
-    .velocityDecay(0.4);
+    .velocityDecay(0.35);
 
   const linkGroup = zoomGroup.append("g")
     .attr("stroke", theme === "dark" ? "#0ff" : "#f90")
-    .attr("stroke-opacity", 0.25)
-    .attr("stroke-width", 1.2);
+    .attr("stroke-opacity", 0.3);
 
   const nodeGroup = zoomGroup.append("g").attr("cursor", "pointer");
 
+  // === Animated Links ===
   link = linkGroup.selectAll("line")
     .data(links)
-    .join("line");
+    .join("line")
+    .attr("stroke-width", 1.4)
+    .attr("stroke-dasharray", "6 8")
+    .attr("stroke-dashoffset", 0);
 
+  // === Nodes ===
   node = nodeGroup.selectAll("g")
     .data(nodes)
     .join("g")
@@ -95,13 +100,15 @@ function drawGraph(width, height) {
     if (d.image_url) {
       g.append("image")
         .attr("xlink:href", d.image_url)
-        .attr("width", 44)
-        .attr("height", 44)
-        .attr("x", -22)
-        .attr("y", -22)
-        .attr("clip-path", "circle(22px at 22px 22px)");
+        .attr("width", 46)
+        .attr("height", 46)
+        .attr("x", -23)
+        .attr("y", -23)
+        .attr("clip-path", "circle(23px at 23px 23px)");
     } else {
-      g.append("circle").attr("r", 22).attr("fill", theme === "dark" ? "#00ffff" : "#ff9900");
+      g.append("circle")
+        .attr("r", 23)
+        .attr("fill", theme === "dark" ? "#00ffff" : "#ff9900");
       g.append("text")
         .attr("text-anchor", "middle")
         .attr("dy", "0.35em")
@@ -110,28 +117,33 @@ function drawGraph(width, height) {
     }
   });
 
+  // Hover -> Pulse highlight
   node.on("mouseover", (event, d) => {
     tooltip.transition().duration(150).style("opacity", 0.9);
     tooltip.html(`<strong>${d.name}</strong><br>${d.skills}`)
       .style("left", event.pageX + 10 + "px")
       .style("top", event.pageY - 15 + "px");
-  }).on("mouseout", () => tooltip.transition().duration(200).style("opacity", 0))
-    .on("click", openProfileModal);
+
+    highlightLinks(d.id, true);
+  }).on("mouseout", () => {
+    tooltip.transition().duration(200).style("opacity", 0);
+    highlightLinks(null, false);
+  }).on("click", openProfileModal);
 
   simulation.on("tick", () => {
-    link.attr("x1", d => d.source.x)
-        .attr("y1", d => d.source.y)
-        .attr("x2", d => d.target.x)
-        .attr("y2", d => d.target.y);
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
     node.attr("transform", d => `translate(${d.x},${d.y})`);
   });
 
-  // Smooth zoom
-  zoom = d3.zoom()
+  // Smooth Zoom
+  const zoomBehavior = d3.zoom()
     .scaleExtent([0.3, 4])
     .on("zoom", (event) => zoomGroup.attr("transform", event.transform));
-
-  svg.call(zoom).on("dblclick.zoom", null);
+  svg.call(zoomBehavior).on("dblclick.zoom", null);
 }
 
 // === Drag Behavior ===
@@ -151,6 +163,36 @@ function drag(simulation) {
     d.fy = null;
   }
   return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
+}
+
+// === Pulse Animation ===
+function startPulseAnimation() {
+  const baseSpeed = 0.5;
+  function animate() {
+    link.each(function () {
+      const l = d3.select(this);
+      const current = parseFloat(l.attr("stroke-dashoffset")) || 0;
+      const speed = baseSpeed + Math.random() * 0.4;
+      l.attr("stroke-dashoffset", (current - speed) % 20);
+    });
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+// === Highlight Links (on hover or connect) ===
+function highlightLinks(nodeId, active) {
+  link.transition().duration(200)
+    .attr("stroke-opacity", l => {
+      if (!active) return 0.3;
+      return (l.source.id === nodeId || l.target.id === nodeId) ? 0.8 : 0.05;
+    })
+    .attr("stroke", l => {
+      if (!active) return theme === "dark" ? "#0ff" : "#f90";
+      return (l.source.id === nodeId || l.target.id === nodeId)
+        ? (theme === "dark" ? "#ff0099" : "#0066ff")
+        : (theme === "dark" ? "#0ff" : "#f90");
+    });
 }
 
 // === Profile Modal + Connect ===
@@ -175,7 +217,6 @@ async function openProfileModal(event, user) {
 
   const connectBtn = modal.querySelector("#connectBtn");
   const disconnectBtn = modal.querySelector("#disconnectBtn");
-
   const session = (await supabase.auth.getSession()).data.session;
   const currentUserId = session?.user?.id;
 
@@ -185,7 +226,7 @@ async function openProfileModal(event, user) {
     return;
   }
 
-  // Check if already connected
+  // Check existing connection
   const { data: existing } = await supabase
     .from("connections")
     .select("*")
@@ -198,18 +239,17 @@ async function openProfileModal(event, user) {
     disconnectBtn.classList.remove("hidden");
   }
 
-  // === Connect ===
   connectBtn.addEventListener("click", async () => {
     const { error } = await supabase
       .from("connections")
       .insert({ from_user_id: currentUserId, to_user_id: user.id });
     if (error) return alert("Error connecting: " + error.message);
     alert(`Connected with ${user.name}!`);
+    triggerPulse(user.id);
     connectBtn.classList.add("hidden");
     disconnectBtn.classList.remove("hidden");
   });
 
-  // === Disconnect ===
   disconnectBtn.addEventListener("click", async () => {
     const { error } = await supabase
       .from("connections")
@@ -223,35 +263,46 @@ async function openProfileModal(event, user) {
   });
 }
 
-// === Real-Time Updates ===
+// === Real-time Updates ===
 function setupRealtime() {
   if (channel) channel.unsubscribe();
 
   channel = supabase
     .channel("realtime-connections")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "connections" },
-      (payload) => {
-        console.log("🔄 Live update:", payload);
-        if (payload.eventType === "INSERT") {
-          const s = nodes.find(n => n.id === payload.new.from_user_id);
-          const t = nodes.find(n => n.id === payload.new.to_user_id);
-          if (s && t) {
-            links.push({ source: s, target: t });
-            restartSimulation();
-          }
-        }
-        if (payload.eventType === "DELETE") {
-          links = links.filter(l => !(l.source.id === payload.old.from_user_id && l.target.id === payload.old.to_user_id));
+    .on("postgres_changes", { event: "*", schema: "public", table: "connections" }, (payload) => {
+      console.log("🔄 Live update:", payload);
+      if (payload.eventType === "INSERT") {
+        const s = nodes.find(n => n.id === payload.new.from_user_id);
+        const t = nodes.find(n => n.id === payload.new.to_user_id);
+        if (s && t) {
+          links.push({ source: s, target: t });
+          triggerPulse(t.id);
           restartSimulation();
         }
       }
-    )
+      if (payload.eventType === "DELETE") {
+        links = links.filter(l => !(l.source.id === payload.old.from_user_id && l.target.id === payload.old.to_user_id));
+        restartSimulation();
+      }
+    })
     .subscribe();
 }
 
-// === Restart Graph Simulation After Update ===
+// === Pulse Effect on Connect ===
+function triggerPulse(nodeId) {
+  const pulseColor = theme === "dark" ? "#ff0099" : "#0066ff";
+  link.filter(l => l.source.id === nodeId || l.target.id === nodeId)
+    .transition()
+    .duration(800)
+    .attr("stroke", pulseColor)
+    .attr("stroke-opacity", 1)
+    .transition()
+    .duration(800)
+    .attr("stroke", theme === "dark" ? "#0ff" : "#f90")
+    .attr("stroke-opacity", 0.3);
+}
+
+// === Restart Simulation ===
 function restartSimulation() {
   d3.select("#synapse-svg").selectAll("*").remove();
   drawGraph(window.innerWidth, window.innerHeight);
@@ -263,10 +314,9 @@ function setupControls() {
   const zoomFitBtn = document.getElementById("zoom-fit");
   const centerBtn = document.getElementById("center-graph");
   const themeBtn = document.getElementById("toggle-theme");
-
-  if (zoomFitBtn) zoomFitBtn.onclick = () => zoomToFit();
-  if (centerBtn) centerBtn.onclick = () => centerGraph();
-  if (themeBtn) themeBtn.onclick = () => toggleTheme();
+  if (zoomFitBtn) zoomFitBtn.onclick = zoomToFit;
+  if (centerBtn) centerBtn.onclick = centerGraph;
+  if (themeBtn) themeBtn.onclick = toggleTheme;
 }
 
 function zoomToFit() {
@@ -278,17 +328,16 @@ function zoomToFit() {
     fullWidth / 2 - scale * (bounds.x + bounds.width / 2),
     fullHeight / 2 - scale * (bounds.y + bounds.height / 2)
   ];
-  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(...translate).scale(scale));
+  svg.transition().duration(600).call(d3.zoom().transform, d3.zoomIdentity.translate(...translate).scale(scale));
 }
 
 function centerGraph() {
-  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1));
+  svg.transition().duration(600).call(d3.zoom().transform, d3.zoomIdentity.translate(0, 0).scale(1));
 }
 
 function toggleTheme() {
   theme = theme === "dark" ? "light" : "dark";
   document.body.style.background = theme === "dark" ? "#000" : "#fafafa";
-  d3.select("#synapse-svg").style("background", theme === "dark" ? "none" : "#fff");
   d3.selectAll("circle").attr("fill", theme === "dark" ? "#00ffff" : "#ff9900");
   d3.selectAll("line").attr("stroke", theme === "dark" ? "#0ff" : "#f90");
   console.log("🎨 Theme toggled:", theme);
