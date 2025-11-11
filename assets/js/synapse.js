@@ -1,111 +1,94 @@
-// synapse.js
-import { supabaseClient as supabase } from './supabaseClient.js';
+// /assets/js/synapse.js
+import ForceGraph2D from "https://cdn.jsdelivr.net/npm/force-graph@1.43.4/dist/force-graph.mjs";
+import { supabaseClient as supabase } from "./supabaseClient.js";
+
+const SKILL_COLORS = ["#FFD700", "#00FFFF", "#FF69B4", "#ADFF2F", "#FFA500", "#9370DB", "#00D1B2", "#F472B6"];
+
+function colorForGroup(group) {
+  const idx = Math.abs([...group].reduce((a, c) => a + c.charCodeAt(0), 0)) % SKILL_COLORS.length;
+  return SKILL_COLORS[idx];
+}
+
+function parseSkills(sk) {
+  if (!sk) return [];
+  if (Array.isArray(sk)) return sk.map(s => `${s}`.trim()).filter(Boolean);
+  const raw = `${sk}`.trim();
+  try {
+    const maybe = JSON.parse(raw);
+    if (Array.isArray(maybe)) return maybe.map(s => `${s}`.trim()).filter(Boolean);
+  } catch {}
+  return raw.replace(/^\{|\}$/g, "")
+    .split(",")
+    .map(s => s.replace(/^"(.*)"$/, "$1").trim())
+    .filter(Boolean);
+}
 
 export async function initSynapseView() {
-  const canvas = document.getElementById('synapseCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  const resizeCanvas = () => {
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = canvas.clientWidth * dpr;
-    canvas.height = canvas.clientHeight * dpr;
-    ctx.scale(dpr, dpr);
-  };
-  resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
-
-  function drawFallback(message) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.fillStyle = '#fff';
-    ctx.font = '18px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(message, canvas.clientWidth / 2, canvas.clientHeight / 2);
-    ctx.restore();
-  }
-
-  let nodes = [];
-  let edges = [];
+  const el = document.getElementById("synapseCanvas");
+  if (!el) return;
+  el.innerHTML = `<div class="loading">Loading network…</div>`;
 
   try {
-    const { data: community, error: communityError } = await supabase
-      .from('community')
-      .select('id, name');
-    if (communityError) throw communityError;
+    const [{ data: profiles, error: pErr }, { data: conns, error: cErr }] = await Promise.all([
+      supabase.from("community").select("id,name,image_url,skills"),
+      supabase.from("connections").select("id,from_user_id,to_user_id")
+    ]);
+    if (pErr) throw pErr;
+    if (cErr) throw cErr;
 
-    nodes = (community || []).map((u, index) => ({
-      id: u.id,
-      label: u.name || `User ${u.id}`,
-      x: 0,
-      y: 0,
-      index
+    const nodes = (profiles || []).map((p, idx, all) => {
+      const skills = parseSkills(p.skills);
+      const group = skills[0] || "General";
+      const color = colorForGroup(group);
+      const angle = (idx / Math.max(1, all.length)) * Math.PI * 2;
+      const radius = 400;
+      return {
+        id: p.id,
+        name: p.name || "Unnamed",
+        group,
+        color,
+        fx: Math.cos(angle) * radius,
+        fy: Math.sin(angle) * radius
+      };
+    });
+
+    const links = (conns || []).map(c => ({
+      source: c.from_user_id,
+      target: c.to_user_id
     }));
 
-    const { data: connections, error: connError } = await supabase
-      .from('connections')
-      .select('from_user_id, to_user_id');
-    if (connError) throw connError;
+    el.innerHTML = ""; // clear loading text
 
-    edges = (connections || []).map(row => ({
-      from: row.from_user_id,
-      to: row.to_user_id
-    }));
+    const Graph = ForceGraph2D()(el)
+      .graphData({ nodes, links })
+      .nodeLabel(n => `${n.name}\n${n.group}`)
+      .nodeCanvasObject((n, ctx, scale) => {
+        const r = 4;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r + 1.5, 0, 2 * Math.PI);
+        ctx.fillStyle = "rgba(0,207,255,0.25)";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+        ctx.fillStyle = n.color;
+        ctx.fill();
+        ctx.font = `${Math.max(8, 12 / scale)}px monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "rgba(229,231,235,0.9)";
+        ctx.fillText(n.name, n.x, n.y + r + 2);
+      })
+      .linkColor(() => "rgba(0,207,255,0.35)")
+      .linkDirectionalParticles(1)
+      .linkDirectionalParticleSpeed(() => 0.006 + Math.random() * 0.01);
+
+    Graph.zoomToFit(400, 40);
   } catch (err) {
-    console.error('[Synapse] Error loading data:', err);
-    drawFallback('Failed to load network data');
-    return;
+    console.error("[Synapse] Error loading data:", err);
+    el.innerHTML = `<div class="error">Failed to load network</div>`;
   }
-
-  if (!nodes || nodes.length === 0) {
-    drawFallback('No data available');
-    return;
-  }
-
-  const numNodes = nodes.length;
-  const cx = canvas.clientWidth / 2;
-  const cy = canvas.clientHeight / 2;
-  const radius = Math.min(canvas.clientWidth, canvas.clientHeight) / 2 - 80;
-
-  nodes.forEach((node, i) => {
-    const angle = (2 * Math.PI * i) / numNodes;
-    node.x = cx + radius * Math.cos(angle);
-    node.y = cy + radius * Math.sin(angle);
-  });
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw edges
-  ctx.save();
-  ctx.strokeStyle = '#4cafef';
-  ctx.lineWidth = 1.5;
-  edges.forEach(edge => {
-    const fromNode = nodes.find(n => n.id === edge.from);
-    const toNode = nodes.find(n => n.id === edge.to);
-    if (!fromNode || !toNode) return;
-    ctx.beginPath();
-    ctx.moveTo(fromNode.x, fromNode.y);
-    ctx.lineTo(toNode.x, toNode.y);
-    ctx.stroke();
-  });
-  ctx.restore();
-
-  // Draw nodes
-  nodes.forEach(node => {
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, 16, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffd700';
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(node.label.split(' ')[0], node.x, node.y + 20);
-  });
 }
+
+// Auto-init if Synapse tab already visible
+if (document.readyState !== "loading") initSynapseView();
+else document.addEventListener("DOMContentLoaded", initSynapseView);
