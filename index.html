@@ -173,45 +173,112 @@
   })();
   </script>
 
-  <!-- —— Main Logic —— -->
-  <script type="module">
-    import { CONFIG } from './assets/js/config.js';
-    import { initCardFlip } from './assets/js/cardFlip.js';
-    import { startBTCPriceTracker } from './assets/js/btc.js';
-    import { startCountdown } from './assets/js/countdown.js';
+<script type="module">
+  import { CONFIG } from './assets/js/config.js';
+  import { initCardFlip } from './assets/js/cardFlip.js';
+  import { startBTCPriceTracker } from './assets/js/btc.js';
+  import { startCountdown } from './assets/js/countdown.js';
 
-    CONFIG.sounds = {
-      cardflip: document.getElementById('cardflipSound'),
-      chime: document.getElementById('chimeSound'),
-      keys: document.getElementById('keysSound'),
-    };
+  CONFIG.sounds = {
+    cardflip: document.getElementById('cardflipSound'),
+    chime: document.getElementById('chimeSound'),
+    keys: document.getElementById('keysSound'),
+  };
 
-    initCardFlip(CONFIG);
-    startBTCPriceTracker('btcPrice');
-    startCountdown('countdown', '2025-10-03T00:00:00-04:00');
+  initCardFlip(CONFIG);
+  startBTCPriceTracker('btcPrice');
 
-    const buttons = document.querySelectorAll('.clickable-area');
-    const infoLine = document.getElementById('infoLine');
-    const infoText = document.getElementById('infoText');
+  // === 🧠 Chucktown Startups Event Auto-Ingestion ===
+  async function fetchEventsFromChucktown() {
+    const proxy = "https://api.allorigins.win/get?url=" + 
+                  encodeURIComponent("https://chucktownstartups.com/events");
 
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sound = document.getElementById(btn.dataset.sound + 'Sound');
-        if (sound) sound.play();
-        if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
+    try {
+      const res = await fetch(proxy);
+      const data = await res.json();
+      const html = data.contents;
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      const events = [];
+      const eventEls = doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event");
+
+      eventEls.forEach(el => {
+        const name = el.querySelector("h2, h3, a")?.textContent?.trim();
+        const timeEl = el.querySelector("time");
+        let dateText = null;
+
+        if (timeEl?.getAttribute("datetime")) {
+          dateText = timeEl.getAttribute("datetime");
+        } else if (timeEl?.textContent) {
+          dateText = timeEl.textContent.trim();
+        }
+
+        if (name && dateText) {
+          const parsedDate = new Date(dateText);
+          if (!isNaN(parsedDate)) {
+            events.push({ name, date: parsedDate.toISOString() });
+          }
+        }
       });
-      btn.addEventListener('mouseover', () => {
-        infoLine.style.opacity = '1';
-        infoText.textContent = btn.dataset.info || '';
-      });
-      btn.addEventListener('mouseout', () => {
-        infoLine.style.opacity = '0';
-        infoText.textContent = '';
-      });
+
+      // Filter for events in next 90 days
+      const now = new Date();
+      const cutoff = new Date();
+      cutoff.setDate(now.getDate() + 90);
+
+      const upcoming = events
+        .filter(e => new Date(e.date) > now && new Date(e.date) < cutoff)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      if (upcoming.length) {
+        console.log(`🎉 Found ${upcoming.length} upcoming events`);
+        startCountdown('countdown', upcoming);
+        return;
+      }
+
+      console.warn("No valid events — using fallback");
+      startCountdown('countdown', [
+        { name: 'HH2025', date: '2025-10-03T00:00:00-04:00' },
+        { name: 'Blue Sky Demo', date: '2026-02-14T00:00:00-05:00' }
+      ]);
+
+    } catch (err) {
+      console.error("Error fetching events:", err);
+      startCountdown('countdown', [
+        { name: 'HH2025', date: '2025-10-03T00:00:00-04:00' },
+        { name: 'Blue Sky Demo', date: '2026-02-14T00:00:00-05:00' }
+      ]);
+    }
+  }
+
+  // 🚀 Start the automated fetch
+  fetchEventsFromChucktown();
+
+  // === 🧩 Clickable Buttons Logic (unchanged) ===
+  const buttons = document.querySelectorAll('.clickable-area');
+  const infoLine = document.getElementById('infoLine');
+  const infoText = document.getElementById('infoText');
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sound = document.getElementById(btn.dataset.sound + 'Sound');
+      if (sound) sound.play();
+      if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
     });
-  </script>
+    btn.addEventListener('mouseover', () => {
+      infoLine.style.opacity = '1';
+      infoText.textContent = btn.dataset.info || '';
+    });
+    btn.addEventListener('mouseout', () => {
+      infoLine.style.opacity = '0';
+      infoText.textContent = '';
+    });
+  });
+</script>
 
-  <!-- —— Neural Background —— -->
-  <script type="module" src="assets/js/neuralBackground.js"></script>
+<!-- —— Neural Background —— -->
+<script type="module" src="assets/js/neuralBackground.js"></script>
 </body>
 </html>
