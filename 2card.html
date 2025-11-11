@@ -8,7 +8,7 @@
   />
   <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
   <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
-  <meta property="og:description" content="CharlestonHacks promotes tech events. Join us for exciting events and stay updated." />
+  <meta property="og:description" content="CharlestonHacks promotes tech events including the AI Film Fest. Join us for exciting events and stay updated." />
   <meta property="og:image" content="images/reactiveh.png" />
   <meta property="og:url" content="https://charlestonhacks.com" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -32,11 +32,11 @@
 
   <div class="container">
     <header class="header">
-      <h1>Innovation Engine</h1>
+      <h1>Innnovation Engine</h1>
       <p>Making Invisible Networks Visible</p>
       <div class="auth-controls">
         <span class="user-badge hidden" id="user-badge"></span>
-        <button class="logout-btn action-btn hidden" id="logout-btn">
+        <button class="logout-btn hidden" id="logout-btn">
           <i class="fas fa-sign-out-alt"></i> Logout
         </button>
       </div>
@@ -50,14 +50,14 @@
           <h2 class="section-title">Login</h2>
           <form id="login-form">
             <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email" />
-            <button id="login-button" type="submit" class="action-btn">Send Magic Link</button>
+            <button id="login-button" type="submit">Send Magic Link</button>
           </form>
         </div>
 
         <!-- PROFILE SECTION (hidden until logged in) -->
         <div id="profile-section" class="hidden">
 
-          <!-- Tab Navigation -->
+          <!-- ✅ Single unified tab nav -->
           <div class="tab-nav">
             <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
             <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
@@ -77,11 +77,9 @@
                   <input type="email" id="email" placeholder="Email" required autocomplete="email">
 
                   <label for="skills-input">Professional Skills (comma separated)</label>
-                  <div class="input-wrapper">
-                    <input type="text" id="skills-input" placeholder="e.g. aws, fullstack, java, python" required autocomplete="off">
-                    <div id="autocomplete-skills-input" class="autocomplete-box"></div>
-                  </div>
+                  <input type="text" id="skills-input" placeholder="e.g. aws, fullstack, java, python" required autocomplete="off">
                   <div id="skills-proficiency-container"></div>
+                  <div id="autocomplete-skills-input" class="autocomplete-box"></div>
 
                   <label for="photo-input">Upload Your Photo</label>
                   <input type="file" id="photo-input" accept="image/*" required>
@@ -101,7 +99,7 @@
                     <input type="checkbox" id="newsletter-opt-in"> Subscribe to CharlestonHacks Newsletter
                   </label>
 
-                  <button type="submit" class="action-btn">Save Profile</button>
+                  <button type="submit">Save Profile</button>
                 </div>
                 <div class="profile-bar"><div class="profile-bar-inner"></div></div>
                 <div id="profile-progress-msg" class="profile-incomplete"></div>
@@ -110,136 +108,56 @@
             </section>
           </div>
 
-<!-- Search Tab -->
-<div id="search" class="tab-content-pane">
-  <h2 class="section-title">Individual Search</h2>
+          <!-- Search Tab -->
+          <div id="search" class="tab-content-pane">
+            <h2 class="section-title">Individual Search</h2>
+            <div class="input-container">
+              <label for="teamSkillsInput">Required Skills</label>
+              <input type="text" id="teamSkillsInput" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
+              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+              <button id="find-team-btn" type="button">Get People</button><br><br>
 
-  <!-- Skills Search -->
-  <div class="input-wrapper">
-    <label for="teamSkillsInput">Required Skills</label>
-    <input 
-      type="text" 
-      id="teamSkillsInput" 
-      placeholder="e.g. aws, fullstack, java, python" 
-      autocomplete="off">
-    
-    <!-- Predictive dropdown for skills -->
-    <div id="autocomplete-team-skills" class="autocomplete-box"></div>
-  </div>
+              <label for="nameInput">Search by First/Last Name</label>
+              <input type="text" id="nameInput" placeholder="e.g. John, Doug, Will, Dave" autocomplete="off">
+              <button id="search-name-btn" type="button">Find by Name</button>
+            </div>
+            <div id="matchNotification" class="notification match-notification hidden"></div>
+            <div id="noResults" class="notification no-results-notification hidden"></div>
+            <div id="cardContainer" class="card-container" role="list" aria-label="Matching team members"></div>
+          </div>
 
-  <button id="find-team-btn" type="button" class="action-btn">Get People</button>
-  <br><br>
+          <!-- Team Builder Tab -->
+          <div id="team-builder" class="tab-content-pane">
+            <h2 class="section-title">Team Builder</h2>
+            <div class="input-container">
+              <p class="instructions">Enter required skills and team size.</p>
+              <input type="text" id="team-skills-input" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
+              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+              <input type="number" id="teamSize" placeholder="Team size" min="1" max="6">
+              <button id="buildTeamBtn" type="button">Build Team</button>
+            </div>
+            <div class="card-container" id="bestTeamContainer" role="list"></div>
+          </div>
 
-  <!-- Name Search -->
-  <div class="input-wrapper">
-    <label for="nameInput">Search by First/Last Name</label>
-    <input 
-      type="text" 
-      id="nameInput" 
-      placeholder="e.g. John, Doug, Will, Dave" 
-      autocomplete="off">
-    
-    <!-- Predictive dropdown for names -->
-    <div id="autocomplete-names" class="autocomplete-box"></div>
-  </div>
+          <!-- Leaderboard Tab -->
+          <div id="leaderboard" class="tab-content-pane">
+            <div class="leaderboard">
+              <h2>Top Endorsed Skills</h2>
+              <div id="leaderboard-rows"></div>
+            </div>
+          </div>
 
-  <button id="search-name-btn" type="button" class="action-btn">Find by Name</button>
-
-  <!-- Notifications -->
-  <div id="matchNotification" class="notification match-notification hidden"></div>
-  <div id="noResults" class="notification no-results-notification hidden"></div>
-
-  <!-- Search Results -->
-  <div id="cardContainer" 
-       class="card-container" 
-       role="list" 
-       aria-label="Matching team members"></div>
-</div>
-
-
- <!-- Team Builder Tab -->
-<div id="team-builder" class="tab-content-pane">
-  <h2 class="section-title">Team Builder</h2>
-  <div class="input-container">
-    <p class="instructions">Enter required skills and team size.</p>
-
-    <!-- Skills Input with predictive dropdown -->
-    <div class="input-wrapper">
-      <input 
-        type="text" 
-        id="team-skills-input" 
-        placeholder="e.g. aws, fullstack, java, python" 
-        autocomplete="off">
-      <div id="autocomplete-team-builder" class="autocomplete-box"></div>
-    </div>
-
-    <!-- Team Size -->
-    <input 
-      type="number" 
-      id="teamSize" 
-      placeholder="Team size" 
-      min="1" 
-      max="6">
-
-    <button id="buildTeamBtn" type="button" class="action-btn">Build Team</button>
-  </div>
-
-  <!-- Generated Team Cards -->
-  <div class="card-container" id="bestTeamContainer" role="list"></div>
-</div>
-
-
-<!-- Leaderboard Tab -->
-<div id="leaderboard" class="tab-content-pane">
-  <div class="leaderboard">
-    <h2>Leaderboard</h2>
-
-    <!-- Leaderboard Tabs -->
-    <div class="leaderboard-tabs">
-      <button class="lb-tab active" data-type="skills">
-        <i class="fas fa-star"></i> Top Skills
-      </button>
-      <button class="lb-tab" data-type="connectors">
-        <i class="fas fa-link"></i> Top Connectors
-      </button>
-      <button class="lb-tab" data-type="rising">
-        <i class="fas fa-rocket"></i> Rising Stars
-      </button>
-    </div>
-
-    <!-- Results -->
-    <div id="leaderboard-rows" class="leaderboard-rows"></div>
-  </div>
-</div>
-
-
-         <div id="synapse" class="tab-content-pane">
-  <h2 class="section-title">Synapse View</h2>
-  <div id="synapseCanvas" style="width:100%; height:600px;"></div>
-</div>
-
+          <!-- Synapse View Tab -->
+          <div id="synapse" class="tab-content-pane">
+            <h2 class="section-title">Synapse View</h2>
+            <canvas id="synapseCanvas" width="900" height="600"
+              style="width:100%; height:600px; background:black; border-radius:10px;"></canvas>
+          </div>
 
         </div><!-- /profile-section -->
 
       </div>
     </main>
-  </div>
-
-  <!-- Endorse Skill Modal -->
-  <!--
-    This modal is displayed when a user chooses to endorse another user's skills.
-    It is hidden by default via the `.hidden` class on the root element.  The
-    modal consists of a semi‑transparent backdrop and an inner content panel
-    containing a close button and a list of skills that can be endorsed.  The
-    JavaScript function `openEndorseModal` toggles this element's display.
-  -->
-  <div id="endorseSkillModal" class="modal hidden">
-    <div class="modal-content">
-      <button class="close-button" aria-label="Close modal">&times;</button>
-      <h2>Endorse Skills</h2>
-      <!-- The list of skills for the selected user will be injected here -->
-      <div id="endorse-skill-list"></div>
-    </div>
   </div>
 
   <!-- Scripts -->
