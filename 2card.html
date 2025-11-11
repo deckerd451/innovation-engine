@@ -226,7 +226,14 @@
       </a>
     </div>
     <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
-  </footer>
+  </footer><!-- ✅ Fix for D3 module imports on GitHub Pages -->
+<script type="module">
+  // Load the full D3 bundle as ESM from jsDelivr
+  import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+  // Make it globally accessible for any module that needs it
+  window.d3 = d3;
+</script>
+
 
   <!-- Scripts -->
   <script type="module" src="assets/js/main.js"></script>
