@@ -2570,3 +2570,8 @@ main, .main-wrapper, .media-container {
   background: #0ff;
   color: #000;
 }
+#splash-overlay.fade-out {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
