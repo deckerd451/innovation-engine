@@ -13,7 +13,7 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
+    function gtag(){ dataLayer.push(arguments); }
     gtag("js", new Date());
     gtag("config", "G-6NDKG07DY6");
   </script>
@@ -21,18 +21,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>CharlestonHacks - Home</title>
-  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators." />
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
-  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated." />
-  <meta property="og:image" content="images/websitepanel.webp" />
-  <meta property="og:url" content="https://charlestonhacks.com" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <link rel="icon" href="favicon.ico" type="image/x-icon" />
-  <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#ff6600" />
-  <link rel="canonical" href="https://charlestonhacks.com" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators."/>
+  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events"/>
+  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated."/>
+  <meta property="og:image" content="images/websitepanel.webp"/>
+  <meta property="og:url" content="https://charlestonhacks.com"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <link rel="icon" href="favicon.ico" type="image/x-icon"/>
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#ff6600"/>
+  <link rel="canonical" href="https://charlestonhacks.com"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="styles.css" />
 
   <style>
@@ -41,7 +41,7 @@
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.8);
-      backdrop-filter: blur(5px);
+      backdrop-filter: blur(6px);
       display: none;
       justify-content: center;
       align-items: center;
@@ -56,6 +56,7 @@
       from { opacity: 0; }
       to { opacity: 1; }
     }
+
     .events-modal {
       background: #111;
       border: 2px solid #ff6600;
@@ -63,9 +64,17 @@
       padding: 1.5rem;
       width: 90%;
       max-width: 480px;
-      box-shadow: 0 0 15px rgba(255, 102, 0, 0.5);
+      box-shadow: 0 0 15px rgba(255,102,0,0.6);
       text-align: center;
+      transform: translateY(20px);
+      animation: slideUp 0.4s ease forwards;
     }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
     .events-modal h2 {
       margin-bottom: 1rem;
       font-size: 1.4rem;
@@ -213,14 +222,12 @@
       function hideSplash(immediate = false) {
         splashOverlay.classList.add("fade-out");
         document.body.classList.remove("splash-active");
-        setTimeout(() => { splashOverlay.style.display = "none"; }, immediate ? 0 : 700);
+        setTimeout(() => splashOverlay.style.display = "none", immediate ? 0 : 700);
       }
-
       function dismissSplash() {
         localStorage.setItem(splashKey, "true");
         hideSplash();
       }
-
       function maybeShowSplash() {
         const seen = localStorage.getItem(splashKey);
         if (seen === "true") { hideSplash(true); return; }
@@ -232,7 +239,6 @@
           window.location.href = "https://charlestonhacks.mailchimpsites.com/";
         });
       }
-
       window.addEventListener("DOMContentLoaded", maybeShowSplash);
     })();
   </script>
@@ -254,13 +260,18 @@
     startBTCPriceTracker("btcPrice");
 
     const overlay = document.getElementById("events-overlay");
+    const modal = document.querySelector(".events-modal");
     const eventsList = document.getElementById("events-list");
     const countdown = document.getElementById("countdown");
     const closeBtn = document.getElementById("close-overlay");
 
+    // 🪄 Close overlay
     closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
+    overlay.addEventListener("click", e => {
+      if (!modal.contains(e.target)) overlay.classList.remove("active");
+    });
 
-    // === 🧠 Chucktown Startups Event Auto-Ingestion ===
+    // === 🧠 Chucktown Event Auto-Ingestion ===
     async function fetchEventsFromChucktown() {
       const proxy = "https://api.allorigins.win/get?url=" +
         encodeURIComponent("https://chucktownstartups.com/events");
@@ -285,7 +296,8 @@
           }
           if (name && dateText) {
             const parsedDate = new Date(dateText);
-            if (!isNaN(parsedDate)) events.push({ name, date: parsedDate, url: "https://chucktownstartups.com/events" });
+            if (!isNaN(parsedDate))
+              events.push({ name, date: parsedDate, url: "https://chucktownstartups.com/events" });
           }
         });
 
@@ -303,13 +315,12 @@
 
         countdown.addEventListener("click", () => {
           overlay.classList.add("active");
-          eventsList.innerHTML = finalEvents.slice(0, 3)
-            .map(e => `
-              <div class="event-item">
-                <strong>${e.name}</strong>
-                <div class="event-date">${e.date.toLocaleString()}</div>
-                <a href="${e.url}" target="_blank" class="event-link">View Event</a>
-              </div>`).join("");
+          eventsList.innerHTML = finalEvents.slice(0, 3).map(e => `
+            <div class="event-item">
+              <strong>${e.name}</strong>
+              <div class="event-date">${e.date.toLocaleString()}</div>
+              <a href="${e.url}" target="_blank" class="event-link">View Event</a>
+            </div>`).join("");
         });
       } catch (err) {
         console.error("Error fetching Chucktown events:", err);
@@ -318,7 +329,7 @@
 
     fetchEventsFromChucktown();
 
-    // === Button Interactivity ===
+    // === 🧩 Buttons ===
     const buttons = document.querySelectorAll(".clickable-area");
     const infoLine = document.getElementById("infoLine");
     const infoText = document.getElementById("infoText");
