@@ -235,6 +235,68 @@
       <button id="close-overlay">Close</button>
     </div>
   </div>
+  <!-- —— Fixed Splash Logic —— -->
+<script>
+(function () {
+  const splashOverlay = document.getElementById("splash-overlay");
+  const dontShowBox   = document.getElementById("dont-show-again");
+  const communityBtn  = document.getElementById("community-site-btn");
+  const publicBtn     = document.getElementById("public-site-btn");
+  const splashKey     = "chs_splash_seen_once";
+
+  // 🚪 Hide splash and unlock interaction
+  function hideSplash(immediate = false) {
+    splashOverlay.classList.add("fade-out");
+    document.body.classList.remove("splash-active");
+    splashOverlay.setAttribute("aria-hidden", "true");
+    splashOverlay.style.pointerEvents = "none";
+    setTimeout(() => {
+      splashOverlay.style.display = "none";
+    }, immediate ? 0 : 400);
+  }
+
+  // 💾 Remember user choice
+  function dismissSplash() {
+    if (dontShowBox.checked) {
+      localStorage.setItem(splashKey, "true");
+    }
+    hideSplash();
+  }
+
+  // 🧠 Show splash if not dismissed
+  function maybeShowSplash() {
+    const seen = localStorage.getItem(splashKey);
+    if (seen === "true") {
+      hideSplash(true);
+      return;
+    }
+    splashOverlay.style.display = "flex";
+    splashOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("splash-active");
+  }
+
+  // ✅ Event bindings
+  window.addEventListener("DOMContentLoaded", () => {
+    maybeShowSplash();
+
+    if (communityBtn) {
+      communityBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        dismissSplash();
+      });
+    }
+
+    if (publicBtn) {
+      publicBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        dismissSplash();
+        window.location.href = "https://charlestonhacks.mailchimpsites.com/";
+      });
+    }
+  });
+})();
+</script>
+
 
   <!-- —— Logic —— -->
   <script type="module">
