@@ -2470,4 +2470,48 @@ main, .main-wrapper, .media-container {
   background: #ff6666;
 }
 .hidden { display: none; }
+.synapse-tooltip {
+  position: absolute;
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+.profile-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 2000;
+}
+.profile-modal .modal-content {
+  background: #111; color: #fff;
+  padding: 24px; border-radius: 12px;
+  width: 320px; text-align: center;
+  position: relative;
+  box-shadow: 0 0 20px rgba(0,255,255,0.3);
+}
+.modal-close {
+  position: absolute; right: 12px; top: 8px;
+  border: none; background: none; color: #fff; font-size: 22px; cursor: pointer;
+}
+.modal-avatar {
+  width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px;
+}
+.connect-btn, .disconnect-btn {
+  margin-top: 10px;
+  padding: 10px 18px;
+  border: none; border-radius: 6px;
+  cursor: pointer; font-weight: 600;
+}
+.connect-btn { background: #00ffff; color: #000; }
+.disconnect-btn { background: #ff6666; color: #fff; }
+.hidden { display: none; }
+
 
