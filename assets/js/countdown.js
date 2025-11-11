@@ -1,16 +1,49 @@
-export function startCountdown(elementId, eventDateStr) {
+// ======================================================
+// CharlestonHacks Dynamic Countdown Timer
+// ======================================================
+// ✅ Supports single event date or multiple events
+// ✅ Finds next upcoming event automatically
+// ✅ Displays event title dynamically
+// ✅ Graceful fallback if no valid events
+// ======================================================
+
+export function startCountdown(elementId, eventData) {
   const countdownEl = document.getElementById(elementId);
+  const titleEl = document.getElementById("next-event-title");
   if (!countdownEl) return;
 
-  let timer; // declared before usage
+  // --- Normalize event input ---
+  let events = [];
+  if (Array.isArray(eventData)) {
+    events = eventData;
+  } else if (typeof eventData === "string") {
+    events = [{ name: "Next Event", date: eventData }];
+  } else if (eventData && eventData.date) {
+    events = [eventData];
+  }
+
+  // --- Find the next upcoming event ---
+  const now = new Date();
+  const nextEvent = events
+    .map(e => ({ ...e, dateObj: new Date(e.date) }))
+    .filter(e => e.dateObj > now)
+    .sort((a, b) => a.dateObj - b.dateObj)[0];
+
+  if (!nextEvent) {
+    countdownEl.innerHTML = `<span class="coming-soon">Next Event Coming Soon!</span>`;
+    if (titleEl) titleEl.textContent = "";
+    return;
+  }
+
+  if (titleEl) titleEl.textContent = nextEvent.name || "Upcoming Event";
 
   function updateCountdown() {
-    const eventDate = new Date(eventDateStr);
     const now = new Date();
-    const diff = eventDate - now;
+    const diff = nextEvent.dateObj - now;
 
     if (diff <= 0) {
-      countdownEl.innerHTML = `<span class="coming-soon">Next Event Coming Soon!</span>`;
+      countdownEl.innerHTML = `<span class="coming-soon">The event is happening now!</span>`;
+      if (titleEl) titleEl.textContent = nextEvent.name;
       clearInterval(timer);
       return;
     }
@@ -19,7 +52,7 @@ export function startCountdown(elementId, eventDateStr) {
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
     const minutes = Math.floor((diff / (1000 * 60)) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
-    const pad = n => n.toString().padStart(2, '0');
+    const pad = n => n.toString().padStart(2, "0");
 
     countdownEl.innerHTML = `
       <span><b>HH2025:</b></span>
@@ -30,19 +63,6 @@ export function startCountdown(elementId, eventDateStr) {
     `;
   }
 
-  // 🕐 Start countdown immediately
   updateCountdown();
-  timer = setInterval(updateCountdown, 1000);
-
-  // 🧘‍♀️ Pause/resume logic
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      // Tab not visible — pause interval
-      clearInterval(timer);
-    } else {
-      // Tab visible again — recalc immediately, resume updates
-      updateCountdown();
-      timer = setInterval(updateCountdown, 1000);
-    }
-  });
+  const timer = setInterval(updateCountdown, 1000);
 }
