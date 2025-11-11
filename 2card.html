@@ -2,10 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
   <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
   <meta property="og:description" content="CharlestonHacks promotes tech events including the AI Film Fest. Join us for exciting events and stay updated." />
@@ -32,13 +29,11 @@
 
   <div class="container">
     <header class="header">
-      <h1>Innnovation Engine</h1>
-      <p>Making Invisible Networks Visible</p>
+      <h1>Innovation Engine</h1>
+      <p>Connect, Build, and Innovate Together</p>
       <div class="auth-controls">
-        <span class="user-badge hidden" id="user-badge"></span>
-        <button class="logout-btn hidden" id="logout-btn">
-          <i class="fas fa-sign-out-alt"></i> Logout
-        </button>
+        <span class="user-badge"></span>
+        <button class="logout-btn hidden"><i class="fas fa-sign-out-alt"></i> Logout</button>
       </div>
     </header>
 
@@ -48,22 +43,17 @@
         <!-- LOGIN SECTION -->
         <div id="login-section">
           <h2 class="section-title">Login</h2>
-          <form id="login-form">
-            <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email" />
-            <button id="login-button" type="submit">Send Magic Link</button>
-          </form>
+          <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email" />
+          <button id="login-button">Send Magic Link</button>
         </div>
 
         <!-- PROFILE SECTION (hidden until logged in) -->
         <div id="profile-section" class="hidden">
-
-          <!-- ✅ Single unified tab nav -->
           <div class="tab-nav">
             <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
             <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
             <button class="tab-button" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
             <button class="tab-button" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
-            <button class="tab-button" data-tab="synapse"><i class="fas fa-project-diagram"></i> Synapse View</button>
           </div>
 
           <!-- Profile Tab -->
@@ -132,9 +122,9 @@
             <div class="input-container">
               <p class="instructions">Enter required skills and team size.</p>
               <input type="text" id="team-skills-input" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
-              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+              <div id="autocomplete-teams-skills" class="autocomplete-box"></div>
               <input type="number" id="teamSize" placeholder="Team size" min="1" max="6">
-              <button id="buildTeamBtn" type="button">Build Team</button>
+              <button onclick="buildBestTeam()">Build Team</button>
             </div>
             <div class="card-container" id="bestTeamContainer" role="list"></div>
           </div>
@@ -146,14 +136,6 @@
               <div id="leaderboard-rows"></div>
             </div>
           </div>
-
-          <!-- Synapse View Tab -->
-          <div id="synapse" class="tab-content-pane">
-            <h2 class="section-title">Synapse View</h2>
-            <canvas id="synapseCanvas" width="900" height="600"
-              style="width:100%; height:600px; background:black; border-radius:10px;"></canvas>
-          </div>
-
         </div><!-- /profile-section -->
 
       </div>
@@ -161,8 +143,8 @@
   </div>
 
   <!-- Scripts -->
-  <script type="module" src="/assets/js/main.js"></script>
-  <script type="module" src="/assets/js/login.js"></script>
-  <script type="module" src="/assets/js/profile.js"></script>
+  <script type="module" src="./assets/js/main.js"></script>
+  <script type="module" src="./assets/js/login.js"></script>
+  <script type="module" src="./assets/js/profile.js"></script>
 </body>
 </html>
