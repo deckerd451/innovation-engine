@@ -273,13 +273,13 @@
 
     // === 🧠 Chucktown Event Auto-Ingestion ===
     async function fetchEventsFromChucktown() {
-      const proxy = "https://api.allorigins.win/get?url=" +
+      const proxy =
+        "https://api.codetabs.com/v1/proxy/?quest=" +
         encodeURIComponent("https://chucktownstartups.com/events");
 
       try {
         const res = await fetch(proxy);
-        const data = await res.json();
-        const html = data.contents;
+        const html = await res.text(); // ✅ Correct
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
         const events = [];
