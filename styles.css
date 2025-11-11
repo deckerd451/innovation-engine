@@ -2570,23 +2570,3 @@ main, .main-wrapper, .media-container {
   background: #0ff;
   color: #000;
 }
-#flipOverlay {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: radial-gradient(circle at center, #ff6600 0%, #000 85%);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.7s ease-in-out;
-  z-index: 9999;
-}
-#flipOverlay.active {
-  opacity: 1;
-  pointer-events: all;
-}
-
-
-
-
-
