@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="CharlestonHacks Innovation Engine – Making Invisible Networks Visible">
+  <meta name="description" content="CharlestonHacks Innovation Engine – Making Invisible Networks Visible" />
   <title>Innovation Engine - CharlestonHacks</title>
 
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
@@ -11,46 +11,97 @@
   <link rel="stylesheet" href="styles.css" />
 
   <style>
-    body { margin: 0; overflow-x: hidden; background: #000; color: #fff; }
-    .header-img {
-      display: block; margin: 20px auto; width: 420px; max-width: 90%; height: auto;
-      filter: drop-shadow(0 0 6px rgba(255,255,255,0.3)); cursor: pointer;
-      transition: transform .3s ease, filter .3s ease;
+    body {
+      margin: 0;
+      overflow-x: hidden;
+      background: #000;
+      color: #fff;
+      font-family: system-ui, sans-serif;
     }
-    .header-img:hover { transform: scale(1.05); filter: drop-shadow(0 0 12px rgba(255, 100, 100, 0.6)); }
-    footer { text-align:center; padding:32px 20px 64px; margin-top:40px; }
 
-    /* Full-screen Synapse View */
+    .header-img {
+      display: block;
+      margin: 20px auto;
+      width: 420px;
+      max-width: 90%;
+      height: auto;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
+      cursor: pointer;
+      transition: transform 0.3s ease, filter 0.3s ease;
+    }
+    .header-img:hover {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 12px rgba(255, 100, 100, 0.6));
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 20px 64px;
+      margin-top: 40px;
+    }
+
+    /* Full-Screen Synapse View */
     #synapse.fullscreen {
       position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       background: radial-gradient(circle at center, #000 60%, #001b1b 100%);
       z-index: 200;
       display: none;
     }
-    #synapse.fullscreen.active-tab-pane { display: block; }
+    #synapse.fullscreen.active-tab-pane {
+      display: block;
+    }
     #synapse-container {
-      width: 100%; height: 100%;
+      position: relative;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
     }
     #synapse-svg {
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Exit Synapse Button */
+    .exit-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 255, 255, 0.15);
+      border: 1px solid #0ff;
+      color: #0ff;
+      font-weight: 600;
+      border-radius: 6px;
+      padding: 10px 16px;
+      cursor: pointer;
+      z-index: 9999;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .exit-btn:hover {
+      background: #0ff;
+      color: #000;
     }
   </style>
 </head>
 
 <body class="two-card-page">
+  <!-- Neural Background -->
   <canvas id="neural-bg"></canvas>
 
   <div class="container">
     <header class="header">
-      <a href="index.html"><img src="images/ieheader.webp" alt="Innovation Engine Header" class="header-img"></a>
+      <a href="index.html">
+        <img src="images/ieheader.webp" alt="Innovation Engine Header" class="header-img" />
+      </a>
       <p style="color:#ccc;">Making Invisible Networks Visible</p>
     </header>
 
     <main class="panels-wrapper">
       <div class="panel large">
+        <!-- LOGIN -->
         <div id="login-section">
           <h2 class="section-title">Login</h2>
           <form id="login-form">
@@ -59,6 +110,7 @@
           </form>
         </div>
 
+        <!-- PROFILE SECTION -->
         <div id="profile-section" class="hidden">
           <!-- Tab Navigation -->
           <div class="tab-nav">
@@ -72,10 +124,10 @@
           <!-- PROFILE -->
           <div id="profile" class="tab-content-pane active-tab-pane">
             <form id="skills-form">
-              <input type="text" id="first-name" placeholder="First Name" required>
-              <input type="text" id="last-name" placeholder="Last Name" required>
-              <input type="email" id="email" placeholder="Email" required>
-              <input type="text" id="skills-input" placeholder="Skills (comma separated)" required>
+              <input type="text" id="first-name" placeholder="First Name" required />
+              <input type="text" id="last-name" placeholder="Last Name" required />
+              <input type="email" id="email" placeholder="Email" required />
+              <input type="text" id="skills-input" placeholder="Skills (comma separated)" required />
               <button type="submit" class="action-btn">Save Profile</button>
             </form>
             <p id="success-message" class="success-message hidden">Profile saved successfully!</p>
@@ -84,7 +136,7 @@
           <!-- SEARCH -->
           <div id="search" class="tab-content-pane">
             <h2>Individual Search</h2>
-            <input type="text" id="searchQuery" placeholder="Search by name or skill">
+            <input type="text" id="searchQuery" placeholder="Search by name or skill" />
             <button id="searchButton" class="action-btn">Search</button>
             <div id="searchResults"></div>
           </div>
@@ -92,8 +144,8 @@
           <!-- TEAM BUILDER -->
           <div id="team-builder" class="tab-content-pane">
             <h2>Team Builder</h2>
-            <input type="text" id="teamSkills" placeholder="Skills for team">
-            <input type="number" id="teamSize" placeholder="Team size" min="1" max="6">
+            <input type="text" id="teamSkills" placeholder="Skills for team" />
+            <input type="number" id="teamSize" placeholder="Team size" min="1" max="6" />
             <button id="buildTeamBtn" class="action-btn">Build Team</button>
             <div id="bestTeamContainer"></div>
           </div>
@@ -106,6 +158,9 @@
 
           <!-- SYNAPSE (Full Screen) -->
           <div id="synapse" class="tab-content-pane fullscreen">
+            <button id="exit-synapse-btn" class="exit-btn">
+              <i class="fas fa-arrow-left"></i> Exit Synapse
+            </button>
             <div id="synapse-container">
               <svg id="synapse-svg"></svg>
             </div>
@@ -116,11 +171,13 @@
   </div>
 
   <footer>
-    <a href="index.html"><img src="assets/chbackbuttonred.png" width="200" alt="Back Home"></a>
+    <a href="index.html">
+      <img src="assets/chbackbuttonred.png" width="200" alt="Back Home" />
+    </a>
     <p>© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
 
-  <!-- ✅ Global D3 fix -->
+  <!-- ✅ D3 Global Fix -->
   <script type="module">
     import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
     window.d3 = d3;
@@ -133,27 +190,5 @@
   <script type="module" src="assets/js/main.js"></script>
   <script type="module" src="assets/js/synapse.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
-
-  <!-- Hide header/footer in full-screen Synapse mode -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const buttons = document.querySelectorAll(".tab-button");
-      const header = document.querySelector("header");
-      const footer = document.querySelector("footer");
-      buttons.forEach(btn => {
-        btn.addEventListener("click", () => {
-          if (btn.dataset.tab === "synapse") {
-            header.style.display = "none";
-            footer.style.display = "none";
-            document.getElementById("neural-bg").style.display = "none";
-          } else {
-            header.style.display = "";
-            footer.style.display = "";
-            document.getElementById("neural-bg").style.display = "";
-          }
-        });
-      });
-    });
-  </script>
 </body>
 </html>
