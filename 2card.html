@@ -35,26 +35,11 @@
       <h1>Innovation Engine</h1>
       <p>Making Invisible Networks Visible</p>
       <div class="auth-controls">
-  <span class="user-badge hidden" id="user-badge"></span>
-  
-  <!-- 🔔 Notifications -->
-  <div id="notifications" class="notifications-container">
-    <button id="notifications-btn" class="notifications-btn">
-      🔔
-      <span id="notifications-badge" class="notifications-badge hidden">0</span>
-    </button>
-
-    <div id="notifications-dropdown" class="notifications-dropdown hidden">
-      <h4>Connection Requests</h4>
-      <div id="notifications-list">No new requests</div>
-    </div>
-  </div>
-
-  <button class="logout-btn action-btn hidden" id="logout-btn">
-    <i class="fas fa-sign-out-alt"></i> Logout
-  </button>
-</div>
-
+        <span class="user-badge hidden" id="user-badge"></span>
+        <button class="logout-btn action-btn hidden" id="logout-btn">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
     </header>
 
     <main class="panels-wrapper">
@@ -230,7 +215,7 @@
 
          <div id="synapse" class="tab-content-pane">
   <h2 class="section-title">Synapse View</h2>
- <canvas id="synapseCanvas" style="width:100%; height:600px;"></canvas>
+  <div id="synapseCanvas" style="width:100%; height:600px;"></div>
 </div>
 
 
@@ -257,10 +242,9 @@
     </div>
   </div>
 
-<!-- Scripts -->
-<script type="module" src="assets/js/main.js"></script>
-<script type="module" src="assets/js/login.js"></script>
-<script type="module" src="assets/js/profile.js"></script>
-
+  <!-- Scripts -->
+  <script type="module" src="/assets/js/main.js"></script>
+  <script type="module" src="/assets/js/login.js"></script>
+  <script type="module" src="/assets/js/profile.js"></script>
 </body>
 </html>
