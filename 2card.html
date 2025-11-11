@@ -17,6 +17,8 @@
       background: #000;
       color: #fff;
       font-family: system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
 
     .header-img {
@@ -50,27 +52,64 @@
       background: radial-gradient(circle at center, #000 60%, #001b1b 100%);
       z-index: 200;
       display: none;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      will-change: opacity;
     }
     #synapse.fullscreen.active-tab-pane {
       display: block;
+      opacity: 1;
     }
     #synapse-container {
       position: relative;
       width: 100%;
       height: 100%;
       overflow: hidden;
+      contain: strict;
+      transform: translateZ(0);
     }
     #synapse-svg {
       width: 100%;
       height: 100%;
     }
 
-    /* Exit Synapse Button */
+    /* Synapse Controls */
+    .synapse-controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999;
+    }
+    .control-btn {
+      background: rgba(0,255,255,0.15);
+      border: 1px solid #0ff;
+      color: #0ff;
+      font-weight: 600;
+      border-radius: 6px;
+      padding: 10px;
+      cursor: pointer;
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .control-btn:hover {
+      background: #0ff;
+      color: #000;
+      transform: scale(1.1);
+    }
+
+    /* Exit Button (left corner) */
     .exit-btn {
       position: absolute;
       top: 20px;
       left: 20px;
-      background: rgba(0, 255, 255, 0.15);
+      background: rgba(0,255,255,0.15);
       border: 1px solid #0ff;
       color: #0ff;
       font-weight: 600;
@@ -83,6 +122,12 @@
     .exit-btn:hover {
       background: #0ff;
       color: #000;
+    }
+
+    /* Performance Hints */
+    canvas, svg {
+      backface-visibility: hidden;
+      transform: translateZ(0);
     }
   </style>
 </head>
@@ -158,9 +203,17 @@
 
           <!-- SYNAPSE (Full Screen) -->
           <div id="synapse" class="tab-content-pane fullscreen">
+            <!-- Controls -->
             <button id="exit-synapse-btn" class="exit-btn">
-              <i class="fas fa-arrow-left"></i> Exit Synapse
+              <i class="fas fa-arrow-left"></i> Exit
             </button>
+
+            <div class="synapse-controls">
+              <button class="control-btn" id="zoom-fit" title="Zoom to Fit"><i class="fas fa-expand"></i></button>
+              <button class="control-btn" id="center-graph" title="Center Graph"><i class="fas fa-crosshairs"></i></button>
+              <button class="control-btn" id="toggle-theme" title="Toggle Theme"><i class="fas fa-adjust"></i></button>
+            </div>
+
             <div id="synapse-container">
               <svg id="synapse-svg"></svg>
             </div>
