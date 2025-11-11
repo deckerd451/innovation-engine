@@ -1,27 +1,26 @@
 // assets/js/synapse.js
-// CharlestonHacks Synapse View (Animated Energy Pulse Edition)
+// CharlestonHacks Synapse View – Live Pulse + MiniMap Edition
 
 import { supabaseClient as supabase } from "./supabaseClient.js";
 const d3 = window.d3;
 
-// === Globals ===
-let svg, zoom, simulation, link, node, tooltip;
+let svg, zoom, simulation, link, node, tooltip, miniMap, miniView;
 let nodes = [], links = [];
 let theme = "dark";
 let zoomGroup, channel;
 let pulseInterval;
+let width, height;
 
-// === Init Synapse View ===
+// === Initialize Synapse View ===
 export async function initSynapseView() {
   const container = document.getElementById("synapse-container");
   if (!container) return;
 
-  // Reset
   d3.select("#synapse-svg").selectAll("*").remove();
   clearInterval(pulseInterval);
 
-  const width = container.clientWidth;
-  const height = container.clientHeight;
+  width = container.clientWidth;
+  height = container.clientHeight;
 
   svg = d3.select("#synapse-svg")
     .attr("width", width)
@@ -35,17 +34,14 @@ export async function initSynapseView() {
     .attr("class", "synapse-tooltip")
     .style("opacity", 0);
 
-  // === Load Data ===
-  const { data: community, error: commErr } = await supabase
+  const { data: community } = await supabase
     .from("community")
     .select("id, name, email, image_url, skills");
-  if (commErr) return console.error("Community load error:", commErr);
-
   const { data: connections } = await supabase
     .from("connections")
     .select("from_user_id, to_user_id");
 
-  nodes = community.map(u => ({
+  nodes = community?.map(u => ({
     id: u.id,
     name: u.name || "Anonymous",
     email: u.email,
@@ -53,22 +49,23 @@ export async function initSynapseView() {
     skills: Array.isArray(u.skills)
       ? u.skills.join(", ")
       : u.skills || "unspecified"
-  }));
+  })) || [];
 
   links = (connections || []).map(c => ({
     source: c.from_user_id,
     target: c.to_user_id
   }));
 
-  drawGraph(width, height);
+  drawGraph();
   setupRealtime();
   setupControls();
   setupKeyboardShortcuts();
+  setupMiniMap();
   startPulseAnimation();
 }
 
 // === Draw Graph ===
-function drawGraph(width, height) {
+function drawGraph() {
   simulation = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id(d => d.id).distance(90))
     .force("charge", d3.forceManyBody().strength(-120))
@@ -81,7 +78,6 @@ function drawGraph(width, height) {
 
   const nodeGroup = zoomGroup.append("g").attr("cursor", "pointer");
 
-  // === Animated Links ===
   link = linkGroup.selectAll("line")
     .data(links)
     .join("line")
@@ -89,7 +85,6 @@ function drawGraph(width, height) {
     .attr("stroke-dasharray", "6 8")
     .attr("stroke-dashoffset", 0);
 
-  // === Nodes ===
   node = nodeGroup.selectAll("g")
     .data(nodes)
     .join("g")
@@ -117,13 +112,11 @@ function drawGraph(width, height) {
     }
   });
 
-  // Hover -> Pulse highlight
   node.on("mouseover", (event, d) => {
     tooltip.transition().duration(150).style("opacity", 0.9);
     tooltip.html(`<strong>${d.name}</strong><br>${d.skills}`)
       .style("left", event.pageX + 10 + "px")
       .style("top", event.pageY - 15 + "px");
-
     highlightLinks(d.id, true);
   }).on("mouseout", () => {
     tooltip.transition().duration(200).style("opacity", 0);
@@ -137,13 +130,121 @@ function drawGraph(width, height) {
       .attr("x2", d => d.target.x)
       .attr("y2", d => d.target.y);
     node.attr("transform", d => `translate(${d.x},${d.y})`);
+    updateMiniMap();
   });
 
-  // Smooth Zoom
-  const zoomBehavior = d3.zoom()
+  zoom = d3.zoom()
     .scaleExtent([0.3, 4])
-    .on("zoom", (event) => zoomGroup.attr("transform", event.transform));
-  svg.call(zoomBehavior).on("dblclick.zoom", null);
+    .on("zoom", (event) => {
+      zoomGroup.attr("transform", event.transform);
+      updateMiniMap();
+    });
+
+  svg.call(zoom).on("dblclick.zoom", null);
+}
+
+// === MiniMap Radar Overlay ===
+function setupMiniMap() {
+  const mapSize = 160;
+
+  d3.select("#minimap-container").remove();
+  const container = d3.select("body").append("div")
+    .attr("id", "minimap-container")
+    .style("position", "absolute")
+    .style("bottom", "20px")
+    .style("right", "20px")
+    .style("width", mapSize + "px")
+    .style("height", mapSize + "px")
+    .style("border", "1px solid #0ff")
+    .style("background", "rgba(0,0,0,0.4)")
+    .style("border-radius", "8px")
+    .style("overflow", "hidden")
+    .style("z-index", 9999)
+    .style("backdrop-filter", "blur(4px)")
+    .style("cursor", "pointer");
+
+  miniMap = container.append("svg")
+    .attr("width", mapSize)
+    .attr("height", mapSize);
+
+  miniView = miniMap.append("rect")
+    .attr("x", 0).attr("y", 0)
+    .attr("width", mapSize).attr("height", mapSize)
+    .attr("fill", "none")
+    .attr("stroke", "#0ff")
+    .attr("stroke-width", 1);
+
+  // Navigate on click
+  miniMap.on("click", (event) => {
+    const [x, y] = d3.pointer(event);
+    const newTx = -x * (width / mapSize - 1);
+    const newTy = -y * (height / mapSize - 1);
+    svg.transition()
+      .duration(600)
+      .call(zoom.transform, d3.zoomIdentity.translate(newTx, newTy).scale(1));
+  });
+}
+
+// Update miniMap camera window
+function updateMiniMap() {
+  if (!miniMap) return;
+  const scale = 0.12;
+  const tx = +zoomGroup.node().transform?.baseVal?.consolidate()?.matrix?.e || 0;
+  const ty = +zoomGroup.node().transform?.baseVal?.consolidate()?.matrix?.f || 0;
+  const s = +zoomGroup.node().transform?.baseVal?.consolidate()?.matrix?.a || 1;
+
+  miniMap.selectAll(".mini-link").data(links)
+    .join("line")
+    .attr("class", "mini-link")
+    .attr("x1", d => d.source.x * scale)
+    .attr("y1", d => d.source.y * scale)
+    .attr("x2", d => d.target.x * scale)
+    .attr("y2", d => d.target.y * scale)
+    .attr("stroke", theme === "dark" ? "#0ff" : "#f90")
+    .attr("stroke-opacity", 0.5)
+    .attr("stroke-width", 0.4);
+
+  miniMap.selectAll(".mini-node").data(nodes)
+    .join("circle")
+    .attr("class", "mini-node")
+    .attr("r", 1.5)
+    .attr("cx", d => d.x * scale)
+    .attr("cy", d => d.y * scale)
+    .attr("fill", theme === "dark" ? "#0ff" : "#f90");
+
+  miniView
+    .attr("x", (-tx / s) * scale)
+    .attr("y", (-ty / s) * scale)
+    .attr("width", (width / s) * scale)
+    .attr("height", (height / s) * scale);
+}
+
+// === Pulse Animation ===
+function startPulseAnimation() {
+  function animate() {
+    link.each(function () {
+      const l = d3.select(this);
+      const current = parseFloat(l.attr("stroke-dashoffset")) || 0;
+      l.attr("stroke-dashoffset", (current - 0.6) % 20);
+    });
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+// === Highlight Links (on hover/connect) ===
+function highlightLinks(nodeId, active) {
+  link.transition().duration(200)
+    .attr("stroke-opacity", l => {
+      if (!active) return 0.3;
+      return (l.source.id === nodeId || l.target.id === nodeId) ? 0.8 : 0.05;
+    })
+    .attr("stroke", l => {
+      if (!active) return theme === "dark" ? "#0ff" : "#f90";
+      return (l.source.id === nodeId || l.target.id === nodeId)
+        ? (theme === "dark" ? "#ff0099" : "#0066ff")
+        : (theme === "dark" ? "#0ff" : "#f90");
+    });
 }
 
 // === Drag Behavior ===
@@ -165,36 +266,6 @@ function drag(simulation) {
   return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
 }
 
-// === Pulse Animation ===
-function startPulseAnimation() {
-  const baseSpeed = 0.5;
-  function animate() {
-    link.each(function () {
-      const l = d3.select(this);
-      const current = parseFloat(l.attr("stroke-dashoffset")) || 0;
-      const speed = baseSpeed + Math.random() * 0.4;
-      l.attr("stroke-dashoffset", (current - speed) % 20);
-    });
-    requestAnimationFrame(animate);
-  }
-  animate();
-}
-
-// === Highlight Links (on hover or connect) ===
-function highlightLinks(nodeId, active) {
-  link.transition().duration(200)
-    .attr("stroke-opacity", l => {
-      if (!active) return 0.3;
-      return (l.source.id === nodeId || l.target.id === nodeId) ? 0.8 : 0.05;
-    })
-    .attr("stroke", l => {
-      if (!active) return theme === "dark" ? "#0ff" : "#f90";
-      return (l.source.id === nodeId || l.target.id === nodeId)
-        ? (theme === "dark" ? "#ff0099" : "#0066ff")
-        : (theme === "dark" ? "#0ff" : "#f90");
-    });
-}
-
 // === Profile Modal + Connect ===
 async function openProfileModal(event, user) {
   document.querySelectorAll(".profile-modal").forEach(el => el.remove());
@@ -214,19 +285,17 @@ async function openProfileModal(event, user) {
   document.body.appendChild(modal);
 
   modal.querySelector(".modal-close").addEventListener("click", () => modal.remove());
-
   const connectBtn = modal.querySelector("#connectBtn");
   const disconnectBtn = modal.querySelector("#disconnectBtn");
+
   const session = (await supabase.auth.getSession()).data.session;
   const currentUserId = session?.user?.id;
-
   if (!currentUserId) {
     connectBtn.textContent = "Login to Connect";
     connectBtn.disabled = true;
     return;
   }
 
-  // Check existing connection
   const { data: existing } = await supabase
     .from("connections")
     .select("*")
@@ -263,14 +332,26 @@ async function openProfileModal(event, user) {
   });
 }
 
-// === Real-time Updates ===
+// === Pulse on Connect ===
+function triggerPulse(nodeId) {
+  const pulseColor = theme === "dark" ? "#ff0099" : "#0066ff";
+  link.filter(l => l.source.id === nodeId || l.target.id === nodeId)
+    .transition()
+    .duration(800)
+    .attr("stroke", pulseColor)
+    .attr("stroke-opacity", 1)
+    .transition()
+    .duration(800)
+    .attr("stroke", theme === "dark" ? "#0ff" : "#f90")
+    .attr("stroke-opacity", 0.3);
+}
+
+// === Real-time ===
 function setupRealtime() {
   if (channel) channel.unsubscribe();
-
   channel = supabase
     .channel("realtime-connections")
     .on("postgres_changes", { event: "*", schema: "public", table: "connections" }, (payload) => {
-      console.log("🔄 Live update:", payload);
       if (payload.eventType === "INSERT") {
         const s = nodes.find(n => n.id === payload.new.from_user_id);
         const t = nodes.find(n => n.id === payload.new.to_user_id);
@@ -288,24 +369,9 @@ function setupRealtime() {
     .subscribe();
 }
 
-// === Pulse Effect on Connect ===
-function triggerPulse(nodeId) {
-  const pulseColor = theme === "dark" ? "#ff0099" : "#0066ff";
-  link.filter(l => l.source.id === nodeId || l.target.id === nodeId)
-    .transition()
-    .duration(800)
-    .attr("stroke", pulseColor)
-    .attr("stroke-opacity", 1)
-    .transition()
-    .duration(800)
-    .attr("stroke", theme === "dark" ? "#0ff" : "#f90")
-    .attr("stroke-opacity", 0.3);
-}
-
-// === Restart Simulation ===
 function restartSimulation() {
   d3.select("#synapse-svg").selectAll("*").remove();
-  drawGraph(window.innerWidth, window.innerHeight);
+  drawGraph();
   simulation.alpha(1).restart();
 }
 
@@ -321,18 +387,13 @@ function setupControls() {
 
 function zoomToFit() {
   const bounds = zoomGroup.node().getBBox();
-  const fullWidth = +svg.attr("width");
-  const fullHeight = +svg.attr("height");
-  const scale = 0.85 / Math.max(bounds.width / fullWidth, bounds.height / fullHeight);
-  const translate = [
-    fullWidth / 2 - scale * (bounds.x + bounds.width / 2),
-    fullHeight / 2 - scale * (bounds.y + bounds.height / 2)
-  ];
-  svg.transition().duration(600).call(d3.zoom().transform, d3.zoomIdentity.translate(...translate).scale(scale));
+  const scale = 0.85 / Math.max(bounds.width / width, bounds.height / height);
+  const translate = [width / 2 - scale * (bounds.x + bounds.width / 2), height / 2 - scale * (bounds.y + bounds.height / 2)];
+  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(...translate).scale(scale));
 }
 
 function centerGraph() {
-  svg.transition().duration(600).call(d3.zoom().transform, d3.zoomIdentity.translate(0, 0).scale(1));
+  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
 }
 
 function toggleTheme() {
@@ -340,6 +401,7 @@ function toggleTheme() {
   document.body.style.background = theme === "dark" ? "#000" : "#fafafa";
   d3.selectAll("circle").attr("fill", theme === "dark" ? "#00ffff" : "#ff9900");
   d3.selectAll("line").attr("stroke", theme === "dark" ? "#0ff" : "#f90");
+  d3.select("#minimap-container").style("border", theme === "dark" ? "1px solid #0ff" : "1px solid #f90");
   console.log("🎨 Theme toggled:", theme);
 }
 
