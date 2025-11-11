@@ -316,8 +316,9 @@
     overlay.addEventListener("click",e=>{if(!modal.contains(e.target))overlay.classList.remove("active");});
 
     async function fetchEvents(){
-      const proxy="https://charlestonhacks.cloudflare.workers.dev/?url="+
-        encodeURIComponent("https://chucktownstartups.com/events");
+      const proxy = "https://charlestonhacks-events-proxy.<your-cloudflare-username>.workers.dev/?url=" +
+  encodeURIComponent("https://chucktownstartups.com/events");
+
       try{
         const res=await fetch(proxy);
         const html=await res.text();
