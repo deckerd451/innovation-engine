@@ -3,24 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="CharlestonHacks Innovation Engine – Making Invisible Networks Visible" />
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
+  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
+  <meta property="og:description" content="CharlestonHacks promotes tech events. Join us for exciting events and stay updated." />
+  <meta property="og:image" content="images/reactiveh.png" />
+  <meta property="og:url" content="https://charlestonhacks.com" />
+  <meta name="twitter:card" content="summary_large_image" />
   <title>Innovation Engine - CharlestonHacks</title>
 
-  <link rel="icon" href="favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json" />
+
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://hvmotpzhliufzomewzfl.supabase.co">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
 
   <style>
-    body {
-      margin: 0;
-      overflow-x: hidden;
-      background: #000;
-      color: #fff;
-      font-family: system-ui, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-    }
-
+    /* Header Image */
     .header-img {
       display: block;
       margin: 20px auto;
@@ -31,122 +33,72 @@
       cursor: pointer;
       transition: transform 0.3s ease, filter 0.3s ease;
     }
+
     .header-img:hover {
       transform: scale(1.05);
       filter: drop-shadow(0 0 12px rgba(255, 100, 100, 0.6));
     }
 
+    @media (max-width: 800px) { .header-img { width: 300px; margin-top: 10px; } }
+    @media (max-width: 650px) { .header-img { width: 250px; } }
+    @media (max-width: 480px) { .header-img { width: 200px; } }
+
+    /* Footer */
     footer {
+      background-color: transparent;
       text-align: center;
       padding: 32px 20px 64px;
       margin-top: 40px;
-    }
-
-    /* Full-Screen Synapse View */
-    #synapse.fullscreen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(circle at center, #000 60%, #001b1b 100%);
-      z-index: 200;
-      display: none;
-      opacity: 0;
-      transition: opacity 0.6s ease;
-      will-change: opacity;
-    }
-    #synapse.fullscreen.active-tab-pane {
-      display: block;
-      opacity: 1;
-    }
-    #synapse-container {
       position: relative;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      contain: strict;
-      transform: translateZ(0);
-    }
-    #synapse-svg {
-      width: 100%;
-      height: 100%;
     }
 
-    /* Synapse Controls */
-    .synapse-controls {
-      position: absolute;
-      top: 20px;
-      right: 20px;
+    .footer-back-button {
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-      z-index: 9999;
-    }
-    .control-btn {
-      background: rgba(0,255,255,0.15);
-      border: 1px solid #0ff;
-      color: #0ff;
-      font-weight: 600;
-      border-radius: 6px;
-      padding: 10px;
-      cursor: pointer;
-      width: 42px;
-      height: 42px;
-      display: flex;
-      align-items: center;
       justify-content: center;
-      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
-    }
-    .control-btn:hover {
-      background: #0ff;
-      color: #000;
-      transform: scale(1.1);
+      align-items: center;
+      margin-top: 32px;
     }
 
-    /* Exit Button (left corner) */
-    .exit-btn {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      background: rgba(0,255,255,0.15);
-      border: 1px solid #0ff;
-      color: #0ff;
-      font-weight: 600;
-      border-radius: 6px;
-      padding: 10px 16px;
-      cursor: pointer;
-      z-index: 9999;
-      transition: background 0.2s ease, color 0.2s ease;
-    }
-    .exit-btn:hover {
-      background: #0ff;
-      color: #000;
+    .footer-back-button img {
+      max-width: 240px;
+      width: 60vw;
+      height: auto;
+      transition: transform 0.3s ease;
     }
 
-    /* Performance Hints */
-    canvas, svg {
-      backface-visibility: hidden;
-      transform: translateZ(0);
+    .footer-back-button img:hover {
+      transform: scale(1.05);
     }
   </style>
 </head>
 
 <body class="two-card-page">
-  <!-- Neural Background -->
+  <!-- Full-screen neural background canvas -->
   <canvas id="neural-bg"></canvas>
+
+  <div id="achievements" class="achievements" aria-live="polite"></div>
 
   <div class="container">
     <header class="header">
+      <!-- ✅ Clickable Header Image -->
       <a href="index.html">
-        <img src="images/ieheader.webp" alt="Innovation Engine Header" class="header-img" />
+        <img src="images/ieheader.webp" alt="Innovation Engine Header" class="header-img">
       </a>
-      <p style="color:#ccc;">Making Invisible Networks Visible</p>
+
+      <p style="color:#ccc; margin-top:6px;">Making Invisible Networks Visible</p>
+
+      <div class="auth-controls">
+        <span class="user-badge hidden" id="user-badge"></span>
+        <button class="logout-btn action-btn hidden" id="logout-btn">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
     </header>
 
     <main class="panels-wrapper">
       <div class="panel large">
-        <!-- LOGIN -->
+
+        <!-- LOGIN SECTION -->
         <div id="login-section">
           <h2 class="section-title">Login</h2>
           <form id="login-form">
@@ -157,91 +109,129 @@
 
         <!-- PROFILE SECTION -->
         <div id="profile-section" class="hidden">
+
           <!-- Tab Navigation -->
           <div class="tab-nav">
-            <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Profile</button>
-            <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Search</button>
+            <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
+            <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
             <button class="tab-button" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
             <button class="tab-button" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
-            <button class="tab-button" data-tab="synapse"><i class="fas fa-brain"></i> Synapse View</button>
           </div>
 
-          <!-- PROFILE -->
+          <!-- Profile Tab -->
           <div id="profile" class="tab-content-pane active-tab-pane">
-            <form id="skills-form">
-              <input type="text" id="first-name" placeholder="First Name" required />
-              <input type="text" id="last-name" placeholder="Last Name" required />
-              <input type="email" id="email" placeholder="Email" required />
-              <input type="text" id="skills-input" placeholder="Skills (comma separated)" required />
-              <button type="submit" class="action-btn">Save Profile</button>
-            </form>
-            <p id="success-message" class="success-message hidden">Profile saved successfully!</p>
+            <section id="matchmaking-section">
+              <h2 class="section-title">Create Your Profile</h2>
+              <form id="skills-form">
+                <div class="input-container">
+                  <input type="text" id="first-name" placeholder="First Name" required autocomplete="given-name">
+                  <input type="text" id="last-name" placeholder="Last Name" required autocomplete="family-name">
+                  <input type="email" id="email" placeholder="Email" required autocomplete="email">
+
+                  <label for="skills-input">Professional Skills (comma separated)</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="skills-input" placeholder="e.g. aws, fullstack, java, python" required autocomplete="off">
+                    <div id="autocomplete-skills-input" class="autocomplete-box"></div>
+                  </div>
+                  <div id="skills-proficiency-container"></div>
+
+                  <label for="photo-input">Upload Your Photo</label>
+                  <input type="file" id="photo-input" accept="image/*" required>
+                  <img id="preview" src="#" alt="Image Preview" class="image-preview hidden" />
+
+                  <label for="bio-input">Short Bio (optional)</label>
+                  <input type="text" id="bio-input" placeholder="Tell us about yourself" maxlength="120">
+
+                  <label for="availability-input">Current Availability</label>
+                  <select id="availability-input">
+                    <option value="Available">Available</option>
+                    <option value="Busy">Busy</option>
+                    <option value="Not Looking">Not Looking</option>
+                  </select>
+
+                  <label>
+                    <input type="checkbox" id="newsletter-opt-in"> Subscribe to CharlestonHacks Newsletter
+                  </label>
+
+                  <button type="submit" class="action-btn">Save Profile</button>
+                </div>
+                <div class="profile-bar"><div class="profile-bar-inner"></div></div>
+                <div id="profile-progress-msg" class="profile-incomplete"></div>
+              </form>
+              <p id="success-message" class="success-message hidden">Profile saved successfully!</p>
+            </section>
           </div>
 
-          <!-- SEARCH -->
+          <!-- Search Tab -->
           <div id="search" class="tab-content-pane">
-            <h2>Individual Search</h2>
-            <input type="text" id="searchQuery" placeholder="Search by name or skill" />
-            <button id="searchButton" class="action-btn">Search</button>
-            <div id="searchResults"></div>
+            <h2 class="section-title">Individual Search</h2>
+            <div class="input-wrapper">
+              <label for="teamSkillsInput">Required Skills</label>
+              <input type="text" id="teamSkillsInput" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
+              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+            </div>
+            <button id="find-team-btn" type="button" class="action-btn">Get People</button>
+            <br><br>
+
+            <div class="input-wrapper">
+              <label for="nameInput">Search by First/Last Name</label>
+              <input type="text" id="nameInput" placeholder="e.g. John, Doug, Will, Dave" autocomplete="off">
+              <div id="autocomplete-names" class="autocomplete-box"></div>
+            </div>
+            <button id="search-name-btn" type="button" class="action-btn">Find by Name</button>
+
+            <div id="matchNotification" class="notification match-notification hidden"></div>
+            <div id="noResults" class="notification no-results-notification hidden"></div>
+            <div id="cardContainer" class="card-container" role="list" aria-label="Matching team members"></div>
           </div>
 
-          <!-- TEAM BUILDER -->
+          <!-- Team Builder Tab -->
           <div id="team-builder" class="tab-content-pane">
-            <h2>Team Builder</h2>
-            <input type="text" id="teamSkills" placeholder="Skills for team" />
-            <input type="number" id="teamSize" placeholder="Team size" min="1" max="6" />
-            <button id="buildTeamBtn" class="action-btn">Build Team</button>
-            <div id="bestTeamContainer"></div>
+            <h2 class="section-title">Team Builder</h2>
+            <div class="input-container">
+              <p class="instructions">Enter required skills and team size.</p>
+              <div class="input-wrapper">
+                <input type="text" id="team-skills-input" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
+                <div id="autocomplete-team-builder" class="autocomplete-box"></div>
+              </div>
+              <input type="number" id="teamSize" placeholder="Team size" min="1" max="6">
+              <button id="buildTeamBtn" type="button" class="action-btn">Build Team</button>
+            </div>
+            <div class="card-container" id="bestTeamContainer" role="list"></div>
           </div>
 
-          <!-- LEADERBOARD -->
+          <!-- Leaderboard Tab -->
           <div id="leaderboard" class="tab-content-pane">
-            <h2>Leaderboard</h2>
-            <div id="leaderboard-rows"></div>
-          </div>
-
-          <!-- SYNAPSE (Full Screen) -->
-          <div id="synapse" class="tab-content-pane fullscreen">
-            <!-- Controls -->
-            <button id="exit-synapse-btn" class="exit-btn">
-              <i class="fas fa-arrow-left"></i> Exit
-            </button>
-
-            <div class="synapse-controls">
-              <button class="control-btn" id="zoom-fit" title="Zoom to Fit"><i class="fas fa-expand"></i></button>
-              <button class="control-btn" id="center-graph" title="Center Graph"><i class="fas fa-crosshairs"></i></button>
-              <button class="control-btn" id="toggle-theme" title="Toggle Theme"><i class="fas fa-adjust"></i></button>
-            </div>
-
-            <div id="synapse-container">
-              <svg id="synapse-svg"></svg>
+            <div class="leaderboard">
+              <h2>Leaderboard</h2>
+              <div class="leaderboard-tabs">
+                <button class="lb-tab active" data-type="skills"><i class="fas fa-star"></i> Top Skills</button>
+                <button class="lb-tab" data-type="connectors"><i class="fas fa-link"></i> Top Connectors</button>
+                <button class="lb-tab" data-type="rising"><i class="fas fa-rocket"></i> Rising Stars</button>
+              </div>
+              <div id="leaderboard-rows" class="leaderboard-rows"></div>
             </div>
           </div>
-        </div>
+
+        </div> <!-- /profile-section -->
       </div>
     </main>
   </div>
 
+  <!-- Footer with Red Logo -->
   <footer>
-    <a href="index.html">
-      <img src="assets/chbackbuttonred.png" width="200" alt="Back Home" />
-    </a>
-    <p>© 2025 CharlestonHacks. All rights reserved.</p>
+    <div class="footer-back-button">
+      <a href="index.html">
+        <img src="assets/chbackbuttonred.png" alt="Back to Home" />
+      </a>
+    </div>
+    <p style="margin-top: 16px; font-size: 16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
 
-  <!-- ✅ D3 Global Fix -->
-  <script type="module">
-    import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-    window.d3 = d3;
-  </script>
-
-  <!-- ✅ JS Modules -->
-  <script type="module" src="assets/js/supabaseClient.js"></script>
+  <!-- Scripts -->
+  <script type="module" src="assets/js/main.js"></script>
   <script type="module" src="assets/js/login.js"></script>
   <script type="module" src="assets/js/profile.js"></script>
-  <script type="module" src="assets/js/main.js"></script>
-  <script type="module" src="assets/js/synapse.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
 </body>
 </html>
