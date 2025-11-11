@@ -34,6 +34,71 @@
   <link rel="canonical" href="https://charlestonhacks.com" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="styles.css" />
+
+  <style>
+    /* —— Overlay Styling —— */
+    #events-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(5px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      color: white;
+    }
+    #events-overlay.active {
+      display: flex;
+      animation: fadeIn 0.3s ease forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .events-modal {
+      background: #111;
+      border: 2px solid #ff6600;
+      border-radius: 16px;
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: 0 0 15px rgba(255, 102, 0, 0.5);
+      text-align: center;
+    }
+    .events-modal h2 {
+      margin-bottom: 1rem;
+      font-size: 1.4rem;
+      color: #ff6600;
+    }
+    .event-item {
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .event-item:last-child { border: none; }
+    .event-date { font-size: 0.9rem; color: #ccc; margin-top: 0.3rem; }
+    .event-link {
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      background: #ff6600;
+      color: white;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+    .event-link:hover { background: #ff8533; }
+    #close-overlay {
+      margin-top: 1rem;
+      background: transparent;
+      color: #ff6600;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+  </style>
 </head>
 
 <body>
@@ -52,17 +117,14 @@
       <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
       <h1 id="splash-title">Welcome to CharlestonHacks</h1>
       <p id="splash-desc">Loading…</p>
-
       <label id="dont-show-label" style="margin-top:1em; display:flex; align-items:center; gap:.5em; font-size:.9rem;">
         <input type="checkbox" id="dont-show-again" />
         Don’t show this welcome screen again
       </label>
-
       <div id="splash-buttons" class="button-container">
         <button id="community-site-btn" class="btn">Community Site</button>
         <button id="public-site-btn" class="btn">Public Site</button>
       </div>
-
       <p id="splash-copyright" style="font-size:.8rem; opacity:.7; margin-top:2rem;">
         © 2025 CharlestonHacks. All rights reserved.
       </p>
@@ -131,6 +193,15 @@
     </section>
   </main>
 
+  <!-- —— Event Overlay —— -->
+  <div id="events-overlay">
+    <div class="events-modal">
+      <h2>Upcoming Charleston Events</h2>
+      <div id="events-list"></div>
+      <button id="close-overlay">Close</button>
+    </div>
+  </div>
+
   <!-- —— Splash Logic —— -->
   <script>
     (function () {
@@ -142,9 +213,7 @@
       function hideSplash(immediate = false) {
         splashOverlay.classList.add("fade-out");
         document.body.classList.remove("splash-active");
-        setTimeout(() => {
-          splashOverlay.style.display = "none";
-        }, immediate ? 0 : 700);
+        setTimeout(() => { splashOverlay.style.display = "none"; }, immediate ? 0 : 700);
       }
 
       function dismissSplash() {
@@ -154,13 +223,9 @@
 
       function maybeShowSplash() {
         const seen = localStorage.getItem(splashKey);
-        if (seen === "true") {
-          hideSplash(true);
-          return;
-        }
+        if (seen === "true") { hideSplash(true); return; }
         splashOverlay.style.display = "flex";
         document.body.classList.add("splash-active");
-
         communityBtn.addEventListener("click", dismissSplash);
         publicBtn.addEventListener("click", () => {
           dismissSplash();
@@ -188,83 +253,76 @@
     initCardFlip(CONFIG);
     startBTCPriceTracker("btcPrice");
 
-    // === 🧠 Chucktown Startups Event Auto-Ingestion (Text-Aware) ===
+    const overlay = document.getElementById("events-overlay");
+    const eventsList = document.getElementById("events-list");
+    const countdown = document.getElementById("countdown");
+    const closeBtn = document.getElementById("close-overlay");
+
+    closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
+
+    // === 🧠 Chucktown Startups Event Auto-Ingestion ===
     async function fetchEventsFromChucktown() {
-      const proxy =
-        "https://api.allorigins.win/get?url=" +
+      const proxy = "https://api.allorigins.win/get?url=" +
         encodeURIComponent("https://chucktownstartups.com/events");
 
       try {
         const res = await fetch(proxy);
         const data = await res.json();
         const html = data.contents;
-
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
-
         const events = [];
         const eventEls = doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event");
 
-        eventEls.forEach((el) => {
+        eventEls.forEach(el => {
           const name = el.querySelector("h2, h3, a")?.textContent?.trim() || "Charleston Event";
-
-          let dateText =
-            el.querySelector("time")?.getAttribute("datetime") ||
-            el.querySelector("time")?.textContent?.trim();
-
+          let dateText = el.querySelector("time")?.getAttribute("datetime") ||
+                         el.querySelector("time")?.textContent?.trim();
           if (!dateText) {
             const text = el.textContent;
-            const match = text.match(
-              /([A-Z][a-z]{2,9}\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}\s?(AM|PM)?)/i
-            );
+            const match = text.match(/([A-Z][a-z]{2,9}\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}\s?(AM|PM)?)/i);
             if (match) dateText = match[1];
           }
-
           if (name && dateText) {
             const parsedDate = new Date(dateText);
-            if (!isNaN(parsedDate)) {
-              events.push({ name, date: parsedDate.toISOString() });
-            }
+            if (!isNaN(parsedDate)) events.push({ name, date: parsedDate, url: "https://chucktownstartups.com/events" });
           }
         });
 
         const now = new Date();
-        const cutoff = new Date();
-        cutoff.setDate(now.getDate() + 90);
+        const cutoff = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+        const upcoming = events.filter(e => e.date > now && e.date < cutoff)
+          .sort((a, b) => a.date - b.date);
 
-        const upcoming = events
-          .filter((e) => new Date(e.date) > now && new Date(e.date) < cutoff)
-          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        const finalEvents = upcoming.length ? upcoming : [
+          { name: "HH2025", date: new Date("2025-10-03T00:00:00-04:00"), url: "#" },
+          { name: "Blue Sky Demo", date: new Date("2026-02-14T00:00:00-05:00"), url: "#" },
+        ];
 
-        if (upcoming.length) {
-          console.log(`🎉 Found ${upcoming.length} upcoming event(s) from Chucktown`);
-          startCountdown("countdown", upcoming);
-          return;
-        }
+        startCountdown("countdown", finalEvents);
 
-        console.warn("⚠️ No valid events found — using fallback");
-        startCountdown("countdown", [
-          { name: "CH2025", date: "2025-10-03T00:00:00-04:00" },
-          { name: "Blue Sky Demo", date: "2026-02-14T00:00:00-05:00" },
-        ]);
+        countdown.addEventListener("click", () => {
+          overlay.classList.add("active");
+          eventsList.innerHTML = finalEvents.slice(0, 3)
+            .map(e => `
+              <div class="event-item">
+                <strong>${e.name}</strong>
+                <div class="event-date">${e.date.toLocaleString()}</div>
+                <a href="${e.url}" target="_blank" class="event-link">View Event</a>
+              </div>`).join("");
+        });
       } catch (err) {
-        console.error("❌ Error fetching events:", err);
-        startCountdown("countdown", [
-          { name: "HH2025", date: "2025-10-03T00:00:00-04:00" },
-          { name: "Blue Sky Demo", date: "2026-02-14T00:00:00-05:00" },
-        ]);
+        console.error("Error fetching Chucktown events:", err);
       }
     }
 
-    // 🚀 Start automated event fetch
     fetchEventsFromChucktown();
 
-    // === 🧩 Button Interactivity ===
+    // === Button Interactivity ===
     const buttons = document.querySelectorAll(".clickable-area");
     const infoLine = document.getElementById("infoLine");
     const infoText = document.getElementById("infoText");
-
-    buttons.forEach((btn) => {
+    buttons.forEach(btn => {
       btn.addEventListener("click", () => {
         const sound = document.getElementById(btn.dataset.sound + "Sound");
         if (sound) sound.play();
