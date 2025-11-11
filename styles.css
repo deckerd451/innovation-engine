@@ -2570,3 +2570,73 @@ main, .main-wrapper, .media-container {
   background: #0ff;
   color: #000;
 }
+/* ==============================================
+   CharlestonHacks Countdown Display
+   ============================================== */
+#countdown {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  font-family: "Britannic Bold", "Orbitron", sans-serif;
+  font-size: clamp(1.2rem, 3vw, 2rem);
+  color: #fff;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 8px rgba(255, 102, 0, 0.6), 0 0 16px rgba(255, 102, 0, 0.3);
+  margin-top: 1.5rem;
+  transition: opacity 0.4s ease-in-out;
+}
+
+#countdown b {
+  color: #ff6600;
+  text-shadow: 0 0 10px rgba(255, 102, 0, 0.8);
+}
+
+#countdown span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+#countdown small {
+  font-size: 0.7em;
+  color: #ffb366;
+  opacity: 0.8;
+  text-shadow: 0 0 6px rgba(255, 140, 0, 0.5);
+}
+
+/* When no event found */
+#countdown .coming-soon {
+  font-size: 1.2rem;
+  color: #ffb366;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(255, 128, 0, 0.6);
+  letter-spacing: 0.05em;
+}
+
+/* ==============================================
+   Event Title (next event name)
+   ============================================== */
+#next-event-title {
+  text-align: center;
+  margin-top: 0.75rem;
+  font-family: "Orbitron", "Britannic Bold", sans-serif;
+  font-size: clamp(1rem, 2.2vw, 1.6rem);
+  color: #ff6600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  text-shadow: 0 0 12px rgba(255, 102, 0, 0.7), 0 0 24px rgba(255, 102, 0, 0.4);
+  animation: glowPulse 2.4s infinite alternate ease-in-out;
+}
+
+/* Pulse animation for subtle glow */
+@keyframes glowPulse {
+  from {
+    text-shadow: 0 0 8px rgba(255, 102, 0, 0.6), 0 0 16px rgba(255, 102, 0, 0.3);
+  }
+  to {
+    text-shadow: 0 0 14px rgba(255, 140, 0, 0.9), 0 0 28px rgba(255, 140, 0, 0.6);
+  }
+}
+
