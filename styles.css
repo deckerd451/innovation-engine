@@ -2402,4 +2402,72 @@ main, .main-wrapper, .media-container {
   font-family: monospace;
   padding-top: 100px;
 }
+/* Synapse Tooltip */
+.synapse-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+/* Profile Modal */
+.profile-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+}
+
+.profile-modal .modal-content {
+  background: #111;
+  color: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 320px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.modal-close {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  background: none;
+  color: #fff;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.modal-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+
+.connect-btn, .disconnect-btn {
+  margin-top: 12px;
+  background: #00ffff;
+  border: none;
+  color: #000;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.disconnect-btn {
+  background: #ff6666;
+}
+.hidden { display: none; }
 
