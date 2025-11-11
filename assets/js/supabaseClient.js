@@ -1,12 +1,12 @@
 // /assets/js/supabaseClient.js
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-// Supabase credentials
+// 🔹 Your Supabase credentials
 export const SUPABASE_URL = 'https://hvmotpzhliufzomewzfl.supabase.co';
 export const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s';
 
-// ✅ Create Supabase client
+// 🔹 Create the Supabase client
 export const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
@@ -17,22 +17,23 @@ export const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 console.log('✅ Supabase Client initialized successfully');
 
-// ✅ Add ensureCommunityUser helper
+// 🔹 Ensure community user exists or is created
 export async function ensureCommunityUser() {
   try {
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError) throw userError;
     if (!user) return null;
 
-    // Check if this user already exists in the community table
-    const { data: existing, error: fetchError } = await supabaseClient
+    // Check if user already exists in community
+    const { data: existing, error: selectError } = await supabaseClient
       .from('community')
       .select('id')
       .eq('email', user.email)
       .maybeSingle();
 
-    if (fetchError) throw fetchError;
+    if (selectError) throw selectError;
 
-    // If not found, insert a new record
+    // If not found, insert it
     if (!existing) {
       const { error: insertError } = await supabaseClient.from('community').insert([
         {
@@ -44,7 +45,9 @@ export async function ensureCommunityUser() {
         },
       ]);
       if (insertError) throw insertError;
-      console.log('🧠 New community user added:', user.email);
+      console.log('🧠 Added new community user:', user.email);
+    } else {
+      console.log('👤 Community user already exists:', user.email);
     }
 
     return user;
