@@ -30,48 +30,13 @@
   <link rel="icon" href="favicon.ico" type="image/x-icon"/>
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
   <link rel="manifest" href="/manifest.json"/>
-  <meta name="theme-color" content="#0a0a0a"/>
+  <meta name="theme-color" content="#ff6600"/>
   <link rel="canonical" href="https://charlestonhacks.com"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="styles.css" />
 
   <style>
-    /* ✨ Countdown Title Styling */
-    #next-event-title {
-      font-family: 'Orbitron', sans-serif;
-      color: #c9a35e; /* metallic gold tone */
-      font-size: 1rem;
-      letter-spacing: 0.5px;
-      margin-bottom: 0.2rem;
-      text-shadow: 0 0 10px rgba(201,163,94,0.6);
-      cursor: pointer;
-      transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-    #next-event-title:hover {
-      opacity: 0.9;
-      transform: scale(1.03);
-      text-shadow: 0 0 15px rgba(201,163,94,0.9);
-    }
-
-    /* 🕰 Countdown Numbers */
-    #countdown span {
-      font-family: 'Orbitron', sans-serif;
-      color: #e0e0e0;
-      font-size: 1.1rem;
-      margin: 0 0.15rem;
-    }
-    #countdown small {
-      font-size: 0.7rem;
-      opacity: 0.7;
-      margin-left: 0.1rem;
-    }
-    .coming-soon {
-      color: #c9a35e;
-      font-size: 0.9rem;
-      text-shadow: 0 0 8px rgba(201,163,94,0.6);
-    }
-
-    /* 🌌 Overlay */
+    /* —— Overlay Styling —— */
     #events-overlay {
       position: fixed;
       inset: 0;
@@ -87,26 +52,33 @@
       display: flex;
       animation: fadeIn 0.3s ease forwards;
     }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
 
     .events-modal {
-      background: #0b0b0b;
-      border: 1.5px solid #c9a35e;
+      background: #111;
+      border: 2px solid #ff6600;
       border-radius: 16px;
       padding: 1.5rem;
       width: 90%;
-      max-width: 460px;
-      box-shadow: 0 0 20px rgba(201,163,94,0.4);
+      max-width: 480px;
+      box-shadow: 0 0 15px rgba(255,102,0,0.6);
       text-align: center;
       transform: translateY(20px);
       animation: slideUp 0.4s ease forwards;
     }
-    @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
 
     .events-modal h2 {
       margin-bottom: 1rem;
-      font-size: 1.3rem;
-      color: #c9a35e;
+      font-size: 1.4rem;
+      color: #ff6600;
     }
     .event-item {
       margin-bottom: 1rem;
@@ -114,24 +86,23 @@
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
     .event-item:last-child { border: none; }
-    .event-date { font-size: 0.9rem; color: #bbb; margin-top: 0.3rem; }
+    .event-date { font-size: 0.9rem; color: #ccc; margin-top: 0.3rem; }
     .event-link {
       display: inline-block;
       margin-top: 0.5rem;
       padding: 0.4rem 0.8rem;
-      background: #c9a35e;
-      color: #000;
+      background: #ff6600;
+      color: white;
       border-radius: 6px;
       text-decoration: none;
-      font-weight: 600;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       transition: background 0.2s;
     }
-    .event-link:hover { background: #e6c98f; }
+    .event-link:hover { background: #ff8533; }
     #close-overlay {
       margin-top: 1rem;
       background: transparent;
-      color: #c9a35e;
+      color: #ff6600;
       border: none;
       cursor: pointer;
       font-size: 1rem;
@@ -140,6 +111,7 @@
 </head>
 
 <body>
+  <!-- —— Neural Background —— -->
   <canvas id="neural-bg"></canvas>
 
   <noscript>
@@ -148,7 +120,7 @@
     </div>
   </noscript>
 
-  <!-- —— Splash —— -->
+  <!-- —— Splash Screen —— -->
   <div id="splash-overlay" role="dialog" aria-modal="true" tabindex="-1">
     <div id="splash-content">
       <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
@@ -168,24 +140,26 @@
     </div>
   </div>
 
-  <!-- —— Audio —— -->
+  <!-- —— Audio assets —— -->
   <audio id="cardflipSound" src="assets/atmospherel.m4a" preload="auto"></audio>
   <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
   <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
 
-  <!-- —— Main —— -->
+  <!-- —— Main Interactive Card —— -->
   <main>
     <div class="main-wrapper">
       <div class="media-container" aria-label="Toggle mission content" tabindex="0">
-
-        <!-- Countdown area -->
-        <div id="next-event-title"></div>
         <div id="countdown" aria-live="polite"></div>
         <div id="btcPrice" aria-live="polite"></div>
 
         <img id="missionImage" src="icons/card.png" alt="Big Playing Card" style="z-index:3;" />
+        <img id="cardFrame" src="images/cardframe2.svg" alt="Card Frame" style="display:none;" />
+        <video id="missionVideo" muted playsinline controls style="display:none; opacity:0;">
+          <source src="" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
 
-        <!-- Buttons -->
+        <!-- —— Interactive Buttons —— -->
         <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
           <img src="images/informationbutton.webp" alt="Info" />
         </button>
@@ -218,16 +192,17 @@
     </div>
 
     <section class="icons-container">
-      <a href="https://github.com/sponsors/deckerd451" target="_blank"><i class="fas fa-heart"></i></a>
-      <a href="2card.html"><i class="fas fa-people-arrows"></i></a>
-      <a href="subscribe.html"><i class="fas fa-bell"></i></a>
-      <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank"><i class="fab fa-linkedin"></i></a>
-      <a href="https://www.instagram.com/charlestonhacks/" target="_blank"><i class="fab fa-instagram"></i></a>
-      <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
-      <a href="https://www.facebook.com/deckerdb26354" target="_blank"><i class="fab fa-facebook"></i></a>
+      <a href="https://github.com/sponsors/deckerd451" target="_blank" aria-label="Sponsor CharlestonHacks"><i class="fas fa-heart"></i></a>
+      <a href="2card.html" aria-label="Innovation Engine"><i class="fas fa-people-arrows"></i></a>
+      <a href="subscribe.html" aria-label="Subscribe"><i class="fas fa-bell"></i></a>
+      <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+      <a href="https://www.instagram.com/charlestonhacks/" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+      <a href="mailto:hello@charlestonhacks.com" aria-label="Email"><i class="fas fa-envelope"></i></a>
+      <a href="https://www.facebook.com/deckerdb26354" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
     </section>
   </main>
 
+  <!-- —— Event Overlay —— -->
   <div id="events-overlay">
     <div class="events-modal">
       <h2>Upcoming Charleston Events</h2>
@@ -235,70 +210,40 @@
       <button id="close-overlay">Close</button>
     </div>
   </div>
-  <!-- —— Fixed Splash Logic —— -->
-<script>
-(function () {
-  const splashOverlay = document.getElementById("splash-overlay");
-  const dontShowBox   = document.getElementById("dont-show-again");
-  const communityBtn  = document.getElementById("community-site-btn");
-  const publicBtn     = document.getElementById("public-site-btn");
-  const splashKey     = "chs_splash_seen_once";
 
-  // 🚪 Hide splash and unlock interaction
-  function hideSplash(immediate = false) {
-    splashOverlay.classList.add("fade-out");
-    document.body.classList.remove("splash-active");
-    splashOverlay.setAttribute("aria-hidden", "true");
-    splashOverlay.style.pointerEvents = "none";
-    setTimeout(() => {
-      splashOverlay.style.display = "none";
-    }, immediate ? 0 : 400);
-  }
+  <!-- —— Splash Logic —— -->
+  <script>
+    (function () {
+      const splashOverlay = document.getElementById("splash-overlay");
+      const communityBtn = document.getElementById("community-site-btn");
+      const publicBtn = document.getElementById("public-site-btn");
+      const splashKey = "chs_splash_seen_once";
 
-  // 💾 Remember user choice
-  function dismissSplash() {
-    if (dontShowBox.checked) {
-      localStorage.setItem(splashKey, "true");
-    }
-    hideSplash();
-  }
+      function hideSplash(immediate = false) {
+        splashOverlay.classList.add("fade-out");
+        document.body.classList.remove("splash-active");
+        setTimeout(() => splashOverlay.style.display = "none", immediate ? 0 : 700);
+      }
+      function dismissSplash() {
+        localStorage.setItem(splashKey, "true");
+        hideSplash();
+      }
+      function maybeShowSplash() {
+        const seen = localStorage.getItem(splashKey);
+        if (seen === "true") { hideSplash(true); return; }
+        splashOverlay.style.display = "flex";
+        document.body.classList.add("splash-active");
+        communityBtn.addEventListener("click", dismissSplash);
+        publicBtn.addEventListener("click", () => {
+          dismissSplash();
+          window.location.href = "https://charlestonhacks.mailchimpsites.com/";
+        });
+      }
+      window.addEventListener("DOMContentLoaded", maybeShowSplash);
+    })();
+  </script>
 
-  // 🧠 Show splash if not dismissed
-  function maybeShowSplash() {
-    const seen = localStorage.getItem(splashKey);
-    if (seen === "true") {
-      hideSplash(true);
-      return;
-    }
-    splashOverlay.style.display = "flex";
-    splashOverlay.setAttribute("aria-hidden", "false");
-    document.body.classList.add("splash-active");
-  }
-
-  // ✅ Event bindings
-  window.addEventListener("DOMContentLoaded", () => {
-    maybeShowSplash();
-
-    if (communityBtn) {
-      communityBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        dismissSplash();
-      });
-    }
-
-    if (publicBtn) {
-      publicBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        dismissSplash();
-        window.location.href = "https://charlestonhacks.mailchimpsites.com/";
-      });
-    }
-  });
-})();
-</script>
-
-
-  <!-- —— Logic —— -->
+  <!-- —— Main Logic —— -->
   <script type="module">
     import { CONFIG } from "./assets/js/config.js";
     import { initCardFlip } from "./assets/js/cardFlip.js";
@@ -314,49 +259,58 @@
     initCardFlip(CONFIG);
     startBTCPriceTracker("btcPrice");
 
-    const eventTitleEl = document.getElementById("next-event-title");
     const overlay = document.getElementById("events-overlay");
     const modal = document.querySelector(".events-modal");
     const eventsList = document.getElementById("events-list");
     const countdown = document.getElementById("countdown");
     const closeBtn = document.getElementById("close-overlay");
 
+    // 🪄 Close overlay
     closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
     overlay.addEventListener("click", e => {
       if (!modal.contains(e.target)) overlay.classList.remove("active");
     });
 
+    // === 🧠 Chucktown Event Auto-Ingestion ===
     async function fetchEventsFromChucktown() {
-      const proxy = "https://api.codetabs.com/v1/proxy/?quest=" +
+      const proxy =
+        "https://api.codetabs.com/v1/proxy/?quest=" +
         encodeURIComponent("https://chucktownstartups.com/events");
 
       try {
         const res = await fetch(proxy);
-        const html = await res.text();
-        const doc = new DOMParser().parseFromString(html, "text/html");
+        const html = await res.text(); // ✅ Correct
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
         const events = [];
-        doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event").forEach(el => {
+        const eventEls = doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event");
+
+        eventEls.forEach(el => {
           const name = el.querySelector("h2, h3, a")?.textContent?.trim() || "Charleston Event";
           let dateText = el.querySelector("time")?.getAttribute("datetime") ||
                          el.querySelector("time")?.textContent?.trim();
           if (!dateText) {
-            const match = el.textContent.match(/([A-Z][a-z]{2,9}\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}\s?(AM|PM)?)/i);
+            const text = el.textContent;
+            const match = text.match(/([A-Z][a-z]{2,9}\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}\s?(AM|PM)?)/i);
             if (match) dateText = match[1];
           }
-          const parsed = new Date(dateText);
-          if (!isNaN(parsed)) events.push({ name, date: parsed, url: "https://chucktownstartups.com/events" });
+          if (name && dateText) {
+            const parsedDate = new Date(dateText);
+            if (!isNaN(parsedDate))
+              events.push({ name, date: parsedDate, url: "https://chucktownstartups.com/events" });
+          }
         });
 
         const now = new Date();
-        const upcoming = events.filter(e => e.date > now).sort((a,b)=>a.date-b.date);
+        const cutoff = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+        const upcoming = events.filter(e => e.date > now && e.date < cutoff)
+          .sort((a, b) => a.date - b.date);
+
         const finalEvents = upcoming.length ? upcoming : [
           { name: "HH2025", date: new Date("2025-10-03T00:00:00-04:00"), url: "#" },
           { name: "Blue Sky Demo", date: new Date("2026-02-14T00:00:00-05:00"), url: "#" },
         ];
 
-        // 🧠 Show title and start countdown
-        eventTitleEl.textContent = `Next event: ${finalEvents[0].name}`;
-        eventTitleEl.onclick = () => window.open(finalEvents[0].url, "_blank");
         startCountdown("countdown", finalEvents);
 
         countdown.addEventListener("click", () => {
@@ -374,8 +328,29 @@
     }
 
     fetchEventsFromChucktown();
+
+    // === 🧩 Buttons ===
+    const buttons = document.querySelectorAll(".clickable-area");
+    const infoLine = document.getElementById("infoLine");
+    const infoText = document.getElementById("infoText");
+    buttons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sound = document.getElementById(btn.dataset.sound + "Sound");
+        if (sound) sound.play();
+        if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
+      });
+      btn.addEventListener("mouseover", () => {
+        infoLine.style.opacity = "1";
+        infoText.textContent = btn.dataset.info || "";
+      });
+      btn.addEventListener("mouseout", () => {
+        infoLine.style.opacity = "0";
+        infoText.textContent = "";
+      });
+    });
   </script>
 
+  <!-- —— Neural Background —— -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
 </body>
 </html>
