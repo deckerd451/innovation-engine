@@ -2552,6 +2552,25 @@ main, .main-wrapper, .media-container {
   transition: opacity 0.2s ease;
   z-index: 1000;
 }
+.exit-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0,255,255,0.15);
+  border: 1px solid #0ff;
+  color: #0ff;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  z-index: 9999;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.exit-btn:hover {
+  background: #0ff;
+  color: #000;
+}
+
 
 
 
