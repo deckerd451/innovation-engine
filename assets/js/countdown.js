@@ -2,6 +2,8 @@ export function startCountdown(elementId, eventDateStr) {
   const countdownEl = document.getElementById(elementId);
   if (!countdownEl) return;
 
+  let timer; // ✅ Declare timer before it's used
+
   function updateCountdown() {
     const eventDate = new Date(eventDateStr);
     const now = new Date();
@@ -10,7 +12,7 @@ export function startCountdown(elementId, eventDateStr) {
     // 🟢 When countdown is over:
     if (diff <= 0) {
       countdownEl.innerHTML = `<span class="coming-soon">Next Event Coming Soon!</span>`;
-      clearInterval(timer); // stop updates
+      clearInterval(timer); // ✅ Now timer is in scope and initialized
       return;
     }
 
@@ -29,6 +31,6 @@ export function startCountdown(elementId, eventDateStr) {
     `;
   }
 
-  updateCountdown();
-  const timer = setInterval(updateCountdown, 1000);
+  updateCountdown(); // Run immediately
+  timer = setInterval(updateCountdown, 1000); // ✅ Assign after declaration
 }
