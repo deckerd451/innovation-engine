@@ -326,12 +326,34 @@ const proxy =
         const html=await res.text();
         const doc=new DOMParser().parseFromString(html,"text/html");
         const events=[];
-        doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event").forEach(el=>{
-          const name=el.querySelector("h2, h3, a")?.textContent?.trim()||"Charleston Event";
-          const dateText=el.querySelector("time")?.getAttribute("datetime")||el.querySelector("time")?.textContent?.trim();
-          const d=new Date(dateText);
-          if(!isNaN(d))events.push({name,date:d,url:"https://chucktownstartups.com/events"});
-        });
+       doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event, .em-item").forEach(el=>{
+  const name =
+    el.querySelector("h2, h3, a")?.textContent?.trim() ||
+    el.querySelector(".em-item-title")?.textContent?.trim() ||
+    "Charleston Event";
+
+  let dateText =
+    el.querySelector("time")?.getAttribute("datetime") ||
+    el.querySelector(".em-item-date, .em-date")?.textContent?.trim();
+
+  // Try to extract readable date text if no <time> tag
+  if (!dateText) {
+    const match = el.textContent.match(
+      /([A-Z][a-z]{2,9}\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}\s?(AM|PM)?)/i
+    );
+    if (match) dateText = match[1];
+  }
+
+  const parsed = new Date(dateText);
+  if (!isNaN(parsed)) {
+    events.push({
+      name,
+      date: parsed,
+      url: "https://chucktownstartups.com/events",
+    });
+  }
+});
+
         const now=new Date();
         const upcoming=events.filter(e=>e.date>now).sort((a,b)=>a.date-b.date);
         const final=upcoming.length?upcoming:[
