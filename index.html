@@ -288,8 +288,7 @@
         const now = new Date();
         const upcoming = events.filter(e => e.date > now).sort((a,b)=>a.date-b.date);
         const finalEvents = upcoming.length ? upcoming : [
-          { name: "HH2025", date: new Date("2025-10-03T00:00:00-04:00"), url: "#" },
-          { name: "Blue Sky Demo", date: new Date("2026-02-14T00:00:00-05:00"), url: "#" },
+          { name: "CH2025", date: new Date("2025-10-03T00:00:00-04:00"), url: "#" },
         ];
 
         // 🧠 Show title and start countdown
