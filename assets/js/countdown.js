@@ -2,17 +2,16 @@ export function startCountdown(elementId, eventDateStr) {
   const countdownEl = document.getElementById(elementId);
   if (!countdownEl) return;
 
-  let timer; // ✅ Declare timer before it's used
+  let timer; // declared before usage
 
   function updateCountdown() {
     const eventDate = new Date(eventDateStr);
     const now = new Date();
     const diff = eventDate - now;
 
-    // 🟢 When countdown is over:
     if (diff <= 0) {
       countdownEl.innerHTML = `<span class="coming-soon">Next Event Coming Soon!</span>`;
-      clearInterval(timer); // ✅ Now timer is in scope and initialized
+      clearInterval(timer);
       return;
     }
 
@@ -31,6 +30,19 @@ export function startCountdown(elementId, eventDateStr) {
     `;
   }
 
-  updateCountdown(); // Run immediately
-  timer = setInterval(updateCountdown, 1000); // ✅ Assign after declaration
+  // 🕐 Start countdown immediately
+  updateCountdown();
+  timer = setInterval(updateCountdown, 1000);
+
+  // 🧘‍♀️ Pause/resume logic
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Tab not visible — pause interval
+      clearInterval(timer);
+    } else {
+      // Tab visible again — recalc immediately, resume updates
+      updateCountdown();
+      timer = setInterval(updateCountdown, 1000);
+    }
+  });
 }
