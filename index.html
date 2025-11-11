@@ -19,90 +19,149 @@
   </script>
 
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
   <title>CharlestonHacks - Home</title>
-  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators."/>
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events"/>
-  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated."/>
+  <meta name="description" content="CharlestonHacks – Making Invisible Networks Visible."/>
   <meta property="og:image" content="images/websitepanel.webp"/>
   <meta property="og:url" content="https://charlestonhacks.com"/>
-  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="theme-color" content="#0a0a0a"/>
   <link rel="icon" href="favicon.ico" type="image/x-icon"/>
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
   <link rel="manifest" href="/manifest.json"/>
-  <meta name="theme-color" content="#ff6600"/>
-  <link rel="canonical" href="https://charlestonhacks.com"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css"/>
 
   <style>
-    /* —— Overlay Styling —— */
+    :root {
+      --gold: #c9a35e;
+      --cyan: #00e0ff;
+      --bg-dark: #000;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg-dark);
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ✨ Splash Screen */
+    #splash-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 50%, #020203 0%, #000 100%);
+      z-index: 2000;
+      transition: opacity 0.4s ease;
+    }
+    #splash-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #splash-title {
+      color: var(--gold);
+      font-size: 2rem;
+      margin-top: 1rem;
+      text-shadow: 0 0 12px rgba(201,163,94,0.7);
+    }
+    #splash-desc {
+      color: var(--cyan);
+      font-size: 1rem;
+      margin: .4rem 0 1rem;
+      text-shadow: 0 0 8px rgba(0,224,255,0.8);
+    }
+    .btn {
+      background: var(--gold);
+      color: #000;
+      border: none;
+      padding: .7em 1.4em;
+      margin: .5em;
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      cursor: pointer;
+      transition: transform .2s, background .2s;
+    }
+    .btn:hover {
+      transform: scale(1.05);
+      background: #e6c98f;
+    }
+
+    /* 🕰 Countdown / BTC */
+    #countdown span {
+      color: var(--cyan);
+      margin: 0 .15rem;
+    }
+    #btcPrice {
+      color: var(--gold);
+      font-size: .9rem;
+      margin-top: .5rem;
+      text-shadow: 0 0 8px rgba(201,163,94,0.6);
+    }
+
+    /* 🌌 Overlay */
     #events-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.85);
       backdrop-filter: blur(6px);
       display: none;
       justify-content: center;
       align-items: center;
-      z-index: 1000;
+      z-index: 1500;
       color: white;
     }
     #events-overlay.active {
       display: flex;
-      animation: fadeIn 0.3s ease forwards;
+      animation: fadeIn .3s ease forwards;
     }
     @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      from {opacity:0;} to {opacity:1;}
     }
 
     .events-modal {
-      background: #111;
-      border: 2px solid #ff6600;
+      background: #0b0b0b;
+      border: 1.5px solid var(--gold);
       border-radius: 16px;
       padding: 1.5rem;
       width: 90%;
-      max-width: 480px;
-      box-shadow: 0 0 15px rgba(255,102,0,0.6);
+      max-width: 460px;
       text-align: center;
-      transform: translateY(20px);
-      animation: slideUp 0.4s ease forwards;
+      box-shadow: 0 0 20px rgba(201,163,94,0.4);
+      animation: slideUp .4s ease forwards;
     }
-
     @keyframes slideUp {
-      from { transform: translateY(30px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+      from {transform:translateY(30px);opacity:0;}
+      to {transform:translateY(0);opacity:1;}
     }
-
     .events-modal h2 {
       margin-bottom: 1rem;
-      font-size: 1.4rem;
-      color: #ff6600;
+      color: var(--gold);
     }
     .event-item {
       margin-bottom: 1rem;
-      padding: 0.75rem;
       border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: .75rem;
     }
-    .event-item:last-child { border: none; }
-    .event-date { font-size: 0.9rem; color: #ccc; margin-top: 0.3rem; }
+    .event-date { color: #bbb; margin-top: .25rem; font-size: .9rem; }
     .event-link {
-      display: inline-block;
-      margin-top: 0.5rem;
-      padding: 0.4rem 0.8rem;
-      background: #ff6600;
-      color: white;
-      border-radius: 6px;
+      background: var(--cyan);
+      color: #000;
       text-decoration: none;
-      font-size: 0.85rem;
-      transition: background 0.2s;
+      padding: .4rem .8rem;
+      border-radius: 6px;
+      font-weight: 700;
+      transition: background .2s;
     }
-    .event-link:hover { background: #ff8533; }
+    .event-link:hover { background: #7efcff; }
     #close-overlay {
       margin-top: 1rem;
       background: transparent;
-      color: #ff6600;
+      color: var(--gold);
       border: none;
       cursor: pointer;
       font-size: 1rem;
@@ -111,78 +170,67 @@
 </head>
 
 <body>
-  <!-- —— Neural Background —— -->
   <canvas id="neural-bg"></canvas>
 
-  <noscript>
-    <div style="background:#111;color:white;text-align:center;padding:1em;font-size:1rem;">
-      ⚠️ JavaScript is disabled. For the full CharlestonHacks experience, please enable JavaScript.
-    </div>
-  </noscript>
-
-  <!-- —— Splash Screen —— -->
+  <!-- —— Splash —— -->
   <div id="splash-overlay" role="dialog" aria-modal="true" tabindex="-1">
     <div id="splash-content">
-      <img id="splash-logo" src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" />
+      <img src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" style="width:200px;" />
       <h1 id="splash-title">Welcome to CharlestonHacks</h1>
       <p id="splash-desc">Loading…</p>
-      <label id="dont-show-label" style="margin-top:1em; display:flex; align-items:center; gap:.5em; font-size:.9rem;">
-        <input type="checkbox" id="dont-show-again" />
-        Don’t show this welcome screen again
+      <label style="margin-top:1em;font-size:.9rem;">
+        <input type="checkbox" id="dont-show-again"/> Don’t show this again
       </label>
-      <div id="splash-buttons" class="button-container">
+      <div>
         <button id="community-site-btn" class="btn">Community Site</button>
         <button id="public-site-btn" class="btn">Public Site</button>
       </div>
-      <p id="splash-copyright" style="font-size:.8rem; opacity:.7; margin-top:2rem;">
-        © 2025 CharlestonHacks. All rights reserved.
-      </p>
+      <p style="font-size:.8rem;opacity:.7;margin-top:2rem;">© 2025 CharlestonHacks. All rights reserved.</p>
     </div>
   </div>
 
-  <!-- —— Audio assets —— -->
+  <!-- —— Audio —— -->
   <audio id="cardflipSound" src="assets/atmospherel.m4a" preload="auto"></audio>
   <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
   <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
 
-  <!-- —— Main Interactive Card —— -->
+  <!-- —— Main —— -->
   <main>
     <div class="main-wrapper">
-      <div class="media-container" aria-label="Toggle mission content" tabindex="0">
-        <div id="countdown" aria-live="polite"></div>
-        <div id="btcPrice" aria-live="polite"></div>
+      <div class="media-container">
+        <div id="countdown"></div>
+        <div id="btcPrice"></div>
 
-        <img id="missionImage" src="icons/card.png" alt="Big Playing Card" style="z-index:3;" />
-        <img id="cardFrame" src="images/cardframe2.svg" alt="Card Frame" style="display:none;" />
-        <video id="missionVideo" muted playsinline controls style="display:none; opacity:0;">
-          <source src="" type="video/mp4" />
-          Your browser does not support the video tag.
+        <img id="missionImage" src="icons/card.png" alt="Big Card"/>
+        <img id="cardFrame" src="images/cardframe2.svg" alt="Frame" style="display:none;"/>
+        <video id="missionVideo" muted playsinline controls style="display:none;opacity:0;">
+          <source src="" type="video/mp4"/>
         </video>
 
-        <!-- —— Interactive Buttons —— -->
+        <!-- Buttons -->
         <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
-          <img src="images/informationbutton.webp" alt="Info" />
+          <img src="images/informationbutton.webp" alt="Info"/>
         </button>
-        <button type="button" class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Read event documentation and resources.">
-          <img src="images/crestn.svg" alt="Crest" />
+        <button type="button" class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Event documentation.">
+          <img src="images/crestn.svg" alt="Docs"/>
         </button>
         <button type="button" class="clickable-area top-right" data-sound="chime" data-url="2card.html" data-info="Explore the innovation engine.">
-          <img src="images/innovationenginebutton.webp" alt="Innovation" />
+          <img src="images/innovationenginebutton.webp" alt="Innovation"/>
         </button>
-        <button type="button" class="clickable-area middle-left" data-sound="chime" data-url="experimental.html" data-info="Experiment in the sandbox environment.">
-          <img src="images/experiment.webp" alt="Experiment" />
+        <button type="button" class="clickable-area middle-left" data-sound="chime" data-url="experimental.html" data-info="Sandbox environment.">
+          <img src="images/experiment.webp" alt="Experiment"/>
         </button>
         <button type="button" class="clickable-area middle-right" data-sound="chime" data-url="swag.html" data-info="View and order event swag.">
-          <img src="images/case.webp" alt="Case" />
+          <img src="images/case.webp" alt="Case"/>
         </button>
-        <button type="button" class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Catch up on the latest news.">
-          <img src="images/newsbutton.webp" alt="News" />
+        <button type="button" class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Catch up on news.">
+          <img src="images/newsbutton.webp" alt="News"/>
         </button>
-        <button type="button" class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor CharlestonHacks and unlock perks.">
-          <img src="images/keysn.svg" alt="Keys" />
+        <button type="button" class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor CharlestonHacks.">
+          <img src="images/keysn.svg" alt="Keys"/>
         </button>
         <button type="button" class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Play the card match game.">
-          <img src="images/peoplebutton.webp" alt="People" />
+          <img src="images/peoplebutton.webp" alt="People"/>
         </button>
 
         <div id="infoLine" class="info-line">
@@ -192,17 +240,17 @@
     </div>
 
     <section class="icons-container">
-      <a href="https://github.com/sponsors/deckerd451" target="_blank" aria-label="Sponsor CharlestonHacks"><i class="fas fa-heart"></i></a>
-      <a href="2card.html" aria-label="Innovation Engine"><i class="fas fa-people-arrows"></i></a>
-      <a href="subscribe.html" aria-label="Subscribe"><i class="fas fa-bell"></i></a>
-      <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-      <a href="https://www.instagram.com/charlestonhacks/" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-      <a href="mailto:hello@charlestonhacks.com" aria-label="Email"><i class="fas fa-envelope"></i></a>
-      <a href="https://www.facebook.com/deckerdb26354" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+      <a href="https://github.com/sponsors/deckerd451" target="_blank"><i class="fas fa-heart"></i></a>
+      <a href="2card.html"><i class="fas fa-people-arrows"></i></a>
+      <a href="subscribe.html"><i class="fas fa-bell"></i></a>
+      <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank"><i class="fab fa-linkedin"></i></a>
+      <a href="https://www.instagram.com/charlestonhacks/" target="_blank"><i class="fab fa-instagram"></i></a>
+      <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
+      <a href="https://www.facebook.com/deckerdb26354" target="_blank"><i class="fab fa-facebook"></i></a>
     </section>
   </main>
 
-  <!-- —— Event Overlay —— -->
+  <!-- —— Event Modal —— -->
   <div id="events-overlay">
     <div class="events-modal">
       <h2>Upcoming Charleston Events</h2>
@@ -213,34 +261,34 @@
 
   <!-- —— Splash Logic —— -->
   <script>
-    (function () {
-      const splashOverlay = document.getElementById("splash-overlay");
-      const communityBtn = document.getElementById("community-site-btn");
-      const publicBtn = document.getElementById("public-site-btn");
-      const splashKey = "chs_splash_seen_once";
+  (function(){
+    const splash=document.getElementById("splash-overlay");
+    const cBtn=document.getElementById("community-site-btn");
+    const pBtn=document.getElementById("public-site-btn");
+    const box=document.getElementById("dont-show-again");
+    const KEY="chs_splash_seen_once";
 
-      function hideSplash(immediate = false) {
-        splashOverlay.classList.add("fade-out");
-        document.body.classList.remove("splash-active");
-        setTimeout(() => splashOverlay.style.display = "none", immediate ? 0 : 700);
-      }
-      function dismissSplash() {
-        localStorage.setItem(splashKey, "true");
-        hideSplash();
-      }
-      function maybeShowSplash() {
-        const seen = localStorage.getItem(splashKey);
-        if (seen === "true") { hideSplash(true); return; }
-        splashOverlay.style.display = "flex";
-        document.body.classList.add("splash-active");
-        communityBtn.addEventListener("click", dismissSplash);
-        publicBtn.addEventListener("click", () => {
-          dismissSplash();
-          window.location.href = "https://charlestonhacks.mailchimpsites.com/";
-        });
-      }
-      window.addEventListener("DOMContentLoaded", maybeShowSplash);
-    })();
+    function hide(immediate=false){
+      splash.classList.add("fade-out");
+      document.body.classList.remove("splash-active");
+      setTimeout(()=>splash.style.display="none", immediate?0:400);
+    }
+    function dismiss(){
+      if(box.checked) localStorage.setItem(KEY,"true");
+      hide();
+    }
+    window.addEventListener("DOMContentLoaded",()=>{
+      if(localStorage.getItem(KEY)==="true"){ hide(true); return; }
+      splash.style.display="flex";
+      document.body.classList.add("splash-active");
+      cBtn.onclick=e=>{e.preventDefault();dismiss();};
+      pBtn.onclick=e=>{
+        e.preventDefault();
+        dismiss();
+        window.location.href="https://charlestonhacks.mailchimpsites.com/";
+      };
+    });
+  })();
   </script>
 
   <!-- —— Main Logic —— -->
@@ -250,102 +298,73 @@
     import { startBTCPriceTracker } from "./assets/js/btc.js";
     import { startCountdown } from "./assets/js/countdown.js";
 
-    CONFIG.sounds = {
-      cardflip: document.getElementById("cardflipSound"),
-      chime: document.getElementById("chimeSound"),
-      keys: document.getElementById("keysSound"),
+    CONFIG.sounds={
+      cardflip:document.getElementById("cardflipSound"),
+      chime:document.getElementById("chimeSound"),
+      keys:document.getElementById("keysSound")
     };
 
     initCardFlip(CONFIG);
     startBTCPriceTracker("btcPrice");
 
-    const overlay = document.getElementById("events-overlay");
-    const modal = document.querySelector(".events-modal");
-    const eventsList = document.getElementById("events-list");
-    const countdown = document.getElementById("countdown");
-    const closeBtn = document.getElementById("close-overlay");
+    const overlay=document.getElementById("events-overlay");
+    const modal=document.querySelector(".events-modal");
+    const list=document.getElementById("events-list");
+    const countdown=document.getElementById("countdown");
+    const close=document.getElementById("close-overlay");
+    close.onclick=()=>overlay.classList.remove("active");
+    overlay.addEventListener("click",e=>{if(!modal.contains(e.target))overlay.classList.remove("active");});
 
-    // 🪄 Close overlay
-    closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
-    overlay.addEventListener("click", e => {
-      if (!modal.contains(e.target)) overlay.classList.remove("active");
-    });
-
-    // === 🧠 Chucktown Event Auto-Ingestion ===
-    async function fetchEventsFromChucktown() {
-      const proxy =
-        "https://api.codetabs.com/v1/proxy/?quest=" +
+    async function fetchEvents(){
+      const proxy="https://charlestonhacks.cloudflare.workers.dev/?url="+
         encodeURIComponent("https://chucktownstartups.com/events");
-
-      try {
-        const res = await fetch(proxy);
-        const html = await res.text(); // ✅ Correct
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        const events = [];
-        const eventEls = doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event");
-
-        eventEls.forEach(el => {
-          const name = el.querySelector("h2, h3, a")?.textContent?.trim() || "Charleston Event";
-          let dateText = el.querySelector("time")?.getAttribute("datetime") ||
-                         el.querySelector("time")?.textContent?.trim();
-          if (!dateText) {
-            const text = el.textContent;
-            const match = text.match(/([A-Z][a-z]{2,9}\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}\s?(AM|PM)?)/i);
-            if (match) dateText = match[1];
-          }
-          if (name && dateText) {
-            const parsedDate = new Date(dateText);
-            if (!isNaN(parsedDate))
-              events.push({ name, date: parsedDate, url: "https://chucktownstartups.com/events" });
-          }
+      try{
+        const res=await fetch(proxy);
+        const html=await res.text();
+        const doc=new DOMParser().parseFromString(html,"text/html");
+        const events=[];
+        doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event").forEach(el=>{
+          const name=el.querySelector("h2, h3, a")?.textContent?.trim()||"Charleston Event";
+          const dateText=el.querySelector("time")?.getAttribute("datetime")||el.querySelector("time")?.textContent?.trim();
+          const d=new Date(dateText);
+          if(!isNaN(d))events.push({name,date:d,url:"https://chucktownstartups.com/events"});
         });
-
-        const now = new Date();
-        const cutoff = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-        const upcoming = events.filter(e => e.date > now && e.date < cutoff)
-          .sort((a, b) => a.date - b.date);
-
-        const finalEvents = upcoming.length ? upcoming : [
-          { name: "HH2025", date: new Date("2025-10-03T00:00:00-04:00"), url: "#" },
-          { name: "Blue Sky Demo", date: new Date("2026-02-14T00:00:00-05:00"), url: "#" },
+        const now=new Date();
+        const upcoming=events.filter(e=>e.date>now).sort((a,b)=>a.date-b.date);
+        const final=upcoming.length?upcoming:[
+          {name:"HH2025",date:new Date("2025-10-03T00:00:00-04:00"),url:"#"}
         ];
-
-        startCountdown("countdown", finalEvents);
-
-        countdown.addEventListener("click", () => {
+        startCountdown("countdown",final);
+        countdown.addEventListener("click",()=>{
           overlay.classList.add("active");
-          eventsList.innerHTML = finalEvents.slice(0, 3).map(e => `
+          list.innerHTML=final.slice(0,3).map(e=>`
             <div class="event-item">
               <strong>${e.name}</strong>
               <div class="event-date">${e.date.toLocaleString()}</div>
-              <a href="${e.url}" target="_blank" class="event-link">View Event</a>
+              <a href="${e.url}" target="_blank" class="event-link">View</a>
             </div>`).join("");
         });
-      } catch (err) {
-        console.error("Error fetching Chucktown events:", err);
-      }
+      }catch(err){console.error("Error fetching events:",err);}
     }
+    fetchEvents();
 
-    fetchEventsFromChucktown();
-
-    // === 🧩 Buttons ===
-    const buttons = document.querySelectorAll(".clickable-area");
-    const infoLine = document.getElementById("infoLine");
-    const infoText = document.getElementById("infoText");
-    buttons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        const sound = document.getElementById(btn.dataset.sound + "Sound");
-        if (sound) sound.play();
-        if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
+    // Buttons & info line
+    const buttons=document.querySelectorAll(".clickable-area");
+    const infoLine=document.getElementById("infoLine");
+    const infoText=document.getElementById("infoText");
+    buttons.forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const sound=document.getElementById(btn.dataset.sound+"Sound");
+        if(sound)sound.play();
+        if(btn.dataset.url)setTimeout(()=>window.location.href=btn.dataset.url,400);
       });
-      btn.addEventListener("mouseover", () => {
-        infoLine.style.opacity = "1";
-        infoText.textContent = btn.dataset.info || "";
+      btn.addEventListener("mouseover",()=>{
+        infoLine.style.opacity="1";
+        infoText.textContent=btn.dataset.info||"";
       });
-      btn.addEventListener("mouseout", () => {
-        infoLine.style.opacity = "0";
-        infoText.textContent = "";
+      btn.addEventListener("mouseout",()=>{
+        infoLine.style.opacity="0";
+        infoText.textContent="";
       });
     });
   </script>
