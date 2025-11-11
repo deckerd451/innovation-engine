@@ -1,316 +1,321 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
-    <meta
-      name="description"
-      content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators."
-    />
-    <meta
-      property="og:title"
-      content="CharlestonHacks | Charleston Hackathons & Tech Events"
-    />
-    <meta
-      property="og:description"
-      content="CharlestonHacks promotes tech events including the AI Film Fest. Join us for exciting events and stay updated."
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
+    <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
+    <meta property="og:description" content="CharlestonHacks promotes tech events including the AI Film Fest. Join us for exciting events and stay updated." />
     <meta property="og:image" content="images/reactiveh.png" />
     <meta property="og:url" content="https://charlestonhacks.com" />
     <meta name="twitter:card" content="summary_large_image" />
     <title>CharlestonHacks - Home</title>
-    <link rel="icon" href="favicon.ico" type="image/x-icon" />
-    <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
     <link rel="manifest" href="manifest.json" />
 
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-    <link
-      rel="preconnect"
-      href="https://hvmotpzhliufzomewzfl.supabase.co"
-    />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://hvmotpzhliufzomewzfl.supabase.co">
 
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
     <style>
-      /* Base styles for the tab content panes */
-      .tab-content-pane {
-        display: none; /* All tab content panes are hidden by default */
-        padding: 20px 0; /* Add some padding to separate from tabs */
-      }
-      .tab-content-pane.active-tab-pane {
-        display: block; /* The active tab content pane is shown */
-      }
+        /* Base styles for the tab content panes */
+        .tab-content-pane {
+            display: none; /* All tab content panes are hidden by default */
+            padding: 20px 0; /* Add some padding to separate from tabs */
+        }
+        .tab-content-pane.active-tab-pane {
+            display: block; /* The active tab content pane is shown */
+        }
 
-      /* Styles for the tab buttons/navigation */
-      .tab-nav {
-        display: flex;
-        justify-content: center; /* Center the tabs */
-        margin-bottom: 20px; /* Space between tabs and content */
-        border-bottom: 2px solid #333; /* Underline for tabs */
-        padding-bottom: 5px;
-        gap: 10px; /* Space between tab buttons */
-      }
-      .tab-button {
-        background-color: #2a2a3a; /* Darker background for tabs */
-        color: #eee;
-        border: none;
-        padding: 10px 15px;
-        cursor: pointer;
-        font-size: 1em;
-        border-radius: 5px 5px 0 0; /* Rounded top corners */
-        transition: background-color 0.3s ease, color 0.3s ease;
-        white-space: nowrap; /* Prevent wrapping on smaller screens */
-      }
-      .tab-button:hover {
-        background-color: #3a3a4a;
-        color: #ffd700; /* Gold on hover */
-      }
-      .tab-button.active {
-        background-color: #ffd700; /* Gold for active tab */
-        color: #222; /* Dark text for active tab */
-        font-weight: bold;
-        border-bottom: 2px solid #ffd700; /* Match active border */
-      }
-
-      /* Adjustments for existing sections when they become tab panes */
-      .panel {
-        /* Ensure the panel can contain the tab content properly, e.g.,
-           for relative positioning */
-        position: relative; /* If you add absolute positioned elements later, this is crucial */
-        padding-top: 0; /* Remove top padding if tabs are directly inside, adjust as needed */
-        box-sizing: border-box;
-      }
-
-      /* Ensure section titles within tabs still look good */
-      .tab-content-pane .section-title {
-        margin-top: 0; /* Remove top margin if needed when inside a tab */
-      }
-
-      /* Media queries for tab buttons if they get too crowded */
-      @media (max-width: 768px) {
+        /* Styles for the tab buttons/navigation */
         .tab-nav {
-          flex-wrap: wrap; /* Allow tabs to wrap on smaller screens */
-          justify-content: flex-start; /* Align to start when wrapping */
+            display: flex;
+            justify-content: center; /* Center the tabs */
+            margin-bottom: 20px; /* Space between tabs and content */
+            border-bottom: 2px solid #333; /* Underline for tabs */
+            padding-bottom: 5px;
+            gap: 10px; /* Space between tab buttons */
         }
         .tab-button {
-          flex-grow: 1; /* Allow buttons to grow to fill space */
-          text-align: center;
+            background-color: #2a2a3a; /* Darker background for tabs */
+            color: #eee;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 1em;
+            border-radius: 5px 5px 0 0; /* Rounded top corners */
+            transition: background-color 0.3s ease, color 0.3s ease;
+            white-space: nowrap; /* Prevent wrapping on smaller screens */
         }
-      }
+        .tab-button:hover {
+            background-color: #3a3a4a;
+            color: #ffd700; /* Gold on hover */
+        }
+        .tab-button.active {
+            background-color: #ffd700; /* Gold for active tab */
+            color: #222; /* Dark text for active tab */
+            font-weight: bold;
+            border-bottom: 2px solid #ffd700; /* Match active border */
+        }
+
+        /* Adjustments for existing sections when they become tab panes */
+        .panel {
+            /* Ensure the panel can contain the tab content properly, e.g., for relative positioning */
+            position: relative; /* If you add absolute positioned elements later, this is crucial */
+            padding-top: 0; /* Remove top padding if tabs are directly inside, adjust as needed */
+            box-sizing: border-box;
+        }
+
+        /* Ensure section titles within tabs still look good */
+        .tab-content-pane .section-title {
+            margin-top: 0; /* Remove top margin if needed when inside a tab */
+        }
+
+        /* Media queries for tab buttons if they get too crowded */
+        @media (max-width: 768px) {
+            .tab-nav {
+                flex-wrap: wrap; /* Allow tabs to wrap on smaller screens */
+                justify-content: flex-start; /* Align to start when wrapping */
+            }
+            .tab-button {
+                flex-grow: 1; /* Allow buttons to grow to fill space */
+                text-align: center;
+            }
+        }
     </style>
-  </head>
-  <body class="two-card-page">
+</head>
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-6NDKG07DY6');
+</script>
+<body class="two-card-page">
     <a href="index.html" title="Back to Home">
-      <i class="fas fa-home home-icon"></i>
-    </a>
+  <i class="fas fa-home home-icon"></i>
+</a>
 
     <div id="achievements" class="achievements" aria-live="polite"></div>
     <div class="container">
-      <header class="header">
-        <h1>Innovation Engine</h1>
-        <p>Connect, Build, and Innovate Together</p>
-      </header>
-      <main class="panels-wrapper">
-        <div class="panel large">
-          <div class="tab-nav">
-            <button class="tab-button active" data-tab="profile">
-              <i class="fas fa-user-plus" aria-hidden="true"></i> Create Profile
-            </button>
-            <button class="tab-button" data-tab="search">
-              <i class="fas fa-search" aria-hidden="true"></i> Individual Search
-            </button>
-            <button class="tab-button" data-tab="team-builder">
-              <i class="fas fa-users" aria-hidden="true"></i> Team Builder
-            </button>
-            <button class="tab-button" data-tab="leaderboard">
-              <i class="fas fa-trophy" aria-hidden="true"></i> Leaderboard
-            </button>
-          </div>
+        <header class="header">
+            <h1>Innovation Engine</h1>
+            <p>Connect, Build, and Innovate Together</p>
+        </header>
+        <main class="panels-wrapper">
+  <div class="panel large">
+    <div class="tab-nav">
+                <button class="tab-button active" data-tab="profile">
+                    <i class="fas fa-user-plus" aria-hidden="true"></i> Create Profile
+                </button>
+                <button class="tab-button" data-tab="search">
+                    <i class="fas fa-search" aria-hidden="true"></i> Individual Search
+                </button>
+                <button class="tab-button" data-tab="team-builder">
+                    <i class="fas fa-users" aria-hidden="true"></i> Team Builder
+                </button>
+                <button class="tab-button" data-tab="leaderboard">
+                    <i class="fas fa-trophy" aria-hidden="true"></i> Leaderboard
+                </button>
+            </div>
 
-          <div id="profile" class="tab-content-pane active-tab-pane">
-            <section id="matchmaking-section">
-              <h2 class="section-title">Create Your Profile</h2>
-              <!-- Note: method="POST" is retained, but the form submission is intercepted in main.js to send a magic link via Supabase. -->
-              <form
-                id="skills-form"
-                method="POST"
-              >
+            <div id="profile" class="tab-content-pane active-tab-pane">
+                <section id="matchmaking-section">
+                    <h2 class="section-title">
+                        Create Your Profile
+                    </h2>
+                    <form id="skills-form">
+                        <div class="input-container">
+                            <input type="text" id="first-name" placeholder="First Name" required aria-label="First Name">
+                            <input type="text" id="last-name" placeholder="Last Name" required aria-label="Last Name">
+                            <input type="email" name="_replyto" id="email" placeholder="Email" required aria-label="Email">
+                            <label for="skills-input">Professional Skills (comma separated)</label>
+                            <input type="text" id="skills-input" placeholder="e.g. aws, fullstack, java, python" required autocomplete="off" aria-describedby="autocomplete-skills-input">
+                            <div id="skills-proficiency-container"></div>
+                            <div id="autocomplete-skills-input" class="autocomplete-box"></div>
+                            <label for="photo-input">Upload Your Photo</label>
+                            <input type="file" id="photo-input" accept="image/*" required aria-label="Upload Photo">
+                            <img id="preview" src="#" alt="Image Preview" class="image-preview" />
+                            <label for="bio-input">Short Bio <span class="optional-text">(Optional)</span></label>
+                            <input type="text" id="bio-input" placeholder="Tell us about yourself" maxlength="120" aria-label="Short Bio">
+                            <label for="availability-input">Current Availability</label>
+                            <select id="availability-input" aria-label="Current Availability">
+                                <option value="Available">Available</option>
+                                <option value="Busy">Busy</option>
+                                <option value="Not Looking">Not Looking</option>
+                            </select>
+                            <button type="submit">Register & Subscribe</button>
+                        </div>
+                        <div class="profile-bar" id="profile-bar"><div class="profile-bar-inner"></div></div>
+                        <div id="profile-progress-msg" class="profile-incomplete"></div>
+                    </form>
+                    <p id="success-message" class="success-message" role="status" style="display:none;">Added Successfully!</p>
+                </section>
+            </div>
+
+            <div id="search" class="tab-content-pane">
+                <h2 class="section-title">
+                    Individual Search
+                </h2>
                 <div class="input-container">
-                  <input type="text" id="first-name" placeholder="First Name" required aria-label="First Name" />
-                  <input type="text" id="last-name" placeholder="Last Name" required aria-label="Last Name" />
-                  <input type="email" name="_replyto" id="email" placeholder="Email" required aria-label="Email" />
-                  <label for="skills-input"
-                    >Professional Skills (comma separated)</label
-                  >
-                  <input
-                    type="text"
-                    id="skills-input"
-                    placeholder="e.g. aws, fullstack, java, python"
-                    required
-                    autocomplete="off"
-                    aria-describedby="autocomplete-skills-input"
-                  />
-                  <div id="skills-proficiency-container"></div>
-                  <div id="autocomplete-skills-input" class="autocomplete-box"></div>
-                  <label for="photo-input">Upload Your Photo</label>
-                  <input
-                    type="file"
-                    id="photo-input"
-                    accept="image/*"
-                    required
-                    aria-label="Upload Photo"
-                  />
-                  <img
-                    id="preview"
-                    src="#"
-                    alt="Image Preview"
-                    class="image-preview"
-                  />
-                  <label for="bio-input"
-                    >Short Bio <span class="optional-text">(Optional)</span></label
-                  >
-                  <input
-                    type="text"
-                    id="bio-input"
-                    placeholder="Tell us about yourself"
-                    maxlength="120"
-                    aria-label="Short Bio"
-                  />
-                  <label for="availability-input">Current Availability</label>
-                  <select id="availability-input" aria-label="Current Availability">
-                    <option value="Available">Available</option>
-                    <option value="Busy">Busy</option>
-                    <option value="Not Looking">Not Looking</option>
-                  </select>
-                  <button type="submit">Register &amp; Subscribe</button>
+                    <label for="teamSkillsInput">Required Skills</label>
+                    <input type="text" id="teamSkillsInput" placeholder="e.g. aws, fullstack, java, python" autocomplete="off" aria-describedby="autocomplete-team-skills">
+                    <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+                    <button id="find-team-btn" type="button">Get People</button> <br> <br>
+                    <label for="nameInput">Search by First/Last Name</label>
+                    <input type="text" id="nameInput" placeholder="e.g. John, Doug, Will, Dave" autocomplete="off">
+                    <button id="search-name-btn" type="button">Find by Name</button>
                 </div>
-                <div class="profile-bar" id="profile-bar">
-                  <div class="profile-bar-inner"></div>
+                <div id="matchNotification" class="notification match-notification" style="display: none;"></div>
+                <div id="noResults" class="notification no-results-notification" style="display: none;"></div>
+                <div id="cardContainer" class="card-container" role="list" aria-label="Matching team members"></div>
+            </div>
+
+            <div id="team-builder" class="tab-content-pane">
+                <h2 class="section-title">
+                    Team Builder
+                </h2>
+                <div class="input-container">
+                    <p class="instructions">
+                        Let’s build your team. Enter required skills and number of people needed.
+                    </p>
+                    <label for="team-skills-input">Required Skills</label>
+                    <input type="text" id="team-skills-input" placeholder="e.g. aws, fullstack, java, python" autocomplete="off" aria-describedby="autocomplete-teams-skills"/>
+                    <div id="autocomplete-teams-skills" class="autocomplete-box"></div>
+                    <label for="teamSize">Team Size</label>
+                    <input type="number" id="teamSize" placeholder="e.g. 3" min="1" max="6" aria-label="Team Size"/>
+                    <button onclick="buildBestTeam()">Build Team</button>
                 </div>
-                <div id="profile-progress-msg" class="profile-incomplete"></div>
-              </form>
-              <p
-                id="success-message"
-                class="success-message"
-                role="status"
-                style="display: none"
-              >
-                Added Successfully!
-              </p>
-            </section>
-          </div>
-
-          <div id="search" class="tab-content-pane">
-            <h2 class="section-title">Individual Search</h2>
-            <div class="input-container">
-              <label for="teamSkillsInput">Required Skills</label>
-              <input
-                type="text"
-                id="teamSkillsInput"
-                placeholder="e.g. aws, fullstack, java, python"
-                autocomplete="off"
-                aria-describedby="autocomplete-team-skills"
-              />
-              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
-              <button id="find-team-btn" type="button">Get People</button>
-              <br /><br />
-              <label for="nameInput">Search by First/Last Name</label>
-              <input
-                type="text"
-                id="nameInput"
-                placeholder="e.g. John, Doug, Will, Dave"
-                autocomplete="off"
-              />
-              <button id="search-name-btn" type="button">Find by Name</button>
+                <div class="card-container" id="bestTeamContainer" role="list" aria-label="Best matched team"></div>
             </div>
-            <div
-              id="matchNotification"
-              class="notification match-notification"
-              style="display: none"
-            ></div>
-            <div
-              id="noResults"
-              class="notification no-results-notification"
-              style="display: none"
-            ></div>
-            <div
-              id="cardContainer"
-              class="card-container"
-              role="list"
-              aria-label="Matching team members"
-            ></div>
-          </div>
 
-          <div id="team-builder" class="tab-content-pane">
-            <h2 class="section-title">Team Builder</h2>
-            <div class="input-container">
-              <p class="instructions">
-                Let’s build your team. Enter required skills and number of people
-                needed.
-              </p>
-              <label for="team-skills-input">Required Skills</label>
-              <input
-                type="text"
-                id="team-skills-input"
-                placeholder="e.g. aws, fullstack, java, python"
-                autocomplete="off"
-                aria-describedby="autocomplete-teams-skills"
-              />
-              <div id="autocomplete-teams-skills" class="autocomplete-box"></div>
-              <label for="teamSize">Team Size</label>
-              <input
-                type="number"
-                id="teamSize"
-                placeholder="e.g. 3"
-                min="1"
-                max="6"
-                aria-label="Team Size"
-              />
-              <button onclick="buildBestTeam()">Build Team</button>
+            <div id="leaderboard" class="tab-content-pane">
+                <div class="leaderboard" id="leaderboard-section">
+                    <h2>Top Endorsed Skills</h2>
+                    <div id="leaderboard-rows"></div>
+                </div>
             </div>
-            <div
-              class="card-container"
-              id="bestTeamContainer"
-              role="list"
-              aria-label="Best matched team"
-            ></div>
-          </div>
 
-          <div id="leaderboard" class="tab-content-pane">
-            <div class="leaderboard" id="leaderboard-section">
-              <h2>Top Endorsed Skills</h2>
-              <div id="leaderboard-rows"></div>
-            </div>
-          </div>
-        </div>
-      </main>
+        </main>
     </div>
 
-    <script
-      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-      defer
-    ></script>
-    <script type="module" src="assets/js/main.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="main.js" defer></script>
 
-    <!-- The profile form submission is now handled via Supabase magic link in main.js -->
+    <script>
+      document.getElementById("skills-form").addEventListener("submit", function(event) {
+        event.preventDefault(); // Prevent default form submission
+        let form = this;
 
-    <!-- Endorsement modal -->
+        // Capture form field values
+        const fname = document.getElementById("first-name").value;
+        const lname = document.getElementById("last-name").value;
+        const email = document.getElementById("email").value;
+
+        // 1. Submit to Formspree (or your primary backend endpoint)
+        // Ensure your form's action attribute is set correctly for Formspree if you intend to use it.
+        // For example: <form id="skills-form" action="https://formspree.io/f/YOUR_FORMSPREE_HASH" method="POST">
+        // If no action is specified, this fetch will go to the current page's URL.
+        fetch(form.action, {
+          method: form.method,
+          body: new FormData(form),
+          headers: { "Accept": "application/json" }
+        })
+        .then(response => {
+          if (response.ok) {
+            document.getElementById("success-message").style.display = "block";
+            // Optionally reset the form after successful submission to Formspree,
+            // but be careful if you also need data for Supabase/Mailchimp.
+            // For this setup, the Supabase logic will handle the form reset.
+            // form.reset();
+          } else {
+            // alert("Something went wrong with Formspree. Please try again.");
+            console.error("Formspree submission failed.");
+          }
+        })
+        .catch(error => {
+          // alert("Error with Formspree submission: " + error);
+          console.error("Error with Formspree submission:", error);
+        });
+
+        // 2. Submit to Mailchimp in a new tab
+        const mailchimpForm = document.createElement("form");
+        mailchimpForm.action = "https://charlestonhacks.us12.list-manage.com/subscribe/post?u=79363b7a43970f760d61360fd&id=3b95e0177a";
+        mailchimpForm.method = "POST";
+        mailchimpForm.target = "_blank"; // Opens in a new tab/window
+
+        mailchimpForm.innerHTML = `
+          <input type="hidden" name="FNAME" value="${fname}">
+          <input type="hidden" name="LNAME" value="${lname}">
+          <input type="hidden" name="EMAIL" value="${email}">
+        `;
+
+        document.body.appendChild(mailchimpForm); // Temporarily add to the DOM
+        mailchimpForm.submit(); // Programmatically submit the form
+        document.body.removeChild(mailchimpForm); // Clean up: remove from the DOM
+      });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Function to show a specific tab and hide others
+            function showTab(tabId) {
+                // Hide all tab content panes
+                document.querySelectorAll('.tab-content-pane').forEach(pane => {
+                    pane.classList.remove('active-tab-pane');
+                });
+
+                // Deactivate all tab buttons
+                document.querySelectorAll('.tab-button').forEach(button => {
+                    button.classList.remove('active');
+                });
+
+                // Show the selected tab content pane
+                const activePane = document.getElementById(tabId);
+                if (activePane) {
+                    activePane.classList.add('active-tab-pane');
+                }
+
+                // Activate the corresponding tab button
+                const activeButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+                if (activeButton) {
+                    activeButton.classList.add('active');
+                }
+
+                // Scroll to the top of the panel to ensure content is visible
+                const panel = document.querySelector('.panel');
+                if (panel) {
+                    panel.scrollTop = 0;
+                }
+            }
+
+            // Add click event listeners to tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    showTab(tabId);
+                });
+            });
+
+            // Show the default tab (e.g., 'profile') when the page loads
+            showTab('profile'); // This makes the "Create Profile" tab active by default
+        });
+    </script>
     <div id="endorseSkillModal" class="modal">
-      <div class="modal-content">
+    <div class="modal-content">
         <span class="close-button">&times;</span>
         <h3>Endorse User for...</h3>
-        <div id="endorse-skill-list" class="skill-endorse-list"></div>
-      </div>
+        <div id="endorse-skill-list" class="skill-endorse-list">
+            </div>
     </div>
+</div>
 
-    <style>
-      .modal {
+<style>
+    .modal {
         display: none; /* Hidden by default */
         position: fixed; /* Stay in place */
         z-index: 100; /* Sit on top */
@@ -319,31 +324,31 @@
         width: 100%; /* Full width */
         height: 100%; /* Full height */
         overflow: auto; /* Enable scroll if needed */
-        background-color: rgba(0, 0, 0, 0.7); /* Black w/ opacity */
-      }
+        background-color: rgba(0,0,0,0.7); /* Black w/ opacity */
+    }
 
-      .modal-content {
-        position: absolute; /* or fixed */
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        background-color: #2a2a3a;
-        padding: 25px;
-        border: 1px solid #888;
-        width: 80%;
-        max-width: 500px;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      }
+    .modal-content {
+    position: absolute; /* or fixed */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #2a2a3a;
+    padding: 25px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
 
-      .modal-content h3 {
+    .modal-content h3 {
         color: var(--primary-color);
         margin-top: 0;
         margin-bottom: 20px;
         text-align: center;
-      }
+    }
 
-      .close-button {
+    .close-button {
         color: #aaa;
         float: right;
         font-size: 28px;
@@ -352,39 +357,39 @@
         top: 10px;
         right: 15px;
         cursor: pointer;
-      }
+    }
 
-      .close-button:hover,
-      .close-button:focus {
+    .close-button:hover,
+    .close-button:focus {
         color: #ffd700;
         text-decoration: none;
         cursor: pointer;
-      }
+    }
 
-      .skill-endorse-list {
+    .skill-endorse-list {
         max-height: 200px; /* Scrollable if many skills */
         overflow-y: auto;
         padding-right: 5px; /* For scrollbar */
-      }
+    }
 
-      .skill-endorse-item {
+    .skill-endorse-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 10px 0;
         border-bottom: 1px solid #444;
-      }
+    }
 
-      .skill-endorse-item:last-child {
+    .skill-endorse-item:last-child {
         border-bottom: none;
-      }
+    }
 
-      .skill-endorse-item span {
+    .skill-endorse-item span {
         color: #eee;
         font-size: 1.1em;
-      }
+    }
 
-      .endorse-specific-skill-btn {
+    .endorse-specific-skill-btn {
         background-color: #ffd700;
         color: #222;
         border: none;
@@ -393,13 +398,11 @@
         cursor: pointer;
         font-weight: bold;
         transition: background-color 0.2s ease;
-      }
+    }
 
-      .endorse-specific-skill-btn:hover {
+    .endorse-specific-skill-btn:hover {
         background-color: #e0b800;
-      }
-    </style>
-    <script type="module" src="/assets/js/synapse.js"></script>
-
-  </body>
+    }
+</style>
+</body>
 </html>
