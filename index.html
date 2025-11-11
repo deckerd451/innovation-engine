@@ -4,8 +4,8 @@
   <!-- —— Neuron redirect —— -->
   <script>
     const params = new URLSearchParams(window.location.search);
-    if (params.get('source') === 'neuron') {
-      window.location.href = '/neural.html?' + params.toString();
+    if (params.get("source") === "neuron") {
+      window.location.href = "/neural.html?" + params.toString();
     }
   </script>
 
@@ -13,26 +13,26 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){ dataLayer.push(arguments); }
-    gtag('js', new Date());
-    gtag('config', 'G-6NDKG07DY6');
+    function gtag() { dataLayer.push(arguments); }
+    gtag("js", new Date());
+    gtag("config", "G-6NDKG07DY6");
   </script>
 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>CharlestonHacks - Home</title>
-  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators."/>
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events"/>
-  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated."/>
-  <meta property="og:image" content="images/websitepanel.webp"/>
-  <meta property="og:url" content="https://charlestonhacks.com"/>
-  <meta name="twitter:card" content="summary_large_image"/>
-  <link rel="icon" href="favicon.ico" type="image/x-icon"/>
-  <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
-  <link rel="manifest" href="/manifest.json"/>
-  <meta name="theme-color" content="#ff6600"/>
-  <link rel="canonical" href="https://charlestonhacks.com"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators." />
+  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
+  <meta property="og:description" content="CharlestonHacks promotes tech events, meetups and hackathons. Join us for exciting events and stay updated." />
+  <meta property="og:image" content="images/websitepanel.webp" />
+  <meta property="og:url" content="https://charlestonhacks.com" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#ff6600" />
+  <link rel="canonical" href="https://charlestonhacks.com" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 
@@ -131,154 +131,157 @@
     </section>
   </main>
 
-  <!-- —— Splash Logic (replaced with clean version) —— -->
+  <!-- —— Splash Logic —— -->
   <script>
-  (function () {
-    const splashOverlay = document.getElementById('splash-overlay');
-    const dontShowBox   = document.getElementById('dont-show-again');
-    const communityBtn  = document.getElementById('community-site-btn');
-    const publicBtn     = document.getElementById('public-site-btn');
-    const splashKey     = 'chs_splash_seen_once';
+    (function () {
+      const splashOverlay = document.getElementById("splash-overlay");
+      const communityBtn = document.getElementById("community-site-btn");
+      const publicBtn = document.getElementById("public-site-btn");
+      const splashKey = "chs_splash_seen_once";
 
-    function hideSplash(immediate = false) {
-      splashOverlay.classList.add('fade-out');
-      document.body.classList.remove('splash-active');
-      setTimeout(() => {
-        splashOverlay.style.display = 'none';
-      }, immediate ? 0 : 700);
-    }
-
-    function dismissSplash() {
-      localStorage.setItem(splashKey, 'true');
-      hideSplash();
-    }
-
-    function maybeShowSplash() {
-      const seen = localStorage.getItem(splashKey);
-      if (seen === 'true') {
-        hideSplash(true);
-        return;
+      function hideSplash(immediate = false) {
+        splashOverlay.classList.add("fade-out");
+        document.body.classList.remove("splash-active");
+        setTimeout(() => {
+          splashOverlay.style.display = "none";
+        }, immediate ? 0 : 700);
       }
-      splashOverlay.style.display = 'flex';
-      document.body.classList.add('splash-active');
 
-      communityBtn.addEventListener('click', dismissSplash);
-      publicBtn.addEventListener('click', () => {
-        dismissSplash();
-        window.location.href = 'https://charlestonhacks.mailchimpsites.com/';
-      });
-    }
+      function dismissSplash() {
+        localStorage.setItem(splashKey, "true");
+        hideSplash();
+      }
 
-    window.addEventListener('DOMContentLoaded', maybeShowSplash);
-  })();
+      function maybeShowSplash() {
+        const seen = localStorage.getItem(splashKey);
+        if (seen === "true") {
+          hideSplash(true);
+          return;
+        }
+        splashOverlay.style.display = "flex";
+        document.body.classList.add("splash-active");
+
+        communityBtn.addEventListener("click", dismissSplash);
+        publicBtn.addEventListener("click", () => {
+          dismissSplash();
+          window.location.href = "https://charlestonhacks.mailchimpsites.com/";
+        });
+      }
+
+      window.addEventListener("DOMContentLoaded", maybeShowSplash);
+    })();
   </script>
 
-<script type="module">
-  import { CONFIG } from './assets/js/config.js';
-  import { initCardFlip } from './assets/js/cardFlip.js';
-  import { startBTCPriceTracker } from './assets/js/btc.js';
-  import { startCountdown } from './assets/js/countdown.js';
+  <!-- —— Main Logic —— -->
+  <script type="module">
+    import { CONFIG } from "./assets/js/config.js";
+    import { initCardFlip } from "./assets/js/cardFlip.js";
+    import { startBTCPriceTracker } from "./assets/js/btc.js";
+    import { startCountdown } from "./assets/js/countdown.js";
 
-  CONFIG.sounds = {
-    cardflip: document.getElementById('cardflipSound'),
-    chime: document.getElementById('chimeSound'),
-    keys: document.getElementById('keysSound'),
-  };
+    CONFIG.sounds = {
+      cardflip: document.getElementById("cardflipSound"),
+      chime: document.getElementById("chimeSound"),
+      keys: document.getElementById("keysSound"),
+    };
 
-  initCardFlip(CONFIG);
-  startBTCPriceTracker('btcPrice');
+    initCardFlip(CONFIG);
+    startBTCPriceTracker("btcPrice");
 
-  // === 🧠 Chucktown Startups Event Auto-Ingestion ===
-  async function fetchEventsFromChucktown() {
-    const proxy = "https://api.allorigins.win/get?url=" + 
-                  encodeURIComponent("https://chucktownstartups.com/events");
+    // === 🧠 Chucktown Startups Event Auto-Ingestion (Text-Aware) ===
+    async function fetchEventsFromChucktown() {
+      const proxy =
+        "https://api.allorigins.win/get?url=" +
+        encodeURIComponent("https://chucktownstartups.com/events");
 
-    try {
-      const res = await fetch(proxy);
-      const data = await res.json();
-      const html = data.contents;
+      try {
+        const res = await fetch(proxy);
+        const data = await res.json();
+        const html = data.contents;
 
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
 
-      const events = [];
-      const eventEls = doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event");
+        const events = [];
+        const eventEls = doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event");
 
-      eventEls.forEach(el => {
-        const name = el.querySelector("h2, h3, a")?.textContent?.trim();
-        const timeEl = el.querySelector("time");
-        let dateText = null;
+        eventEls.forEach((el) => {
+          const name = el.querySelector("h2, h3, a")?.textContent?.trim() || "Charleston Event";
 
-        if (timeEl?.getAttribute("datetime")) {
-          dateText = timeEl.getAttribute("datetime");
-        } else if (timeEl?.textContent) {
-          dateText = timeEl.textContent.trim();
-        }
+          let dateText =
+            el.querySelector("time")?.getAttribute("datetime") ||
+            el.querySelector("time")?.textContent?.trim();
 
-        if (name && dateText) {
-          const parsedDate = new Date(dateText);
-          if (!isNaN(parsedDate)) {
-            events.push({ name, date: parsedDate.toISOString() });
+          if (!dateText) {
+            const text = el.textContent;
+            const match = text.match(
+              /([A-Z][a-z]{2,9}\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}\s?(AM|PM)?)/i
+            );
+            if (match) dateText = match[1];
           }
+
+          if (name && dateText) {
+            const parsedDate = new Date(dateText);
+            if (!isNaN(parsedDate)) {
+              events.push({ name, date: parsedDate.toISOString() });
+            }
+          }
+        });
+
+        const now = new Date();
+        const cutoff = new Date();
+        cutoff.setDate(now.getDate() + 90);
+
+        const upcoming = events
+          .filter((e) => new Date(e.date) > now && new Date(e.date) < cutoff)
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (upcoming.length) {
+          console.log(`🎉 Found ${upcoming.length} upcoming event(s) from Chucktown`);
+          startCountdown("countdown", upcoming);
+          return;
         }
-      });
 
-      // Filter for events in next 90 days
-      const now = new Date();
-      const cutoff = new Date();
-      cutoff.setDate(now.getDate() + 90);
-
-      const upcoming = events
-        .filter(e => new Date(e.date) > now && new Date(e.date) < cutoff)
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      if (upcoming.length) {
-        console.log(`🎉 Found ${upcoming.length} upcoming events`);
-        startCountdown('countdown', upcoming);
-        return;
+        console.warn("⚠️ No valid events found — using fallback");
+        startCountdown("countdown", [
+          { name: "HH2025", date: "2025-10-03T00:00:00-04:00" },
+          { name: "Blue Sky Demo", date: "2026-02-14T00:00:00-05:00" },
+        ]);
+      } catch (err) {
+        console.error("❌ Error fetching Chucktown events:", err);
+        startCountdown("countdown", [
+          { name: "HH2025", date: "2025-10-03T00:00:00-04:00" },
+          { name: "Blue Sky Demo", date: "2026-02-14T00:00:00-05:00" },
+        ]);
       }
-
-      console.warn("No valid events — using fallback");
-      startCountdown('countdown', [
-        { name: 'HH2025', date: '2025-10-03T00:00:00-04:00' },
-        { name: 'Blue Sky Demo', date: '2026-02-14T00:00:00-05:00' }
-      ]);
-
-    } catch (err) {
-      console.error("Error fetching events:", err);
-      startCountdown('countdown', [
-        { name: 'HH2025', date: '2025-10-03T00:00:00-04:00' },
-        { name: 'Blue Sky Demo', date: '2026-02-14T00:00:00-05:00' }
-      ]);
     }
-  }
 
-  // 🚀 Start the automated fetch
-  fetchEventsFromChucktown();
+    // 🚀 Start automated event fetch
+    fetchEventsFromChucktown();
 
-  // === 🧩 Clickable Buttons Logic (unchanged) ===
-  const buttons = document.querySelectorAll('.clickable-area');
-  const infoLine = document.getElementById('infoLine');
-  const infoText = document.getElementById('infoText');
+    // === 🧩 Button Interactivity ===
+    const buttons = document.querySelectorAll(".clickable-area");
+    const infoLine = document.getElementById("infoLine");
+    const infoText = document.getElementById("infoText");
 
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const sound = document.getElementById(btn.dataset.sound + 'Sound');
-      if (sound) sound.play();
-      if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const sound = document.getElementById(btn.dataset.sound + "Sound");
+        if (sound) sound.play();
+        if (btn.dataset.url) setTimeout(() => (window.location.href = btn.dataset.url), 400);
+      });
+      btn.addEventListener("mouseover", () => {
+        infoLine.style.opacity = "1";
+        infoText.textContent = btn.dataset.info || "";
+      });
+      btn.addEventListener("mouseout", () => {
+        infoLine.style.opacity = "0";
+        infoText.textContent = "";
+      });
     });
-    btn.addEventListener('mouseover', () => {
-      infoLine.style.opacity = '1';
-      infoText.textContent = btn.dataset.info || '';
-    });
-    btn.addEventListener('mouseout', () => {
-      infoLine.style.opacity = '0';
-      infoText.textContent = '';
-    });
-  });
-</script>
+  </script>
 
-<!-- —— Neural Background —— -->
-<script type="module" src="assets/js/neuralBackground.js"></script>
+  <!-- —— Neural Background —— -->
+  <script type="module" src="assets/js/neuralBackground.js"></script>
 </body>
 </html>
