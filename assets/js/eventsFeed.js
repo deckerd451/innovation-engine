@@ -1,8 +1,8 @@
-// CharlestonHacks - Dynamic Events + Countdown + Overlay
-// ------------------------------------------------------
-// Fetches live events via Cloudflare Worker proxy,
-// populates the calendar modal, updates countdown display,
-// and shows data source + last updated timestamp.
+// CharlestonHacks - Dynamic Events + Countdown + Overlay (Multi-Feed)
+// ------------------------------------------------------------------
+// Fetches events from Cloudflare Worker (Charleston Multi-Feed)
+// Displays them in a scrollable modal with source badges
+// Updates live countdown for the nearest event
 
 import { startCountdown } from "./countdown.js";
 
@@ -13,204 +13,185 @@ const closeBtn = document.getElementById("close-overlay");
 
 const FEED_URL = "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
 
-// 🔔 Overlay toggle logic
-if (openBtn) {
-  openBtn.addEventListener("click", () => {
-    overlay.classList.add("active");
-    document.body.style.overflow = "hidden";
-  });
-}
-if (closeBtn) {
-  closeBtn.addEventListener("click", () => {
-    overlay.classList.remove("active");
-    document.body.style.overflow = "";
-  });
-}
+// 🔔 Overlay controls
+if (openBtn) openBtn.addEventListener("click", () => overlay.classList.add("active"));
+if (closeBtn) closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
 if (overlay) {
   overlay.addEventListener("click", (e) => {
     const modal = document.querySelector(".events-modal");
-    if (!modal.contains(e.target)) {
-      overlay.classList.remove("active");
-      document.body.style.overflow = "";
-    }
+    if (!modal.contains(e.target)) overlay.classList.remove("active");
   });
 }
 
-// ------------------------------------------------------
-// 🎟 Fetch event data from Cloudflare Worker
-// ------------------------------------------------------
+// 🎨 Source badge color map
+const sourceColors = {
+  "Charleston Digital Corridor": "#00e0ff",
+  "Startup Grind": "#ff6f00",
+  "Eventbrite": "#ff5a5f",
+  "Meetup": "#f64060",
+  "Fallback": "#c9a35e",
+};
+
+// 🟢 Fetch event feed
 async function fetchEvents() {
   try {
     console.log("🌐 Fetching events from:", FEED_URL);
     const res = await fetch(FEED_URL);
     const data = await res.json();
-    console.log("📦 Worker data:", data);
 
-    if (!data?.events || !Array.isArray(data.events) || !data.events.length) {
-      console.warn("⚠️ No valid events found, using fallback");
+    if (!data?.events?.length) {
+      console.warn("⚠️ No valid events found");
       showFallbackEvents();
       return;
     }
 
-    const events = data.events
-      .map(e => {
-        const date = new Date(e.startDate);
-        if (isNaN(date)) {
-          console.warn("❌ Invalid date:", e.startDate);
-          return null;
-        }
-        return {
-          title: e.title?.trim() || "Untitled Event",
-          date,
-          location: e.location || "Charleston, SC",
-          url: e.link || "#"
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.date - b.date);
-
-    console.log("✅ Parsed live events:", events);
-
-   // Show all events for now (until Worker outputs real future dates)
-const upcoming = events;
-    
-  if (!upcoming.length) {
-      console.warn("⚠️ Feed loaded but no future events found — fallback mode");
+    const now = new Date();
+    const upcoming = data.events.filter(e => new Date(e.startDate) > now);
+    if (!upcoming.length) {
       showFallbackEvents();
       return;
     }
 
-    renderEvents(upcoming, "Live", data.source || "Charleston Digital Corridor");
-
-    // ✅ Clear placeholder and start countdown
-    const countdownEl = document.getElementById("countdown");
-    if (countdownEl) countdownEl.innerHTML = "";
-
+    renderEvents(upcoming, data.source, data.lastUpdated);
     updateCountdown(upcoming[0]);
-    console.log(`⏰ Countdown set to: ${upcoming[0].title} (${upcoming[0].date.toLocaleString()})`);
 
   } catch (err) {
-    console.error("❌ Error fetching events:", err);
+    console.error("❌ Error fetching feed:", err);
     showFallbackEvents();
   }
 }
 
-// ------------------------------------------------------
-// 🗓 Render events + footer info
-// ------------------------------------------------------
-function renderEvents(events, source = "Live", feedSource = "Charleston Digital Corridor") {
-  list.innerHTML = `
-    <div style="color:${source === "Live" ? "#00e0ff" : "#ffae00"};
-                font-size:0.9rem; margin-bottom:0.8rem;">
-      ${source === "Live" ? "🟢 Live Charleston Feed" : "🔁 Fallback Mode"}
+// 🗓 Render events in modal
+function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated = null) {
+  list.innerHTML = "";
+
+  // Add header
+  const header = document.createElement("div");
+  header.innerHTML = `
+    <div style="color:#00e0ff; font-size:0.9rem; margin-bottom:0.8rem;">
+      🧠 ${sourceName}
     </div>
   `;
+  list.appendChild(header);
 
-  events.forEach(e => {
+  // Build scrollable event list
+  const container = document.createElement("div");
+  container.style.maxHeight = "60vh";
+  container.style.overflowY = "auto";
+  container.style.paddingRight = "0.5rem";
+
+  events.forEach((e) => {
+    const color =
+      sourceColors[
+        Object.keys(sourceColors).find((key) => e.source?.includes(key))
+      ] || "#888";
+
     const div = document.createElement("div");
     div.className = "event-item";
+    div.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
+    div.style.paddingBottom = "0.75rem";
+    div.style.marginBottom = "0.75rem";
+
     div.innerHTML = `
-      <h3>${e.title}</h3>
-      <div class="event-date">${e.date.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      })}</div>
-      <div class="event-location">${e.location}</div>
-      <a class="event-link" href="${e.url}" target="_blank" rel="noopener">Details</a>
+      <h3 style="margin:0; font-size:1rem; color:#fff;">${e.title}</h3>
+      <div class="event-date" style="color:#bbb; font-size:0.9rem;">
+        ${new Date(e.startDate).toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </div>
+      <div class="event-location" style="color:#999; font-size:0.85rem;">
+        ${e.location || "Charleston, SC"}
+      </div>
+      <div style="margin-top:0.4rem;">
+        <span style="
+          background:${color};
+          color:#000;
+          font-size:0.75rem;
+          padding:0.2rem 0.5rem;
+          border-radius:6px;
+          font-weight:700;
+        ">${e.source || "Unknown"}</span>
+      </div>
+      <a class="event-link"
+         href="${e.link}"
+         target="_blank"
+         rel="noopener"
+         style="
+           display:inline-block;
+           margin-top:0.5rem;
+           background:#00e0ff;
+           color:#000;
+           text-decoration:none;
+           padding:0.4rem 0.8rem;
+           border-radius:6px;
+           font-weight:700;
+           transition:background .2s;
+         ">View Event</a>
     `;
-    list.appendChild(div);
+    container.appendChild(div);
   });
 
-  // Add footer with data source + timestamp
+  list.appendChild(container);
+
+  // Footer
   const footer = document.createElement("div");
-  footer.style.marginTop = "1rem";
-  footer.style.fontSize = "0.8rem";
-  footer.style.color = "#888";
   footer.style.textAlign = "center";
+  footer.style.color = "#888";
+  footer.style.fontSize = "0.8rem";
+  footer.style.marginTop = "1rem";
   footer.innerHTML = `
-    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0;">
-    <div>📡 Data source: <span style="color:#c9a35e">${feedSource}</span></div>
-    <div>🕒 Last updated: ${new Date().toLocaleString()}</div>
+    <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:1rem 0;">
+    <div>🕒 Last updated: ${new Date(lastUpdated).toLocaleString()}</div>
   `;
   list.appendChild(footer);
 
-  console.log(`📅 Rendered ${events.length} scraped events in modal`);
+  console.log(`📅 Rendered ${events.length} upcoming events.`);
 }
 
-// ------------------------------------------------------
-// 🕰 Fallback if Worker unreachable
-// ------------------------------------------------------
+// 🕰 Simple fallback
 function showFallbackEvents() {
   const fallback = [
     {
       title: "Charleston Tech Happy Hour",
       date: new Date("2025-11-15T17:00:00-05:00"),
       location: "Revelry Brewing",
-      url: "https://www.linkedin.com/company/charlestonhacks"
+      url: "https://www.linkedin.com/company/charlestonhacks",
     },
-    {
-      title: "Blue Sky Demo Day",
-      date: new Date("2026-02-14T09:00:00-05:00"),
-      location: "Charleston Digital Corridor",
-      url: "https://charlestonhacks.com/events"
-    }
   ];
-  renderEvents(fallback, "Fallback", "Local Static Fallback");
-  updateCountdown(fallback[0]);
+  list.innerHTML = `<div style="color:#ffae00;">🔁 Fallback Mode</div>`;
+  fallback.forEach((e) => {
+    const div = document.createElement("div");
+    div.className = "event-item";
+    div.innerHTML = `
+      <h3>${e.title}</h3>
+      <div>${e.location}</div>
+      <a href="${e.url}" target="_blank">View</a>
+    `;
+    list.appendChild(div);
+  });
 }
 
-// ------------------------------------------------------
-// ⏳ Update countdown + next event title (responsive & wrapped)
-// ------------------------------------------------------
+// ⏳ Update countdown
 function updateCountdown(event) {
   const countdownEl = document.getElementById("countdown");
   if (!countdownEl) return;
 
-  let titleEl = document.getElementById("next-event-title");
-  if (!titleEl) {
-    titleEl = document.createElement("div");
-    titleEl.id = "next-event-title";
-    titleEl.style.cssText = `
-      color:#c9a35e;
-      text-shadow:0 0 10px rgba(201,163,94,0.8);
-      margin:0.3rem auto 0.4rem;
-      font-weight:700;
-      font-size:clamp(0.8rem, 2vw, 1rem);
-      text-align:center;
-      max-width:90%;
-      line-height:1.4;
-      word-wrap:break-word;
-      overflow-wrap:break-word;
+  const titleEl = document.getElementById("next-event-title");
+  if (titleEl) {
+    titleEl.innerHTML = `
+      Next: <span style="color:#00e0ff;">${event.title}</span><br>
+      <small style="font-size:0.85em;opacity:0.8;">
+        ${new Date(event.startDate).toLocaleString()} @ ${event.location}
+      </small>
     `;
-    countdownEl.parentNode.insertBefore(titleEl, countdownEl);
   }
 
-  // Format the event date
-  const eventDate = event.date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const location = event.location ? ` @ ${event.location}` : "";
-
-  // Styled + wrapped HTML output
-  titleEl.innerHTML = `
-    Next: <span style="color:#00e0ff;">${event.title}</span><br>
-    <small style="font-size:0.85em;opacity:0.85;">
-      ${eventDate}${location}
-    </small>
-  `;
-
-  // Start the live countdown timer
-  startCountdown("countdown", event.date);
+  startCountdown("countdown", event.startDate);
 }
 
-
-// ------------------------------------------------------
-// 🚀 Initialize
-// ------------------------------------------------------
+// 🚀 Init
 fetchEvents();
