@@ -315,63 +315,70 @@
     close.onclick=()=>overlay.classList.remove("active");
     overlay.addEventListener("click",e=>{if(!modal.contains(e.target))overlay.classList.remove("active");});
 
-    async function fetchEvents(){
-const proxy =
-  "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/?url=" +
-  encodeURIComponent("https://chucktownstartups.com/events");
+async function fetchEvents() {
+  const proxy = "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
 
+  try {
+    const res = await fetch(proxy);
+    const data = await res.json();
 
-      try{
-        const res=await fetch(proxy);
-        const html=await res.text();
-        const doc=new DOMParser().parseFromString(html,"text/html");
-        const events=[];
-       doc.querySelectorAll("article, .event, .tribe-events-calendar-list__event, .em-item").forEach(el=>{
-  const name =
-    el.querySelector("h2, h3, a")?.textContent?.trim() ||
-    el.querySelector(".em-item-title")?.textContent?.trim() ||
-    "Charleston Event";
-
-  let dateText =
-    el.querySelector("time")?.getAttribute("datetime") ||
-    el.querySelector(".em-item-date, .em-date")?.textContent?.trim();
-
-  // Try to extract readable date text if no <time> tag
-  if (!dateText) {
-    const match = el.textContent.match(
-      /([A-Z][a-z]{2,9}\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}\s?(AM|PM)?)/i
-    );
-    if (match) dateText = match[1];
-  }
-
-  const parsed = new Date(dateText);
-  if (!isNaN(parsed)) {
-    events.push({
-      name,
-      date: parsed,
-      url: "https://chucktownstartups.com/events",
-    });
-  }
-});
-
-        const now=new Date();
-        const upcoming=events.filter(e=>e.date>now).sort((a,b)=>a.date-b.date);
-        const final=upcoming.length?upcoming:[
-          {name:"HH2025",date:new Date("2025-10-03T00:00:00-04:00"),url:"#"}
-        ];
-        startCountdown("countdown",final);
-        countdown.addEventListener("click",()=>{
-          overlay.classList.add("active");
-          list.innerHTML=final.slice(0,3).map(e=>`
-            <div class="event-item">
-              <strong>${e.name}</strong>
-              <div class="event-date">${e.date.toLocaleString()}</div>
-              <a href="${e.url}" target="_blank" class="event-link">View</a>
-            </div>`).join("");
-        });
-      }catch(err){console.error("Error fetching events:",err);}
+    if (!data.events || !Array.isArray(data.events)) {
+      console.warn("No valid events found in JSON:", data);
+      return;
     }
-    fetchEvents();
+
+    const events = data.events.map(e => ({
+      name: e.title,
+      date: new Date(e.startDate),
+      location: e.location,
+      url: e.link
+    }));
+
+    const now = new Date();
+    const upcoming = events.filter(e => e.date > now).sort((a, b) => a.date - b.date);
+    const final = upcoming.length ? upcoming : [{
+      name: "HarborHack 2025",
+      date: new Date("2025-10-03T00:00:00-04:00"),
+      location: "Charleston Tech Center",
+      url: "#"
+    }];
+
+    // Optional title above countdown
+    let titleEl = document.getElementById("next-event-title");
+    if (!titleEl) {
+      titleEl = document.createElement("div");
+      titleEl.id = "next-event-title";
+      titleEl.style.color = "#c9a35e";
+      titleEl.style.textShadow = "0 0 10px rgba(201,163,94,0.8)";
+      titleEl.style.marginBottom = "0.5rem";
+      const countdownContainer = document.getElementById("countdown");
+      countdownContainer.parentNode.insertBefore(titleEl, countdownContainer);
+    }
+    titleEl.textContent = `Next: ${final[0].name}`;
+
+    startCountdown("countdown", final);
+
+    countdown.addEventListener("click", () => {
+      overlay.classList.add("active");
+      list.innerHTML = final
+        .map(
+          e => `
+          <div class="event-item">
+            <strong>${e.name}</strong>
+            <div class="event-date">${e.date.toLocaleString()}</div>
+            <div class="event-location">${e.location}</div>
+            <a href="${e.url}" target="_blank" class="event-link">View Event</a>
+          </div>`
+        )
+        .join("");
+    });
+  } catch (err) {
+    console.error("Error fetching events:", err);
+  }
+}
+
+fetchEvents();
+
 
     // Buttons & info line
     const buttons=document.querySelectorAll(".clickable-area");
