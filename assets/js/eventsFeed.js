@@ -71,9 +71,8 @@ async function fetchEvents() {
 
     console.log("✅ Parsed live events:", events);
 
-    const now = new Date();
-    // Show all events for now (until Worker outputs real future dates)
-const upcoming = events;
+   const upcoming = events.filter(e => e.date.getTime() > (now.getTime() - 6 * 60 * 60 * 1000)); // accept events within last 6h
+
 
 
     if (!upcoming.length) {
