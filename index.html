@@ -93,9 +93,11 @@
 
     /* 🕰 Countdown / BTC */
     #countdown span {
-      color: var(--cyan);
-      margin: 0 .15rem;
-    }
+  color: var(--gold);
+  margin: 0 .15rem;
+  text-shadow: 0 0 10px rgba(201,163,94,0.7);
+}
+
     #btcPrice {
       color: var(--gold);
       font-size: .9rem;
@@ -316,56 +318,6 @@
     const close=document.getElementById("close-overlay");
     close.onclick=()=>overlay.classList.remove("active");
     overlay.addEventListener("click",e=>{if(!modal.contains(e.target))overlay.classList.remove("active");});
-
-async function fetchEvents() {
-  const proxy = "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
-
-  try {
-    const res = await fetch(proxy);
-    const data = await res.json();
-
-    if (!data.events || !Array.isArray(data.events)) {
-      console.warn("No valid events found in JSON:", data);
-      return;
-    }
-
-    const events = data.events.map(e => ({
-      name: e.title,
-      date: new Date(e.startDate),
-      location: e.location,
-      url: e.link
-    }));
-
-    const now = new Date();
-    const upcoming = events.filter(e => e.date > now).sort((a, b) => a.date - b.date);
-    const final = upcoming.length ? upcoming : [{
-      name: "HarborHack 2025",
-      date: new Date("2025-10-03T00:00:00-04:00"),
-      location: "Charleston Tech Center",
-      url: "#"
-    }];
-
-    // Optional title above countdown
-    let titleEl = document.getElementById("next-event-title");
-    if (!titleEl) {
-      titleEl = document.createElement("div");
-      titleEl.id = "next-event-title";
-      titleEl.style.color = "#c9a35e";
-      titleEl.style.textShadow = "0 0 10px rgba(201,163,94,0.8)";
-      titleEl.style.marginBottom = "0.5rem";
-      const countdownContainer = document.getElementById("countdown");
-      countdownContainer.parentNode.insertBefore(titleEl, countdownContainer);
-    }
-    titleEl.textContent = `Next: ${final[0].name}`;
-
-    startCountdown("countdown", final);
-
-  } catch (err) {
-    console.error("Error fetching events:", err);
-  }
-}
-
-fetchEvents();
 
 
     // Buttons & info line
