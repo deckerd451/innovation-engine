@@ -72,7 +72,9 @@ async function fetchEvents() {
     console.log("✅ Parsed live events:", events);
 
     const now = new Date();
-    const upcoming = events.filter(e => e.date > now);
+    // Show all events for now (until Worker outputs real future dates)
+const upcoming = events;
+
 
     if (!upcoming.length) {
       console.warn("⚠️ Feed loaded but no future events found — fallback mode");
