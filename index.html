@@ -297,53 +297,42 @@
 
   <!-- —— Main Logic —— -->
   <script type="module">
-    import { CONFIG } from "./assets/js/config.js";
-    import { initCardFlip } from "./assets/js/cardFlip.js";
-    import { startBTCPriceTracker } from "./assets/js/btc.js";
-    import { startCountdown } from "./assets/js/countdown.js";
+  import { CONFIG } from "./assets/js/config.js";
+  import { initCardFlip } from "./assets/js/cardFlip.js";
+  import { startBTCPriceTracker } from "./assets/js/btc.js";
+  import { startCountdown } from "./assets/js/countdown.js";
 
-    CONFIG.sounds={
-      cardflip:document.getElementById("cardflipSound"),
-      chime:document.getElementById("chimeSound"),
-      keys:document.getElementById("keysSound")
-    };
+  CONFIG.sounds = {
+    cardflip: document.getElementById("cardflipSound"),
+    chime: document.getElementById("chimeSound"),
+    keys: document.getElementById("keysSound"),
+  };
 
-    initCardFlip(CONFIG);
-    startBTCPriceTracker("btcPrice");
+  initCardFlip(CONFIG);
+  startBTCPriceTracker("btcPrice");
 
-    const overlay=document.getElementById("events-overlay");
-    const modal=document.querySelector(".events-modal");
-    const list=document.getElementById("events-list");
-    const countdown=document.getElementById("countdown");
-    const close=document.getElementById("close-overlay");
-    close.onclick=()=>overlay.classList.remove("active");
-    overlay.addEventListener("click",e=>{if(!modal.contains(e.target))overlay.classList.remove("active");});
+  // Buttons & info line
+  const buttons = document.querySelectorAll(".clickable-area");
+  const infoLine = document.getElementById("infoLine");
+  const infoText = document.getElementById("infoText");
 
-
-    // Buttons & info line
-    const buttons=document.querySelectorAll(".clickable-area");
-    const infoLine=document.getElementById("infoLine");
-    const infoText=document.getElementById("infoText");
-    buttons.forEach(btn=>{
-      btn.addEventListener("click",()=>{
-        const sound=document.getElementById(btn.dataset.sound+"Sound");
-        if(sound)sound.play();
-        if(btn.dataset.url)setTimeout(()=>window.location.href=btn.dataset.url,400);
-      });
-      btn.addEventListener("mouseover",()=>{
-        infoLine.style.opacity="1";
-        infoText.textContent=btn.dataset.info||"";
-      });
-      btn.addEventListener("mouseout",()=>{
-        infoLine.style.opacity="0";
-        infoText.textContent="";
-      });
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sound = document.getElementById(btn.dataset.sound + "Sound");
+      if (sound) sound.play();
+      if (btn.dataset.url) setTimeout(() => window.location.href = btn.dataset.url, 400);
     });
-  </script>
-  <script type="module" src="assets/js/eventsFeed.js"></script>
+    btn.addEventListener("mouseover", () => {
+      infoLine.style.opacity = "1";
+      infoText.textContent = btn.dataset.info || "";
+    });
+    btn.addEventListener("mouseout", () => {
+      infoLine.style.opacity = "0";
+      infoText.textContent = "";
+    });
+  });
+</script>
 
-
-  <!-- —— Neural Background —— -->
-  <script type="module" src="assets/js/neuralBackground.js"></script>
-</body>
-</html>
+<!-- Event + Background Modules -->
+<script type="module" src="assets/js/eventsFeed.js"></script>
+<script type="module" src="assets/js/neuralBackground.js"></script>
