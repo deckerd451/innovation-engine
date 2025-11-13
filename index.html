@@ -360,20 +360,6 @@ async function fetchEvents() {
 
     startCountdown("countdown", final);
 
-    countdown.addEventListener("click", () => {
-      overlay.classList.add("active");
-      list.innerHTML = final
-        .map(
-          e => `
-          <div class="event-item">
-            <strong>${e.name}</strong>
-            <div class="event-date">${e.date.toLocaleString()}</div>
-            <div class="event-location">${e.location}</div>
-            <a href="${e.url}" target="_blank" class="event-link">View Event</a>
-          </div>`
-        )
-        .join("");
-    });
   } catch (err) {
     console.error("Error fetching events:", err);
   }
