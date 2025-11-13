@@ -42,26 +42,26 @@ async function fetchEvents() {
   try {
     console.log("🌐 Fetching events from:", FEED_URL);
     const res = await fetch(FEED_URL);
-    console.log("📡 Worker response status:", res.status);
     const data = await res.json();
-    console.log("📦 Raw data:", data);
+    console.log("📦 Worker data:", data);
 
-    if (!data?.events || !Array.isArray(data.events)) {
-      console.warn("⚠️ Invalid event feed, using fallback");
+    // ✅ Ensure we actually have events
+    if (!data?.events || !Array.isArray(data.events) || !data.events.length) {
+      console.warn("⚠️ No events found, using fallback");
       showFallbackEvents();
       return;
     }
 
-    // Normalize and sort events
+    // ✅ Normalize & sort events
     const events = data.events
       .map(e => {
         const date = new Date(e.startDate);
-        if (isNaN(date.getTime())) {
-          console.warn("⏰ Invalid date:", e.startDate);
+        if (isNaN(date)) {
+          console.warn("❌ Invalid date in event:", e.title);
           return null;
         }
         return {
-          title: e.title,
+          title: e.title?.trim() || "Untitled Event",
           date,
           location: e.location || "Charleston, SC",
           url: e.link || "#"
@@ -70,23 +70,26 @@ async function fetchEvents() {
       .filter(Boolean)
       .sort((a, b) => a.date - b.date);
 
-    console.log("✅ Parsed events:", events);
+    console.log("✅ Parsed live events:", events);
 
     const now = new Date();
     const upcoming = events.filter(e => e.date > now);
 
     if (!upcoming.length) {
-      console.warn("⚠️ No upcoming events — showing fallback");
+      console.warn("⚠️ Feed loaded but no *future* events found, using fallback");
       showFallbackEvents();
       return;
     }
 
-    // 👉 Show all upcoming events in the modal
+    // ✅ Render all scraped upcoming events
     renderEvents(upcoming, "Live");
 
-    // 👉 Update countdown with nearest event
+    // ✅ Clear countdown placeholder and start it
+    const countdownEl = document.getElementById("countdown");
+    if (countdownEl) countdownEl.innerHTML = "";
+
     updateCountdown(upcoming[0]);
-    console.log("✅ Countdown updated with Worker event:", upcoming[0].title);
+    console.log(`⏰ Countdown set to: ${upcoming[0].title} (${upcoming[0].date.toLocaleString()})`);
 
   } catch (err) {
     console.error("❌ Error fetching events:", err);
@@ -95,7 +98,7 @@ async function fetchEvents() {
 }
 
 // ------------------------------------------------------
-// 🗓 Render all upcoming events
+// 🗓 Render modal events
 // ------------------------------------------------------
 function renderEvents(events, source = "Live") {
   list.innerHTML = `
@@ -123,7 +126,7 @@ function renderEvents(events, source = "Live") {
     list.appendChild(div);
   });
 
-  console.log(`📅 Rendered ${events.length} upcoming events in modal`);
+  console.log(`📅 Rendered ${events.length} scraped events in modal`);
 }
 
 // ------------------------------------------------------
@@ -132,19 +135,18 @@ function renderEvents(events, source = "Live") {
 function showFallbackEvents() {
   const fallback = [
     {
-      title: "HarborHack 2026",
-      date: new Date("2025-10-03T08:00:00-04:00"),
-      location: "Charleston Tech Center",
-      url: "https://charlestonhacks.com/hackathon"
+      title: "Charleston Tech Happy Hour",
+      date: new Date("2025-11-15T17:00:00-05:00"),
+      location: "Revelry Brewing",
+      url: "https://www.linkedin.com/company/charlestonhacks"
     },
     {
-      title: "Charleston Tech Week",
-      date: new Date("2025-04-14T00:00:00-04:00"),
-      location: "Downtown Charleston",
-      url: "#"
+      title: "Blue Sky Demo Day",
+      date: new Date("2026-02-14T09:00:00-05:00"),
+      location: "Charleston Digital Corridor",
+      url: "https://charlestonhacks.com/events"
     }
   ];
-  console.warn("🔁 Using fallback events");
   renderEvents(fallback, "Fallback");
   updateCountdown(fallback[0]);
 }
@@ -166,7 +168,6 @@ function updateCountdown(event) {
     countdownEl.parentNode.insertBefore(titleEl, countdownEl);
   }
 
-  console.log(`🎯 Next event: ${event.title} at ${event.date.toLocaleString()}`);
   titleEl.textContent = `Next: ${event.title}`;
   startCountdown("countdown", event.date);
 }
