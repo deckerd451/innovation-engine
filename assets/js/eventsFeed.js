@@ -54,8 +54,11 @@ async function fetchEvents() {
     const countdown = document.getElementById("countdown");
     const close = document.getElementById("close-overlay");
 
-    if (countdown && overlay && list) {
-      countdown.addEventListener("click", () => {
+    const calendarBtn = document.getElementById("open-calendar");
+
+if (calendarBtn && overlay && list) {
+  calendarBtn.addEventListener("click", () => {
+
         overlay.classList.add("active");
         list.innerHTML = eventData
           .map(
