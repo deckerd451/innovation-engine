@@ -168,6 +168,29 @@
       cursor: pointer;
       font-size: 1rem;
     }
+    /* 🎢 Scrollable events list inside modal */
+#events-list {
+  max-height: 60vh;              /* fits most screens */
+  overflow-y: auto;              /* enable vertical scrolling */
+  padding-right: 6px;            /* avoid text cutoff near scrollbar */
+  margin-bottom: 1rem;
+}
+
+/* 🖱️ Custom scrollbar styling for a gold theme */
+#events-list::-webkit-scrollbar {
+  width: 8px;
+}
+#events-list::-webkit-scrollbar-thumb {
+  background: rgba(201,163,94,0.6);
+  border-radius: 4px;
+}
+#events-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(201,163,94,0.8);
+}
+#events-list::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+}
+
     /* ============================
    ICON BAR — RESPONSIVE GROUPED
    ============================ */
