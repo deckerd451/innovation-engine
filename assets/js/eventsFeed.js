@@ -10,10 +10,9 @@ const list = document.getElementById("events-list");
 const openBtn = document.getElementById("open-calendar");
 const closeBtn = document.getElementById("close-overlay");
 
-// Cloudflare Worker Proxy (CharlestonHacks Events Feed)
 const FEED_URL = "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
 
-// Handle overlay open/close
+// 🔔 Overlay toggle logic
 if (openBtn) {
   openBtn.addEventListener("click", () => {
     overlay.classList.add("active");
@@ -36,11 +35,16 @@ if (overlay) {
   });
 }
 
-// Fetch event data
+// ------------------------------------------------------
+// 🎟 Fetch event data from Cloudflare Worker
+// ------------------------------------------------------
 async function fetchEvents() {
   try {
+    console.log("🌐 Fetching events from:", FEED_URL);
     const res = await fetch(FEED_URL);
+    console.log("📡 Worker response status:", res.status);
     const data = await res.json();
+    console.log("📦 Raw data:", data);
 
     if (!data?.events || !Array.isArray(data.events)) {
       console.warn("⚠️ Invalid event feed, using fallback");
@@ -49,26 +53,29 @@ async function fetchEvents() {
     }
 
     const events = data.events
-  .map(e => {
-    let date = new Date(e.startDate);
-    if (isNaN(date.getTime())) {
-      console.warn("Invalid date format:", e.startDate);
-      return null;
-    }
-    return {
-      title: e.title,
-      date,
-      location: e.location || "Charleston, SC",
-      url: e.link || "#",
-    };
-  })
-  .filter(Boolean);
+      .map(e => {
+        let date = new Date(e.startDate);
+        if (isNaN(date.getTime())) {
+          console.warn("⏰ Invalid date format:", e.startDate);
+          return null;
+        }
+        return {
+          title: e.title,
+          date,
+          location: e.location || "Charleston, SC",
+          url: e.link || "#",
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.date - b.date);
 
+    console.log("✅ Parsed events:", events);
 
     const now = new Date();
-    const upcoming = events.filter(e => e.date > now).sort((a, b) => a.date - b.date);
+    const upcoming = events.filter(e => e.date > now);
 
     if (!upcoming.length) {
+      console.warn("⚠️ No upcoming events found — showing fallback");
       showFallbackEvents();
       return;
     }
@@ -82,7 +89,9 @@ async function fetchEvents() {
   }
 }
 
-// Render list in modal
+// ------------------------------------------------------
+// 🗓 Render modal event list
+// ------------------------------------------------------
 function renderEvents(events) {
   list.innerHTML = "";
   events.forEach(e => {
@@ -90,7 +99,7 @@ function renderEvents(events) {
     div.className = "event-item";
     div.innerHTML = `
       <h3>${e.title}</h3>
-      <div class="event-date">${e.date.toLocaleDateString(undefined, {
+      <div class="event-date">${e.date.toLocaleString(undefined, {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -102,16 +111,19 @@ function renderEvents(events) {
     `;
     list.appendChild(div);
   });
+  console.log(`📅 Rendered ${events.length} events in modal`);
 }
 
-// Fallback content
+// ------------------------------------------------------
+// 🕰 Fallback content if Worker unreachable
+// ------------------------------------------------------
 function showFallbackEvents() {
   const fallback = [
     {
       title: "HarborHack 2025",
-      date: new Date("2025-10-03T00:00:00-04:00"),
+      date: new Date("2025-10-03T08:00:00-04:00"),
       location: "Charleston Tech Center",
-      url: "#"
+      url: "https://charlestonhacks.com/hackathon"
     },
     {
       title: "Charleston Tech Week",
@@ -120,11 +132,14 @@ function showFallbackEvents() {
       url: "#"
     }
   ];
+  console.warn("🔁 Using fallback events");
   renderEvents(fallback);
   updateCountdown(fallback[0]);
 }
 
-// Update countdown + next event title
+// ------------------------------------------------------
+// ⏳ Update countdown + next event title
+// ------------------------------------------------------
 function updateCountdown(event) {
   const countdownEl = document.getElementById("countdown");
   if (!countdownEl) return;
@@ -139,9 +154,12 @@ function updateCountdown(event) {
     countdownEl.parentNode.insertBefore(titleEl, countdownEl);
   }
 
+  console.log(`🎯 Next event: ${event.title} at ${event.date.toLocaleString()}`);
   titleEl.textContent = `Next: ${event.title}`;
   startCountdown("countdown", event.date);
 }
 
-// Initialize
+// ------------------------------------------------------
+// 🚀 Initialize
+// ------------------------------------------------------
 fetchEvents();
