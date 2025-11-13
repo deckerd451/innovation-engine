@@ -30,10 +30,11 @@ export function startCountdown(elementId, eventData) {
     .sort((a, b) => a.dateObj - b.dateObj)[0];
 
   if (!nextEvent) {
-    countdownEl.innerHTML = `<span class="coming-soon">Next Event Coming Soon!</span>`;
-    if (titleEl) titleEl.textContent = "";
-    return;
-  }
+  countdownEl.innerHTML = `<span class="coming-soon">Loading next event...</span>`;
+  if (titleEl) titleEl.textContent = "";
+  return;
+}
+
 
   if (titleEl) titleEl.textContent = nextEvent.name || "Upcoming Event";
 
