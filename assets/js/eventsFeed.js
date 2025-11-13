@@ -1,7 +1,8 @@
 // CharlestonHacks - Dynamic Events + Countdown + Overlay
 // ------------------------------------------------------
 // Fetches live events via Cloudflare Worker proxy,
-// populates the calendar modal, and updates countdown display.
+// populates the calendar modal, updates countdown display,
+// and shows data source + last updated timestamp.
 
 import { startCountdown } from "./countdown.js";
 
@@ -45,19 +46,17 @@ async function fetchEvents() {
     const data = await res.json();
     console.log("📦 Worker data:", data);
 
-    // ✅ Ensure we actually have events
     if (!data?.events || !Array.isArray(data.events) || !data.events.length) {
-      console.warn("⚠️ No events found, using fallback");
+      console.warn("⚠️ No valid events found, using fallback");
       showFallbackEvents();
       return;
     }
 
-    // ✅ Normalize & sort events
     const events = data.events
       .map(e => {
         const date = new Date(e.startDate);
         if (isNaN(date)) {
-          console.warn("❌ Invalid date in event:", e.title);
+          console.warn("❌ Invalid date:", e.startDate);
           return null;
         }
         return {
@@ -76,15 +75,14 @@ async function fetchEvents() {
     const upcoming = events.filter(e => e.date > now);
 
     if (!upcoming.length) {
-      console.warn("⚠️ Feed loaded but no *future* events found, using fallback");
+      console.warn("⚠️ Feed loaded but no future events found — fallback mode");
       showFallbackEvents();
       return;
     }
 
-    // ✅ Render all scraped upcoming events
-    renderEvents(upcoming, "Live");
+    renderEvents(upcoming, "Live", data.source || "Charleston Digital Corridor");
 
-    // ✅ Clear countdown placeholder and start it
+    // ✅ Clear placeholder and start countdown
     const countdownEl = document.getElementById("countdown");
     if (countdownEl) countdownEl.innerHTML = "";
 
@@ -98,9 +96,9 @@ async function fetchEvents() {
 }
 
 // ------------------------------------------------------
-// 🗓 Render modal events
+// 🗓 Render events + footer info
 // ------------------------------------------------------
-function renderEvents(events, source = "Live") {
+function renderEvents(events, source = "Live", feedSource = "Charleston Digital Corridor") {
   list.innerHTML = `
     <div style="color:${source === "Live" ? "#00e0ff" : "#ffae00"};
                 font-size:0.9rem; margin-bottom:0.8rem;">
@@ -126,11 +124,24 @@ function renderEvents(events, source = "Live") {
     list.appendChild(div);
   });
 
+  // Add footer with data source + timestamp
+  const footer = document.createElement("div");
+  footer.style.marginTop = "1rem";
+  footer.style.fontSize = "0.8rem";
+  footer.style.color = "#888";
+  footer.style.textAlign = "center";
+  footer.innerHTML = `
+    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0;">
+    <div>📡 Data source: <span style="color:#c9a35e">${feedSource}</span></div>
+    <div>🕒 Last updated: ${new Date().toLocaleString()}</div>
+  `;
+  list.appendChild(footer);
+
   console.log(`📅 Rendered ${events.length} scraped events in modal`);
 }
 
 // ------------------------------------------------------
-// 🕰 Fallback content if Worker unreachable
+// 🕰 Fallback if Worker unreachable
 // ------------------------------------------------------
 function showFallbackEvents() {
   const fallback = [
@@ -147,7 +158,7 @@ function showFallbackEvents() {
       url: "https://charlestonhacks.com/events"
     }
   ];
-  renderEvents(fallback, "Fallback");
+  renderEvents(fallback, "Fallback", "Local Static Fallback");
   updateCountdown(fallback[0]);
 }
 
