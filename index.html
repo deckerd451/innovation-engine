@@ -166,51 +166,6 @@
       cursor: pointer;
       font-size: 1rem;
     }
-
-    /* Footer icons */
-    .icons-container {
-      display: flex;
-      justify-content: center;
-      gap: 1.2rem;
-      flex-wrap: wrap;
-      margin-top: 1rem;
-      z-index: 100;
-      position: relative;
-    }
-
-    .icons-container i {
-      font-size: 1.4rem;
-      color: var(--gold);
-      transition: transform 0.2s ease, color 0.2s ease;
-    }
-
-    .icons-container i:hover {
-      transform: scale(1.2);
-      color: var(--cyan);
-    }
-
-    #open-calendar i {
-      color: var(--cyan);
-      text-shadow: 0 0 10px rgba(0,224,255,0.8);
-    }
-
-    .media-container {
-      position: relative;
-      max-width: 480px;
-      margin: 0 auto;
-    }
-
-    .clickable-area img {
-      max-width: 65px;
-    }
-
-    #countdown {
-      margin-top: 0.5rem;
-      font-size: 1rem;
-      position: relative;
-      z-index: 2;
-      cursor: default;
-    }
   </style>
 </head>
 
@@ -253,7 +208,6 @@
         </video>
 
         <!-- Buttons -->
-        <!-- (buttons remain unchanged) -->
         <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
           <img src="images/informationbutton.webp" alt="Info"/>
         </button>
@@ -278,13 +232,13 @@
         <button type="button" class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Play the card match game.">
           <img src="images/peoplebutton.webp" alt="People"/>
         </button>
+
         <div id="infoLine" class="info-line">
           <span id="infoParticle"></span><span id="infoText"></span>
         </div>
       </div>
     </div>
 
-    <!-- 🌟 Footer Icons -->
     <section class="icons-container">
       <a href="https://github.com/sponsors/deckerd451" target="_blank"><i class="fas fa-heart"></i></a>
       <a href="2card.html"><i class="fas fa-people-arrows"></i></a>
@@ -294,10 +248,11 @@
       <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
       <a href="https://www.facebook.com/deckerdb26354" target="_blank"><i class="fab fa-facebook"></i></a>
       <a id="open-calendar" title="View Charleston Events"><i class="fas fa-calendar-alt"></i></a>
+
     </section>
   </main>
 
-  <!-- 🗓 Event Modal -->
+  <!-- —— Event Modal —— -->
   <div id="events-overlay">
     <div class="events-modal">
       <h2>Upcoming Charleston Events</h2>
@@ -359,56 +314,75 @@
     const list=document.getElementById("events-list");
     const countdown=document.getElementById("countdown");
     const close=document.getElementById("close-overlay");
-    const calendarBtn=document.getElementById("open-calendar");
     close.onclick=()=>overlay.classList.remove("active");
     overlay.addEventListener("click",e=>{if(!modal.contains(e.target))overlay.classList.remove("active");});
 
-    async function fetchEvents() {
-      const proxy="https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
+async function fetchEvents() {
+  const proxy = "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
 
-      try {
-        const res=await fetch(proxy);
-        const data=await res.json();
-        if(!data.events||!Array.isArray(data.events)){console.warn("No valid events:",data);return;}
-        const events=data.events.map(e=>({
-          name:e.title,
-          date:new Date(e.startDate),
-          location:e.location,
-          url:e.link
-        }));
-        const now=new Date();
-        const upcoming=events.filter(e=>e.date>now).sort((a,b)=>a.date-b.date);
-        const final=upcoming.length?upcoming:[{name:"HarborHack 2025",date:new Date("2025-10-03T00:00:00-04:00"),location:"Charleston Tech Center",url:"#"}];
+  try {
+    const res = await fetch(proxy);
+    const data = await res.json();
 
-        let titleEl=document.getElementById("next-event-title");
-        if(!titleEl){
-          titleEl=document.createElement("div");
-          titleEl.id="next-event-title";
-          titleEl.style.color="#c9a35e";
-          titleEl.style.textShadow="0 0 10px rgba(201,163,94,0.8)";
-          titleEl.style.marginBottom="0.5rem";
-          countdown.parentNode.insertBefore(titleEl,countdown);
-        }
-        titleEl.textContent=`Next: ${final[0].name}`;
-        startCountdown("countdown",final);
-
-        // 🗓️ Calendar icon opens event list
-        calendarBtn.addEventListener("click",(e)=>{
-          e.preventDefault();
-          overlay.classList.add("active");
-          list.innerHTML=final.map(e=>`
-            <div class="event-item">
-              <strong>${e.name}</strong>
-              <div class="event-date">${e.date.toLocaleString()}</div>
-              <div class="event-location">${e.location}</div>
-              <a href="${e.url}" target="_blank" class="event-link">View Event</a>
-            </div>`).join("");
-        });
-      } catch(err){console.error("Error fetching events:",err);}
+    if (!data.events || !Array.isArray(data.events)) {
+      console.warn("No valid events found in JSON:", data);
+      return;
     }
-    fetchEvents();
 
-    // Buttons
+    const events = data.events.map(e => ({
+      name: e.title,
+      date: new Date(e.startDate),
+      location: e.location,
+      url: e.link
+    }));
+
+    const now = new Date();
+    const upcoming = events.filter(e => e.date > now).sort((a, b) => a.date - b.date);
+    const final = upcoming.length ? upcoming : [{
+      name: "HarborHack 2025",
+      date: new Date("2025-10-03T00:00:00-04:00"),
+      location: "Charleston Tech Center",
+      url: "#"
+    }];
+
+    // Optional title above countdown
+    let titleEl = document.getElementById("next-event-title");
+    if (!titleEl) {
+      titleEl = document.createElement("div");
+      titleEl.id = "next-event-title";
+      titleEl.style.color = "#c9a35e";
+      titleEl.style.textShadow = "0 0 10px rgba(201,163,94,0.8)";
+      titleEl.style.marginBottom = "0.5rem";
+      const countdownContainer = document.getElementById("countdown");
+      countdownContainer.parentNode.insertBefore(titleEl, countdownContainer);
+    }
+    titleEl.textContent = `Next: ${final[0].name}`;
+
+    startCountdown("countdown", final);
+
+    countdown.addEventListener("click", () => {
+      overlay.classList.add("active");
+      list.innerHTML = final
+        .map(
+          e => `
+          <div class="event-item">
+            <strong>${e.name}</strong>
+            <div class="event-date">${e.date.toLocaleString()}</div>
+            <div class="event-location">${e.location}</div>
+            <a href="${e.url}" target="_blank" class="event-link">View Event</a>
+          </div>`
+        )
+        .join("");
+    });
+  } catch (err) {
+    console.error("Error fetching events:", err);
+  }
+}
+
+fetchEvents();
+
+
+    // Buttons & info line
     const buttons=document.querySelectorAll(".clickable-area");
     const infoLine=document.getElementById("infoLine");
     const infoText=document.getElementById("infoText");
