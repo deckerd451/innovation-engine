@@ -253,13 +253,21 @@
       <div class="media-container">
   <!-- 🕰️ Dynamic Next Event Display -->
   <div id="next-event-title"
-       style="color:#c9a35e;
-              text-shadow:0 0 10px rgba(201,163,94,0.8);
-              margin-bottom:0.4rem;
-              font-weight:700;
-              font-size:1rem;">
-    Loading next event...
-  </div>
+     style="
+        color:#c9a35e;
+        text-shadow:0 0 10px rgba(201,163,94,0.8);
+        margin:0.3rem auto 0.4rem;
+        font-weight:700;
+        font-size:clamp(0.8rem, 2vw, 1rem);
+        text-align:center;
+        max-width:90%;
+        line-height:1.4;
+        word-wrap:break-word;
+        overflow-wrap:break-word;
+     ">
+  Loading next event...
+</div>
+
 
   <div id="countdown"
        style="color:#c9a35e;
