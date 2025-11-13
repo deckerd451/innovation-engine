@@ -80,8 +80,18 @@ async function fetchEvents() {
       return;
     }
 
-    renderEvents(upcoming);
+   renderEvents(upcoming);
+
+// 🧠 Allow a short delay so countdown.js initializes before replacing
+setTimeout(() => {
+  const countdownEl = document.getElementById("countdown");
+  if (countdownEl) {
+    countdownEl.innerHTML = ""; // clear placeholder text
     updateCountdown(upcoming[0]);
+    console.log("✅ Countdown updated with Worker event:", upcoming[0].title);
+  }
+}, 200);
+
 
   } catch (err) {
     console.error("❌ Error fetching events:", err);
