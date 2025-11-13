@@ -48,12 +48,22 @@ async function fetchEvents() {
       return;
     }
 
-    const events = data.events.map(e => ({
+    const events = data.events
+  .map(e => {
+    let date = new Date(e.startDate);
+    if (isNaN(date.getTime())) {
+      console.warn("Invalid date format:", e.startDate);
+      return null;
+    }
+    return {
       title: e.title,
-      date: new Date(e.startDate),
+      date,
       location: e.location || "Charleston, SC",
-      url: e.link || "#"
-    }));
+      url: e.link || "#",
+    };
+  })
+  .filter(Boolean);
+
 
     const now = new Date();
     const upcoming = events.filter(e => e.date > now).sort((a, b) => a.date - b.date);
