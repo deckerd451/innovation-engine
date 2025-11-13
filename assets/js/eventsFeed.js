@@ -132,7 +132,7 @@ function renderEvents(events, source = "Live") {
 function showFallbackEvents() {
   const fallback = [
     {
-      title: "HarborHack 2025",
+      title: "HarborHack 2026",
       date: new Date("2025-10-03T08:00:00-04:00"),
       location: "Charleston Tech Center",
       url: "https://charlestonhacks.com/hackathon"
