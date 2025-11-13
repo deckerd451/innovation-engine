@@ -52,18 +52,19 @@ async function fetchEvents() {
       return;
     }
 
+    // Normalize and sort events
     const events = data.events
       .map(e => {
-        let date = new Date(e.startDate);
+        const date = new Date(e.startDate);
         if (isNaN(date.getTime())) {
-          console.warn("⏰ Invalid date format:", e.startDate);
+          console.warn("⏰ Invalid date:", e.startDate);
           return null;
         }
         return {
           title: e.title,
           date,
           location: e.location || "Charleston, SC",
-          url: e.link || "#",
+          url: e.link || "#"
         };
       })
       .filter(Boolean)
@@ -75,23 +76,17 @@ async function fetchEvents() {
     const upcoming = events.filter(e => e.date > now);
 
     if (!upcoming.length) {
-      console.warn("⚠️ No upcoming events found — showing fallback");
+      console.warn("⚠️ No upcoming events — showing fallback");
       showFallbackEvents();
       return;
     }
 
-   renderEvents(upcoming);
+    // 👉 Show all upcoming events in the modal
+    renderEvents(upcoming, "Live");
 
-// 🧠 Allow a short delay so countdown.js initializes before replacing
-setTimeout(() => {
-  const countdownEl = document.getElementById("countdown");
-  if (countdownEl) {
-    countdownEl.innerHTML = ""; // clear placeholder text
+    // 👉 Update countdown with nearest event
     updateCountdown(upcoming[0]);
     console.log("✅ Countdown updated with Worker event:", upcoming[0].title);
-  }
-}, 200);
-
 
   } catch (err) {
     console.error("❌ Error fetching events:", err);
@@ -100,10 +95,16 @@ setTimeout(() => {
 }
 
 // ------------------------------------------------------
-// 🗓 Render modal event list
+// 🗓 Render all upcoming events
 // ------------------------------------------------------
-function renderEvents(events) {
-  list.innerHTML = "";
+function renderEvents(events, source = "Live") {
+  list.innerHTML = `
+    <div style="color:${source === "Live" ? "#00e0ff" : "#ffae00"};
+                font-size:0.9rem; margin-bottom:0.8rem;">
+      ${source === "Live" ? "🟢 Live Charleston Feed" : "🔁 Fallback Mode"}
+    </div>
+  `;
+
   events.forEach(e => {
     const div = document.createElement("div");
     div.className = "event-item";
@@ -121,7 +122,8 @@ function renderEvents(events) {
     `;
     list.appendChild(div);
   });
-  console.log(`📅 Rendered ${events.length} events in modal`);
+
+  console.log(`📅 Rendered ${events.length} upcoming events in modal`);
 }
 
 // ------------------------------------------------------
@@ -143,7 +145,7 @@ function showFallbackEvents() {
     }
   ];
   console.warn("🔁 Using fallback events");
-  renderEvents(fallback);
+  renderEvents(fallback, "Fallback");
   updateCountdown(fallback[0]);
 }
 
