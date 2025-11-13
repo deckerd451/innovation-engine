@@ -163,7 +163,7 @@ function showFallbackEvents() {
 }
 
 // ------------------------------------------------------
-// ⏳ Update countdown + next event title
+// ⏳ Update countdown + next event title (responsive & wrapped)
 // ------------------------------------------------------
 function updateCountdown(event) {
   const countdownEl = document.getElementById("countdown");
@@ -173,15 +173,42 @@ function updateCountdown(event) {
   if (!titleEl) {
     titleEl = document.createElement("div");
     titleEl.id = "next-event-title";
-    titleEl.style.color = "#c9a35e";
-    titleEl.style.textShadow = "0 0 10px rgba(201,163,94,0.8)";
-    titleEl.style.marginBottom = "0.5rem";
+    titleEl.style.cssText = `
+      color:#c9a35e;
+      text-shadow:0 0 10px rgba(201,163,94,0.8);
+      margin:0.3rem auto 0.4rem;
+      font-weight:700;
+      font-size:clamp(0.8rem, 2vw, 1rem);
+      text-align:center;
+      max-width:90%;
+      line-height:1.4;
+      word-wrap:break-word;
+      overflow-wrap:break-word;
+    `;
     countdownEl.parentNode.insertBefore(titleEl, countdownEl);
   }
 
-  titleEl.textContent = `Next: ${event.title}`;
+  // Format the event date
+  const eventDate = event.date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const location = event.location ? ` @ ${event.location}` : "";
+
+  // Styled + wrapped HTML output
+  titleEl.innerHTML = `
+    Next: <span style="color:#00e0ff;">${event.title}</span><br>
+    <small style="font-size:0.85em;opacity:0.85;">
+      ${eventDate}${location}
+    </small>
+  `;
+
+  // Start the live countdown timer
   startCountdown("countdown", event.date);
 }
+
 
 // ------------------------------------------------------
 // 🚀 Initialize
