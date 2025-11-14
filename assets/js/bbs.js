@@ -44,7 +44,7 @@ async function loadMessages() {
 }
 
 /* ============================
-   Send Message
+   Send Message (with instant echo)
    ============================ */
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -53,11 +53,22 @@ form.addEventListener("submit", async (e) => {
 
   input.value = "";
 
-  await supabase.from("bbs_messages").insert({
+  // 🟢 1. LOCAL ECHO (instant display)
+  const line = document.createElement("div");
+  line.textContent = `[${username}] ${text}`;
+  screen.appendChild(line);
+  screen.scrollTop = screen.scrollHeight;
+
+  // 🟢 2. Insert into Supabase in background
+  supabase.from("bbs_messages").insert({
     username,
     text
+  }).then(() => {
+    // Optional sync
+    loadMessages();
   });
 });
+
 
 /* ============================
    Realtime Messages
