@@ -27,6 +27,17 @@
     padding: 0;
     box-sizing: border-box;
 }
+/* ============================================================
+   FIX: Prevent invisible event-overlay from blocking card buttons
+   ============================================================ */
+#events-overlay {
+  pointer-events: none !important;
+}
+
+#events-overlay.active {
+  pointer-events: auto !important;
+}
+
 
 /* ==========================================================================
    BODY & BACKGROUND LAYOUT
