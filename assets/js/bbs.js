@@ -1,5 +1,5 @@
 // assets/js/bbs.js
-import { supabaseClient as supabase } from "./supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
 
 /* ================================
    DOM REFERENCES
@@ -13,32 +13,41 @@ if (!screenEl || !inputEl || !formEl) {
 }
 
 /* ================================
-   LOAD INITIAL MESSAGES
+   STATE (keeps messages in memory)
 ================================ */
-async function loadMessages() {
-  const { data, error } = await supabase
-    .from("bbs_messages")
-    .select("*")
-    .order("created_at", { ascending: true });
+let MESSAGES = [];
 
-  if (error) {
-    console.error("BBS load error:", error);
-    return;
-  }
-
-  renderMessages(data);
-}
-
-function renderMessages(rows) {
-  screenEl.innerHTML = rows
-    .map(r => `> ${r.text}`)
+/* ================================
+   RENDER MESSAGES
+================================ */
+function renderMessages() {
+  screenEl.innerHTML = MESSAGES
+    .map((m) => `> ${m.text}`)
     .join("\n");
 
   screenEl.scrollTop = screenEl.scrollHeight;
 }
 
 /* ================================
-   INSERT NEW MESSAGE
+   LOAD INITIAL MESSAGES
+================================ */
+async function loadMessages() {
+  const { data, error } = await supabase
+    .from("bbs_messages")
+    .select("*")
+    .order("id", { ascending: true });
+
+  if (error) {
+    console.error("BBS load error:", error);
+    return;
+  }
+
+  MESSAGES = data || [];
+  renderMessages();
+}
+
+/* ================================
+   SEND NEW MESSAGE
 ================================ */
 async function sendMessage(text) {
   if (!text.trim()) return;
@@ -53,17 +62,39 @@ async function sendMessage(text) {
   }
 
   inputEl.value = "";
-  loadMessages(); // reload from DB
 }
 
 /* ================================
-   FORM HANDLER
+   FORM SUBMIT
 ================================ */
 formEl.addEventListener("submit", (e) => {
-  e.preventDefault(); // IMPORTANT: stop page reload
-  const text = inputEl.value;
-  sendMessage(text);
+  e.preventDefault();
+  sendMessage(inputEl.value);
 });
+
+/* ================================
+   REALTIME SUBSCRIPTION
+================================ */
+supabase
+  .channel("bbs_realtime")
+  .on(
+    "postgres_changes",
+    {
+      event: "INSERT",
+      schema: "public",
+      table: "bbs_messages",
+    },
+    (payload) => {
+      const newMsg = payload.new;
+
+      // avoid duplicates if initial load already had it
+      if (!MESSAGES.some((m) => m.id === newMsg.id)) {
+        MESSAGES.push(newMsg);
+        renderMessages();
+      }
+    }
+  )
+  .subscribe();
 
 /* ================================
    INIT
