@@ -32,6 +32,47 @@
   <link rel="stylesheet" href="styles.css"/>
 
   <style>
+    /* ==== RETRO BBS TERMINAL ====================== */
+#bbs-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 2rem auto;
+  background: black;
+  border: 1px solid #0f0;
+  padding: 1rem;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  color: #0f0;
+  box-shadow: 0 0 20px rgba(0,255,0,0.3);
+}
+
+#bbs-screen {
+  height: 180px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  margin-bottom: 0.5rem;
+}
+
+#bbs-form {
+  display: flex;
+  align-items: center;
+}
+
+.bbs-prompt {
+  margin-right: 0.5rem;
+  color: #0f0;
+}
+
+#bbs-input {
+  flex: 1;
+  background: black;
+  color: #0f0;
+  border: none;
+  outline: none;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+}
+
     /* Scrollbar styling for events list */
 .events-modal div::-webkit-scrollbar {
   width: 8px;
