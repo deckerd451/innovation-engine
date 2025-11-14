@@ -499,8 +499,8 @@
   })();
   </script>
 
-  <!-- —— Main Logic —— -->
-  <script type="module">
+<!-- —— Main Logic —— -->
+<script type="module">
   import { CONFIG } from "./assets/js/config.js";
   import { initCardFlip } from "./assets/js/cardFlip.js";
   import { startBTCPriceTracker } from "./assets/js/btc.js";
@@ -514,7 +514,6 @@
   initCardFlip(CONFIG);
   startBTCPriceTracker("btcPrice");
 
-  // Buttons & info line
   const buttons = document.querySelectorAll(".clickable-area");
   const infoLine = document.getElementById("infoLine");
   const infoText = document.getElementById("infoText");
@@ -536,18 +535,13 @@
   });
 </script>
 
-<!-- Core modules (load early, no defer) -->
-<script type="module" src="/assets/js/config.js"></script>
+<!-- Core modules that do not depend on DOM -->
 <script type="module" src="/assets/js/neuralBackground.js"></script>
 <script type="module" src="/assets/js/supabaseClient.js"></script>
-<script type="module" src="/assets/js/cardFlip.js"></script>
-<script type="module" src="/assets/js/btc.js"></script>
 
-<!-- DOM-dependent modules (MUST load after DOM) -->
+<!-- DOM-dependent modules -->
 <script type="module" defer src="/assets/js/eventsFeed.js"></script>
 <script type="module" defer src="/assets/js/bbs.js"></script>
-
-
 
 </body>
 </html>
