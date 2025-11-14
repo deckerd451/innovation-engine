@@ -20,10 +20,13 @@ const username = getUsername();
 const screen = document.getElementById("bbs-screen");
 const form = document.getElementById("bbs-form");
 const input = document.getElementById("bbs-input");
-const onlineDiv = document.getElementById("bbs-online");
+const onlineDiv = document.getElementById("bbs-online-list"); 
+// 🔥 FIX: You originally pointed to #bbs-online, 
+// but the list is inside #bbs-online-list. 
+// This change ensures online users display correctly.
 
 /* ============================
-   Load Messages
+   Load Messages (initial)
    ============================ */
 async function loadMessages() {
   const { data, error } = await supabase
@@ -31,7 +34,10 @@ async function loadMessages() {
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) console.error("Load error:", error);
+  if (error) {
+    console.error("Load error:", error);
+    return;
+  }
 
   screen.innerHTML = "";
   data?.forEach(msg => {
@@ -43,6 +49,8 @@ async function loadMessages() {
   screen.scrollTop = screen.scrollHeight;
 }
 
+await loadMessages(); // 🔥 IMPORTANT: ensures realtime doesn’t duplicate
+
 /* ============================
    Send Message (with instant echo)
    ============================ */
@@ -53,32 +61,55 @@ form.addEventListener("submit", async (e) => {
 
   input.value = "";
 
-  // 🟢 1. LOCAL ECHO (instant display)
+  // 🟢 1. LOCAL ECHO (instant)
   const line = document.createElement("div");
   line.textContent = `[${username}] ${text}`;
   screen.appendChild(line);
   screen.scrollTop = screen.scrollHeight;
 
-  // 🟢 2. Insert into Supabase in background
-  supabase.from("bbs_messages").insert({
-    username,
-    text
-  }).then(() => {
-    // Optional sync
-    loadMessages();
-  });
+  // 🟢 2. Insert into Supabase
+  supabase
+    .from("bbs_messages")
+    .insert({ username, text })
+    .then(() => {
+      // Optional sync
+      loadMessages();
+    });
 });
 
-
 /* ============================
-   Realtime Messages
+   Realtime subscription FIXED
    ============================ */
-supabase
-  .channel("bbs-messages")
-  .on("postgres_changes", { event: "INSERT", schema: "public", table: "bbs_messages" }, loadMessages)
-  .subscribe();
+const channel = supabase.channel("bbs-messages", {
+  config: {
+    broadcast: { ack: true },
+    presence: { key: username }
+  }
+});
 
-loadMessages();
+channel
+  .on(
+    "postgres_changes",
+    {
+      event: "INSERT",
+      schema: "public",
+      table: "bbs_messages"
+    },
+    payload => {
+      const msg = payload.new;
+
+      // 🛑 Prevent echoing our own just-sent message
+      if (msg.username === username) return;
+
+      const line = document.createElement("div");
+      line.textContent = `[${msg.username}] ${msg.text}`;
+      screen.appendChild(line);
+      screen.scrollTop = screen.scrollHeight;
+    }
+  )
+  .subscribe(status => {
+    console.log("Realtime status:", status);
+  });
 
 /* ============================
    Presence Heartbeat
@@ -90,7 +121,6 @@ async function heartbeat() {
   });
 }
 
-// Do heartbeat every 10 sec
 setInterval(heartbeat, 10000);
 heartbeat();
 
@@ -99,7 +129,7 @@ heartbeat();
    ============================ */
 async function loadOnlineList() {
   const { data, error } = await supabase
-    .from("bbs_online_active")   // <-- VIEW
+    .from("bbs_online_active")
     .select("*");
 
   if (error) {
@@ -112,9 +142,8 @@ async function loadOnlineList() {
   const names = data.map(u => u.username);
 
   onlineDiv.textContent =
-    "Online: " + (names.length ? names.join(", ") : "no users");
+    names.length ? names.join(", ") : "no users";
 }
 
-// Update every 7 sec
 setInterval(loadOnlineList, 7000);
 loadOnlineList();
