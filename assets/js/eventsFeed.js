@@ -250,8 +250,8 @@ function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated 
 function showFallbackEvents() {
   const fallback = [
     {
-      title: "Charleston Tech Happy Hour",
-      startDate: "2025-11-15T17:00:00-05:00",
+      title: "CharlestonHacks Happy Hour",
+      startDate: "2025-12-30T17:00:00-05:00",
       location: "Revelry Brewing",
       link: "https://www.linkedin.com/company/charlestonhacks",
       source: "Fallback",
