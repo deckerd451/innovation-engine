@@ -11,6 +11,15 @@ function getUsername() {
   localStorage.setItem("bbs_username", generated);
   return generated;
 }
+// 🟢 Update "online" status
+async function heartbeat() {
+  const username = getUsername();
+  await supabase.from("bbs_online")
+    .upsert({ username, last_seen: new Date().toISOString() });
+}
+setInterval(heartbeat, 10000); // every 10 seconds
+heartbeat(); // run immediately
+
 
 const username = getUsername();
 
