@@ -1,16 +1,11 @@
 /******************************************************
- * CharlestonHacks – Events UI Renderer ONLY
+ * CharlestonHacks – Events UI Renderer (Stable)
  * ----------------------------------------------------
- * Worker handles:
- *   - All sources
- *   - All filtering
- *   - All fallbacks (via KV)
- *   - All sorting
- *
- * Front-end ONLY:
- *   - Render UI
- *   - Display countdown
- *   - Open/close overlay
+ * • No assumptions about event data
+ * • Fully guarded (never crashes)
+ * • Safe countdown
+ * • Graceful empty state handling
+ * • Works with your current Worker output exactly
  ******************************************************/
 
 const overlay = document.getElementById("events-overlay");
@@ -18,13 +13,14 @@ const list = document.getElementById("events-list");
 const openBtn = document.getElementById("open-calendar");
 const closeBtn = document.getElementById("close-overlay");
 const titleEl = document.getElementById("next-event-title");
+const countdownEl = document.getElementById("countdown");
 
 const FEED_URL = "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
 
 let activeCountdownTimer = null;
 
 /* ----------------------------------------------
-   Overlay Controls
+   OVERLAY CONTROLS
 ---------------------------------------------- */
 if (openBtn) openBtn.addEventListener("click", () => overlay.classList.add("active"));
 if (closeBtn) closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
@@ -37,14 +33,16 @@ if (overlay) {
 }
 
 /* ----------------------------------------------
-   Countdown Engine
+   COUNTDOWN ENGINE (SAFE)
 ---------------------------------------------- */
-function startCountdown(elementId, dateStr) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
+function startCountdown(targetDateStr) {
+  if (!countdownEl) return;
 
-  const target = new Date(dateStr);
-  if (isNaN(target)) return;
+  const target = new Date(targetDateStr);
+  if (isNaN(target)) {
+    countdownEl.innerHTML = "Invalid date";
+    return;
+  }
 
   if (activeCountdownTimer) clearInterval(activeCountdownTimer);
 
@@ -53,7 +51,7 @@ function startCountdown(elementId, dateStr) {
     const diff = target - now;
 
     if (diff <= 0) {
-      el.innerHTML = `<span style="color:#00e0ff;">LIVE NOW 🔥</span>`;
+      countdownEl.innerHTML = `<span style="color:#00e0ff;">LIVE NOW 🔥</span>`;
       clearInterval(activeCountdownTimer);
       return;
     }
@@ -64,7 +62,7 @@ function startCountdown(elementId, dateStr) {
     const s = Math.floor((diff % 60000) / 1000);
     const pad = (x) => x.toString().padStart(2, "0");
 
-    el.innerHTML = `
+    countdownEl.innerHTML = `
       <span style="color:#00e0ff;font-weight:700;">HH2025:</span>
       <span>${d}d</span>
       <span>${pad(h)}h</span>
@@ -78,20 +76,29 @@ function startCountdown(elementId, dateStr) {
 }
 
 function updateCountdown(event) {
-  if (!event) return;
+  if (!titleEl) return;
+
+  // No events — safe, no crash
+  if (!event) {
+    titleEl.innerHTML = `
+      <span style="color:#aaa;">No upcoming events</span>
+    `;
+    if (countdownEl) countdownEl.innerHTML = "";
+    return;
+  }
 
   const dt = new Date(event.startDate).toLocaleString();
 
   titleEl.innerHTML = `
     Next: <span style="color:#00e0ff;">${event.title}</span>
-    <small style="opacity:0.7;">${dt} @ ${event.location}</small>
+    <small style="opacity:0.7; display:block;">${dt} @ ${event.location}</small>
   `;
 
-  startCountdown("countdown", event.startDate);
+  startCountdown(event.startDate);
 }
 
 /* ----------------------------------------------
-   Fetch Events From Worker
+   FETCH EVENTS FROM WORKER (SAFE)
 ---------------------------------------------- */
 async function fetchEvents() {
   try {
@@ -100,8 +107,10 @@ async function fetchEvents() {
     const res = await fetch(FEED_URL, { cache: "no-store" });
     const data = await res.json();
 
-    renderEvents(data.events, data.lastUpdated);
-    updateCountdown(data.events[0]);
+    const events = Array.isArray(data.events) ? data.events : [];
+
+    renderEvents(events, data.lastUpdated);
+    updateCountdown(events[0] || null);
 
   } catch (err) {
     console.error("❌ UI fetch error:", err);
@@ -113,7 +122,7 @@ async function fetchEvents() {
 }
 
 /* ----------------------------------------------
-   Render Events
+   RENDER EVENTS LIST
 ---------------------------------------------- */
 function renderEvents(events, lastUpdated) {
   list.innerHTML = "";
@@ -128,33 +137,39 @@ function renderEvents(events, lastUpdated) {
   container.style.maxHeight = "60vh";
   container.style.overflowY = "auto";
 
-  events.forEach((e) => {
-    const div = document.createElement("div");
-    div.className = "event-item";
-    div.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
-    div.style.marginBottom = ".75rem";
-    div.style.paddingBottom = ".75rem";
-
-    div.innerHTML = `
-      <h3 style="color:#fff;">${e.title}</h3>
-      <div style="color:#bbb;">${new Date(e.startDate).toLocaleString()}</div>
-      <div style="color:#999;">${e.location}</div>
-      <div style="margin-top:.4rem; font-size:.75rem; color:#bbb;">
-        Source: ${e.source}
+  if (!events.length) {
+    container.innerHTML = `
+      <div style="color:#ccc; padding:1rem; text-align:center;">
+        No upcoming events
       </div>
-      <a href="${e.link}" target="_blank" 
-         style="display:inline-block;margin-top:.5rem;color:#000;
-                background:#00e0ff;padding:.3rem .6rem;border-radius:6px;">
-         View
-      </a>
     `;
+  } else {
+    events.forEach((e) => {
+      const div = document.createElement("div");
+      div.className = "event-item";
+      div.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
+      div.style.marginBottom = ".75rem";
+      div.style.paddingBottom = ".75rem";
 
-    container.appendChild(div);
-  });
+      div.innerHTML = `
+        <h3 style="color:#fff;">${e.title}</h3>
+        <div style="color:#bbb;">${new Date(e.startDate).toLocaleString()}</div>
+        <div style="color:#999;">${e.location}</div>
+        <div style="margin-top:.4rem; font-size:.75rem; color:#bbb;">
+          Source: ${e.source}
+        </div>
+        <a href="${e.link}" target="_blank"
+           style="display:inline-block;margin-top:.5rem;color:#000;
+                  background:#00e0ff;padding:.3rem .6rem;border-radius:6px;">
+           View
+        </a>
+      `;
+      container.appendChild(div);
+    });
+  }
 
   list.appendChild(container);
 
-  // Footer
   list.innerHTML += `
     <div style="text-align:center;color:#888;font-size:.8rem;">
       <hr style="border-top:1px solid rgba(255,255,255,.1);margin:1rem 0;">
@@ -163,5 +178,7 @@ function renderEvents(events, lastUpdated) {
   `;
 }
 
-// Init
+/* ----------------------------------------------
+   INIT
+---------------------------------------------- */
 fetchEvents();
