@@ -77,7 +77,10 @@ function startCountdown(elementId, eventDateStr) {
 async function fetchEvents() {
   try {
     console.log("🌐 Fetching events from:", FEED_URL);
-    const res = await fetch(FEED_URL);
+    const res = await fetch(FEED_URL, {
+  cache: "no-store"
+});
+
     const data = await res.json();
 
     if (!data?.events?.length) {
