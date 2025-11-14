@@ -168,29 +168,6 @@
       cursor: pointer;
       font-size: 1rem;
     }
-    /* 🎢 Scrollable events list inside modal */
-#events-list {
-  max-height: 60vh;              /* fits most screens */
-  overflow-y: auto;              /* enable vertical scrolling */
-  padding-right: 6px;            /* avoid text cutoff near scrollbar */
-  margin-bottom: 1rem;
-}
-
-/* 🖱️ Custom scrollbar styling for a gold theme */
-#events-list::-webkit-scrollbar {
-  width: 8px;
-}
-#events-list::-webkit-scrollbar-thumb {
-  background: rgba(201,163,94,0.6);
-  border-radius: 4px;
-}
-#events-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(201,163,94,0.8);
-}
-#events-list::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.05);
-}
-
     /* ============================
    ICON BAR — RESPONSIVE GROUPED
    ============================ */
@@ -241,11 +218,6 @@
     gap: 0.45rem;
   }
 }
-    #next-event-title {
-  position: relative;
-  z-index: 10;
-}
-
 
   </style>
 </head>
@@ -279,33 +251,8 @@
   <main>
     <div class="main-wrapper">
       <div class="media-container">
-  <!-- 🕰️ Dynamic Next Event Display -->
-  <div id="next-event-title"
-     style="
-        color:#c9a35e;
-        text-shadow:0 0 10px rgba(201,163,94,0.8);
-        margin:0.3rem auto 0.4rem;
-        font-weight:700;
-        font-size:clamp(0.8rem, 2vw, 1rem);
-        text-align:center;
-        max-width:90%;
-        line-height:1.4;
-        word-wrap:break-word;
-        overflow-wrap:break-word;
-     ">
-  Loading next event...
-</div>
-
-
-  <div id="countdown"
-       style="color:#c9a35e;
-              font-family:'Orbitron',sans-serif;
-              letter-spacing:1px;
-              text-shadow:0 0 10px rgba(201,163,94,0.7);">
-  </div>
-
-  <div id="btcPrice"></div>
-
+        <div id="countdown"></div>
+        <div id="btcPrice"></div>
 
         <img id="missionImage" src="icons/card.png" alt="Big Card"/>
         <img id="cardFrame" src="images/cardframe2.svg" alt="Frame" style="display:none;"/>
