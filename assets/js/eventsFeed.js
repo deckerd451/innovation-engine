@@ -92,11 +92,7 @@ async function fetchEvents() {
     const events = data.events;
     const now = new Date();
 
-    // Filter future events ONLY, but never filter out all
-// Keep *every* event that has a title and startDate
-const toRender = events.filter(e => e.title && e.startDate);
-
-
+const toRender = events;
 
     renderEvents(toRender, data.source, data.lastUpdated);
     updateCountdown(toRender[0]);
