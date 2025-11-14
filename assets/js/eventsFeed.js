@@ -2,18 +2,19 @@
 // ------------------------------------------------------------------
 // Fetches events from Cloudflare Worker (Charleston Multi-Feed)
 // Displays them in a scrollable modal with source badges
-// Updates live countdown for the nearest event
+// Includes inline countdown timer logic (no external import needed)
 
-import { startCountdown } from "./countdown.js";
-
+// 🧭 DOM elements
 const overlay = document.getElementById("events-overlay");
 const list = document.getElementById("events-list");
 const openBtn = document.getElementById("open-calendar");
 const closeBtn = document.getElementById("close-overlay");
+const countdownEl = document.getElementById("countdown");
+const titleEl = document.getElementById("next-event-title");
 
 const FEED_URL = "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
 
-// 🔔 Overlay controls
+// 🎛 Overlay Controls
 if (openBtn) openBtn.addEventListener("click", () => overlay.classList.add("active"));
 if (closeBtn) closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
 if (overlay) {
@@ -32,6 +33,46 @@ const sourceColors = {
   "Fallback": "#c9a35e",
 };
 
+// 🕰 Inline Countdown Logic
+function startCountdown(elementId, eventDateStr) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  const eventDate = new Date(eventDateStr);
+  if (isNaN(eventDate)) {
+    el.textContent = "Invalid date";
+    return;
+  }
+
+  function update() {
+    const now = new Date();
+    let diff = Math.max(0, eventDate - now);
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const mins = Math.floor((diff / (1000 * 60)) % 60);
+    const secs = Math.floor((diff / 1000) % 60);
+    const pad = (n) => n.toString().padStart(2, "0");
+
+    if (diff <= 0) {
+      el.innerHTML = `<span style="color:#00e0ff;">LIVE NOW 🔥</span>`;
+      clearInterval(timer);
+      return;
+    }
+
+    el.innerHTML = `
+      <span style="color:#00e0ff;font-weight:700;">HH2025:</span>
+      <span>${days}d</span>
+      <span>${pad(hours)}h</span>
+      <span>${pad(mins)}m</span>
+      <span>${pad(secs)}s</span>
+    `;
+  }
+
+  update();
+  const timer = setInterval(update, 1000);
+}
+
 // 🟢 Fetch event feed
 async function fetchEvents() {
   try {
@@ -48,10 +89,8 @@ async function fetchEvents() {
     const events = data.events;
     const now = new Date();
 
-    // Filter out past events if possible (keep future only)
+    // Filter to future events only, fallback to all if none
     const upcoming = events.filter(e => new Date(e.startDate) > now);
-
-    // If everything is in the past (placeholder dates), just show all
     const toRender = upcoming.length ? upcoming : events;
 
     renderEvents(toRender, data.source, data.lastUpdated);
@@ -67,7 +106,7 @@ async function fetchEvents() {
 function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated = null) {
   list.innerHTML = "";
 
-  // Add header
+  // Header
   const header = document.createElement("div");
   header.innerHTML = `
     <div style="color:#00e0ff; font-size:0.9rem; margin-bottom:0.8rem;">
@@ -76,7 +115,7 @@ function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated 
   `;
   list.appendChild(header);
 
-  // Scrollable event container
+  // Scrollable container
   const container = document.createElement("div");
   container.style.maxHeight = "60vh";
   container.style.overflowY = "auto";
@@ -178,25 +217,24 @@ function showFallbackEvents() {
     `;
     list.appendChild(div);
   });
+
+  updateCountdown(fallback[0]);
 }
 
-// ⏳ Update countdown
+// ⏳ Update countdown + header
 function updateCountdown(event) {
   if (!event) return;
 
-  const titleEl = document.getElementById("next-event-title");
-  const countdownEl = document.getElementById("countdown");
-
   if (titleEl) {
     titleEl.innerHTML = `
-      Next: <span style="color:#00e0ff;">${event.title}</span><br>
-      <small style="font-size:0.85em;opacity:0.8;">
+      Next: <span style="color:#00e0ff;">${event.title}</span>
+      <small style="font-size:0.85em;opacity:0.8;display:block;">
         ${new Date(event.startDate).toLocaleString()} @ ${event.location}
       </small>
     `;
   }
 
-  if (countdownEl) startCountdown("countdown", event.startDate);
+  startCountdown("countdown", event.startDate);
 }
 
 // 🚀 Init
