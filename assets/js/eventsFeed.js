@@ -122,10 +122,15 @@ function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated 
   container.style.paddingRight = "0.5rem";
 
   events.forEach((e) => {
-    const color =
-      sourceColors[
-        Object.keys(sourceColors).find((key) => e.source?.includes(key))
-      ] || "#888";
+    let color = "#888"; // default badge color
+
+for (const key in sourceColors) {
+  if (e.source && e.source.includes(key)) {
+    color = sourceColors[key];
+    break;
+  }
+}
+
 
     const div = document.createElement("div");
     div.className = "event-item";
