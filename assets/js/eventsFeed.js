@@ -89,9 +89,15 @@ async function fetchEvents() {
     const events = data.events;
     const now = new Date();
 
-    // Filter to future events only, fallback to all if none
-    const upcoming = events.filter(e => new Date(e.startDate) > now);
-    const toRender = upcoming.length ? upcoming : events;
+    // Filter future events ONLY, but never filter out all
+   const future = events.filter(e => {
+  const date = new Date(e.startDate);
+  return !isNaN(date) && date >= Date.now() - 3600000; // allow 1hr window
+});
+
+// Never fall back to "zero future events"
+const toRender = future.length > 0 ? future : events;
+
 
     renderEvents(toRender, data.source, data.lastUpdated);
     updateCountdown(toRender[0]);
