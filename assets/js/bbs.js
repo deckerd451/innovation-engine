@@ -1,102 +1,107 @@
-// assets/js/bbs.js
 import { supabase } from "./supabaseClient.js";
 
-/* ================================
-   DOM REFERENCES
-================================ */
-const screenEl = document.getElementById("bbs-screen");
-const inputEl = document.getElementById("bbs-input");
-const formEl = document.getElementById("bbs-form");
+/* ============================
+   Generate Username
+   ============================ */
+function getUsername() {
+  const stored = localStorage.getItem("bbs_username");
+  if (stored) return stored;
 
-if (!screenEl || !inputEl || !formEl) {
-  console.warn("BBS: Missing DOM elements");
+  const generated = "Guest" + Math.floor(Math.random() * 9999);
+  localStorage.setItem("bbs_username", generated);
+  return generated;
 }
 
-/* ================================
-   STATE (keeps messages in memory)
-================================ */
-let MESSAGES = [];
+const username = getUsername();
 
-/* ================================
-   RENDER MESSAGES
-================================ */
-function renderMessages() {
-  screenEl.innerHTML = MESSAGES
-    .map((m) => `> ${m.text}`)
-    .join("\n");
+/* ============================
+   DOM ELEMENTS
+   ============================ */
+const screen = document.getElementById("bbs-screen");
+const form = document.getElementById("bbs-form");
+const input = document.getElementById("bbs-input");
+const onlineList = document.getElementById("bbs-online-list");
 
-  screenEl.scrollTop = screenEl.scrollHeight;
-}
-
-/* ================================
-   LOAD INITIAL MESSAGES
-================================ */
+/* ============================
+   Load Messages
+   ============================ */
 async function loadMessages() {
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("bbs_messages")
     .select("*")
-    .order("id", { ascending: true });
+    .order("created_at", { ascending: true });
 
-  if (error) {
-    console.error("BBS load error:", error);
-    return;
-  }
+  screen.innerHTML = "";
+  data?.forEach(msg => {
+    const line = document.createElement("div");
+    line.textContent = `[${msg.username}] ${msg.text}`;
+    screen.appendChild(line);
+  });
 
-  MESSAGES = data || [];
-  renderMessages();
+  screen.scrollTop = screen.scrollHeight;
 }
 
-/* ================================
-   SEND NEW MESSAGE
-================================ */
-async function sendMessage(text) {
-  if (!text.trim()) return;
-
-  const { error } = await supabase
-    .from("bbs_messages")
-    .insert({ text });
-
-  if (error) {
-    console.error("BBS insert error:", error);
-    return;
-  }
-
-  inputEl.value = "";
-}
-
-/* ================================
-   FORM SUBMIT
-================================ */
-formEl.addEventListener("submit", (e) => {
+/* ============================
+   Send Message
+   ============================ */
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  sendMessage(inputEl.value);
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+
+  await supabase.from("bbs_messages").insert({
+    username,
+    text
+  });
 });
 
-/* ================================
-   REALTIME SUBSCRIPTION
-================================ */
+/* ============================
+   Realtime Messages
+   ============================ */
 supabase
-  .channel("bbs_realtime")
-  .on(
-    "postgres_changes",
-    {
-      event: "INSERT",
-      schema: "public",
-      table: "bbs_messages",
-    },
-    (payload) => {
-      const newMsg = payload.new;
-
-      // avoid duplicates if initial load already had it
-      if (!MESSAGES.some((m) => m.id === newMsg.id)) {
-        MESSAGES.push(newMsg);
-        renderMessages();
-      }
-    }
-  )
+  .channel("bbs-messages")
+  .on("postgres_changes", { event: "INSERT", schema: "public", table: "bbs_messages" }, loadMessages)
   .subscribe();
 
-/* ================================
-   INIT
-================================ */
 loadMessages();
+
+/* ============================
+   Presence: Heartbeat
+   ============================ */
+async function heartbeat() {
+  await supabase.from("bbs_presence").insert({
+    username
+  });
+}
+
+// Send heartbeat every 20 sec
+setInterval(heartbeat, 20000);
+heartbeat();
+
+/* ============================
+   Load Users Online
+   ============================ */
+async function loadOnlineUsers() {
+  // users seen in last 30 sec
+  const cutoff = new Date(Date.now() - 30000).toISOString();
+
+  const { data } = await supabase
+    .from("bbs_presence")
+    .select("username, last_seen")
+    .gt("last_seen", cutoff)
+    .order("last_seen", { ascending: false });
+
+  if (!data || data.length === 0) {
+    onlineList.textContent = "No one online";
+    return;
+  }
+
+  onlineList.innerHTML = data
+    .map(u => `• ${u.username}`)
+    .join("<br>");
+}
+
+// refresh every 5 seconds
+setInterval(loadOnlineUsers, 5000);
+loadOnlineUsers();
