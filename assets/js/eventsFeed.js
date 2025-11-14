@@ -46,10 +46,9 @@ async function fetchEvents() {
     }
 
     const now = new Date();
-    const upcoming = data.events.filter(e => new Date(e.startDate) > now);
-    if (!upcoming.length) {
-      showFallbackEvents();
-      return;
+   // Show all events for now (until Worker outputs real future dates)
+const upcoming = events;
+
     }
 
     renderEvents(upcoming, data.source, data.lastUpdated);
