@@ -45,14 +45,17 @@ async function fetchEvents() {
       return;
     }
 
+    const events = data.events;
     const now = new Date();
-   // Show all events for now (until Worker outputs real future dates)
-const upcoming = events;
 
-    }
+    // Filter out past events if possible (keep future only)
+    const upcoming = events.filter(e => new Date(e.startDate) > now);
 
-    renderEvents(upcoming, data.source, data.lastUpdated);
-    updateCountdown(upcoming[0]);
+    // If everything is in the past (placeholder dates), just show all
+    const toRender = upcoming.length ? upcoming : events;
+
+    renderEvents(toRender, data.source, data.lastUpdated);
+    updateCountdown(toRender[0]);
 
   } catch (err) {
     console.error("❌ Error fetching feed:", err);
@@ -73,7 +76,7 @@ function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated 
   `;
   list.appendChild(header);
 
-  // Build scrollable event list
+  // Scrollable event container
   const container = document.createElement("div");
   container.style.maxHeight = "60vh";
   container.style.overflowY = "auto";
@@ -125,10 +128,11 @@ function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated 
            background:#00e0ff;
            color:#000;
            text-decoration:none;
-           padding:0.4rem 0.8rem;
+           padding:0.35rem 0.7rem;
            border-radius:6px;
            font-weight:700;
            transition:background .2s;
+           font-size:0.85rem;
          ">View Event</a>
     `;
     container.appendChild(div);
@@ -156,11 +160,13 @@ function showFallbackEvents() {
   const fallback = [
     {
       title: "Charleston Tech Happy Hour",
-      date: new Date("2025-11-15T17:00:00-05:00"),
+      startDate: "2025-11-15T17:00:00-05:00",
       location: "Revelry Brewing",
-      url: "https://www.linkedin.com/company/charlestonhacks",
+      link: "https://www.linkedin.com/company/charlestonhacks",
+      source: "Fallback",
     },
   ];
+
   list.innerHTML = `<div style="color:#ffae00;">🔁 Fallback Mode</div>`;
   fallback.forEach((e) => {
     const div = document.createElement("div");
@@ -168,7 +174,7 @@ function showFallbackEvents() {
     div.innerHTML = `
       <h3>${e.title}</h3>
       <div>${e.location}</div>
-      <a href="${e.url}" target="_blank">View</a>
+      <a href="${e.link}" target="_blank">View</a>
     `;
     list.appendChild(div);
   });
@@ -176,10 +182,11 @@ function showFallbackEvents() {
 
 // ⏳ Update countdown
 function updateCountdown(event) {
-  const countdownEl = document.getElementById("countdown");
-  if (!countdownEl) return;
+  if (!event) return;
 
   const titleEl = document.getElementById("next-event-title");
+  const countdownEl = document.getElementById("countdown");
+
   if (titleEl) {
     titleEl.innerHTML = `
       Next: <span style="color:#00e0ff;">${event.title}</span><br>
@@ -189,7 +196,7 @@ function updateCountdown(event) {
     `;
   }
 
-  startCountdown("countdown", event.startDate);
+  if (countdownEl) startCountdown("countdown", event.startDate);
 }
 
 // 🚀 Init
