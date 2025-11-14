@@ -11,15 +11,6 @@ function getUsername() {
   localStorage.setItem("bbs_username", generated);
   return generated;
 }
-// 🟢 Update "online" status
-async function heartbeat() {
-  const username = getUsername();
-  await supabase.from("bbs_online")
-    .upsert({ username, last_seen: new Date().toISOString() });
-}
-setInterval(heartbeat, 10000); // every 10 seconds
-heartbeat(); // run immediately
-
 
 const username = getUsername();
 
@@ -29,16 +20,18 @@ const username = getUsername();
 const screen = document.getElementById("bbs-screen");
 const form = document.getElementById("bbs-form");
 const input = document.getElementById("bbs-input");
-const onlineList = document.getElementById("bbs-online-list");
+const onlineDiv = document.getElementById("bbs-online");
 
 /* ============================
    Load Messages
    ============================ */
 async function loadMessages() {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("bbs_messages")
     .select("*")
     .order("created_at", { ascending: true });
+
+  if (error) console.error("Load error:", error);
 
   screen.innerHTML = "";
   data?.forEach(msg => {
@@ -57,6 +50,7 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text) return;
+
   input.value = "";
 
   await supabase.from("bbs_messages").insert({
@@ -76,41 +70,40 @@ supabase
 loadMessages();
 
 /* ============================
-   Presence: Heartbeat
+   Presence Heartbeat
    ============================ */
 async function heartbeat() {
-  await supabase.from("bbs_presence").insert({
-    username
+  await supabase.from("bbs_online").upsert({
+    username,
+    last_seen: new Date().toISOString()
   });
 }
 
-// Send heartbeat every 20 sec
-setInterval(heartbeat, 20000);
+// Do heartbeat every 10 sec
+setInterval(heartbeat, 10000);
 heartbeat();
 
 /* ============================
    Load Users Online
    ============================ */
-async function loadOnlineUsers() {
-  // users seen in last 30 sec
-  const cutoff = new Date(Date.now() - 30000).toISOString();
+async function loadOnlineList() {
+  const { data, error } = await supabase
+    .from("bbs_online_active")   // <-- VIEW
+    .select("*");
 
-  const { data } = await supabase
-    .from("bbs_presence")
-    .select("username, last_seen")
-    .gt("last_seen", cutoff)
-    .order("last_seen", { ascending: false });
-
-  if (!data || data.length === 0) {
-    onlineList.textContent = "No one online";
+  if (error) {
+    console.error("Online list error:", error);
     return;
   }
 
-  onlineList.innerHTML = data
-    .map(u => `• ${u.username}`)
-    .join("<br>");
+  if (!onlineDiv) return;
+
+  const names = data.map(u => u.username);
+
+  onlineDiv.textContent =
+    "Online: " + (names.length ? names.join(", ") : "no users");
 }
 
-// refresh every 5 seconds
-setInterval(loadOnlineUsers, 5000);
-loadOnlineUsers();
+// Update every 7 sec
+setInterval(loadOnlineList, 7000);
+loadOnlineList();
