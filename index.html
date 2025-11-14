@@ -106,21 +106,25 @@
     }
 
     /* 🌌 Overlay */
-    #events-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      backdrop-filter: blur(6px);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 1500;
-      color: white;
-    }
-    #events-overlay.active {
-      display: flex;
-      animation: fadeIn .3s ease forwards;
-    }
+   #events-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(6px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1500;
+  color: white;
+  pointer-events: none;      /* ADD THIS */
+}
+
+#events-overlay.active {
+  display: flex;
+  pointer-events: auto;      /* ADD THIS */
+  animation: fadeIn .3s ease forwards;
+}
+
     @keyframes fadeIn {
       from {opacity:0;} to {opacity:1;}
     }
