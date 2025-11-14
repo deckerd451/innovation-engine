@@ -93,13 +93,9 @@ async function fetchEvents() {
     const now = new Date();
 
     // Filter future events ONLY, but never filter out all
-   const future = events.filter(e => {
-  const date = new Date(e.startDate);
-  return !isNaN(date) && date >= Date.now() - 3600000; // allow 1hr window
-});
+// Keep *every* event that has a title and startDate
+const toRender = events.filter(e => e.title && e.startDate);
 
-// Never fall back to "zero future events"
-const toRender = future.length > 0 ? future : events;
 
 
     renderEvents(toRender, data.source, data.lastUpdated);
