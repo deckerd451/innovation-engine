@@ -536,11 +536,17 @@
   });
 </script>
 
-<!-- Event + Background Modules -->
-<script type="module" src="assets/js/eventsFeed.js"></script>
-<script type="module" src="assets/js/neuralBackground.js"></script>
-<script type="module" src="assets/js/supabaseClient.js"></script>
-<script type="module" src="assets/js/bbs.js"></script>
+<!-- Core modules (load early, no defer) -->
+<script type="module" src="/assets/js/config.js"></script>
+<script type="module" src="/assets/js/neuralBackground.js"></script>
+<script type="module" src="/assets/js/supabaseClient.js"></script>
+<script type="module" src="/assets/js/cardFlip.js"></script>
+<script type="module" src="/assets/js/btc.js"></script>
+
+<!-- DOM-dependent modules (MUST load after DOM) -->
+<script type="module" defer src="/assets/js/eventsFeed.js"></script>
+<script type="module" defer src="/assets/js/bbs.js"></script>
+
 
 
 </body>
