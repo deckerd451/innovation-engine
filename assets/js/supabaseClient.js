@@ -52,3 +52,4 @@ export async function ensureCommunityUser() {
     throw err;
   }
 }
+window.supabase = supabase;
