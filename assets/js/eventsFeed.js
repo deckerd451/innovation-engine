@@ -1,20 +1,23 @@
-// CharlestonHacks - Dynamic Events + Countdown + Overlay (Multi-Feed)
-// ------------------------------------------------------------------
-// Fetches events from Cloudflare Worker (Charleston Multi-Feed)
-// Displays them in a scrollable modal with source badges
-// Includes inline countdown timer logic (no external import needed)
+/******************************************************
+ * CharlestonHacks – Events Feed + Countdown
+ * ----------------------------------------------------
+ * Multi-source feed
+ * Optimized countdown
+ * No filtering issues
+ * No duplicate intervals
+ ******************************************************/
 
-// 🧭 DOM elements
+// DOM elements
 const overlay = document.getElementById("events-overlay");
 const list = document.getElementById("events-list");
 const openBtn = document.getElementById("open-calendar");
 const closeBtn = document.getElementById("close-overlay");
-const countdownEl = document.getElementById("countdown");
 const titleEl = document.getElementById("next-event-title");
-
 const FEED_URL = "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
 
-// 🎛 Overlay Controls
+// ------------------------------------------------------------------
+// Overlay Controls
+// ------------------------------------------------------------------
 if (openBtn) openBtn.addEventListener("click", () => overlay.classList.add("active"));
 if (closeBtn) closeBtn.addEventListener("click", () => overlay.classList.remove("active"));
 if (overlay) {
@@ -24,7 +27,9 @@ if (overlay) {
   });
 }
 
-// 🎨 Source badge color map
+// ------------------------------------------------------------------
+// Source → Color Map
+// ------------------------------------------------------------------
 const sourceColors = {
   "Charleston Digital Corridor": "#00e0ff",
   "Startup Grind": "#ff6f00",
@@ -33,32 +38,33 @@ const sourceColors = {
   "Fallback": "#c9a35e",
 };
 
-// 🕰 Inline Countdown Logic
+// ------------------------------------------------------------------
+// OPTIMIZED COUNTDOWN ENGINE (ONE TIMER ONLY)
+// ------------------------------------------------------------------
+let activeCountdownTimer = null;
+
 function startCountdown(elementId, eventDateStr) {
   const el = document.getElementById(elementId);
   if (!el) return;
 
   const eventDate = new Date(eventDateStr);
-  if (isNaN(eventDate)) {
-    el.textContent = "Invalid date";
+  if (isNaN(eventDate.getTime())) {
+    el.innerHTML = `<span style="color:#aaa;">Date TBD</span>`;
     return;
   }
 
-  function update() {
-    const now = new Date();
-    let diff = Math.max(0, eventDate - now);
+  // Kill previous timer if any
+  if (activeCountdownTimer) {
+    clearInterval(activeCountdownTimer);
+    activeCountdownTimer = null;
+  }
 
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const mins = Math.floor((diff / (1000 * 60)) % 60);
-    const secs = Math.floor((diff / 1000) % 60);
+  function render(diff) {
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
     const pad = (n) => n.toString().padStart(2, "0");
-
-    if (diff <= 0) {
-      el.innerHTML = `<span style="color:#00e0ff;">LIVE NOW 🔥</span>`;
-      clearInterval(timer);
-      return;
-    }
 
     el.innerHTML = `
       <span style="color:#00e0ff;font-weight:700;">HH2025:</span>
@@ -69,41 +75,81 @@ function startCountdown(elementId, eventDateStr) {
     `;
   }
 
-  update();
-  const timer = setInterval(update, 1000);
+  function tick() {
+    const now = Date.now();
+    const diff = eventDate - now;
+
+    if (diff <= 0) {
+      el.innerHTML = `<span style="color:#00e0ff;font-weight:700;">LIVE NOW 🔥</span>`;
+      clearInterval(activeCountdownTimer);
+      activeCountdownTimer = null;
+      return;
+    }
+
+    render(diff);
+  }
+
+  tick();
+  activeCountdownTimer = setInterval(tick, 1000);
 }
 
-// 🟢 Fetch event feed
+function updateCountdown(event) {
+  if (!event) return;
+
+  const dateObj = new Date(event.startDate);
+  const dateString = isNaN(dateObj)
+    ? "Date TBD"
+    : dateObj.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+  if (titleEl) {
+    titleEl.innerHTML = `
+      Next: <span style="color:#00e0ff;">${event.title}</span>
+      <small style="font-size:0.85em;opacity:0.8;display:block;">
+        ${dateString} @ ${event.location || "Charleston, SC"}
+      </small>
+    `;
+  }
+
+  startCountdown("countdown", event.startDate);
+}
+
+// ------------------------------------------------------------------
+// FETCH EVENTS
+// ------------------------------------------------------------------
 async function fetchEvents() {
   try {
-    console.log("🌐 Fetching events from:", FEED_URL);
-    const res = await fetch(FEED_URL, {
-  cache: "no-store"
-});
+    console.log("🌐 Fetching events:", FEED_URL);
 
+    const res = await fetch(FEED_URL, { cache: "no-store" });
     const data = await res.json();
 
     if (!data?.events?.length) {
-      console.warn("⚠️ No valid events found");
+      console.warn("⚠️ No events found – fallback mode");
       showFallbackEvents();
       return;
     }
 
     const events = data.events;
-    const now = new Date();
+    console.log(`📡 Loaded ${events.length} events`);
 
-const toRender = events;
-
-    renderEvents(toRender, data.source, data.lastUpdated);
-    updateCountdown(toRender[0]);
+    renderEvents(events, data.source, data.lastUpdated);
+    updateCountdown(events[0]);
 
   } catch (err) {
-    console.error("❌ Error fetching feed:", err);
+    console.error("❌ Fetch error:", err);
     showFallbackEvents();
   }
 }
 
-// 🗓 Render events in modal
+// ------------------------------------------------------------------
+// RENDER EVENTS LIST
+// ------------------------------------------------------------------
 function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated = null) {
   list.innerHTML = "";
 
@@ -124,13 +170,12 @@ function renderEvents(events, sourceName = "Charleston Multi-Feed", lastUpdated 
 
   events.forEach((e) => {
     let color = "#888";
-for (const key in sourceColors) {
-  if (e.source && e.source.includes(key)) {
-    color = sourceColors[key];
-    break;
-  }
-}
-
+    for (const key in sourceColors) {
+      if (e.source && e.source.includes(key)) {
+        color = sourceColors[key];
+        break;
+      }
+    }
 
     const div = document.createElement("div");
     div.className = "event-item";
@@ -140,7 +185,8 @@ for (const key in sourceColors) {
 
     div.innerHTML = `
       <h3 style="margin:0; font-size:1rem; color:#fff;">${e.title}</h3>
-      <div class="event-date" style="color:#bbb; font-size:0.9rem;">
+
+      <div style="color:#bbb; font-size:0.9rem;">
         ${new Date(e.startDate).toLocaleString(undefined, {
           month: "short",
           day: "numeric",
@@ -149,9 +195,11 @@ for (const key in sourceColors) {
           minute: "2-digit",
         })}
       </div>
-      <div class="event-location" style="color:#999; font-size:0.85rem;">
+
+      <div style="color:#999; font-size:0.85rem;">
         ${e.location || "Charleston, SC"}
       </div>
+
       <div style="margin-top:0.4rem;">
         <span style="
           background:${color};
@@ -162,23 +210,22 @@ for (const key in sourceColors) {
           font-weight:700;
         ">${e.source || "Unknown"}</span>
       </div>
-      <a class="event-link"
-         href="${e.link}"
-         target="_blank"
-         rel="noopener"
+
+      <a href="${e.link}" target="_blank"
          style="
            display:inline-block;
            margin-top:0.5rem;
            background:#00e0ff;
            color:#000;
-           text-decoration:none;
            padding:0.35rem 0.7rem;
            border-radius:6px;
            font-weight:700;
-           transition:background .2s;
            font-size:0.85rem;
-         ">View Event</a>
+         ">
+         View Event
+      </a>
     `;
+
     container.appendChild(div);
   });
 
@@ -191,15 +238,15 @@ for (const key in sourceColors) {
   footer.style.fontSize = "0.8rem";
   footer.style.marginTop = "1rem";
   footer.innerHTML = `
-    <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:1rem 0;">
+    <hr style="border-top:1px solid rgba(255,255,255,0.1); margin:1rem 0;">
     <div>🕒 Last updated: ${new Date(lastUpdated).toLocaleString()}</div>
   `;
   list.appendChild(footer);
-
-  console.log(`📅 Rendered ${events.length} upcoming events.`);
 }
 
-// 🕰 Simple fallback
+// ------------------------------------------------------------------
+// FALLBACK EVENTS
+// ------------------------------------------------------------------
 function showFallbackEvents() {
   const fallback = [
     {
@@ -212,6 +259,7 @@ function showFallbackEvents() {
   ];
 
   list.innerHTML = `<div style="color:#ffae00;">🔁 Fallback Mode</div>`;
+
   fallback.forEach((e) => {
     const div = document.createElement("div");
     div.className = "event-item";
@@ -226,21 +274,7 @@ function showFallbackEvents() {
   updateCountdown(fallback[0]);
 }
 
-// ⏳ Update countdown + header
-function updateCountdown(event) {
-  if (!event) return;
-
-  if (titleEl) {
-    titleEl.innerHTML = `
-      Next: <span style="color:#00e0ff;">${event.title}</span>
-      <small style="font-size:0.85em;opacity:0.8;display:block;">
-        ${new Date(event.startDate).toLocaleString()} @ ${event.location}
-      </small>
-    `;
-  }
-
-  startCountdown("countdown", event.startDate);
-}
-
-// 🚀 Init
+// ------------------------------------------------------------------
+// INIT
+// ------------------------------------------------------------------
 fetchEvents();
