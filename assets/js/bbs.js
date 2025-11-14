@@ -1,45 +1,62 @@
-// assets/js/bbs.js
+// /assets/js/bbs.js
 import { supabase } from "./supabaseClient.js";
 
-// 🟢 Load all messages
-async function loadMessages() {
-  const { data, error } = await supabase
-    .from("bbs_messages")
-    .select("*")
-    .order("id", { ascending: true });
+document.addEventListener("DOMContentLoaded", () => {
 
-  if (error) {
-    console.error("BBS load error:", error);
+  const screen = document.getElementById("bbs-screen");
+  const form = document.getElementById("bbs-form");
+  const input = document.getElementById("bbs-input");
+
+  if (!screen || !form || !input) {
+    console.error("❌ BBS UI elements missing — check index.html placement.");
     return;
   }
 
-  const screen = document.getElementById("bbs-screen");
-  screen.innerHTML = data
-    .map(m => `[${new Date(m.created_at).toLocaleTimeString()}] ${m.text}`)
-    .join("\n");
+  // 🟢 Load all messages
+  async function loadMessages() {
+    const { data, error } = await supabase
+      .from("bbs_messages")
+      .select("*")
+      .order("id", { ascending: true });
 
-  screen.scrollTop = screen.scrollHeight;
-}
+    if (error) {
+      console.error("BBS load error:", error);
+      return;
+    }
 
-// 🟢 Listen for new messages using realtime
-supabase
-  .channel("bbs-channel")
-  .on("postgres_changes", { event: "INSERT", schema: "public", table: "bbs_messages" }, loadMessages)
-  .subscribe();
+    screen.innerHTML = data
+      .map(m => `[${new Date(m.created_at).toLocaleTimeString()}] ${m.text}`)
+      .join("\n");
 
-// 🟢 Handle user input
-document.getElementById("bbs-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
+    screen.scrollTop = screen.scrollHeight;
+  }
 
-  const input = document.getElementById("bbs-input");
-  const text = input.value.trim();
-  if (!text) return;
+  // 🟢 Real-time listener
+  supabase
+    .channel("bbs-channel")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "bbs_messages" },
+      loadMessages
+    )
+    .subscribe();
 
-  const { error } = await supabase.from("bbs_messages").insert({ text });
-  if (error) console.error("BBS insert error:", error);
+  // 🟢 Input handler
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  input.value = "";
+    const text = input.value.trim();
+    if (!text) return;
+
+    const { error } = await supabase
+      .from("bbs_messages")
+      .insert({ text });
+
+    if (error) console.error("BBS insert error:", error);
+
+    input.value = "";
+  });
+
+  // 🟢 Initial load
+  loadMessages();
 });
-
-// 🟢 Initial fetch
-loadMessages();
