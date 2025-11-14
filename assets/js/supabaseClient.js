@@ -3,6 +3,7 @@
 // ✅ Use CDN ESM import — REQUIRED for GitHub Pages
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
+
 // 🧠 Initialize Supabase
 export const supabase = createClient(
   "https://hvmotpzhliufzomewzfl.supabase.co",
