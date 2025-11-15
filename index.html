@@ -32,6 +32,21 @@
   <link rel="stylesheet" href="styles.css"/>
 
   <style>
+    .main-wrapper {
+  pointer-events: none !important;
+}
+
+.main-wrapper * {
+  pointer-events: none !important;
+}
+
+/* BUT re-enable pointer events for the things inside you want clickable */
+.clickable-area,
+.icons-container a,
+#open-calendar {
+  pointer-events: auto !important;
+}
+
 /* ==== RETRO BBS TERMINAL ====================== */
 #bbs-container {
   width: 100%;
