@@ -110,7 +110,14 @@
   }
 }
 
-    /* Scrollbar styling for events list */
+/* Restore events-list scrolling first */
+#events-list {
+  max-height: 65vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Then apply scrollbar styles */
 .events-modal div::-webkit-scrollbar {
   width: 8px;
 }
