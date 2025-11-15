@@ -31,13 +31,11 @@ const onlineDiv = document.getElementById("bbs-online-list");
    CLEAN WRITE FUNCTION
 ============================ */
 function write(text) {
-  // Support multi-line blocks
   text.split("\n").forEach(line => {
     const div = document.createElement("div");
     div.textContent = line;
     screen.appendChild(div);
   });
-
   screen.scrollTop = screen.scrollHeight;
 }
 
@@ -50,7 +48,10 @@ async function loadMessages() {
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) return console.error("Load error:", error);
+  if (error) {
+    console.error("Load error:", error);
+    return;
+  }
 
   screen.innerHTML = "";
   data?.forEach(msg => write(`[${msg.username}] ${msg.text}`));
@@ -62,11 +63,12 @@ await loadMessages();
    REALTIME CHAT UPDATES
 ============================ */
 supabase.channel("bbs_messages_channel")
-  .on("postgres_changes",
+  .on(
+    "postgres_changes",
     { event: "INSERT", schema: "public", table: "bbs_messages" },
     (payload) => {
       const msg = payload.new;
-      if (msg.username === username) return; // don't echo yourself
+      if (msg.username === username) return; 
       write(`[${msg.username}] ${msg.text}`);
     }
   )
@@ -78,14 +80,15 @@ supabase.channel("bbs_messages_channel")
 async function heartbeat() {
   await supabase.from("bbs_online").upsert({
     username,
-    last_seen: new Date().toISOString()
+    last_seen: new Date().toISOString(),
   });
 }
+
 setInterval(heartbeat, 10000);
 heartbeat();
 
 /* ============================
-   ONLINE USERS
+   LOAD ONLINE USERS
 ============================ */
 async function loadOnlineList() {
   const { data, error } = await supabase
@@ -97,6 +100,7 @@ async function loadOnlineList() {
   const names = data.map(u => u.username);
   onlineDiv.textContent = names.length ? names.join(", ") : "no users online";
 }
+
 setInterval(loadOnlineList, 7000);
 loadOnlineList();
 
@@ -119,13 +123,13 @@ form.addEventListener("submit", async (e) => {
      ZORK MODE
   ----------------------------------- */
   if (mode === "zork") {
+
     if (text === "/exit") {
       write("\nExited ZORK. Returning to chat.\n");
       mode = "chat";
       return;
     }
 
-    // Route command to ZORK engine
     sendZorkCommand(text, write);
     return;
   }
@@ -134,23 +138,21 @@ form.addEventListener("submit", async (e) => {
      ENTER ZORK MODE
   ----------------------------------- */
   if (text === "zork" || text === "play zork") {
-    mode = "zork";
     write("Initializing ZORK terminal… Type /exit to leave.\n");
+    mode = "zork";
 
-    // Run intro + load game
     await startZork(write);
     return;
   }
 
   /* -----------------------------------
-     NORMAL BBS MESSAGE
+     NORMAL CHAT MESSAGE
   ----------------------------------- */
   write(`[${username}] ${text}`);
 
-  const { error } = await supabase.from("bbs_messages").insert({
-    username,
-    text
-  });
+  const { error } = await supabase
+    .from("bbs_messages")
+    .insert({ username, text });
 
   if (error) console.error("Insert error:", error);
 });
