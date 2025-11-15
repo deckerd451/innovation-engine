@@ -541,7 +541,9 @@
 <!-- DOM-dependent modules -->
 <script type="module" src="/assets/js/bbs.js"></script>
 <script type="module">
-  import "/assets/js/eventsFeed.js";
+  window.addEventListener("DOMContentLoaded", () => {
+    import("/assets/js/eventsFeed.js");
+  });
 </script>
 </body>
 </html>
