@@ -55,7 +55,7 @@ Loading ZORK… please wait.
 
   // Load the .z5 file
   if (!zork) {
-    const story = await fetch("/assets/zork/zork1.z5").then(r => r.arrayBuffer());
+    const story = await fetch("/assets/zork/zork1.z3").then(r => r.arrayBuffer());
     zork = new ZVM(new Uint8Array(story));
     zork.start();
   }
