@@ -20,6 +20,9 @@ function getUsername() {
 
 const username = getUsername();
 
+window.bbsUsername = username;
+
+
 /* ============================
    DOM REFERENCES
 ============================ */
