@@ -534,14 +534,15 @@
     });
   });
 </script>
-
 <!-- Core modules that do not depend on DOM -->
 <script type="module" src="/assets/js/neuralBackground.js"></script>
 <script type="module" src="/assets/js/supabaseClient.js"></script>
 
 <!-- DOM-dependent modules -->
-<script type="module" defer src="assets/js/eventsFeed.js"></script>
-<script type="module" defer src="assets/js/bbs.js"></script>
-
+<script type="module" src="/assets/js/bbs.js"></script>
+<script type="module">
+  import "/assets/js/eventsFeed.js";
+</script>
 </body>
 </html>
+
