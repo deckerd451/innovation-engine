@@ -43,28 +43,55 @@
   }
 
   /* The big card (main-wrapper) CAN receive clicks again */
-  .main-wrapper {
-    position: relative;
-    z-index: 10;
-    pointer-events: auto !important;
-  }
+  /* ============================================================
+   FIXED POINTER-EVENT + Z-INDEX STACK (WORKING)
+   ============================================================ */
 
-  /* Card interactive hotspots */
-  .clickable-area {
-    pointer-events: auto !important;
-    z-index: 20;
-  }
+/* Card wrapper is clickable */
+.main-wrapper {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto !important;
+}
 
-  /* Icon bar: visible + clickable */
-  .icons-container {
-    pointer-events: none !important;
-    position: relative;
-    z-index: 40;
-  }
-  .icons-container a {
-    pointer-events: auto !important;
-    z-index: 41;
-  }
+/* BUT inner elements should not block hotspots */
+.main-wrapper * {
+  pointer-events: none !important;
+}
+
+/* Hotspots: make clickable again */
+.clickable-area {
+  pointer-events: auto !important;
+  z-index: 5;
+}
+
+/* Card image & cardFrame MUST be clickable (restore events) */
+#missionImage,
+#cardFrame,
+#missionVideo {
+  pointer-events: auto !important;
+  z-index: 3;
+}
+
+/* Icon bar must not block anything beneath it */
+.icons-container {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
+}
+
+/* Each icon is clickable */
+.icons-container a {
+  pointer-events: auto !important;
+  z-index: 11;
+}
+
+/* Calendar icon must ALWAYS be clickable */
+#open-calendar {
+  pointer-events: auto !important;
+  z-index: 20 !important;
+}
+
 
   /* Calendar must always be clickable */
   #open-calendar {
