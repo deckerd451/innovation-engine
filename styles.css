@@ -2585,4 +2585,10 @@ main, .main-wrapper, .media-container {
   opacity: 0;
   transition: opacity 0.4s ease;
 }
+#bbs-container, #bbs-online {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.45s ease, opacity 0.45s ease;
+}
 
