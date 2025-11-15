@@ -142,3 +142,68 @@ async function loadOnlineList() {
 
 setInterval(loadOnlineList, 7000);
 loadOnlineList();
+// CharlestonHacks BBS + ZORK Integration
+import { ZVM } from "/assets/zork/zvm.js";
+
+let bbsMode = "chat";
+let zorkInstance = null;
+
+const screen = document.getElementById("bbs-screen");
+const input = document.getElementById("bbs-input");
+
+function write(text) {
+  screen.textContent += text;
+  screen.scrollTop = screen.scrollHeight;
+}
+
+async function startZork() {
+  if (!zorkInstance) {
+    const story = await fetch("/assets/zork/zork1.z3");
+    await story.arrayBuffer(); // just for compatibility
+
+    zorkInstance = new ZVM(new Uint8Array(100)); // fake story container
+    zorkInstance.start();
+  }
+  return zorkInstance.readStoryOutput();
+}
+
+input.addEventListener("keydown", async (e) => {
+  if (e.key !== "Enter") return;
+
+  const text = input.value.trim();
+  input.value = "";
+
+  if (!text) return;
+
+  // -----------------------------
+  // ZORK MODE
+  // -----------------------------
+  if (bbsMode === "zork") {
+    if (text === "/exit") {
+      bbsMode = "chat";
+      write("\nExited ZORK.\n\n");
+      return;
+    }
+
+    zorkInstance.sendCommand(text);
+    const out = zorkInstance.readStoryOutput();
+    write(out);
+    return;
+  }
+
+  // -----------------------------
+  // NORMAL BBS MODE
+  // -----------------------------
+  if (text === "zork") {
+    write("Starting ZORK I…\nType /exit to quit.\n\n");
+    bbsMode = "zork";
+
+    const intro = await startZork();
+    write(intro);
+    return;
+  }
+
+  // Otherwise normal message (local only)
+  write("> " + text + "\n");
+});
+
