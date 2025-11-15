@@ -32,8 +32,324 @@
   <link rel="stylesheet" href="styles.css"/>
 
   <style>
-    /* ALL YOUR CSS — UNCHANGED */
-    /* (I will not rewrite it here for space, but nothing is removed or altered.) */
+/* ==== RETRO BBS TERMINAL ====================== */
+#bbs-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 2rem auto;
+  background: #000;
+  border: 1px solid #0f0;
+  padding: 1rem;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  color: #0f0;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+#bbs-screen {
+  height: 180px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+#bbs-form {
+  display: flex;
+  align-items: center;
+}
+
+.bbs-prompt {
+  margin-right: 0.5rem;
+  color: #0f0;
+  font-weight: bold;
+}
+
+#bbs-input {
+  flex: 1;
+  background: #000;
+  color: #0f0;
+  border: none;
+  outline: none;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  caret-color: #0f0;
+}
+
+/* ==== MOBILE OPTIMIZATION ====================== */
+@media (max-width: 520px) {
+  #bbs-container {
+    margin: 1.2rem;
+    padding: 0.8rem;
+    font-size: 13px;
+  }
+
+  #bbs-screen {
+    height: 140px;
+  }
+
+  #bbs-input {
+    font-size: 13px;
+  }
+}
+
+/* ==== SMALL DEVICES (iPhone SE, older Android) ===== */
+@media (max-width: 380px) {
+  #bbs-container {
+    margin: 0.8rem;
+    padding: 0.6rem;
+    font-size: 12px;
+  }
+
+  #bbs-screen {
+    height: 120px;
+  }
+
+  #bbs-input {
+    font-size: 12px;
+  }
+}
+
+    /* Scrollbar styling for events list */
+.events-modal div::-webkit-scrollbar {
+  width: 8px;
+}
+.events-modal div::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.08);
+}
+.events-modal div::-webkit-scrollbar-thumb {
+  background: rgba(0,224,255,0.6);
+  border-radius: 4px;
+}
+
+    :root {
+      --gold: #c9a35e;
+      --cyan: #00e0ff;
+      --bg-dark: #000;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg-dark);
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ✨ Splash Screen */
+    #splash-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 50%, #020203 0%, #000 100%);
+      z-index: 2000;
+      transition: opacity 0.4s ease;
+    }
+    #splash-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #splash-title {
+      color: var(--gold);
+      font-size: 2rem;
+      margin-top: 1rem;
+      text-shadow: 0 0 12px rgba(201,163,94,0.7);
+    }
+    #splash-desc {
+      color: var(--cyan);
+      font-size: 1rem;
+      margin: .4rem 0 1rem;
+      text-shadow: 0 0 8px rgba(0,224,255,0.8);
+    }
+    .btn {
+      background: var(--gold);
+      color: #000;
+      border: none;
+      padding: .7em 1.4em;
+      margin: .5em;
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      cursor: pointer;
+      transition: transform .2s, background .2s;
+    }
+    .btn:hover {
+      transform: scale(1.05);
+      background: #e6c98f;
+    }
+
+    /* 🕰 Countdown / BTC */
+    #countdown span {
+  color: var(--gold);
+  margin: 0 .15rem;
+  text-shadow: 0 0 10px rgba(201,163,94,0.7);
+}
+
+    #btcPrice {
+      color: var(--gold);
+      font-size: .9rem;
+      margin-top: .5rem;
+      text-shadow: 0 0 8px rgba(201,163,94,0.6);
+    }
+
+    /* 🌌 Overlay */
+   #events-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(6px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1500;
+  color: white;
+  pointer-events: none;      /* ADD THIS */
+}
+
+#events-overlay.active {
+  display: flex;
+  pointer-events: auto;      /* ADD THIS */
+  animation: fadeIn .3s ease forwards;
+}
+
+    @keyframes fadeIn {
+      from {opacity:0;} to {opacity:1;}
+    }
+
+    .events-modal {
+      background: #0b0b0b;
+      border: 1.5px solid var(--gold);
+      border-radius: 16px;
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 460px;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(201,163,94,0.4);
+      animation: slideUp .4s ease forwards;
+    }
+    @keyframes slideUp {
+      from {transform:translateY(30px);opacity:0;}
+      to {transform:translateY(0);opacity:1;}
+    }
+    .events-modal h2 {
+      margin-bottom: 1rem;
+      color: var(--gold);
+    }
+    .event-item {
+      margin-bottom: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: .75rem;
+    }
+    .event-date { color: #bbb; margin-top: .25rem; font-size: .9rem; }
+    .event-link {
+      background: var(--cyan);
+      color: #000;
+      text-decoration: none;
+      padding: .4rem .8rem;
+      border-radius: 6px;
+      font-weight: 700;
+      transition: background .2s;
+    }
+    .event-link:hover { background: #7efcff; }
+    #close-overlay {
+      margin-top: 1rem;
+      background: transparent;
+      color: var(--gold);
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    /* ============================
+   ICON BAR — RESPONSIVE GROUPED
+   ============================ */
+.icons-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55rem;            /* reduce gap between icons */
+  margin: 1.4rem auto 2rem;
+  padding: 0 0.5rem;
+}
+
+.icons-container a {
+  color: #fff;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;            /* slightly larger tap target */
+  height: 34px;
+  text-decoration: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.icons-container a:hover {
+  transform: scale(1.18);
+  opacity: 0.85;
+}
+
+/* —— MOBILE TIGHT PACK —— */
+@media (max-width: 480px) {
+  .icons-container {
+    gap: 0.35rem;          /* even tighter grouping on phones */
+    margin-top: 0.8rem;
+  }
+
+  .icons-container a {
+    font-size: 1.25rem;
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* —— TABLETS —— */
+@media (min-width: 481px) and (max-width: 768px) {
+  .icons-container {
+    gap: 0.45rem;
+  }
+}
+    /* ============================================
+   MOBILE FIX FOR BBS ALIGNMENT
+   ============================================ */
+@media (max-width: 540px) {
+  #bbs-container {
+    width: 90vw !important;
+    margin: 1rem auto !important;
+    padding: 1rem !important;
+    border-width: 2px !important;
+  }
+
+  #bbs-screen {
+    height: 180px !important;
+    font-size: 14px !important;
+  }
+
+  #bbs-form {
+    margin-top: 0.5rem;
+  }
+
+  #bbs-input {
+    font-size: 14px !important;
+  }
+
+  #bbs-online {
+    width: 90vw !important;
+    margin: 0.5rem auto !important;
+    padding: 0.7rem !important;
+    text-align: center;
+    font-size: 14px !important;
+  }
+
+  #bbs-online-list {
+    margin-top: 0.35rem;
+  }
+}
+
+
   </style>
 </head>
 
@@ -57,14 +373,89 @@
     </div>
   </div>
 
-  <!-- Audio -->
+  <!-- —— Audio —— -->
   <audio id="cardflipSound" src="assets/atmospherel.m4a" preload="auto"></audio>
   <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
   <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
 
   <!-- —— Main —— -->
   <main>
-    <!-- EVERYTHING IN YOUR <main> IS UNCHANGED -->
+    <div class="main-wrapper">
+      <div class="media-container">
+        <div id="countdown"></div>
+        <div id="btcPrice"></div>
+
+        <img id="missionImage" src="icons/card.png" alt="Big Card"/>
+        <img id="cardFrame" src="images/cardframe2.svg" alt="Frame" style="display:none;"/>
+        <video id="missionVideo" muted playsinline controls style="display:none;opacity:0;">
+          <source src="" type="video/mp4"/>
+        </video>
+
+        <!-- Buttons -->
+        <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
+          <img src="images/informationbutton.webp" alt="Info"/>
+        </button>
+        <button type="button" class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Event documentation.">
+          <img src="images/crestn.svg" alt="Docs"/>
+        </button>
+        <button type="button" class="clickable-area top-right" data-sound="chime" data-url="2card.html" data-info="Explore the innovation engine.">
+          <img src="images/innovationenginebutton.webp" alt="Innovation"/>
+        </button>
+        <button type="button" class="clickable-area middle-left" data-sound="chime" data-url="experimental.html" data-info="Sandbox environment.">
+          <img src="images/experiment.webp" alt="Experiment"/>
+        </button>
+        <button type="button" class="clickable-area middle-right" data-sound="chime" data-url="swag.html" data-info="View and order event swag.">
+          <img src="images/case.webp" alt="Case"/>
+        </button>
+        <button type="button" class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Catch up on news.">
+          <img src="images/newsbutton.webp" alt="News"/>
+        </button>
+        <button type="button" class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor CharlestonHacks.">
+          <img src="images/keysn.svg" alt="Keys"/>
+        </button>
+        <button type="button" class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Play the card match game.">
+          <img src="images/peoplebutton.webp" alt="People"/>
+        </button>
+
+        <div id="infoLine" class="info-line">
+          <span id="infoParticle"></span><span id="infoText"></span>
+        </div>
+      </div>
+    </div>
+
+    <section class="icons-container">
+      <a href="https://github.com/sponsors/deckerd451" target="_blank"><i class="fas fa-heart"></i></a>
+      <a href="2card.html"><i class="fas fa-people-arrows"></i></a>
+      <a href="subscribe.html"><i class="fas fa-bell"></i></a>
+      <a href="https://www.linkedin.com/company/charlestonhacks" target="_blank"><i class="fab fa-linkedin"></i></a>
+      <a href="https://www.instagram.com/charlestonhacks/" target="_blank"><i class="fab fa-instagram"></i></a>
+      <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
+      <a href="https://www.facebook.com/deckerdb26354" target="_blank"><i class="fab fa-facebook"></i></a>
+      <a id="open-calendar" title="View Charleston Events"><i class="fas fa-calendar-alt"></i></a>
+
+    </section>
+    <!-- 🟢 Retro BBS Terminal -->
+<div id="bbs-container">
+  <div id="bbs-screen"></div>
+
+  <form id="bbs-form">
+    <span class="bbs-prompt">></span>
+    <input id="bbs-input" type="text" placeholder="type message…" autocomplete="off" />
+  </form>
+</div>
+ <div id="bbs-online" style="
+  max-width: 600px;
+  margin: 1rem auto;
+  color: #0f0;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  background: #000;
+  border: 1px solid #0f0;
+  padding: 0.75rem;
+">
+  <strong>Online:</strong>
+  <div id="bbs-online-list"></div>
+</div>
   </main>
 
   <!-- —— Event Modal —— -->
@@ -78,92 +469,95 @@
 
   <!-- —— Splash Logic —— -->
   <script>
-    (function(){
-      const splash=document.getElementById("splash-overlay");
-      const cBtn=document.getElementById("community-site-btn");
-      const pBtn=document.getElementById("public-site-btn");
-      const box=document.getElementById("dont-show-again");
-      const KEY="chs_splash_seen_once";
+  (function(){
+    const splash=document.getElementById("splash-overlay");
+    const cBtn=document.getElementById("community-site-btn");
+    const pBtn=document.getElementById("public-site-btn");
+    const box=document.getElementById("dont-show-again");
+    const KEY="chs_splash_seen_once";
 
-      function hide(immediate=false){
-        splash.classList.add("fade-out");
-        document.body.classList.remove("splash-active");
-        setTimeout(()=>splash.style.display="none", immediate?0:400);
-      }
-      function dismiss(){
-        if(box.checked) localStorage.setItem(KEY,"true");
-        hide();
-      }
-      window.addEventListener("DOMContentLoaded",()=>{
-        if(localStorage.getItem(KEY)==="true"){ hide(true); return; }
-        splash.style.display="flex";
-        document.body.classList.add("splash-active");
-        cBtn.onclick=e=>{e.preventDefault();dismiss();};
-        pBtn.onclick=e=>{
-          e.preventDefault();
-          dismiss();
-          window.location.href="https://charlestonhacks.mailchimpsites.com/";
-        };
-      });
-    })();
-  </script>
-
-  <!-- —— Main Logic (card, btc, sounds) —— -->
-  <script type="module">
-    import { CONFIG } from "./assets/js/config.js";
-    import { initCardFlip } from "./assets/js/cardFlip.js";
-    import { startBTCPriceTracker } from "./assets/js/btc.js";
-
-    CONFIG.sounds = {
-      cardflip: document.getElementById("cardflipSound"),
-      chime: document.getElementById("chimeSound"),
-      keys: document.getElementById("keysSound"),
-    };
-
-    initCardFlip(CONFIG);
-    startBTCPriceTracker("btcPrice");
-
-    // Info line hover effects
-    const buttons = document.querySelectorAll(".clickable-area");
-    const infoLine = document.getElementById("infoLine");
-    const infoText = document.getElementById("infoText");
-
-    buttons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        const sound = document.getElementById(btn.dataset.sound + "Sound");
-        if (sound) sound.play();
-        if (btn.dataset.url) setTimeout(() => window.location.href = btn.dataset.url, 400);
-      });
-      btn.addEventListener("mouseover", () => {
-        infoLine.style.opacity = "1";
-        infoText.textContent = btn.dataset.info || "";
-      });
-      btn.addEventListener("mouseout", () => {
-        infoLine.style.opacity = "0";
-        infoText.textContent = "";
-      });
+    function hide(immediate=false){
+      splash.classList.add("fade-out");
+      document.body.classList.remove("splash-active");
+      setTimeout(()=>splash.style.display="none", immediate?0:400);
+    }
+    function dismiss(){
+      if(box.checked) localStorage.setItem(KEY,"true");
+      hide();
+    }
+    window.addEventListener("DOMContentLoaded",()=>{
+      if(localStorage.getItem(KEY)==="true"){ hide(true); return; }
+      splash.style.display="flex";
+      document.body.classList.add("splash-active");
+      cBtn.onclick=e=>{e.preventDefault();dismiss();};
+      pBtn.onclick=e=>{
+        e.preventDefault();
+        dismiss();
+        window.location.href="https://charlestonhacks.mailchimpsites.com/";
+      };
     });
+  })();
   </script>
 
-  <!-- —— Core modules (load once) —— -->
-  <script type="module" src="/assets/js/neuralBackground.js"></script>
-  <script type="module" src="/assets/js/supabaseClient.js"></script>
+<!-- —— Main Logic —— -->
+<script type="module">
+  import { CONFIG } from "./assets/js/config.js";
+  import { initCardFlip } from "./assets/js/cardFlip.js";
+  import { startBTCPriceTracker } from "./assets/js/btc.js";
 
-  <!-- —— BBS —— -->
-  <script type="module" src="/assets/js/bbs.js"></script>
+  CONFIG.sounds = {
+    cardflip: document.getElementById("cardflipSound"),
+    chime: document.getElementById("chimeSound"),
+    keys: document.getElementById("keysSound"),
+  };
 
-  <!-- —— Events Feed (SAFE, WAIT FOR DOM) —— -->
-  <script type="module">
-    async function loadEventsFeedWhenReady() {
-      while (!document.getElementById("events-list")) {
-        await new Promise(r => setTimeout(r, 40));
-      }
-      console.log("📌 events-list detected — importing eventsFeed.js…");
-      await import("/assets/js/eventsFeed.js");
+  initCardFlip(CONFIG);
+  startBTCPriceTracker("btcPrice");
+
+  const buttons = document.querySelectorAll(".clickable-area");
+  const infoLine = document.getElementById("infoLine");
+  const infoText = document.getElementById("infoText");
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sound = document.getElementById(btn.dataset.sound + "Sound");
+      if (sound) sound.play();
+      if (btn.dataset.url) setTimeout(() => window.location.href = btn.dataset.url, 400);
+    });
+    btn.addEventListener("mouseover", () => {
+      infoLine.style.opacity = "1";
+      infoText.textContent = btn.dataset.info || "";
+    });
+    btn.addEventListener("mouseout", () => {
+      infoLine.style.opacity = "0";
+      infoText.textContent = "";
+    });
+  });
+</script>
+<!-- Core modules that do not depend on DOM -->
+<script type="module" src="/assets/js/neuralBackground.js"></script>
+<script type="module" src="/assets/js/supabaseClient.js"></script>
+
+<!-- BBS (safe to load normally) -->
+<script type="module" src="/assets/js/bbs.js"></script>
+
+<!-- Guaranteed-safe Events Feed Loader -->
+<script type="module">
+  async function loadEventsFeedWhenReady() {
+    // Wait until the modal + list exist in the DOM
+    while (!document.getElementById("events-list")) {
+      await new Promise(r => setTimeout(r, 40));
     }
 
-    window.addEventListener("DOMContentLoaded", loadEventsFeedWhenReady);
-  </script>
+    console.log("📌 events-list detected — importing eventsFeed.js…");
+    
+    // Now it is safe to load
+    await import("/assets/js/eventsFeed.js");
+  }
 
+  // Start after initial DOM parse — but continue waiting until ready
+  window.addEventListener("DOMContentLoaded", loadEventsFeedWhenReady);
+</script>
 </body>
 </html>
+
