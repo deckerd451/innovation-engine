@@ -6,13 +6,13 @@
 // ✔ Clean terminal integration for your BBS
 // ------------------------------------------
 
-import { ZVM } from "./ZVM.js";
+import { ZVM } from "../zork/zvm.js";
 
 let zork = null;
 let introShown = false;
 let easterEggMode = false;
 
-// Utility: write with trailing newline support
+// Utility: newline-safe write
 function w(write, txt) {
   write(txt + (txt.endsWith("\n") ? "" : "\n"));
 }
@@ -22,9 +22,7 @@ function w(write, txt) {
 // -----------------------------------------------------
 export async function startZork(write) {
 
-  // ---------------------------------------------------
-  // CHARLESTONHACKS CUSTOM INTRO (first time only)
-  // ---------------------------------------------------
+  // CharlestonHacks custom intro (first launch only)
   if (!introShown) {
     w(write, `
 ─────────────────────────────────────────────
@@ -33,27 +31,24 @@ export async function startZork(write) {
 
 A hidden terminal flickers inside the Old City Data Vault.
 
-As you approach, Asterion materializes, formed from blue-white noise.
+Asterion materializes, formed from blue-white noise:
 
    “Before The Grid could be built, explorers trained 
     inside a much older simulation… The Empire.
 
     It is primitive. Brutal. Brilliant.
 
-    If you master it, you may see things 
+    Master it… and you may see things 
     the original players never did.”
 
 Loading ZORK I: The Great Underground Empire…
-Please wait…
 ─────────────────────────────────────────────
     `);
 
     introShown = true;
   }
 
-  // ---------------------------------------------------
-  // LOAD REAL ZORK STORY FILE
-  // ---------------------------------------------------
+  // Load story file only once
   if (!zork) {
     const story = await fetch("/assets/zork/zork1.z3").then(r => r.arrayBuffer());
     zork = new ZVM(new Uint8Array(story));
@@ -73,34 +68,31 @@ export function sendZorkCommand(cmd, write) {
   const clean = cmd.trim().toLowerCase();
 
   // ---------------------------------------------------
-  // ENTER HIDDEN CHARLESTONHACKS EASTER EGG MODE
+  // ENTER CHARLESTONHACKS EASTER EGG MODE
   // ---------------------------------------------------
   if (clean === "chs") {
     easterEggMode = true;
-
     return w(write, `
 ──────────────────────────────────────────────
-    ⭐  CHARLESTONHACKS EASTER EGG MODE  ⭐
+⭐  CHARLESTONHACKS EASTER EGG MODE ENABLED ⭐
 ──────────────────────────────────────────────
 
-Asterion reappears, glitching at the edges.
+Asterion glitches back into view:
 
-   “Ahh… so you have found the hidden input.
+   “So… you found the Charleston Node.
 
-    Few travelers discover the Charleston Node.
-    It lies beneath the Zork architecture —
-    a ghost layer, stitched into the simulation.”
+    Beneath ZORK lies a ghost layer —
+    stitched into the simulation by Grid engineers.”
 
-New behaviors unlocked:
-  • Additional room descriptions
-  • Hidden Charleston-based artifacts
-  • Shadow “Prime Node” whispers
-  • Asterion commentary in certain actions
+CHS-mode unlocks:
+  • Extra room descriptions
+  • Hidden Charleston artifacts
+  • Prime Node hints
+  • Asterion commentary
 
 Type "deactivate chs" to disable.
-
 ──────────────────────────────────────────────
-    `);
+`);
   }
 
   // ---------------------------------------------------
@@ -117,13 +109,12 @@ Type "deactivate chs" to disable.
   if (easterEggMode) {
     const injection = handleCharlestonEasterEggs(clean);
     if (injection) {
-      w(write, injection);
-      return;
+      return w(write, injection);
     }
   }
 
   // ---------------------------------------------------
-  // NORMAL ZORK COMMAND EXECUTION
+  // NORMAL ZORK EXECUTION
   // ---------------------------------------------------
   zork.sendCommand(cmd);
   w(write, zork.readStoryOutput());
@@ -135,61 +126,55 @@ Type "deactivate chs" to disable.
 // -----------------------------------------------------
 function handleCharlestonEasterEggs(cmd) {
 
-  // Additional responses layered on top of Zork world
   const eggResponses = {
 
     "look": `
 You notice something the original game never described…
 
-A faint blue shimmer overlays the environment,
-almost like AR data leaking into the simulation.
+A faint blue shimmer overlays the terrain —
+AR data leaking through The Grid.
 Asterion whispers:
 
-   “The Grid is testing how you perceive older worlds.”`,
+   “The simulation is testing your perception…”`,
 
     "inventory": `
-Asterion scans your items.
+Asterion analyzes your items.
 
-   “Some objects resonate with Charleston…
-    others do not.”`,
+   “Some resonate with Charleston.
+    Others… do not.”`,
 
     "north": `
-A ghostly map of Charleston overlays briefly:
-   King St.
-   Meeting St.
-   The Battery.
-But the image collapses before you can grasp it.`,
+A holographic map of Charleston blinks into view:
+ King St. • Meeting St. • East Bay • The Battery
+Then it collapses back into darkness.`,
 
     "south": `
-A whisper follows you:
+A watery echo follows…
 
-   “Seek the Prime Node beneath the harbor…”`,
+   “The Prime Node rests beneath the harbor…”`,
 
     "open mailbox": `
-The mailbox contains the leaflet — and something else.
-A folded sticker reads:
+The mailbox holds a leaflet… and something new:
+A glowing sticker that reads:
 
-   “CharlestonHacks — Making Invisible Networks Visible.”
-`
+   “CharlestonHacks — Making Invisible Networks Visible.”`
   };
 
   if (eggResponses[cmd]) return eggResponses[cmd];
 
-  // Secret command  
   if (cmd === "prime node") {
     return `
 Asterion freezes.
 
-   “You should not know that phrase yet.”
+   “That phrase… You should not know it yet.”
 
-For a moment, the Zork map blurs into glowing neural pathways.
+For a moment the Zork map dissolves into glowing neural pathways,
+like a living circuit emerging beneath the earth.
 
-Then it snaps back.
+Then reality snaps back.
 
-   “Continue the simulation…”
-`;
+   “Continue… The Grid is watching.”`;
   }
 
-  // default: no injection
   return null;
 }
