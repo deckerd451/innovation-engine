@@ -538,12 +538,25 @@
 <script type="module" src="/assets/js/neuralBackground.js"></script>
 <script type="module" src="/assets/js/supabaseClient.js"></script>
 
-<!-- DOM-dependent modules -->
+<!-- BBS (safe to load normally) -->
 <script type="module" src="/assets/js/bbs.js"></script>
+
+<!-- Guaranteed-safe Events Feed Loader -->
 <script type="module">
-  window.addEventListener("DOMContentLoaded", () => {
-    import("/assets/js/eventsFeed.js");
-  });
+  async function loadEventsFeedWhenReady() {
+    // Wait until the modal + list exist in the DOM
+    while (!document.getElementById("events-list")) {
+      await new Promise(r => setTimeout(r, 40));
+    }
+
+    console.log("📌 events-list detected — importing eventsFeed.js…");
+    
+    // Now it is safe to load
+    await import("/assets/js/eventsFeed.js");
+  }
+
+  // Start after initial DOM parse — but continue waiting until ready
+  window.addEventListener("DOMContentLoaded", loadEventsFeedWhenReady);
 </script>
 </body>
 </html>
