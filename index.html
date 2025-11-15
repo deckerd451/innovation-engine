@@ -389,6 +389,28 @@
 .icons-container a {
   pointer-events: auto !important;
 }
+/* Disable hitbox for the giant card container */
+.main-wrapper {
+  pointer-events: none !important;
+  position: relative;
+  z-index: 1;
+}
+
+.main-wrapper * {
+  pointer-events: none !important;
+}
+
+/* Re-enable clickability for icons & BBS & buttons */
+.icons-container,
+.icons-container a,
+#open-calendar,
+#bbs-container,
+#bbs-online,
+.clickable-area {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 9999;
+}
 
 
 
