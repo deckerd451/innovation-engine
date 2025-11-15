@@ -365,10 +365,20 @@
       const KEY = "chs_splash_seen_once";
 
       function hide(immediate=false){
-        splash.classList.add("fade-out");
-        document.body.classList.remove("splash-active");
-        setTimeout(()=> splash.style.display="none", immediate?0:400);
-      }
+  // Trigger fade-out
+  splash.classList.add("fade-out");
+
+  // ⭐ CRITICAL: Immediately remove click interception
+  splash.style.pointerEvents = "none";
+
+  document.body.classList.remove("splash-active");
+
+  // After transition is done, fully remove element from flow
+  setTimeout(()=> {
+    splash.style.display = "none";
+  }, immediate ? 0 : 400);
+}
+
 
       function dismiss(){
         if(box.checked) localStorage.setItem(KEY,"true");
