@@ -1,7 +1,8 @@
 // ===============================================================
-//     CharlestonHacks ZORK Loader + CHS Mode + Prime Scan
+//     CharlestonHacks ZORK Loader + CHS Mode + Prime Scan + SAVE
 // ===============================================================
 //  ✔ Works with real ZORK 1 (zork1.z3)
+//  ✔ Persistent save/load using Supabase
 //  ✔ Adds The Grid, Asterion, Charleston overlays
 //  ✔ Adds "help" command (Zork + CHS extended)
 //  ✔ Adds Easter Eggs, ghost glitches, Prime Node scan
@@ -9,18 +10,21 @@
 // ===============================================================
 
 import { ZVM } from "../zork/zvm.js";
+import { supabase } from "./supabaseClient.js";
 
 let zork = null;
 let introShown = false;
 let easterEggMode = false;
 
-// Clean writer helper
+/* ============================================================
+   WRITE HELPER
+============================================================ */
 function w(write, txt) {
   write(txt + (txt.endsWith("\n") ? "" : "\n"));
 }
 
 /* ============================================================
-   START ZORK WITH MASSIVE CHARLESTONHACKS INTRO
+   START ZORK WITH CHARLESTONHACKS INTRO
 ============================================================ */
 export async function startZork(write) {
 
@@ -50,7 +54,6 @@ Loading ZORK I: The Great Underground Empire…
 Please stand by…
 ──────────────────────────────────────────────────────────────
 `);
-
     introShown = true;
   }
 
@@ -65,21 +68,85 @@ Please stand by…
 }
 
 /* ============================================================
+   SAVE / LOAD GAME STATE (Supabase)
+============================================================ */
+async function saveZork(username, write) {
+  if (!zork) return w(write, "No active game to save.\n");
+
+  // serialize Z-machine memory → base64
+  const raw = zork.memory;
+  const b64 = btoa(String.fromCharCode(...raw));
+
+  const { error } = await supabase
+    .from("zork_saves")
+    .upsert({
+      username,
+      save_data: b64
+    });
+
+  if (error) return w(write, "❌ Save failed.\n");
+
+  w(write, "💾 Game saved!\n");
+}
+
+async function loadZork(username, write) {
+
+  const { data, error } = await supabase
+    .from("zork_saves")
+    .select("*")
+    .eq("username", username)
+    .single();
+
+  if (error || !data) {
+    return w(write, "No saved game found.\n");
+  }
+
+  const b64 = data.save_data;
+
+  // decode base64 → Uint8Array
+  const bytes = new Uint8Array(
+    atob(b64)
+      .split("")
+      .map(c => c.charCodeAt(0))
+  );
+
+  zork = new ZVM(bytes);
+
+  w(write, "🔄 Save loaded!\n");
+  w(write, zork.readStoryOutput());
+}
+
+/* ============================================================
    MAIN COMMAND HANDLER
 ============================================================ */
 export function sendZorkCommand(cmd, write) {
   const clean = cmd.trim().toLowerCase();
+  const username = window.bbsUsername || "Unknown";
 
-  // -----------------------------------------------------------
-  // HELP — universal overlay
-  // -----------------------------------------------------------
+  /* -----------------------------------------------------------
+     HELP SCREEN
+  ----------------------------------------------------------- */
   if (clean === "help") {
     return w(write, buildHelpScreen());
   }
 
-  // -----------------------------------------------------------
-  // ENTER CHS MODE
-  // -----------------------------------------------------------
+  /* -----------------------------------------------------------
+     SAVE GAME
+  ----------------------------------------------------------- */
+  if (clean === "save") {
+    return saveZork(username, write);
+  }
+
+  /* -----------------------------------------------------------
+     LOAD GAME
+  ----------------------------------------------------------- */
+  if (clean === "load") {
+    return loadZork(username, write);
+  }
+
+  /* -----------------------------------------------------------
+     ENTER CHS MODE
+  ----------------------------------------------------------- */
   if (clean === "chs") {
     easterEggMode = true;
     return w(write, `
@@ -102,24 +169,24 @@ New commands unlocked:
 `);
   }
 
-  // -----------------------------------------------------------
-  // EXIT CHS MODE
-  // -----------------------------------------------------------
+  /* -----------------------------------------------------------
+     EXIT CHS MODE
+  ----------------------------------------------------------- */
   if (clean === "deactivate chs") {
     easterEggMode = false;
     return w(write, "CharlestonHacks enhancements disengaged.\n");
   }
 
-  // -----------------------------------------------------------
-  // PRIME NODE SCAN (minigame)
-  // -----------------------------------------------------------
+  /* -----------------------------------------------------------
+     PRIME NODE SCAN
+  ----------------------------------------------------------- */
   if (easterEggMode && clean === "scan node") {
     return w(write, primeNodeScan());
   }
 
-  // -----------------------------------------------------------
-  // SECRET COMMAND
-  // -----------------------------------------------------------
+  /* -----------------------------------------------------------
+     SECRET PRIME NODE
+  ----------------------------------------------------------- */
   if (easterEggMode && clean === "prime node") {
     return w(write, `
 The world freezes… then fractures.
@@ -134,23 +201,23 @@ Then the simulation snaps back.
 `);
   }
 
-  // -----------------------------------------------------------
-  // CHS WORLD OVERLAY INJECTIONS
-  // -----------------------------------------------------------
+  /* -----------------------------------------------------------
+     CHS LORE INJECTIONS
+  ----------------------------------------------------------- */
   if (easterEggMode) {
     const lore = injectCHSLore(clean);
     if (lore) return w(write, lore);
   }
 
-  // -----------------------------------------------------------
-  // NORMAL ZORK EXECUTION
-  // -----------------------------------------------------------
+  /* -----------------------------------------------------------
+     NORMAL ZORK EXECUTION
+  ----------------------------------------------------------- */
   zork.sendCommand(cmd);
   w(write, zork.readStoryOutput());
 }
 
 /* ============================================================
-   HELP SCREEN (ZORK + CHS MODE)
+   HELP SCREEN (shows save/load now!)
 ============================================================ */
 function buildHelpScreen() {
 
@@ -169,9 +236,8 @@ Interaction:
   take all              move / push / pull
 
 System:
-  save                  restore
+  save                  load
   quit                  exit
-
 `;
 
   if (easterEggMode) {
@@ -185,10 +251,10 @@ Special Commands:
   prime node          (restricted)
   
 Enhancements:
-  • look → reveals Charleston holograms
-  • movement → overlays King St., Battery, Harbor echoes
+  • look → Charleston holograms
+  • movement → King St. / Battery / Harbor echoes
   • inventory → Asterion commentary
-  • hidden whispers during exploration
+  • ambient whispers during exploration
 
 Type "/exit" to return to BBS chat.
 `;
@@ -239,11 +305,11 @@ function injectCHSLore(cmd) {
   const map = {
 
     "look": `
-The scene glitches—  
+The scene glitches—
 A holographic Charleston overlays the terrain.
 
-King Street.  
-The Battery.  
+King Street.
+The Battery.
 Shadows of the Ravenel Bridge flicker in and out.`,
 
     "north": `
