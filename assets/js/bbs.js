@@ -1,9 +1,9 @@
-// ======================================================
-//   CharlestonHacks BBS + Realtime + ZORK Mode (2025)
-// ======================================================
+// ===============================================================
+//   CharlestonHacks BBS + Realtime Chat + ZORK + Easter Eggs (2025)
+// ===============================================================
 
 import { supabase } from "./supabaseClient.js";
-import { ZVM } from "/assets/zork/zvm.js";
+import { startZork, sendZorkCommand } from "./zorkLoader.js";
 
 /* ============================
    USERNAME
@@ -20,7 +20,7 @@ function getUsername() {
 const username = getUsername();
 
 /* ============================
-   DOM
+   DOM REFERENCES
 ============================ */
 const screen = document.getElementById("bbs-screen");
 const form = document.getElementById("bbs-form");
@@ -28,17 +28,21 @@ const input = document.getElementById("bbs-input");
 const onlineDiv = document.getElementById("bbs-online-list");
 
 /* ============================
-   SCREEN WRITE
+   CLEAN WRITE FUNCTION
 ============================ */
 function write(text) {
-  const line = document.createElement("div");
-  line.textContent = text;
-  screen.appendChild(line);
+  // Support multi-line blocks
+  text.split("\n").forEach(line => {
+    const div = document.createElement("div");
+    div.textContent = line;
+    screen.appendChild(div);
+  });
+
   screen.scrollTop = screen.scrollHeight;
 }
 
 /* ============================
-   LOAD CHAT MESSAGES
+   INITIAL MESSAGE LOAD
 ============================ */
 async function loadMessages() {
   const { data, error } = await supabase
@@ -49,31 +53,27 @@ async function loadMessages() {
   if (error) return console.error("Load error:", error);
 
   screen.innerHTML = "";
-
-  data?.forEach(msg => {
-    write(`[${msg.username}] ${msg.text}`);
-  });
+  data?.forEach(msg => write(`[${msg.username}] ${msg.text}`));
 }
 
 await loadMessages();
 
 /* ============================
-   REALTIME SUBSCRIPTION
+   REALTIME CHAT UPDATES
 ============================ */
 supabase.channel("bbs_messages_channel")
-  .on(
-    "postgres_changes",
+  .on("postgres_changes",
     { event: "INSERT", schema: "public", table: "bbs_messages" },
     (payload) => {
       const msg = payload.new;
-      if (msg.username === username) return;
+      if (msg.username === username) return; // don't echo yourself
       write(`[${msg.username}] ${msg.text}`);
     }
   )
   .subscribe();
 
 /* ============================
-   ONLINE PRESENCE HEARTBEAT
+   PRESENCE HEARTBEAT
 ============================ */
 async function heartbeat() {
   await supabase.from("bbs_online").upsert({
@@ -84,8 +84,14 @@ async function heartbeat() {
 setInterval(heartbeat, 10000);
 heartbeat();
 
+/* ============================
+   ONLINE USERS
+============================ */
 async function loadOnlineList() {
-  const { data, error } = await supabase.from("bbs_online_active").select("*");
+  const { data, error } = await supabase
+    .from("bbs_online_active")
+    .select("*");
+
   if (error) return;
 
   const names = data.map(u => u.username);
@@ -95,24 +101,12 @@ setInterval(loadOnlineList, 7000);
 loadOnlineList();
 
 /* ============================
-   ZORK MODE
+   BBS MODES
 ============================ */
-let bbsMode = "chat";
-let zorkInstance = null;
-
-async function startZork() {
-  if (!zorkInstance) {
-    const placeholder = await fetch("/assets/zork/zork1.z3");
-    await placeholder.arrayBuffer();
-
-    zorkInstance = new ZVM(new Uint8Array(100));
-    zorkInstance.start();
-  }
-  return zorkInstance.readStoryOutput();
-}
+let mode = "chat";
 
 /* ============================
-   UNIFIED MESSAGE HANDLER
+   MAIN INPUT HANDLER
 ============================ */
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -121,37 +115,36 @@ form.addEventListener("submit", async (e) => {
   input.value = "";
   if (!text) return;
 
-  // -----------------------------------
-  // ZORK MODE
-  // -----------------------------------
-  if (bbsMode === "zork") {
+  /* -----------------------------------
+     ZORK MODE
+  ----------------------------------- */
+  if (mode === "zork") {
     if (text === "/exit") {
-      bbsMode = "chat";
-      write("Exited ZORK.\n");
+      write("\nExited ZORK. Returning to chat.\n");
+      mode = "chat";
       return;
     }
 
-    zorkInstance.sendCommand(text);
-    const out = zorkInstance.readStoryOutput();
-    write(out);
+    // Route command to ZORK engine
+    sendZorkCommand(text, write);
     return;
   }
 
-  // -----------------------------------
-  // ENTER ZORK
-  // -----------------------------------
-  if (text === "zork") {
-    write("Starting ZORK I… (type /exit to quit)");
-    bbsMode = "zork";
+  /* -----------------------------------
+     ENTER ZORK MODE
+  ----------------------------------- */
+  if (text === "zork" || text === "play zork") {
+    mode = "zork";
+    write("Initializing ZORK terminal… Type /exit to leave.\n");
 
-    const intro = await startZork();
-    write(intro);
+    // Run intro + load game
+    await startZork(write);
     return;
   }
 
-  // -----------------------------------
-  // NORMAL CHAT MESSAGE
-  // -----------------------------------
+  /* -----------------------------------
+     NORMAL BBS MESSAGE
+  ----------------------------------- */
   write(`[${username}] ${text}`);
 
   const { error } = await supabase.from("bbs_messages").insert({
@@ -159,5 +152,5 @@ form.addEventListener("submit", async (e) => {
     text
   });
 
-  if (error) console.error(error);
+  if (error) console.error("Insert error:", error);
 });
