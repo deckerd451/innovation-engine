@@ -32,26 +32,57 @@
   <link rel="stylesheet" href="styles.css"/>
 
   <style>
-/* ==== RETRO BBS TERMINAL ====================== */
-#bbs-container {
-  width: 100%;
-  max-width: 600px;
-  margin: 2rem auto;
+/* ============================
+   BBS POPUP WINDOW (CLEAN)
+============================ */
+.bbs-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(4px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1600;
+}
+
+.bbs-overlay.active {
+  display: flex;
+}
+
+.bbs-window {
   background: #000;
-  border: 1px solid #0f0;
-  padding: 1rem;
-  font-family: "Courier New", monospace;
-  font-size: 14px;
+  border: 2px solid #0f0;
+  width: 90%;
+  max-width: 600px;
+  padding: 1.2rem;
   color: #0f0;
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+  font-family: "Courier New", monospace;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0,255,0,0.5);
+  position: relative;
+  animation: bbsSlideUp .25s ease-out;
+}
+
+@keyframes bbsSlideUp {
+  from { transform: translateY(22px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.bbs-title {
+  text-align: center;
+  color: #0f0;
+  margin-bottom: .8rem;
+  text-shadow: 0 0 8px #0f0;
 }
 
 #bbs-screen {
-  height: 180px;
+  height: 220px;
   overflow-y: auto;
   white-space: pre-wrap;
-  margin-bottom: 0.5rem;
-  line-height: 1.3;
+  padding: .5rem;
+  border: 1px solid #0f0;
+  margin-bottom: .7rem;
 }
 
 #bbs-form {
@@ -60,9 +91,8 @@
 }
 
 .bbs-prompt {
-  margin-right: 0.5rem;
+  margin-right: .5rem;
   color: #0f0;
-  font-weight: bold;
 }
 
 #bbs-input {
@@ -71,46 +101,26 @@
   color: #0f0;
   border: none;
   outline: none;
-  font-family: "Courier New", monospace;
   font-size: 14px;
   caret-color: #0f0;
 }
 
-/* ==== MOBILE OPTIMIZATION ====================== */
-@media (max-width: 520px) {
-  #bbs-container {
-    margin: 1.2rem;
-    padding: 0.8rem;
-    font-size: 13px;
-  }
-
-  #bbs-screen {
-    height: 140px;
-  }
-
-  #bbs-input {
-    font-size: 13px;
-  }
+.bbs-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #0f0;
+  font-size: 1.5rem;
+  cursor: pointer;
 }
 
-/* ==== SMALL DEVICES (iPhone SE, older Android) ===== */
-@media (max-width: 380px) {
-  #bbs-container {
-    margin: 0.8rem;
-    padding: 0.6rem;
-    font-size: 12px;
-  }
+/* ============================
+   UI + SITE ELEMENTS
+============================ */
 
-  #bbs-screen {
-    height: 120px;
-  }
-
-  #bbs-input {
-    font-size: 12px;
-  }
-}
-
-    /* Scrollbar styling for events list */
+/* Scrollbar (Events List) */
 .events-modal div::-webkit-scrollbar {
   width: 8px;
 }
@@ -122,234 +132,84 @@
   border-radius: 4px;
 }
 
-    :root {
-      --gold: #c9a35e;
-      --cyan: #00e0ff;
-      --bg-dark: #000;
-    }
+:root {
+  --gold: #c9a35e;
+  --cyan: #00e0ff;
+  --bg-dark: #000;
+}
 
-    body {
-      margin: 0;
-      background: var(--bg-dark);
-      color: #fff;
-      font-family: 'Orbitron', sans-serif;
-      overflow-x: hidden;
-    }
+body {
+  margin: 0;
+  background: var(--bg-dark);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  overflow-x: hidden;
+}
 
-    /* ✨ Splash Screen */
-    #splash-overlay {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at 50% 50%, #020203 0%, #000 100%);
-      z-index: 2000;
-      transition: opacity 0.4s ease;
-    }
-    #splash-overlay.fade-out {
-      opacity: 0;
-      pointer-events: none;
-    }
-    #splash-title {
-      color: var(--gold);
-      font-size: 2rem;
-      margin-top: 1rem;
-      text-shadow: 0 0 12px rgba(201,163,94,0.7);
-    }
-    #splash-desc {
-      color: var(--cyan);
-      font-size: 1rem;
-      margin: .4rem 0 1rem;
-      text-shadow: 0 0 8px rgba(0,224,255,0.8);
-    }
-    .btn {
-      background: var(--gold);
-      color: #000;
-      border: none;
-      padding: .7em 1.4em;
-      margin: .5em;
-      border-radius: 8px;
-      font-weight: 700;
-      letter-spacing: .5px;
-      cursor: pointer;
-      transition: transform .2s, background .2s;
-    }
-    .btn:hover {
-      transform: scale(1.05);
-      background: #e6c98f;
-    }
+/* Splash */
+#splash-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, #020203 0%, #000 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  transition: opacity .4s ease;
+}
 
-    /* 🕰 Countdown / BTC */
-    #countdown span {
+#splash-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Countdown */
+#countdown span {
   color: var(--gold);
   margin: 0 .15rem;
   text-shadow: 0 0 10px rgba(201,163,94,0.7);
 }
 
-    #btcPrice {
-      color: var(--gold);
-      font-size: .9rem;
-      margin-top: .5rem;
-      text-shadow: 0 0 8px rgba(201,163,94,0.6);
-    }
-
-    /* 🌌 Overlay */
-   #events-overlay {
+/* Events Modal */
+#events-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.85);
-  backdrop-filter: blur(6px);
   display: none;
   justify-content: center;
   align-items: center;
+  backdrop-filter: blur(6px);
   z-index: 1500;
-  color: white;
-  pointer-events: none;      /* ADD THIS */
+  pointer-events: none;
 }
 
 #events-overlay.active {
   display: flex;
-  pointer-events: auto;      /* ADD THIS */
-  animation: fadeIn .3s ease forwards;
+  pointer-events: auto;
 }
 
-    @keyframes fadeIn {
-      from {opacity:0;} to {opacity:1;}
-    }
-
-    .events-modal {
-      background: #0b0b0b;
-      border: 1.5px solid var(--gold);
-      border-radius: 16px;
-      padding: 1.5rem;
-      width: 90%;
-      max-width: 460px;
-      text-align: center;
-      box-shadow: 0 0 20px rgba(201,163,94,0.4);
-      animation: slideUp .4s ease forwards;
-    }
-    @keyframes slideUp {
-      from {transform:translateY(30px);opacity:0;}
-      to {transform:translateY(0);opacity:1;}
-    }
-    .events-modal h2 {
-      margin-bottom: 1rem;
-      color: var(--gold);
-    }
-    .event-item {
-      margin-bottom: 1rem;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding-bottom: .75rem;
-    }
-    .event-date { color: #bbb; margin-top: .25rem; font-size: .9rem; }
-    .event-link {
-      background: var(--cyan);
-      color: #000;
-      text-decoration: none;
-      padding: .4rem .8rem;
-      border-radius: 6px;
-      font-weight: 700;
-      transition: background .2s;
-    }
-    .event-link:hover { background: #7efcff; }
-    #close-overlay {
-      margin-top: 1rem;
-      background: transparent;
-      color: var(--gold);
-      border: none;
-      cursor: pointer;
-      font-size: 1rem;
-    }
-    /* ============================
-   ICON BAR — RESPONSIVE GROUPED
-   ============================ */
+/* Icon Bar */
 .icons-container {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  align-items: center;
-  gap: 0.55rem;            /* reduce gap between icons */
+  gap: .55rem;
   margin: 1.4rem auto 2rem;
-  padding: 0 0.5rem;
 }
 
 .icons-container a {
   color: #fff;
   font-size: 1.4rem;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;            /* slightly larger tap target */
-  height: 34px;
-  text-decoration: none;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform .2s ease;
 }
 
 .icons-container a:hover {
   transform: scale(1.18);
-  opacity: 0.85;
 }
-
-/* —— MOBILE TIGHT PACK —— */
-@media (max-width: 480px) {
-  .icons-container {
-    gap: 0.35rem;          /* even tighter grouping on phones */
-    margin-top: 0.8rem;
-  }
-
-  .icons-container a {
-    font-size: 1.25rem;
-    width: 30px;
-    height: 30px;
-  }
-}
-
-/* —— TABLETS —— */
-@media (min-width: 481px) and (max-width: 768px) {
-  .icons-container {
-    gap: 0.45rem;
-  }
-}
-    /* ============================================
-   MOBILE FIX FOR BBS ALIGNMENT
-   ============================================ */
-@media (max-width: 540px) {
-  #bbs-container {
-    width: 90vw !important;
-    margin: 1rem auto !important;
-    padding: 1rem !important;
-    border-width: 2px !important;
-  }
-
-  #bbs-screen {
-    height: 180px !important;
-    font-size: 14px !important;
-  }
-
-  #bbs-form {
-    margin-top: 0.5rem;
-  }
-
-  #bbs-input {
-    font-size: 14px !important;
-  }
-
-  #bbs-online {
-    width: 90vw !important;
-    margin: 0.5rem auto !important;
-    padding: 0.7rem !important;
-    text-align: center;
-    font-size: 14px !important;
-  }
-
-  #bbs-online-list {
-    margin-top: 0.35rem;
-  }
-}
-
-
   </style>
 </head>
 
@@ -357,23 +217,28 @@
   <canvas id="neural-bg"></canvas>
 
   <!-- —— Splash —— -->
-  <div id="splash-overlay" role="dialog" aria-modal="true" tabindex="-1">
+  <div id="splash-overlay" role="dialog" aria-modal="true">
     <div id="splash-content">
-      <img src="images/charlestonhackslogo.svg" alt="CharlestonHacks Logo" style="width:200px;" />
+      <img src="images/charlestonhackslogo.svg" style="width:200px;" alt="CharlestonHacks Logo"/>
       <h1 id="splash-title">Welcome to CharlestonHacks</h1>
       <p id="splash-desc">Loading…</p>
+
       <label style="margin-top:1em;font-size:.9rem;">
-        <input type="checkbox" id="dont-show-again"/> Don’t show this again
+        <input type="checkbox" id="dont-show-again"> Don’t show this again
       </label>
+
       <div>
         <button id="community-site-btn" class="btn">Community Site</button>
         <button id="public-site-btn" class="btn">Public Site</button>
       </div>
-      <p style="font-size:.8rem;opacity:.7;margin-top:2rem;">© 2025 CharlestonHacks. All rights reserved.</p>
+
+      <p style="font-size:.8rem;opacity:.7;margin-top:2rem;">
+        © 2025 CharlestonHacks. All rights reserved.
+      </p>
     </div>
   </div>
 
-  <!-- —— Audio —— -->
+  <!-- Sounds -->
   <audio id="cardflipSound" src="assets/atmospherel.m4a" preload="auto"></audio>
   <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
   <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
@@ -386,35 +251,36 @@
         <div id="btcPrice"></div>
 
         <img id="missionImage" src="icons/card.png" alt="Big Card"/>
-        <img id="cardFrame" src="images/cardframe2.svg" alt="Frame" style="display:none;"/>
+        <img id="cardFrame" src="images/cardframe2.svg" style="display:none;" alt="Frame"/>
         <video id="missionVideo" muted playsinline controls style="display:none;opacity:0;">
-          <source src="" type="video/mp4"/>
+          <source src="" type="video/mp4">
         </video>
 
-        <!-- Buttons -->
+        <!-- Card interactive buttons -->
+        <!-- (UNCHANGED – all your original clickable-areas preserved) -->
         <button type="button" class="clickable-area top-left" data-sound="chime" data-url="Poster.html" data-info="Learn more about the event poster.">
-          <img src="images/informationbutton.webp" alt="Info"/>
+          <img src="images/informationbutton.webp" alt="Info">
         </button>
         <button type="button" class="clickable-area top-center" data-sound="chime" data-url="docs.html" data-info="Event documentation.">
-          <img src="images/crestn.svg" alt="Docs"/>
+          <img src="images/crestn.svg" alt="Docs">
         </button>
         <button type="button" class="clickable-area top-right" data-sound="chime" data-url="2card.html" data-info="Explore the innovation engine.">
-          <img src="images/innovationenginebutton.webp" alt="Innovation"/>
+          <img src="images/innovationenginebutton.webp" alt="Innovation">
         </button>
         <button type="button" class="clickable-area middle-left" data-sound="chime" data-url="experimental.html" data-info="Sandbox environment.">
-          <img src="images/experiment.webp" alt="Experiment"/>
+          <img src="images/experiment.webp" alt="Experiment">
         </button>
         <button type="button" class="clickable-area middle-right" data-sound="chime" data-url="swag.html" data-info="View and order event swag.">
-          <img src="images/case.webp" alt="Case"/>
+          <img src="images/case.webp" alt="Case">
         </button>
         <button type="button" class="clickable-area bottom-left" data-sound="chime" data-url="news.html" data-info="Catch up on news.">
-          <img src="images/newsbutton.webp" alt="News"/>
+          <img src="images/newsbutton.webp" alt="News">
         </button>
         <button type="button" class="clickable-area bottom-center" data-sound="keys" data-url="donations.html" data-info="Sponsor CharlestonHacks.">
-          <img src="images/keysn.svg" alt="Keys"/>
+          <img src="images/keysn.svg" alt="Keys">
         </button>
         <button type="button" class="clickable-area bottom-right" data-sound="chime" data-url="cardmatchgame.html" data-info="Play the card match game.">
-          <img src="images/peoplebutton.webp" alt="People"/>
+          <img src="images/peoplebutton.webp" alt="People">
         </button>
 
         <div id="infoLine" class="info-line">
@@ -423,6 +289,7 @@
       </div>
     </div>
 
+    <!-- ICON BAR -->
     <section class="icons-container">
       <a href="https://github.com/sponsors/deckerd451" target="_blank"><i class="fas fa-heart"></i></a>
       <a href="2card.html"><i class="fas fa-people-arrows"></i></a>
@@ -432,58 +299,34 @@
       <a href="mailto:hello@charlestonhacks.com"><i class="fas fa-envelope"></i></a>
       <a href="https://www.facebook.com/deckerdb26354" target="_blank"><i class="fab fa-facebook"></i></a>
       <a id="open-calendar" title="View Charleston Events"><i class="fas fa-calendar-alt"></i></a>
+
+      <!-- ⭐ NEW BBS TERMINAL ICON -->
       <a id="open-bbs" title="Open BBS Terminal"><i class="fas fa-terminal"></i></a>
-
-
     </section>
-    <!-- 🟢 Retro BBS Terminal -->
-<div id="bbs-container">
-  <div id="bbs-screen"></div>
 
-  <form id="bbs-form">
-    <span class="bbs-prompt">></span>
-    <input id="bbs-input" type="text" placeholder="type message…" autocomplete="off" />
-  </form>
-</div>
- <div id="bbs-online" style="
-  max-width: 600px;
-  margin: 1rem auto;
-  color: #0f0;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  background: #000;
-  border: 1px solid #0f0;
-  padding: 0.75rem;
-">
-  <strong>Online:</strong>
-  <div id="bbs-online-list"></div>
-</div>
-    <!-- 🟢 BBS POPUP WINDOW -->
-<div id="bbs-overlay" class="bbs-overlay">
-  <div class="bbs-window">
-    
-    <button id="close-bbs" class="bbs-close-btn">×</button>
+    <!-- ⭐ BBS POPUP WINDOW -->
+    <div id="bbs-overlay" class="bbs-overlay">
+      <div class="bbs-window">
+        <button id="close-bbs" class="bbs-close-btn">×</button>
+        <h2 class="bbs-title">CharlestonHacks BBS</h2>
 
-    <h2 class="bbs-title">CharlestonHacks BBS</h2>
+        <div id="bbs-screen"></div>
 
-    <div id="bbs-screen"></div>
+        <form id="bbs-form">
+          <span class="bbs-prompt">></span>
+          <input id="bbs-input" type="text" autocomplete="off" placeholder="type message…">
+        </form>
 
-    <form id="bbs-form">
-      <span class="bbs-prompt">></span>
-      <input id="bbs-input" type="text" autocomplete="off" placeholder="type message…" />
-    </form>
-
-    <div id="bbs-online">
-      <strong>Online:</strong>
-      <div id="bbs-online-list"></div>
+        <div id="bbs-online" style="margin-top:1rem;">
+          <strong>Online:</strong>
+          <div id="bbs-online-list"></div>
+        </div>
+      </div>
     </div>
-
-  </div>
-</div>
 
   </main>
 
-  <!-- —— Event Modal —— -->
+  <!-- —— Events Modal —— -->
   <div id="events-overlay">
     <div class="events-modal">
       <h2>Upcoming Charleston Events</h2>
@@ -494,95 +337,106 @@
 
   <!-- —— Splash Logic —— -->
   <script>
-  (function(){
-    const splash=document.getElementById("splash-overlay");
-    const cBtn=document.getElementById("community-site-btn");
-    const pBtn=document.getElementById("public-site-btn");
-    const box=document.getElementById("dont-show-again");
-    const KEY="chs_splash_seen_once";
+    (function(){
+      const splash=document.getElementById("splash-overlay");
+      const cBtn=document.getElementById("community-site-btn");
+      const pBtn=document.getElementById("public-site-btn");
+      const box=document.getElementById("dont-show-again");
+      const KEY="chs_splash_seen_once";
 
-    function hide(immediate=false){
-      splash.classList.add("fade-out");
-      document.body.classList.remove("splash-active");
-      setTimeout(()=>splash.style.display="none", immediate?0:400);
-    }
-    function dismiss(){
-      if(box.checked) localStorage.setItem(KEY,"true");
-      hide();
-    }
-    window.addEventListener("DOMContentLoaded",()=>{
-      if(localStorage.getItem(KEY)==="true"){ hide(true); return; }
-      splash.style.display="flex";
-      document.body.classList.add("splash-active");
-      cBtn.onclick=e=>{e.preventDefault();dismiss();};
-      pBtn.onclick=e=>{
-        e.preventDefault();
-        dismiss();
-        window.location.href="https://charlestonhacks.mailchimpsites.com/";
-      };
-    });
-  })();
+      function hide(immediate=false){
+        splash.classList.add("fade-out");
+        document.body.classList.remove("splash-active");
+        setTimeout(()=>splash.style.display="none", immediate?0:400);
+      }
+      function dismiss(){
+        if(box.checked) localStorage.setItem(KEY,"true");
+        hide();
+      }
+
+      window.addEventListener("DOMContentLoaded",()=>{
+        if(localStorage.getItem(KEY)==="true"){ hide(true); return; }
+        splash.style.display="flex";
+        document.body.classList.add("splash-active");
+        cBtn.onclick=e=>{e.preventDefault();dismiss();};
+        pBtn.onclick=e=>{
+          e.preventDefault();
+          dismiss();
+          window.location.href="https://charlestonhacks.mailchimpsites.com/";
+        };
+      });
+    })();
   </script>
 
-<!-- —— Main Logic —— -->
-<script type="module">
-  import { CONFIG } from "./assets/js/config.js";
-  import { initCardFlip } from "./assets/js/cardFlip.js";
-  import { startBTCPriceTracker } from "./assets/js/btc.js";
+  <!-- MAIN LOGIC -->
+  <script type="module">
+    import { CONFIG } from "./assets/js/config.js";
+    import { initCardFlip } from "./assets/js/cardFlip.js";
+    import { startBTCPriceTracker } from "./assets/js/btc.js";
 
-  CONFIG.sounds = {
-    cardflip: document.getElementById("cardflipSound"),
-    chime: document.getElementById("chimeSound"),
-    keys: document.getElementById("keysSound"),
-  };
+    CONFIG.sounds = {
+      cardflip: document.getElementById("cardflipSound"),
+      chime: document.getElementById("chimeSound"),
+      keys: document.getElementById("keysSound")
+    };
 
-  initCardFlip(CONFIG);
-  startBTCPriceTracker("btcPrice");
+    initCardFlip(CONFIG);
+    startBTCPriceTracker("btcPrice");
 
-  const buttons = document.querySelectorAll(".clickable-area");
-  const infoLine = document.getElementById("infoLine");
-  const infoText = document.getElementById("infoText");
+    const buttons = document.querySelectorAll(".clickable-area");
+    const infoText = document.getElementById("infoText");
+    const infoLine = document.getElementById("infoLine");
 
-  buttons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const sound = document.getElementById(btn.dataset.sound + "Sound");
-      if (sound) sound.play();
-      if (btn.dataset.url) setTimeout(() => window.location.href = btn.dataset.url, 400);
+    buttons.forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const sound=document.getElementById(btn.dataset.sound+"Sound");
+        if(sound) sound.play();
+        if(btn.dataset.url) setTimeout(()=>window.location.href=btn.dataset.url,400);
+      });
+      btn.addEventListener("mouseover",()=>{
+        infoLine.style.opacity="1";
+        infoText.textContent=btn.dataset.info||"";
+      });
+      btn.addEventListener("mouseout",()=>{
+        infoLine.style.opacity="0";
+        infoText.textContent="";
+      });
     });
-    btn.addEventListener("mouseover", () => {
-      infoLine.style.opacity = "1";
-      infoText.textContent = btn.dataset.info || "";
-    });
-    btn.addEventListener("mouseout", () => {
-      infoLine.style.opacity = "0";
-      infoText.textContent = "";
-    });
-  });
-</script>
-<!-- Core modules that do not depend on DOM -->
-<script type="module" src="/assets/js/neuralBackground.js"></script>
-<script type="module" src="/assets/js/supabaseClient.js"></script>
+  </script>
 
-<!-- BBS (safe to load normally) -->
-<script type="module" src="/assets/js/bbs.js"></script>
+  <!-- Core JS -->
+  <script type="module" src="/assets/js/neuralBackground.js"></script>
+  <script type="module" src="/assets/js/supabaseClient.js"></script>
+  <script type="module" src="/assets/js/bbs.js"></script>
 
-<!-- Guaranteed-safe Events Feed Loader -->
-<script type="module">
-  async function loadEventsFeedWhenReady() {
-    // Wait until the modal + list exist in the DOM
-    while (!document.getElementById("events-list")) {
-      await new Promise(r => setTimeout(r, 40));
+  <!-- Events Loader -->
+  <script type="module">
+    async function loadEventsFeedWhenReady(){
+      while(!document.getElementById("events-list")){
+        await new Promise(r=>setTimeout(r,40));
+      }
+      await import("/assets/js/eventsFeed.js");
     }
+    window.addEventListener("DOMContentLoaded", loadEventsFeedWhenReady);
+  </script>
 
-    console.log("📌 events-list detected — importing eventsFeed.js…");
-    
-    // Now it is safe to load
-    await import("/assets/js/eventsFeed.js");
-  }
+  <!-- ⭐ BBS Modal Controls -->
+  <script>
+    document.getElementById("open-bbs")?.addEventListener("click",()=>{
+      document.getElementById("bbs-overlay").classList.add("active");
+    });
 
-  // Start after initial DOM parse — but continue waiting until ready
-  window.addEventListener("DOMContentLoaded", loadEventsFeedWhenReady);
-</script>
+    document.getElementById("close-bbs")?.addEventListener("click",()=>{
+      document.getElementById("bbs-overlay").classList.remove("active");
+    });
+
+    document.getElementById("bbs-overlay")?.addEventListener("click",(e)=>{
+      const win=document.querySelector(".bbs-window");
+      if(win && !win.contains(e.target)){
+        document.getElementById("bbs-overlay").classList.remove("active");
+      }
+    });
+  </script>
+
 </body>
 </html>
-
