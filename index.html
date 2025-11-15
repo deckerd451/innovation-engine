@@ -36,16 +36,15 @@
      1. GLOBAL FIX: POINTER-EVENT LAYERS
      ============================================================ */
 
-  /* The neural background sits under everything */
-  #neural-bg {
-    pointer-events: none !important;
-    z-index: 0;
-  }
-
-  /* The big card (main-wrapper) CAN receive clicks again */
-  /* ============================================================
-   FIXED POINTER-EVENT + Z-INDEX STACK (WORKING)
+ /* ============================================================
+   FIXED POINTER-EVENT + Z-INDEX STACK (FINAL, WORKING)
    ============================================================ */
+
+/* Background */
+#neural-bg {
+  pointer-events: none !important;
+  z-index: 0;
+}
 
 /* Card wrapper is clickable */
 .main-wrapper {
@@ -59,13 +58,13 @@
   pointer-events: none !important;
 }
 
-/* Hotspots: make clickable again */
+/* Hotspots: clickable */
 .clickable-area {
   pointer-events: auto !important;
   z-index: 5;
 }
 
-/* Card image & cardFrame MUST be clickable (restore events) */
+/* Card image & frame also clickable */
 #missionImage,
 #cardFrame,
 #missionVideo {
@@ -73,92 +72,33 @@
   z-index: 3;
 }
 
-/* Icon bar must not block anything beneath it */
+/* Icon bar: clickable (no longer blocks the card) */
 .icons-container {
-  pointer-events: auto !important;
   position: relative;
   z-index: 10;
+  pointer-events: auto !important;
 }
 
-/* Each icon is clickable */
 .icons-container a {
   pointer-events: auto !important;
   z-index: 11;
 }
 
-/* Calendar icon must ALWAYS be clickable */
+/* Calendar: ALWAYS clickable */
 #open-calendar {
   pointer-events: auto !important;
+  position: relative;
   z-index: 20 !important;
 }
 
+/* BBS drawer */
+#bbs-container,
+#bbs-online {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 30;
+}
 
-  /* Calendar must always be clickable */
-  #open-calendar {
-    pointer-events: auto !important;
-    position: relative;
-    z-index: 50;
-  }
-
-  /* BBS drawer (collapsible version in later pieces) */
-  #bbs-container, #bbs-online {
-    position: relative;
-    z-index: 30;
-    pointer-events: auto !important;
-  }
-
-  /* ============================================================
-     2. RETRO BBS TERMINAL (STYLE CLEANED)
-     ============================================================ */
-  #bbs-container {
-    width: 100%;
-    max-width: 600px;
-    margin: 1.5rem auto;
-    background: #000;
-    border: 1px solid #0f0;
-    padding: 1rem;
-    font-family: "Courier New", monospace;
-    font-size: 14px;
-    color: #0f0;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
-    display: none;     /* will be toggled open as a drawer */
-  }
-
-  #bbs-screen {
-    height: 160px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    line-height: 1.3;
-    margin-bottom: 0.5rem;
-  }
-
-  #bbs-form {
-    display: flex;
-    align-items: center;
-  }
-
-  #bbs-input {
-    flex: 1;
-    background: #000;
-    color: #0f0;
-    border: none;
-    outline: none;
-    font-family: "Courier New", monospace;
-    font-size: 14px;
-    caret-color: #0f0;
-  }
-
-  /* Online list styling */
-  #bbs-online {
-    max-width: 600px;
-    margin: 0.7rem auto;
-    background: #000;
-    border: 1px solid #0f0;
-    padding: 0.7rem;
-    font-family: "Courier New", monospace;
-    font-size: 14px;
-    display: none; /* drawer controlled */
-  }
 
   /* Drawer animation */
   .bbs-open {
