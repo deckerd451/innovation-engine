@@ -32,9 +32,21 @@
 
   <style>
 
- /* ============================================================
-   FIXED POINTER-EVENT + Z-INDEX STACK (FINAL, WORKING)
-   ============================================================ */
+/* ------------------------------------------------------------------
+   FIX: Splash overlay must not block clicks after fade-out
+   ------------------------------------------------------------------ */
+#splash-overlay {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity .4s ease;
+}
+
+/* When fade-out class is added, the overlay disappears and cannot block clicks */
+#splash-overlay.fade-out {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 
 /* Background */
 #neural-bg {
