@@ -4,7 +4,7 @@
 :root {
     /* Colors */
     --primary-color: #FF0000; /* red */
-    --secondary-color: #879EF2; /* deep periwinkle */
+   --secondary-color: #879EF2; /* deep periwinkle */
     --text-color: white;
     --background-color: black;
     --card-bg: #2a2a2a;
@@ -27,6 +27,17 @@
     padding: 0;
     box-sizing: border-box;
 }
+/* ============================================================
+   FIX: Prevent invisible event-overlay from blocking card buttons
+   ============================================================ */
+#events-overlay {
+  pointer-events: none !important;
+}
+
+#events-overlay.active {
+  pointer-events: auto !important;
+}
+
 
 /* ==========================================================================
    BODY & BACKGROUND LAYOUT
@@ -66,10 +77,13 @@ body::before {
     transition: background 0.5s;
 }
 
+/* Ensure background transparency for other containers */
 html, footer, .icons-container {
     background: transparent !important;
 }
-
+/* ==========================================================================
+   BACKGROUND VIDEO
+   ========================================================================== */
 #background-video {
     position: fixed;
     top: 0; left: 0;
@@ -81,393 +95,2500 @@ html, footer, .icons-container {
     pointer-events: none;
 }
 
-#events-overlay {
-    pointer-events: none !important;
-}
-#events-overlay.active {
-    pointer-events: auto !important;
-}
-
 /* ==========================================================================
    KEYFRAME ANIMATIONS
    ========================================================================== */
-@keyframes fadeInScaleUp { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1.15); } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-@keyframes fadeInUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
-@keyframes flipImageX { 0% { opacity: 1; } 80% { transform: rotateX(180deg); } 100% { transform: rotateX(360deg); opacity: 0; } }
-@keyframes flipImageY { 0% { opacity: 1; } 80% { transform: rotateY(180deg); } 100% { transform: rotateY(360deg); opacity: 0; } }
-@keyframes glow { 0%, 100% { box-shadow: 0 0 0px rgba(255, 255, 0, 0.8); } 50% { box-shadow: 0 0 20px rgba(255, 255, 0, 1); } }
-@keyframes bounce-in { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes fadeInScaleUp {
+    0% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1.15); }
+}
 
-/* ==========================================================================
-   LAYOUT CONTAINERS
-   ========================================================================== */
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; }
-.panels-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; gap: 40px; margin: 0; padding: 0; }
-.main-wrapper { display: flex; justify-content: center; align-items: center; height: 100vh; }
-.media-container { position: relative; width: 100%; max-width: 500px; margin: 0 auto; }
-.panel { position: relative; box-sizing: border-box; }
-.panel.large { width: 40%; max-width: 500px; margin: 0 auto; }
-.full-screen-synapse { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(ellipse at center, #000 60%, #001b1b 100%); z-index: 100; overflow: hidden; display: none; }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 
-/* ==========================================================================
-   COMPONENTS
-   ========================================================================== */
-/* --- Buttons --- */
-.btn { padding: 0.8em 1.4em; border: none; border-radius: 10px; background: var(--primary-color); color: white; font-size: 1rem; cursor: pointer; transition: transform 0.2s ease, background 0.3s ease; }
-.btn:hover { background: #ff8533; }
-.action-btn { padding: 12px 24px; font-size: 16px; background: #ffd700; color: #121212; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background 0.3s; margin-top: 10px; display: inline-block; }
-.action-btn:hover { background: #FFC000; }
-.logout-btn { background: #444; color: #eee; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px; }
-.logout-btn:hover { background: #3a3a4a; color: #ffd700; box-shadow: 0 0 6px rgba(255, 215, 0, 0.4); }
-.logout-btn i { font-size: 0.9em; }
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
 
-/* --- Cards --- */
-.card-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.2rem; padding: 1rem; justify-items: center; }
-.card { background: var(--card-bg, #2a2a3a); border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); max-width: 320px; width: 100%; padding: 1rem; box-sizing: border-box; color: var(--text-color, #eee); transition: transform 0.2s ease, box-shadow 0.2s ease; overflow: hidden; }
-.card:hover { transform: translateY(-4px); box-shadow: 0 6px 14px rgba(0,0,0,0.6); }
-.user-card { background-color: #1e1e2f; border: 1px solid #333; border-radius: 10px; padding: 15px; margin: 12px; width: 260px; display: flex; flex-direction: column; align-items: center; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.user-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
+@keyframes fadeInUp {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
 
-/* --- Leaderboard --- */
-.leaderboard { margin: 20px auto; padding: 15px; background-color: #1e1e2f; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); max-width: 600px; width: 90%; }
-.leaderboard h2 { color: #ffd700; margin-bottom: 15px; text-align: center; font-size: 1.3rem; }
-.leaderboard-row { display: grid; grid-template-columns: 50px 1fr 60px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #333; color: #eee; font-size: 1rem; }
-.leaderboard-row:last-child { border-bottom: none; }
-.leaderboard-rank { font-weight: bold; color: #ffd700; text-align: left; }
-.leaderboard-key { text-align: left; padding-left: 10px; }
-.leaderboard-count { font-weight: bold; text-align: right; color: #4cafef; }
+@keyframes flipImageX {
+    0% { opacity: 1; }
+    80% { transform: rotateX(180deg); }
+    100% { transform: rotateX(360deg); opacity: 0; }
+}
 
-/* --- Modals --- */
-.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); z-index: 10000; }
-.modal .modal-content { position: relative; background: #121212; color: #ffffff; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; box-shadow: 0 0 20px rgba(0, 0, 0, 0.4); }
-.modal .close-button { position: absolute; top: 10px; right: 12px; font-size: 24px; background: none; border: none; color: #ffffff; cursor: pointer; padding: 0; }
-.profile-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.65); display: flex; justify-content: center; align-items: center; z-index: 2000; }
-.profile-modal .modal-content { background: #111; color: #fff; padding: 24px; border-radius: 12px; width: 320px; text-align: center; position: relative; box-shadow: 0 0 20px rgba(0,255,255,0.3); }
+@keyframes flipImageY {
+    0% { opacity: 1; }
+    80% { transform: rotateY(180deg); }
+    100% { transform: rotateY(360deg); opacity: 0; }
+}
 
-/* --- Autocomplete --- */
-.input-wrapper { position: relative; width: 100%; margin-bottom: 20px; }
-.autocomplete-box { position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: rgba(20,20,20,0.95); border: 1px solid #ffd700; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); max-height: 200px; overflow-y: auto; display: none; z-index: 9999; }
-.autocomplete-box div { padding: 10px; cursor: pointer; color: #fff; font-size: 15px; }
-.autocomplete-box div:hover { background: rgba(255,215,0,0.2); }
-.two-card-page .autocomplete-box { z-index: 2000; max-width: 100%; top: calc(100% + 4px); }
-
-/* --- Skills & Endorsements --- */
-.skill-chip { display: flex; align-items: center; gap: 6px; background-color: #2a2a3a; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; color: #eee; border: 1px solid #444; }
-.endorsement-count { color: #4cafef; font-weight: bold; font-size: 0.8rem; }
-.endorse-btn { background-color: #ffd700; color: #222; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: background-color 0.2s ease; margin: 2px 0 0 0; }
-.endorse-btn:hover { background-color: #e0b800; }
-.endorse-btn:disabled { background: #ccc; color: #666; cursor: not-allowed; }
-
-/* --- Splash Screen --- */
-#splash-overlay { position: fixed; inset: 0; z-index: 9999; background: var(--background-color, black); color: var(--text-color, white); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.7s ease; opacity: 1; pointer-events: auto; }
-#splash-overlay.fade-out { opacity: 0; pointer-events: none; }
-#splash-logo { width: clamp(180px, 30vw, 300px); margin-bottom: 1rem; animation: bounce-in 1s ease; }
-
-/* --- Tooltips --- */
-.synapse-tooltip { position: absolute; background: rgba(0,0,0,0.8); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.2s ease; z-index: 10000 !important; }
-
-/* ==========================================================================
-   UTILITY & HELPER CLASSES
-   ========================================================================== */
-.hidden { display: none !important; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.glow-animate { animation: glow 0.45s ease-in-out; border-radius: 50%; }
-.flip-image-x { animation: flipImageX 2s forwards; }
-.flip-image-y { animation: flipImageY 2s forwards; }
-.top-left { top: 3%; left: 5%; }
-.top-right { top: 3%; right: 5%; }
-.bottom-left { bottom: 3%; left: 5%; }
-.bottom-right { bottom: 3%; right: 5%; }
-.top-center { top: 2%; left: 43%; transform: translateX(-50%); }
-.bottom-center { bottom: 2%; left: 43%; transform: translateX(-50%); }
-.middle-left { top: 45%; left: 5%; transform: translateY(-50%); }
-.middle-right { top: 45%; right: 5%; transform: translateY(-50%); }
-.center { top: 50%; left: 50%; transform: translate(-50%, -50%); }
-
-/* Global text alignment for specific page */
-.two-card-page,
-.two-card-page * {
-  text-align: center;
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 0px rgba(255, 255, 0, 0.8); }
+    50% { box-shadow: 0 0 20px rgba(255, 255, 0, 1); }
 }
 
 /* ==========================================================================
-   RESPONSIVE DESIGN
+   ANIMATION HELPERS
    ========================================================================== */
+.glow-animate {
+    animation: glow 0.45s ease-in-out;
+    border-radius: 50%;
+}
+
+.flip-image-x {
+    animation: flipImageX 2s forwards;
+}
+
+.flip-image-y {
+    animation: flipImageY 2s forwards;
+}
+/* ==========================================================================
+   RESPONSIVE MEDIA CONTAINERS
+   ========================================================================== */
+.media-container {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.media-container img,
+.media-container video {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    margin: 0;
+    padding: 0;
+}
+
+.media-container video {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+}
+
+/* ==========================================================================
+   PANEL LAYOUT (Main Card Container)
+   ========================================================================== */
+.panel {
+    position: relative;
+    box-sizing: border-box;
+    }
+
+/* Responsive Sizing */
 @media (max-width: 768px) {
-    .panel { width: 95%; min-height: 50vh; padding: 10px; }
-    .icons-container { position: fixed; bottom: 5px; left: 0; width: 100vw; display: flex; justify-content: center; gap: 10px; padding: 8px 0; background: rgba(0, 0, 0, 0.3); border-radius: 12px 12px 0 0; z-index: 999; }
-    .icons-container a { font-size: 28px; padding: 8px; color: #00CFFF; transition: color 0.3s; }
-    :root { --countdown-size: 24px; --info-size: 16px; --footer-spacing: 7px; }
-    body.two-card-page::before { background: var(--bg-url) no-repeat center center; background-size: cover; }
-    .tab-nav { flex-wrap: wrap; justify-content: flex-start; }
-    .tab-button { flex-grow: 1; text-align: center; }
-}
-
-@media (max-width: 600px) {
-    #countdown { top: 19%; }
-    #btcPrice { bottom: 19%; }
-    .button-container { flex-direction: column; gap: .5rem; }
-    #toggle-names { bottom: 70px; left: 10px; font-size: 12px; padding: 6px 10px; }
-    .card { max-width: 100%; }
-    .avatar { width: 48px; height: 48px; }
-    .auth-controls { flex-direction: column; align-items: flex-start; gap: 6px; }
-    #discord-bubble { width: 48px; height: 48px; bottom: 16px; right: 16px; }
+    .panel {
+        width: 95%;
+        min-height: 50vh;
+        padding: 10px;
+    }
 }
 
 @media (max-width: 480px) {
-    .panel { width: 100%; min-height: 40vh; padding: 5px; }
+    .panel {
+        width: 100%;
+        min-height: 40vh;
+        padding: 5px;
+    }
 }
 
 @media (min-width: 769px) {
-    .panel { width: 25%; max-width: 300px; }
-    .clickable-area.top-center, .clickable-area.bottom-center { top: 2%; left: 40.5%; transform: translateX(-50%); width: 90px; height: 90px; max-width: 100px; max-height: 100px; }
-    #countdown, #btcPrice { font-size: 1.6rem; }
-    .icons-container { position: fixed; top: 30px; right: 40px; z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 26px; background: transparent !important; padding: 0; box-shadow: none; }
-    .icons-container a { width: 64px; height: 64px; font-size: 2.2rem; display: flex; justify-content: center; align-items: center; border-radius: 50%; color: var(--text-color); transition: background 0.3s, box-shadow 0.3s, color 0.3s; }
-    .icons-container a:hover { background: #222; color: var(--secondary-color); box-shadow: 0 0 16px #ffd70099; }
+    .panel {
+        width: 25%;
+        max-width: 300px;
+    }
+
+    .panel.large {
+        width: 40%;
+        max-width: 500px;
+        margin: 0 auto;
+    }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation: none !important;
-    transition: none !important;
-  }
-}/* ==========================================================================
-   CSS VARIABLES & GLOBAL RESET
-   ========================================================================== */
-:root {
-    /* Colors */
-    --primary-color: #FF0000; /* red */
-    --secondary-color: #879EF2; /* deep periwinkle */
-    --text-color: white;
-    --background-color: black;
-    --card-bg: #2a2a2a;
-
-    /* Typography & Spacing */
-    --countdown-size: 19px;
-    --info-size: 20px;
-    --footer-spacing: 20px;
-
-    /* Images & Media */
-    --bg-url: url('images/background.jpg');
-
-    /* Effects */
-    --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-* {
+/* Layout Container for Panels */
+.panels-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    gap: 40px;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
+}
+
+/* Prevent flex centering conflicts */
+main, .main-wrapper, .media-container {
+    /* Remove flex centering unless needed */
+    /* display: flex;
+       flex-direction: column;
+       justify-content: center;
+       align-items: center;
+       min-height: 100vh; */
+}
+/* ==========================================================================
+   CLICKABLE AREAS (Main Card Buttons)
+   ========================================================================== */
+.clickable-area {
+    position: absolute !important;
+    z-index: 4;
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 0;
+    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    width: 11.9cqw;     /* Scales with viewport width */
+    max-width: 76.5px;  /* Fallback for small viewports */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    animation: fadeInScaleUp 1s ease-out forwards;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Size variants by position */
+.clickable-area.top-center,
+.clickable-area.bottom-center {
+    width: 15.3cqw;
+    max-width: 110.5px;
+}
+
+.clickable-area.center {
+    width: 14.025cqw;
+    max-width: 93.5px;
+}
+
+/* Show on hover or when loaded */
+.clickable-area:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
+    opacity: 1;
+}
+.clickable-area.loaded {
+    opacity: 1;
+}
+
+.clickable-area img {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
 }
 
 /* ==========================================================================
-   BODY & BACKGROUND LAYOUT
+   POSITIONING HELPERS
    ========================================================================== */
-body {
-    min-height: 100vh;
-    overflow-x: hidden;
-    color: var(--text-color);
-    font-family: 'Britannic Bold', Arial, sans-serif;
+/* Anchored positions */
+.top-left      { top: 3%; left: 5%; }
+.top-right     { top: 3%; right: 5%; }
+.bottom-left   { bottom: 3%; left: 5%; }
+.bottom-right  { bottom: 3%; right: 5%; }
+
+.top-center    { top: 2%; left: 43%; transform: translateX(-50%); }
+.bottom-center { bottom: 2%; left: 43%; transform: translateX(-50%); }
+.middle-left   { top: 45%; left: 5%; transform: translateY(-50%); }
+.middle-right  { top: 45%; right: 5%; transform: translateY(-50%); }
+.center        { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+/* ==========================================================================
+   BUTTON STYLES 
+   ========================================================================== */
+.button-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin: 2rem auto;
+  max-width: 800px;
+}
+
+.btn {
+  padding: 0.8em 1.4em;
+  border: none;
+  border-radius: 10px;
+  background: var(--primary-color);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+
+.btn:hover {
+  background: #ff8533;
+}
+
+.btn:active.center-top    { transform: translateY(10px); }
+.btn:active.center-bottom { transform: translateY(-10px); }
+.btn:active.middle-left   { transform: translateX(10px); }
+.btn:active.middle-right  { transform: translateX(-10px); }
+
+.btn:active.top-left,
+.btn:active.top-right,
+.btn:active.bottom-left,
+.btn:active.bottom-right {
+  transform: scale(0.95);
+}
+
+#infoBox {
+  background: #222;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  max-width: 400px;
+  margin: 1rem auto;
+  font-size: 1rem;
+  color: white;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+#infoBox.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+
+/* ==========================================================================
+   CONTAINER QUERIES (Refines button size on wider viewports)
+   ========================================================================== */
+@container (min-width: 600px) {
+    .clickable-area {
+        width: 6.8cqw;
+        max-width: 32.3px;
+    }
+
+    .clickable-area.center {
+        width: 8.5cqw;
+        max-width: 40.8px;
+    }
+
+    .clickable-area.top-center,
+    .clickable-area.bottom-center {
+        width: 15.3cqw;
+        max-width: 110.5px;
+    }
+}
+/* ==========================================================================
+   DESKTOP CUSTOM CLICKABLE ADJUSTMENTS
+   ========================================================================== */
+@media (min-width: 769px) {
+  .clickable-area.top-center {
+    top: 2%;
+    left: 40.5%;
+    transform: translateX(-50%);
+     width: 90px;
+    height: 90px;
+    max-width: 100px;
+    max-height: 100px;
+  }
+
+  .clickable-area.bottom-center {
+    bottom: 2%;
+    left: 40.5%;
+    transform: translateX(-50%);
+    width: 90px;
+    height: 90px;
+    max-width: 100px;
+    max-height: 100px;
+  }
+}
+
+/* ==========================================================================
+   DESKTOP-SPECIFIC TEXT SIZE OVERRIDES
+   ========================================================================== */
+@media (min-width: 769px) {
+  #countdown,
+  #btcPrice {
+    font-size: 1.6rem; /* Adjust as needed */
+  }
+}
+
+
+/* ==========================================================================
+   FOOTER ICONS (DESKTOP)
+   ========================================================================== */
+@media (min-width: 769px) {
+    .icons-container {
+        position: fixed;
+        top: 30px;
+        right: 40px;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 26px;
+        background: transparent !important;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .icons-container a {
+        width: 64px;
+        height: 64px;
+        font-size: 2.2rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 50%;
+        color: var(--text-color);
+        transition: background 0.3s, box-shadow 0.3s, color 0.3s;
+    }
+
+    .icons-container a:hover {
+        background: #222;
+        color: var(--secondary-color);
+        box-shadow: 0 0 16px #ffd70099;
+    }
+
+    footer {
+        background: transparent !important;
+        padding: 0 0 var(--footer-spacing) 0;
+    }
+}
+
+/* ==========================================================================
+   FOOTER ICONS (MOBILE)
+   ========================================================================== */
+@media (max-width: 768px) {
+    .icons-container {
+        position: fixed;
+        bottom: 5px;
+        left: 0;
+        width: 100vw;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        padding: 8px 0;
+        background: rgba(0, 0, 0, 0.3); /* translucent bar */
+        border-radius: 12px 12px 0 0;
+        z-index: 999;
+    }
+
+    .icons-container a {
+        font-size: 28px;
+        padding: 8px;
+        color: #00CFFF;
+        transition: color 0.3s;
+    }
+
+    .icons-container a .fa-heart,
+    .icons-container a .fas.fa-heart {
+        color: #FF69B4;
+    }
+}
+
+/* ==========================================================================
+   SOCIAL ICONS (Optional Footer Section)
+   ========================================================================== */
+.social-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 0;
+    padding-top: 0;
+    opacity: 0;
+    animation: fadeInUp 0.8s ease 0.8s forwards;
+}
+
+.social-link {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+    color: white;
+    text-decoration: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ffd700, #ff6b35);
+    transition: var(--transition);
+}
+
+.social-link:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+/* ==========================================================================
+   HEADER STYLES
+   ========================================================================== */
+.header {
     text-align: center;
-    background: transparent !important;
-    position: relative;
+    margin-bottom: 0;
+    opacity: 0;
+    transform: translateY(-20px);
+    animation: fadeInUp 0.8s ease forwards;
+}
+
+.header h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #ffd700, #ff6b35);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.header p {
+    font-size: 1.2rem;
+    opacity: 0.8;
+    color: var(--text-color);
+}
+
+/* ==========================================================================
+   FORM & INPUT ELEMENTS
+   ========================================================================== */
+.input-container {
+    max-width: 500px;
+    margin: 0 auto 20px;
+    padding: 0 10px;
+}
+
+.input-container label {
+    display: block;
+    margin-bottom: 5px;
+    color: #ffd700;
+    font-weight: bold;
+    text-align: left;
+}
+
+.input-container input,
+.input-container select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #fff;
+    background-color: #2c2c2c;
+    border: 2px solid #ffd700;
+    border-radius: 5px;
+}
+
+/* ==========================================================================
+   COUNTDOWN & BTC PRICE STYLES
+   ========================================================================== */
+/* Make the media-container relative so children can be absolutely positioned */
+.media-container {
+  position: relative;
+}
+
+/* Countdown styling - near the top of the card */
+#countdown {
+  position: absolute;
+  top: 17%;  /* Responsive vertical spacing from top */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(1rem, 2vw, 1.4rem); /* Responsive font size */
+  color: var(--secondary-color);
+  padding: 6px 14px;
+  border-radius: 8px;
+  z-index: 10;
+   white-space: nowrap; /* prevents wrapping */
+}
+
+#btcPrice {
+  position: absolute;
+  bottom: 17%;  /* Responsive vertical spacing from bottom */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(1rem, 2vw, 1.4rem); /* Responsive font size */
+  color: var(--secondary-color);
+  padding: 6px 14px;
+  border-radius: 8px;
+  z-index: 10;
+}
+@media (max-width: 600px) {
+  #countdown {
+    top: 19%;
+  }
+
+  #btcPrice {
+    bottom: 19%;
+  }
+}
+
+/* ==========================================================================
+   NAME, STATUS & BADGE STYLES
+   ========================================================================== */
+.member-name {
+    font-weight: bold;
+    color: #ffd700;
+}
+
+.user-status {
+    font-size: 0.85em;
+    color: #00FF87;
+    margin: 4px 0;
+}
+
+.badge {
+    background: #333;
+    border-left: 4px solid #ffd700;
+    color: #ffd700;
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 0.9em;
+    margin: 6px 0;
+}
+
+/* ==========================================================================
+   SKILL TAGS
+   ========================================================================== */
+.skill-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+    margin-top: 3px;
+}
+
+.skill-tag {
+    background: rgba(255, 215, 0, 0.2);
+    color: #ffd700;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+}
+
+/* ==========================================================================
+   PROFILE COMPLETION BAR
+   ========================================================================== */
+.profile-bar {
+    width: 100%;
+    background: #333;
+    height: 6px;
+    border-radius: 3px;
+    margin: 8px 0 4px 0;
+    overflow: hidden;
+}
+
+.profile-bar-inner {
+    height: 100%;
+    background: #ffd700;
+}
+
+/* ==========================================================================
+   ENDORSEMENT BUTTONS
+   ========================================================================== */
+.endorse-btn {
+    background: #ffd700;
+    color: #121212;
+    font-weight: bold;
+    font-size: 0.85em;
+    padding: 2px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin: 2px 0 0 0;
+}
+
+.endorse-btn:disabled {
+    background: #ccc;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.endorsements {
+    font-size: 0.85em;
+    color: #ffd700;
+    margin-left: 7px;
+    vertical-align: middle;
+}
+
+/* ==========================================================================
+   LEADERBOARD
+   ========================================================================== */
+.leaderboard {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 20px auto;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.25);
+}
+
+.leaderboard h2 {
+    color: #ffd700;
+    font-size: 1.3em;
+    margin-bottom: 12px;
+}
+
+.leaderboard-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 6px 0;
+}
+
+.leaderboard-rank {
+    font-weight: bold;
+    color: #ffd700;
+    width: 24px;
+}
+
+.leaderboard-name {
+    flex: 1;
+    text-align: left;
+}
+
+.leaderboard-skill {
+    color: #ffd700;
+}
+
+.profile-complete {
+    color: #00FF87;
+    font-size: 0.93em;
+    margin-top: 6px;
+}
+
+.profile-incomplete {
+    color: #FF6B6B;
+    font-size: 0.93em;
+    margin-top: 6px;
+}
+/* ==========================================================================
+   AUTOCOMPLETE BOX
+   ========================================================================== */
+.autocomplete-box {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: calc(100% - 40px);
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+    background: #fff;
+    color: #000;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+}
+
+.autocomplete-box div {
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+.autocomplete-box div:hover {
+    background-color: #f0f0f0;
+}
+
+/* ==========================================================================
+   FEEDBACK & MESSAGES
+   ========================================================================== */
+.optional-text {
+    color: #888;
+}
+
+.success-message {
+    color: green;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.notification {
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.match-notification {
+    color: gold;
+}
+
+.no-results-notification {
+    color: red;
+}
+
+.instructions {
+    max-width: 600px;
+    margin-bottom: 10px;
+}
+
+/* ==========================================================================
+   ACHIEVEMENT TOASTS
+   ========================================================================== */
+.achievements {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.achievement {
+    background: linear-gradient(135deg, #ffd700, #ff6b35);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 20px;
+    margin-bottom: 10px;
+    border-radius: 25px;
+    box-shadow: var(--shadow);
+    transform: translateX(300px);
+    transition: var(--transition);
+}
+
+.achievement.show {
+    transform: translateX(0);
+}
+
+/* ==========================================================================
+   RESPONSIVE CARD CONTAINER & LEADERBOARD STACKING
+   ========================================================================== */
+@media (max-width: 800px) {
+    .card-container,
+    .leaderboard {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+/* Mobile background override and spacing fixes */
+@media (max-width: 768px) {
+    :root {
+        --countdown-size: 24px;
+        --info-size: 16px;
+        --footer-spacing: 7px;
+    }
+
+    /* ✅ Use the same background as desktop */
+    body::before,
+    body.two-card-page::before {
+        background: var(--bg-url) no-repeat center center;
+        background-size: cover;
+    }
+
+    #missionContent {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-bottom: 50px;
+    }
+
+    #aiffBanner {
+        display: block;
+        margin: 40px auto 0;
+    }
+
+    .input-container {
+        padding: 0 10px;
+    }
+}
+
+/* ==========================================================================
+   TABS & NAVIGATION
+   ========================================================================== */
+.tab-nav {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #333;
+}
+
+.tab-button {
+    background-color: #2a2a3a;
+    color: #eee;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 1em;
+    border-radius: 5px 5px 0 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    white-space: nowrap;
+}
+
+.tab-button:hover {
+    background-color: #3a3a4a;
+    color: #ffd700;
+}
+
+.tab-button.active {
+    background-color: #ffd700;
+    color: #222;
+    font-weight: bold;
+    border-bottom: 2px solid #ffd700;
+}
+
+.tab-content-pane {
+    display: none;
+    padding: 20px 0;
+}
+
+.tab-content-pane.active-tab-pane {
+    display: block;
+}
+
+.tab-content-pane .section-title {
+    margin-top: 0;
+}
+
+/* Responsive tweaks for tab layout */
+@media (max-width: 768px) {
+    .tab-nav {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .tab-button {
+        flex-grow: 1;
+        text-align: center;
+    }
+}
+
+/* ==========================================================================
+   UTILITY CLASSES
+   ========================================================================== */
+.standout {
+    display: block;
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #22577A;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 8px #eaf6fb;
+    letter-spacing: 0.01em;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ==========================================================================
+   RESULT COUNT
+   ========================================================================== */
+/* Display the number of results after performing a search */
+.result-count {
+    margin-top: 0.5rem;
+    font-weight: bold;
+    color: #ffd700;
+    /* Center the result count text; the global rule also centers text but
+       this explicit value clarifies the intent and overrides any earlier
+       left or right alignment definitions. */
+    text-align: center;
+}
+
+.result-count.hidden {
+    display: none;
+}
+
+/* ==========================================================================
+   EMBEDDED ELEMENTS
+   ========================================================================== */
+#cardFrame {
+    display: none;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 1;
 }
 
-/* Solid black base layer */
-body::after {
-    content: "";
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background: black;
-    z-index: -2;
-    pointer-events: none;
+/* ==========================================================================
+   SECTION SPACING
+   ========================================================================== */
+#matchmaking-section {
+    margin-top: 75px;
 }
-
-/* Background image overlay (default or mobile) */
-body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background: var(--bg-url) no-repeat center center;
-    background-size: cover;
-    z-index: -1;
-    pointer-events: none;
-    transition: background 0.5s;
-}
-
-html, footer, .icons-container {
-    background: transparent !important;
-}
-
-#background-video {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw;
-    height: 100vh;
-    object-fit: cover;
-    z-index: -1;
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-#events-overlay {
-    pointer-events: none !important;
-}
-#events-overlay.active {
-    pointer-events: auto !important;
+/* ==========================================================================
+   MAIN CONTAINER
+   ========================================================================== */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ==========================================================================
-   KEYFRAME ANIMATIONS
+   SECTION TITLES (General)
    ========================================================================== */
-@keyframes fadeInScaleUp { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1.15); } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-@keyframes fadeInUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
-@keyframes flipImageX { 0% { opacity: 1; } 80% { transform: rotateX(180deg); } 100% { transform: rotateX(360deg); opacity: 0; } }
-@keyframes flipImageY { 0% { opacity: 1; } 80% { transform: rotateY(180deg); } 100% { transform: rotateY(360deg); opacity: 0; } }
-@keyframes glow { 0%, 100% { box-shadow: 0 0 0px rgba(255, 255, 0, 0.8); } 50% { box-shadow: 0 0 20px rgba(255, 255, 0, 1); } }
-@keyframes bounce-in { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
+.section-title {
+    display: block;
+    text-align: left;
+    margin-bottom: 20px;
+    color: #ffd700;
+}
+
+.section-title .fas {
+    margin-right: 8px;
+}
+#splash-overlay.fade-out {
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+/* ==========================================================================
+   DOCS MODAL (renamed from .modal to .docs-modal)
+   ========================================================================== */
+.docs-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: opacity 0.3s ease;
+}
+
+.docs-modal.hidden {
+  display: none;
+}
+
+.docs-modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 800px;
+  aspect-ratio: 16 / 9;
+  background: black;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.docs-modal-content iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.docs-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 2rem;
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+}
 
 /* ==========================================================================
-   LAYOUT CONTAINERS
+   ENDORSEMENT BUTTONS & COUNTS
    ========================================================================== */
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; }
-.panels-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; gap: 40px; margin: 0; padding: 0; }
-.main-wrapper { display: flex; justify-content: center; align-items: center; height: 100vh; }
-.media-container { position: relative; width: 100%; max-width: 500px; margin: 0 auto; }
-.panel { position: relative; box-sizing: border-box; }
-.panel.large { width: 40%; max-width: 500px; margin: 0 auto; }
-.full-screen-synapse { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(ellipse at center, #000 60%, #001b1b 100%); z-index: 100; overflow: hidden; display: none; }
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #2a2a3a;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #eee;
+  border: 1px solid #444;
+}
+
+.endorsement-count {
+  color: #4cafef;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.endorse-btn {
+  background-color: #ffd700;
+  color: #222;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.endorse-btn:hover {
+  background-color: #e0b800;
+}
 
 /* ==========================================================================
-   COMPONENTS
+   LEADERBOARD
    ========================================================================== */
-/* --- Buttons --- */
-.btn { padding: 0.8em 1.4em; border: none; border-radius: 10px; background: var(--primary-color); color: white; font-size: 1rem; cursor: pointer; transition: transform 0.2s ease, background 0.3s ease; }
-.btn:hover { background: #ff8533; }
-.action-btn { padding: 12px 24px; font-size: 16px; background: #ffd700; color: #121212; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background 0.3s; margin-top: 10px; display: inline-block; }
-.action-btn:hover { background: #FFC000; }
-.logout-btn { background: #444; color: #eee; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px; }
-.logout-btn:hover { background: #3a3a4a; color: #ffd700; box-shadow: 0 0 6px rgba(255, 215, 0, 0.4); }
-.logout-btn i { font-size: 0.9em; }
+.leaderboard {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #1e1e2f; /* Dark panel */
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
 
-/* --- Cards --- */
-.card-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.2rem; padding: 1rem; justify-items: center; }
-.card { background: var(--card-bg, #2a2a3a); border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); max-width: 320px; width: 100%; padding: 1rem; box-sizing: border-box; color: var(--text-color, #eee); transition: transform 0.2s ease, box-shadow 0.2s ease; overflow: hidden; }
-.card:hover { transform: translateY(-4px); box-shadow: 0 6px 14px rgba(0,0,0,0.6); }
-.user-card { background-color: #1e1e2f; border: 1px solid #333; border-radius: 10px; padding: 15px; margin: 12px; width: 260px; display: flex; flex-direction: column; align-items: center; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.user-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
-
-/* --- Leaderboard --- */
-.leaderboard { margin: 20px auto; padding: 15px; background-color: #1e1e2f; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); max-width: 600px; width: 90%; }
-.leaderboard h2 { color: #ffd700; margin-bottom: 15px; text-align: center; font-size: 1.3rem; }
-.leaderboard-row { display: grid; grid-template-columns: 50px 1fr 60px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #333; color: #eee; font-size: 1rem; }
-.leaderboard-row:last-child { border-bottom: none; }
-.leaderboard-rank { font-weight: bold; color: #ffd700; text-align: left; }
-.leaderboard-key { text-align: left; padding-left: 10px; }
-.leaderboard-count { font-weight: bold; text-align: right; color: #4cafef; }
-
-/* --- Modals --- */
-.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); z-index: 10000; }
-.modal .modal-content { position: relative; background: #121212; color: #ffffff; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; box-shadow: 0 0 20px rgba(0, 0, 0, 0.4); }
-.modal .close-button { position: absolute; top: 10px; right: 12px; font-size: 24px; background: none; border: none; color: #ffffff; cursor: pointer; padding: 0; }
-.profile-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.65); display: flex; justify-content: center; align-items: center; z-index: 2000; }
-.profile-modal .modal-content { background: #111; color: #fff; padding: 24px; border-radius: 12px; width: 320px; text-align: center; position: relative; box-shadow: 0 0 20px rgba(0,255,255,0.3); }
-
-/* --- Autocomplete --- */
-.input-wrapper { position: relative; width: 100%; margin-bottom: 20px; }
-.autocomplete-box { position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: rgba(20,20,20,0.95); border: 1px solid #ffd700; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); max-height: 200px; overflow-y: auto; display: none; z-index: 9999; }
-.autocomplete-box div { padding: 10px; cursor: pointer; color: #fff; font-size: 15px; }
-.autocomplete-box div:hover { background: rgba(255,215,0,0.2); }
-.two-card-page .autocomplete-box { z-index: 2000; max-width: 100%; top: calc(100% + 4px); }
-
-/* --- Skills & Endorsements --- */
-.skill-chip { display: flex; align-items: center; gap: 6px; background-color: #2a2a3a; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; color: #eee; border: 1px solid #444; }
-.endorsement-count { color: #4cafef; font-weight: bold; font-size: 0.8rem; }
-.endorse-btn { background-color: #ffd700; color: #222; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: background-color 0.2s ease; margin: 2px 0 0 0; }
-.endorse-btn:hover { background-color: #e0b800; }
-.endorse-btn:disabled { background: #ccc; color: #666; cursor: not-allowed; }
-
-/* --- Splash Screen --- */
-#splash-overlay { position: fixed; inset: 0; z-index: 9999; background: var(--background-color, black); color: var(--text-color, white); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.7s ease; opacity: 1; pointer-events: auto; }
-#splash-overlay.fade-out { opacity: 0; pointer-events: none; }
-#splash-logo { width: clamp(180px, 30vw, 300px); margin-bottom: 1rem; animation: bounce-in 1s ease; }
-
-/* --- Tooltips --- */
-.synapse-tooltip { position: absolute; background: rgba(0,0,0,0.8); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.2s ease; z-index: 10000 !important; }
-
-/* ==========================================================================
-   UTILITY & HELPER CLASSES
-   ========================================================================== */
-.hidden { display: none !important; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.glow-animate { animation: glow 0.45s ease-in-out; border-radius: 50%; }
-.flip-image-x { animation: flipImageX 2s forwards; }
-.flip-image-y { animation: flipImageY 2s forwards; }
-.top-left { top: 3%; left: 5%; }
-.top-right { top: 3%; right: 5%; }
-.bottom-left { bottom: 3%; left: 5%; }
-.bottom-right { bottom: 3%; right: 5%; }
-.top-center { top: 2%; left: 43%; transform: translateX(-50%); }
-.bottom-center { bottom: 2%; left: 43%; transform: translateX(-50%); }
-.middle-left { top: 45%; left: 5%; transform: translateY(-50%); }
-.middle-right { top: 45%; right: 5%; transform: translateY(-50%); }
-.center { top: 50%; left: 50%; transform: translate(-50%, -50%); }
-
-/* Global text alignment for specific page */
-.two-card-page,
-.two-card-page * {
+.leaderboard h2 {
+  color: #ffd700;
+  margin-bottom: 15px;
   text-align: center;
+  font-size: 1.3rem;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 60px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #333;
+  color: #eee;
+  font-size: 1rem;
+}
+
+.leaderboard-row:last-child {
+  border-bottom: none;
+}
+
+.leaderboard-rank {
+  font-weight: bold;
+  color: #ffd700;
+  text-align: left;
+}
+
+.leaderboard-skill {
+  text-align: left;
+  padding-left: 10px;
+  font-size: 1rem;
+  color: #eee;
+}
+
+.leaderboard-count {
+  font-weight: bold;
+  text-align: right;
+  color: #4cafef;
 }
 
 /* ==========================================================================
-   RESPONSIVE DESIGN
+   SPLASH SCREEN STYLES
    ========================================================================== */
-@media (max-width: 768px) {
-    .panel { width: 95%; min-height: 50vh; padding: 10px; }
-    .icons-container { position: fixed; bottom: 5px; left: 0; width: 100vw; display: flex; justify-content: center; gap: 10px; padding: 8px 0; background: rgba(0, 0, 0, 0.3); border-radius: 12px 12px 0 0; z-index: 999; }
-    .icons-container a { font-size: 28px; padding: 8px; color: #00CFFF; transition: color 0.3s; }
-    :root { --countdown-size: 24px; --info-size: 16px; --footer-spacing: 7px; }
-    body.two-card-page::before { background: var(--bg-url) no-repeat center center; background-size: cover; }
-    .tab-nav { flex-wrap: wrap; justify-content: flex-start; }
-    .tab-button { flex-grow: 1; text-align: center; }
+
+/* Splash base style */
+#splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--background-color, black);
+  color: var(--text-color, white);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  transition: opacity 0.7s ease;
+  opacity: 1;
+  pointer-events: auto;
 }
 
-@media (max-width: 600px) {
-    #countdown { top: 19%; }
-    #btcPrice { bottom: 19%; }
-    .button-container { flex-direction: column; gap: .5rem; }
-    #toggle-names { bottom: 70px; left: 10px; font-size: 12px; padding: 6px 10px; }
-    .card { max-width: 100%; }
-    .avatar { width: 48px; height: 48px; }
-    .auth-controls { flex-direction: column; align-items: flex-start; gap: 6px; }
-    #discord-bubble { width: 48px; height: 48px; bottom: 16px; right: 16px; }
+/* Fade-out class (already in your CSS, retained here for clarity) */
+#splash-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
 }
 
-@media (max-width: 480px) {
-    .panel { width: 100%; min-height: 40vh; padding: 5px; }
+/* Splash logo animation */
+#splash-logo {
+  width: clamp(180px, 30vw, 300px);
+  margin-bottom: 1rem;
+  animation: bounce-in 1s ease;
 }
 
-@media (min-width: 769px) {
-    .panel { width: 25%; max-width: 300px; }
-    .clickable-area.top-center, .clickable-area.bottom-center { top: 2%; left: 40.5%; transform: translateX(-50%); width: 90px; height: 90px; max-width: 100px; max-height: 100px; }
-    #countdown, #btcPrice { font-size: 1.6rem; }
-    .icons-container { position: fixed; top: 30px; right: 40px; z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 26px; background: transparent !important; padding: 0; box-shadow: none; }
-    .icons-container a { width: 64px; height: 64px; font-size: 2.2rem; display: flex; justify-content: center; align-items: center; border-radius: 50%; color: var(--text-color); transition: background 0.3s, box-shadow 0.3s, color 0.3s; }
-    .icons-container a:hover { background: #222; color: var(--secondary-color); box-shadow: 0 0 16px #ffd70099; }
+/* Title and description fade-in */
+#splash-title,
+#splash-desc {
+  opacity: 0;
+  animation: fadeInUp 0.9s ease forwards;
+}
+#splash-title {
+  font-size: 2rem;
+  animation-delay: 0.3s;
+}
+#splash-desc {
+  font-size: 1.1rem;
+  max-width: 85%;
+  animation-delay: 0.6s;
+  line-height: 1.5;
+}
+#splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 90%;
+  margin: 0 auto;
+  text-align: center;
+  gap: 1.2rem; /* <- add this for nice vertical spacing between elements */
+}
+#splash-desc {
+  font-size: 1.1rem;
+  max-width: 600px;
+  line-height: 1.5;
+  text-align: center;
+  margin: 0 auto;
 }
 
+/* Optional: splash background image overlay for depth */
+#splash-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--bg-url) no-repeat center center;
+  background-size: cover;
+   height: 100vh; /* Add this */
+  opacity: 0.2;
+  z-index: -1;
+  filter: blur(3px);
+}
+
+/* Bounce-in keyframe */
+@keyframes bounce-in {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Accessibility: prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation: none !important;
     transition: none !important;
   }
 }
+
+
+/* ==========================================================================
+   NEURAL NETWORK (EXPERIMENTAL) this will be updated a lot!!!!!!!!!!!!!!!!!!
+   ========================================================================== */
+#neural-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+  background: transparent;
+}
+
+#neural-interactive {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+}
+#neuron-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.85);
+  color: #0ff;
+  padding: 10px;
+  border-radius: 8px;
+  pointer-events: none;
+  font-size: 14px;
+  max-width: 200px;
+  line-height: 1.4;
+  z-index: 9999;
+  transition: opacity 0.2s ease;
+}
+/* === Auth Box === */
+#auth-box {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 1rem 1.5rem;
+  border: 1px solid #0ff;
+  border-radius: 10px;
+  font-family: sans-serif;
+  z-index: 999;
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
+}
+#auth-box input[type="email"] {
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: none;
+  margin-right: 8px;
+  font-size: 0.9rem;
+  width: 180px;
+}
+#auth-box button {
+  padding: 0.5rem 0.75rem;
+  background: #0ff;
+  color: black;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+#auth-box button:hover {
+  background: #00cccc;
+}
+#auth-status {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+/* === Role Filter === */
+#filter-bar {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  z-index: 999;
+  background: #111;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: 1px solid #0ff;
+  border-radius: 8px;
+}
+#auth-status {
+  margin-top: 10px;
+  min-height: 20px;
+  font-size: 15px;
+  color: #fff;
+  background: #0ff;
+  border-radius: 7px;
+  padding: 7px 12px;
+  display:inline-block;
+  transition: background 0.2s, color 0.2s;
+}
+#auth-status.error {
+  background: #f22;
+  color: #fff;
+}
+#auth-status.success {
+  background: #0ff;
+  color: #222;
+}
+
+/* Canvas wrapper: scrollable in both directions */
+#canvas-wrapper {
+  width: 100vw;
+  height: 100vh;
+  overflow: scroll;
+  position: relative;
+  background: black; /* Optional */
+}
+
+.tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  max-width: 220px;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 9999;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+.tooltip.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+}
+/* ──────────────────────────────────────────────────── */
+/* 30-Second AIFF page overrides & helpers             */
+/* ──────────────────────────────────────────────────── */
+
+/* Main content wrapper */
+#main {
+  max-width: 800px;
+  margin: 2rem auto;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: left;
+  line-height: 1.6;
+}
+
+/* Paragraph spacing */
+#main p {
+  margin-bottom: 1rem;
+}
+
+/* Lists readability */
+#main ul {
+  margin: 1rem 0;
+  padding-left: 1.2rem;
+}
+#main ul li {
+  margin-bottom: .5rem;
+}
+
+/* Zoom-on-hover images */
+.zoom-image {
+  max-width: 100%;
+  display: block;
+  margin: 0 auto 2rem;
+  transition: transform 0.3s ease;
+}
+.zoom-image:hover {
+  transform: scale(1.2);
+}
+
+/* Small-screen button stacking */
+@media (max-width: 600px) {
+  .button-container {
+    flex-direction: column;
+    gap: .5rem;
+  }
+}
+
+/* ──────────────────────────────────────────────────── */
+/* If you have a “#ui-fixed” overlay or a “#toggle-names” button, tack these on; otherwise remove them */
+/* ──────────────────────────────────────────────────── */
+#ui-fixed {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  #toggle-names {
+    bottom: 70px;
+    left: 10px;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+/* ==========================================================================
+  Innovation engine styline (2card)
+   ========================================================================== */
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.2rem;
+  padding: 1rem;
+  justify-items: center;
+}
+
+.card {
+  background: var(--card-bg, #2a2a3a);
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  max-width: 320px;
+  width: 100%;
+  padding: 1rem;
+  box-sizing: border-box;
+  color: var(--text-color, #eee);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.6);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.avatar-small {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin: 0 0.5rem;
+}
+
+.card-title { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.card-subtitle { font-size: 0.9rem; color: #bbb; }
+
+@media (max-width: 600px) {
+  .card { max-width: 100%; }
+  .avatar { width: 48px; height: 48px; }
+}
+/* 1) Generic safety for any images inside cards */
+.card img {
+  max-width: 100%;
+  height: auto;          /* prevents distortion for inline images */
+  display: block;
+  border-radius: 8px;
+}
+
+/* 2) Avatar (square crop) — you already have this, add object-position if needed */
+.avatar,
+.avatar-small {
+  object-fit: cover;
+  object-position: center; /* or center top if heads get cropped too low */
+}
+
+/* 3) Main profile photo on a person card (consistent portrait crop) */
+.person-photo {
+  width: 100%;
+  max-width: 220px;      /* tune per design */
+  aspect-ratio: 3 / 4;   /* portrait crop */
+  object-fit: cover;     /* fills the box, crops overflow */
+  object-position: center;
+  border-radius: 10px;
+  border: 2px solid #ffd700;
+}
+
+/* 4) If you show a wide banner inside a card (consistent landscape crop) */
+.card .media-16x9 {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.card .media-16x9 > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 5) Prevent any oversized image from causing scrollbars */
+.card { overflow: hidden; }
+
+/* === Leaderboard Styles === */
+.leaderboard {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #1e1e2f; /* Dark panel background */
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.leaderboard h2 {
+  color: #ffd700;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 60px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #333;
+  color: #eee;
+  font-size: 1rem;
+}
+
+.leaderboard-row:last-child {
+  border-bottom: none;
+}
+
+.leaderboard-rank {
+  font-weight: bold;
+  color: #ffd700;
+  text-align: left;
+}
+
+/* renamed from leaderboard-skill → generic key */
+.leaderboard-key {
+  text-align: left;
+  padding-left: 10px;
+}
+
+.leaderboard-count {
+  font-weight: bold;
+  text-align: right;
+  color: #4cafef;
+}
+
+/* === Leaderboard Tabs === */
+.leaderboard-tabs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.lb-tab {
+  background: #2a2a3a;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.lb-tab:hover {
+  background: #3a3a4a;
+}
+
+.lb-tab.active {
+  background: #ff0000; /* primary color */
+  color: #fff;
+  font-weight: bold;
+}
+
+/* === User Cards === */
+.user-card {
+  background-color: #1e1e2f;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 15px;
+  margin: 12px;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.user-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+}
+
+.user-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 12px;
+  border: 2px solid #ffd700;
+}
+
+.user-card h3 {
+  margin: 8px 0 4px;
+  font-size: 1.2rem;
+  color: #ffd700;
+}
+
+.user-card p {
+  font-size: 0.9rem;
+  color: #ccc;
+  margin: 4px 0;
+}
+
+/* Availability badge */
+.user-card .availability {
+  margin-top: 8px;
+  font-weight: bold;
+  color: #4cafef;
+}
+
+/* Skills section */
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.skill-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #2a2a3a;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #eee;
+  border: 1px solid #444;
+}
+
+.endorsement-count {
+  color: #4cafef;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+/* Endorse button */
+.endorse-btn {
+  background-color: #ffd700;
+  color: #222;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.endorse-btn:hover {
+  background-color: #e0b800;
+}
+/* ============================================================
+   AUTH CONTROLS (User Badge + Logout Button)
+   ============================================================ */
+.auth-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex-wrap: wrap; /* allows stacking on small screens */
+}
+
+.user-badge {
+  background: #2a2a3a;
+  color: #ffd700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: bold;
+  white-space: nowrap;
+  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+}
+
+.logout-btn {
+  background: #444;
+  color: #eee;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logout-btn:hover {
+  background: #3a3a4a;
+  color: #ffd700;
+  box-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+}
+
+.logout-btn i {
+  font-size: 0.9em;
+}
+
+/* Hide elements when .hidden is applied */
+.hidden {
+  display: none !important;
+}
+
+/* ============================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================ */
+@media (max-width: 600px) {
+  .auth-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .user-badge,
+  .logout-btn {
+    font-size: 0.85em;
+    padding: 6px 10px;
+  }
+}
+/* ==========================================================================
+   LOGIN SECTION (Magic Link UI)
+   ========================================================================== */
+#login-section {
+  margin-top: 20px;
+  text-align: center;
+}
+
+#login-section input[type="email"] {
+  width: 100%;
+  max-width: 320px;
+  padding: 12px;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #fff;
+  background-color: #2c2c2c;
+  border: 2px solid #ffd700;
+  border-radius: 5px;
+}
+
+/* ==========================================================================
+   Autocomplete UI for skills input
+   ========================================================================== */
+.input-wrapper {
+  position: relative; /* anchor point for dropdown */
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+/* Input should stay styled as before */
+.input-wrapper input {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background: #2c2c2c;
+  border: 2px solid #ffd700;
+  border-radius: 5px;
+  color: white;
+  z-index: 1;
+  position: relative;
+}
+
+/* Predictive/autocomplete dropdown */
+.autocomplete-box {
+  position: absolute;
+  top: calc(100% + 5px);  /* directly below input */
+  left: 0;
+  right: 0;
+  background: rgba(20,20,20,0.95); /* dark to match theme */
+  border: 1px solid #ffd700;
+  border-radius: 6px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+  max-height: 200px;
+  overflow-y: auto;
+  display: none; /* hidden until JS shows it */
+  z-index: 9999; /* force it on top of everything */
+}
+
+/* Dropdown items */
+.autocomplete-box div {
+  padding: 10px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 15px;
+}
+
+.autocomplete-box div:hover {
+  background: rgba(255,215,0,0.2);
+}
+
+/* ==========================================================================
+   Synapse View Fullscreen Below Header
+   ========================================================================== */
+#synapse {
+  height: calc(100vh - var(--header-height, 100px));
+}
+
+#synapseCanvas {
+  flex: 1;
+   width: 100%;
+  height: 600px;
+  background: black;
+  border-radius: 10px;
+}
+/* Synapse full expansion override */
+#synapse.panel,
+#synapse.panel.large {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  flex: 1;
+}
+.panels-wrapper {
+  align-items: stretch !important;
+}
+.connection-status {
+  background: rgba(255, 215, 0, 0.9);
+  color: black;
+  font-weight: bold;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  text-align: center;
+  font-size: 14px;
+  transition: opacity 0.3s ease;
+}
+.connection-status.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.synapse-tooltip {
+  z-index: 10000 !important;
+}
+/* ==========================================================================
+   Scoped Autocomplete Fix (Two Card Page Only)
+   ========================================================================== */
+.two-card-page .input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.two-card-page .autocomplete-box {
+  position: absolute;
+  top: calc(100% + 4px);   /* directly below the input */
+  left: 0;
+  right: 0;
+  max-width: 100%;         /* ensures it stays aligned with input */
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid #ffd700;
+  border-radius: 6px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+  display: none;           /* hidden until JS shows it */
+  z-index: 2000;           /* stays above other UI elements */
+  overflow-y: auto;
+  max-height: 220px;
+}
+
+.two-card-page .autocomplete-box div {
+  padding: 10px 12px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 15px;
+}
+
+.two-card-page .autocomplete-box div:hover {
+  background: rgba(255, 215, 0, 0.15);
+}
+/* ==========================================================================
+   UNIVERSAL ACTION BUTTON
+   ========================================================================== */
+.action-btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  background: #ffd700;        /* gold */
+  color: #121212;             /* dark text */
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+  margin-top: 10px;
+  display: inline-block;
+}
+
+/* ==========================================================================
+   Generic Modal Styles (Endorse Skills)
+   ========================================================================== */
+/* A generic modal used for the skill endorsement dialog.  It uses flexbox to
+   center the modal content within a full‑screen dimmed backdrop.  The root
+   `.modal` element will be toggled between `display: none` and `display: flex`
+   by the JavaScript when opening or closing the modal. */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+}
+
+.modal .modal-content {
+  position: relative;
+  background: #121212;
+  color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+.modal .close-button {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 24px;
+  background: none;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0;
+}
+
+.modal .close-button:hover {
+  color: #ffd700;
+}
+
+.action-btn:hover {
+  background: #FFC000;        /* lighter gold on hover */
+}
+
+/* ==========================================================================
+   LOGOUT BUTTON (optional override – distinct grey style)
+   ========================================================================== */
+.logout-btn {
+  background: #444;
+  color: #eee;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logout-btn:hover {
+  background: #3a3a4a;
+  color: #ffd700;
+  box-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+}
+
+.logout-btn i {
+  font-size: 0.9em;
+}
+/* ==========================================================================
+   USER CARDS
+   ========================================================================== */
+
+.user-card {
+  background-color: #1e1e2f;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 15px;
+  margin: 12px;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.user-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+}
+
+.user-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 12px;
+  border: 2px solid #ffd700;
+}
+
+.user-card h3 {
+  margin: 6px 0 2px;   /* tighter spacing */
+  font-size: 1.2rem;
+  color: #ffd700;
+}
+
+/* ✅ Email as subtle subtitle under name */
+.user-card .email {
+  font-size: 0.85rem;
+  color: #aaa;          /* slightly lighter gray */
+  margin: 0 0 6px;      /* snug under name */
+  line-height: 1.2;
+}
+
+.user-card .email a {
+  color: inherit;       /* match gray */
+  text-decoration: none;
+  transition: color 0.2s, text-decoration 0.2s;
+}
+
+.user-card .email a:hover {
+  color: #ffd700;       /* highlight gold on hover */
+  text-decoration: underline;
+}
+
+.user-card p {
+  font-size: 0.9rem;
+  color: #ccc;
+  margin: 4px 0;
+}
+
+/* Availability badge */
+.user-card .availability {
+  margin-top: 6px;
+  font-weight: bold;
+  color: #4cafef;
+}
+
+/* Skills section */
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  justify-content: center;
+}
+/* =============================
+   Notifications
+   ============================= */
+.notifications-container {
+  position: relative;
+  display: inline-block;
+  margin-right: 10px;
+}
+
+.notifications-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: #ffd700;
+  position: relative;
+}
+
+.notifications-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: red;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 50%;
+}
+
+.notifications-dropdown {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  background: #1e1e2f;
+  border: 1px solid #333;
+  border-radius: 8px;
+  width: 260px;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 1000;
+  padding: 10px;
+}
+
+.notifications-dropdown h4 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #ffd700;
+}
+
+.notifications-dropdown .request {
+  padding: 6px;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.notifications-dropdown .request button {
+  background: #ffd700;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+/* ==========================================================================
+   CHARLESTONHACKS CARD FLIP + VIDEO FINAL FIX
+   ========================================================================== */
+
+/* Center the main card on screen */
+.main-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* fixed height avoids layout snap */
+}
+/* Neural background canvas */
+#neural-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;        /* under your content but above the static bg */
+  pointer-events: none;
+  opacity: 0.6;      /* adjust as desired */
+}
+
+/* Photo upload wrapper */
+.photo-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 280px;
+  z-index: 2;        /* ensures it floats above the canvas */
+}
+
+/* File input styling */
+.photo-upload input[type="file"] {
+  padding: 0.5rem;
+  border: 2px solid #fed545;
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Preview image sizing */
+.image-preview {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.4);
+  object-fit: cover;
+}
+
+.hidden {
+  display: none;
+}
+/* ===== Individual Search Alignment Fix ===== */
+.search-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.search-section input[type="text"] {
+  width: 400px;
+  max-width: 90%;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #555;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  font-size: 1rem;
+  outline: none;
+}
+
+/* Align the autocomplete box under the input */
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: black;
+  border-radius: 8px;
+  border: 1px solid #666;
+  z-index: 10;
+  color: white;
+  font-size: 0.95rem;
+}
+
+/* Ensure dropdown aligns perfectly */
+.autocomplete-container {
+  position: relative;
+  width: 400px;
+  max-width: 90%;
+}
+
+/* Fix button alignment */
+.search-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+/* ==========================================================================
+   GLOBAL TEXT ALIGNMENT
+   ========================================================================== */
+/* Center align all text within the two‑card page.  By placing this rule at
+   the end of the stylesheet it takes precedence over earlier rules with
+   similar specificity, ensuring that text inside the two‑card page and all
+   nested elements is centered by default. */
+.two-card-page,
+.two-card-page * {
+  text-align: center;
+}
+.hidden { display: none; }
+#login-spinner { font-size: 14px; color: #888; margin-top: 5px; }
+#user-status {
+  margin-top: 20px;
+  background: rgba(0,0,0,0.05);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+#discord-bubble {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+#discord-bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 16px rgba(88, 101, 242, 0.7);
+}
+
+#discord-bubble.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (max-width: 600px) {
+  #discord-bubble {
+    width: 48px;
+    height: 48px;
+    bottom: 16px;
+    right: 16px;
+  }
+}
+/* Synapse HUD styling */
+.synapse-wrapper {
+  width: 100%;
+  height: 600px;
+  position: relative;
+  background: radial-gradient(circle at center, #00111a 0%, #000 80%);
+  border: 1px solid rgba(0,207,255,0.2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.synapse-hud {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(0,207,255,0.3);
+  border-radius: 16px;
+  padding: 8px 16px;
+  backdrop-filter: blur(10px);
+  color: cyan;
+  font-family: monospace;
+  font-size: 14px;
+  z-index: 10;
+  box-shadow: 0 0 12px rgba(0,207,255,0.15);
+}
+
+.synapse-hud button {
+  background: transparent;
+  border: 1px solid rgba(0,207,255,0.5);
+  color: cyan;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+.synapse-hud button:hover {
+  background: rgba(0,207,255,0.2);
+}
+.synapse-hud label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#readout {
+  font-size: 11px;
+  color: rgba(0,207,255,0.8);
+  margin-left: 6px;
+}
+#synapseCanvas .loading,
+#synapseCanvas .error {
+  color: cyan;
+  text-align: center;
+  font-family: monospace;
+  padding-top: 100px;
+}
+/* Synapse Tooltip */
+.synapse-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+/* Profile Modal */
+.profile-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+}
+
+.profile-modal .modal-content {
+  background: #111;
+  color: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 320px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.modal-close {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  background: none;
+  color: #fff;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.modal-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+
+.connect-btn, .disconnect-btn {
+  margin-top: 12px;
+  background: #00ffff;
+  border: none;
+  color: #000;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.disconnect-btn {
+  background: #ff6666;
+}
+.hidden { display: none; }
+.synapse-tooltip {
+  position: absolute;
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+.profile-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 2000;
+}
+.profile-modal .modal-content {
+  background: #111; color: #fff;
+  padding: 24px; border-radius: 12px;
+  width: 320px; text-align: center;
+  position: relative;
+  box-shadow: 0 0 20px rgba(0,255,255,0.3);
+}
+.modal-close {
+  position: absolute; right: 12px; top: 8px;
+  border: none; background: none; color: #fff; font-size: 22px; cursor: pointer;
+}
+.modal-avatar {
+  width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px;
+}
+.connect-btn, .disconnect-btn {
+  margin-top: 10px;
+  padding: 10px 18px;
+  border: none; border-radius: 6px;
+  cursor: pointer; font-weight: 600;
+}
+.connect-btn { background: #00ffff; color: #000; }
+.disconnect-btn { background: #ff6666; color: #fff; }
+.hidden { display: none; }
+/* === Fullscreen Synapse View === */
+.full-screen-synapse {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(ellipse at center, #000 60%, #001b1b 100%);
+  z-index: 100;
+  overflow: hidden;
+  display: none; /* hidden until active */
+}
+
+.full-screen-synapse.active-tab-pane {
+  display: block;
+}
+
+.synapse-full {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#synapse-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.synapse-tooltip {
+  position: absolute;
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+.exit-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0,255,255,0.15);
+  border: 1px solid #0ff;
+  color: #0ff;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  z-index: 9999;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.exit-btn:hover {
+  background: #0ff;
+  color: #000;
+}
+#splash-overlay.fade-out {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+#bbs-container, #bbs-online {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.45s ease, opacity 0.45s ease;
+}
+
