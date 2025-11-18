@@ -2,8 +2,8 @@
 // CharlestonHacks Innovation Engine – Complete Login Controller
 // Rewritten 2025 – Fully Compatible with Merged HTML
 // =============================================================
-
 import { supabase } from "./supabaseClient.js";
+
 
 import { showNotification } from "./utils.js";
 
