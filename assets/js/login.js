@@ -3,7 +3,8 @@
 // Rewritten 2025 – Fully Compatible with Merged HTML
 // =============================================================
 
-import { supabaseClient as supabase } from "./supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
+
 import { showNotification } from "./utils.js";
 
 // =============================================================
