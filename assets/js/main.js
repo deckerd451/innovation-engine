@@ -1,7 +1,8 @@
 // assets/js/main.js
 // CharlestonHacks Innovation Engine — Main UI Controller
 // Handles tab switching, section visibility, fullscreen mode, and Synapse exit controls.
-
+import { findMatchingUsers, findByName, buildBestTeam } from "./searchEngine.js";
+import { DOMElements } from "./globals.js";
 import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
 
