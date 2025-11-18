@@ -6,7 +6,8 @@
 // - Injects CharlestonHacks-style CSS dynamically
 // ===============================
 
-import { supabaseClient as supabase } from "./supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
+
 import { showNotification } from "./utils.js";
 import { SKILL_SYNONYMS } from "./skillsDictionary.js";
 
