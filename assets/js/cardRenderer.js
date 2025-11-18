@@ -4,6 +4,7 @@
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
+
 import { showNotification } from "./utils.js";
 
 // Creates user card HTML
