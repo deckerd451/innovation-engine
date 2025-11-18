@@ -10,7 +10,12 @@
 // ✅ Performance HUD overlay
 // =====================================================
 
-import { supabase, ensureCommunityUser, showNotification } from "./supabaseClient.js";
+// =====================================================
+// CharlestonHacks Synapse View — FIXED IMPORTS
+// =====================================================
+
+import { supabase, ensureCommunityUser } from "./supabaseClient.js";
+import { showNotification } from "./utils.js";
 const d3 = window.d3;
 
 let svg, zoomGroup, simulation, link, node, tooltip, channel, hudInterval;
