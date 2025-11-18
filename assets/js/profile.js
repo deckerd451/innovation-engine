@@ -1,5 +1,6 @@
 // assets/js/profile.js
-import { supabaseClient as supabase } from "./supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
+
 
 export function initProfileForm() {
   const form = document.getElementById("skills-form");
