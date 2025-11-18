@@ -14,19 +14,26 @@
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json" />
+
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://hvmotpzhliufzomewzfl.supabase.co">
+
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css">
 
   <style>
-    /* ===== Return Portal Glow ===== */
+    /* ==========================================================
+       PORTAL OVERLAY — BRAND COLOR: PERIWINKLE #879EF2
+    ========================================================== */
     #returnPortal {
       position: fixed;
       inset: 0;
       width: 100vw;
       height: 100vh;
-      background: radial-gradient(circle at center, #ff6600 0%, #000 85%);
+      background: radial-gradient(circle at center,
+        rgba(135, 158, 242, 0.85) 0%,   /* bright periwinkle */
+        rgba(0, 0, 0, 0.9) 80%         /* fade to black */
+      );
       z-index: 9999;
       opacity: 1;
       pointer-events: none;
@@ -34,7 +41,9 @@
     }
     #returnPortal.fade-out { opacity: 0; }
 
-    /* ===== Page-specific styling ===== */
+    /* ==========================================================
+       HEADER IMAGE
+    ========================================================== */
     .header-img {
       display: block;
       margin: 20px auto;
@@ -47,17 +56,22 @@
     }
     .header-img:hover {
       transform: scale(1.05);
-      filter: drop-shadow(0 0 12px rgba(255,100,100,0.6));
+      filter: drop-shadow(0 0 12px rgba(135,158,242,0.6)); /* hover glow to match portal */
     }
-    @media (max-width: 800px){ .header-img{ width:300px;margin-top:10px; } }
+
+    @media (max-width: 800px){ .header-img{ width:300px; margin-top:10px; } }
     @media (max-width: 650px){ .header-img{ width:250px; } }
     @media (max-width: 480px){ .header-img{ width:200px; } }
 
+    /* ==========================================================
+       FOOTER
+    ========================================================== */
     footer {
-      background: transparent;
+      background-color: transparent;
       text-align: center;
       padding: 32px 20px 64px;
       margin-top: 40px;
+      position: relative;
     }
     .footer-back-button {
       display: flex;
@@ -71,12 +85,15 @@
       height: auto;
       transition: transform 0.3s ease;
     }
-    .footer-back-button img:hover { transform: scale(1.05); }
+    .footer-back-button img:hover {
+      transform: scale(1.05);
+    }
   </style>
 </head>
 
 <body class="two-card-page">
-  <!-- ✨ Return Portal Overlay -->
+
+  <!-- ✨ BRAND-COLORED RETURN PORTAL OVERLAY -->
   <div id="returnPortal"></div>
 
   <!-- Background -->
@@ -89,7 +106,9 @@
       <a href="index.html">
         <img src="images/ieheader.webp" alt="Innovation Engine Header" class="header-img">
       </a>
+
       <p style="color:#ccc; margin-top:6px;">Making Invisible Networks Visible</p>
+
       <div class="auth-controls">
         <span class="user-badge hidden" id="user-badge"></span>
         <button class="logout-btn action-btn hidden" id="logout-btn">
@@ -98,9 +117,129 @@
       </div>
     </header>
 
-    <!-- === Page content here (tabs, profile, etc.) === -->
     <main class="panels-wrapper">
-      <!-- existing Innovation Engine content -->
+      <div class="panel large">
+
+        <!-- LOGIN SECTION -->
+        <div id="login-section">
+          <h2 class="section-title">Login</h2>
+          <form id="login-form">
+            <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email" />
+            <button id="login-button" type="submit" class="action-btn">Send Magic Link</button>
+          </form>
+        </div>
+
+        <!-- PROFILE SECTION -->
+        <div id="profile-section" class="hidden">
+
+          <!-- Tab Navigation -->
+          <div class="tab-nav">
+            <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
+            <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
+            <button class="tab-button" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
+            <button class="tab-button" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
+          </div>
+
+          <!-- Profile Tab -->
+          <div id="profile" class="tab-content-pane active-tab-pane">
+            <section id="matchmaking-section">
+              <h2 class="section-title">Create Your Profile</h2>
+              <form id="skills-form">
+                <div class="input-container">
+                  <input type="text" id="first-name" placeholder="First Name" required autocomplete="given-name">
+                  <input type="text" id="last-name" placeholder="Last Name" required autocomplete="family-name">
+                  <input type="email" id="email" placeholder="Email" required autocomplete="email">
+
+                  <label for="skills-input">Professional Skills (comma separated)</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="skills-input" placeholder="e.g. aws, fullstack, java, python" required autocomplete="off">
+                    <div id="autocomplete-skills-input" class="autocomplete-box"></div>
+                  </div>
+
+                  <div id="skills-proficiency-container"></div>
+
+                  <label for="photo-input">Upload Your Photo</label>
+                  <input type="file" id="photo-input" accept="image/*" required>
+                  <img id="preview" src="#" alt="Image Preview" class="image-preview hidden" />
+
+                  <label for="bio-input">Short Bio (optional)</label>
+                  <input type="text" id="bio-input" placeholder="Tell us about yourself" maxlength="120">
+
+                  <label for="availability-input">Current Availability</label>
+                  <select id="availability-input">
+                    <option value="Available">Available</option>
+                    <option value="Busy">Busy</option>
+                    <option value="Not Looking">Not Looking</option>
+                  </select>
+
+                  <label>
+                    <input type="checkbox" id="newsletter-opt-in"> Subscribe to CharlestonHacks Newsletter
+                  </label>
+
+                  <button type="submit" class="action-btn">Save Profile</button>
+                </div>
+
+                <div class="profile-bar"><div class="profile-bar-inner"></div></div>
+                <div id="profile-progress-msg" class="profile-incomplete"></div>
+              </form>
+
+              <p id="success-message" class="success-message hidden">Profile saved successfully!</p>
+            </section>
+          </div>
+
+          <!-- Search Tab -->
+          <div id="search" class="tab-content-pane">
+            <h2 class="section-title">Individual Search</h2>
+            <div class="input-wrapper">
+              <label for="teamSkillsInput">Required Skills</label>
+              <input type="text" id="teamSkillsInput" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
+              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+            </div>
+            <button id="find-team-btn" type="button" class="action-btn">Get People</button>
+            <br><br>
+
+            <div class="input-wrapper">
+              <label for="nameInput">Search by First/Last Name</label>
+              <input type="text" id="nameInput" placeholder="e.g. John, Doug, Will, Dave" autocomplete="off">
+              <div id="autocomplete-names" class="autocomplete-box"></div>
+            </div>
+            <button id="search-name-btn" type="button" class="action-btn">Find by Name</button>
+
+            <div id="matchNotification" class="notification match-notification hidden"></div>
+            <div id="noResults" class="notification no-results-notification hidden"></div>
+            <div id="cardContainer" class="card-container" role="list" aria-label="Matching team members"></div>
+          </div>
+
+          <!-- Team Builder Tab -->
+          <div id="team-builder" class="tab-content-pane">
+            <h2 class="section-title">Team Builder</h2>
+            <div class="input-container">
+              <p class="instructions">Enter required skills and team size.</p>
+              <div class="input-wrapper">
+                <input type="text" id="team-skills-input" placeholder="e.g. aws, fullstack, java, python" autocomplete="off">
+                <div id="autocomplete-team-builder" class="autocomplete-box"></div>
+              </div>
+              <input type="number" id="teamSize" placeholder="Team size" min="1" max="6">
+              <button id="buildTeamBtn" type="button" class="action-btn">Build Team</button>
+            </div>
+            <div class="card-container" id="bestTeamContainer" role="list"></div>
+          </div>
+
+          <!-- Leaderboard Tab -->
+          <div id="leaderboard" class="tab-content-pane">
+            <div class="leaderboard">
+              <h2>Leaderboard</h2>
+              <div class="leaderboard-tabs">
+                <button class="lb-tab active" data-type="skills"><i class="fas fa-star"></i> Top Skills</button>
+                <button class="lb-tab" data-type="connectors"><i class="fas fa-link"></i> Top Connectors</button>
+                <button class="lb-tab" data-type="rising"><i class="fas fa-rocket"></i> Rising Stars</button>
+              </div>
+              <div id="leaderboard-rows" class="leaderboard-rows"></div>
+            </div>
+          </div>
+
+        </div> <!-- /profile-section -->
+      </div>
     </main>
   </div>
 
@@ -111,27 +250,28 @@
         <img src="assets/chbackbuttonred.png" alt="Back to Home" />
       </a>
     </div>
-    <p style="margin-top:16px;font-size:16px;">© 2025 CharlestonHacks. All rights reserved.</p>
+    <p style="margin-top:16px; font-size:16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
 
-  <!-- Modules -->
+  <!-- Scripts -->
   <script type="module" src="assets/js/main.js"></script>
   <script type="module" src="assets/js/login.js"></script>
   <script type="module" src="assets/js/profile.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
 
-  <!-- ✨ Return Portal Fade Script -->
+  <!-- ==========================================================
+       PORTAL FADE + BACK BUTTON WARP
+  ========================================================== -->
   <script>
+    // Fade in → fade out portal
     window.addEventListener('DOMContentLoaded', () => {
       const overlay = document.getElementById('returnPortal');
       if (!overlay) return;
-      // fade in → transparent
-      setTimeout(() => overlay.classList.add('fade-out'), 100);
-      // remove after fade
+      setTimeout(() => overlay.classList.add('fade-out'), 120);
       setTimeout(() => overlay.remove(), 1000);
     });
 
-    // Optional "Back to Deck" portal-out
+    // Back warp out
     const back = document.getElementById('backLink');
     if (back) {
       back.addEventListener('click', (e) => {
@@ -143,5 +283,6 @@
       });
     }
   </script>
+
 </body>
 </html>
