@@ -74,10 +74,7 @@
       background: rgba(0,0,0,0.92);
       z-index: 9000;
     }
-
-    #synapse-container.active {
-      display: block;
-    }
+    #synapse-container.active { display: block; }
 
     #synapse-svg {
       width: 100%;
@@ -260,33 +257,15 @@
   </footer>
 
   <!-- Load D3 First -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
-  <!-- Scripts (Correct Order — NO duplicates) -->
+  <!-- Scripts in Correct Order -->
+  <script type="module" src="assets/js/searchEngine.js"></script>
   <script type="module" src="assets/js/main.js"></script>
   <script type="module" src="assets/js/login.js"></script>
   <script type="module" src="assets/js/profile.js"></script>
   <script type="module" src="assets/js/synapse.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
-
-  <script>
-    /* Activate Synapse 3.0 */
-    document.addEventListener("DOMContentLoaded", () => {
-      const synBtn = document.querySelector('[data-tab="synapse"]');
-      synBtn?.addEventListener("click", () => {
-        document.querySelector(".header").style.display = "none";
-        document.querySelector("footer").style.display = "none";
-        document.getElementById("profile-section").classList.add("hidden");
-
-        const syn = document.getElementById("synapse-container");
-        syn.classList.add("active");
-
-        import("./assets/js/synapse.js").then(module => {
-          module.initSynapseView();
-        });
-      });
-    });
-  </script>
 
 </body>
 </html>
