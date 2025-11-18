@@ -10,6 +10,7 @@
 
 // Dependencies
 import { supabase } from "./supabaseClient.js";
+
 import { generateUserCardHTML } from "./cardRenderer.js";
 import { showNotification } from "./utils.js";
 import { DOMElements } from "./globals.js";
