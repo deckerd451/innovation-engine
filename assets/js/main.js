@@ -1,152 +1,143 @@
 // =============================================================
-// CharlestonHacks Innovation Engine — Main App Controller (2025)
-// Handles:
-//   • Tab Navigation
-//   • Search Engine Wiring
-//   • Team Builder Wiring
-//   • Synapse View Integration
-//   • DOM Element Registration
+// CharlestonHacks Innovation Engine — Main Controller (2025)
+// Fully Synced with SearchEngine 3.0 + Synapse 3.0 + New DOM
 // =============================================================
 
 import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
-import { findMatchingUsers, findByName, buildBestTeam } from "./searchEngine.js";
+import { showNotification } from "./utils.js";
 import { DOMElements, registerDomElement } from "./globals.js";
 
 // =============================================================
-// 1) REGISTER DOM ELEMENTS FOR SEARCH ENGINE
+// 1) REGISTER DOM ELEMENTS (VERY IMPORTANT)
 // =============================================================
-document.addEventListener("DOMContentLoaded", () => {
-
-  // Skill Search
+function registerDOM() {
+  // Skill search
   registerDomElement("teamSkillsInput", document.getElementById("teamSkillsInput"));
   registerDomElement("cardContainer", document.getElementById("cardContainer"));
   registerDomElement("noResults", document.getElementById("noResults"));
-  registerDomElement("autocompleteTeamSkills", document.getElementById("autocomplete-team-skills"));
+  registerDomElement("matchNotification", document.getElementById("matchNotification"));
 
-  // Name Search
+  // Name search
   registerDomElement("nameInput", document.getElementById("nameInput"));
 
-  // Team Builder
+  // Team builder
   registerDomElement("teamBuilderSkillsInput", document.getElementById("team-skills-input"));
   registerDomElement("teamSizeInput", document.getElementById("teamSize"));
   registerDomElement("bestTeamContainer", document.getElementById("bestTeamContainer"));
 
-  console.log("🔧 DOM elements registered");
-});
+  // Autocomplete boxes (optional future use)
+  registerDomElement("autocompleteTeamSkills", document.getElementById("autocomplete-team-skills"));
+  registerDomElement("autocompleteTeamBuilder", document.getElementById("autocomplete-team-builder"));
+  registerDomElement("autocompleteNames", document.getElementById("autocomplete-names"));
+}
 
 // =============================================================
 // 2) TAB SYSTEM
 // =============================================================
-export function initTabs() {
+function initTabs() {
   const buttons = document.querySelectorAll(".tab-button");
   const panes = document.querySelectorAll(".tab-content-pane");
 
-  const header = document.querySelector("header");
+  const header = document.querySelector(".header");
   const footer = document.querySelector("footer");
   const bgCanvas = document.getElementById("neural-bg");
-
-  if (!buttons.length || !panes.length) {
-    console.warn("⚠ No tab buttons or panes found.");
-    return;
-  }
 
   buttons.forEach(btn => {
     btn.addEventListener("click", async () => {
       const tab = btn.getAttribute("data-tab");
 
-      // Reset state
+      // Reset all
       buttons.forEach(b => b.classList.remove("active"));
       panes.forEach(p => p.classList.remove("active-tab-pane"));
 
       // Activate selected
       btn.classList.add("active");
-      document.getElementById(tab)?.classList.add("active-tab-pane");
+      const pane = document.getElementById(tab);
+      if (pane) pane.classList.add("active-tab-pane");
 
-      // Special case: Synapse
+      // === SYNAPSE TAB ===
       if (tab === "synapse") {
         header.style.display = "none";
         footer.style.display = "none";
-        bgCanvas.style.display = "none";
+        if (bgCanvas) bgCanvas.style.display = "none";
+
+        const container = document.getElementById("synapse-container");
+        container.classList.add("active");
 
         await initSynapseView();
-        return;
-      }
+      } else {
+        // Leave synapse fullscreen
+        header.style.display = "";
+        footer.style.display = "";
+        if (bgCanvas) bgCanvas.style.display = "";
 
-      // Normal tabs restore UI
-      header.style.display = "";
-      footer.style.display = "";
-      bgCanvas.style.display = "";
+        const container = document.getElementById("synapse-container");
+        container.classList.remove("active");
+      }
     });
   });
 }
 
 // =============================================================
-// 3) BUTTON EVENT WIRING FOR SEARCH ENGINE
+// 3) WIRE SEARCHENGINE 3.0 (skill search + name + team builder)
 // =============================================================
-document.addEventListener("DOMContentLoaded", () => {
+function initSearchEngineHooks() {
+  import("./searchEngine.js").then(searchEngine => {
+    // Skill search (Individual Search tab)
+    const btn = document.getElementById("find-team-btn");
+    if (btn) {
+      btn.addEventListener("click", () => searchEngine.findMatchingUsers());
+    }
 
-  // Skill Search
-  const skillBtn = document.getElementById("find-team-btn");
-  if (skillBtn) {
-    skillBtn.addEventListener("click", () => {
-      console.log("🔍 Running skill search...");
-      findMatchingUsers();
-    });
-  }
+    // Name search
+    const nameBtn = document.getElementById("search-name-btn");
+    if (nameBtn) {
+      nameBtn.addEventListener("click", () => searchEngine.findByName());
+    }
 
-  // Name Search
-  const nameBtn = document.getElementById("search-name-btn");
-  if (nameBtn) {
-    nameBtn.addEventListener("click", () => {
-      console.log("🔍 Running name search...");
-      findByName();
-    });
-  }
-
-  // Team Builder
-  const buildBtn = document.getElementById("buildTeamBtn");
-  if (buildBtn) {
-    buildBtn.addEventListener("click", () => {
-      console.log("👥 Building team...");
-      buildBestTeam();
-    });
-  }
-
-  console.log("🔌 SearchEngine wiring complete.");
-});
+    // Team Builder
+    const buildBtn = document.getElementById("buildTeamBtn");
+    if (buildBtn) {
+      buildBtn.addEventListener("click", () => searchEngine.buildBestTeam());
+    }
+  });
+}
 
 // =============================================================
-// 4) SYNAPSE EXIT HANDLER
+// 4) EXIT SYNAPSE (ESC)
 // =============================================================
-document.addEventListener("keydown", (e) => {
+document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
-    const synapsePane = document.getElementById("synapse");
-    if (synapsePane && synapsePane.classList.contains("active-tab-pane")) {
-      exitSynapseView();
+    const container = document.getElementById("synapse-container");
+    if (container.classList.contains("active")) {
+      container.classList.remove("active");
+
+      const header = document.querySelector(".header");
+      const footer = document.querySelector("footer");
+      const bgCanvas = document.getElementById("neural-bg");
+
+      header.style.display = "";
+      footer.style.display = "";
+      if (bgCanvas) bgCanvas.style.display = "";
+
+      // Return to Profile tab
+      const profileTab = document.querySelector('[data-tab="profile"]');
+      profileTab?.click();
+
+      console.log("🧠 Exited Synapse View");
     }
   }
 });
 
-function exitSynapseView() {
-  document.querySelector("header").style.display = "";
-  document.querySelector("footer").style.display = "";
-  document.getElementById("neural-bg").style.display = "";
-
-  document.getElementById("synapse")?.classList.remove("active-tab-pane");
-
-  // Return to profile tab
-  document.querySelector('[data-tab="profile"]')?.click();
-
-  console.log("⬅️ Exited Synapse View");
-}
-
 // =============================================================
-// 5) MAIN STARTUP
+// 5) PAGE INITIALIZATION
 // =============================================================
 document.addEventListener("DOMContentLoaded", () => {
+  registerDOM();
   initTabs();
   initProfileForm();
+  initSearchEngineHooks();
 
-  console.log("🚀 Innovation Engine initialized");
+  console.log("✅ MAIN.js initialized — DOM, Tabs, SearchEngine, Synapse wired");
 });
