@@ -31,9 +31,37 @@ const autocompleteBox = document.getElementById("autocomplete-skills-input");
 // Local cache
 let currentUserId = null;
 
-// =============================================================
-// INIT
-// =============================================================
+/* =============================================================
+   SKILL HELPERS — REQUIRED FOR SEARCH + TEAM BUILDER
+============================================================= */
+function normalizeSkills(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(s => s.toLowerCase().trim());
+
+  if (typeof raw === "string") {
+    return raw
+      .split(",")
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+export function filterBySkills(users, searchTerms) {
+  const terms = searchTerms
+    .split(",")
+    .map(t => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  return users.filter(user => {
+    const userSkills = normalizeSkills(user.skills);
+    return terms.every(term => userSkills.includes(term));
+  });
+}
+
+/* =============================================================
+   INIT
+============================================================= */
 export async function initProfileForm() {
   const { data } = await supabase.auth.getSession();
   const user = data?.session?.user;
@@ -50,9 +78,9 @@ export async function initProfileForm() {
   setupSkillAutocomplete();
 }
 
-// =============================================================
-// LOAD EXISTING PROFILE
-// =============================================================
+/* =============================================================
+   LOAD EXISTING PROFILE
+============================================================= */
 async function loadExistingProfile() {
   try {
     const { data, error } = await supabase
@@ -100,9 +128,9 @@ async function loadExistingProfile() {
   }
 }
 
-// =============================================================
-// FORM SUBMIT — SAVE PROFILE
-// =============================================================
+/* =============================================================
+   FORM SUBMIT — SAVE PROFILE
+============================================================= */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -172,9 +200,9 @@ profileForm?.addEventListener("submit", async (e) => {
   updateProgressState();
 });
 
-// =============================================================
-// PROFILE COMPLETENESS CALCULATION
-// =============================================================
+/* =============================================================
+   PROFILE COMPLETENESS CALCULATION
+============================================================= */
 function isProfileComplete() {
   return (
     firstNameInput.value.trim() &&
@@ -201,9 +229,9 @@ function updateProgressState() {
   }
 }
 
-// =============================================================
-// IMAGE PREVIEW
-// =============================================================
+/* =============================================================
+   IMAGE PREVIEW
+============================================================= */
 function setupImagePreview() {
   photoInput?.addEventListener("change", () => {
     const file = photoInput.files[0];
@@ -218,9 +246,9 @@ function setupImagePreview() {
   });
 }
 
-// =============================================================
-// BASIC SKILL AUTOCOMPLETE
-// =============================================================
+/* =============================================================
+   BASIC SKILL AUTOCOMPLETE
+============================================================= */
 const COMMON_SKILLS = [
   "python", "javascript", "java", "aws", "react", "node", "ui/ux",
   "design", "sql", "go", "rust", "c++", "c#", "html", "css"
@@ -249,6 +277,6 @@ function setupSkillAutocomplete() {
   });
 }
 
-// =============================================================
-// END OF FILE
-// =============================================================
+/* =============================================================
+   END OF FILE
+============================================================= */
