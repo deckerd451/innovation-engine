@@ -6,42 +6,60 @@ import { showNotification } from './notifications.js';
 import { DOMElements } from './domElements.js';
 
 export async function findMatchingUsers() {
-  const skillsInput = DOMElements.teamSkillsInput.value.trim();
-  if (!skillsInput) {
+  const raw = DOMElements.teamSkillsInput.value.trim();
+  if (!raw) {
     showNotification('Please enter at least one skill.', 'warning');
     DOMElements.cardContainer.innerHTML = '';
     return;
   }
-  const requiredSkills = skillsInput.toLowerCase().split(',').map(skill => skill.trim()).filter(Boolean);
+
+  const requiredSkills = raw
+    .toLowerCase()
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 
   try {
-    const { data, error } = await supabaseClient.from('skills').select('*');
+    // 🔥 Must read from community table
+    const { data: users, error } = await supabaseClient
+      .from('community')
+      .select('user_id, name, skills, image_url, bio, endorsements');
+
     if (error) throw error;
 
-    const isFuzzyMatch = (userSkill, requiredSkill) => {
-      const cleanedUserSkill = userSkill.toLowerCase().replace(/\(.*?\)/, '');
-      const req = requiredSkill.toLowerCase();
-      return cleanedUserSkill.includes(req) || req.includes(cleanedUserSkill) || cleanedUserSkill === req;
-    };
+    const matched = users.filter(user => {
+      const userSkills = (user.skills || '')
+        .toLowerCase()
+        .split(',')
+        .map(s => s.trim());
 
-    const matchedUsers = data.filter(user => {
-      const userSkillsRaw = user.skills.split(',').map(s => s.trim());
-      return requiredSkills.every(skill =>
-        userSkillsRaw.some(us => isFuzzyMatch(us, skill))
+      return requiredSkills.every(reqSkill =>
+        userSkills.includes(reqSkill)
       );
     });
 
-    DOMElements.cardContainer.innerHTML = matchedUsers.map(generateUserCardHTML).join('');
-
-    if (matchedUsers.length > 0) {
-      showNotification(`Found ${matchedUsers.length} matching user(s).`, 'success');
-    } else {
+    if (matched.length === 0) {
       DOMElements.noResults.textContent = 'No matching users found.';
       DOMElements.noResults.style.display = 'block';
+      DOMElements.cardContainer.innerHTML = '';
+      return;
     }
+
+    // Normalize fields to match card renderer
+    const cleaned = matched.map(user => ({
+      ...user,
+      avatar_url: user.image_url,
+      bio: user.bio || 'No bio provided.'
+    }));
+
+    DOMElements.cardContainer.innerHTML =
+      cleaned.map(generateUserCardHTML).join('');
+
+    showNotification(`Found ${cleaned.length} matching user(s).`, 'success');
   } catch (error) {
     console.error("Error finding matching users:", error);
     showNotification('Error fetching user data. Please try again.', 'error');
-    DOMElements.cardContainer.innerHTML = '<span style="color:red;">Error fetching data.</span>';
+    DOMElements.cardContainer.innerHTML =
+      '<span style="color:red;">Error fetching data.</span>';
   }
 }
