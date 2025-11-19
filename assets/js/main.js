@@ -2,7 +2,7 @@
 // CharlestonHacks Innovation Engine — Main Controller (2025)
 // Fully Synced with SearchEngine 3.0 + Synapse 3.0 + New DOM
 // =============================================================
-
+import { initLoginSystem } from "./login.js";
 import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
 import { showNotification } from "./utils.js";
@@ -133,11 +133,16 @@ document.addEventListener("keydown", e => {
 // =============================================================
 // 5) PAGE INITIALIZATION
 // =============================================================
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   registerDOM();
   initTabs();
-  initProfileForm();
   initSearchEngineHooks();
+
+  // 1) Initialize login FIRST so session restores properly
+  await initLoginSystem();
+
+  // 2) Once login system is running, THEN load user profile
+  await initProfileForm();
 
   console.log("✅ MAIN.js initialized — DOM, Tabs, SearchEngine, Synapse wired");
 });
