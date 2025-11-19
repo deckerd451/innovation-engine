@@ -1,20 +1,10 @@
 // =====================================================
 // CharlestonHacks Synapse View 3.0 — Fullscreen Network
 // =====================================================
-// Features:
-// ✅ Stable Supabase-backed community graph
-// ✅ Auto-create users (no FK errors)
-// ✅ Connect/disconnect between users
-// ✅ Realtime updates & link pulses
-// ✅ ESC key exit
-// ✅ Performance HUD overlay
+// CLEAN FINAL VERSION — NO ensureCommunityUser()
 // =====================================================
 
-// =====================================================
-// CharlestonHacks Synapse View — FIXED IMPORTS
-// =====================================================
-
-import { supabase, ensureCommunityUser } from "./supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 const d3 = window.d3;
 
@@ -33,6 +23,7 @@ export async function initSynapseView() {
   const container = document.getElementById("synapse-container");
   if (!container) return;
 
+  // Reset SVG
   d3.select("#synapse-svg").selectAll("*").remove();
   width = container.clientWidth;
   height = container.clientHeight;
@@ -43,6 +34,7 @@ export async function initSynapseView() {
     .style("cursor", "grab");
 
   zoomGroup = svg.append("g");
+
   tooltip = d3.select("body")
     .append("div")
     .attr("class", "synapse-tooltip")
@@ -52,7 +44,6 @@ export async function initSynapseView() {
   document.addEventListener("keydown", handleKeyPress);
 
   createHUD();
-  await ensureCommunityUser();
   await loadGraphData();
   drawGraph();
   setupRealtime();
@@ -61,12 +52,15 @@ export async function initSynapseView() {
 }
 
 // =============================
-// LOAD COMMUNITY & CONNECTIONS
+// LOAD COMMUNITY + CONNECTIONS
 // =============================
 async function loadGraphData() {
   const t0 = performance.now();
   try {
-    const [{ data: community, error: cErr }, { data: connections, error: connErr }] = await Promise.all([
+    const [
+      { data: community, error: cErr },
+      { data: connections, error: connErr }
+    ] = await Promise.all([
       supabase.from("community").select("id, name, email, image_url, skills"),
       supabase.from("connections").select("from_user_id, to_user_id")
     ]);
@@ -88,10 +82,9 @@ async function loadGraphData() {
     }));
   } catch (err) {
     console.error("[Synapse] Load error:", err);
-    showNotification("Error loading network data", "error");
+    showNotification("Error loading network data.", "error");
   } finally {
-    const t1 = performance.now();
-    lastLatency = Math.round(t1 - t0);
+    lastLatency = Math.round(performance.now() - t0);
   }
 }
 
@@ -122,11 +115,12 @@ function drawGraph() {
     .join("g")
     .call(drag(simulation));
 
+  // ----- Node Icons / Avatars -----
   node.each(function (d) {
     const g = d3.select(this);
     if (d.image_url) {
       g.append("image")
-        .attr("xlink:href", d.image_url)
+        .attr("href", d.image_url)
         .attr("width", 48)
         .attr("height", 48)
         .attr("x", -24)
@@ -144,19 +138,24 @@ function drawGraph() {
     }
   });
 
-  node
-    .on("mouseover", (event, d) => {
-      tooltip.transition().duration(150).style("opacity", 0.9);
-      tooltip.html(`<strong>${d.name}</strong><br>${d.skills}`)
-        .style("left", event.pageX + 10 + "px")
-        .style("top", event.pageY - 15 + "px");
-      highlightLinks(d.id, true);
-    })
-    .on("mouseout", () => {
-      tooltip.transition().duration(200).style("opacity", 0);
-      highlightLinks(null, false);
-    })
-    .on("click", openProfileModal);
+  node.on("mouseover", (event, d) => {
+    tooltip
+      .transition().duration(120)
+      .style("opacity", 0.95);
+
+    tooltip.html(`<strong>${d.name}</strong><br>${d.skills}`)
+      .style("left", event.pageX + 10 + "px")
+      .style("top", event.pageY - 15 + "px");
+
+    highlightLinks(d.id, true);
+  });
+
+  node.on("mouseout", () => {
+    tooltip.transition().duration(200).style("opacity", 0);
+    highlightLinks(null, false);
+  });
+
+  node.on("click", openProfileModal);
 
   simulation.on("tick", () => {
     link
@@ -164,6 +163,7 @@ function drawGraph() {
       .attr("y1", (d) => d.source.y)
       .attr("x2", (d) => d.target.x)
       .attr("y2", (d) => d.target.y);
+
     node.attr("transform", (d) => `translate(${d.x},${d.y})`);
   });
 
@@ -196,15 +196,17 @@ function drag(simulation) {
 // LINK HIGHLIGHT
 // =============================
 function highlightLinks(nodeId, active) {
-  link.transition().duration(150)
-    .attr("stroke-opacity", (l) =>
+  link
+    .transition()
+    .duration(150)
+    .attr("stroke-opacity", l =>
       !active
         ? 0.3
         : l.source.id === nodeId || l.target.id === nodeId
         ? 0.9
         : 0.05
     )
-    .attr("stroke", (l) =>
+    .attr("stroke", l =>
       !active
         ? theme === "dark" ? "#0ff" : "#f90"
         : l.source.id === nodeId || l.target.id === nodeId
@@ -218,18 +220,21 @@ function highlightLinks(nodeId, active) {
 // =============================
 async function openProfileModal(event, user) {
   document.querySelectorAll(".profile-modal").forEach((el) => el.remove());
+
   const modal = document.createElement("div");
   modal.className = "profile-modal";
+
   modal.innerHTML = `
     <div class="modal-content">
       <button class="modal-close">&times;</button>
-      <img src="${user.image_url || "images/default-avatar.png"}" alt="${user.name}" class="modal-avatar" />
+      <img src="${user.image_url || "images/default-avatar.png"}" class="modal-avatar" />
       <h2>${user.name}</h2>
       <p><strong>Email:</strong> ${user.email}</p>
       <p><strong>Skills:</strong> ${user.skills}</p>
       <button id="connectBtn" class="connect-btn">Connect</button>
       <button id="disconnectBtn" class="disconnect-btn hidden">Disconnect</button>
-    </div>`;
+    </div>
+  `;
   document.body.appendChild(modal);
 
   modal.querySelector(".modal-close").addEventListener("click", () => modal.remove());
@@ -239,14 +244,14 @@ async function openProfileModal(event, user) {
 
   const { data: session } = await supabase.auth.getSession();
   const currentUserId = session?.session?.user?.id;
+
   if (!currentUserId) {
-    connectBtn.textContent = "Login to Connect";
+    connectBtn.textContent = "Login to connect";
     connectBtn.disabled = true;
     return;
   }
 
-  await ensureCommunityUser();
-
+  // CHECK IF ALREADY CONNECTED
   const { data: existing } = await supabase
     .from("connections")
     .select("*")
@@ -259,57 +264,72 @@ async function openProfileModal(event, user) {
     disconnectBtn.classList.remove("hidden");
   }
 
+  // CONNECT
   connectBtn.addEventListener("click", async () => {
-    await ensureCommunityUser();
     const { error } = await supabase
       .from("connections")
       .insert({ from_user_id: currentUserId, to_user_id: user.id });
+
     if (error) return alert("Error connecting: " + error.message);
+
     showNotification(`Connected with ${user.name}!`);
     triggerPulse(user.id);
+
     connectBtn.classList.add("hidden");
     disconnectBtn.classList.remove("hidden");
   });
 
+  // DISCONNECT
   disconnectBtn.addEventListener("click", async () => {
     const { error } = await supabase
       .from("connections")
       .delete()
       .eq("from_user_id", currentUserId)
       .eq("to_user_id", user.id);
+
     if (error) return alert("Error disconnecting: " + error.message);
+
     showNotification(`Disconnected from ${user.name}`);
+
     disconnectBtn.classList.add("hidden");
     connectBtn.classList.remove("hidden");
   });
 }
 
 // =============================
-// REALTIME LISTENERS
+// REALTIME CHANGES
 // =============================
 function setupRealtime() {
   if (channel) channel.unsubscribe();
+
   channel = supabase
     .channel("realtime-connections")
-    .on("postgres_changes", { event: "*", schema: "public", table: "connections" }, (payload) => {
-      if (payload.eventType === "INSERT") {
-        const s = nodes.find((n) => n.id === payload.new.from_user_id);
-        const t = nodes.find((n) => n.id === payload.new.to_user_id);
-        if (s && t) {
-          links.push({ source: s, target: t });
-          triggerPulse(t.id);
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "connections" },
+      (payload) => {
+        if (payload.eventType === "INSERT") {
+          const s = nodes.find((n) => n.id === payload.new.from_user_id);
+          const t = nodes.find((n) => n.id === payload.new.to_user_id);
+          if (s && t) {
+            links.push({ source: s, target: t });
+            triggerPulse(t.id);
+            simulation.alpha(0.5).restart();
+          }
+        }
+
+        if (payload.eventType === "DELETE") {
+          links = links.filter(
+            (l) =>
+              !(
+                l.source.id === payload.old.from_user_id &&
+                l.target.id === payload.old.to_user_id
+              )
+          );
           simulation.alpha(0.5).restart();
         }
       }
-      if (payload.eventType === "DELETE") {
-        links = links.filter(
-          (l) =>
-            !(l.source.id === payload.old.from_user_id &&
-              l.target.id === payload.old.to_user_id)
-        );
-        simulation.alpha(0.5).restart();
-      }
-    })
+    )
     .subscribe();
 }
 
@@ -319,9 +339,9 @@ function setupRealtime() {
 function startPulseAnimation() {
   function animate() {
     link.each(function () {
-      const l = d3.select(this);
-      const current = parseFloat(l.attr("stroke-dashoffset")) || 0;
-      l.attr("stroke-dashoffset", (current - 0.6) % 20);
+      const el = d3.select(this);
+      const offset = parseFloat(el.attr("stroke-dashoffset")) || 0;
+      el.attr("stroke-dashoffset", (offset - 0.6) % 20);
     });
     requestAnimationFrame(animate);
   }
@@ -330,7 +350,9 @@ function startPulseAnimation() {
 
 function triggerPulse(nodeId) {
   const pulseColor = theme === "dark" ? "#ff0099" : "#0066ff";
-  link.filter((l) => l.source.id === nodeId || l.target.id === nodeId)
+
+  link
+    .filter((l) => l.source.id === nodeId || l.target.id === nodeId)
     .transition()
     .duration(800)
     .attr("stroke", pulseColor)
@@ -342,12 +364,12 @@ function triggerPulse(nodeId) {
 }
 
 // =============================
-// HUD: Performance Overlay
+// HUD — PERFORMANCE OVERLAY
 // =============================
 function createHUD() {
-  const hud = document.createElement("div");
-  hud.id = "synapse-hud";
-  hud.style.cssText = `
+  const div = document.createElement("div");
+  div.id = "synapse-hud";
+  div.style.cssText = `
     position: fixed;
     top: 10px;
     left: 14px;
@@ -361,23 +383,28 @@ function createHUD() {
     backdrop-filter: blur(6px);
     box-shadow: 0 0 10px rgba(0,255,255,0.2);
   `;
-  hud.innerHTML = `<div>🧠 Synapse HUD</div><div>Nodes: 0</div><div>Connections: 0</div><div>Latency: …</div>`;
-  document.body.appendChild(hud);
+  div.innerHTML = `
+    <div>🧠 Synapse HUD</div>
+    <div>Nodes: 0</div>
+    <div>Connections: 0</div>
+    <div>Latency: …</div>
+  `;
+  document.body.appendChild(div);
 }
 
 function startHUDUpdates() {
   const hud = document.getElementById("synapse-hud");
   if (!hud) return;
+
   hudInterval = setInterval(() => {
-    const latencyDisplay = lastLatency ? `${lastLatency} ms` : "–";
     hud.innerHTML = `
       <div>🧠 Synapse HUD</div>
       <div>Nodes: ${nodes.length}</div>
       <div>Connections: ${links.length}</div>
-      <div>Latency: ${latencyDisplay}</div>
-      <div style="font-size:11px;opacity:0.6;">Press Esc to exit</div>
+      <div>Latency: ${lastLatency ?? "–"} ms</div>
+      <div style="font-size:11px;opacity:0.6;">Press ESC to exit</div>
     `;
-  }, 1500);
+  }, 1200);
 }
 
 // =============================
@@ -395,11 +422,15 @@ function exitSynapseView() {
   document.getElementById("neural-bg").style.display = "";
   document.querySelector("#synapse").classList.remove("active-tab-pane");
   document.querySelector("#profile-section").classList.remove("hidden");
+
   isSynapseActive = false;
+
   clearInterval(hudInterval);
+
   d3.selectAll(".profile-modal").remove();
   d3.select(".synapse-tooltip").remove();
   document.getElementById("synapse-hud")?.remove();
+
   if (channel) channel.unsubscribe();
   console.log("🧩 Synapse View closed");
 }
