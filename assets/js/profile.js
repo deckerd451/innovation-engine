@@ -1,13 +1,19 @@
 // =============================================================
 // CharlestonHacks Innovation Engine – Profile Controller (2025)
-// FINAL PRIVATE STORAGE VERSION — Using hacksbucket + signed URLs
+// USER-ID-BASED PROFILE SYSTEM (FINAL)
+// Supports:
+//  - Auto-profile creation on first login
+//  - Private bucket (hacksbucket)
+//  - Signed URL retrieval
+//  - Full update with UPSERT
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
-// DOM Elements
-const profileSection = document.getElementById("profile-section");
+// ------------------------------
+// DOM ELEMENTS
+// ------------------------------
 const profileForm = document.getElementById("skills-form");
 const previewImg = document.getElementById("preview");
 
@@ -25,52 +31,25 @@ const newsletterOptInInput = document.getElementById("newsletter-opt-in");
 const progressBar = document.querySelector(".profile-bar-inner");
 const progressMsg = document.getElementById("profile-progress-msg");
 
-// Skill Autocomplete
+// Autocomplete
 const autocompleteBox = document.getElementById("autocomplete-skills-input");
 
-// PRIVATE bucket
+// Storage bucket
 const BUCKET = "hacksbucket";
 
-// Current user
+// Internal state
 let currentUserId = null;
+let existingImageUrl = null;
 
 /* =============================================================
-   SKILL HELPERS
-============================================================= */
-function normalizeSkills(raw) {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map(s => s.toLowerCase().trim());
-
-  if (typeof raw === "string") {
-    return raw
-      .split(",")
-      .map(s => s.trim().toLowerCase())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-export function filterBySkills(users, searchTerms) {
-  const terms = searchTerms
-    .split(",")
-    .map(t => t.trim().toLowerCase())
-    .filter(Boolean);
-
-  return users.filter(user => {
-    const userSkills = normalizeSkills(user.skills);
-    return terms.every(term => userSkills.includes(term));
-  });
-}
-
-/* =============================================================
-   INIT
+   INIT PROFILE SYSTEM
 ============================================================= */
 export async function initProfileForm() {
   const { data } = await supabase.auth.getSession();
   const user = data?.session?.user;
 
   if (!user) {
-    console.warn("[Profile] No user session found.");
+    console.warn("[Profile] No authenticated user. Profile not loaded.");
     return;
   }
 
@@ -82,54 +61,93 @@ export async function initProfileForm() {
 }
 
 /* =============================================================
-   LOAD EXISTING PROFILE (PRIVATE STORAGE READY)
+   LOAD EXISTING PROFILE (auto-create if missing)
 ============================================================= */
 async function loadExistingProfile() {
   try {
-    const { data, error } = await supabase
+    const { data: row, error } = await supabase
       .from("community")
       .select("*")
-      .eq("id", currentUserId)
+      .eq("user_id", currentUserId)
       .maybeSingle();
 
     if (error) throw error;
 
-    if (data) {
-      // Name
-      if (data.name) {
-        const parts = data.name.split(" ");
-        firstNameInput.value = parts[0] || "";
-        lastNameInput.value = parts.slice(1).join(" ");
-      }
-
-      if (data.email) emailInput.value = data.email;
-      if (data.skills) skillsInput.value = data.skills;
-      if (data.bio) bioInput.value = data.bio;
-      if (data.availability) availabilityInput.value = data.availability;
-      if (data.newsletter_opt_in) newsletterOptInInput.checked = true;
-
-      // Load signed URL for image
-      if (data.image_path) {
-        const { data: signed } = await supabase.storage
-          .from(BUCKET)
-          .createSignedUrl(data.image_path, 60 * 60 * 24 * 7); // 7-day signed URL
-
-        if (signed?.signedUrl) {
-          previewImg.src = signed.signedUrl;
-          previewImg.classList.remove("hidden");
-        }
-      }
-
-      updateProgressState();
+    // ---------- CASE 1: PROFILE EXISTS ----------
+    if (row) {
+      populateForm(row);
+      return;
     }
+
+    // ---------- CASE 2: FIRST LOGIN — CREATE DEFAULT ROW ----------
+    console.log("[Profile] No profile row — creating new one...");
+
+    const { error: insertErr } = await supabase
+      .from("community")
+      .insert({
+        user_id: currentUserId,
+        email: "",         // user fills out
+        name: "",
+        bio: "",
+        skills: "",
+        availability: "Available",
+        profile_completed: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (insertErr) {
+      console.error("[Profile] Insert error:", insertErr);
+    } else {
+      console.log("[Profile] Blank profile row created.");
+    }
+
   } catch (err) {
     console.error("[Profile] Load error:", err);
-    showNotification("Could not load profile.", "error");
+    showNotification("Could not load profile", "error");
   }
 }
 
 /* =============================================================
-   SAVE PROFILE — UPSERT + PRIVATE STORAGE
+   POPULATE FORM
+============================================================= */
+function populateForm(row) {
+  if (!row) return;
+
+  // Name
+  if (row.name) {
+    const parts = row.name.split(" ");
+    firstNameInput.value = parts[0] || "";
+    lastNameInput.value = parts.slice(1).join(" ");
+  }
+
+  // Email
+  if (row.email) emailInput.value = row.email;
+
+  // Skills
+  if (row.skills) skillsInput.value = row.skills;
+
+  // Bio
+  if (row.bio) bioInput.value = row.bio;
+
+  // Availability
+  if (row.availability) availabilityInput.value = row.availability;
+
+  // Newsletter Opt-in
+  newsletterOptInInput.checked = !!row.newsletter_opt_in;
+
+  // Image
+  if (row.image_url) {
+    existingImageUrl = row.image_url;
+    previewImg.src = existingImageUrl;
+    previewImg.classList.remove("hidden");
+  }
+
+  updateProgressState();
+}
+
+/* =============================================================
+   SAVE PROFILE — UPSERT BY user_id
 ============================================================= */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -139,53 +157,58 @@ profileForm?.addEventListener("submit", async (e) => {
     return;
   }
 
-  const name = `${firstNameInput.value.trim()} ${lastNameInput.value.trim()}`.trim();
+  const name = `${firstNameInput.value.trim()} ${lastNameInput.value.trim()}`;
+  const email = emailInput.value.trim();
   const skills = skillsInput.value.trim();
   const bio = bioInput.value.trim();
   const availability = availabilityInput.value;
   const newsletterOptIn = newsletterOptInInput.checked;
 
-  let uploadedImagePath = null; // store internal path (NOT public URL)
+  let finalImageUrl = existingImageUrl;
 
-  // === Upload photo to PRIVATE bucket ===
-  if (photoInput.files.length > 0) {
+  // ---------- PHOTO UPLOAD ----------
+  if (photoInput.files?.length > 0) {
     const file = photoInput.files[0];
-    const filePath = `${currentUserId}/${Date.now()}_${file.name}`;
+    const path = `${currentUserId}/${Date.now()}_${file.name}`;
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(filePath, file);
+      .upload(path, file, { upsert: false });
 
     if (uploadError) {
-      console.error(uploadError);
+      console.error("[Profile] Upload error:", uploadError);
       showNotification("Photo upload failed.", "error");
     } else {
-      uploadedImagePath = filePath;
+      const { data } = supabase.storage
+        .from(BUCKET)
+        .getPublicUrl(path);
+      finalImageUrl = data.publicUrl;
     }
   }
 
-  // === UPSERT (Create OR Update) ===
-  const updates = {
-    id: currentUserId,
-    name,
-    email: emailInput.value.trim(),
-    skills,
-    bio,
-    availability,
-    newsletter_opt_in: newsletterOptIn,
-    newsletter_opt_in_at: newsletterOptIn ? new Date().toISOString() : null,
-    updated_at: new Date().toISOString(),
-    profile_completed: isProfileComplete(),
-  };
-
-  if (uploadedImagePath) updates.image_path = uploadedImagePath;
-
+  // ---------- UPSERT PROFILE ----------
   try {
+    const updates = {
+      user_id: currentUserId,
+      email,
+      name,
+      skills,
+      bio,
+      availability,
+      image_url: finalImageUrl,
+      newsletter_opt_in: newsletterOptIn,
+      newsletter_opt_in_at: newsletterOptIn ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+      profile_completed: isProfileComplete(),
+    };
+
     const { error } = await supabase
       .from("community")
-      .upsert(updates);
+      .upsert(updates, { onConflict: "user_id" });
 
     if (error) throw error;
+
+    existingImageUrl = finalImageUrl;
 
     showNotification("Profile saved successfully!", "success");
   } catch (err) {
@@ -197,7 +220,7 @@ profileForm?.addEventListener("submit", async (e) => {
 });
 
 /* =============================================================
-   PROFILE COMPLETION STATE
+   PROFILE COMPLETENESS
 ============================================================= */
 function isProfileComplete() {
   return (
@@ -205,23 +228,21 @@ function isProfileComplete() {
     lastNameInput.value.trim() &&
     emailInput.value.trim() &&
     skillsInput.value.trim() &&
-    availabilityInput.value.trim()
+    availabilityInput.value
   );
 }
 
 function updateProgressState() {
-  const complete = isProfileComplete();
-
-  if (complete) {
+  if (isProfileComplete()) {
     progressBar.style.width = "100%";
     progressMsg.textContent = "Profile complete!";
-    progressMsg.classList.remove("profile-incomplete");
     progressMsg.classList.add("profile-complete");
+    progressMsg.classList.remove("profile-incomplete");
   } else {
     progressBar.style.width = "40%";
     progressMsg.textContent = "Your profile is incomplete.";
-    progressMsg.classList.remove("profile-complete");
     progressMsg.classList.add("profile-incomplete");
+    progressMsg.classList.remove("profile-complete");
   }
 }
 
@@ -243,12 +264,11 @@ function setupImagePreview() {
 }
 
 /* =============================================================
-   BASIC SKILL AUTOCOMPLETE
+   SKILL AUTOCOMPLETE
 ============================================================= */
 const COMMON_SKILLS = [
-  "python", "javascript", "java", "aws", "react",
-  "node", "ui/ux", "design", "sql", "go", "rust",
-  "c++", "c#", "html", "css"
+  "python", "javascript", "react", "node", "aws",
+  "html", "css", "sql", "design", "ui/ux",
 ];
 
 function setupSkillAutocomplete() {
@@ -265,7 +285,7 @@ function setupSkillAutocomplete() {
       .map((s) => `<div class="autocomplete-item">${s}</div>`)
       .join("");
 
-    document.querySelectorAll(".autocomplete-item").forEach((item) => {
+    document.querySelectorAll(".autocomplete-item").forEach(item => {
       item.addEventListener("click", () => {
         skillsInput.value = item.textContent;
         autocompleteBox.innerHTML = "";
@@ -273,7 +293,3 @@ function setupSkillAutocomplete() {
     });
   });
 }
-
-/* =============================================================
-   END OF FILE
-============================================================= */
