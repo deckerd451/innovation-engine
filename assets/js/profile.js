@@ -1,6 +1,6 @@
 // =============================================================
 // CharlestonHacks Innovation Engine – Profile Controller (2025)
-// USER-ID-BASED PROFILE SYSTEM (FINAL, FIXED BOOLEAN ISSUE)
+// FINAL CLEAN BUILD – USER-ID + EMAIL SAFE LOOKUP
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -11,8 +11,6 @@ import { showNotification } from "./utils.js";
 // ------------------------------
 const profileForm = document.getElementById("skills-form");
 const previewImg = document.getElementById("preview");
-
-// Inputs
 const firstNameInput = document.getElementById("first-name");
 const lastNameInput = document.getElementById("last-name");
 const emailInput = document.getElementById("email");
@@ -22,69 +20,68 @@ const availabilityInput = document.getElementById("availability-input");
 const photoInput = document.getElementById("photo-input");
 const newsletterOptInInput = document.getElementById("newsletter-opt-in");
 
-// UI
 const progressBar = document.querySelector(".profile-bar-inner");
 const progressMsg = document.getElementById("profile-progress-msg");
 
-// Autocomplete
 const autocompleteBox = document.getElementById("autocomplete-skills-input");
 
-// Storage bucket
 const BUCKET = "hacksbucket";
 
-// Internal state
 let currentUserId = null;
 let existingImageUrl = null;
 let existingProfileId = null;
 
 /* =============================================================
-   INIT PROFILE SYSTEM
+   INIT
 ============================================================= */
 export async function initProfileForm() {
   const { data } = await supabase.auth.getSession();
   const user = data?.session?.user;
 
   if (!user) {
-    console.warn("[Profile] No authenticated user. Profile not loaded.");
+    console.warn("[Profile] No authenticated user");
     return;
   }
 
   currentUserId = user.id;
-
   await loadExistingProfile();
   setupImagePreview();
   setupSkillAutocomplete();
 }
 
 /* =============================================================
-   LOAD EXISTING PROFILE (auto-create if missing)
+   LOAD EXISTING PROFILE (SAFE)
+   → Search by user_id OR email (prevents duplicates)
 ============================================================= */
 async function loadExistingProfile() {
   try {
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    if (!user) return;
+
+    const email = user.email;
+
     const { data: row, error } = await supabase
       .from("community")
       .select("*")
-      .eq("user_id", currentUserId)
+      .or(`user_id.eq.${currentUserId},email.eq.${email}`)
       .maybeSingle();
 
     if (error) throw error;
 
-    // ---------- CASE 1: PROFILE EXISTS ----------
     if (row) {
       existingProfileId = row.id;
       populateForm(row);
       return;
     }
 
-    // ---------- CASE 2: FIRST LOGIN — CREATE DEFAULT ROW ----------
-    console.log("[Profile] No profile row — creating new blank row...");
-
+    // ---------- No row exists → Create fresh profile ----------
     const { data: insertData, error: insertErr } = await supabase
       .from("community")
       .insert({
         user_id: currentUserId,
-        email: "",
-        name: "",
+        email: email,
+        name: email.split("@")[0],
         bio: "",
         skills: "",
         availability: "Available",
@@ -95,13 +92,10 @@ async function loadExistingProfile() {
       .select()
       .single();
 
-    if (insertErr) {
-      console.error("[Profile] Insert error:", insertErr);
-    } else {
-      console.log("[Profile] Blank profile row created.");
-      existingProfileId = insertData.id;
-      populateForm(insertData);
-    }
+    if (insertErr) throw insertErr;
+
+    existingProfileId = insertData.id;
+    populateForm(insertData);
 
   } catch (err) {
     console.error("[Profile] Load error:", err);
@@ -115,29 +109,18 @@ async function loadExistingProfile() {
 function populateForm(row) {
   if (!row) return;
 
-  // Name
   if (row.name) {
     const parts = row.name.split(" ");
     firstNameInput.value = parts[0] || "";
     lastNameInput.value = parts.slice(1).join(" ");
   }
 
-  // Email
-  if (row.email) emailInput.value = row.email;
-
-  // Skills
-  if (row.skills) skillsInput.value = row.skills;
-
-  // Bio
-  if (row.bio) bioInput.value = row.bio;
-
-  // Availability
-  if (row.availability) availabilityInput.value = row.availability;
-
-  // Newsletter Opt-in
+  emailInput.value = row.email || "";
+  skillsInput.value = row.skills || "";
+  bioInput.value = row.bio || "";
+  availabilityInput.value = row.availability || "";
   newsletterOptInInput.checked = !!row.newsletter_opt_in;
 
-  // Image
   if (row.image_url) {
     existingImageUrl = row.image_url;
     previewImg.src = existingImageUrl;
@@ -148,13 +131,13 @@ function populateForm(row) {
 }
 
 /* =============================================================
-   SAVE PROFILE — UPDATE BY user_id
+   SAVE PROFILE
 ============================================================= */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   if (!currentUserId) {
-    showNotification("You must be logged in to save your profile.", "error");
+    showNotification("You must be logged in.", "error");
     return;
   }
 
@@ -167,7 +150,7 @@ profileForm?.addEventListener("submit", async (e) => {
 
   let finalImageUrl = existingImageUrl;
 
-  // ---------- PHOTO UPLOAD ----------
+  // ---------- Upload Photo ----------
   if (photoInput.files?.length > 0) {
     const file = photoInput.files[0];
     const path = `${currentUserId}/${Date.now()}_${file.name}`;
@@ -180,14 +163,11 @@ profileForm?.addEventListener("submit", async (e) => {
       console.error("[Profile] Upload error:", uploadError);
       showNotification("Photo upload failed.", "error");
     } else {
-      const { data } = supabase.storage
-        .from(BUCKET)
-        .getPublicUrl(path);
-      finalImageUrl = data.publicUrl;
+      finalImageUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
     }
   }
 
-  // ---------- UPSERT PROFILE ----------
+  // ---------- Update ----------
   try {
     const updates = {
       user_id: currentUserId,
@@ -200,7 +180,7 @@ profileForm?.addEventListener("submit", async (e) => {
       newsletter_opt_in: !!newsletterOptIn,
       newsletter_opt_in_at: newsletterOptIn ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
-      profile_completed: isProfileComplete(), // FIXED BOOLEAN
+      profile_completed: isProfileComplete()
     };
 
     const { error } = await supabase
@@ -212,8 +192,7 @@ profileForm?.addEventListener("submit", async (e) => {
 
     existingImageUrl = finalImageUrl;
 
-
-    showNotification("Profile saved successfully!", "success");
+    showNotification("Profile saved!", "success");
   } catch (err) {
     console.error("[Profile] Save error:", err);
     showNotification("Error saving profile.", "error");
@@ -223,22 +202,20 @@ profileForm?.addEventListener("submit", async (e) => {
 });
 
 /* =============================================================
-   PROFILE COMPLETENESS — FIXED BOOLEAN VERSION
+   PROFILE COMPLETENESS CHECK
 ============================================================= */
 function isProfileComplete() {
   return (
-    firstNameInput.value.trim().length > 0 &&
-    lastNameInput.value.trim().length > 0 &&
-    emailInput.value.trim().length > 0 &&
-    skillsInput.value.trim().length > 0 &&
-    availabilityInput.value.trim().length > 0
+    firstNameInput.value.trim() &&
+    lastNameInput.value.trim() &&
+    emailInput.value.trim() &&
+    skillsInput.value.trim() &&
+    availabilityInput.value.trim()
   );
 }
 
 function updateProgressState() {
-  const complete = isProfileComplete();
-
-  if (complete) {
+  if (isProfileComplete()) {
     progressBar.style.width = "100%";
     progressMsg.textContent = "Profile complete!";
     progressMsg.classList.add("profile-complete");
@@ -258,7 +235,6 @@ function setupImagePreview() {
   photoInput?.addEventListener("change", () => {
     const file = photoInput.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = () => {
       previewImg.src = reader.result;
@@ -273,7 +249,7 @@ function setupImagePreview() {
 ============================================================= */
 const COMMON_SKILLS = [
   "python", "javascript", "react", "node", "aws",
-  "html", "css", "sql", "design", "ui/ux",
+  "html", "css", "sql", "design", "ui/ux"
 ];
 
 function setupSkillAutocomplete() {
@@ -290,7 +266,7 @@ function setupSkillAutocomplete() {
       .map((s) => `<div class="autocomplete-item">${s}</div>`)
       .join("");
 
-    document.querySelectorAll(".autocomplete-item").forEach(item => {
+    document.querySelectorAll(".autocomplete-item").forEach((item) => {
       item.addEventListener("click", () => {
         skillsInput.value = item.textContent;
         autocompleteBox.innerHTML = "";
