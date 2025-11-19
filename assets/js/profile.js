@@ -1,10 +1,9 @@
 // =============================================================
 // CharlestonHacks Innovation Engine – Profile Controller (2025)
-// Fully Rewritten for Schema-A + GitHub Pages ESM Compatibility
+// FINAL FIXED VERSION — Schema-A + GitHub Pages ESM Compatible
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
-
 import { showNotification } from "./utils.js";
 
 // DOM Elements
@@ -29,11 +28,11 @@ const progressMsg = document.getElementById("profile-progress-msg");
 // Skill Autocomplete
 const autocompleteBox = document.getElementById("autocomplete-skills-input");
 
-// Local cache
+// Current user
 let currentUserId = null;
 
 /* =============================================================
-   SKILL HELPERS — REQUIRED FOR SEARCH + TEAM BUILDER
+   SKILL HELPERS
 ============================================================= */
 function normalizeSkills(raw) {
   if (!raw) return [];
@@ -80,42 +79,32 @@ export async function initProfileForm() {
 }
 
 /* =============================================================
-   LOAD EXISTING PROFILE
+   LOAD EXISTING PROFILE (FIXED FOR id COLUMN)
 ============================================================= */
 async function loadExistingProfile() {
   try {
     const { data, error } = await supabase
       .from("community")
       .select("*")
-      .eq("user_id", currentUserId)
+      .eq("id", currentUserId)      // 🔥 FIXED: Correct PK column
       .maybeSingle();
 
     if (error) throw error;
 
     if (data) {
-      // Name
+      // === Populate Form ===
       if (data.name) {
         const parts = data.name.split(" ");
         firstNameInput.value = parts[0] || "";
         lastNameInput.value = parts.slice(1).join(" ");
       }
 
-      // Email
       if (data.email) emailInput.value = data.email;
-
-      // Skills (text)
       if (data.skills) skillsInput.value = data.skills;
-
-      // Bio
       if (data.bio) bioInput.value = data.bio;
-
-      // Availability
       if (data.availability) availabilityInput.value = data.availability;
-
-      // Newsletter
       if (data.newsletter_opt_in) newsletterOptInInput.checked = true;
 
-      // Image Preview
       if (data.image_url) {
         previewImg.src = data.image_url;
         previewImg.classList.remove("hidden");
@@ -130,7 +119,7 @@ async function loadExistingProfile() {
 }
 
 /* =============================================================
-   FORM SUBMIT — SAVE PROFILE
+   SAVE PROFILE — FIXED WITH UPSERT 
 ============================================================= */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -140,15 +129,15 @@ profileForm?.addEventListener("submit", async (e) => {
     return;
   }
 
-  const name = `${firstNameInput.value.trim()} ${lastNameInput.value.trim()}`;
-  const skills = skillsInput.value.trim(); // TEXT, not JSONB
+  const name = `${firstNameInput.value.trim()} ${lastNameInput.value.trim()}`.trim();
+  const skills = skillsInput.value.trim();
   const bio = bioInput.value.trim();
   const availability = availabilityInput.value;
   const newsletterOptIn = newsletterOptInInput.checked;
 
-  // Upload photo if present
   let uploadedImageURL = null;
 
+  // === Photo Upload ===
   if (photoInput.files.length > 0) {
     const file = photoInput.files[0];
     const filePath = `${currentUserId}/${Date.now()}_${file.name}`;
@@ -169,32 +158,33 @@ profileForm?.addEventListener("submit", async (e) => {
     }
   }
 
-  // Update profile row
+  // === UPSERT Payload ===
+  const updates = {
+    id: currentUserId,             // 🔥 REQUIRED for UPSERT
+    name,
+    email: emailInput.value.trim(),
+    skills,
+    bio,
+    availability,
+    newsletter_opt_in: newsletterOptIn,
+    newsletter_opt_in_at: newsletterOptIn ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
+    profile_completed: isProfileComplete(),
+  };
+
+  if (uploadedImageURL) updates.image_url = uploadedImageURL;
+
+  // === UPSERT (Create OR Update) ===
   try {
-    const updates = {
-      name,
-      email: emailInput.value.trim(),
-      skills,
-      bio,
-      availability,
-      newsletter_opt_in: newsletterOptIn,
-      newsletter_opt_in_at: newsletterOptIn ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-      profile_completed: isProfileComplete(),
-    };
-
-    if (uploadedImageURL) updates.image_url = uploadedImageURL;
-
     const { error } = await supabase
       .from("community")
-      .update(updates)
-      .eq("user_id", currentUserId);
+      .upsert(updates);           // 🔥 FIXED: No more failed updates
 
     if (error) throw error;
 
     showNotification("Profile saved successfully!", "success");
   } catch (err) {
-    console.error("[Profile] Update error:", err);
+    console.error("[Profile] Save error:", err);
     showNotification("Error saving profile.", "error");
   }
 
