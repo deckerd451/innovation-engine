@@ -1,11 +1,11 @@
 // =============================================================
 // CharlestonHacks Innovation Engine – Profile Controller (2025)
-// USER-ID-BASED PROFILE SYSTEM (FINAL)
+// USER-ID-BASED PROFILE SYSTEM (FINAL + id fix)
 // Supports:
 //  - Auto-profile creation on first login
 //  - Private bucket (hacksbucket)
 //  - Signed URL retrieval
-//  - Full update with UPSERT
+//  - Full update with UPSERT using (id + user_id)
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -40,6 +40,7 @@ const BUCKET = "hacksbucket";
 // Internal state
 let currentUserId = null;
 let existingImageUrl = null;
+let existingRowId = null;   // 🔥 PRIMARY KEY (id) — FIX ADDED
 
 /* =============================================================
    INIT PROFILE SYSTEM
@@ -75,6 +76,7 @@ async function loadExistingProfile() {
 
     // ---------- CASE 1: PROFILE EXISTS ----------
     if (row) {
+      existingRowId = row.id;             // 🔥 Save primary key
       populateForm(row);
       return;
     }
@@ -82,23 +84,29 @@ async function loadExistingProfile() {
     // ---------- CASE 2: FIRST LOGIN — CREATE DEFAULT ROW ----------
     console.log("[Profile] No profile row — creating new one...");
 
-    const { error: insertErr } = await supabase
+    const insertPayload = {
+      id: crypto.randomUUID(),            // 🔥 MUST include id
+      user_id: currentUserId,
+      email: "",
+      name: "",
+      bio: "",
+      skills: "",
+      availability: "Available",
+      profile_completed: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: createdRow, error: insertErr } = await supabase
       .from("community")
-      .insert({
-        user_id: currentUserId,
-        email: "",         // user fills out
-        name: "",
-        bio: "",
-        skills: "",
-        availability: "Available",
-        profile_completed: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+      .insert(insertPayload)
+      .select()
+      .single();
 
     if (insertErr) {
       console.error("[Profile] Insert error:", insertErr);
     } else {
+      existingRowId = createdRow.id;
       console.log("[Profile] Blank profile row created.");
     }
 
@@ -113,6 +121,9 @@ async function loadExistingProfile() {
 ============================================================= */
 function populateForm(row) {
   if (!row) return;
+
+  // Keep primary key
+  existingRowId = row.id;
 
   // Name
   if (row.name) {
@@ -147,7 +158,7 @@ function populateForm(row) {
 }
 
 /* =============================================================
-   SAVE PROFILE — UPSERT BY user_id
+   SAVE PROFILE — UPSERT USING id + user_id
 ============================================================= */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -189,6 +200,7 @@ profileForm?.addEventListener("submit", async (e) => {
   // ---------- UPSERT PROFILE ----------
   try {
     const updates = {
+      id: existingRowId,                  // 🔥 REQUIRED FOR UPSERT
       user_id: currentUserId,
       email,
       name,
