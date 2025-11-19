@@ -1,11 +1,6 @@
 // =============================================================
 // CharlestonHacks Innovation Engine – Profile Controller (2025)
-// USER-ID-BASED PROFILE SYSTEM (FINAL + id fix)
-// Supports:
-//  - Auto-profile creation on first login
-//  - Private bucket (hacksbucket)
-//  - Signed URL retrieval
-//  - Full update with UPSERT using (id + user_id)
+// USER-ID-BASED PROFILE SYSTEM (FINAL)
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -40,7 +35,7 @@ const BUCKET = "hacksbucket";
 // Internal state
 let currentUserId = null;
 let existingImageUrl = null;
-let existingRowId = null;   // 🔥 PRIMARY KEY (id) — FIX ADDED
+let existingProfileId = null;
 
 /* =============================================================
    INIT PROFILE SYSTEM
@@ -76,38 +71,36 @@ async function loadExistingProfile() {
 
     // ---------- CASE 1: PROFILE EXISTS ----------
     if (row) {
-      existingRowId = row.id;             // 🔥 Save primary key
+      existingProfileId = row.id;
       populateForm(row);
       return;
     }
 
     // ---------- CASE 2: FIRST LOGIN — CREATE DEFAULT ROW ----------
-    console.log("[Profile] No profile row — creating new one...");
+    console.log("[Profile] No profile row — creating new blank row...");
 
-    const insertPayload = {
-      id: crypto.randomUUID(),            // 🔥 MUST include id
-      user_id: currentUserId,
-      email: "",
-      name: "",
-      bio: "",
-      skills: "",
-      availability: "Available",
-      profile_completed: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    const { data: createdRow, error: insertErr } = await supabase
+    const { data: insertData, error: insertErr } = await supabase
       .from("community")
-      .insert(insertPayload)
+      .insert({
+        user_id: currentUserId,
+        email: "",
+        name: "",
+        bio: "",
+        skills: "",
+        availability: "Available",
+        profile_completed: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
       .select()
       .single();
 
     if (insertErr) {
       console.error("[Profile] Insert error:", insertErr);
     } else {
-      existingRowId = createdRow.id;
       console.log("[Profile] Blank profile row created.");
+      existingProfileId = insertData.id;
+      populateForm(insertData);
     }
 
   } catch (err) {
@@ -121,9 +114,6 @@ async function loadExistingProfile() {
 ============================================================= */
 function populateForm(row) {
   if (!row) return;
-
-  // Keep primary key
-  existingRowId = row.id;
 
   // Name
   if (row.name) {
@@ -158,7 +148,7 @@ function populateForm(row) {
 }
 
 /* =============================================================
-   SAVE PROFILE — UPSERT USING id + user_id
+   SAVE PROFILE — UPSERT BY user_id
 ============================================================= */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -200,15 +190,14 @@ profileForm?.addEventListener("submit", async (e) => {
   // ---------- UPSERT PROFILE ----------
   try {
     const updates = {
-      id: existingRowId,                  // 🔥 REQUIRED FOR UPSERT
       user_id: currentUserId,
       email,
       name,
       skills,
       bio,
       availability,
-      image_url: finalImageUrl,
-      newsletter_opt_in: newsletterOptIn,
+      image_url: finalImageUrl ?? null,
+      newsletter_opt_in: !!newsletterOptIn,
       newsletter_opt_in_at: newsletterOptIn ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
       profile_completed: isProfileComplete(),
@@ -216,11 +205,14 @@ profileForm?.addEventListener("submit", async (e) => {
 
     const { error } = await supabase
       .from("community")
-      .upsert(updates, { onConflict: "user_id" });
+      .update(updates)
+      .eq("user_id", currentUserId);
 
     if (error) throw error;
 
     existingImageUrl = finalImageUrl;
+
+    trackProfileCompletion(isProfileComplete());
 
     showNotification("Profile saved successfully!", "success");
   } catch (err) {
@@ -304,4 +296,19 @@ function setupSkillAutocomplete() {
       });
     });
   });
+}
+
+/* =============================================================
+   ANALYTICS TRACKING
+============================================================= */
+async function trackProfileCompletion(isComplete) {
+  try {
+    await supabase.from("analytics_profile_events").insert({
+      user_id: currentUserId,
+      completed: isComplete,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.warn("[Analytics] Failed to log profile event:", err);
+  }
 }
