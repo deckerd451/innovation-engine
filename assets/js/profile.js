@@ -1,6 +1,6 @@
 // =============================================================
 // CharlestonHacks Innovation Engine – Profile Controller (2025)
-// USER-ID-BASED PROFILE SYSTEM (FINAL)
+// USER-ID-BASED PROFILE SYSTEM (FINAL, FIXED BOOLEAN ISSUE)
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -148,7 +148,7 @@ function populateForm(row) {
 }
 
 /* =============================================================
-   SAVE PROFILE — UPSERT BY user_id
+   SAVE PROFILE — UPDATE BY user_id
 ============================================================= */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -162,7 +162,7 @@ profileForm?.addEventListener("submit", async (e) => {
   const email = emailInput.value.trim();
   const skills = skillsInput.value.trim();
   const bio = bioInput.value.trim();
-  const availability = availabilityInput.value;
+  const availability = availabilityInput.value.trim();
   const newsletterOptIn = newsletterOptInInput.checked;
 
   let finalImageUrl = existingImageUrl;
@@ -200,7 +200,7 @@ profileForm?.addEventListener("submit", async (e) => {
       newsletter_opt_in: !!newsletterOptIn,
       newsletter_opt_in_at: newsletterOptIn ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
-      profile_completed: isProfileComplete(),
+      profile_completed: isProfileComplete(), // FIXED BOOLEAN
     };
 
     const { error } = await supabase
@@ -224,20 +224,22 @@ profileForm?.addEventListener("submit", async (e) => {
 });
 
 /* =============================================================
-   PROFILE COMPLETENESS
+   PROFILE COMPLETENESS — FIXED BOOLEAN VERSION
 ============================================================= */
 function isProfileComplete() {
   return (
-    firstNameInput.value.trim() &&
-    lastNameInput.value.trim() &&
-    emailInput.value.trim() &&
-    skillsInput.value.trim() &&
-    availabilityInput.value
+    firstNameInput.value.trim().length > 0 &&
+    lastNameInput.value.trim().length > 0 &&
+    emailInput.value.trim().length > 0 &&
+    skillsInput.value.trim().length > 0 &&
+    availabilityInput.value.trim().length > 0
   );
 }
 
 function updateProgressState() {
-  if (isProfileComplete()) {
+  const complete = isProfileComplete();
+
+  if (complete) {
     progressBar.style.width = "100%";
     progressMsg.textContent = "Profile complete!";
     progressMsg.classList.add("profile-complete");
