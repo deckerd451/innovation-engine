@@ -300,17 +300,14 @@ function setupSkillAutocomplete() {
   });
 }
 
-/* =============================================================
-   ANALYTICS TRACKING
-============================================================= */
-async function trackProfileCompletion(isComplete) {
-  try {
-    await supabase.from("analytics_profile_events").insert({
-      user_id: currentUserId,
-      completed: isComplete,
-      timestamp: new Date().toISOString()
-    });
-  } catch (err) {
-    console.warn("[Analytics] Failed to log profile event:", err);
-  }
+// ---------- ANALYTICS EVENT ----------
+try {
+  await supabase.from("cs_profile_events").insert({
+    user_id: currentUserId,
+    event_type: isProfileComplete()
+      ? "profile_completed"
+      : "profile_saved"
+  });
+} catch (eventErr) {
+  console.warn("[Analytics] Failed to record event:", eventErr);
 }
