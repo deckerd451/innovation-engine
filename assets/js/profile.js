@@ -212,7 +212,6 @@ profileForm?.addEventListener("submit", async (e) => {
 
     existingImageUrl = finalImageUrl;
 
-    trackProfileCompletion(isProfileComplete());
 
     showNotification("Profile saved successfully!", "success");
   } catch (err) {
@@ -298,19 +297,4 @@ function setupSkillAutocomplete() {
       });
     });
   });
-}
-
-/* =============================================================
-   ANALYTICS TRACKING
-============================================================= */
-async function trackProfileCompletion(isComplete) {
-  try {
-    await supabase.from("analytics_profile_events").insert({
-      user_id: currentUserId,
-      completed: isComplete,
-      timestamp: new Date().toISOString()
-    });
-  } catch (err) {
-    console.warn("[Analytics] Failed to log profile event:", err);
-  }
 }
