@@ -1,6 +1,6 @@
 // =============================================================
 // CharlestonHacks Innovation Engine – Profile Controller (2025)
-// FINAL FIXED VERSION — Schema-A + GitHub Pages ESM Compatible
+// FINAL PRIVATE STORAGE VERSION — Using hacksbucket + signed URLs
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -27,6 +27,9 @@ const progressMsg = document.getElementById("profile-progress-msg");
 
 // Skill Autocomplete
 const autocompleteBox = document.getElementById("autocomplete-skills-input");
+
+// PRIVATE bucket
+const BUCKET = "hacksbucket";
 
 // Current user
 let currentUserId = null;
@@ -79,20 +82,20 @@ export async function initProfileForm() {
 }
 
 /* =============================================================
-   LOAD EXISTING PROFILE (FIXED FOR id COLUMN)
+   LOAD EXISTING PROFILE (PRIVATE STORAGE READY)
 ============================================================= */
 async function loadExistingProfile() {
   try {
     const { data, error } = await supabase
       .from("community")
       .select("*")
-      .eq("id", currentUserId)      // 🔥 FIXED: Correct PK column
+      .eq("id", currentUserId)
       .maybeSingle();
 
     if (error) throw error;
 
     if (data) {
-      // === Populate Form ===
+      // Name
       if (data.name) {
         const parts = data.name.split(" ");
         firstNameInput.value = parts[0] || "";
@@ -105,9 +108,16 @@ async function loadExistingProfile() {
       if (data.availability) availabilityInput.value = data.availability;
       if (data.newsletter_opt_in) newsletterOptInInput.checked = true;
 
-      if (data.image_url) {
-        previewImg.src = data.image_url;
-        previewImg.classList.remove("hidden");
+      // Load signed URL for image
+      if (data.image_path) {
+        const { data: signed } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUrl(data.image_path, 60 * 60 * 24 * 7); // 7-day signed URL
+
+        if (signed?.signedUrl) {
+          previewImg.src = signed.signedUrl;
+          previewImg.classList.remove("hidden");
+        }
       }
 
       updateProgressState();
@@ -119,7 +129,7 @@ async function loadExistingProfile() {
 }
 
 /* =============================================================
-   SAVE PROFILE — FIXED WITH UPSERT 
+   SAVE PROFILE — UPSERT + PRIVATE STORAGE
 ============================================================= */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -135,32 +145,28 @@ profileForm?.addEventListener("submit", async (e) => {
   const availability = availabilityInput.value;
   const newsletterOptIn = newsletterOptInInput.checked;
 
-  let uploadedImageURL = null;
+  let uploadedImagePath = null; // store internal path (NOT public URL)
 
-  // === Photo Upload ===
+  // === Upload photo to PRIVATE bucket ===
   if (photoInput.files.length > 0) {
     const file = photoInput.files[0];
     const filePath = `${currentUserId}/${Date.now()}_${file.name}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("profile_photos")
+      .from(BUCKET)
       .upload(filePath, file);
 
     if (uploadError) {
       console.error(uploadError);
       showNotification("Photo upload failed.", "error");
     } else {
-      const { data: urlData } = supabase.storage
-        .from("profile_photos")
-        .getPublicUrl(filePath);
-
-      uploadedImageURL = urlData.publicUrl;
+      uploadedImagePath = filePath;
     }
   }
 
-  // === UPSERT Payload ===
+  // === UPSERT (Create OR Update) ===
   const updates = {
-    id: currentUserId,             // 🔥 REQUIRED for UPSERT
+    id: currentUserId,
     name,
     email: emailInput.value.trim(),
     skills,
@@ -172,13 +178,12 @@ profileForm?.addEventListener("submit", async (e) => {
     profile_completed: isProfileComplete(),
   };
 
-  if (uploadedImageURL) updates.image_url = uploadedImageURL;
+  if (uploadedImagePath) updates.image_path = uploadedImagePath;
 
-  // === UPSERT (Create OR Update) ===
   try {
     const { error } = await supabase
       .from("community")
-      .upsert(updates);           // 🔥 FIXED: No more failed updates
+      .upsert(updates);
 
     if (error) throw error;
 
@@ -192,7 +197,7 @@ profileForm?.addEventListener("submit", async (e) => {
 });
 
 /* =============================================================
-   PROFILE COMPLETENESS CALCULATION
+   PROFILE COMPLETION STATE
 ============================================================= */
 function isProfileComplete() {
   return (
@@ -241,8 +246,9 @@ function setupImagePreview() {
    BASIC SKILL AUTOCOMPLETE
 ============================================================= */
 const COMMON_SKILLS = [
-  "python", "javascript", "java", "aws", "react", "node", "ui/ux",
-  "design", "sql", "go", "rust", "c++", "c#", "html", "css"
+  "python", "javascript", "java", "aws", "react",
+  "node", "ui/ux", "design", "sql", "go", "rust",
+  "c++", "c#", "html", "css"
 ];
 
 function setupSkillAutocomplete() {
