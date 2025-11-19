@@ -1,6 +1,6 @@
 // =============================================================
 // CharlestonHacks Innovation Engine – Profile Controller (2025)
-// USER-ID-BASED PROFILE SYSTEM (FINAL, FIXED BOOLEAN ISSUE)
+// USER-ID-BASED PROFILE SYSTEM — FINAL + ANALYTICS
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -57,7 +57,7 @@ export async function initProfileForm() {
 }
 
 /* =============================================================
-   LOAD EXISTING PROFILE (auto-create if missing)
+   LOAD EXISTING PROFILE
 ============================================================= */
 async function loadExistingProfile() {
   try {
@@ -69,15 +69,14 @@ async function loadExistingProfile() {
 
     if (error) throw error;
 
-    // ---------- CASE 1: PROFILE EXISTS ----------
     if (row) {
       existingProfileId = row.id;
       populateForm(row);
       return;
     }
 
-    // ---------- CASE 2: FIRST LOGIN — CREATE DEFAULT ROW ----------
-    console.log("[Profile] No profile row — creating new blank row...");
+    // ---------- FIRST LOGIN ----------
+    console.log("[Profile] No existing row — creating default profile...");
 
     const { data: insertData, error: insertErr } = await supabase
       .from("community")
@@ -95,17 +94,14 @@ async function loadExistingProfile() {
       .select()
       .single();
 
-    if (insertErr) {
-      console.error("[Profile] Insert error:", insertErr);
-    } else {
-      console.log("[Profile] Blank profile row created.");
-      existingProfileId = insertData.id;
-      populateForm(insertData);
-    }
+    if (insertErr) throw insertErr;
+
+    existingProfileId = insertData.id;
+    populateForm(insertData);
 
   } catch (err) {
     console.error("[Profile] Load error:", err);
-    showNotification("Could not load profile", "error");
+    showNotification("Could not load profile.", "error");
   }
 }
 
@@ -139,9 +135,9 @@ function populateForm(row) {
 
   // Image
   if (row.image_url) {
-    existingImageUrl = row.image_url;
-    previewImg.src = existingImageUrl;
+    previewImg.src = row.image_url;
     previewImg.classList.remove("hidden");
+    existingImageUrl = row.image_url;
   }
 
   updateProgressState();
@@ -154,7 +150,7 @@ profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   if (!currentUserId) {
-    showNotification("You must be logged in to save your profile.", "error");
+    showNotification("You must be logged in.", "error");
     return;
   }
 
@@ -163,7 +159,7 @@ profileForm?.addEventListener("submit", async (e) => {
   const skills = skillsInput.value.trim();
   const bio = bioInput.value.trim();
   const availability = availabilityInput.value.trim();
-  const newsletterOptIn = newsletterOptInInput.checked;
+  const newsletterOptIn = !!newsletterOptInInput.checked;
 
   let finalImageUrl = existingImageUrl;
 
@@ -176,18 +172,15 @@ profileForm?.addEventListener("submit", async (e) => {
       .from(BUCKET)
       .upload(path, file, { upsert: false });
 
-    if (uploadError) {
+    if (!uploadError) {
+      finalImageUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    } else {
       console.error("[Profile] Upload error:", uploadError);
       showNotification("Photo upload failed.", "error");
-    } else {
-      const { data } = supabase.storage
-        .from(BUCKET)
-        .getPublicUrl(path);
-      finalImageUrl = data.publicUrl;
     }
   }
 
-  // ---------- UPSERT PROFILE ----------
+  // ---------- UPDATE PROFILE ----------
   try {
     const updates = {
       user_id: currentUserId,
@@ -197,10 +190,10 @@ profileForm?.addEventListener("submit", async (e) => {
       bio,
       availability,
       image_url: finalImageUrl ?? null,
-      newsletter_opt_in: !!newsletterOptIn,
+      newsletter_opt_in: newsletterOptIn,
       newsletter_opt_in_at: newsletterOptIn ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
-      profile_completed: isProfileComplete(), // FIXED BOOLEAN
+      profile_completed: isProfileComplete(),
     };
 
     const { error } = await supabase
@@ -212,9 +205,21 @@ profileForm?.addEventListener("submit", async (e) => {
 
     existingImageUrl = finalImageUrl;
 
-    trackProfileCompletion(isProfileComplete());
+    // ---------- ANALYTICS EVENT ----------
+    try {
+      await supabase.from("cs_profile_events").insert({
+        user_id: currentUserId,
+        event_type: isProfileComplete()
+          ? "profile_completed"
+          : "profile_saved",
+        timestamp: new Date().toISOString()
+      });
+    } catch (eventErr) {
+      console.warn("[Analytics] Failed to record event:", eventErr);
+    }
 
     showNotification("Profile saved successfully!", "success");
+
   } catch (err) {
     console.error("[Profile] Save error:", err);
     showNotification("Error saving profile.", "error");
@@ -224,7 +229,7 @@ profileForm?.addEventListener("submit", async (e) => {
 });
 
 /* =============================================================
-   PROFILE COMPLETENESS — FIXED BOOLEAN VERSION
+   PROFILE COMPLETENESS
 ============================================================= */
 function isProfileComplete() {
   return (
@@ -298,16 +303,4 @@ function setupSkillAutocomplete() {
       });
     });
   });
-}
-
-// ---------- ANALYTICS EVENT ----------
-try {
-  await supabase.from("cs_profile_events").insert({
-    user_id: currentUserId,
-    event_type: isProfileComplete()
-      ? "profile_completed"
-      : "profile_saved"
-  });
-} catch (eventErr) {
-  console.warn("[Analytics] Failed to record event:", eventErr);
 }
