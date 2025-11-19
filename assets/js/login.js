@@ -60,9 +60,13 @@ loginForm?.addEventListener("submit", async (e) => {
   }
 
   const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: REDIRECT_URL }
-  });
+  email,
+  options: {
+    emailRedirectTo: REDIRECT_URL,
+    shouldCreateUser: true   // 🔥 Enable auto account creation
+  }
+});
+
 
   if (error) {
     console.error(error);
