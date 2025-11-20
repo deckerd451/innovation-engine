@@ -1,14 +1,15 @@
-// =============================================================
-// CharlestonHacks Innovation Engine – Profile Controller (2025)
-// FINAL CLEAN BUILD – USER-ID + EMAIL SAFE LOOKUP
-// =============================================================
+// =====================================================================
+// CharlestonHacks – Profile Controller (2025)
+// OPTION B: Hybrid tolerant loader (least DB changes, max compatibility)
+// Safe for legacy rows (email-only), new rows (user_id), and duplicates
+// =====================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
-// ------------------------------
-// DOM ELEMENTS
-// ------------------------------
+// ----------------------------------------------------
+// DOM elements
+// ----------------------------------------------------
 const profileForm = document.getElementById("skills-form");
 const previewImg = document.getElementById("preview");
 const firstNameInput = document.getElementById("first-name");
@@ -19,10 +20,8 @@ const bioInput = document.getElementById("bio-input");
 const availabilityInput = document.getElementById("availability-input");
 const photoInput = document.getElementById("photo-input");
 const newsletterOptInInput = document.getElementById("newsletter-opt-in");
-
 const progressBar = document.querySelector(".profile-bar-inner");
 const progressMsg = document.getElementById("profile-progress-msg");
-
 const autocompleteBox = document.getElementById("autocomplete-skills-input");
 
 const BUCKET = "hacksbucket";
@@ -31,9 +30,9 @@ let currentUserId = null;
 let existingImageUrl = null;
 let existingProfileId = null;
 
-/* =============================================================
+/* ============================================================
    INIT
-============================================================= */
+============================================================ */
 export async function initProfileForm() {
   const { data } = await supabase.auth.getSession();
   const user = data?.session?.user;
@@ -49,10 +48,12 @@ export async function initProfileForm() {
   setupSkillAutocomplete();
 }
 
-/* =============================================================
-   LOAD EXISTING PROFILE (SAFE)
-   → Search by user_id OR email (prevents duplicates)
-============================================================= */
+/* ============================================================
+   OPTION B — TOLERANT HYBRID PROFILE LOADER
+   1) Try match by user_id
+   2) Fall back to email
+   3) If multiple email rows: choose latest + attach user_id
+============================================================ */
 async function loadExistingProfile() {
   try {
     const { data: authData } = await supabase.auth.getUser();
@@ -61,41 +62,109 @@ async function loadExistingProfile() {
 
     const email = user.email;
 
-    const { data: row, error } = await supabase
+    // --------------------------------------------------------
+    // STEP 1 — TRY USER_ID MATCH
+    // --------------------------------------------------------
+    const { data: uidRows, error: uidError } = await supabase
       .from("community")
       .select("*")
-      .or(`user_id.eq.${currentUserId},email.eq.${email}`)
-      .maybeSingle();
+      .eq("user_id", currentUserId);
 
-    if (error) throw error;
+    if (uidError) throw uidError;
 
-    if (row) {
+    if (uidRows?.length > 0) {
+      console.log("✔ Profile matched by user_id");
+      const row = uidRows[0];
       existingProfileId = row.id;
       populateForm(row);
       return;
     }
 
-    // ---------- No row exists → Create fresh profile ----------
-    const { data: insertData, error: insertErr } = await supabase
+    // --------------------------------------------------------
+    // STEP 2 — FALL BACK TO EMAIL MATCH
+    // --------------------------------------------------------
+    const { data: emailRows, error: emailError } = await supabase
       .from("community")
-      .insert({
-        user_id: currentUserId,
-        email: email,
-        name: email.split("@")[0],
-        bio: "",
-        skills: "",
-        availability: "Available",
-        profile_completed: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+      .select("*")
+      .eq("email", email);
 
-    if (insertErr) throw insertErr;
+    if (emailError) throw emailError;
 
-    existingProfileId = insertData.id;
-    populateForm(insertData);
+    // 0 EXISTING ROWS → CREATE NEW
+    if (!emailRows || emailRows.length === 0) {
+      console.log("ℹ No profile found → creating fresh row");
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from("community")
+        .insert({
+          user_id: currentUserId,
+          email: email,
+          name: email.split("@")[0],
+          bio: "",
+          skills: "",
+          availability: "Available",
+          profile_completed: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      existingProfileId = inserted.id;
+      populateForm(inserted);
+      return;
+    }
+
+    // --------------------------------------------------------
+    // STEP 3 — ONE MATCHING EMAIL → LINK user_id
+    // --------------------------------------------------------
+    if (emailRows.length === 1) {
+      console.log("✔ Found single email-based profile");
+
+      const row = emailRows[0];
+
+      // Attach user_id if missing
+      if (!row.user_id) {
+        console.log("🔗 Linking email row to user_id…");
+        await supabase
+          .from("community")
+          .update({ user_id: currentUserId })
+          .eq("id", row.id);
+      }
+
+      existingProfileId = row.id;
+      populateForm(row);
+      return;
+    }
+
+    // --------------------------------------------------------
+    // STEP 4 — MULTIPLE EMAIL ROWS (DUPLICATES)
+    // Pick the newest and attach user_id
+    // --------------------------------------------------------
+    console.warn("⚠ Duplicate email rows detected:", emailRows.length);
+
+    // Sort by created_at or updated_at
+    const sorted = emailRows.sort(
+      (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
+    );
+
+    const chosen = sorted[0];
+
+    console.log("🔎 Using newest profile row:", chosen.id);
+
+    // Attach user_id if needed
+    if (!chosen.user_id) {
+      console.log("🔗 Linking chosen row to user_id");
+      await supabase
+        .from("community")
+        .update({ user_id: currentUserId })
+        .eq("id", chosen.id);
+    }
+
+    existingProfileId = chosen.id;
+    populateForm(chosen);
 
   } catch (err) {
     console.error("[Profile] Load error:", err);
@@ -103,16 +172,17 @@ async function loadExistingProfile() {
   }
 }
 
-/* =============================================================
+/* ============================================================
    POPULATE FORM
-============================================================= */
+============================================================ */
 function populateForm(row) {
   if (!row) return;
 
+  // Split into first + last
   if (row.name) {
     const parts = row.name.split(" ");
     firstNameInput.value = parts[0] || "";
-    lastNameInput.value = parts.slice(1).join(" ");
+    lastNameInput.value = parts.slice(1).join(" ") || "";
   }
 
   emailInput.value = row.email || "";
@@ -130,9 +200,9 @@ function populateForm(row) {
   updateProgressState();
 }
 
-/* =============================================================
+/* ============================================================
    SAVE PROFILE
-============================================================= */
+============================================================ */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -150,7 +220,7 @@ profileForm?.addEventListener("submit", async (e) => {
 
   let finalImageUrl = existingImageUrl;
 
-  // ---------- Upload Photo ----------
+  // ---------- Upload photo ----------
   if (photoInput.files?.length > 0) {
     const file = photoInput.files[0];
     const path = `${currentUserId}/${Date.now()}_${file.name}`;
@@ -167,7 +237,7 @@ profileForm?.addEventListener("submit", async (e) => {
     }
   }
 
-  // ---------- Update ----------
+  // ---------- Save ----------
   try {
     const updates = {
       user_id: currentUserId,
@@ -186,7 +256,7 @@ profileForm?.addEventListener("submit", async (e) => {
     const { error } = await supabase
       .from("community")
       .update(updates)
-      .eq("user_id", currentUserId);
+      .eq("id", existingProfileId);
 
     if (error) throw error;
 
@@ -201,9 +271,9 @@ profileForm?.addEventListener("submit", async (e) => {
   updateProgressState();
 });
 
-/* =============================================================
-   PROFILE COMPLETENESS CHECK
-============================================================= */
+/* ============================================================
+   PROFILE COMPLETENESS
+============================================================ */
 function isProfileComplete() {
   return (
     firstNameInput.value.trim() &&
@@ -218,19 +288,15 @@ function updateProgressState() {
   if (isProfileComplete()) {
     progressBar.style.width = "100%";
     progressMsg.textContent = "Profile complete!";
-    progressMsg.classList.add("profile-complete");
-    progressMsg.classList.remove("profile-incomplete");
   } else {
     progressBar.style.width = "40%";
     progressMsg.textContent = "Your profile is incomplete.";
-    progressMsg.classList.add("profile-incomplete");
-    progressMsg.classList.remove("profile-complete");
   }
 }
 
-/* =============================================================
+/* ============================================================
    IMAGE PREVIEW
-============================================================= */
+============================================================ */
 function setupImagePreview() {
   photoInput?.addEventListener("change", () => {
     const file = photoInput.files[0];
@@ -244,31 +310,28 @@ function setupImagePreview() {
   });
 }
 
-/* =============================================================
+/* ============================================================
    SKILL AUTOCOMPLETE
-============================================================= */
-const COMMON_SKILLS = [
-  "python", "javascript", "react", "node", "aws",
-  "html", "css", "sql", "design", "ui/ux"
-];
+============================================================ */
+const COMMON_SKILLS = ["python", "javascript", "react", "node", "aws", "html", "css", "sql", "design", "ui/ux"];
 
 function setupSkillAutocomplete() {
   skillsInput?.addEventListener("input", () => {
     const text = skillsInput.value.toLowerCase();
-    const match = COMMON_SKILLS.filter((s) => s.startsWith(text));
+    const matches = COMMON_SKILLS.filter((s) => s.startsWith(text));
 
-    if (!text || match.length === 0) {
+    if (!text || matches.length === 0) {
       autocompleteBox.innerHTML = "";
       return;
     }
 
-    autocompleteBox.innerHTML = match
+    autocompleteBox.innerHTML = matches
       .map((s) => `<div class="autocomplete-item">${s}</div>`)
       .join("");
 
-    document.querySelectorAll(".autocomplete-item").forEach((item) => {
-      item.addEventListener("click", () => {
-        skillsInput.value = item.textContent;
+    document.querySelectorAll(".autocomplete-item").forEach((el) => {
+      el.addEventListener("click", () => {
+        skillsInput.value = el.textContent;
         autocompleteBox.innerHTML = "";
       });
     });
