@@ -2,18 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-
-  <meta name="description"
-        content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
   <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
   <meta property="og:description" content="CharlestonHacks promotes tech events. Join us for exciting events and stay updated." />
   <meta property="og:image" content="images/reactiveh.png" />
   <meta property="og:url" content="https://charlestonhacks.com" />
   <meta name="twitter:card" content="summary_large_image" />
-
   <title>Innovation Engine - CharlestonHacks</title>
 
   <link rel="icon" href="favicon.ico" />
@@ -23,8 +18,7 @@
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://hvmotpzhliufzomewzfl.supabase.co">
 
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css">
 
   <style>
@@ -92,7 +86,7 @@
     /* Tooltip */
     .synapse-tooltip {
       position: absolute;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0, 0, 0, 0.85);
       padding: 6px 10px;
       border-radius: 4px;
       color: #0ff;
@@ -104,34 +98,28 @@
 </head>
 
 <body class="two-card-page">
-
   <!-- Neural Background -->
   <canvas id="neural-bg"></canvas>
 
   <!-- Achievements -->
-  <div id="achievements"
-       class="achievements"
-       aria-live="polite"></div>
+  <div id="achievements" class="achievements" aria-live="polite"></div>
 
-  <!-- Fullscreen Synapse -->
+  <!-- FULLSCREEN SYNAPSE 3.0 -->
   <div id="synapse-container">
     <svg id="synapse-svg"></svg>
   </div>
 
-  <!-- Main Wrapper -->
+  <!-- Main Container -->
   <div class="container">
     <header class="header">
       <a href="index.html">
-        <img src="images/ieheader.webp"
-             alt="Innovation Engine Header"
-             class="header-img">
+        <img src="images/ieheader.webp" alt="Innovation Engine Header" class="header-img">
       </a>
 
       <p style="color:#ccc; margin-top:6px;">Making Invisible Networks Visible</p>
 
       <div class="auth-controls">
         <span class="user-badge hidden" id="user-badge"></span>
-
         <button class="logout-btn action-btn hidden" id="logout-btn">
           <i class="fas fa-sign-out-alt"></i> Logout
         </button>
@@ -145,20 +133,12 @@
         <div id="login-section">
           <h2 class="section-title">Login</h2>
           <form id="login-form">
-            <input type="email"
-                   id="login-email"
-                   placeholder="Enter your email"
-                   autocomplete="email" />
-
-            <button id="login-button"
-                    type="submit"
-                    class="action-btn">
-              Send Magic Link
-            </button>
+            <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email" />
+            <button id="login-button" type="submit" class="action-btn">Send Magic Link</button>
           </form>
         </div>
 
-        <!-- PROFILE -->
+        <!-- PROFILE SECTION -->
         <div id="profile-section" class="hidden">
 
           <!-- Tabs -->
@@ -174,11 +154,9 @@
           <div id="profile" class="tab-content-pane active-tab-pane">
             <section id="matchmaking-section">
               <h2 class="section-title">Create Your Profile</h2>
-
+              <!-- Profile Form -->
               <form id="skills-form">
-
                 <div class="input-container">
-
                   <input type="text" id="first-name" placeholder="First Name" required>
                   <input type="text" id="last-name" placeholder="Last Name" required>
                   <input type="email" id="email" placeholder="Email" required>
@@ -206,19 +184,14 @@
                   </select>
 
                   <label>
-                    <input type="checkbox" id="newsletter-opt-in">
-                    Subscribe to CharlestonHacks Newsletter
+                    <input type="checkbox" id="newsletter-opt-in"> Subscribe to CharlestonHacks Newsletter
                   </label>
 
                   <button type="submit" class="action-btn">Save Profile</button>
                 </div>
 
-                <div class="profile-bar">
-                  <div class="profile-bar-inner"></div>
-                </div>
-
+                <div class="profile-bar"><div class="profile-bar-inner"></div></div>
                 <div id="profile-progress-msg"></div>
-
               </form>
             </section>
           </div>
@@ -226,19 +199,16 @@
           <!-- Search -->
           <div id="search" class="tab-content-pane">
             <h2 class="section-title">Individual Search</h2>
-
             <div class="input-wrapper">
               <input type="text" id="teamSkillsInput" placeholder="Required skills">
               <div id="autocomplete-team-skills" class="autocomplete-box"></div>
             </div>
-
             <button id="find-team-btn" class="action-btn">Get People</button>
 
             <div class="input-wrapper" style="margin-top:20px;">
               <input type="text" id="nameInput" placeholder="Search by name">
               <div id="autocomplete-names" class="autocomplete-box"></div>
             </div>
-
             <button id="search-name-btn" class="action-btn">Find by Name</button>
 
             <div id="matchNotification" class="notification hidden"></div>
@@ -249,15 +219,12 @@
           <!-- Team Builder -->
           <div id="team-builder" class="tab-content-pane">
             <h2 class="section-title">Team Builder</h2>
-
             <div class="input-container">
               <input type="text" id="team-skills-input" placeholder="Required skills">
               <div id="autocomplete-team-builder" class="autocomplete-box"></div>
-
               <input type="number" id="teamSize" placeholder="Team size" min="1" max="6">
               <button id="buildTeamBtn" class="action-btn">Build Team</button>
             </div>
-
             <div id="bestTeamContainer" class="card-container"></div>
           </div>
 
@@ -265,13 +232,11 @@
           <div id="leaderboard" class="tab-content-pane">
             <div class="leaderboard">
               <h2>Leaderboard</h2>
-
               <div class="leaderboard-tabs">
                 <button class="lb-tab active" data-type="skills"><i class="fas fa-star"></i> Top Skills</button>
                 <button class="lb-tab" data-type="connectors"><i class="fas fa-link"></i> Top Connectors</button>
                 <button class="lb-tab" data-type="rising"><i class="fas fa-rocket"></i> Rising Stars</button>
               </div>
-
               <div id="leaderboard-rows"></div>
             </div>
           </div>
@@ -279,7 +244,6 @@
         </div>
       </div>
     </main>
-
   </div>
 
   <!-- Footer -->
@@ -289,16 +253,13 @@
         <img src="assets/chbackbuttonred.png" alt="Back to Home" />
       </a>
     </div>
-
-    <p style="margin-top:16px; font-size:16px;">
-      © 2025 CharlestonHacks. All rights reserved.
-    </p>
+    <p style="margin-top:16px; font-size:16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
 
-  <!-- Dependencies -->
+  <!-- Load D3 First -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
-  <!-- Modules -->
+  <!-- Scripts in Correct Order -->
   <script type="module" src="assets/js/searchEngine.js"></script>
   <script type="module" src="assets/js/main.js"></script>
   <script type="module" src="assets/js/login.js"></script>
