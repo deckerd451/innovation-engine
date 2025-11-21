@@ -1,18 +1,105 @@
 // =====================================================
-// Synapse View 3.0 — LIGHT VERSION
+// Synapse View 3.0 — LIGHT VERSION (INLINE CSS)
 // CharlestonHacks (2025)
-// Clean, minimal, stable, no HUD, no overlays
-// Supports:
-//   ✔ Avatars
-//   ✔ Tooltips
-//   ✔ Connect / Disconnect
-//   ✔ Realtime links
-//   ✔ ESC to exit
+// Fully functional, self-contained, no external CSS needed
 // =====================================================
 
 import { supabase } from "./supabaseClient.js";
 const d3 = window.d3;
 
+// ================================================
+// INLINE CSS — injected automatically
+// ================================================
+(function injectSynapseCSS() {
+  const css = `
+    .synapse-tooltip {
+      position: absolute;
+      background: rgba(0,0,0,0.85);
+      padding: 6px 10px;
+      border-radius: 4px;
+      color: #0ff;
+      font-size: 13px;
+      pointer-events: none;
+      font-family: monospace;
+      z-index: 9999;
+    }
+
+    .profile-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.92);
+      padding: 20px;
+      border-radius: 12px;
+      z-index: 99999;
+      color: white;
+      width: 280px;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(0,255,255,0.3);
+      backdrop-filter: blur(6px);
+    }
+
+    .modal-content h2 {
+      margin-top: 10px;
+      margin-bottom: 8px;
+      color: #0ff;
+      font-size: 20px;
+    }
+
+    .modal-avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      border: 2px solid #0ff;
+      margin-bottom: 10px;
+      object-fit: cover;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 6px;
+      right: 10px;
+      background: transparent;
+      border: none;
+      font-size: 28px;
+      color: #0ff;
+      cursor: pointer;
+    }
+
+    .connect-btn, .disconnect-btn {
+      margin-top: 12px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .connect-btn {
+      background: #00ccff;
+      color: black;
+    }
+
+    .disconnect-btn {
+      background: #ff0066;
+      color: white;
+    }
+
+    .disconnect-btn.hidden,
+    .connect-btn.hidden {
+      display: none;
+    }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+// ================================================
+// MAIN VARIABLES
+// ================================================
 let svg, zoomGroup, simulation, link, node, tooltip, channel;
 let nodes = [];
 let links = [];
@@ -20,13 +107,12 @@ let width, height;
 let isSynapseActive = false;
 
 // ================================================
-// MAIN ENTRY POINT
+// MAIN ENTRY
 // ================================================
 export async function initSynapseView() {
   const container = document.getElementById("synapse-container");
   if (!container) return;
 
-  // Reset
   d3.select("#synapse-svg").selectAll("*").remove();
 
   width = container.clientWidth;
@@ -53,20 +139,14 @@ export async function initSynapseView() {
 }
 
 // ================================================
-// LOAD USERS & CONNECTIONS
+// LOAD USERS + CONNECTIONS
 // ================================================
 async function loadGraphData() {
   try {
-    const [
-      { data: community, error: cErr },
-      { data: connections, error: connErr }
-    ] = await Promise.all([
+    const [{ data: community }, { data: connections }] = await Promise.all([
       supabase.from("community").select("id, name, email, image_url, skills"),
-      supabase.from("connections").select("from_user_id, to_user_id")
+      supabase.from("connections").select("from_user_id, to_user_id"),
     ]);
-
-    if (cErr) throw cErr;
-    if (connErr) throw connErr;
 
     nodes = community.map(u => ({
       id: u.id,
@@ -112,9 +192,10 @@ function drawGraph() {
     .join("g")
     .call(drag(simulation));
 
-  // --- Avatars / Initials ---
+  // Draw avatars or initials
   node.each(function (d) {
     const g = d3.select(this);
+
     if (d.image_url) {
       g.append("image")
         .attr("href", d.image_url)
@@ -127,20 +208,24 @@ function drawGraph() {
       g.append("circle")
         .attr("r", 20)
         .attr("fill", "#0099cc");
+
       g.append("text")
         .attr("text-anchor", "middle")
         .attr("dy", "0.35em")
         .attr("font-size", 14)
+        .attr("fill", "white")
         .text(d.name?.[0]?.toUpperCase() || "?");
     }
   });
 
-  // --- Tooltip ---
+  // Tooltip
   node.on("mouseover", (ev, d) => {
-    tooltip.style("opacity", 1)
-      .html(`<strong>${d.name}</strong><br>${d.skills || ""}`)
+    tooltip
+      .style("opacity", 1)
+      .html(`<strong>${d.name}</strong><br>${d.skills}`)
       .style("left", ev.pageX + 10 + "px")
       .style("top", ev.pageY - 10 + "px");
+
     highlightNode(d.id, true);
   });
 
@@ -149,7 +234,7 @@ function drawGraph() {
     highlightNode(null, false);
   });
 
-  // --- Click modal (simple modal) ---
+  // Modal
   node.on("click", openProfileModal);
 
   simulation.on("tick", () => {
@@ -163,12 +248,12 @@ function drawGraph() {
 
   svg.call(
     d3.zoom().scaleExtent([0.4, 4])
-      .on("zoom", (ev) => zoomGroup.attr("transform", ev.transform))
+      .on("zoom", ev => zoomGroup.attr("transform", ev.transform))
   );
 }
 
 // ================================================
-// DRAG BEHAVIOR
+// DRAGGING
 // ================================================
 function drag(sim) {
   return d3.drag()
@@ -176,9 +261,7 @@ function drag(sim) {
       if (!e.active) sim.alphaTarget(0.3).restart();
       d.fx = d.x; d.fy = d.y;
     })
-    .on("drag", (e, d) => {
-      d.fx = e.x; d.fy = e.y;
-    })
+    .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
     .on("end", (e, d) => {
       if (!e.active) sim.alphaTarget(0);
       d.fx = null; d.fy = null;
@@ -186,24 +269,24 @@ function drag(sim) {
 }
 
 // ================================================
-// LINK HIGHLIGHT
+// HIGHLIGHT LINKS
 // ================================================
 function highlightNode(nodeId, active) {
   link.attr("stroke-opacity", l =>
-    !active ? 0.25 :
-    (l.source.id === nodeId || l.target.id === nodeId ? 0.85 : 0.06)
+    !active
+      ? 0.25
+      : (l.source.id === nodeId || l.target.id === nodeId ? 0.9 : 0.06)
   );
 }
 
 // ================================================
-// PROFILE MODAL (Light version)
+// PROFILE MODAL + CONNECT/DISCONNECT
 // ================================================
 async function openProfileModal(ev, user) {
   document.querySelectorAll(".profile-modal").forEach(e => e.remove());
 
   const modal = document.createElement("div");
   modal.className = "profile-modal";
-
   modal.innerHTML = `
     <div class="modal-content">
       <button class="modal-close">&times;</button>
@@ -217,7 +300,7 @@ async function openProfileModal(ev, user) {
   `;
   document.body.appendChild(modal);
 
-  modal.querySelector(".modal-close").addEventListener("click", () => modal.remove());
+  modal.querySelector(".modal-close").onclick = () => modal.remove();
 
   const connectBtn = modal.querySelector("#connectBtn");
   const disconnectBtn = modal.querySelector("#disconnectBtn");
@@ -226,12 +309,12 @@ async function openProfileModal(ev, user) {
   const currentUser = session?.session?.user;
 
   if (!currentUser) {
-    connectBtn.textContent = "Login required";
+    connectBtn.textContent = "Login Required";
     connectBtn.disabled = true;
     return;
   }
 
-  // Check existing connection
+  // check if connected
   const { data: existing } = await supabase
     .from("connections")
     .select("*")
@@ -244,59 +327,53 @@ async function openProfileModal(ev, user) {
     disconnectBtn.classList.remove("hidden");
   }
 
-  // Connect
-  connectBtn.addEventListener("click", async () => {
-    await supabase.from("connections").insert({
-      from_user_id: currentUser.id,
-      to_user_id: user.id
-    });
+  // CONNECT
+  connectBtn.onclick = async () => {
+    await supabase
+      .from("connections")
+      .insert({ from_user_id: currentUser.id, to_user_id: user.id });
 
     connectBtn.classList.add("hidden");
     disconnectBtn.classList.remove("hidden");
-  });
+  };
 
-  // Disconnect
-  disconnectBtn.addEventListener("click", async () => {
-    await supabase.from("connections")
+  // DISCONNECT
+  disconnectBtn.onclick = async () => {
+    await supabase
+      .from("connections")
       .delete()
       .eq("from_user_id", currentUser.id)
       .eq("to_user_id", user.id);
 
     disconnectBtn.classList.add("hidden");
     connectBtn.classList.remove("hidden");
-  });
+  };
 }
 
 // ================================================
-// REALTIME
+// REALTIME CONNECTIONS
 // ================================================
 function setupRealtime() {
   if (channel) channel.unsubscribe();
 
   channel = supabase
     .channel("realtime-connections")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "connections" },
-      (payload) => {
-        if (payload.eventType === "INSERT") {
-          links.push({
-            source: payload.new.from_user_id,
-            target: payload.new.to_user_id
-          });
-          simulation.alpha(0.4).restart();
-        }
-
-        if (payload.eventType === "DELETE") {
-          links = links.filter(
-            l =>
-              !(l.source.id === payload.old.from_user_id &&
-                l.target.id === payload.old.to_user_id)
-          );
-          simulation.alpha(0.4).restart();
-        }
+    .on("postgres_changes", { event: "*", table: "connections" }, (p) => {
+      if (p.eventType === "INSERT") {
+        links.push({
+          source: p.new.from_user_id,
+          target: p.new.to_user_id
+        });
+        simulation.alpha(0.4).restart();
       }
-    )
+
+      if (p.eventType === "DELETE") {
+        links = links.filter(
+          l => !(l.source.id === p.old.from_user_id && l.target.id === p.old.to_user_id)
+        );
+        simulation.alpha(0.4).restart();
+      }
+    })
     .subscribe();
 }
 
@@ -304,22 +381,18 @@ function setupRealtime() {
 // EXIT ON ESC
 // ================================================
 function handleEscape(e) {
-  if (e.key === "Escape" && isSynapseActive) exitSynapseView();
+  if (e.key === "Escape") exitSynapseView();
 }
 
 function exitSynapseView() {
-  isSynapseActive = false;
-
-  // Restore UI
   document.querySelector("header").style.display = "";
   document.querySelector("footer").style.display = "";
   document.getElementById("neural-bg").style.display = "";
-
   document.getElementById("synapse-container").classList.remove("active");
 
-  // Clean DOM
+  tooltip?.remove();
   document.querySelectorAll(".profile-modal").forEach(e => e.remove());
-  document.querySelector(".synapse-tooltip")?.remove();
 
   if (channel) channel.unsubscribe();
+  isSynapseActive = false;
 }
