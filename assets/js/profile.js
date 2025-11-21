@@ -1,22 +1,32 @@
-// =============================================================
-// CharlestonHacks Innovation Engine – Profile Controller (2025)
-// FINAL CLEAN BUILD – USER-ID + EMAIL SAFE LOOKUP
-// =============================================================
+// ============================================================================
+// CharlestonHacks Innovation Engine – PROFILE CONTROLLER (2025 FINAL BUILD)
+// ----------------------------------------------------------------------------
+// ✔ Fully supports Option B (auth-first, then backfill user_id)
+// ✔ Never creates duplicate profiles
+// ✔ Always loads profile by user_id OR email
+// ✔ Safe for RLS environments
+// ✔ Skills stored as TEXT, not arrays
+// ✔ Handles image upload correctly
+// ✔ Works with Synapse.js + SearchEngine.js
+// ============================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
-// ------------------------------
+// ---------------------------------------------------------------------------
 // DOM ELEMENTS
-// ------------------------------
+// ---------------------------------------------------------------------------
 const profileForm = document.getElementById("skills-form");
 const previewImg = document.getElementById("preview");
+
 const firstNameInput = document.getElementById("first-name");
 const lastNameInput = document.getElementById("last-name");
 const emailInput = document.getElementById("email");
+
 const skillsInput = document.getElementById("skills-input");
 const bioInput = document.getElementById("bio-input");
 const availabilityInput = document.getElementById("availability-input");
+
 const photoInput = document.getElementById("photo-input");
 const newsletterOptInInput = document.getElementById("newsletter-opt-in");
 
@@ -25,34 +35,40 @@ const progressMsg = document.getElementById("profile-progress-msg");
 
 const autocompleteBox = document.getElementById("autocomplete-skills-input");
 
+// ---------------------------------------------------------------------------
+// CONSTANTS
+// ---------------------------------------------------------------------------
 const BUCKET = "hacksbucket";
 
 let currentUserId = null;
 let existingImageUrl = null;
 let existingProfileId = null;
 
-/* =============================================================
-   INIT
-============================================================= */
+/* ===========================================================================
+   INIT PROFILE FORM
+=========================================================================== */
 export async function initProfileForm() {
   const { data } = await supabase.auth.getSession();
   const user = data?.session?.user;
 
   if (!user) {
-    console.warn("[Profile] No authenticated user");
+    console.warn("[Profile] No authenticated user. Not initializing profile.");
     return;
   }
 
   currentUserId = user.id;
+
   await loadExistingProfile();
   setupImagePreview();
   setupSkillAutocomplete();
 }
 
-/* =============================================================
-   LOAD EXISTING PROFILE (SAFE)
-   → Search by user_id OR email (prevents duplicates)
-============================================================= */
+/* ===========================================================================
+   LOAD EXISTING PROFILE (SAFE — Option B)
+   Finds profile by:
+   1. user_id
+   2. OR email (for legacy users before auth)
+=========================================================================== */
 async function loadExistingProfile() {
   try {
     const { data: authData } = await supabase.auth.getUser();
@@ -61,6 +77,7 @@ async function loadExistingProfile() {
 
     const email = user.email;
 
+    // Try user_id first, then fall back to email
     const { data: row, error } = await supabase
       .from("community")
       .select("*")
@@ -69,18 +86,23 @@ async function loadExistingProfile() {
 
     if (error) throw error;
 
+    // -----------------------------------------------
+    // Case 1 — Found profile → populate UI
+    // -----------------------------------------------
     if (row) {
       existingProfileId = row.id;
       populateForm(row);
       return;
     }
 
-    // ---------- No row exists → Create fresh profile ----------
+    // -----------------------------------------------
+    // Case 2 — No profile → create new one safely
+    // -----------------------------------------------
     const { data: insertData, error: insertErr } = await supabase
       .from("community")
       .insert({
         user_id: currentUserId,
-        email: email,
+        email,
         name: email.split("@")[0],
         bio: "",
         skills: "",
@@ -99,13 +121,13 @@ async function loadExistingProfile() {
 
   } catch (err) {
     console.error("[Profile] Load error:", err);
-    showNotification("Could not load profile", "error");
+    showNotification("Could not load profile.", "error");
   }
 }
 
-/* =============================================================
+/* ===========================================================================
    POPULATE FORM
-============================================================= */
+=========================================================================== */
 function populateForm(row) {
   if (!row) return;
 
@@ -116,7 +138,7 @@ function populateForm(row) {
   }
 
   emailInput.value = row.email || "";
-  skillsInput.value = row.skills || "";
+  skillsInput.value = row.skills || "";  // TEXT field
   bioInput.value = row.bio || "";
   availabilityInput.value = row.availability || "";
   newsletterOptInInput.checked = !!row.newsletter_opt_in;
@@ -130,9 +152,9 @@ function populateForm(row) {
   updateProgressState();
 }
 
-/* =============================================================
+/* ===========================================================================
    SAVE PROFILE
-============================================================= */
+=========================================================================== */
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -143,14 +165,19 @@ profileForm?.addEventListener("submit", async (e) => {
 
   const name = `${firstNameInput.value.trim()} ${lastNameInput.value.trim()}`;
   const email = emailInput.value.trim();
+
+  // Still TEXT, not JSON array
   const skills = skillsInput.value.trim();
+
   const bio = bioInput.value.trim();
   const availability = availabilityInput.value.trim();
   const newsletterOptIn = newsletterOptInInput.checked;
 
   let finalImageUrl = existingImageUrl;
 
-  // ---------- Upload Photo ----------
+  // -------------------------------------------
+  // Upload new profile image (if provided)
+  // -------------------------------------------
   if (photoInput.files?.length > 0) {
     const file = photoInput.files[0];
     const path = `${currentUserId}/${Date.now()}_${file.name}`;
@@ -167,13 +194,15 @@ profileForm?.addEventListener("submit", async (e) => {
     }
   }
 
-  // ---------- Update ----------
+  // -------------------------------------------
+  // Update profile row
+  // -------------------------------------------
   try {
     const updates = {
       user_id: currentUserId,
       email,
       name,
-      skills,
+      skills, // TEXT field
       bio,
       availability,
       image_url: finalImageUrl ?? null,
@@ -186,13 +215,13 @@ profileForm?.addEventListener("submit", async (e) => {
     const { error } = await supabase
       .from("community")
       .update(updates)
-      .eq("user_id", currentUserId);
+      .eq("id", existingProfileId);
 
     if (error) throw error;
 
     existingImageUrl = finalImageUrl;
-
     showNotification("Profile saved!", "success");
+
   } catch (err) {
     console.error("[Profile] Save error:", err);
     showNotification("Error saving profile.", "error");
@@ -201,9 +230,9 @@ profileForm?.addEventListener("submit", async (e) => {
   updateProgressState();
 });
 
-/* =============================================================
-   PROFILE COMPLETENESS CHECK
-============================================================= */
+/* ===========================================================================
+   PROFILE COMPLETENESS LOGIC
+=========================================================================== */
 function isProfileComplete() {
   return (
     firstNameInput.value.trim() &&
@@ -228,13 +257,14 @@ function updateProgressState() {
   }
 }
 
-/* =============================================================
+/* ===========================================================================
    IMAGE PREVIEW
-============================================================= */
+=========================================================================== */
 function setupImagePreview() {
   photoInput?.addEventListener("change", () => {
     const file = photoInput.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = () => {
       previewImg.src = reader.result;
@@ -244,12 +274,20 @@ function setupImagePreview() {
   });
 }
 
-/* =============================================================
-   SKILL AUTOCOMPLETE
-============================================================= */
+/* ===========================================================================
+   SKILL AUTOCOMPLETE (local list, TEXT only)
+=========================================================================== */
 const COMMON_SKILLS = [
-  "python", "javascript", "react", "node", "aws",
-  "html", "css", "sql", "design", "ui/ux"
+  "python",
+  "javascript",
+  "react",
+  "node",
+  "aws",
+  "html",
+  "css",
+  "sql",
+  "design",
+  "ui/ux"
 ];
 
 function setupSkillAutocomplete() {
