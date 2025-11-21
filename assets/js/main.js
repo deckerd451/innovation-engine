@@ -1,150 +1,147 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL)
-// Wires together:
-//   ✔ Login System (Magic Link + Backfill)
-//   ✔ Profile (Option B SAFE user_id binding)
-//   ✔ SearchEngine 3.0
-//   ✔ Synapse View 3.0 Fullscreen
-//   ✔ Globals + DOM registry
+// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL BUILD)
+// Orchestrates:
+//   ✔ DOM registry (globals.js)
+//   ✔ Tab system
+//   ✔ Login system
+//   ✔ Profile form
+//   ✔ Search engine
+//   ✔ Synapse view
 // ======================================================================
 
 import { initLoginSystem } from "./login.js";
 import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
-import { showNotification } from "./utils.js";
 import { DOMElements, registerDomElement } from "./globals.js";
 
 // ======================================================================
-// 1) REGISTER DOM ELEMENTS
+// 1) REGISTER ALL DOM ELEMENTS
 // ======================================================================
 function registerDOM() {
-  registerDomElement("loginSection", document.getElementById("login-section"));
-  registerDomElement("profileSection", document.getElementById("profile-section"));
-  registerDomElement("notificationContainer", document.getElementById("achievements"));
-
-  // Search inputs
+  // Individual search
   registerDomElement("teamSkillsInput", document.getElementById("teamSkillsInput"));
-  registerDomElement("nameInput", document.getElementById("nameInput"));
   registerDomElement("cardContainer", document.getElementById("cardContainer"));
   registerDomElement("noResults", document.getElementById("noResults"));
   registerDomElement("matchNotification", document.getElementById("matchNotification"));
+  registerDomElement("nameInput", document.getElementById("nameInput"));
 
-  // Team builder
-  registerDomElement("teamSkillsBuilder", document.getElementById("team-skills-input"));
+  // Team Builder
+  registerDomElement("teamBuilderSkillsInput", document.getElementById("team-skills-input"));
   registerDomElement("teamSizeInput", document.getElementById("teamSize"));
   registerDomElement("bestTeamContainer", document.getElementById("bestTeamContainer"));
+
+  // Autocomplete boxes
+  registerDomElement("autocompleteTeamSkills", document.getElementById("autocomplete-team-skills"));
+  registerDomElement("autocompleteTeamBuilder", document.getElementById("autocomplete-team-builder"));
+  registerDomElement("autocompleteNames", document.getElementById("autocomplete-names"));
 }
 
 // ======================================================================
-// 2) TAB NAVIGATION SYSTEM
+// 2) TAB SYSTEM
 // ======================================================================
 function initTabs() {
   const buttons = document.querySelectorAll(".tab-button");
   const panes = document.querySelectorAll(".tab-content-pane");
 
-  const header = document.querySelector("header");
+  const header = document.querySelector(".header");
   const footer = document.querySelector("footer");
   const bgCanvas = document.getElementById("neural-bg");
+  const synapseContainer = document.getElementById("synapse-container");
 
   buttons.forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const tab = btn.getAttribute("data-tab");
+      const tab = btn.dataset.tab;
 
-      // Hide all
+      // Reset UI
       buttons.forEach((b) => b.classList.remove("active"));
       panes.forEach((p) => p.classList.remove("active-tab-pane"));
 
-      // Show selected
       btn.classList.add("active");
       document.getElementById(tab)?.classList.add("active-tab-pane");
 
-      // -------------------------------------------------------------
-      // SYNAPSE MODE — Fullscreen takeover
-      // -------------------------------------------------------------
+      // Fullscreen synapse
       if (tab === "synapse") {
         header.style.display = "none";
         footer.style.display = "none";
-        bgCanvas.style.display = "none";
+        if (bgCanvas) bgCanvas.style.display = "none";
 
-        const synContainer = document.getElementById("synapse-container");
-        synContainer.classList.add("active");
+        synapseContainer.classList.add("active");
 
         await initSynapseView();
       } else {
-        // Restore UI when exiting synapse
+        synapseContainer.classList.remove("active");
+
         header.style.display = "";
         footer.style.display = "";
-        bgCanvas.style.display = "";
-
-        document.getElementById("synapse-container").classList.remove("active");
+        if (bgCanvas) bgCanvas.style.display = "";
       }
     });
   });
 }
 
 // ======================================================================
-// 3) SEARCH ENGINE HOOKS
+// 3) WIRE SEARCH ENGINE BUTTONS
 // ======================================================================
 function initSearchEngineHooks() {
-  import("./searchEngine.js").then((engine) => {
-    // Search by skills
-    const skillBtn = document.getElementById("find-team-btn");
-    if (skillBtn) {
-      skillBtn.addEventListener("click", () => engine.findMatchingUsers());
-    }
+  import("./searchEngine.js").then((searchEngine) => {
+    const getPeopleBtn = document.getElementById("find-team-btn");
+    const findByNameBtn = document.getElementById("search-name-btn");
+    const buildTeamBtn = document.getElementById("buildTeamBtn");
 
-    // Search by name
-    const nameBtn = document.getElementById("search-name-btn");
-    if (nameBtn) {
-      nameBtn.addEventListener("click", () => engine.findByName());
+    if (getPeopleBtn) {
+      getPeopleBtn.addEventListener("click", () => searchEngine.findMatchingUsers());
     }
-
-    // Team Builder
-    const buildBtn = document.getElementById("buildTeamBtn");
-    if (buildBtn) {
-      buildBtn.addEventListener("click", () => engine.buildBestTeam());
+    if (findByNameBtn) {
+      findByNameBtn.addEventListener("click", () => searchEngine.findByName());
+    }
+    if (buildTeamBtn) {
+      buildTeamBtn.addEventListener("click", () => searchEngine.buildBestTeam());
     }
   });
 }
 
 // ======================================================================
-// 4) ESC KEY — EXIT SYNAPSE VIEW
+// 4) ESC HANDLER TO EXIT SYNAPSE VIEW
 // ======================================================================
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
 
-  const syn = document.getElementById("synapse-container");
-  if (!syn.classList.contains("active")) return;
+  const container = document.getElementById("synapse-container");
+  if (!container.classList.contains("active")) return;
 
-  // Close synapse
-  syn.classList.remove("active");
+  // Close fullscreen synapse
+  container.classList.remove("active");
 
-  document.querySelector("header").style.display = "";
-  document.querySelector("footer").style.display = "";
-  document.getElementById("neural-bg").style.display = "";
+  const header = document.querySelector(".header");
+  const footer = document.querySelector("footer");
+  const bgCanvas = document.getElementById("neural-bg");
 
-  // Return to profile tab
+  header.style.display = "";
+  footer.style.display = "";
+  if (bgCanvas) bgCanvas.style.display = "";
+
+  // switch back to profile tab
   const profileTab = document.querySelector('[data-tab="profile"]');
-  if (profileTab) profileTab.click();
+  profileTab?.click();
 
-  console.log("🧠 Exited Synapse View via ESC");
+  console.log("🧠 Exited Synapse View");
 });
 
 // ======================================================================
-// 5) FULL PAGE INITIALIZATION
+// 5) FULL SYSTEM INITIALIZATION
 // ======================================================================
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("🚀 Initializing CharlestonHacks Innovation Engine…");
+  console.log("🚀 Initializing Innovation Engine…");
 
   registerDOM();
   initTabs();
   initSearchEngineHooks();
 
-  // 1) Login first (critical for RLS + backfill)
+  // Auth first (so profile and synapse load correctly)
   await initLoginSystem();
 
-  // 2) Load profile AFTER login has restored
+  // Load profile after login / session restore
   await initProfileForm();
 
-  console.log("✅ MAIN.js fully initialized (production build)");
+  console.log("✅ Innovation Engine fully initialized");
 });
