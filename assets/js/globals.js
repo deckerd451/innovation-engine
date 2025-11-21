@@ -1,105 +1,120 @@
 // ==========================================================================
-// CharlestonHacks Innovation Engine — GLOBALS (2025)
-// Unified global state, DOM registry, event bus, and notifications
+// CharlestonHacks Innovation Engine — GLOBALS (2025 FINAL)
+// Unified global state, DOM registry, notifications, event bus
 // Fully compatible with:
+//   - Login System (Magic Links + Backfill)
+//   - Profile Controller (Option B final schema)
 //   - Synapse View 3.0
-//   - Unified Search Engine 3.0
-//   - Profile Controller (Schema A)
-//   - Team Builder + Name Search
-//   - GitHub Pages + ESM
+//   - SearchEngine 3.0
+//   - Team Builder / Leaderboard
 // ==========================================================================
 
-// --------------------------------------------------------------------------
-// 1) GLOBAL APP STATE (persistent across modules)
-// --------------------------------------------------------------------------
+// ------------------------------------------------------------
+// 1) GLOBAL APP STATE (persistent across all modules)
+// ------------------------------------------------------------
 export const appState = globalThis.appState ?? (globalThis.appState = {
-  session: null,           // Supabase session
-  user: null,              // Cached user metadata
-  synapseActive: false,    // For fullscreen mode handling
-  lastSearch: null,        // Debug helper
-  features: {
-    connectionEngine: true,
-    eventMode: false,
-    aiGlia: false,
-  }
+  session: null,            // Supabase auth session
+  user: null,               // Supabase user object
+  community: [],            // Cached community table rows
+  connections: [],          // Cached connections
+  endorsements: [],         // Cached endorsements
+  loading: false,           // UI loading indicator
+  version: "2025.11.21-PROD"
 });
+globalThis.appState = appState;
 
-// --------------------------------------------------------------------------
-// 2) DOM ELEMENT REGISTRY — SINGLE SOURCE OF TRUTH
-// --------------------------------------------------------------------------
+
+// ------------------------------------------------------------
+// 2) GLOBAL DOM REGISTRY (avoids repeated DOM lookups)
+// ------------------------------------------------------------
 export const DOMElements = globalThis.DOMElements ?? (globalThis.DOMElements = {
-
-  // ==== SEARCH TAB ====
-  teamSkillsInput: document.getElementById("teamSkillsInput"),
-  nameInput: document.getElementById("nameInput"),
-  findTeamBtn: document.getElementById("find-team-btn"),
-  searchNameBtn: document.getElementById("search-name-btn"),
-  cardContainer: document.getElementById("cardContainer"),
-  noResults: document.getElementById("noResults"),
-
-  // ==== TEAM BUILDER TAB ====
-  teamBuilderSkillsInput: document.getElementById("team-skills-input"),
-  teamSizeInput: document.getElementById("teamSize"),
-  buildTeamBtn: document.getElementById("buildTeamBtn"),
-  bestTeamContainer: document.getElementById("bestTeamContainer"),
-
-  // ==== PROFILE TAB ====
-  profileForm: document.getElementById("skills-form"),
-
-  firstNameInput: document.getElementById("first-name"),
-  lastNameInput: document.getElementById("last-name"),
-  emailInput: document.getElementById("email"),
-  skillsInput: document.getElementById("skills-input"),
-  bioInput: document.getElementById("bio-input"),
-  availabilityInput: document.getElementById("availability-input"),
-  photoInput: document.getElementById("photo-input"),
-  previewImg: document.getElementById("preview"),
-
-  // ==== AUTH ====
-  loginSection: document.getElementById("login-section"),
-  profileSection: document.getElementById("profile-section"),
-  userBadge: document.getElementById("user-badge"),
-  logoutBtn: document.getElementById("logout-btn"),
-
-  // ==== UI ====
-  neuralBg: document.getElementById("neural-bg"),
+  loginSection: null,
+  profileSection: null,
+  skillInput: null,
+  nameInput: null,
+  notificationContainer: null,
+  cardContainer: null,
+  teamSkillsInput: null,
+  bestTeamContainer: null,
 });
-
-// --------------------------------------------------------------------------
-// 3) EVENT BUS — for cross-module communication
-// --------------------------------------------------------------------------
-export const Events = globalThis.Events ?? (globalThis.Events = new EventTarget());
-
-export function emit(eventName, detail = {}) {
-  Events.dispatchEvent(new CustomEvent(eventName, { detail }));
-}
-export function on(eventName, callback) {
-  Events.addEventListener(eventName, (evt) => callback(evt.detail));
-}
-
-// Example debug listener
-on("debug:pong", (d) => console.log("[globals] pong:", d));
+globalThis.DOMElements = DOMElements;
 
 
-// --------------------------------------------------------------------------
-// 4) NOTIFICATION SYSTEM (UI-safe + backwards compatible)
-// --------------------------------------------------------------------------
-export function showNotification(msg, type = "info") {
-  try {
-    // If you have a custom UI or toast lib, put it here:
-    // window.Toast.show(msg, type);
+// ------------------------------------------------------------
+// 3) GLOBAL EVENT BUS (lightweight message system)
+// ------------------------------------------------------------
+export const events = globalThis.events ?? (globalThis.events = {
+  listeners: {},
 
-    console.log(`[NOTIFY:${type}]`, msg);
-  } catch (err) {
-    console.log("[NOTIFY:failover]", msg);
+  on(event, handler) {
+    if (!this.listeners[event]) this.listeners[event] = [];
+    this.listeners[event].push(handler);
+  },
+
+  emit(event, payload) {
+    (this.listeners[event] ?? []).forEach(fn => fn(payload));
   }
+});
+globalThis.events = events;
+
+
+// ------------------------------------------------------------
+// 4) NOTIFICATIONS — Toast-style UI alerts (global)
+// ------------------------------------------------------------
+export function showNotification(message, type = "info") {
+  let box = document.getElementById("global-notification-box");
+
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "global-notification-box";
+    box.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 99999;
+      max-width: 280px;
+      font-family: system-ui, sans-serif;
+    `;
+    document.body.appendChild(box);
+  }
+
+  const note = document.createElement("div");
+  note.className = "notification-toast";
+  note.textContent = message;
+
+  note.style.cssText = `
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.25);
+    opacity: 0;
+    transition: opacity .3s ease;
+    backdrop-filter: blur(4px);
+  `;
+
+  if (type === "success") note.style.background = "rgba(0,180,90,0.85)";
+  else if (type === "error") note.style.background = "rgba(200,40,40,0.85)";
+  else note.style.background = "rgba(40,140,240,0.85)";
+
+  box.appendChild(note);
+
+  // fade in
+  requestAnimationFrame(() => (note.style.opacity = 1));
+
+  // fade out + remove
+  setTimeout(() => {
+    note.style.opacity = 0;
+    setTimeout(() => note.remove(), 300);
+  }, 2800);
 }
 globalThis.showNotification = showNotification;
 
 
-// --------------------------------------------------------------------------
-// 5) DOM Element Registration Helper (legacy support)
-// --------------------------------------------------------------------------
+// ------------------------------------------------------------
+// 5) DOM Element Registration Helper (used by main.js)
+// ------------------------------------------------------------
 export function registerDomElement(key, el) {
   DOMElements[key] = el;
   globalThis.DOMElements[key] = el;
@@ -109,5 +124,5 @@ globalThis.registerDomElement = registerDomElement;
 
 
 // ==========================================================================
-// END OF FILE
+// END OF globals.js (FINAL PRODUCTION BUILD)
 // ==========================================================================
