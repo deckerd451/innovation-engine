@@ -1,128 +1,85 @@
-// ==========================================================================
-// CharlestonHacks Innovation Engine — GLOBALS (2025 FINAL)
-// Unified global state, DOM registry, notifications, event bus
-// Fully compatible with:
-//   - Login System (Magic Links + Backfill)
-//   - Profile Controller (Option B final schema)
-//   - Synapse View 3.0
-//   - SearchEngine 3.0
-//   - Team Builder / Leaderboard
-// ==========================================================================
+// ======================================================================
+// CharlestonHacks – GLOBAL STATE MODULE (2025 FINAL BUILD)
+// Shared across: main.js, searchEngine.js, profile.js, synapse.js
+// Provides:
+//   ✔ appState — global state container
+//   ✔ DOMElements — stable element registry
+//   ✔ registerDomElement() — safe DOM linking
+//   ✔ showNotification fallback (optional)
+//
+// This file must load BEFORE main.js
+// ======================================================================
 
-// ------------------------------------------------------------
-// 1) GLOBAL APP STATE (persistent across all modules)
-// ------------------------------------------------------------
-export const appState = globalThis.appState ?? (globalThis.appState = {
-  session: null,            // Supabase auth session
-  user: null,               // Supabase user object
-  community: [],            // Cached community table rows
-  connections: [],          // Cached connections
-  endorsements: [],         // Cached endorsements
-  loading: false,           // UI loading indicator
-  version: "2025.11.21-PROD"
-});
-globalThis.appState = appState;
+// -----------------------------------------------------------
+// 1) GLOBAL APP STATE (shared memory)
+// -----------------------------------------------------------
+export const appState = {
+  currentUser: null,          // Supabase authenticated user
+  communityCache: [],         // Cached community table rows
+  searchResults: [],          // Results from searchEngine.js
+  synapseInitialized: false,  // Prevent duplicate synapse init
+  skillsCache: [],            // Autocomplete skills list
+  loading: false              // UX hooks
+};
 
+// -----------------------------------------------------------
+// 2) DOM ELEMENT REGISTRY
+// -----------------------------------------------------------
+// This allows main.js to safely register DOM elements
+// and lets other modules reference them safely with no null errors.
+export const DOMElements = {};
 
-// ------------------------------------------------------------
-// 2) GLOBAL DOM REGISTRY (avoids repeated DOM lookups)
-// ------------------------------------------------------------
-export const DOMElements = globalThis.DOMElements ?? (globalThis.DOMElements = {
-  loginSection: null,
-  profileSection: null,
-  skillInput: null,
-  nameInput: null,
-  notificationContainer: null,
-  cardContainer: null,
-  teamSkillsInput: null,
-  bestTeamContainer: null,
-});
-globalThis.DOMElements = DOMElements;
-
-
-// ------------------------------------------------------------
-// 3) GLOBAL EVENT BUS (lightweight message system)
-// ------------------------------------------------------------
-export const events = globalThis.events ?? (globalThis.events = {
-  listeners: {},
-
-  on(event, handler) {
-    if (!this.listeners[event]) this.listeners[event] = [];
-    this.listeners[event].push(handler);
-  },
-
-  emit(event, payload) {
-    (this.listeners[event] ?? []).forEach(fn => fn(payload));
+// Store elements by human-readable key:
+export function registerDomElement(key, element) {
+  if (!element) {
+    console.warn(`[globals] Warning: Missing DOM element for key "${key}"`);
+    return;
   }
-});
-globalThis.events = events;
+  DOMElements[key] = element;
+}
 
-
-// ------------------------------------------------------------
-// 4) NOTIFICATIONS — Toast-style UI alerts (global)
-// ------------------------------------------------------------
+// -----------------------------------------------------------
+// 3) GLOBAL NOTIFICATION FALLBACK
+// -----------------------------------------------------------
+// Used by login.js, profile.js, synapse.js, searchEngine.js
+// If utils.showNotification is unavailable, fallback gracefully.
 export function showNotification(message, type = "info") {
-  let box = document.getElementById("global-notification-box");
+  let box = document.getElementById("ch-notify-box");
 
   if (!box) {
     box = document.createElement("div");
-    box.id = "global-notification-box";
-    box.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 99999;
-      max-width: 280px;
-      font-family: system-ui, sans-serif;
-    `;
+    box.id = "ch-notify-box";
+    box.style.position = "fixed";
+    box.style.bottom = "20px";
+    box.style.right = "20px";
+    box.style.padding = "14px 20px";
+    box.style.borderRadius = "8px";
+    box.style.color = "white";
+    box.style.fontFamily = "system-ui, sans-serif";
+    box.style.fontSize = "15px";
+    box.style.zIndex = 99999;
+    box.style.opacity = "0";
+    box.style.transition = "opacity 0.3s ease-out";
     document.body.appendChild(box);
   }
 
-  const note = document.createElement("div");
-  note.className = "notification-toast";
-  note.textContent = message;
+  const colors = {
+    success: "#00c853",
+    error: "#ff3d00",
+    info: "#29b6f6",
+    warn: "#ffb300"
+  };
 
-  note.style.cssText = `
-    padding: 12px 16px;
-    margin-bottom: 10px;
-    border-radius: 6px;
-    font-size: 14px;
-    color: white;
-    box-shadow: 0 0 10px rgba(0,0,0,0.25);
-    opacity: 0;
-    transition: opacity .3s ease;
-    backdrop-filter: blur(4px);
-  `;
+  box.textContent = message;
+  box.style.background = colors[type] || colors.info;
 
-  if (type === "success") note.style.background = "rgba(0,180,90,0.85)";
-  else if (type === "error") note.style.background = "rgba(200,40,40,0.85)";
-  else note.style.background = "rgba(40,140,240,0.85)";
+  requestAnimationFrame(() => {
+    box.style.opacity = "1";
+  });
 
-  box.appendChild(note);
-
-  // fade in
-  requestAnimationFrame(() => (note.style.opacity = 1));
-
-  // fade out + remove
   setTimeout(() => {
-    note.style.opacity = 0;
-    setTimeout(() => note.remove(), 300);
-  }, 2800);
+    box.style.opacity = "0";
+  }, 2400);
 }
-globalThis.showNotification = showNotification;
 
-
-// ------------------------------------------------------------
-// 5) DOM Element Registration Helper (used by main.js)
-// ------------------------------------------------------------
-export function registerDomElement(key, el) {
-  DOMElements[key] = el;
-  globalThis.DOMElements[key] = el;
-  return el;
-}
-globalThis.registerDomElement = registerDomElement;
-
-
-// ==========================================================================
-// END OF globals.js (FINAL PRODUCTION BUILD)
-// ==========================================================================
+console.log("⚙️ globals.js loaded successfully");
