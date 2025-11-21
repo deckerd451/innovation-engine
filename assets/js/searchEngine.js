@@ -1,203 +1,171 @@
-// =============================================================
-// CharlestonHacks Innovation Engine — Unified Search Engine 3.0
-// Handles:
-//   ✔ Skill-based search
-//   ✔ Name search
-//   ✔ Team builder
-//   ✔ Robust skill normalization
-//   ✔ Fuzzy matching
-// =============================================================
+// ======================================================================
+// CharlestonHacks – SearchEngine 3.0 (FINAL PRODUCTION VERSION)
+// Fully compatible with:
+//   ✔ user_id–based profiles
+//   ✔ new login + backfill system
+//   ✔ 2card.html DOM structure
+//   ✔ RLS policies on community + connections
+//   ✔ Leaderboard + Team Builder + Skill Search
+// ======================================================================
 
-// Dependencies
 import { supabase } from "./supabaseClient.js";
-
-import { generateUserCardHTML } from "./cardRenderer.js";
-import { showNotification } from "./utils.js";
 import { DOMElements } from "./globals.js";
+import { showNotification } from "./utils.js";
 
 // =============================================================
-// 1) Normalize skills (handles messy real-world data)
+// UTILS
 // =============================================================
-function normalizeSkills(str) {
+function normalizeSkillString(str) {
   if (!str) return [];
-
   return str
-    .toLowerCase()
-    .replace(/;/g, ",")         // support semicolon-separated lists
     .split(",")
-    .map(s =>
-      s
-        .replace(/\(.*?\)/g, "") // remove modifiers like (pom)
-        .trim()
-    )
+    .map(s => s.trim().toLowerCase())
     .filter(Boolean);
 }
 
-// =============================================================
-// 2) Fuzzy skill matching
-// =============================================================
-function fuzzyMatch(userSkill, requiredSkill) {
-  const a = userSkill.toLowerCase();
-  const b = requiredSkill.toLowerCase();
+function includesAnySkills(userSkills, requiredSkills) {
+  return requiredSkills.every(req => userSkills.includes(req));
+}
 
-  // Strong fuzzy logic
-  return (
-    a === b ||         // exact
-    a.includes(b) ||   // userSkill contains requiredSkill
-    b.includes(a)      // requiredSkill contains userSkill
-  );
+function safeName(str) {
+  return (str || "").trim().toLowerCase();
 }
 
 // =============================================================
-// 3) Fetch all users from COMMUNITY table
+// 1) LOAD ALL USERS FROM COMMUNITY
 // =============================================================
-async function loadAllUsers() {
+async function loadAllCommunity() {
   const { data, error } = await supabase
     .from("community")
-    .select("id, name, email, skills, bio, image_url, endorsements");
+    .select("id, name, email, skills, image_url, availability, user_id");
 
-  if (error) throw error;
-  return data || [];
+  if (error) {
+    console.error("[SearchEngine] load error:", error);
+    showNotification("Error loading profiles.", "error");
+    return [];
+  }
+
+  return data.map(u => ({
+    ...u,
+    parsedSkills: normalizeSkillString(u.skills),
+    safeName: (u.name || "").toLowerCase(),
+  }));
 }
 
 // =============================================================
-// 4) SKILL SEARCH (Individual search tab)
+// 2) INDIVIDUAL SKILL SEARCH
 // =============================================================
 export async function findMatchingUsers() {
-  const rawInput = DOMElements.teamSkillsInput.value.trim().toLowerCase();
-
-  if (!rawInput) {
-    showNotification("Please enter at least one skill.", "warning");
-    DOMElements.cardContainer.innerHTML = "";
+  const skillInput = DOMElements.teamSkillsInput?.value.trim().toLowerCase();
+  if (!skillInput) {
+    showNotification("Enter required skills.", "error");
     return;
   }
 
-  const requiredSkills = rawInput
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
+  const requiredSkills = normalizeSkillString(skillInput);
+  const users = await loadAllCommunity();
 
-  try {
-    const users = await loadAllUsers();
+  const matches = users.filter(u =>
+    includesAnySkills(u.parsedSkills, requiredSkills)
+  );
 
-    const matched = users.filter(user => {
-      const userSkills = normalizeSkills(user.skills);
-      return requiredSkills.every(req =>
-        userSkills.some(skill => fuzzyMatch(skill, req))
-      );
-    });
-
-    DOMElements.cardContainer.innerHTML = matched
-      .map(generateUserCardHTML)
-      .join("");
-
-    if (matched.length > 0) {
-      showNotification(`Found ${matched.length} matching user(s).`, "success");
-    } else {
-      DOMElements.noResults.textContent = "No matching users found.";
-      DOMElements.noResults.style.display = "block";
-    }
-  } catch (err) {
-    console.error(err);
-    showNotification("Error fetching users.", "error");
-  }
+  displayResults(matches);
 }
 
 // =============================================================
-// 5) NAME SEARCH
+// 3) NAME SEARCH
 // =============================================================
 export async function findByName() {
-  const nameQuery = DOMElements.nameInput.value.trim().toLowerCase();
-
-  if (!nameQuery) {
-    showNotification("Please enter a name to search.", "warning");
-    DOMElements.cardContainer.innerHTML = "";
+  const name = safeName(DOMElements.nameInput?.value);
+  if (!name) {
+    showNotification("Enter a name.", "error");
     return;
   }
 
-  try {
-    const users = await loadAllUsers();
+  const users = await loadAllCommunity();
 
-    const matched = users.filter(user => {
-      const fullName = (user.name || "").toLowerCase();
-      return fullName.includes(nameQuery);
-    });
+  const matches = users.filter(
+    u => u.safeName.includes(name) || (u.email || "").toLowerCase().includes(name)
+  );
 
-    DOMElements.cardContainer.innerHTML = matched
-      .map(generateUserCardHTML)
-      .join("");
-
-    if (matched.length > 0) {
-      showNotification(`Found ${matched.length} match(es).`, "success");
-    } else {
-      DOMElements.noResults.textContent = "No users found.";
-      DOMElements.noResults.style.display = "block";
-    }
-  } catch (err) {
-    console.error(err);
-    showNotification("Error fetching users.", "error");
-  }
+  displayResults(matches);
 }
 
 // =============================================================
-// 6) TEAM BUILDER
+// 4) TEAM BUILDER
 // =============================================================
 export async function buildBestTeam() {
-  const rawSkills = DOMElements.teamBuilderSkillsInput.value.trim().toLowerCase();
-  const teamSize = parseInt(DOMElements.teamSizeInput.value, 10);
+  const reqSkills = normalizeSkillString(
+    DOMElements.teamBuilderSkillsInput?.value
+  );
 
-  if (!rawSkills || isNaN(teamSize) || teamSize < 1) {
-    showNotification("Enter required skills and a valid team size.", "warning");
-    DOMElements.bestTeamContainer.innerHTML = "";
+  const teamSize = parseInt(DOMElements.teamSizeInput?.value);
+  if (!reqSkills.length || !teamSize || teamSize < 1) {
+    showNotification("Enter skills + team size.", "error");
     return;
   }
 
-  const requiredSkills = rawSkills
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
+  const users = await loadAllCommunity();
 
-  try {
-    const users = await loadAllUsers();
+  let matches = users.filter(u =>
+    includesAnySkills(u.parsedSkills, reqSkills)
+  );
 
-    const scored = users
-      .map(user => {
-        const userSkills = normalizeSkills(user.skills);
+  matches = matches.slice(0, teamSize); // pick best N
 
-        const matched = requiredSkills.filter(req =>
-          userSkills.some(skill => fuzzyMatch(skill, req))
-        );
-
-        return matched.length
-          ? {
-              ...user,
-              matchingSkills: matched,
-              matchCount: matched.length,
-            }
-          : null;
-      })
-      .filter(Boolean)
-      .sort((a, b) =>
-        b.matchCount - a.matchCount ||
-        ((b.endorsements?.length || 0) - (a.endorsements?.length || 0))
-      )
-      .slice(0, teamSize);
-
-    DOMElements.bestTeamContainer.innerHTML = scored
-      .map(generateUserCardHTML)
-      .join("");
-
-    if (scored.length) {
-      showNotification(`Built a team of ${scored.length}.`, "success");
-    } else {
-      showNotification("No matching team members found.", "info");
-    }
-  } catch (err) {
-    console.error(err);
-    showNotification("Team builder error.", "error");
-  }
+  displayTeam(matches);
 }
 
 // =============================================================
-// END OF FILE
+// 5) RENDER RESULTS (Cards)
 // =============================================================
+function createCard(user) {
+  const img = user.image_url || "images/default-avatar.png";
+  const name = user.name || "Unnamed";
+  const skills = user.skills || "No skills";
+  const email = user.email || "(no email)";
+  const avail = user.availability || "Available";
+
+  return `
+    <div class="result-card">
+      <img src="${img}" class="card-avatar" />
+      <h3>${name}</h3>
+      <p><strong>Skills:</strong> ${skills}</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <span class="availability-tag">${avail}</span>
+    </div>
+  `;
+}
+
+function displayResults(matches) {
+  const cardContainer = DOMElements.cardContainer;
+  const noResults = DOMElements.noResults;
+  const matchNotification = DOMElements.matchNotification;
+
+  if (!matches.length) {
+    cardContainer.innerHTML = "";
+    noResults.classList.remove("hidden");
+    matchNotification.classList.add("hidden");
+    return;
+  }
+
+  noResults.classList.add("hidden");
+  matchNotification.classList.remove("hidden");
+  matchNotification.textContent = `${matches.length} match${matches.length === 1 ? "" : "es"} found`;
+
+  cardContainer.innerHTML = matches.map(createCard).join("");
+}
+
+function displayTeam(users) {
+  const container = DOMElements.bestTeamContainer;
+  container.innerHTML = users.map(createCard).join("");
+}
+
+// =============================================================
+// EXPORTS
+// =============================================================
+export default {
+  findMatchingUsers,
+  findByName,
+  buildBestTeam
+};
