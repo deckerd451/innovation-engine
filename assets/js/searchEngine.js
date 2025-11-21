@@ -1,21 +1,55 @@
 // ======================================================================
-// CharlestonHacks – SearchEngine 3.0 (FINAL PRODUCTION VERSION)
-// Fully compatible with:
-//   ✔ user_id–based profiles
-//   ✔ new login + backfill system
-//   ✔ 2card.html DOM structure
-//   ✔ RLS policies on community + connections
-//   ✔ Leaderboard + Team Builder + Skill Search
+// CharlestonHacks – Search Engine 3.0 (Final Production Build)
+// Supports:
+//   ✔ Skill-based search
+//   ✔ Name search
+//   ✔ Team Builder
+//   ✔ Clean card rendering
+//   ✔ user_id-based RLS
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { DOMElements } from "./globals.js";
 import { showNotification } from "./utils.js";
 
-// =============================================================
-// UTILS
-// =============================================================
-function normalizeSkillString(str) {
+/* ============================================================
+   CLEAN CARD RENDERER
+============================================================ */
+function createUserCard(user) {
+  const div = document.createElement("div");
+  div.className = "user-card";
+
+  const img = user.image_url
+    ? `<img class="user-photo" src="${user.image_url}" alt="${user.name}">`
+    : `<div class="user-photo placeholder"></div>`;
+
+  div.innerHTML = `
+    ${img}
+    <h3>${user.name || "Unnamed"}</h3>
+    <p><strong>Skills:</strong> ${user.skills || "None listed"}</p>
+    <p><strong>Email:</strong> ${user.email}</p>
+  `;
+
+  return div;
+}
+
+/* ============================================================
+   QUERY HELPERS
+============================================================ */
+async function fetchCommunity() {
+  const { data, error } = await supabase
+    .from("community")
+    .select("id, name, email, skills, image_url, availability");
+
+  if (error) {
+    console.error("[SearchEngine] Fetch error:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+function normalizeSkills(str) {
   if (!str) return [];
   return str
     .split(",")
@@ -23,149 +57,119 @@ function normalizeSkillString(str) {
     .filter(Boolean);
 }
 
-function includesAnySkills(userSkills, requiredSkills) {
-  return requiredSkills.every(req => userSkills.includes(req));
-}
+/* ============================================================
+   SKILL SEARCH
+============================================================ */
+export async function findMatchingUsers() {
+  const skillText = DOMElements.teamSkillsInput.value.trim().toLowerCase();
+  const skillList = normalizeSkills(skillText);
 
-function safeName(str) {
-  return (str || "").trim().toLowerCase();
-}
-
-// =============================================================
-// 1) LOAD ALL USERS FROM COMMUNITY
-// =============================================================
-async function loadAllCommunity() {
-  const { data, error } = await supabase
-    .from("community")
-    .select("id, name, email, skills, image_url, availability, user_id");
-
-  if (error) {
-    console.error("[SearchEngine] load error:", error);
-    showNotification("Error loading profiles.", "error");
-    return [];
+  if (skillList.length === 0) {
+    showNotification("Enter at least one skill.", "error");
+    return;
   }
 
-  return data.map(u => ({
-    ...u,
-    parsedSkills: normalizeSkillString(u.skills),
-    safeName: (u.name || "").toLowerCase(),
-  }));
+  const allUsers = await fetchCommunity();
+
+  const matches = allUsers.filter(user => {
+    const userSkills = normalizeSkills(user.skills);
+    return skillList.every(s => userSkills.includes(s));
+  });
+
+  DOMElements.cardContainer.innerHTML = "";
+
+  if (matches.length === 0) {
+    DOMElements.noResults.classList.remove("hidden");
+    DOMElements.matchNotification.classList.add("hidden");
+    return;
+  }
+
+  DOMElements.noResults.classList.add("hidden");
+  DOMElements.matchNotification.classList.remove("hidden");
+  DOMElements.matchNotification.textContent = `Found ${matches.length} matches!`;
+
+  matches.forEach(u => {
+    const card = createUserCard(u);
+    DOMElements.cardContainer.appendChild(card);
+  });
 }
 
-// =============================================================
-// 2) INDIVIDUAL SKILL SEARCH
-// =============================================================
-export async function findMatchingUsers() {
-  const skillInput = DOMElements.teamSkillsInput?.value.trim().toLowerCase();
-  if (!skillInput) {
+/* ============================================================
+   NAME SEARCH
+============================================================ */
+export async function findByName() {
+  const nameText = DOMElements.nameInput.value.trim().toLowerCase();
+
+  if (!nameText) {
+    showNotification("Enter a name to search.", "error");
+    return;
+  }
+
+  const allUsers = await fetchCommunity();
+
+  const matches = allUsers.filter(u =>
+    (u.name || "").toLowerCase().includes(nameText)
+  );
+
+  DOMElements.cardContainer.innerHTML = "";
+
+  if (matches.length === 0) {
+    DOMElements.noResults.classList.remove("hidden");
+    return;
+  }
+
+  DOMElements.noResults.classList.add("hidden");
+
+  matches.forEach(u => {
+    const card = createUserCard(u);
+    DOMElements.cardContainer.appendChild(card);
+  });
+}
+
+/* ============================================================
+   TEAM BUILDER — SIMPLE MATCHING
+============================================================ */
+export async function buildBestTeam() {
+  const skillText = DOMElements.teamBuilderSkillsInput.value.trim().toLowerCase();
+  const skillList = normalizeSkills(skillText);
+
+  const teamSize = parseInt(DOMElements.teamSizeInput.value || "0", 10);
+
+  if (skillList.length === 0) {
     showNotification("Enter required skills.", "error");
     return;
   }
 
-  const requiredSkills = normalizeSkillString(skillInput);
-  const users = await loadAllCommunity();
-
-  const matches = users.filter(u =>
-    includesAnySkills(u.parsedSkills, requiredSkills)
-  );
-
-  displayResults(matches);
-}
-
-// =============================================================
-// 3) NAME SEARCH
-// =============================================================
-export async function findByName() {
-  const name = safeName(DOMElements.nameInput?.value);
-  if (!name) {
-    showNotification("Enter a name.", "error");
+  if (teamSize < 1 || teamSize > 6) {
+    showNotification("Team size must be between 1 and 6.", "error");
     return;
   }
 
-  const users = await loadAllCommunity();
+  const allUsers = await fetchCommunity();
 
-  const matches = users.filter(
-    u => u.safeName.includes(name) || (u.email || "").toLowerCase().includes(name)
-  );
+  // Score each user based on required skills they match
+  const scored = allUsers.map(user => {
+    const userSkills = normalizeSkills(user.skills);
+    const score = skillList.filter(s => userSkills.includes(s)).length;
+    return { ...user, score };
+  });
 
-  displayResults(matches);
-}
+  scored.sort((a, b) => b.score - a.score);
 
-// =============================================================
-// 4) TEAM BUILDER
-// =============================================================
-export async function buildBestTeam() {
-  const reqSkills = normalizeSkillString(
-    DOMElements.teamBuilderSkillsInput?.value
-  );
+  const bestTeam = scored.slice(0, teamSize);
 
-  const teamSize = parseInt(DOMElements.teamSizeInput?.value);
-  if (!reqSkills.length || !teamSize || teamSize < 1) {
-    showNotification("Enter skills + team size.", "error");
-    return;
-  }
-
-  const users = await loadAllCommunity();
-
-  let matches = users.filter(u =>
-    includesAnySkills(u.parsedSkills, reqSkills)
-  );
-
-  matches = matches.slice(0, teamSize); // pick best N
-
-  displayTeam(matches);
-}
-
-// =============================================================
-// 5) RENDER RESULTS (Cards)
-// =============================================================
-function createCard(user) {
-  const img = user.image_url || "images/default-avatar.png";
-  const name = user.name || "Unnamed";
-  const skills = user.skills || "No skills";
-  const email = user.email || "(no email)";
-  const avail = user.availability || "Available";
-
-  return `
-    <div class="result-card">
-      <img src="${img}" class="card-avatar" />
-      <h3>${name}</h3>
-      <p><strong>Skills:</strong> ${skills}</p>
-      <p><strong>Email:</strong> ${email}</p>
-      <span class="availability-tag">${avail}</span>
-    </div>
-  `;
-}
-
-function displayResults(matches) {
-  const cardContainer = DOMElements.cardContainer;
-  const noResults = DOMElements.noResults;
-  const matchNotification = DOMElements.matchNotification;
-
-  if (!matches.length) {
-    cardContainer.innerHTML = "";
-    noResults.classList.remove("hidden");
-    matchNotification.classList.add("hidden");
-    return;
-  }
-
-  noResults.classList.add("hidden");
-  matchNotification.classList.remove("hidden");
-  matchNotification.textContent = `${matches.length} match${matches.length === 1 ? "" : "es"} found`;
-
-  cardContainer.innerHTML = matches.map(createCard).join("");
-}
-
-function displayTeam(users) {
   const container = DOMElements.bestTeamContainer;
-  container.innerHTML = users.map(createCard).join("");
+  container.innerHTML = "";
+
+  bestTeam.forEach(u => {
+    const card = createUserCard(u);
+    container.appendChild(card);
+  });
 }
 
-// =============================================================
-// EXPORTS
-// =============================================================
-export default {
-  findMatchingUsers,
-  findByName,
-  buildBestTeam
-};
+/* ============================================================
+   AUTOCOMPLETE HELPERS (Optional Future)
+============================================================ */
+// Could add advanced autocomplete here later.
+
+console.log("🔎 SearchEngine 3.0 ready.");
