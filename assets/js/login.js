@@ -1,12 +1,20 @@
 // ====================================================================
 // CharlestonHacks Innovation Engine – Login Controller (2025)
-// FINAL VERSION with Magic Link, Password Reset, Session Sync
+// FINAL PRODUCTION VERSION
+// Includes:
+//   ✔ Magic Link login
+//   ✔ Password reset (optional)
+//   ✔ Full session sync
+//   ✔ Backfill community.user_id
+//   ✔ Clean UI flow
 // ====================================================================
 
-import { supabase } from "./supabaseClient.js";
+import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
-// UI Elements
+// --------------------------------------------------
+// DOM Elements
+// --------------------------------------------------
 const loginSection = document.getElementById("login-section");
 const loginForm = document.getElementById("login-form");
 const loginEmailInput = document.getElementById("login-email");
@@ -15,12 +23,10 @@ const profileSection = document.getElementById("profile-section");
 const userBadge = document.getElementById("user-badge");
 const logoutBtn = document.getElementById("logout-btn");
 
-// NEW: Forgot password UI
-let forgotPasswordLink = null;
-let forgotPasswordButton = null;
-let forgotPasswordEmailInput = null;
+// Forgot password elements are created dynamically
+let forgotPasswordLink, forgotPasswordButton, forgotPasswordEmailInput;
 
-// Redirect back to this page after auth
+// Where Supabase redirects after magic link login:
 const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
 
 /* =============================================================
@@ -32,12 +38,14 @@ export async function initLoginSystem() {
   // Restore existing session
   const { data } = await supabase.auth.getSession();
   if (data?.session?.user) {
+    await backfillCommunityUser(); // 🔥 FIX orphan profiles
     handleSignedIn(data.session.user);
   }
 
-  // Listen for future changes
+  // Listen for auth state changes
   supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === "SIGNED_IN" && session?.user) {
+      await backfillCommunityUser();  // 🔥 Always fix RLS BEFORE profile loads
       handleSignedIn(session.user);
     }
 
@@ -48,7 +56,7 @@ export async function initLoginSystem() {
 }
 
 /* =============================================================
-   LOGIN WITH MAGIC LINK
+   MAGIC LINK LOGIN
 ============================================================= */
 loginForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -60,13 +68,12 @@ loginForm?.addEventListener("submit", async (e) => {
   }
 
   const { error } = await supabase.auth.signInWithOtp({
-  email,
-  options: {
-    emailRedirectTo: REDIRECT_URL,
-    shouldCreateUser: true   // 🔥 Enable auto account creation
-  }
-});
-
+    email,
+    options: {
+      emailRedirectTo: REDIRECT_URL,
+      shouldCreateUser: true  // 🔥 Creates auth.user automatically
+    }
+  });
 
   if (error) {
     console.error(error);
@@ -77,7 +84,7 @@ loginForm?.addEventListener("submit", async (e) => {
 });
 
 /* =============================================================
-   FORGOT PASSWORD – SEND RESET LINK
+   FORGOT PASSWORD
 ============================================================= */
 async function handleForgotPassword() {
   const email = forgotPasswordEmailInput.value.trim();
@@ -99,27 +106,27 @@ async function handleForgotPassword() {
 }
 
 /* =============================================================
-   CREATE FORGOT PASSWORD UI ELEMENTS
+   CREATE FORGOT-PASSWORD SECTION DYNAMICALLY
 ============================================================= */
 function createForgotPasswordUI() {
   forgotPasswordLink = document.createElement("p");
-  forgotPasswordLink.className = "forgot-password-link";
   forgotPasswordLink.textContent = "Forgot your password?";
   forgotPasswordLink.style.cursor = "pointer";
   forgotPasswordLink.style.marginTop = "10px";
   forgotPasswordLink.style.textDecoration = "underline";
+  forgotPasswordLink.className = "forgot-password-link";
 
   loginSection.appendChild(forgotPasswordLink);
 
   const wrapper = document.createElement("div");
   wrapper.id = "forgot-password-wrapper";
   wrapper.style.display = "none";
-  wrapper.style.marginTop = "15px";
+  wrapper.style.marginTop = "10px";
 
   forgotPasswordEmailInput = document.createElement("input");
   forgotPasswordEmailInput.type = "email";
-  forgotPasswordEmailInput.placeholder = "Enter your email";
-  forgotPasswordEmailInput.style.marginBottom = "6px";
+  forgotPasswordEmailInput.placeholder = "Your email";
+  forgotPasswordEmailInput.className = "forgot-email-input";
 
   forgotPasswordButton = document.createElement("button");
   forgotPasswordButton.textContent = "Send Reset Link";
@@ -127,10 +134,8 @@ function createForgotPasswordUI() {
 
   wrapper.appendChild(forgotPasswordEmailInput);
   wrapper.appendChild(forgotPasswordButton);
-
   loginSection.appendChild(wrapper);
 
-  // Toggle visibility
   forgotPasswordLink.addEventListener("click", () => {
     wrapper.style.display = wrapper.style.display === "none" ? "block" : "none";
   });
@@ -139,27 +144,24 @@ function createForgotPasswordUI() {
 }
 
 /* =============================================================
-   HANDLE SIGN-IN EVENTS
+   ON SIGN-IN
 ============================================================= */
 function handleSignedIn(user) {
   console.log("[Login] Authenticated:", user.email);
 
-  // Show user in badge
   if (userBadge) {
     userBadge.textContent = `Logged in as: ${user.email}`;
     userBadge.classList.remove("hidden");
   }
 
-  // Show profile section
   loginSection.classList.add("hidden");
   profileSection.classList.remove("hidden");
 
-  // Enable logout
   logoutBtn.classList.remove("hidden");
 }
 
 /* =============================================================
-   HANDLE SIGN-OUT EVENTS
+   ON SIGN-OUT
 ============================================================= */
 function handleSignedOut() {
   console.log("[Login] Signed out.");
