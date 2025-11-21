@@ -1,30 +1,34 @@
 // =====================================================
-// CharlestonHacks Synapse View 3.0 — Fullscreen Network
-// =====================================================
-// CLEAN FINAL VERSION — NO ensureCommunityUser()
+// Synapse View 3.0 — LIGHT VERSION
+// CharlestonHacks (2025)
+// Clean, minimal, stable, no HUD, no overlays
+// Supports:
+//   ✔ Avatars
+//   ✔ Tooltips
+//   ✔ Connect / Disconnect
+//   ✔ Realtime links
+//   ✔ ESC to exit
 // =====================================================
 
 import { supabase } from "./supabaseClient.js";
-import { showNotification } from "./utils.js";
 const d3 = window.d3;
 
-let svg, zoomGroup, simulation, link, node, tooltip, channel, hudInterval;
+let svg, zoomGroup, simulation, link, node, tooltip, channel;
 let nodes = [];
 let links = [];
 let width, height;
-let theme = "dark";
 let isSynapseActive = false;
-let lastLatency = null;
 
-// =============================
+// ================================================
 // MAIN ENTRY POINT
-// =============================
+// ================================================
 export async function initSynapseView() {
   const container = document.getElementById("synapse-container");
   if (!container) return;
 
-  // Reset SVG
+  // Reset
   d3.select("#synapse-svg").selectAll("*").remove();
+
   width = container.clientWidth;
   height = container.clientHeight;
 
@@ -41,21 +45,17 @@ export async function initSynapseView() {
     .style("opacity", 0);
 
   isSynapseActive = true;
-  document.addEventListener("keydown", handleKeyPress);
+  document.addEventListener("keydown", handleEscape);
 
-  createHUD();
   await loadGraphData();
   drawGraph();
   setupRealtime();
-  startPulseAnimation();
-  startHUDUpdates();
 }
 
-// =============================
-// LOAD COMMUNITY + CONNECTIONS
-// =============================
+// ================================================
+// LOAD USERS & CONNECTIONS
+// ================================================
 async function loadGraphData() {
-  const t0 = performance.now();
   try {
     const [
       { data: community, error: cErr },
@@ -68,68 +68,65 @@ async function loadGraphData() {
     if (cErr) throw cErr;
     if (connErr) throw connErr;
 
-    nodes = (community || []).map((u) => ({
+    nodes = community.map(u => ({
       id: u.id,
       name: u.name || "Anonymous",
       email: u.email,
       image_url: u.image_url,
-      skills: Array.isArray(u.skills) ? u.skills.join(", ") : (u.skills || "unspecified")
+      skills: Array.isArray(u.skills) ? u.skills.join(", ") : u.skills || ""
     }));
 
-    links = (connections || []).map((c) => ({
+    links = connections.map(c => ({
       source: c.from_user_id,
       target: c.to_user_id
     }));
+
   } catch (err) {
     console.error("[Synapse] Load error:", err);
-    showNotification("Error loading network data.", "error");
-  } finally {
-    lastLatency = Math.round(performance.now() - t0);
   }
 }
 
-// =============================
+// ================================================
 // DRAW NETWORK
-// =============================
+// ================================================
 function drawGraph() {
   simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id((d) => d.id).distance(110))
-    .force("charge", d3.forceManyBody().strength(-180))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .velocityDecay(0.35);
+    .force("link", d3.forceLink(links).id(d => d.id).distance(110))
+    .force("charge", d3.forceManyBody().strength(-160))
+    .force("center", d3.forceCenter(width / 2, height / 2));
 
   const linkGroup = zoomGroup.append("g")
-    .attr("stroke", theme === "dark" ? "#0ff" : "#f90")
-    .attr("stroke-opacity", 0.3);
+    .attr("stroke", "#0ff")
+    .attr("stroke-opacity", 0.25);
 
-  const nodeGroup = zoomGroup.append("g").attr("cursor", "pointer");
+  const nodeGroup = zoomGroup.append("g")
+    .attr("cursor", "pointer");
 
   link = linkGroup.selectAll("line")
     .data(links)
     .join("line")
-    .attr("stroke-width", 1.2)
-    .attr("stroke-dasharray", "6 10");
+    .attr("stroke-width", 1.1);
 
   node = nodeGroup.selectAll("g")
     .data(nodes)
     .join("g")
     .call(drag(simulation));
 
-  // ----- Node Icons / Avatars -----
+  // --- Avatars / Initials ---
   node.each(function (d) {
     const g = d3.select(this);
     if (d.image_url) {
       g.append("image")
         .attr("href", d.image_url)
-        .attr("width", 48)
-        .attr("height", 48)
-        .attr("x", -24)
-        .attr("y", -24)
-        .attr("clip-path", "circle(24px at 24px 24px)");
+        .attr("width", 40)
+        .attr("height", 40)
+        .attr("x", -20)
+        .attr("y", -20)
+        .attr("clip-path", "circle(20px at 20px 20px)");
     } else {
       g.append("circle")
-        .attr("r", 24)
-        .attr("fill", theme === "dark" ? "#00ffff" : "#ff9900");
+        .attr("r", 20)
+        .attr("fill", "#0099cc");
       g.append("text")
         .attr("text-anchor", "middle")
         .attr("dy", "0.35em")
@@ -138,88 +135,71 @@ function drawGraph() {
     }
   });
 
-  node.on("mouseover", (event, d) => {
-    tooltip
-      .transition().duration(120)
-      .style("opacity", 0.95);
-
-    tooltip.html(`<strong>${d.name}</strong><br>${d.skills}`)
-      .style("left", event.pageX + 10 + "px")
-      .style("top", event.pageY - 15 + "px");
-
-    highlightLinks(d.id, true);
+  // --- Tooltip ---
+  node.on("mouseover", (ev, d) => {
+    tooltip.style("opacity", 1)
+      .html(`<strong>${d.name}</strong><br>${d.skills || ""}`)
+      .style("left", ev.pageX + 10 + "px")
+      .style("top", ev.pageY - 10 + "px");
+    highlightNode(d.id, true);
   });
 
   node.on("mouseout", () => {
-    tooltip.transition().duration(200).style("opacity", 0);
-    highlightLinks(null, false);
+    tooltip.style("opacity", 0);
+    highlightNode(null, false);
   });
 
+  // --- Click modal (simple modal) ---
   node.on("click", openProfileModal);
 
   simulation.on("tick", () => {
-    link
-      .attr("x1", (d) => d.source.x)
-      .attr("y1", (d) => d.source.y)
-      .attr("x2", (d) => d.target.x)
-      .attr("y2", (d) => d.target.y);
+    link.attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
 
-    node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+    node.attr("transform", d => `translate(${d.x},${d.y})`);
   });
 
-  const zoom = d3.zoom()
-    .scaleExtent([0.3, 5])
-    .on("zoom", (event) => zoomGroup.attr("transform", event.transform));
-
-  svg.call(zoom).on("dblclick.zoom", null);
+  svg.call(
+    d3.zoom().scaleExtent([0.4, 4])
+      .on("zoom", (ev) => zoomGroup.attr("transform", ev.transform))
+  );
 }
 
-// =============================
-// DRAGGING
-// =============================
-function drag(simulation) {
+// ================================================
+// DRAG BEHAVIOR
+// ================================================
+function drag(sim) {
   return d3.drag()
     .on("start", (e, d) => {
-      if (!e.active) simulation.alphaTarget(0.3).restart();
+      if (!e.active) sim.alphaTarget(0.3).restart();
       d.fx = d.x; d.fy = d.y;
     })
     .on("drag", (e, d) => {
       d.fx = e.x; d.fy = e.y;
     })
     .on("end", (e, d) => {
-      if (!e.active) simulation.alphaTarget(0);
+      if (!e.active) sim.alphaTarget(0);
       d.fx = null; d.fy = null;
     });
 }
 
-// =============================
+// ================================================
 // LINK HIGHLIGHT
-// =============================
-function highlightLinks(nodeId, active) {
-  link
-    .transition()
-    .duration(150)
-    .attr("stroke-opacity", l =>
-      !active
-        ? 0.3
-        : l.source.id === nodeId || l.target.id === nodeId
-        ? 0.9
-        : 0.05
-    )
-    .attr("stroke", l =>
-      !active
-        ? theme === "dark" ? "#0ff" : "#f90"
-        : l.source.id === nodeId || l.target.id === nodeId
-        ? "#ff00ff"
-        : theme === "dark" ? "#0ff" : "#f90"
-    );
+// ================================================
+function highlightNode(nodeId, active) {
+  link.attr("stroke-opacity", l =>
+    !active ? 0.25 :
+    (l.source.id === nodeId || l.target.id === nodeId ? 0.85 : 0.06)
+  );
 }
 
-// =============================
-// PROFILE MODAL + CONNECT
-// =============================
-async function openProfileModal(event, user) {
-  document.querySelectorAll(".profile-modal").forEach((el) => el.remove());
+// ================================================
+// PROFILE MODAL (Light version)
+// ================================================
+async function openProfileModal(ev, user) {
+  document.querySelectorAll(".profile-modal").forEach(e => e.remove());
 
   const modal = document.createElement("div");
   modal.className = "profile-modal";
@@ -243,19 +223,19 @@ async function openProfileModal(event, user) {
   const disconnectBtn = modal.querySelector("#disconnectBtn");
 
   const { data: session } = await supabase.auth.getSession();
-  const currentUserId = session?.session?.user?.id;
+  const currentUser = session?.session?.user;
 
-  if (!currentUserId) {
-    connectBtn.textContent = "Login to connect";
+  if (!currentUser) {
+    connectBtn.textContent = "Login required";
     connectBtn.disabled = true;
     return;
   }
 
-  // CHECK IF ALREADY CONNECTED
+  // Check existing connection
   const { data: existing } = await supabase
     .from("connections")
     .select("*")
-    .eq("from_user_id", currentUserId)
+    .eq("from_user_id", currentUser.id)
     .eq("to_user_id", user.id)
     .maybeSingle();
 
@@ -264,41 +244,32 @@ async function openProfileModal(event, user) {
     disconnectBtn.classList.remove("hidden");
   }
 
-  // CONNECT
+  // Connect
   connectBtn.addEventListener("click", async () => {
-    const { error } = await supabase
-      .from("connections")
-      .insert({ from_user_id: currentUserId, to_user_id: user.id });
-
-    if (error) return alert("Error connecting: " + error.message);
-
-    showNotification(`Connected with ${user.name}!`);
-    triggerPulse(user.id);
+    await supabase.from("connections").insert({
+      from_user_id: currentUser.id,
+      to_user_id: user.id
+    });
 
     connectBtn.classList.add("hidden");
     disconnectBtn.classList.remove("hidden");
   });
 
-  // DISCONNECT
+  // Disconnect
   disconnectBtn.addEventListener("click", async () => {
-    const { error } = await supabase
-      .from("connections")
+    await supabase.from("connections")
       .delete()
-      .eq("from_user_id", currentUserId)
+      .eq("from_user_id", currentUser.id)
       .eq("to_user_id", user.id);
-
-    if (error) return alert("Error disconnecting: " + error.message);
-
-    showNotification(`Disconnected from ${user.name}`);
 
     disconnectBtn.classList.add("hidden");
     connectBtn.classList.remove("hidden");
   });
 }
 
-// =============================
-// REALTIME CHANGES
-// =============================
+// ================================================
+// REALTIME
+// ================================================
 function setupRealtime() {
   if (channel) channel.unsubscribe();
 
@@ -309,128 +280,46 @@ function setupRealtime() {
       { event: "*", schema: "public", table: "connections" },
       (payload) => {
         if (payload.eventType === "INSERT") {
-          const s = nodes.find((n) => n.id === payload.new.from_user_id);
-          const t = nodes.find((n) => n.id === payload.new.to_user_id);
-          if (s && t) {
-            links.push({ source: s, target: t });
-            triggerPulse(t.id);
-            simulation.alpha(0.5).restart();
-          }
+          links.push({
+            source: payload.new.from_user_id,
+            target: payload.new.to_user_id
+          });
+          simulation.alpha(0.4).restart();
         }
 
         if (payload.eventType === "DELETE") {
           links = links.filter(
-            (l) =>
-              !(
-                l.source.id === payload.old.from_user_id &&
-                l.target.id === payload.old.to_user_id
-              )
+            l =>
+              !(l.source.id === payload.old.from_user_id &&
+                l.target.id === payload.old.to_user_id)
           );
-          simulation.alpha(0.5).restart();
+          simulation.alpha(0.4).restart();
         }
       }
     )
     .subscribe();
 }
 
-// =============================
-// PULSE ANIMATION
-// =============================
-function startPulseAnimation() {
-  function animate() {
-    link.each(function () {
-      const el = d3.select(this);
-      const offset = parseFloat(el.attr("stroke-dashoffset")) || 0;
-      el.attr("stroke-dashoffset", (offset - 0.6) % 20);
-    });
-    requestAnimationFrame(animate);
-  }
-  animate();
-}
-
-function triggerPulse(nodeId) {
-  const pulseColor = theme === "dark" ? "#ff0099" : "#0066ff";
-
-  link
-    .filter((l) => l.source.id === nodeId || l.target.id === nodeId)
-    .transition()
-    .duration(800)
-    .attr("stroke", pulseColor)
-    .attr("stroke-opacity", 1)
-    .transition()
-    .duration(800)
-    .attr("stroke", theme === "dark" ? "#0ff" : "#f90")
-    .attr("stroke-opacity", 0.3);
-}
-
-// =============================
-// HUD — PERFORMANCE OVERLAY
-// =============================
-function createHUD() {
-  const div = document.createElement("div");
-  div.id = "synapse-hud";
-  div.style.cssText = `
-    position: fixed;
-    top: 10px;
-    left: 14px;
-    background: rgba(0, 10, 20, 0.7);
-    color: #0ff;
-    font-family: monospace;
-    font-size: 13px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    z-index: 1000;
-    backdrop-filter: blur(6px);
-    box-shadow: 0 0 10px rgba(0,255,255,0.2);
-  `;
-  div.innerHTML = `
-    <div>🧠 Synapse HUD</div>
-    <div>Nodes: 0</div>
-    <div>Connections: 0</div>
-    <div>Latency: …</div>
-  `;
-  document.body.appendChild(div);
-}
-
-function startHUDUpdates() {
-  const hud = document.getElementById("synapse-hud");
-  if (!hud) return;
-
-  hudInterval = setInterval(() => {
-    hud.innerHTML = `
-      <div>🧠 Synapse HUD</div>
-      <div>Nodes: ${nodes.length}</div>
-      <div>Connections: ${links.length}</div>
-      <div>Latency: ${lastLatency ?? "–"} ms</div>
-      <div style="font-size:11px;opacity:0.6;">Press ESC to exit</div>
-    `;
-  }, 1200);
-}
-
-// =============================
-// EXIT HANDLER
-// =============================
-function handleKeyPress(e) {
-  if (e.key === "Escape" && isSynapseActive) {
-    exitSynapseView();
-  }
+// ================================================
+// EXIT ON ESC
+// ================================================
+function handleEscape(e) {
+  if (e.key === "Escape" && isSynapseActive) exitSynapseView();
 }
 
 function exitSynapseView() {
+  isSynapseActive = false;
+
+  // Restore UI
   document.querySelector("header").style.display = "";
   document.querySelector("footer").style.display = "";
   document.getElementById("neural-bg").style.display = "";
-  document.querySelector("#synapse").classList.remove("active-tab-pane");
-  document.querySelector("#profile-section").classList.remove("hidden");
 
-  isSynapseActive = false;
+  document.getElementById("synapse-container").classList.remove("active");
 
-  clearInterval(hudInterval);
-
-  d3.selectAll(".profile-modal").remove();
-  d3.select(".synapse-tooltip").remove();
-  document.getElementById("synapse-hud")?.remove();
+  // Clean DOM
+  document.querySelectorAll(".profile-modal").forEach(e => e.remove());
+  document.querySelector(".synapse-tooltip")?.remove();
 
   if (channel) channel.unsubscribe();
-  console.log("🧩 Synapse View closed");
 }
