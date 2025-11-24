@@ -64,13 +64,17 @@ async function loadExistingProfile() {
 
     const email = user.email;
 
-    const { data: row, error } = await supabase
+    // 🎯 ROBUST VERSION — always returns 0 or 1 row safely
+    const { data: rows, error } = await supabase
       .from("community")
       .select("*")
       .or(`user_id.eq.${currentUserId},email.eq.${email}`)
-      .maybeSingle();
+      .order("created_at", { ascending: false })   // newest row first
+      .limit(1);                                   // return exactly one
 
     if (error) throw error;
+
+    const row = rows?.[0] ?? null;
 
     if (row) {
       existingProfileId = row.id;
@@ -105,6 +109,7 @@ async function loadExistingProfile() {
     showNotification("Could not load profile.", "error");
   }
 }
+
 
 /* ======================================================================
    POPULATE FORM
