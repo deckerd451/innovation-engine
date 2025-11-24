@@ -29,7 +29,14 @@ const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
+  // ------------------------------------------------------------
+  // MICROTASK FIX — CRITICAL FOR MAGIC-LINK FLOW
+  // ------------------------------------------------------------
+  // Allows Supabase to attach internal URL listeners before we call getSession().
+  await new Promise(res => setTimeout(res, 0));
+
   createForgotPasswordUI();
+
 
   // ------------------------------------------------------------
   // 1) Prevent AUTH LOOP after magic link
