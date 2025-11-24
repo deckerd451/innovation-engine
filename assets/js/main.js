@@ -134,13 +134,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Initializing Innovation Engine…");
 
   registerDOM();
-  initTabs();
-  initSearchEngineHooks();
 
-  // Auth first (so profile and synapse load correctly)
+  // 1) AUTH MUST BE COMPLETED FIRST
   await initLoginSystem();
 
-  // Load profile after login / session restore
+  // 2) NOW SAFE TO INIT TABS + SEARCH + PROFILE
+  initTabs();
+  initSearchEngineHooks();
   await initProfileForm();
 
   console.log("✅ Innovation Engine fully initialized");
