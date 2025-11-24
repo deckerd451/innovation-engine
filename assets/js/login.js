@@ -54,6 +54,19 @@ export async function initLoginSystem() {
     console.log("⏳ Completing Supabase magic-link login…");
     await new Promise((res) => setTimeout(res, 400));
   }
+   // 🔥 If session is still null after magic-link, force refresh token load
+const { data: check } = await supabase.auth.getSession();
+
+if (!check?.session) {
+  console.warn("⚠️ No session after magic-link. Forcing recovery…");
+
+  // Force Supabase to re-read URL hash
+  await supabase.auth.getSession();
+
+  // Give it a short window
+  await new Promise(res => setTimeout(res, 250));
+}
+
 
   // ------------------------------------------------------------
   // 2) Try restoring session from localStorage
