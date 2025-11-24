@@ -1,33 +1,35 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – PROFILE CONTROLLER (2025 FINAL BUILD)
+// CharlestonHacks Innovation Engine – PROFILE CONTROLLER (2025 ULTRA-STABLE)
 // Fully compatible with:
 //   ✔ Supabase user_id linking
 //   ✔ Backfill logic (supabaseClient.js)
 //   ✔ Login system (login.js FINAL)
 //   ✔ Main bootstrap (main.js FINAL)
+//   ✔ Your current table schema
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
-// === DOM ELEMENTS ======================================================
-const profileForm = document.getElementById("skills-form");
-const previewImg = document.getElementById("preview");
+// ======================================================================
+// DOM ELEMENTS
+// ======================================================================
+const profileForm       = document.getElementById("skills-form");
+const previewImg        = document.getElementById("preview");
 
-const firstNameInput = document.getElementById("first-name");
-const lastNameInput = document.getElementById("last-name");
-const emailInput = document.getElementById("email");
-const skillsInput = document.getElementById("skills-input");
-const bioInput = document.getElementById("bio-input");
+const firstNameInput    = document.getElementById("first-name");
+const lastNameInput     = document.getElementById("last-name");
+const emailInput        = document.getElementById("email");
+const skillsInput       = document.getElementById("skills-input");
+const bioInput          = document.getElementById("bio-input");
 const availabilityInput = document.getElementById("availability-input");
 const newsletterOptInInput = document.getElementById("newsletter-opt-in");
 
-const photoInput = document.getElementById("photo-input");
+const photoInput        = document.getElementById("photo-input");
 
-const progressBar = document.querySelector(".profile-bar-inner");
-const progressMsg = document.getElementById("profile-progress-msg");
-
-const autocompleteBox = document.getElementById("autocomplete-skills-input");
+const progressBar       = document.querySelector(".profile-bar-inner");
+const progressMsg       = document.getElementById("profile-progress-msg");
+const autocompleteBox   = document.getElementById("autocomplete-skills-input");
 
 const BUCKET = "hacksbucket";
 
@@ -35,9 +37,9 @@ let currentUserId = null;
 let existingProfileId = null;
 let existingImageUrl = null;
 
-/* ======================================================================
-   INIT
-====================================================================== */
+// ======================================================================
+// INIT
+// ======================================================================
 export async function initProfileForm() {
   const { data } = await supabase.auth.getSession();
   const user = data?.session?.user;
@@ -48,14 +50,15 @@ export async function initProfileForm() {
   }
 
   currentUserId = user.id;
+
   await loadExistingProfile();
   setupImagePreview();
   setupSkillAutocomplete();
 }
 
-/* ======================================================================
-   LOAD PROFILE (user_id OR email) — SAFE FOR MIGRATED USERS
-====================================================================== */
+// ======================================================================
+// LOAD EXISTING PROFILE (robust + safe for migrated users)
+// ======================================================================
 async function loadExistingProfile() {
   try {
     const { data: authData } = await supabase.auth.getUser();
@@ -64,25 +67,26 @@ async function loadExistingProfile() {
 
     const email = user.email;
 
-    // 🎯 ROBUST VERSION — always returns 0 or 1 row safely
+    // --- ALWAYS return at most one row ---
     const { data: rows, error } = await supabase
       .from("community")
       .select("*")
       .or(`user_id.eq.${currentUserId},email.eq.${email}`)
-      .order("created_at", { ascending: false })   // newest row first
-      .limit(1);                                   // return exactly one
+      .order("created_at", { ascending: false })
+      .limit(1);
 
     if (error) throw error;
 
-    const row = rows?.[0] ?? null;
+    const row = rows?.[0] || null;
 
+    // --- PROFILE EXISTS ---
     if (row) {
       existingProfileId = row.id;
       populateForm(row);
       return;
     }
 
-    // === CREATE DEFAULT PROFILE FOR NEW USERS =========================
+    // --- CREATE NEW PROFILE ---
     const { data: inserted, error: insertErr } = await supabase
       .from("community")
       .insert({
@@ -110,22 +114,21 @@ async function loadExistingProfile() {
   }
 }
 
-
-/* ======================================================================
-   POPULATE FORM
-====================================================================== */
+// ======================================================================
+// POPULATE FORM FIELDS
+// ======================================================================
 function populateForm(row) {
   if (!row) return;
 
   if (row.name) {
     const parts = row.name.split(" ");
     firstNameInput.value = parts[0] || "";
-    lastNameInput.value = parts.slice(1).join(" ");
+    lastNameInput.value  = parts.slice(1).join(" ");
   }
 
-  emailInput.value = row.email || "";
-  skillsInput.value = row.skills || "";
-  bioInput.value = row.bio || "";
+  emailInput.value        = row.email || "";
+  skillsInput.value       = row.skills || "";
+  bioInput.value          = row.bio || "";
   availabilityInput.value = row.availability || "";
   newsletterOptInInput.checked = !!row.newsletter_opt_in;
 
@@ -138,27 +141,27 @@ function populateForm(row) {
   updateProgressState();
 }
 
-/* ======================================================================
-   SAVE PROFILE
-====================================================================== */
+// ======================================================================
+// SAVE PROFILE
+// ======================================================================
 profileForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  if (!currentUserId) {
+  if (!currentUserId || !existingProfileId) {
     showNotification("You must be logged in.", "error");
     return;
   }
 
   const fullName = `${firstNameInput.value.trim()} ${lastNameInput.value.trim()}`;
-  const email = emailInput.value.trim();
-  const skills = skillsInput.value.trim();
-  const bio = bioInput.value.trim();
+  const email     = emailInput.value.trim();
+  const skills    = skillsInput.value.trim();
+  const bio       = bioInput.value.trim();
   const availability = availabilityInput.value.trim();
   const newsletterOptIn = newsletterOptInInput.checked;
 
   let finalImageUrl = existingImageUrl;
 
-  // === PHOTO UPLOAD ====================================================
+  // --- PHOTO UPLOAD --------------------------------------------------
   if (photoInput.files?.length > 0) {
     const file = photoInput.files[0];
     const path = `${currentUserId}/${Date.now()}_${file.name}`;
@@ -171,12 +174,13 @@ profileForm?.addEventListener("submit", async (e) => {
       console.error("[Profile] Upload error:", uploadErr);
       showNotification("Photo upload failed.", "error");
     } else {
-      finalImageUrl = supabase.storage.from(BUCKET)
+      finalImageUrl = supabase.storage
+        .from(BUCKET)
         .getPublicUrl(path).data.publicUrl;
     }
   }
 
-  // === UPDATE COMMUNITY ROW ===========================================
+  // --- UPDATE ROW (always 1 row) -------------------------------------
   try {
     const updateData = {
       user_id: currentUserId,
@@ -195,7 +199,7 @@ profileForm?.addEventListener("submit", async (e) => {
     const { error } = await supabase
       .from("community")
       .update(updateData)
-      .eq("user_id", currentUserId);
+      .eq("id", existingProfileId);   // 🔥 FIXED — always update single row
 
     if (error) throw error;
 
@@ -210,9 +214,9 @@ profileForm?.addEventListener("submit", async (e) => {
   updateProgressState();
 });
 
-/* ======================================================================
-   COMPLETENESS CHECK
-====================================================================== */
+// ======================================================================
+// COMPLETENESS LOGIC
+// ======================================================================
 function isComplete() {
   return (
     firstNameInput.value.trim() &&
@@ -235,9 +239,9 @@ function updateProgressState() {
   }
 }
 
-/* ======================================================================
-   IMAGE PREVIEW
-====================================================================== */
+// ======================================================================
+// IMAGE PREVIEW
+// ======================================================================
 function setupImagePreview() {
   photoInput?.addEventListener("change", () => {
     const file = photoInput.files[0];
@@ -252,9 +256,9 @@ function setupImagePreview() {
   });
 }
 
-/* ======================================================================
-   SKILL AUTOCOMPLETE
-====================================================================== */
+// ======================================================================
+// SKILL AUTOCOMPLETE
+// ======================================================================
 const COMMON_SKILLS = [
   "javascript", "python", "react", "node", "sql",
   "aws", "design", "typescript", "ui/ux", "css"
@@ -282,3 +286,5 @@ function setupSkillAutocomplete() {
     });
   });
 }
+
+console.log("🧬 Profile Controller Loaded (ULTRA-STABLE)");
