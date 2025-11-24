@@ -1,13 +1,6 @@
 // ====================================================================
 // CharlestonHacks Innovation Engine – Login Controller (2025)
-// FINAL PRODUCTION VERSION
-// --------------------------------------------------------------------
-// Features:
-//   ✔ Magic Link login (signInWithOtp)
-//   ✔ Session restore + automatic RLS fix (backfillCommunityUser)
-//   ✔ Forgot password UI + workflow
-//   ✔ Clean exports (initLoginSystem) — REQUIRED BY main.js
-//   ✔ No placeholders — fully functional
+// FULLY SYNCED WITH supabaseClient.js (no loops, final build)
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
@@ -27,28 +20,52 @@ const logoutBtn = document.getElementById("logout-btn");
 // Dynamic forgot-password elements
 let forgotPasswordLink, forgotPasswordButton, forgotPasswordEmailInput;
 
-// 🚀 FINAL redirect URL after clicking magic link
+// Redirect target after magic link login
 const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
 
 /* =============================================================
-   INIT LOGIN SYSTEM (called by main.js)
+   INIT LOGIN SYSTEM  (called by main.js)
 ============================================================= */
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
   createForgotPasswordUI();
 
-  // Restore previous session if possible
-  const { data } = await supabase.auth.getSession();
-  const existingUser = data?.session?.user;
+  // ------------------------------------------------------------
+  // 1) Prevent AUTH LOOP after magic link
+  // ------------------------------------------------------------
+  // Supabase writes the session from URL fragments asynchronously.
+  // For ~200–400ms, getSession() will return null even though
+  // the user IS authenticated.
+  // This delay ensures the session is stored BEFORE UI checks run.
+  // ------------------------------------------------------------
+  const urlContainsAuth =
+    window.location.hash.includes("access_token") ||
+    window.location.search.includes("access_token");
 
-  if (existingUser) {
-    console.log("🔒 Restoring existing session:", existingUser.email);
-    await backfillCommunityUser();
-    handleSignedIn(existingUser);
+  if (urlContainsAuth) {
+    console.log("⏳ Completing Supabase magic-link login…");
+    await new Promise((res) => setTimeout(res, 400));
   }
 
-  // Listen for changes such as SIGNED_IN, SIGNED_OUT
+  // ------------------------------------------------------------
+  // 2) Try restoring session from localStorage
+  // ------------------------------------------------------------
+  const { data: initial } = await supabase.auth.getSession();
+  const existingUser = initial?.session?.user;
+
+  if (existingUser) {
+    console.log("🔒 Restored existing session:", existingUser.email);
+    await backfillCommunityUser();
+    handleSignedIn(existingUser);
+  } else {
+    console.log("🔓 No active session — showing login page");
+    handleSignedOut();
+  }
+
+  // ------------------------------------------------------------
+  // 3) Live auth event listener
+  // ------------------------------------------------------------
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("[Login] Auth event:", event);
 
@@ -108,7 +125,7 @@ async function handleForgotPassword() {
 
   if (error) {
     console.error("[Login] Reset error:", error);
-    showNotification("Could not send password reset email.", "error");
+    showNotification("Could not send reset email.", "error");
   } else {
     showNotification("Password reset email sent!", "success");
   }
@@ -181,7 +198,7 @@ function handleSignedOut() {
   profileSection?.classList.add("hidden");
   loginSection?.classList.remove("hidden");
 
-  loginEmailInput.value = "";
+  if (loginEmailInput) loginEmailInput.value = "";
 }
 
 /* =============================================================
