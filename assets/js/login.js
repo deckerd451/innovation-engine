@@ -1,107 +1,67 @@
 // ====================================================================
-// CharlestonHacks Innovation Engine – Login Controller (2025)
-// FULLY SYNCED WITH supabaseClient.js (no loops, final build)
+// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (2025 FINAL)
+// Zero loops, zero race conditions, correct Supabase flow.
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
-// --------------------------------------------------
-// DOM Elements
-// --------------------------------------------------
+// DOM elements
 const loginSection = document.getElementById("login-section");
 const loginForm = document.getElementById("login-form");
 const loginEmailInput = document.getElementById("login-email");
-
 const profileSection = document.getElementById("profile-section");
 const userBadge = document.getElementById("user-badge");
 const logoutBtn = document.getElementById("logout-btn");
 
-// Dynamic forgot-password elements
-let forgotPasswordLink, forgotPasswordButton, forgotPasswordEmailInput;
+// Prevent double SIGNED_IN triggers
+window.__LOGIN_STATE__ = window.__LOGIN_STATE__ || {
+  handled: false
+};
 
-// Redirect target after magic link login
-const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
+// Redirect for magic link
+const REDIRECT_URL = window.location.href;
 
 /* =============================================================
-   INIT LOGIN SYSTEM  (called by main.js)
+   INIT LOGIN SYSTEM  (called once by main.js)
 ============================================================= */
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // ------------------------------------------------------------
-  // MICROTASK FIX — CRITICAL FOR MAGIC-LINK FLOW
-  // ------------------------------------------------------------
-  // Allows Supabase to attach internal URL listeners before we call getSession().
-  await new Promise(res => setTimeout(res, 0));
+  // Allow Supabase URL hash parsing to complete
+  await new Promise(res => setTimeout(res, 10));
 
-  createForgotPasswordUI();
+  // Check for existing session
+  const { data: { session } } = await supabase.auth.getSession();
 
-
-  // ------------------------------------------------------------
-  // 1) Prevent AUTH LOOP after magic link
-  // ------------------------------------------------------------
-  // Supabase writes the session from URL fragments asynchronously.
-  // For ~200–400ms, getSession() will return null even though
-  // the user IS authenticated.
-  // This delay ensures the session is stored BEFORE UI checks run.
-  // ------------------------------------------------------------
-  const urlContainsAuth =
-    window.location.hash.includes("access_token") ||
-    window.location.search.includes("access_token");
-
-  if (urlContainsAuth) {
-    console.log("⏳ Completing Supabase magic-link login…");
-    await new Promise((res) => setTimeout(res, 400));
-  }
-   // 🔥 If session is still null after magic-link, force refresh token load
-const { data: check } = await supabase.auth.getSession();
-
-if (!check?.session) {
-  console.warn("⚠️ No session after magic-link. Forcing recovery…");
-
-  // Force Supabase to re-read URL hash
-  await supabase.auth.getSession();
-
-  // Give it a short window
-  await new Promise(res => setTimeout(res, 250));
-}
-
-
-  // ------------------------------------------------------------
-  // 2) Try restoring session from localStorage
-  // ------------------------------------------------------------
-  const { data: initial } = await supabase.auth.getSession();
-  const existingUser = initial?.session?.user;
-
-  if (existingUser) {
-    console.log("🔒 Restored existing session:", existingUser.email);
-    await backfillCommunityUser();
-    handleSignedIn(existingUser);
+  if (session?.user) {
+    console.log("🔒 Existing session detected:", session.user.email);
+    await handleSignedInOnce(session.user);
   } else {
-    console.log("🔓 No active session — showing login page");
+    console.log("🔓 No session — waiting for auth event");
     handleSignedOut();
   }
 
-  // ------------------------------------------------------------
-  // 3) Live auth event listener
-  // ------------------------------------------------------------
+  /* ------------------------------------------------------------
+     Single stable auth listener (critical)
+  ------------------------------------------------------------ */
   supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("[Login] Auth event:", event);
+    console.log("🔄 Auth event:", event);
 
     if (event === "SIGNED_IN" && session?.user) {
-      await backfillCommunityUser();
-      handleSignedIn(session.user);
+      await handleSignedInOnce(session.user);
+      return;
     }
 
     if (event === "SIGNED_OUT") {
       handleSignedOut();
+      return;
     }
   });
 }
 
 /* =============================================================
-   MAGIC LINK LOGIN
+   SIGN IN WITH MAGIC LINK
 ============================================================= */
 loginForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -122,107 +82,60 @@ loginForm?.addEventListener("submit", async (e) => {
 
   if (error) {
     console.error("[Login] OTP Error:", error);
-    showNotification("Login failed. Please check your email.", "error");
+    showNotification("Login failed. Try again.", "error");
   } else {
     showNotification("Magic link sent! Check your email.", "success");
   }
 });
 
 /* =============================================================
-   FORGOT PASSWORD
+   HANDLE SIGNED-IN (only once)
 ============================================================= */
-async function handleForgotPassword() {
-  const email = forgotPasswordEmailInput.value.trim();
-
-  if (!email) {
-    showNotification("Enter your email to reset your password.", "error");
+async function handleSignedInOnce(user) {
+  if (window.__LOGIN_STATE__.handled) {
+    console.log("⚠️ SIGNED_IN ignored (already handled)");
     return;
   }
+  window.__LOGIN_STATE__.handled = true;
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: REDIRECT_URL
-  });
+  console.log("🎉 SIGNED_IN:", user.email);
+  await backfillCommunityUser();
 
-  if (error) {
-    console.error("[Login] Reset error:", error);
-    showNotification("Could not send reset email.", "error");
-  } else {
-    showNotification("Password reset email sent!", "success");
-  }
+  handleSignedIn(user);
 }
 
 /* =============================================================
-   CREATE FORGOT PASSWORD UI
-============================================================= */
-function createForgotPasswordUI() {
-  forgotPasswordLink = document.createElement("p");
-  forgotPasswordLink.textContent = "Forgot your password?";
-  forgotPasswordLink.style.cursor = "pointer";
-  forgotPasswordLink.style.marginTop = "10px";
-  forgotPasswordLink.style.textDecoration = "underline";
-  forgotPasswordLink.className = "forgot-password-link";
-
-  loginSection.appendChild(forgotPasswordLink);
-
-  const wrapper = document.createElement("div");
-  wrapper.id = "forgot-password-wrapper";
-  wrapper.style.display = "none";
-  wrapper.style.marginTop = "10px";
-
-  forgotPasswordEmailInput = document.createElement("input");
-  forgotPasswordEmailInput.type = "email";
-  forgotPasswordEmailInput.placeholder = "Your email";
-  forgotPasswordEmailInput.className = "forgot-email-input";
-
-  forgotPasswordButton = document.createElement("button");
-  forgotPasswordButton.textContent = "Send Reset Link";
-  forgotPasswordButton.className = "action-btn";
-
-  wrapper.appendChild(forgotPasswordEmailInput);
-  wrapper.appendChild(forgotPasswordButton);
-  loginSection.appendChild(wrapper);
-
-  forgotPasswordLink.addEventListener("click", () => {
-    wrapper.style.display = wrapper.style.display === "none" ? "block" : "none";
-  });
-
-  forgotPasswordButton.addEventListener("click", handleForgotPassword);
-}
-
-/* =============================================================
-   ON SIGN-IN
+   UI Update: Signed In
 ============================================================= */
 function handleSignedIn(user) {
-  console.log("[Login] Authenticated:", user.email);
+  userBadge.textContent = `Logged in as: ${user.email}`;
+  userBadge.classList.remove("hidden");
 
-  if (userBadge) {
-    userBadge.textContent = `Logged in as: ${user.email}`;
-    userBadge.classList.remove("hidden");
-  }
+  loginSection.classList.add("hidden");
+  profileSection.classList.remove("hidden");
 
-  loginSection?.classList.add("hidden");
-  profileSection?.classList.remove("hidden");
-
-  logoutBtn?.classList.remove("hidden");
+  logoutBtn.classList.remove("hidden");
 }
 
 /* =============================================================
-   ON SIGN-OUT
+   UI Update: Signed Out
 ============================================================= */
 function handleSignedOut() {
-  console.log("[Login] Signed out.");
+  console.log("👋 Signed out");
 
-  userBadge?.classList.add("hidden");
-  logoutBtn?.classList.add("hidden");
+  window.__LOGIN_STATE__.handled = false;
 
-  profileSection?.classList.add("hidden");
-  loginSection?.classList.remove("hidden");
+  userBadge.classList.add("hidden");
+  logoutBtn.classList.add("hidden");
 
-  if (loginEmailInput) loginEmailInput.value = "";
+  profileSection.classList.add("hidden");
+  loginSection.classList.remove("hidden");
+
+  loginEmailInput.value = "";
 }
 
 /* =============================================================
-   LOGOUT BUTTON
+   LOGOUT
 ============================================================= */
 logoutBtn?.addEventListener("click", async () => {
   await supabase.auth.signOut();
