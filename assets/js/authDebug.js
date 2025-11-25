@@ -83,7 +83,8 @@ async function initAuthDebug() {
 
   // Keyboard toggle
   document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey && e.key === "`") {
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "d") {
+
       panel.style.display = panel.style.display === "none" ? "block" : "none";
     }
   });
