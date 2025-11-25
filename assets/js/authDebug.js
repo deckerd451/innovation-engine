@@ -1,16 +1,8 @@
-// CharlestonHacks – AUTH DEBUG PANEL (CLEAN + VIEWPORT-SAFE)
+// AUTH DEBUG PANEL – CLEAN FINAL VERSION (NO HTML COMMENTS)
+// Creates a debug panel + works with a floating toggle button
 
 window.__LOGIN_STATE__ = window.__LOGIN_STATE__ || { handled: false };
 
-// Wait until Supabase loads
-async function waitForSupabase() {
-  while (!window.supabase) {
-    await new Promise(res => setTimeout(res, 30));
-  }
-  return window.supabase;
-}
-
-// Create debug panel (now guaranteed visible)
 function createDebugPanel() {
   let panel = document.getElementById("auth-debug-overlay");
   if (!panel) {
@@ -40,58 +32,60 @@ function createDebugPanel() {
   return panel;
 }
 
-function makeLogger(panel) {
-  return function log(msg) {
+function logger(panel) {
+  return function (msg) {
     const entry = `[${new Date().toLocaleTimeString()}]\n${msg}\n\n`;
     panel.textContent = entry + panel.textContent;
-
-    panel.animate(
-      [{ borderColor: "#0ff" }, { borderColor: "#f0f" }, { borderColor: "#0ff" }],
-      { duration: 400, iterations: 1 }
-    );
   };
 }
 
-// Main initializer
+async function waitForSupabase() {
+  while (!window.supabase) {
+    await new Promise(res => setTimeout(res, 30));
+  }
+  return window.supabase;
+}
+
 async function initAuthDebug() {
   const supabase = await waitForSupabase();
   const panel = createDebugPanel();
-  const log = makeLogger(panel);
+  const log = logger(panel);
 
   let signInCount = 0;
 
-  // Auth events
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === "SIGNED_IN") signInCount++;
 
-    const email = session?.user?.email || "null";
-
     log(
-`AUTH EVENT: ${event}
-USER: ${email}
+      `AUTH EVENT: ${event}
+USER: ${session?.user?.email || "null"}
 SIGNED_IN count: ${signInCount}
 handled: ${window.__LOGIN_STATE__.handled}`
     );
   });
 
-  // Continually log session
   async function refresh() {
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
 
     log(
-`SESSION: ${session ? "ACTIVE" : "NONE"}
+      `SESSION: ${session ? "ACTIVE" : "NONE"}
 USER: ${session?.user?.email || "null"}
+localStorage: ${Object.keys(localStorage).filter(k => k.includes("supabase")).join(", ")}
 
-localStorage:
-${Object.keys(localStorage).filter(k => k.includes("supabase")).join(", ")}
-
-hash: ${window.location.hash.slice(0, 40)}…`
+hash: ${window.location.hash.slice(0, 50)}`
     );
   }
 
   setInterval(refresh, 2000);
   refresh();
+
+  const btn = document.getElementById("debug-toggle-btn");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+    });
+  }
 }
 
 initAuthDebug();
