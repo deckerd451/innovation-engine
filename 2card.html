@@ -266,6 +266,93 @@
   <script type="module" src="assets/js/searchEngine.js"></script>
   <script type="module" src="assets/js/synapse.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
+  <!-- AUTH DEBUG OVERLAY -->
+<div id="auth-debug-overlay" style="
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 380px;
+  max-height: 330px;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.88);
+  color: #0ff;
+  font-size: 12px;
+  font-family: monospace;
+  padding: 14px;
+  border-top-left-radius: 10px;
+  border-left: 1px solid #0ff;
+  border-top: 1px solid #0ff;
+  z-index: 999999;
+  white-space: pre-wrap;
+  display: none;
+"></div>
+<script type="module">
+  window.__LOGIN_STATE__ = window.__LOGIN_STATE__ || { handled: false };
+
+  import { supabase } from "./assets/js/supabaseClient.js";
+
+  const panel = document.getElementById("auth-debug-overlay");
+  let signInCount = 0;
+
+  // Toggle with CTRL + `
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.key === "`") {
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+    }
+  });
+
+  function log(message) {
+    const entry = `[${new Date().toLocaleTimeString()}]\n${message}\n\n`;
+    panel.textContent = entry + panel.textContent;
+
+    // Flash visual signal for important events
+    panel.style.borderColor = "#0ff";
+    panel.animate([{ borderColor: "#0ff" }, { borderColor: "#f0f" }, { borderColor: "#0ff" }], {
+      duration: 500,
+      iterations: 1
+    });
+  }
+
+  // ---------------------------------------------------------
+  // AUTH EVENTS (detect double SIGNED_IN → loop source)
+  // ---------------------------------------------------------
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_IN") {
+      signInCount++;
+    }
+
+    log(
+`AUTH EVENT: ${event}
+SIGNED_IN count: ${signInCount}
+USER: ${session?.user?.email ?? "null"}
+LOGIN GUARD: handled = ${window.__LOGIN_STATE__?.handled}
+`
+    );
+  });
+
+  // ---------------------------------------------------------
+  // SESSION POLLING (watch for missing or flipping sessions)
+  // ---------------------------------------------------------
+  async function refreshState() {
+    const { data } = await supabase.auth.getSession();
+
+    log(
+`CURRENT SESSION:
+${JSON.stringify(data?.session, null, 2)}
+
+URL HASH: ${window.location.hash.replace(/access_token.*/, "access_token…")}
+
+localStorage Keys:
+${Object.keys(localStorage).filter(k => k.includes("supabase")).join("\n")}
+
+`
+    );
+  }
+
+  setInterval(refreshState, 1500);
+  refreshState();
+</script>
+
 
 </body>
 </html>
