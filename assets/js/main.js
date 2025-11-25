@@ -1,12 +1,5 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL BUILD)
-// Orchestrates:
-//   ✔ DOM registry (globals.js)
-//   ✔ Tab system
-//   ✔ Login system
-//   ✔ Profile form
-//   ✔ Search engine
-//   ✔ Synapse view
+// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL FIXED)
 // ======================================================================
 
 import { initLoginSystem } from "./login.js";
@@ -14,31 +7,28 @@ import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
 import { DOMElements, registerDomElement } from "./globals.js";
 
-// ======================================================================
-// 1) REGISTER ALL DOM ELEMENTS
-// ======================================================================
+// ---------------------------------------------
+// Register DOM references
+// ---------------------------------------------
 function registerDOM() {
-  // Individual search
   registerDomElement("teamSkillsInput", document.getElementById("teamSkillsInput"));
   registerDomElement("cardContainer", document.getElementById("cardContainer"));
   registerDomElement("noResults", document.getElementById("noResults"));
   registerDomElement("matchNotification", document.getElementById("matchNotification"));
   registerDomElement("nameInput", document.getElementById("nameInput"));
 
-  // Team Builder
   registerDomElement("teamBuilderSkillsInput", document.getElementById("team-skills-input"));
   registerDomElement("teamSizeInput", document.getElementById("teamSize"));
   registerDomElement("bestTeamContainer", document.getElementById("bestTeamContainer"));
 
-  // Autocomplete boxes
   registerDomElement("autocompleteTeamSkills", document.getElementById("autocomplete-team-skills"));
   registerDomElement("autocompleteTeamBuilder", document.getElementById("autocomplete-team-builder"));
   registerDomElement("autocompleteNames", document.getElementById("autocomplete-names"));
 }
 
-// ======================================================================
-// 2) TAB SYSTEM
-// ======================================================================
+// ---------------------------------------------
+// Tabs Controller
+// ---------------------------------------------
 function initTabs() {
   const buttons = document.querySelectorAll(".tab-button");
   const panes = document.querySelectorAll(".tab-content-pane");
@@ -52,21 +42,18 @@ function initTabs() {
     btn.addEventListener("click", async () => {
       const tab = btn.dataset.tab;
 
-      // Reset UI
       buttons.forEach((b) => b.classList.remove("active"));
       panes.forEach((p) => p.classList.remove("active-tab-pane"));
 
       btn.classList.add("active");
       document.getElementById(tab)?.classList.add("active-tab-pane");
 
-      // Fullscreen synapse
       if (tab === "synapse") {
         header.style.display = "none";
         footer.style.display = "none";
         if (bgCanvas) bgCanvas.style.display = "none";
 
         synapseContainer.classList.add("active");
-
         await initSynapseView();
       } else {
         synapseContainer.classList.remove("active");
@@ -79,66 +66,55 @@ function initTabs() {
   });
 }
 
-// ======================================================================
-// 3) WIRE SEARCH ENGINE BUTTONS
-// ======================================================================
+// ---------------------------------------------
+// Search Hooks
+// ---------------------------------------------
 function initSearchEngineHooks() {
   import("./searchEngine.js").then((searchEngine) => {
-    const getPeopleBtn = document.getElementById("find-team-btn");
-    const findByNameBtn = document.getElementById("search-name-btn");
-    const buildTeamBtn = document.getElementById("buildTeamBtn");
-
-    if (getPeopleBtn) {
-      getPeopleBtn.addEventListener("click", () => searchEngine.findMatchingUsers());
-    }
-    if (findByNameBtn) {
-      findByNameBtn.addEventListener("click", () => searchEngine.findByName());
-    }
-    if (buildTeamBtn) {
-      buildTeamBtn.addEventListener("click", () => searchEngine.buildBestTeam());
-    }
+    document.getElementById("find-team-btn")?.addEventListener("click", () => {
+      searchEngine.findMatchingUsers();
+    });
+    document.getElementById("search-name-btn")?.addEventListener("click", () => {
+      searchEngine.findByName();
+    });
+    document.getElementById("buildTeamBtn")?.addEventListener("click", () => {
+      searchEngine.buildBestTeam();
+    });
   });
 }
 
-// ======================================================================
-// 4) ESC HANDLER TO EXIT SYNAPSE VIEW
-// ======================================================================
+// ---------------------------------------------
+// ESC closes Synapse
+// ---------------------------------------------
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
 
   const container = document.getElementById("synapse-container");
   if (!container.classList.contains("active")) return;
 
-  // Close fullscreen synapse
   container.classList.remove("active");
 
-  const header = document.querySelector(".header");
-  const footer = document.querySelector("footer");
-  const bgCanvas = document.getElementById("neural-bg");
+  document.querySelector(".header").style.display = "";
+  document.querySelector("footer").style.display = "";
+  document.getElementById("neural-bg").style.display = "";
 
-  header.style.display = "";
-  footer.style.display = "";
-  if (bgCanvas) bgCanvas.style.display = "";
-
-  // switch back to profile tab
-  const profileTab = document.querySelector('[data-tab="profile"]');
-  profileTab?.click();
+  document.querySelector('[data-tab="profile"]')?.click();
 
   console.log("🧠 Exited Synapse View");
 });
 
-// ======================================================================
-// 5) FULL SYSTEM INITIALIZATION
-// ======================================================================
+// ---------------------------------------------
+// FULL SYSTEM BOOT
+// ---------------------------------------------
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Initializing Innovation Engine…");
 
   registerDOM();
 
-  // 1) AUTH MUST BE COMPLETED FIRST
+  // AUTH FIRST (only once)
   await initLoginSystem();
 
-  // 2) NOW SAFE TO INIT TABS + SEARCH + PROFILE
+  // All other components now safe
   initTabs();
   initSearchEngineHooks();
   await initProfileForm();
