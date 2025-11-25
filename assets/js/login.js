@@ -1,69 +1,52 @@
 // ====================================================================
 // CharlestonHacks Innovation Engine – LOGIN CONTROLLER (2025 FINAL)
-// Zero loops, zero race conditions, correct Supabase flow.
+// Zero loops, stable DOM, correct Supabase flow.
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
-// DOM elements
-const loginSection = document.getElementById("login-section");
-const loginForm = document.getElementById("login-form");
-const loginEmailInput = document.getElementById("login-email");
-const profileSection = document.getElementById("profile-section");
-const userBadge = document.getElementById("user-badge");
-const logoutBtn = document.getElementById("logout-btn");
+// DOM elements (resolved ONLY after DOM ready)
+let loginSection, loginForm, loginEmailInput, profileSection, userBadge, logoutBtn;
 
 // Prevent double SIGNED_IN triggers
 window.__LOGIN_STATE__ = window.__LOGIN_STATE__ || {
   handled: false
 };
 
-// Redirect for magic link
-const REDIRECT_URL = window.location.href;
+// Fixed redirect URL for GitHub Pages
+const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
 
 /* =============================================================
-   INIT LOGIN SYSTEM  (called once by main.js)
+   DOM SETUP (fixes dead login button)
 ============================================================= */
-export async function initLoginSystem() {
-  console.log("🔐 Initializing login system…");
+export function setupLoginDOM() {
+  loginSection = document.getElementById("login-section");
+  loginForm = document.getElementById("login-form");
+  loginEmailInput = document.getElementById("login-email");
+  profileSection = document.getElementById("profile-section");
+  userBadge = document.getElementById("user-badge");
+  logoutBtn = document.getElementById("logout-btn");
 
-  // Allow Supabase URL hash parsing to complete
-  await new Promise(res => setTimeout(res, 10));
-
-  // Check for existing session
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (session?.user) {
-    console.log("🔒 Existing session detected:", session.user.email);
-    await handleSignedInOnce(session.user);
-  } else {
-    console.log("🔓 No session — waiting for auth event");
-    handleSignedOut();
+  if (!loginForm) {
+    console.error("❌ login-form not found — DOM not ready.");
+    return;
   }
 
-  /* ------------------------------------------------------------
-     Single stable auth listener (critical)
-  ------------------------------------------------------------ */
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("🔄 Auth event:", event);
+  // Attach login handler now that DOM is ready
+  loginForm.addEventListener("submit", onSubmitLogin);
 
-    if (event === "SIGNED_IN" && session?.user) {
-      await handleSignedInOnce(session.user);
-      return;
-    }
-
-    if (event === "SIGNED_OUT") {
-      handleSignedOut();
-      return;
-    }
+  // Attach logout handler
+  logoutBtn?.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    handleSignedOut();
   });
 }
 
 /* =============================================================
-   SIGN IN WITH MAGIC LINK
+   LOGIN HANDLER
 ============================================================= */
-loginForm?.addEventListener("submit", async (e) => {
+async function onSubmitLogin(e) {
   e.preventDefault();
 
   const email = loginEmailInput.value.trim();
@@ -86,10 +69,46 @@ loginForm?.addEventListener("submit", async (e) => {
   } else {
     showNotification("Magic link sent! Check your email.", "success");
   }
-});
+}
 
 /* =============================================================
-   HANDLE SIGNED-IN (only once)
+   INIT LOGIN SYSTEM
+============================================================= */
+export async function initLoginSystem() {
+  console.log("🔐 Initializing login system…");
+
+  // Wait for Supabase to parse URL hash
+  await new Promise(res => setTimeout(res, 20));
+
+  // Check existing session
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (session?.user) {
+    console.log("🔒 Existing session detected:", session.user.email);
+    await handleSignedInOnce(session.user);
+  } else {
+    console.log("🔓 No active session.");
+    handleSignedOut();
+  }
+
+  // SINGLE auth listener
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log("🔄 Auth event:", event);
+
+    if (event === "SIGNED_IN" && session?.user) {
+      await handleSignedInOnce(session.user);
+      return;
+    }
+
+    if (event === "SIGNED_OUT") {
+      handleSignedOut();
+      return;
+    }
+  });
+}
+
+/* =============================================================
+   SIGNED-IN (only once)
 ============================================================= */
 async function handleSignedInOnce(user) {
   if (window.__LOGIN_STATE__.handled) {
@@ -98,14 +117,20 @@ async function handleSignedInOnce(user) {
   }
   window.__LOGIN_STATE__.handled = true;
 
-  console.log("🎉 SIGNED_IN:", user.email);
+  console.log("🎉 SIGNED IN AS:", user.email);
+
+  // Ensure user row exists
   await backfillCommunityUser();
 
+  // Switch UI
   handleSignedIn(user);
+
+  // Let main initialize profile AFTER auth completes
+  window.dispatchEvent(new CustomEvent("auth-ready"));
 }
 
 /* =============================================================
-   UI Update: Signed In
+   UI: Signed In
 ============================================================= */
 function handleSignedIn(user) {
   userBadge.textContent = `Logged in as: ${user.email}`;
@@ -118,26 +143,18 @@ function handleSignedIn(user) {
 }
 
 /* =============================================================
-   UI Update: Signed Out
+   UI: Signed Out
 ============================================================= */
 function handleSignedOut() {
   console.log("👋 Signed out");
 
   window.__LOGIN_STATE__.handled = false;
 
-  userBadge.classList.add("hidden");
-  logoutBtn.classList.add("hidden");
+  userBadge?.classList.add("hidden");
+  logoutBtn?.classList.add("hidden");
 
-  profileSection.classList.add("hidden");
-  loginSection.classList.remove("hidden");
+  profileSection?.classList.add("hidden");
+  loginSection?.classList.remove("hidden");
 
-  loginEmailInput.value = "";
+  if (loginEmailInput) loginEmailInput.value = "";
 }
-
-/* =============================================================
-   LOGOUT
-============================================================= */
-logoutBtn?.addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  handleSignedOut();
-});
