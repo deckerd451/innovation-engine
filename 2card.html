@@ -1,25 +1,94 @@
-// CharlestonHacks – AUTH DEBUG (SAFE + NO SPAM)
-// Toggles by clicking the 🐞 button.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
+  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
+  <meta property="og:description" content="CharlestonHacks promotes tech events. Join us for exciting events and stay updated." />
+  <meta property="og:image" content="images/reactiveh.png" />
+  <meta property="og:url" content="https://charlestonhacks.com" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <title>Innovation Engine - CharlestonHacks</title>
 
-async function waitForSupabase() {
-  while (!window.supabase) {
-    await new Promise(res => setTimeout(res, 40));
-  }
-  return window.supabase;
-}
+  <link rel="icon" href="favicon.ico" />
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json" />
 
-function createDebugPanel() {
-  let panel = document.getElementById("auth-debug-overlay");
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://hvmotpzhliufzomewzfl.supabase.co">
 
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "auth-debug-overlay";
-    panel.style.cssText = `
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+
+  <style>
+    .header-img {
+      display: block;
+      margin: 20px auto;
+      width: 420px;
+      max-width: 90%;
+      height: auto;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
+      cursor: pointer;
+      transition: transform 0.3s ease, filter 0.3s ease;
+    }
+    .header-img:hover {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 12px rgba(135,158,242,0.6));
+    }
+    @media (max-width: 800px){ .header-img{ width:300px; margin-top:10px; } }
+    @media (max-width: 650px){ .header-img{ width:250px; } }
+    @media (max-width: 480px){ .header-img{ width:200px; } }
+
+    footer {
+      background-color: transparent;
+      text-align: center;
+      padding: 32px 20px 64px;
+      margin-top: 40px;
+      position: relative;
+    }
+    .footer-back-button img {
+      max-width: 240px;
+      width: 60vw;
+      transition: transform 0.3s ease;
+    }
+    .footer-back-button img:hover {
+      transform: scale(1.05);
+    }
+
+    /* Synapse fullscreen */
+    #synapse-container {
+      position: fixed;
+      inset: 0;
+      display: none;
+      background: rgba(0,0,0,0.92);
+      z-index: 9000;
+    }
+    #synapse-container.active { display: block; }
+    #synapse-svg {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    .synapse-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 6px 10px;
+      border-radius: 4px;
+      color: #0ff;
+      font-size: 13px;
+      pointer-events: none;
+      font-family: monospace;
+    }
+
+    /* Debug panel */
+    #auth-debug-overlay {
       position: fixed;
       bottom: 20px;
       right: 20px;
-      width: 360px;
       max-width: 90vw;
+      width: 360px;
       max-height: 40vh;
       overflow-y: auto;
       background: rgba(0,0,0,0.88);
@@ -32,38 +101,208 @@ function createDebugPanel() {
       z-index: 999999;
       white-space: pre-wrap;
       display: none;
-    `;
-    document.body.appendChild(panel);
-  }
+    }
 
-  return panel;
-}
+    #debug-toggle-btn {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      background: rgba(0,255,255,0.15);
+      backdrop-filter: blur(4px);
+      border: 1px solid #0ff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 1000000;
+      color: #0ff;
+      font-size: 18px;
+      box-shadow: 0 0 10px rgba(0,255,255,0.4);
+    }
+  </style>
+</head>
 
-function makeLogger(panel) {
-  return function log(message) {
-    const entry = `[${new Date().toLocaleTimeString()}]\n${message}\n\n`;
-    panel.textContent = entry + panel.textContent;
-  };
-}
+<body class="two-card-page">
 
-async function initAuthDebug() {
-  const supabase = await waitForSupabase();
-  const panel = createDebugPanel();
-  const log = makeLogger(panel);
+  <canvas id="neural-bg"></canvas>
 
-  // Log auth state transitions
-  supabase.auth.onAuthStateChange((event, session) => {
-    log(`EVENT: ${event}\nUSER: ${session?.user?.email || "none"}`);
-  });
+  <div id="achievements" class="achievements" aria-live="polite"></div>
 
-  // Periodic snapshot
-  async function refresh() {
-    const { data } = await supabase.auth.getSession();
-    log(`SESSION: ${data?.session ? "ACTIVE" : "NONE"}`);
-  }
+  <div id="synapse-container">
+    <svg id="synapse-svg"></svg>
+  </div>
 
-  setInterval(refresh, 2500);
-  refresh();
-}
+  <div class="container">
+    <header class="header">
+      <a href="index.html">
+        <img src="images/ieheader.webp" class="header-img" alt="Innovation Engine Header">
+      </a>
+      <p style="color:#ccc; margin-top:6px;">Making Invisible Networks Visible</p>
 
-initAuthDebug();
+      <div class="auth-controls">
+        <span class="user-badge hidden" id="user-badge"></span>
+        <button class="logout-btn action-btn hidden" id="logout-btn">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </header>
+
+    <main class="panels-wrapper">
+      <div class="panel large">
+
+        <!-- LOGIN -->
+        <div id="login-section">
+          <h2 class="section-title">Login</h2>
+          <form id="login-form">
+            <input type="email" id="login-email" placeholder="Enter your email" />
+            <button id="login-button" class="action-btn" type="submit">Send Magic Link</button>
+          </form>
+        </div>
+
+        <!-- PROFILE -->
+        <div id="profile-section" class="hidden">
+
+          <div class="tab-nav">
+            <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
+            <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
+            <button class="tab-button" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
+            <button class="tab-button" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
+            <button class="tab-button" data-tab="synapse"><i class="fas fa-project-diagram"></i> Synapse View</button>
+          </div>
+
+          <!-- Profile Tab -->
+          <div id="profile" class="tab-content-pane active-tab-pane">
+            <section id="matchmaking-section">
+              <h2 class="section-title">Create Your Profile</h2>
+
+              <form id="skills-form">
+                <div class="input-container">
+                  <input type="text" id="first-name" placeholder="First Name" required>
+                  <input type="text" id="last-name" placeholder="Last Name" required>
+                  <input type="email" id="email" placeholder="Email" required>
+
+                  <label>Professional Skills</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="skills-input" placeholder="e.g. aws, java, python">
+                    <div id="autocomplete-skills-input" class="autocomplete-box"></div>
+                  </div>
+
+                  <div id="skills-proficiency-container"></div>
+
+                  <label>Upload Your Photo</label>
+                  <input type="file" id="photo-input" accept="image/*">
+                  <img id="preview" class="image-preview hidden">
+
+                  <label>Short Bio</label>
+                  <input type="text" id="bio-input" maxlength="120">
+
+                  <label>Availability</label>
+                  <select id="availability-input">
+                    <option value="Available">Available</option>
+                    <option value="Busy">Busy</option>
+                    <option value="Not Looking">Not Looking</option>
+                  </select>
+
+                  <label><input type="checkbox" id="newsletter-opt-in"> Subscribe to CharlestonHacks Newsletter</label>
+
+                  <button class="action-btn" type="submit">Save Profile</button>
+                </div>
+
+                <div class="profile-bar"><div class="profile-bar-inner"></div></div>
+                <div id="profile-progress-msg"></div>
+              </form>
+            </section>
+          </div>
+
+          <!-- Search -->
+          <div id="search" class="tab-content-pane">
+            <h2 class="section-title">Individual Search</h2>
+            <div class="input-wrapper">
+              <input type="text" id="teamSkillsInput" placeholder="Required skills">
+              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+            </div>
+            <button class="action-btn" id="find-team-btn">Get People</button>
+
+            <div class="input-wrapper" style="margin-top:20px;">
+              <input type="text" id="nameInput" placeholder="Search by name">
+              <div id="autocomplete-names" class="autocomplete-box"></div>
+            </div>
+            <button class="action-btn" id="search-name-btn">Find by Name</button>
+
+            <div id="matchNotification" class="notification hidden"></div>
+            <div id="noResults" class="notification hidden"></div>
+            <div id="cardContainer" class="card-container"></div>
+          </div>
+
+          <!-- Team Builder -->
+          <div id="team-builder" class="tab-content-pane">
+            <h2 class="section-title">Team Builder</h2>
+            <div class="input-container">
+              <input type="text" id="team-skills-input" placeholder="Required skills">
+              <div id="autocomplete-team-builder" class="autocomplete-box"></div>
+              <input type="number" id="teamSize" placeholder="Team size" min="1" max="6">
+              <button id="buildTeamBtn" class="action-btn">Build Team</button>
+            </div>
+            <div id="bestTeamContainer" class="card-container"></div>
+          </div>
+
+          <!-- Leaderboard -->
+          <div id="leaderboard" class="tab-content-pane">
+            <div class="leaderboard">
+              <h2>Leaderboard</h2>
+              <div class="leaderboard-tabs">
+                <button class="lb-tab active" data-type="skills"><i class="fas fa-star"></i> Top Skills</button>
+                <button class="lb-tab" data-type="connectors"><i class="fas fa-link"></i> Top Connectors</button>
+                <button class="lb-tab" data-type="rising"><i class="fas fa-rocket"></i> Rising Stars</button>
+              </div>
+              <div id="leaderboard-rows"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-back-button">
+      <a href="index.html">
+        <img src="assets/chbackbuttonred.png" alt="Back to Home" />
+      </a>
+    </div>
+    <p style="margin-top:16px; font-size:16px;">© 2025 CharlestonHacks. All rights reserved.</p>
+  </footer>
+
+  <!-- D3 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+  <!-- Modules in correct dependency order -->
+  <script type="module" src="assets/js/supabaseClient.js"></script>
+  <script type="module" src="assets/js/login.js"></script>
+  <script type="module" src="assets/js/main.js"></script>
+  <script type="module" src="assets/js/profile.js"></script>
+  <script type="module" src="assets/js/searchEngine.js"></script>
+  <script type="module" src="assets/js/synapse.js"></script>
+  <script type="module" src="assets/js/neuralBackground.js"></script>
+
+  <!-- Debug panel -->
+  <div id="auth-debug-overlay"></div>
+  <div id="debug-toggle-btn">🐞</div>
+
+  <script>
+    const panel = document.getElementById("auth-debug-overlay");
+    const btn = document.getElementById("debug-toggle-btn");
+    btn.addEventListener("click", () => {
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+    });
+  </script>
+
+  <!-- Debug logic -->
+  <script type="module" src="assets/js/authDebug.js"></script>
+
+</body>
+</html>
