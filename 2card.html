@@ -286,73 +286,9 @@
   white-space: pre-wrap;
   display: none;
 "></div>
-<script type="module">
-  window.__LOGIN_STATE__ = window.__LOGIN_STATE__ || { handled: false };
 
-  import { supabase } from "./assets/js/supabaseClient.js";
-
-  const panel = document.getElementById("auth-debug-overlay");
-  let signInCount = 0;
-
-  // Toggle with CTRL + `
-  document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey && e.key === "`") {
-      panel.style.display = panel.style.display === "none" ? "block" : "none";
-    }
-  });
-
-  function log(message) {
-    const entry = `[${new Date().toLocaleTimeString()}]\n${message}\n\n`;
-    panel.textContent = entry + panel.textContent;
-
-    // Flash visual signal for important events
-    panel.style.borderColor = "#0ff";
-    panel.animate([{ borderColor: "#0ff" }, { borderColor: "#f0f" }, { borderColor: "#0ff" }], {
-      duration: 500,
-      iterations: 1
-    });
-  }
-
-  // ---------------------------------------------------------
-  // AUTH EVENTS (detect double SIGNED_IN → loop source)
-  // ---------------------------------------------------------
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event === "SIGNED_IN") {
-      signInCount++;
-    }
-
-    log(
-`AUTH EVENT: ${event}
-SIGNED_IN count: ${signInCount}
-USER: ${session?.user?.email ?? "null"}
-LOGIN GUARD: handled = ${window.__LOGIN_STATE__?.handled}
-`
-    );
-  });
-
-  // ---------------------------------------------------------
-  // SESSION POLLING (watch for missing or flipping sessions)
-  // ---------------------------------------------------------
-  async function refreshState() {
-    const { data } = await supabase.auth.getSession();
-
-    log(
-`CURRENT SESSION:
-${JSON.stringify(data?.session, null, 2)}
-
-URL HASH: ${window.location.hash.replace(/access_token.*/, "access_token…")}
-
-localStorage Keys:
-${Object.keys(localStorage).filter(k => k.includes("supabase")).join("\n")}
-
-`
-    );
-  }
-
-  setInterval(refreshState, 1500);
-  refreshState();
-</script>
-
+<!-- Load Debug Tool -->
+<script type="module" src="assets/js/authDebug.js"></script>
 
 </body>
 </html>
