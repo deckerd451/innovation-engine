@@ -1,5 +1,5 @@
 // CharlestonHacks – AUTH DEBUG (SAFE + NO SPAM)
-// Toggles only by clicking 🐞 button.
+// Toggles by clicking the 🐞 button.
 
 async function waitForSupabase() {
   while (!window.supabase) {
@@ -10,6 +10,7 @@ async function waitForSupabase() {
 
 function createDebugPanel() {
   let panel = document.getElementById("auth-debug-overlay");
+
   if (!panel) {
     panel = document.createElement("div");
     panel.id = "auth-debug-overlay";
@@ -34,6 +35,7 @@ function createDebugPanel() {
     `;
     document.body.appendChild(panel);
   }
+
   return panel;
 }
 
@@ -49,10 +51,12 @@ async function initAuthDebug() {
   const panel = createDebugPanel();
   const log = makeLogger(panel);
 
+  // Log auth state transitions
   supabase.auth.onAuthStateChange((event, session) => {
     log(`EVENT: ${event}\nUSER: ${session?.user?.email || "none"}`);
   });
 
+  // Periodic snapshot
   async function refresh() {
     const { data } = await supabase.auth.getSession();
     log(`SESSION: ${data?.session ? "ACTIVE" : "NONE"}`);
