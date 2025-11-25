@@ -2591,4 +2591,25 @@ main, .main-wrapper, .media-container {
   opacity: 0;
   transition: max-height 0.45s ease, opacity 0.45s ease;
 }
+/* ================================================
+   INDIVIDUAL SEARCH – PROFILE PHOTO SIZING (LOCKED)
+   ================================================ */
+
+.card-container .person-card img,
+.card-container img.profile-photo,
+.card-container img.result-photo,
+.card-img,
+.profile-photo,
+.result-photo {
+    width: 78px !important;
+    height: 78px !important;
+    max-width: 78px !important;
+    max-height: 78px !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    border: 2px solid rgba(255,255,255,0.15);
+    display: block !important;
+    margin: 0 auto 12px !important;
+}
+
 
