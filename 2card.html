@@ -277,22 +277,11 @@
     <p style="margin-top:16px; font-size:16px;">© 2025 CharlestonHacks. All rights reserved.</p>
   </footer>
 
-  <!-- D3 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-
-  <!-- Modules in correct dependency order -->
-  <script type="module" src="assets/js/supabaseClient.js"></script>
-  <script type="module" src="assets/js/login.js"></script>
-  <script type="module" src="assets/js/main.js"></script>
-  <script type="module" src="assets/js/profile.js"></script>
-  <script type="module" src="assets/js/searchEngine.js"></script>
-  <script type="module" src="assets/js/synapse.js"></script>
-  <script type="module" src="assets/js/neuralBackground.js"></script>
-
-  <!-- Debug panel -->
+  <!-- Debug panel (must be BEFORE scripts) -->
   <div id="auth-debug-overlay"></div>
   <div id="debug-toggle-btn">🐞</div>
 
+  <!-- Debug panel toggle -->
   <script>
     const panel = document.getElementById("auth-debug-overlay");
     const btn = document.getElementById("debug-toggle-btn");
@@ -301,8 +290,31 @@
     });
   </script>
 
-  <!-- Debug logic -->
-  <script type="module" src="assets/js/authDebug.js"></script>
+  <!-- D3 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
+  <!-- Supabase core first -->
+  <script type="module" src="assets/js/supabaseClient.js"></script>
+
+  <!-- Globals next -->
+  <script type="module" src="assets/js/globals.js"></script>
+
+  <!-- Login system -->
+  <script type="module" src="assets/js/login.js"></script>
+
+  <!-- Main controller AFTER login -->
+  <script type="module" src="assets/js/main.js"></script>
+
+  <!-- App features -->
+  <script type="module" src="assets/js/profile.js"></script>
+  <script type="module" src="assets/js/searchEngine.js"></script>
+  <script type="module" src="assets/js/synapse.js"></script>
+
+  <!-- Visual background -->
+  <script type="module" src="assets/js/neuralBackground.js"></script>
+
+  <!-- Debug logic (ONLY ONCE) -->
+  <script type="module" src="assets/js/authDebug.js"></script>
 </body>
 </html>
+
