@@ -1,15 +1,15 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL FIXED)
+// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL FIX)
 // ======================================================================
 
-import { initLoginSystem } from "./login.js";
+import { initLoginSystem, setupLoginDOM } from "./login.js";
 import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
 import { DOMElements, registerDomElement } from "./globals.js";
 
-// ---------------------------------------------
-// Register DOM references
-// ---------------------------------------------
+/* ---------------------------------------------
+   Register DOM references
+--------------------------------------------- */
 function registerDOM() {
   registerDomElement("teamSkillsInput", document.getElementById("teamSkillsInput"));
   registerDomElement("cardContainer", document.getElementById("cardContainer"));
@@ -26,9 +26,9 @@ function registerDOM() {
   registerDomElement("autocompleteNames", document.getElementById("autocomplete-names"));
 }
 
-// ---------------------------------------------
-// Tabs Controller
-// ---------------------------------------------
+/* ---------------------------------------------
+   Tabs Controller (unchanged)
+--------------------------------------------- */
 function initTabs() {
   const buttons = document.querySelectorAll(".tab-button");
   const panes = document.querySelectorAll(".tab-content-pane");
@@ -66,9 +66,9 @@ function initTabs() {
   });
 }
 
-// ---------------------------------------------
-// Search Hooks
-// ---------------------------------------------
+/* ---------------------------------------------
+   Search Hooks
+--------------------------------------------- */
 function initSearchEngineHooks() {
   import("./searchEngine.js").then((searchEngine) => {
     document.getElementById("find-team-btn")?.addEventListener("click", () => {
@@ -83,9 +83,9 @@ function initSearchEngineHooks() {
   });
 }
 
-// ---------------------------------------------
-// ESC closes Synapse
-// ---------------------------------------------
+/* ---------------------------------------------
+   ESC closes Synapse
+--------------------------------------------- */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
 
@@ -99,25 +99,25 @@ document.addEventListener("keydown", (e) => {
   document.getElementById("neural-bg").style.display = "";
 
   document.querySelector('[data-tab="profile"]')?.click();
-
-  console.log("🧠 Exited Synapse View");
 });
 
-// ---------------------------------------------
-// FULL SYSTEM BOOT
-// ---------------------------------------------
+/* ---------------------------------------------
+   FULL SYSTEM BOOT
+--------------------------------------------- */
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Initializing Innovation Engine…");
 
   registerDOM();
+  setupLoginDOM(); // Make login button functional immediately
 
-  // AUTH FIRST (only once)
+  // AUTH FIRST
   await initLoginSystem();
 
-  // All other components now safe
-  initTabs();
-  initSearchEngineHooks();
-  await initProfileForm();
-
-  console.log("✅ Innovation Engine fully initialized");
+  // All other components AFTER we know auth state
+  window.addEventListener("auth-ready", async () => {
+    initTabs();
+    initSearchEngineHooks();
+    await initProfileForm();
+    console.log("✅ Innovation Engine fully initialized");
+  });
 });
