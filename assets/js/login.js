@@ -1,6 +1,6 @@
 // ====================================================================
 // CharlestonHacks Innovation Engine – LOGIN CONTROLLER (2025 FINAL)
-// Zero loops, stable DOM, correct Supabase workflow.
+// Zero loops. Zero race conditions. Correct Supabase workflow.
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
@@ -15,7 +15,7 @@ window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
 };
 
 // ====================================================================
-// DOM references (resolved after DOMContentLoaded)
+// DOM references
 // ====================================================================
 let loginSection;
 let loginForm;
@@ -24,7 +24,7 @@ let profileSection;
 let userBadge;
 let logoutBtn;
 
-// FINAL GitHub Pages redirect URL — MUST MATCH Supabase config exactly
+// Your GitHub Pages URL. MUST match Supabase redirect list exactly.
 const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
 
 /* =============================================================
@@ -43,10 +43,10 @@ export function setupLoginDOM() {
     return;
   }
 
-  // LOGIN HANDLER
+  // LOGIN SUBMIT
   loginForm.addEventListener("submit", onSubmitLogin);
 
-  // LOGOUT HANDLER
+  // LOGOUT
   logoutBtn?.addEventListener("click", async () => {
     await supabase.auth.signOut();
     window.__AUTH_GUARD__.signedInHandled = false;
@@ -90,56 +90,65 @@ async function onSubmitLogin(e) {
 }
 
 /* =============================================================
-   INIT LOGIN SYSTEM — main.js waits for auth-ready event
+   INIT LOGIN SYSTEM — main.js waits for auth-ready
 ============================================================= */
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // Allow Supabase to parse tokens in URL hash
+  // Allow Supabase URL hash parsing to complete
   await new Promise(res => setTimeout(res, 20));
 
-  // Check existing session before listening
+  // 1) INITIAL USER CHECK — UI ONLY. No backfill. No events.
   const { data: { session } } = await supabase.auth.getSession();
+
   if (session?.user) {
     console.log("🔒 Existing session detected:", session.user.email);
-    await handleSignedInOnce(session.user);
+    handleSignedIn(session.user); // UI only — safe
   } else {
     handleSignedOut();
   }
 
-  // =============================================================
-  // ONE STABLE AUTH LISTENER — ignores token refresh loop
-  // =============================================================
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("🔄 Auth event:", event);
+  // 2) AUTH EVENTS — delayed to avoid INITIAL_SESSION → SIGNED_IN loop
+  setTimeout(() => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("🔄 Auth event:", event);
 
-    // TOKEN_REFRESHED always causes loops → ignore it
-    if (event === "TOKEN_REFRESHED") {
-      console.log("🔁 TOKEN_REFRESHED ignored (prevents loop)");
-      return;
-    }
-
-    if (event === "SIGNED_OUT") {
-      console.log("👋 Signed out");
-      window.__AUTH_GUARD__.signedInHandled = false;
-      handleSignedOut();
-      return;
-    }
-
-    if (event === "SIGNED_IN" && session?.user) {
-      if (window.__AUTH_GUARD__.signedInHandled) {
-        console.log("⚠️ SIGNED_IN ignored — already handled");
+      // 2a) Ignore token refresh — avoids loops
+      if (event === "TOKEN_REFRESHED") {
+        console.log("🔁 TOKEN_REFRESHED ignored (preventing loop)");
         return;
       }
 
-      await handleSignedInOnce(session.user);
-      return;
-    }
-  });
+      // 2b) Signed Out
+      if (event === "SIGNED_OUT") {
+        window.__AUTH_GUARD__.signedInHandled = false;
+        handleSignedOut();
+        return;
+      }
+
+      // 2c) INITIAL_SESSION — Supabase internal warm-up — ignore
+      if (event === "INITIAL_SESSION") {
+        return;
+      }
+
+      // 2d) SIGNED_IN — the *only* moment we run full logic
+      if (event === "SIGNED_IN" && session?.user) {
+        if (window.__AUTH_GUARD__.signedInHandled) {
+          console.log("⚠️ SIGNED_IN ignored — already handled");
+          return;
+        }
+
+        await handleSignedInOnce(session.user);
+      }
+    });
+  }, 200);
 }
 
 /* =============================================================
    SIGNED-IN (run only once)
+   → backfill
+   → UI update
+   → auth-ready
 ============================================================= */
 async function handleSignedInOnce(user) {
   if (window.__AUTH_GUARD__.signedInHandled) {
@@ -151,11 +160,13 @@ async function handleSignedInOnce(user) {
 
   console.log("🎉 SIGNED IN AS:", user.email);
 
+  // BACKFILL community row
   await backfillCommunityUser();
 
+  // Update UI
   handleSignedIn(user);
 
-  // Signal main.js to initialize profile + tabs
+  // Notify main.js that auth is stable
   if (!window.__AUTH_GUARD__.initialized) {
     window.__AUTH_GUARD__.initialized = true;
     window.dispatchEvent(new CustomEvent("auth-ready"));
@@ -166,17 +177,19 @@ async function handleSignedInOnce(user) {
    UI: Signed In
 ============================================================= */
 function handleSignedIn(user) {
-  userBadge.textContent = `Logged in as: ${user.email}`;
-  userBadge.classList.remove("hidden");
+  if (userBadge) {
+    userBadge.textContent = `Logged in as: ${user.email}`;
+    userBadge.classList.remove("hidden");
+  }
 
-  // Fade-out login section for animation
-  loginSection.classList.add("fade-out");
+  loginSection?.classList.add("fade-out");
+
   setTimeout(() => {
-    loginSection.classList.add("hidden");
-    profileSection.classList.remove("hidden");
+    loginSection?.classList.add("hidden");
+    profileSection?.classList.remove("hidden");
   }, 300);
 
-  logoutBtn.classList.remove("hidden");
+  logoutBtn?.classList.remove("hidden");
 }
 
 /* =============================================================
@@ -184,11 +197,4 @@ function handleSignedIn(user) {
 ============================================================= */
 function handleSignedOut() {
   userBadge?.classList.add("hidden");
-  logoutBtn?.classList.add("hidden");
-
-  profileSection?.classList.add("hidden");
-  loginSection?.classList.remove("hidden");
-  loginSection?.classList.remove("fade-out");
-
-  if (loginEmailInput) loginEmailInput.value = "";
-}
+  logoutBtn?.classList.add("hidde
