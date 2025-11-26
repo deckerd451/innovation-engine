@@ -28,12 +28,19 @@ let logoutBtn;
 const REDIRECT_URL = "https://www.charlestonhacks.com/2card.html";
 // Derive the redirect from the current origin so previews/localhost work
 // Fallback to production when origin is "null" (e.g., file://) to avoid invalid URLs
-const appOrigin = window.location.origin && window.location.origin !== "null"
-  ? window.location.origin
-  : "https://www.charlestonhacks.com";
+function buildRedirectUrl() {
+  try {
+    const origin = window.location?.origin;
+    const usableOrigin = origin && origin !== "null" ? origin : "https://www.charlestonhacks.com";
+    const normalized = usableOrigin.replace(/\/$/, "");
+    return `${normalized}/2card.html`;
+  } catch (err) {
+    console.warn("[Login] Failed to build redirect URL, using production fallback:", err);
+    return "https://www.charlestonhacks.com/2card.html";
+  }
+}
 
-const REDIRECT_URL = `${appOrigin.replace(/\/$/, "")}/2card.html`;
-
+const REDIRECT_URL = buildRedirectUrl();
 /* =============================================================
    DOM SETUP – ensures login button works reliably
 ============================================================= */
