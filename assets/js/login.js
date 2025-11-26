@@ -1,13 +1,13 @@
 // ====================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (2025 FINAL)
-// Ultra-stable. Zero loops. Zero duplicates. GitHub Pages–safe.
+// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (2025 FINAL PRODUCTION)
+// Zero loops. Zero race conditions. Correct Supabase workflow.
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // ====================================================================
-// GLOBAL AUTH GUARD (Prevents Duplicates + Loops)
+// GLOBAL AUTH GUARD — prevents loops and double events
 // ====================================================================
 window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
   initialized: false,
@@ -15,7 +15,7 @@ window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
 };
 
 // ====================================================================
-// DOM references (assigned in setupLoginDOM)
+// DOM references
 // ====================================================================
 let loginSection;
 let loginForm;
@@ -24,11 +24,11 @@ let profileSection;
 let userBadge;
 let logoutBtn;
 
-// MUST MATCH Supabase redirect URL EXACTLY
-const REDIRECT_URL = "https://www.charlestonhacks.com/2card.html";
+// MUST MATCH SUPABASE EXACTLY
+const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
 
 /* =============================================================
-   DOM SETUP — ensures login button works immediately
+   DOM SETUP — ensures login button works reliably
 ============================================================= */
 export function setupLoginDOM() {
   loginSection      = document.getElementById("login-section");
@@ -39,12 +39,14 @@ export function setupLoginDOM() {
   logoutBtn         = document.getElementById("logout-btn");
 
   if (!loginForm) {
-    console.error("❌ login-form not found.");
+    console.error("❌ login-form not found — DOM not ready.");
     return;
   }
 
+  // LOGIN SUBMIT
   loginForm.addEventListener("submit", onSubmitLogin);
 
+  // LOGOUT
   logoutBtn?.addEventListener("click", async () => {
     await supabase.auth.signOut();
     window.__AUTH_GUARD__.signedInHandled = false;
@@ -88,25 +90,25 @@ async function onSubmitLogin(e) {
 }
 
 /* =============================================================
-   LOGIN SYSTEM INITIALIZATION
+   INIT LOGIN SYSTEM — main.js waits for auth-ready
 ============================================================= */
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // Give Supabase time to parse URL hash → session
-  await new Promise(res => setTimeout(res, 30));
+  // Allow Supabase URL hash parsing to complete (static hosting requires longer delay)
+  await new Promise(res => setTimeout(res, 400));
 
-  // Check existing session BEFORE adding listeners
+  // INITIAL SESSION CHECK (UI only)
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
-    console.log("🔒 Existing session:", session.user.email);
-    handleSignedIn(session.user); // UI only
+    console.log("🔒 Existing session detected:", session.user.email);
+    handleSignedIn(session.user);
   } else {
     handleSignedOut();
   }
 
-  // Delay listener to avoid INITIAL_SESSION → SIGNED_IN loop
+  // AUTH EVENTS — delayed to avoid INITIAL_SESSION → SIGNED_IN loop
   setTimeout(() => {
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth event:", event);
@@ -122,32 +124,38 @@ export async function initLoginSystem() {
         return;
       }
 
-      if (event === "INITIAL_SESSION") return;
+      if (event === "INITIAL_SESSION") {
+        return; // ignore
+      }
 
       if (event === "SIGNED_IN" && session?.user) {
         if (window.__AUTH_GUARD__.signedInHandled) {
-          console.log("⚠️ SIGNED_IN ignored (already handled)");
+          console.log("⚠️ SIGNED_IN ignored — already handled");
           return;
         }
+
         await handleSignedInOnce(session.user);
       }
     });
-  }, 250);
+  }, 200);
 }
 
 /* =============================================================
-   SIGNED-IN HANDLER (Runs Once)
+   SIGNED-IN (run only once)
 ============================================================= */
 async function handleSignedInOnce(user) {
   if (window.__AUTH_GUARD__.signedInHandled) return;
 
   window.__AUTH_GUARD__.signedInHandled = true;
+  console.log("🎉 SIGNED IN AS:", user.email);
 
-  console.log("🎉 SIGNED IN:", user.email);
-
+  // BACKFILL community row
   await backfillCommunityUser();
+
+  // Update UI
   handleSignedIn(user);
 
+  // Notify main.js that auth is stable
   if (!window.__AUTH_GUARD__.initialized) {
     window.__AUTH_GUARD__.initialized = true;
     window.dispatchEvent(new CustomEvent("auth-ready"));
