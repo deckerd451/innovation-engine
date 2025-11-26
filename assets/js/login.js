@@ -1,5 +1,5 @@
 // ====================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (2025 FINAL PRODUCTION)
+// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FIXED 2025)
 // Zero loops. Zero race conditions. Correct Supabase workflow.
 // ====================================================================
 
@@ -7,7 +7,7 @@ import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // ====================================================================
-// GLOBAL AUTH GUARD — prevents loops and double events
+// GLOBAL AUTH GUARD – prevents loops and double events
 // ====================================================================
 window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
   initialized: false,
@@ -29,7 +29,7 @@ const REDIRECT_URL = "https://www.charlestonhacks.com/2card.html";
 
 
 /* =============================================================
-   DOM SETUP — ensures login button works reliably
+   DOM SETUP – ensures login button works reliably
 ============================================================= */
 export function setupLoginDOM() {
   loginSection      = document.getElementById("login-section");
@@ -40,7 +40,7 @@ export function setupLoginDOM() {
   logoutBtn         = document.getElementById("logout-btn");
 
   if (!loginForm) {
-    console.error("❌ login-form not found — DOM not ready.");
+    console.error("❌ login-form not found – DOM not ready.");
     return;
   }
 
@@ -91,54 +91,48 @@ async function onSubmitLogin(e) {
 }
 
 /* =============================================================
-   INIT LOGIN SYSTEM — main.js waits for auth-ready
+   INIT LOGIN SYSTEM – main.js waits for auth-ready
 ============================================================= */
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // Allow Supabase URL hash parsing to complete (static hosting requires longer delay)
-  await new Promise(res => setTimeout(res, 400));
+  // FIRST: Set up auth listener (before checking session)
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log("🔄 Auth event:", event);
 
-  // INITIAL SESSION CHECK (UI only)
+    if (event === "TOKEN_REFRESHED") {
+      console.log("🔄 TOKEN_REFRESHED ignored");
+      return;
+    }
+
+    if (event === "SIGNED_OUT") {
+      window.__AUTH_GUARD__.signedInHandled = false;
+      handleSignedOut();
+      return;
+    }
+
+    if (event === "INITIAL_SESSION") {
+      return; // ignore - handled below
+    }
+
+    if (event === "SIGNED_IN" && session?.user) {
+      if (window.__AUTH_GUARD__.signedInHandled) {
+        console.log("⚠️ SIGNED_IN ignored – already handled");
+        return;
+      }
+      await handleSignedInOnce(session.user);
+    }
+  });
+
+  // THEN: Check for existing session
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
     console.log("🔒 Existing session detected:", session.user.email);
-    handleSignedIn(session.user);
+    await handleSignedInOnce(session.user);
   } else {
     handleSignedOut();
   }
-
-  // AUTH EVENTS — delayed to avoid INITIAL_SESSION → SIGNED_IN loop
-  setTimeout(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔄 Auth event:", event);
-
-      if (event === "TOKEN_REFRESHED") {
-        console.log("🔁 TOKEN_REFRESHED ignored");
-        return;
-      }
-
-      if (event === "SIGNED_OUT") {
-        window.__AUTH_GUARD__.signedInHandled = false;
-        handleSignedOut();
-        return;
-      }
-
-      if (event === "INITIAL_SESSION") {
-        return; // ignore
-      }
-
-      if (event === "SIGNED_IN" && session?.user) {
-        if (window.__AUTH_GUARD__.signedInHandled) {
-          console.log("⚠️ SIGNED_IN ignored — already handled");
-          return;
-        }
-
-        await handleSignedInOnce(session.user);
-      }
-    });
-  }, 200);
 }
 
 /* =============================================================
@@ -150,8 +144,13 @@ async function handleSignedInOnce(user) {
   window.__AUTH_GUARD__.signedInHandled = true;
   console.log("🎉 SIGNED IN AS:", user.email);
 
-  // BACKFILL community row
-  await backfillCommunityUser();
+  // BACKFILL community row with error handling
+  try {
+    await backfillCommunityUser();
+  } catch (err) {
+    console.error("❌ Backfill failed:", err);
+    // Don't block login on backfill failure
+  }
 
   // Update UI
   handleSignedIn(user);
@@ -195,8 +194,9 @@ function handleSignedOut() {
 
   if (loginEmailInput) loginEmailInput.value = "";
 }
+
 // =============================================================
-// EXPORT TO WINDOW — required on GitHub Pages
+// EXPORT TO WINDOW – required on GitHub Pages
 // =============================================================
 window.initLoginSystem = initLoginSystem;
 window.setupLoginDOM = setupLoginDOM;
