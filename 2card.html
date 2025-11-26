@@ -212,53 +212,59 @@
           <div id="leaderboard" class="tab-content-pane">
             <div class="leaderboard">
               <h2>Leaderboard</h2>
-              <div class="leaderboard-tabs">
-                <button class="lb-tab active" data-type="skills"><i class="fas fa-star"></i> Top Skills</button>
-                <button class="lb-tab" data-type="connectors"><i class="fas fa-link"></i> Top Connectors</button>
-                <button class="lb-tab" data-type="rising"><i class="fas fa-rocket"></i> Rising Stars</button>
-              </div>
-              <div id="leaderboard-rows"></div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <!-- Footer -->
-  <footer>
-    <div class="footer-back-button">
-      <a href="index.html">
-        <img src="assets/chbackbuttonred.png" alt="Back to Home" />
-      </a>
-    </div>
-    <p style="margin-top:16px; font-size:16px;">© 2025 CharlestonHacks. All rights reserved.</p>
-  </footer>
-
-
-<!-- Supabase core -->
-<script type="module" src="assets/js/supabaseClient.js"></script>
-
-<!-- Globals next -->
-<script type="module" src="assets/js/globals.js"></script>
-
-<!-- Login system (MUST come before main.js) -->
-<script type="module" src="assets/js/login.js"></script>
-
-<!-- Main controller (depends on login.js + globals.js) -->
-<script type="module" src="assets/js/main.js"></script>
-
-<!-- Feature controllers -->
-<script type="module" src="assets/js/profile.js"></script>
-<script type="module" src="assets/js/searchEngine.js"></script>
-<script type="module" src="assets/js/synapse.js"></script>
-
-<!-- Visual background -->
-<script type="module" src="assets/js/neuralBackground.js"></script>
-
-
-
-</body>
-</html>
-
+              diff --git a/2card.html b/2card.html
+index 04d447b4a54793a29a24ba57ec86dc67a6337844..d447a15cf5439e75b1e645e507e2459165aedac6 100644
+--- a/2card.html
++++ b/2card.html
+@@ -215,50 +215,36 @@
+               <div class="leaderboard-tabs">
+                 <button class="lb-tab active" data-type="skills"><i class="fas fa-star"></i> Top Skills</button>
+                 <button class="lb-tab" data-type="connectors"><i class="fas fa-link"></i> Top Connectors</button>
+                 <button class="lb-tab" data-type="rising"><i class="fas fa-rocket"></i> Rising Stars</button>
+               </div>
+               <div id="leaderboard-rows"></div>
+             </div>
+           </div>
+ 
+         </div>
+       </div>
+     </main>
+   </div>
+ 
+   <!-- Footer -->
+   <footer>
+     <div class="footer-back-button">
+       <a href="index.html">
+         <img src="assets/chbackbuttonred.png" alt="Back to Home" />
+       </a>
+     </div>
+     <p style="margin-top:16px; font-size:16px;">© 2025 CharlestonHacks. All rights reserved.</p>
+   </footer>
+ 
+ 
+-<!-- Supabase core -->
+-<script type="module" src="assets/js/supabaseClient.js"></script>
+-
+-<!-- Globals next -->
+-<script type="module" src="assets/js/globals.js"></script>
+-
+-<!-- Login system (MUST come before main.js) -->
+-<script type="module" src="assets/js/login.js"></script>
+-
+-<!-- Main controller (depends on login.js + globals.js) -->
++<!-- Main controller (loads Supabase, globals, and feature modules) -->
+ <script type="module" src="assets/js/main.js"></script>
+ 
+-<!-- Feature controllers -->
+-<script type="module" src="assets/js/profile.js"></script>
+-<script type="module" src="assets/js/searchEngine.js"></script>
+-<script type="module" src="assets/js/synapse.js"></script>
+-
+ <!-- Visual background -->
+ <script type="module" src="assets/js/neuralBackground.js"></script>
+ 
+ 
+ 
+ </body>
+ </html>
+ 
