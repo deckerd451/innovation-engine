@@ -1,5 +1,5 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL BUILD)
+// CharlestonHacks Innovation Engine — MAIN CONTROLLER (FIXED 2025)
 // Orchestrates:
 //   ✔ DOM registry (globals.js)
 //   ✔ Tab system
@@ -8,9 +8,6 @@
 //   ✔ Search engine (searchEngine.js)
 //   ✔ Synapse view (synapse.js)
 // ======================================================================
-import { setupLoginDOM, initLoginSystem } from "./login.js";
-setupLoginDOM();
-initLoginSystem();
 
 // 1) Wait for Supabase safely (prevents early execution)
 async function waitForSupabase() {
@@ -22,9 +19,17 @@ async function waitForSupabase() {
 
 // 2) Main bootstrap
 async function initMain() {
+  console.log("⏳ Waiting for Supabase...");
   const supabase = await waitForSupabase();
+  console.log("✅ Supabase ready");
 
   console.log("📌 Main Controller Loaded");
+
+  // NOW setup login AFTER Supabase is ready
+  const { setupLoginDOM, initLoginSystem } = await import("./login.js");
+  setupLoginDOM();
+  await initLoginSystem();
+  console.log("✅ Login system initialized");
 
   // Register DOM
   const { registerDomElement } = await import("./globals.js");
@@ -46,18 +51,24 @@ async function initMain() {
   registerDomElement("profileSection", document.getElementById("profile-section"));
   registerDomElement("loginSection", document.getElementById("login-section"));
 
-  // No early return — EVER
-  // Everything below must always run
+  console.log("✅ DOM registered");
 
   // Load Synapse
-  import("./synapse.js");
+  await import("./synapse.js");
+  console.log("✅ Synapse loaded");
 
   // Load search system
-  import("./searchEngine.js");
+  await import("./searchEngine.js");
+  console.log("✅ Search engine loaded");
 
   // Load profile controller
-  import("./profile.js");
+  await import("./profile.js");
+  console.log("✅ Profile loaded");
+
+  console.log("🎉 All systems ready!");
 }
 
 // Start main controller
-initMain();
+initMain().catch(err => {
+  console.error("❌ Main initialization failed:", err);
+});
