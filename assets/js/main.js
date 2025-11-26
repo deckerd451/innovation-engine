@@ -72,74 +72,10 @@ async function initMain() {
   console.log("✅ Search engine loaded");
 
   // Load profile controller
-  const profileModule = await import("./profile.js");
+  await import("./profile.js");
   console.log("✅ Profile loaded");
-  
-  // Initialize profile form
-  if (profileModule.initProfileForm) {
-    await profileModule.initProfileForm();
-    console.log("✅ Profile form initialized");
-  }
-
-  // Initialize tab system
-  initTabSystem();
-  console.log("✅ Tab system initialized");
 
   console.log("🎉 All systems ready!");
-}
-
-// Tab system
-function initTabSystem() {
-  console.log("🎯 Initializing tab system...");
-
-  const tabButtons = document.querySelectorAll('.tab-button');
-  const tabPanes = document.querySelectorAll('.tab-content-pane');
-
-  console.log("📋 Tab buttons found:", tabButtons.length);
-  console.log("📋 Tab panes found:", tabPanes.length);
-
-  if (tabButtons.length === 0) {
-    console.error("❌ No tab buttons found");
-    console.log("🔍 Looking for .tab-button elements in DOM...");
-    console.log("🔍 Profile section:", document.getElementById('profile-section'));
-    return;
-  }
-
-  // Log each button for debugging
-  tabButtons.forEach((btn, i) => {
-    console.log(`  Button ${i}: data-tab="${btn.getAttribute('data-tab')}"`, btn);
-  });
-
-  tabButtons.forEach(button => {
-    button.addEventListener('click', (e) => {
-      console.log("🖱️ Button clicked!");
-      const targetTab = button.getAttribute('data-tab');
-      console.log(`🔄 Switching to tab: ${targetTab}`);
-
-      // Remove active class from all buttons
-      tabButtons.forEach(btn => btn.classList.remove('active'));
-      
-      // Add active class to clicked button
-      button.classList.add('active');
-
-      // Hide all tab panes
-      tabPanes.forEach(pane => {
-        pane.classList.remove('active-tab-pane');
-        console.log(`  Hiding pane: ${pane.id}`);
-      });
-
-      // Show target tab pane
-      const targetPane = document.getElementById(targetTab);
-      if (targetPane) {
-        targetPane.classList.add('active-tab-pane');
-        console.log(`✅ Activated tab: ${targetTab}`);
-      } else {
-        console.error(`❌ Tab pane not found: ${targetTab}`);
-      }
-    }, false);
-  });
-
-  console.log("✅ Tab system initialized with", tabButtons.length, "buttons");
 }
 
 // Start main controller
