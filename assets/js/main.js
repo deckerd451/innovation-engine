@@ -1,24 +1,22 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL FIX)
-// Prevents multiple boot cycles (GitHub Pages occasionally reloads modules)
+// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL)
+// Prevents duplicate execution, avoids GitHub Pages multi-load issues.
 // ======================================================================
 
 // ------------------------------------------------------
-// 🔥 Duplicate-Boot Guard (CRITICAL FIX)
+// Duplicate-Boot Guard
 // ------------------------------------------------------
 if (window.__MAIN_BOOT__) {
   console.warn("⚠️ Main already initialized — skipping duplicate boot.");
-  // Prevent the rest of the file from executing
   throw new Error("MAIN_ALREADY_INITIALIZED");
 }
 window.__MAIN_BOOT__ = true;
 // ------------------------------------------------------
 
-
 import { initLoginSystem, setupLoginDOM } from "./login.js";
 import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
-import { DOMElements, registerDomElement } from "./globals.js";
+import { registerDomElement } from "./globals.js";
 
 /* ------------------------------------------------------
    Register DOM references
@@ -58,22 +56,19 @@ function initTabs() {
       buttons.forEach((b) => b.classList.remove("active"));
       panes.forEach((p) => p.classList.remove("active-tab-pane"));
       btn.classList.add("active");
-
-      const pane = document.getElementById(tab);
-      if (pane) pane.classList.add("active-tab-pane");
+      document.getElementById(tab)?.classList.add("active-tab-pane");
 
       if (tab === "synapse") {
         header.style.display = "none";
         footer.style.display = "none";
-        if (bgCanvas) bgCanvas.style.display = "none";
-
+        bgCanvas.style.display = "none";
         synapseContainer.classList.add("active");
         await initSynapseView();
       } else {
         synapseContainer.classList.remove("active");
         header.style.display = "";
         footer.style.display = "";
-        if (bgCanvas) bgCanvas.style.display = "";
+        bgCanvas.style.display = "";
       }
     });
   });
@@ -84,17 +79,9 @@ function initTabs() {
 ------------------------------------------------------ */
 function initSearchEngineHooks() {
   import("./searchEngine.js").then((searchEngine) => {
-    document.getElementById("find-team-btn")?.addEventListener("click", () => {
-      searchEngine.findMatchingUsers();
-    });
-
-    document.getElementById("search-name-btn")?.addEventListener("click", () => {
-      searchEngine.findByName();
-    });
-
-    document.getElementById("buildTeamBtn")?.addEventListener("click", () => {
-      searchEngine.buildBestTeam();
-    });
+    document.getElementById("find-team-btn")?.addEventListener("click", searchEngine.findMatchingUsers);
+    document.getElementById("search-name-btn")?.addEventListener("click", searchEngine.findByName);
+    document.getElementById("buildTeamBtn")?.addEventListener("click", searchEngine.buildBestTeam);
   });
 }
 
@@ -113,7 +100,6 @@ document.addEventListener("keydown", (e) => {
   document.querySelector("footer").style.display = "";
   document.getElementById("neural-bg").style.display = "";
 
-  // Return to Profile tab
   document.querySelector('[data-tab="profile"]')?.click();
 });
 
@@ -124,14 +110,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Initializing Innovation Engine…");
 
   registerDOM();
-  setupLoginDOM(); // Login input/button become active immediately
+  setupLoginDOM(); 
 
-  // AUTH FIRST (only runs once due to login.js guards)
+  // AUTH FIRST
   await initLoginSystem();
 
-  // MAIN BOOT — only when login.js emits auth-ready
+  // Boot everything else ONLY when login.js emits auth-ready
   window.addEventListener("auth-ready", async () => {
-    console.log("🔐 Auth is ready — booting remaining systems…");
+    console.log("🔐 Auth ready — loading modules…");
 
     initTabs();
     initSearchEngineHooks();
