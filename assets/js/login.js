@@ -27,8 +27,12 @@ let logoutBtn;
 // MUST MATCH SUPABASE EXACTLY
 const REDIRECT_URL = "https://www.charlestonhacks.com/2card.html";
 // Derive the redirect from the current origin so previews/localhost work
-const REDIRECT_URL = `${window.location.origin}/2card.html`;
+// Fallback to production when origin is "null" (e.g., file://) to avoid invalid URLs
+const appOrigin = window.location.origin && window.location.origin !== "null"
+  ? window.location.origin
+  : "https://www.charlestonhacks.com";
 
+const REDIRECT_URL = `${appOrigin.replace(/\/$/, "")}/2card.html`;
 
 /* =============================================================
    DOM SETUP – ensures login button works reliably
