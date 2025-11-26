@@ -25,7 +25,8 @@ let userBadge;
 let logoutBtn;
 
 // MUST MATCH SUPABASE EXACTLY
-const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
+const REDIRECT_URL = "https://www.charlestonhacks.com/2card.html";
+
 
 /* =============================================================
    DOM SETUP — ensures login button works reliably
