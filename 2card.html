@@ -237,34 +237,33 @@
   </footer>
 
 
-  <!-- D3 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<!-- Supabase core -->
+<script type="module" src="assets/js/supabaseClient.js"></script>
 
-  <!-- Supabase core first -->
-  <script type="module" src="assets/js/supabaseClient.js"></script>
+<!-- Globals next -->
+<script type="module" src="assets/js/globals.js"></script>
 
-  <!-- Globals next -->
-  <script type="module" src="assets/js/globals.js"></script>
+<!-- Login system (MUST come before main.js) -->
+<script type="module" src="assets/js/login.js"></script>
 
-  <!-- Login system -->
-  <script type="module" src="assets/js/login.js"></script>
+<!-- Main controller (depends on login.js + globals.js) -->
+<script type="module" src="assets/js/main.js"></script>
 
-  <!-- Main controller AFTER login -->
-  <script type="module" src="assets/js/main.js"></script>
+<!-- Feature controllers -->
+<script type="module" src="assets/js/profile.js"></script>
+<script type="module" src="assets/js/searchEngine.js"></script>
+<script type="module" src="assets/js/synapse.js"></script>
 
-  <!-- App features -->
-  <script type="module" src="assets/js/profile.js"></script>
-  <script type="module" src="assets/js/searchEngine.js"></script>
-  <script type="module" src="assets/js/synapse.js"></script>
+<!-- Visual background -->
+<script type="module" src="assets/js/neuralBackground.js"></script>
 
-  <!-- Visual background -->
-  <script type="module" src="assets/js/neuralBackground.js"></script>
-    <!-- Debug panel -->
+<!-- Debug panel HTML -->
 <div id="auth-debug-overlay"></div>
 <div id="debug-toggle-btn">🐞</div>
 
-  <!-- Debug logic (ONLY ONCE) -->
-  <script type="module" src="assets/js/authDebug.js"></script>
+<!-- Auth Debug (MUST be LAST) -->
+<script type="module" src="assets/js/authDebug.js"></script>
+
 
 
 </body>
