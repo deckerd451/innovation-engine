@@ -22,12 +22,22 @@ async function initMain() {
   console.log("⏳ Waiting for Supabase...");
   const supabase = await waitForSupabase();
   console.log("✅ Supabase ready");
+  console.log("📦 Supabase object:", supabase);
 
   console.log("📌 Main Controller Loaded");
 
   // NOW setup login AFTER Supabase is ready
-  const { setupLoginDOM, initLoginSystem } = await import("./login.js");
+  console.log("📥 Importing login module...");
+  const loginModule = await import("./login.js");
+  console.log("✅ Login module imported:", loginModule);
+  
+  const { setupLoginDOM, initLoginSystem } = loginModule;
+  
+  console.log("🎨 Setting up login DOM...");
   setupLoginDOM();
+  console.log("✅ Login DOM setup complete");
+  
+  console.log("🔐 Initializing login system...");
   await initLoginSystem();
   console.log("✅ Login system initialized");
 
@@ -65,7 +75,55 @@ async function initMain() {
   await import("./profile.js");
   console.log("✅ Profile loaded");
 
+  // Initialize tab system
+  initTabSystem();
+  console.log("✅ Tab system initialized");
+
   console.log("🎉 All systems ready!");
+}
+
+// Tab system
+function initTabSystem() {
+  console.log("🎯 Initializing tab system...");
+
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabPanes = document.querySelectorAll('.tab-content-pane');
+
+  if (tabButtons.length === 0) {
+    console.error("❌ No tab buttons found");
+    return;
+  }
+
+  console.log(`✅ Found ${tabButtons.length} tab buttons`);
+
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const targetTab = button.getAttribute('data-tab');
+      console.log(`🔄 Switching to tab: ${targetTab}`);
+
+      // Remove active class from all buttons
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      
+      // Add active class to clicked button
+      button.classList.add('active');
+
+      // Hide all tab panes
+      tabPanes.forEach(pane => {
+        pane.classList.remove('active-tab-pane');
+      });
+
+      // Show target tab pane
+      const targetPane = document.getElementById(targetTab);
+      if (targetPane) {
+        targetPane.classList.add('active-tab-pane');
+        console.log(`✅ Activated tab: ${targetTab}`);
+      } else {
+        console.error(`❌ Tab pane not found: ${targetTab}`);
+      }
+    });
+  });
+
+  console.log("✅ Tab system initialized");
 }
 
 // Start main controller
