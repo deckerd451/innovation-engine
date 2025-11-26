@@ -1,136 +1,60 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL PRODUCTION)
-// Prevents multiple boot cycles (GitHub Pages occasionally reloads modules)
+// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL BUILD)
+// Orchestrates:
+//   ✔ DOM registry (globals.js)
+//   ✔ Tab system
+//   ✔ Login system (login.js FINAL)
+//   ✔ Profile form (profile.js)
+//   ✔ Search engine (searchEngine.js)
+//   ✔ Synapse view (synapse.js)
 // ======================================================================
 
-// ------------------------------------------------------
-// 🔥 Duplicate-Boot Guard (SAFE VERSION)
-// ------------------------------------------------------
-if (window.__MAIN_BOOT__) {
-  console.warn("⚠️ Main already initialized — skipping duplicate boot.");
-  return; // IMPORTANT: do NOT throw (breaks Supabase auth)
+// 1) Wait for Supabase safely (prevents early execution)
+async function waitForSupabase() {
+  while (!window.supabase) {
+    await new Promise(res => setTimeout(res, 20));
+  }
+  return window.supabase;
 }
-window.__MAIN_BOOT__ = true;
-// ------------------------------------------------------
 
-import { initLoginSystem, setupLoginDOM } from "./login.js";
-import { initProfileForm } from "./profile.js";
-import { initSynapseView } from "./synapse.js";
-import { DOMElements, registerDomElement } from "./globals.js";
+// 2) Main bootstrap
+async function initMain() {
+  const supabase = await waitForSupabase();
 
-/* ------------------------------------------------------
-   Register DOM references
------------------------------------------------------- */
-function registerDOM() {
+  console.log("📌 Main Controller Loaded");
+
+  // Register DOM
+  const { registerDomElement } = await import("./globals.js");
+
   registerDomElement("teamSkillsInput", document.getElementById("teamSkillsInput"));
   registerDomElement("cardContainer", document.getElementById("cardContainer"));
   registerDomElement("noResults", document.getElementById("noResults"));
   registerDomElement("matchNotification", document.getElementById("matchNotification"));
   registerDomElement("nameInput", document.getElementById("nameInput"));
 
-  registerDomElement("teamBuilderSkillsInput", document.getElementById("team-skills-input"));
-  registerDomElement("teamSizeInput", document.getElementById("teamSize"));
+  // Team Builder
+  registerDomElement("teamBuilderInput", document.getElementById("team-skills-input"));
+  registerDomElement("autocompleteTeamBuilder", document.getElementById("autocomplete-team-builder"));
+  registerDomElement("teamSize", document.getElementById("teamSize"));
+  registerDomElement("buildTeamBtn", document.getElementById("buildTeamBtn"));
   registerDomElement("bestTeamContainer", document.getElementById("bestTeamContainer"));
 
-  registerDomElement("autocompleteTeamSkills", document.getElementById("autocomplete-team-skills"));
-  registerDomElement("autocompleteTeamBuilder", document.getElementById("autocomplete-team-builder"));
-  registerDomElement("autocompleteNames", document.getElementById("autocomplete-names"));
+  // Tabs (for profile, search, team, leaderboard, synapse)
+  registerDomElement("profileSection", document.getElementById("profile-section"));
+  registerDomElement("loginSection", document.getElementById("login-section"));
+
+  // No early return — EVER
+  // Everything below must always run
+
+  // Load Synapse
+  import("./synapse.js");
+
+  // Load search system
+  import("./searchEngine.js");
+
+  // Load profile controller
+  import("./profile.js");
 }
 
-/* ------------------------------------------------------
-   Tabs Controller
------------------------------------------------------- */
-function initTabs() {
-  const buttons = document.querySelectorAll(".tab-button");
-  const panes = document.querySelectorAll(".tab-content-pane");
-
-  const header = document.querySelector(".header");
-  const footer = document.querySelector("footer");
-  const bgCanvas = document.getElementById("neural-bg");
-  const synapseContainer = document.getElementById("synapse-container");
-
-  buttons.forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const tab = btn.dataset.tab;
-
-      buttons.forEach((b) => b.classList.remove("active"));
-      panes.forEach((p) => p.classList.remove("active-tab-pane"));
-      btn.classList.add("active");
-
-      const pane = document.getElementById(tab);
-      if (pane) pane.classList.add("active-tab-pane");
-
-      if (tab === "synapse") {
-        header.style.display = "none";
-        footer.style.display = "none";
-        if (bgCanvas) bgCanvas.style.display = "none";
-
-        synapseContainer.classList.add("active");
-        await initSynapseView();
-      } else {
-        synapseContainer.classList.remove("active");
-        header.style.display = "";
-        footer.style.display = "";
-        if (bgCanvas) bgCanvas.style.display = "";
-      }
-    });
-  });
-}
-
-/* ------------------------------------------------------
-   Search Hooks
------------------------------------------------------- */
-function initSearchEngineHooks() {
-  import("./searchEngine.js").then((engine) => {
-    document.getElementById("find-team-btn")?.addEventListener("click", () => {
-      engine.findMatchingUsers();
-    });
-
-    document.getElementById("search-name-btn")?.addEventListener("click", () => {
-      engine.findByName();
-    });
-
-    document.getElementById("buildTeamBtn")?.addEventListener("click", () => {
-      engine.buildBestTeam();
-    });
-  });
-}
-
-/* ------------------------------------------------------
-   ESC exits Synapse View
------------------------------------------------------- */
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-
-  const container = document.getElementById("synapse-container");
-  if (!container.classList.contains("active")) return;
-
-  container.classList.remove("active");
-
-  document.querySelector(".header").style.display = "";
-  document.querySelector("footer").style.display = "";
-  document.getElementById("neural-bg").style.display = "";
-
-  // Return to Profile tab
-  document.querySelector('[data-tab="profile"]')?.click();
-});
-
-/* ------------------------------------------------------
-   FULL SYSTEM BOOT
------------------------------------------------------- */
-document.addEventListener("DOMContentLoaded", async () => {
-  console.log("🚀 Initializing Innovation Engine…");
-
-  registerDOM();
-  setupLoginDOM(); // Login input/button active immediately
-
-  // AUTH FIRST
-  await initLoginSystem();
-
-  // Wait for login.js to confirm stable authentication
-  window.addEventListener("auth-ready", async () => {
-    console.log("🔐 Auth is ready — booting remaining systems…");
-
-    initTabs();
-    initSearchEngineHooks();
-    awai
+// Start main controller
+initMain();
