@@ -72,8 +72,14 @@ async function initMain() {
   console.log("✅ Search engine loaded");
 
   // Load profile controller
-  await import("./profile.js");
+  const profileModule = await import("./profile.js");
   console.log("✅ Profile loaded");
+  
+  // Initialize profile form
+  if (profileModule.initProfileForm) {
+    await profileModule.initProfileForm();
+    console.log("✅ Profile form initialized");
+  }
 
   // Initialize tab system
   initTabSystem();
