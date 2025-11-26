@@ -1,14 +1,14 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL)
-// Prevents duplicate execution, avoids GitHub Pages multi-load issues.
+// CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL PRODUCTION)
+// Prevents multiple boot cycles (GitHub Pages occasionally reloads modules)
 // ======================================================================
 
 // ------------------------------------------------------
-// Duplicate-Boot Guard
+// 🔥 Duplicate-Boot Guard (SAFE VERSION)
 // ------------------------------------------------------
 if (window.__MAIN_BOOT__) {
   console.warn("⚠️ Main already initialized — skipping duplicate boot.");
-  throw new Error("MAIN_ALREADY_INITIALIZED");
+  return; // IMPORTANT: do NOT throw (breaks Supabase auth)
 }
 window.__MAIN_BOOT__ = true;
 // ------------------------------------------------------
@@ -16,7 +16,7 @@ window.__MAIN_BOOT__ = true;
 import { initLoginSystem, setupLoginDOM } from "./login.js";
 import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
-import { registerDomElement } from "./globals.js";
+import { DOMElements, registerDomElement } from "./globals.js";
 
 /* ------------------------------------------------------
    Register DOM references
@@ -56,19 +56,22 @@ function initTabs() {
       buttons.forEach((b) => b.classList.remove("active"));
       panes.forEach((p) => p.classList.remove("active-tab-pane"));
       btn.classList.add("active");
-      document.getElementById(tab)?.classList.add("active-tab-pane");
+
+      const pane = document.getElementById(tab);
+      if (pane) pane.classList.add("active-tab-pane");
 
       if (tab === "synapse") {
         header.style.display = "none";
         footer.style.display = "none";
-        bgCanvas.style.display = "none";
+        if (bgCanvas) bgCanvas.style.display = "none";
+
         synapseContainer.classList.add("active");
         await initSynapseView();
       } else {
         synapseContainer.classList.remove("active");
         header.style.display = "";
         footer.style.display = "";
-        bgCanvas.style.display = "";
+        if (bgCanvas) bgCanvas.style.display = "";
       }
     });
   });
@@ -78,10 +81,18 @@ function initTabs() {
    Search Hooks
 ------------------------------------------------------ */
 function initSearchEngineHooks() {
-  import("./searchEngine.js").then((searchEngine) => {
-    document.getElementById("find-team-btn")?.addEventListener("click", searchEngine.findMatchingUsers);
-    document.getElementById("search-name-btn")?.addEventListener("click", searchEngine.findByName);
-    document.getElementById("buildTeamBtn")?.addEventListener("click", searchEngine.buildBestTeam);
+  import("./searchEngine.js").then((engine) => {
+    document.getElementById("find-team-btn")?.addEventListener("click", () => {
+      engine.findMatchingUsers();
+    });
+
+    document.getElementById("search-name-btn")?.addEventListener("click", () => {
+      engine.findByName();
+    });
+
+    document.getElementById("buildTeamBtn")?.addEventListener("click", () => {
+      engine.buildBestTeam();
+    });
   });
 }
 
@@ -100,6 +111,7 @@ document.addEventListener("keydown", (e) => {
   document.querySelector("footer").style.display = "";
   document.getElementById("neural-bg").style.display = "";
 
+  // Return to Profile tab
   document.querySelector('[data-tab="profile"]')?.click();
 });
 
@@ -110,19 +122,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Initializing Innovation Engine…");
 
   registerDOM();
-  setupLoginDOM(); 
+  setupLoginDOM(); // Login input/button active immediately
 
   // AUTH FIRST
   await initLoginSystem();
 
-  // Boot everything else ONLY when login.js emits auth-ready
+  // Wait for login.js to confirm stable authentication
   window.addEventListener("auth-ready", async () => {
-    console.log("🔐 Auth ready — loading modules…");
+    console.log("🔐 Auth is ready — booting remaining systems…");
 
     initTabs();
     initSearchEngineHooks();
-    await initProfileForm();
-
-    console.log("✅ Innovation Engine fully initialized");
-  });
-});
+    awai
