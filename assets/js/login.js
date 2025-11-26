@@ -1,21 +1,21 @@
 // ====================================================================
 // CharlestonHacks Innovation Engine – LOGIN CONTROLLER (2025 FINAL)
-// Zero loops. Zero race conditions. Correct Supabase workflow.
+// Ultra-stable. Zero loops. Zero duplicates. GitHub Pages–safe.
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // ====================================================================
-// GLOBAL AUTH GUARD — prevents loops and double events
+// GLOBAL AUTH GUARD (Prevents Duplicates + Loops)
 // ====================================================================
 window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
-  initialized: false,       // prevents multiple init cycles
-  signedInHandled: false    // prevents SIGNED_IN firing twice
+  initialized: false,
+  signedInHandled: false
 };
 
 // ====================================================================
-// DOM references
+// DOM references (assigned in setupLoginDOM)
 // ====================================================================
 let loginSection;
 let loginForm;
@@ -24,11 +24,11 @@ let profileSection;
 let userBadge;
 let logoutBtn;
 
-// Your GitHub Pages URL. MUST match Supabase redirect list exactly.
-const REDIRECT_URL = "https://charlestonhacks.com/2card.html";
+// MUST MATCH Supabase redirect URL EXACTLY
+const REDIRECT_URL = "https://www.charlestonhacks.com/2card.html";
 
 /* =============================================================
-   DOM SETUP — ensures login button works reliably
+   DOM SETUP — ensures login button works immediately
 ============================================================= */
 export function setupLoginDOM() {
   loginSection      = document.getElementById("login-section");
@@ -39,14 +39,12 @@ export function setupLoginDOM() {
   logoutBtn         = document.getElementById("logout-btn");
 
   if (!loginForm) {
-    console.error("❌ login-form not found — DOM not ready.");
+    console.error("❌ login-form not found.");
     return;
   }
 
-  // LOGIN SUBMIT
   loginForm.addEventListener("submit", onSubmitLogin);
 
-  // LOGOUT
   logoutBtn?.addEventListener("click", async () => {
     await supabase.auth.signOut();
     window.__AUTH_GUARD__.signedInHandled = false;
@@ -90,83 +88,66 @@ async function onSubmitLogin(e) {
 }
 
 /* =============================================================
-   INIT LOGIN SYSTEM — main.js waits for auth-ready
+   LOGIN SYSTEM INITIALIZATION
 ============================================================= */
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // Allow Supabase URL hash parsing to complete
-  await new Promise(res => setTimeout(res, 20));
+  // Give Supabase time to parse URL hash → session
+  await new Promise(res => setTimeout(res, 30));
 
-  // 1) INITIAL USER CHECK — UI ONLY. No backfill. No events.
+  // Check existing session BEFORE adding listeners
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
-    console.log("🔒 Existing session detected:", session.user.email);
-    handleSignedIn(session.user); // UI only — safe
+    console.log("🔒 Existing session:", session.user.email);
+    handleSignedIn(session.user); // UI only
   } else {
     handleSignedOut();
   }
 
-  // 2) AUTH EVENTS — delayed to avoid INITIAL_SESSION → SIGNED_IN loop
+  // Delay listener to avoid INITIAL_SESSION → SIGNED_IN loop
   setTimeout(() => {
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth event:", event);
 
-      // 2a) Ignore token refresh — avoids loops
       if (event === "TOKEN_REFRESHED") {
-        console.log("🔁 TOKEN_REFRESHED ignored (preventing loop)");
+        console.log("🔁 TOKEN_REFRESHED ignored");
         return;
       }
 
-      // 2b) Signed Out
       if (event === "SIGNED_OUT") {
         window.__AUTH_GUARD__.signedInHandled = false;
         handleSignedOut();
         return;
       }
 
-      // 2c) INITIAL_SESSION — Supabase internal warm-up — ignore
-      if (event === "INITIAL_SESSION") {
-        return;
-      }
+      if (event === "INITIAL_SESSION") return;
 
-      // 2d) SIGNED_IN — the *only* moment we run full logic
       if (event === "SIGNED_IN" && session?.user) {
         if (window.__AUTH_GUARD__.signedInHandled) {
-          console.log("⚠️ SIGNED_IN ignored — already handled");
+          console.log("⚠️ SIGNED_IN ignored (already handled)");
           return;
         }
-
         await handleSignedInOnce(session.user);
       }
     });
-  }, 200);
+  }, 250);
 }
 
 /* =============================================================
-   SIGNED-IN (run only once)
-   → backfill
-   → UI update
-   → auth-ready
+   SIGNED-IN HANDLER (Runs Once)
 ============================================================= */
 async function handleSignedInOnce(user) {
-  if (window.__AUTH_GUARD__.signedInHandled) {
-    console.log("⚠️ SIGNED_IN ignored (already processed)");
-    return;
-  }
+  if (window.__AUTH_GUARD__.signedInHandled) return;
 
   window.__AUTH_GUARD__.signedInHandled = true;
 
-  console.log("🎉 SIGNED IN AS:", user.email);
+  console.log("🎉 SIGNED IN:", user.email);
 
-  // BACKFILL community row
   await backfillCommunityUser();
-
-  // Update UI
   handleSignedIn(user);
 
-  // Notify main.js that auth is stable
   if (!window.__AUTH_GUARD__.initialized) {
     window.__AUTH_GUARD__.initialized = true;
     window.dispatchEvent(new CustomEvent("auth-ready"));
