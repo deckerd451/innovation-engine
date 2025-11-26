@@ -26,6 +26,8 @@ let logoutBtn;
 
 // MUST MATCH SUPABASE EXACTLY
 const REDIRECT_URL = "https://www.charlestonhacks.com/2card.html";
+// Derive the redirect from the current origin so previews/localhost work
+const REDIRECT_URL = `${window.location.origin}/2card.html`;
 
 
 /* =============================================================
