@@ -1,28 +1,15 @@
 // ======================================================================
 // CharlestonHacks Innovation Engine — MAIN CONTROLLER (2025 FINAL FIX)
-// Prevents multiple boot cycles (GitHub Pages occasionally reloads modules)
 // ======================================================================
-
-// ------------------------------------------------------
-// 🔥 Duplicate-Boot Guard (CRITICAL FIX)
-// ------------------------------------------------------
-if (window.__MAIN_BOOT__) {
-  console.warn("⚠️ Main already initialized — skipping duplicate boot.");
-  // Prevent the rest of the file from executing
-  throw new Error("MAIN_ALREADY_INITIALIZED");
-}
-window.__MAIN_BOOT__ = true;
-// ------------------------------------------------------
-
 
 import { initLoginSystem, setupLoginDOM } from "./login.js";
 import { initProfileForm } from "./profile.js";
 import { initSynapseView } from "./synapse.js";
 import { DOMElements, registerDomElement } from "./globals.js";
 
-/* ------------------------------------------------------
+/* ---------------------------------------------
    Register DOM references
------------------------------------------------------- */
+--------------------------------------------- */
 function registerDOM() {
   registerDomElement("teamSkillsInput", document.getElementById("teamSkillsInput"));
   registerDomElement("cardContainer", document.getElementById("cardContainer"));
@@ -39,9 +26,9 @@ function registerDOM() {
   registerDomElement("autocompleteNames", document.getElementById("autocomplete-names"));
 }
 
-/* ------------------------------------------------------
-   Tabs Controller
------------------------------------------------------- */
+/* ---------------------------------------------
+   Tabs Controller (unchanged)
+--------------------------------------------- */
 function initTabs() {
   const buttons = document.querySelectorAll(".tab-button");
   const panes = document.querySelectorAll(".tab-content-pane");
@@ -57,10 +44,9 @@ function initTabs() {
 
       buttons.forEach((b) => b.classList.remove("active"));
       panes.forEach((p) => p.classList.remove("active-tab-pane"));
-      btn.classList.add("active");
 
-      const pane = document.getElementById(tab);
-      if (pane) pane.classList.add("active-tab-pane");
+      btn.classList.add("active");
+      document.getElementById(tab)?.classList.add("active-tab-pane");
 
       if (tab === "synapse") {
         header.style.display = "none";
@@ -71,6 +57,7 @@ function initTabs() {
         await initSynapseView();
       } else {
         synapseContainer.classList.remove("active");
+
         header.style.display = "";
         footer.style.display = "";
         if (bgCanvas) bgCanvas.style.display = "";
@@ -79,28 +66,26 @@ function initTabs() {
   });
 }
 
-/* ------------------------------------------------------
+/* ---------------------------------------------
    Search Hooks
------------------------------------------------------- */
+--------------------------------------------- */
 function initSearchEngineHooks() {
   import("./searchEngine.js").then((searchEngine) => {
     document.getElementById("find-team-btn")?.addEventListener("click", () => {
       searchEngine.findMatchingUsers();
     });
-
     document.getElementById("search-name-btn")?.addEventListener("click", () => {
       searchEngine.findByName();
     });
-
     document.getElementById("buildTeamBtn")?.addEventListener("click", () => {
       searchEngine.buildBestTeam();
     });
   });
 }
 
-/* ------------------------------------------------------
-   ESC exits Synapse View
------------------------------------------------------- */
+/* ---------------------------------------------
+   ESC closes Synapse
+--------------------------------------------- */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
 
@@ -113,30 +98,26 @@ document.addEventListener("keydown", (e) => {
   document.querySelector("footer").style.display = "";
   document.getElementById("neural-bg").style.display = "";
 
-  // Return to Profile tab
   document.querySelector('[data-tab="profile"]')?.click();
 });
 
-/* ------------------------------------------------------
+/* ---------------------------------------------
    FULL SYSTEM BOOT
------------------------------------------------------- */
+--------------------------------------------- */
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Initializing Innovation Engine…");
 
   registerDOM();
-  setupLoginDOM(); // Login input/button become active immediately
+  setupLoginDOM(); // Make login button functional immediately
 
-  // AUTH FIRST (only runs once due to login.js guards)
+  // AUTH FIRST
   await initLoginSystem();
 
-  // MAIN BOOT — only when login.js emits auth-ready
+  // All other components AFTER we know auth state
   window.addEventListener("auth-ready", async () => {
-    console.log("🔐 Auth is ready — booting remaining systems…");
-
     initTabs();
     initSearchEngineHooks();
     await initProfileForm();
-
     console.log("✅ Innovation Engine fully initialized");
   });
 });
