@@ -28,10 +28,21 @@ async function initMain() {
 
   // NOW setup login AFTER Supabase is ready
   console.log("📥 Importing login module...");
-  const loginModule = await import("./login.js");
+    const loginModule = await import("./login.js");
+  let loginModule;
+  try {
+    loginModule = await import("./login.js");
+  } catch (err) {
+    console.error("❌ Failed to import login.js:", err);
+    throw err;
+  }
   console.log("✅ Login module imported:", loginModule);
   
+
   const { setupLoginDOM, initLoginSystem } = loginModule;
+  if (typeof setupLoginDOM !== "function" || typeof initLoginSystem !== "function") {
+    throw new Error("login.js did not export setupLoginDOM/initLoginSystem");
+  }
   
   console.log("🎨 Setting up login DOM...");
   setupLoginDOM();
