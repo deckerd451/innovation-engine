@@ -8,6 +8,9 @@
 //   ✔ Search engine (searchEngine.js)
 //   ✔ Synapse view (synapse.js)
 // ======================================================================
+import { setupLoginDOM, initLoginSystem } from "./login.js";
+setupLoginDOM();
+initLoginSystem();
 
 // 1) Wait for Supabase safely (prevents early execution)
 async function waitForSupabase() {
