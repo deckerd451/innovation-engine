@@ -98,7 +98,7 @@ export async function initLoginSystem() {
 
   // FIRST: Set up auth listener (before checking session)
   supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("🔄 Auth event:", event);
+    console.log("🔄 Auth event:", event, "Session:", session?.user?.email);
 
     if (event === "TOKEN_REFRESHED") {
       console.log("🔄 TOKEN_REFRESHED ignored");
@@ -112,7 +112,12 @@ export async function initLoginSystem() {
     }
 
     if (event === "INITIAL_SESSION") {
-      return; // ignore - handled below
+      // Handle INITIAL_SESSION event (this is what fires when returning from magic link)
+      if (session?.user && !window.__AUTH_GUARD__.signedInHandled) {
+        console.log("🔗 INITIAL_SESSION with user - handling sign in");
+        await handleSignedInOnce(session.user);
+      }
+      return;
     }
 
     if (event === "SIGNED_IN" && session?.user) {
@@ -124,13 +129,22 @@ export async function initLoginSystem() {
     }
   });
 
-  // THEN: Check for existing session
-  const { data: { session } } = await supabase.auth.getSession();
+  // THEN: Check for existing session (with small delay to let hash parsing complete)
+  await new Promise(res => setTimeout(res, 100));
+  
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  if (error) {
+    console.error("❌ Session error:", error);
+    handleSignedOut();
+    return;
+  }
 
   if (session?.user) {
     console.log("🔒 Existing session detected:", session.user.email);
     await handleSignedInOnce(session.user);
   } else {
+    console.log("👤 No active session - showing login");
     handleSignedOut();
   }
 }
