@@ -194,3 +194,8 @@ function handleSignedOut() {
 
   if (loginEmailInput) loginEmailInput.value = "";
 }
+// =============================================================
+// EXPORT TO WINDOW — required on GitHub Pages
+// =============================================================
+window.initLoginSystem = initLoginSystem;
+window.setupLoginDOM = setupLoginDOM;
