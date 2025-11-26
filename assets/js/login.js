@@ -197,4 +197,11 @@ function handleSignedIn(user) {
 ============================================================= */
 function handleSignedOut() {
   userBadge?.classList.add("hidden");
-  logoutBtn?.classList.add("hidde
+  logoutBtn?.classList.add("hidden");
+
+  profileSection?.classList.add("hidden");
+  loginSection?.classList.remove("hidden");
+  loginSection?.classList.remove("fade-out");
+
+  if (loginEmailInput) loginEmailInput.value = "";
+}
