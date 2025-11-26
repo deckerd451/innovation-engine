@@ -99,5 +99,5 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 window.supabase = supabase;
 window.backfillCommunityUser = backfillCommunityUser;
 window.getCurrentUser = getCurrentUser;
-
+export const supabaseClient = supabase; // Legacy alias for older imports
 console.log("🔌 Supabase client initialized (FINAL BUILD)");
