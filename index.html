@@ -404,10 +404,13 @@ body {
     });
   </script>
 
-  <!-- Core JS -->
-  <script type="module" src="/assets/js/neuralBackground.js"></script>
-  <script type="module" src="/assets/js/supabaseClient.js"></script>
-  <script type="module" src="/assets/js/bbs.js"></script>
+ <!-- Core JS (SEQUENTIALLY LOADED TO FIX SUPABASE TIMING) -->
+<script type="module">
+  import "/assets/js/neuralBackground.js";
+  import "/assets/js/supabaseClient.js";  // ensures window.supabase is ready
+  import "/assets/js/bbs.js";             // starts AFTER client is ready
+</script>
+
 
   <!-- Events Loader -->
   <script type="module">
