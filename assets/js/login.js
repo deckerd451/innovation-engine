@@ -1,13 +1,12 @@
 // ====================================================================
-// CharlestonHacks Innovation Engine — LOGIN CONTROLLER (2025 FINAL)
-// Completely stable, no loops, no duplicate handling, no race conditions.
+// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // ====================================================================
-// GLOBAL AUTH GUARD — prevents loops
+// GLOBAL AUTH GUARD – prevents loops and double events
 // ====================================================================
 window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
   initialized: false,
@@ -25,20 +24,19 @@ let userBadge;
 let logoutBtn;
 
 // ====================================================================
-// REDIRECT URL (auto-detect local, preview, production)
+// BUILD REDIRECT URL (works on localhost + production)
 // ====================================================================
 function buildRedirectUrl() {
   try {
-    const origin = window.location.origin;
+    const origin = window.location?.origin;
+    const usableOrigin = origin && origin !== "null"
+      ? origin
+      : "https://www.charlestonhacks.com";
 
-    if (!origin || origin === "null") {
-      return "https://www.charlestonhacks.com/2card.html";
-    }
-
-    const normalized = origin.replace(/\/$/, "");
+    const normalized = usableOrigin.replace(/\/$/, "");
     return `${normalized}/2card.html`;
   } catch (err) {
-    console.warn("[Login] Redirect fallback used:", err);
+    console.warn("[Login] Failed to build redirect URL — using fallback", err);
     return "https://www.charlestonhacks.com/2card.html";
   }
 }
@@ -49,15 +47,15 @@ const REDIRECT_URL = buildRedirectUrl();
 // DOM SETUP
 // ====================================================================
 export function setupLoginDOM() {
-  loginSection    = document.getElementById("login-section");
-  loginForm       = document.getElementById("login-form");
-  loginEmailInput = document.getElementById("login-email");
-  profileSection  = document.getElementById("profile-section");
-  userBadge       = document.getElementById("user-badge");
-  logoutBtn       = document.getElementById("logout-btn");
+  loginSection      = document.getElementById("login-section");
+  loginForm         = document.getElementById("login-form");
+  loginEmailInput   = document.getElementById("login-email");
+  profileSection    = document.getElementById("profile-section");
+  userBadge         = document.getElementById("user-badge");
+  logoutBtn         = document.getElementById("logout-btn");
 
   if (!loginForm) {
-    console.error("❌ login-form not found — DOM incomplete");
+    console.error("❌ login-form not found – DOM not ready.");
     return;
   }
 
@@ -71,7 +69,7 @@ export function setupLoginDOM() {
 }
 
 // ====================================================================
-// LOGIN SUBMIT HANDLER
+// LOGIN SUBMISSION
 // ====================================================================
 async function onSubmitLogin(e) {
   e.preventDefault();
@@ -106,67 +104,50 @@ async function onSubmitLogin(e) {
 }
 
 // ====================================================================
-// LOGIN SYSTEM INIT
+// INIT LOGIN SYSTEM
 // ====================================================================
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  if (window.__AUTH_GUARD__.initialized) {
-    console.log("⚠️ Login system already initialized — skipping");
-    return;
-  }
-
-  window.__AUTH_GUARD__.initialized = true;
-
-  // Auth listener FIRST
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("🔄 Auth event:", event, "Session:", session?.user?.email);
 
-    switch (event) {
-      case "SIGNED_OUT":
-        window.__AUTH_GUARD__.signedInHandled = false;
-        handleSignedOut();
-        break;
+    if (event === "TOKEN_REFRESHED") return;
 
-      case "SIGNED_IN":
-        if (!window.__AUTH_GUARD__.signedInHandled) {
-          await handleSignedInOnce(session.user);
-        }
-        break;
+    if (event === "SIGNED_OUT") {
+      window.__AUTH_GUARD__.signedInHandled = false;
+      handleSignedOut();
+      return;
+    }
 
-      case "INITIAL_SESSION":
-        if (session?.user && !window.__AUTH_GUARD__.signedInHandled) {
-          await handleSignedInOnce(session.user);
-        }
-        break;
+    if (event === "INITIAL_SESSION" && session?.user) {
+      if (!window.__AUTH_GUARD__.signedInHandled) {
+        await handleSignedInOnce(session.user);
+      }
+      return;
+    }
 
-      default:
-        break;
+    if (event === "SIGNED_IN" && session?.user) {
+      if (!window.__AUTH_GUARD__.signedInHandled) {
+        await handleSignedInOnce(session.user);
+      }
     }
   });
 
-  // Check for existing session
-  await new Promise(res => setTimeout(res, 120));
+  // Let Supabase parse the hash fragment
+  await new Promise(res => setTimeout(res, 100));
 
-  const { data: { session }, error } = await supabase.auth.getSession();
-
-  if (error) {
-    console.error("❌ Session error:", error);
-    handleSignedOut();
-    return;
-  }
+  const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
-    console.log("🔒 Existing session:", session.user.email);
     await handleSignedInOnce(session.user);
   } else {
-    console.log("👤 No active session — showing login");
     handleSignedOut();
   }
 }
 
 // ====================================================================
-// HANDLE SIGNED-IN (ONLY ONCE)
+// SIGN-IN HANDLER (runs only once)
 // ====================================================================
 async function handleSignedInOnce(user) {
   if (window.__AUTH_GUARD__.signedInHandled) return;
@@ -182,28 +163,34 @@ async function handleSignedInOnce(user) {
   }
 
   handleSignedIn(user);
-  window.dispatchEvent(new CustomEvent("auth-ready"));
+
+  if (!window.__AUTH_GUARD__.initialized) {
+    window.__AUTH_GUARD__.initialized = true;
+    window.dispatchEvent(new CustomEvent("auth-ready"));
+  }
 }
 
 // ====================================================================
-// UI: Signed In
+// UI: SIGNED IN
 // ====================================================================
 function handleSignedIn(user) {
-  userBadge.textContent = `Logged in as: ${user.email}`;
-  userBadge.classList.remove("hidden");
+  if (userBadge) {
+    userBadge.textContent = `Logged in as: ${user.email}`;
+    userBadge.classList.remove("hidden");
+  }
 
-  loginSection.classList.add("fade-out");
+  loginSection?.classList.add("fade-out");
 
   setTimeout(() => {
-    loginSection.classList.add("hidden");
-    profileSection.classList.remove("hidden");
+    loginSection?.classList.add("hidden");
+    profileSection?.classList.remove("hidden");
   }, 300);
 
-  logoutBtn.classList.remove("hidden");
+  logoutBtn?.classList.remove("hidden");
 }
 
 // ====================================================================
-// UI: Signed Out
+// UI: SIGNED OUT
 // ====================================================================
 function handleSignedOut() {
   userBadge?.classList.add("hidden");
@@ -217,7 +204,7 @@ function handleSignedOut() {
 }
 
 // ====================================================================
-// EXPORT TO WINDOW (GitHub Pages)
+// EXPORT for main.js
 // ====================================================================
 window.initLoginSystem = initLoginSystem;
 window.setupLoginDOM = setupLoginDOM;
