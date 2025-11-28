@@ -4,7 +4,7 @@
 // Fixes: race condition with Supabase session readiness.
 // =======================================================================
 
-import { supabase } from "./supabaseClient.js";
+const supabase = window.supabase;
 import { startZork, sendZorkCommand } from "./zorkLoader.js";
 
 // =======================================================================
