@@ -1,42 +1,56 @@
 // =======================================================================
 // CharlestonHacks BBS – FINAL PATCHED BUILD (2025)
-// Fully debugged. Guaranteed desktop + mobile compatibility.
-// Fixes: race condition with Supabase session readiness.
 // =======================================================================
 
-const supabase = window.supabase;
 import { startZork, sendZorkCommand } from "./zorkLoader.js";
 
+let supabase = null;
+
 // =======================================================================
-// 1. Wait for DOM *and* Supabase Session
+// WAIT FOR AUTH VIA AUTH STATE CHANGE
 // =======================================================================
 
-async function waitForSupabaseReady() {
-  console.log("[BBS] Waiting for Supabase session…");
+function waitForSupabaseReady() {
+  return new Promise(resolve => {
+    console.log("[BBS] Listening for Supabase auth events…");
 
-  while (true) {
-    try {
-      const { data } = await supabase.auth.getSession();
-
+    // Check immediately (in case session already ready)
+    supabase.auth.getSession().then(({ data }) => {
       if (data?.session) {
-        console.log("[BBS] Supabase session ready:", data.session.user.email);
-        return;
+        console.log("[BBS] Supabase session ready immediately:", data.session.user.email);
+        return resolve();
       }
-    } catch (err) {
-      console.error("[BBS] Session check error:", err);
-    }
+    });
 
-    await new Promise(res => setTimeout(res, 120));
-  }
+    // Listen for future changes
+    supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[BBS] Auth event:", event, session);
+      if (session) {
+        console.log("[BBS] Supabase session now ready:", session.user.email);
+        resolve();
+      }
+    });
+  });
 }
 
-// Main entrypoint
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("[BBS] DOMContentLoaded fired. Waiting for Supabase…");
+  console.log("[BBS] DOMContentLoaded → pulling window.supabase…");
+
+  // 💥 THIS is the correct moment to bind the client
+  supabase = window.supabase;
+
+  if (!supabase) {
+    console.error("[BBS] ❌ window.supabase missing!");
+    return;
+  }
+
+  console.log("[BBS] Supabase client detected:", supabase);
+
   await waitForSupabaseReady();
-  console.log("[BBS] DOM + Supabase session ready → initBBS()");
   initBBS();
 });
+
+
 
 // =======================================================================
 // 2. Main BBS Initialization
