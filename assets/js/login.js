@@ -1,17 +1,17 @@
 // ====================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
-// Fully stable. No duplicate variables. No login loops.
+// CharlestonHacks Innovation Engine — LOGIN CONTROLLER (2025 FINAL)
+// Completely stable, no loops, no duplicate handling, no race conditions.
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // ====================================================================
-// GLOBAL AUTH GUARD (single-run protection)
+// GLOBAL AUTH GUARD — prevents loops
 // ====================================================================
 window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
-  initialized: false,       // main.js sync flag
-  signedInHandled: false,   // prevents SIGNED_IN loops
+  initialized: false,
+  signedInHandled: false
 };
 
 // ====================================================================
@@ -25,19 +25,20 @@ let userBadge;
 let logoutBtn;
 
 // ====================================================================
-// REDIRECT URL (Safe for localhost + production)
+// REDIRECT URL (auto-detect local, preview, production)
 // ====================================================================
 function buildRedirectUrl() {
   try {
-    const origin = window.location?.origin;
-    const safeOrigin =
-      origin && origin !== "null"
-        ? origin
-        : "https://www.charlestonhacks.com";
+    const origin = window.location.origin;
 
-    return `${safeOrigin.replace(/\/$/, "")}/2card.html`;
+    if (!origin || origin === "null") {
+      return "https://www.charlestonhacks.com/2card.html";
+    }
+
+    const normalized = origin.replace(/\/$/, "");
+    return `${normalized}/2card.html`;
   } catch (err) {
-    console.warn("[Login] Failed to compute redirect URL:", err);
+    console.warn("[Login] Redirect fallback used:", err);
     return "https://www.charlestonhacks.com/2card.html";
   }
 }
@@ -48,15 +49,15 @@ const REDIRECT_URL = buildRedirectUrl();
 // DOM SETUP
 // ====================================================================
 export function setupLoginDOM() {
-  loginSection      = document.getElementById("login-section");
-  loginForm         = document.getElementById("login-form");
-  loginEmailInput   = document.getElementById("login-email");
-  profileSection    = document.getElementById("profile-section");
-  userBadge         = document.getElementById("user-badge");
-  logoutBtn         = document.getElementById("logout-btn");
+  loginSection    = document.getElementById("login-section");
+  loginForm       = document.getElementById("login-form");
+  loginEmailInput = document.getElementById("login-email");
+  profileSection  = document.getElementById("profile-section");
+  userBadge       = document.getElementById("user-badge");
+  logoutBtn       = document.getElementById("logout-btn");
 
   if (!loginForm) {
-    console.error("❌ login-form missing");
+    console.error("❌ login-form not found — DOM incomplete");
     return;
   }
 
@@ -70,7 +71,7 @@ export function setupLoginDOM() {
 }
 
 // ====================================================================
-// SUBMIT LOGIN (Send Magic Link)
+// LOGIN SUBMIT HANDLER
 // ====================================================================
 async function onSubmitLogin(e) {
   e.preventDefault();
@@ -89,15 +90,15 @@ async function onSubmitLogin(e) {
     email,
     options: {
       emailRedirectTo: REDIRECT_URL,
-      shouldCreateUser: true,
-    },
+      shouldCreateUser: true
+    }
   });
 
   btn.disabled = false;
   btn.classList.remove("pulse", "sending");
 
   if (error) {
-    console.error("[Login] Magic Link Error:", error);
+    console.error("[Login] OTP Error:", error);
     showNotification("Login failed. Try again.", "error");
   } else {
     showNotification("Magic link sent! Check your email.", "success");
@@ -105,53 +106,52 @@ async function onSubmitLogin(e) {
 }
 
 // ====================================================================
-// INIT LOGIN SYSTEM
+// LOGIN SYSTEM INIT
 // ====================================================================
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // ------------------------------------------------------------
-  // 1) AUTH LISTENER — Single-run protection
-  // ------------------------------------------------------------
+  if (window.__AUTH_GUARD__.initialized) {
+    console.log("⚠️ Login system already initialized — skipping");
+    return;
+  }
+
+  window.__AUTH_GUARD__.initialized = true;
+
+  // Auth listener FIRST
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("🔄 Auth event:", event, "Session:", session?.user?.email);
 
-    if (event === "TOKEN_REFRESHED") return;
+    switch (event) {
+      case "SIGNED_OUT":
+        window.__AUTH_GUARD__.signedInHandled = false;
+        handleSignedOut();
+        break;
 
-    if (event === "SIGNED_OUT") {
-      window.__AUTH_GUARD__.signedInHandled = false;
-      handleSignedOut();
-      return;
-    }
+      case "SIGNED_IN":
+        if (!window.__AUTH_GUARD__.signedInHandled) {
+          await handleSignedInOnce(session.user);
+        }
+        break;
 
-    if (event === "SIGNED_IN" && session?.user) {
-      if (window.__AUTH_GUARD__.signedInHandled) {
-        console.log("⚠️ SIGNED_IN ignored (already handled)");
-        return;
-      }
-      await handleSignedInOnce(session.user);
-      return;
-    }
+      case "INITIAL_SESSION":
+        if (session?.user && !window.__AUTH_GUARD__.signedInHandled) {
+          await handleSignedInOnce(session.user);
+        }
+        break;
 
-    if (event === "INITIAL_SESSION" && session?.user) {
-      if (window.__AUTH_GUARD__.signedInHandled) {
-        console.log("⚠️ INITIAL_SESSION ignored (already handled)");
-        return;
-      }
-      await handleSignedInOnce(session.user);
-      return;
+      default:
+        break;
     }
   });
 
-  // ------------------------------------------------------------
-  // 2) CHECK SESSION (after URL hash is ready)
-  // ------------------------------------------------------------
+  // Check for existing session
   await new Promise(res => setTimeout(res, 120));
 
   const { data: { session }, error } = await supabase.auth.getSession();
 
   if (error) {
-    console.error("❌ getSession error:", error);
+    console.error("❌ Session error:", error);
     handleSignedOut();
     return;
   }
@@ -160,32 +160,29 @@ export async function initLoginSystem() {
     console.log("🔒 Existing session:", session.user.email);
     await handleSignedInOnce(session.user);
   } else {
-    console.log("👤 No session — showing login");
+    console.log("👤 No active session — showing login");
     handleSignedOut();
   }
 }
 
 // ====================================================================
-// SIGNED-IN HANDLER (run once only)
+// HANDLE SIGNED-IN (ONLY ONCE)
 // ====================================================================
 async function handleSignedInOnce(user) {
   if (window.__AUTH_GUARD__.signedInHandled) return;
 
   window.__AUTH_GUARD__.signedInHandled = true;
+
   console.log("🎉 SIGNED IN AS:", user.email);
 
   try {
     await backfillCommunityUser();
   } catch (err) {
-    console.error("❌ Backfill error:", err);
+    console.error("❌ Backfill failed:", err);
   }
 
   handleSignedIn(user);
-
-  if (!window.__AUTH_GUARD__.initialized) {
-    window.__AUTH_GUARD__.initialized = true;
-    window.dispatchEvent(new CustomEvent("auth-ready"));
-  }
+  window.dispatchEvent(new CustomEvent("auth-ready"));
 }
 
 // ====================================================================
@@ -200,7 +197,7 @@ function handleSignedIn(user) {
   setTimeout(() => {
     loginSection.classList.add("hidden");
     profileSection.classList.remove("hidden");
-  }, 250);
+  }, 300);
 
   logoutBtn.classList.remove("hidden");
 }
@@ -220,7 +217,7 @@ function handleSignedOut() {
 }
 
 // ====================================================================
-// EXPORT FOR MAIN.JS (GitHub Pages requirement)
+// EXPORT TO WINDOW (GitHub Pages)
 // ====================================================================
 window.initLoginSystem = initLoginSystem;
 window.setupLoginDOM = setupLoginDOM;
