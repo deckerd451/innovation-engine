@@ -27,16 +27,14 @@ async function initMain() {
   console.log("📌 Main Controller Loaded");
 
   // NOW setup login AFTER Supabase is ready
-  console.log("📥 Importing login module...");
-    const loginModule = await import("./login.js");
-  let loginModule;
-  try {
-    loginModule = await import("./login.js");
-  } catch (err) {
-    console.error("❌ Failed to import login.js:", err);
-    throw err;
-  }
-  console.log("✅ Login module imported:", loginModule);
+ console.log("📥 Importing login module...");
+let loginModule;
+try {
+  loginModule = await import("./login.js");
+} catch (err) {
+  console.error("❌ Failed to import login.js:", err);
+  throw err;
+}
   
 
   const { setupLoginDOM, initLoginSystem } = loginModule;
