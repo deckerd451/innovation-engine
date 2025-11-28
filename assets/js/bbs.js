@@ -1,147 +1,146 @@
 // ===============================================================
 //   CharlestonHacks BBS + Realtime Chat + ZORK Mode (2025)
+//   FIXED: Desktop now loads messages correctly
 // ===============================================================
 
 import { supabase } from "./supabaseClient.js";
 import { startZork, sendZorkCommand } from "./zorkLoader.js";
 
-/* ============================
-   USERNAME
-============================ */
-function getUsername() {
-  const stored = localStorage.getItem("bbs_username");
-  if (stored) return stored;
+// Run AFTER DOM is ready (critical fix)
+document.addEventListener("DOMContentLoaded", () => {
+  startBBS();
+});
 
-  const generated = "Guest" + Math.floor(Math.random() * 9999);
-  localStorage.setItem("bbs_username", generated);
-  return generated;
-}
+async function startBBS() {
 
-const username = getUsername();
-window.bbsUsername = username; // needed for future save system
+  /* ============================
+     USERNAME
+  ============================ */
+  function getUsername() {
+    const stored = localStorage.getItem("bbs_username");
+    if (stored) return stored;
 
-/* ============================
-   DOM
-============================ */
-const screen = document.getElementById("bbs-screen");
-const form   = document.getElementById("bbs-form");
-const input  = document.getElementById("bbs-input");
-const onlineDiv = document.getElementById("bbs-online-list");
+    const generated = "Guest" + Math.floor(Math.random() * 9999);
+    localStorage.setItem("bbs_username", generated);
+    return generated;
+  }
 
-/* ============================
-   WRITE TO SCREEN
-============================ */
-function write(text) {
-  text.split("\n").forEach(line => {
-    const div = document.createElement("div");
-    div.textContent = line;
-    screen.appendChild(div);
-  });
+  const username = getUsername();
+  window.bbsUsername = username;
 
-  screen.scrollTop = screen.scrollHeight;
-}
+  /* ============================
+     DOM
+  ============================ */
+  const screen = document.getElementById("bbs-screen");
+  const form   = document.getElementById("bbs-form");
+  const input  = document.getElementById("bbs-input");
+  const onlineDiv = document.getElementById("bbs-online-list");
 
-/* ============================
-   LOAD INITIAL CHAT MESSAGES
-============================ */
-async function loadMessages() {
-  const { data, error } = await supabase
-    .from("bbs_messages")
-    .select("*")
-    .order("created_at", { ascending: true });
+  /* ============================
+     WRITE TO SCREEN
+  ============================ */
+  function write(text) {
+    text.split("\n").forEach(line => {
+      const div = document.createElement("div");
+      div.textContent = line;
+      screen.appendChild(div);
+    });
+    screen.scrollTop = screen.scrollHeight;
+  }
 
-  if (error) return console.error("Load error:", error);
+  /* ============================
+     LOAD INITIAL CHAT MESSAGES
+  ============================ */
+  async function loadMessages() {
+    const { data, error } = await supabase
+      .from("bbs_messages")
+      .select("*")
+      .order("created_at", { ascending: true });
 
-  screen.innerHTML = "";
-  data?.forEach(msg => write(`[${msg.username}] ${msg.text}`));
-}
+    if (error) return console.error("Load error:", error);
 
-await loadMessages();
+    screen.innerHTML = "";
+    data?.forEach(msg => write(`[${msg.username}] ${msg.text}`));
+  }
 
-/* ============================
-   REALTIME CHAT UPDATES
-============================ */
-supabase.channel("bbs_messages_channel")
-  .on(
-    "postgres_changes",
-    { event: "INSERT", schema: "public", table: "bbs_messages" },
-    payload => {
-      const msg = payload.new;
-      if (msg.username === username) return;
-      write(`[${msg.username}] ${msg.text}`);
-    }
-  )
-  .subscribe();
+  // FIX: now runs AFTER DOM exists
+  await loadMessages();
 
-/* ============================
-   ONLINE PRESENCE
-============================ */
-async function heartbeat() {
-  await supabase.from("bbs_online").upsert({
-    username,
-    last_seen: new Date().toISOString()
-  });
-}
-setInterval(heartbeat, 10000);
-heartbeat();
+  /* ============================
+     REALTIME CHAT UPDATES
+  ============================ */
+  supabase.channel("bbs_messages_channel")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "bbs_messages" },
+      payload => {
+        const msg = payload.new;
+        if (msg.username === username) return;
+        write(`[${msg.username}] ${msg.text}`);
+      }
+    )
+    .subscribe();
 
-async function loadOnline() {
-  const { data } = await supabase.from("bbs_online_active").select("*");
-  const names = data?.map(u => u.username) || [];
-  onlineDiv.textContent = names.length ? names.join(", ") : "no users online";
-}
-setInterval(loadOnline, 7000);
-loadOnline();
+  /* ============================
+     ONLINE PRESENCE
+  ============================ */
+  async function heartbeat() {
+    await supabase.from("bbs_online").upsert({
+      username,
+      last_seen: new Date().toISOString()
+    });
+  }
+  setInterval(heartbeat, 10000);
+  heartbeat();
 
-/* ============================
-   ACTIVE MODE: CHAT OR ZORK
-============================ */
-let mode = "chat";
+  async function loadOnline() {
+    const { data } = await supabase.from("bbs_online_active").select("*");
+    const names = data?.map(u => u.username) || [];
+    onlineDiv.textContent = names.length ? names.join(", ") : "no users online";
+  }
+  setInterval(loadOnline, 7000);
+  loadOnline();
 
-/* ============================
-   MAIN INPUT HANDLER
-============================ */
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+  /* ============================
+     ACTIVE MODE: CHAT OR ZORK
+  ============================ */
+  let mode = "chat";
 
-  const text = input.value.trim();
-  input.value = "";
-  if (!text) return;
+  /* ============================
+     MAIN INPUT HANDLER
+  ============================ */
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  /* -----------------------------------
-     ZORK MODE COMMANDS
-  ----------------------------------- */
-  if (mode === "zork") {
+    const text = input.value.trim();
+    input.value = "";
+    if (!text) return;
 
-    if (text === "/exit") {
-      write("\nExited ZORK. Returning to chat.\n");
-      mode = "chat";
+    if (mode === "zork") {
+      if (text === "/exit") {
+        write("\nExited ZORK. Returning to chat.\n");
+        mode = "chat";
+        return;
+      }
+      sendZorkCommand(text, write);
       return;
     }
 
-    sendZorkCommand(text, write);
-    return;
-  }
+    if (text === "zork" || text === "play zork") {
+      mode = "zork";
+      write("Initializing ZORK terminal… Type /exit to leave.\n");
+      await startZork(write);
+      return;
+    }
 
-  /* -----------------------------------
-     ENTER ZORK MODE
-  ----------------------------------- */
-  if (text === "zork" || text === "play zork") {
-    mode = "zork";
-    write("Initializing ZORK terminal… Type /exit to leave.\n");
-    await startZork(write);
-    return;
-  }
+    write(`[${username}] ${text}`);
 
-  /* -----------------------------------
-     NORMAL CHAT MODE
-  ----------------------------------- */
-  write(`[${username}] ${text}`);
+    const { error } = await supabase.from("bbs_messages").insert({
+      username,
+      text
+    });
 
-  const { error } = await supabase.from("bbs_messages").insert({
-    username,
-    text
+    if (error) console.error("Insert error:", error);
   });
 
-  if (error) console.error("Insert error:", error);
-});
+} // end startBBS()
