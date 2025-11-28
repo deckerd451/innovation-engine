@@ -1,17 +1,17 @@
 // ====================================================================
 // CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
-// No loops. No double events. Clean redirect. Fully stable.
+// Fully stable. No duplicate variables. No login loops.
 // ====================================================================
 
 import { supabase, backfillCommunityUser } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // ====================================================================
-// GLOBAL AUTH GUARD – ensures SIGNED_IN is handled ONCE
+// GLOBAL AUTH GUARD (single-run protection)
 // ====================================================================
 window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
-  initialized: false,
-  signedInHandled: false
+  initialized: false,       // main.js sync flag
+  signedInHandled: false,   // prevents SIGNED_IN loops
 };
 
 // ====================================================================
@@ -25,20 +25,19 @@ let userBadge;
 let logoutBtn;
 
 // ====================================================================
-// REDIRECT URL – single definition only
+// REDIRECT URL (Safe for localhost + production)
 // ====================================================================
 function buildRedirectUrl() {
   try {
     const origin = window.location?.origin;
-    const usableOrigin =
+    const safeOrigin =
       origin && origin !== "null"
         ? origin
         : "https://www.charlestonhacks.com";
 
-    const normalized = usableOrigin.replace(/\/$/, "");
-    return `${normalized}/2card.html`;
+    return `${safeOrigin.replace(/\/$/, "")}/2card.html`;
   } catch (err) {
-    console.warn("[Login] Failed to build redirect URL:", err);
+    console.warn("[Login] Failed to compute redirect URL:", err);
     return "https://www.charlestonhacks.com/2card.html";
   }
 }
@@ -46,42 +45,39 @@ function buildRedirectUrl() {
 const REDIRECT_URL = buildRedirectUrl();
 
 // ====================================================================
-// SETUP LOGIN DOM
+// DOM SETUP
 // ====================================================================
 export function setupLoginDOM() {
-  loginSection    = document.getElementById("login-section");
-  loginForm       = document.getElementById("login-form");
-  loginEmailInput = document.getElementById("login-email");
-  profileSection  = document.getElementById("profile-section");
-  userBadge       = document.getElementById("user-badge");
-  logoutBtn       = document.getElementById("logout-btn");
+  loginSection      = document.getElementById("login-section");
+  loginForm         = document.getElementById("login-form");
+  loginEmailInput   = document.getElementById("login-email");
+  profileSection    = document.getElementById("profile-section");
+  userBadge         = document.getElementById("user-badge");
+  logoutBtn         = document.getElementById("logout-btn");
 
   if (!loginForm) {
     console.error("❌ login-form missing");
     return;
   }
 
-  // LOGIN SUBMIT
   loginForm.addEventListener("submit", onSubmitLogin);
 
-  // LOGOUT
   logoutBtn?.addEventListener("click", async () => {
     await supabase.auth.signOut();
-    console.warn("🔓 Signed out");
     window.__AUTH_GUARD__.signedInHandled = false;
     handleSignedOut();
   });
 }
 
 // ====================================================================
-// LOGIN SUBMIT HANDLER
+// SUBMIT LOGIN (Send Magic Link)
 // ====================================================================
 async function onSubmitLogin(e) {
   e.preventDefault();
 
   const email = loginEmailInput.value.trim();
   if (!email) {
-    showNotification("Please enter an email.", "error");
+    showNotification("Please enter your email.", "error");
     return;
   }
 
@@ -93,30 +89,32 @@ async function onSubmitLogin(e) {
     email,
     options: {
       emailRedirectTo: REDIRECT_URL,
-      shouldCreateUser: true
-    }
+      shouldCreateUser: true,
+    },
   });
 
   btn.disabled = false;
   btn.classList.remove("pulse", "sending");
 
   if (error) {
-    console.error("[Login] OTP Error:", error);
+    console.error("[Login] Magic Link Error:", error);
     showNotification("Login failed. Try again.", "error");
   } else {
-    showNotification("Magic link sent — check your email.", "success");
+    showNotification("Magic link sent! Check your email.", "success");
   }
 }
 
 // ====================================================================
-// INIT LOGIN SYSTEM – handles INITIAL_SESSION correctly
+// INIT LOGIN SYSTEM
 // ====================================================================
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // Auth listener FIRST
+  // ------------------------------------------------------------
+  // 1) AUTH LISTENER — Single-run protection
+  // ------------------------------------------------------------
   supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("🔄 Auth event:", event, session?.user?.email);
+    console.log("🔄 Auth event:", event, "Session:", session?.user?.email);
 
     if (event === "TOKEN_REFRESHED") return;
 
@@ -126,45 +124,60 @@ export async function initLoginSystem() {
       return;
     }
 
-    // Prevent double-trigger spam
-    if (
-      (event === "INITIAL_SESSION" || event === "SIGNED_IN") &&
-      session?.user &&
-      !window.__AUTH_GUARD__.signedInHandled
-    ) {
+    if (event === "SIGNED_IN" && session?.user) {
+      if (window.__AUTH_GUARD__.signedInHandled) {
+        console.log("⚠️ SIGNED_IN ignored (already handled)");
+        return;
+      }
       await handleSignedInOnce(session.user);
+      return;
+    }
+
+    if (event === "INITIAL_SESSION" && session?.user) {
+      if (window.__AUTH_GUARD__.signedInHandled) {
+        console.log("⚠️ INITIAL_SESSION ignored (already handled)");
+        return;
+      }
+      await handleSignedInOnce(session.user);
+      return;
     }
   });
 
-  // Check session after hash parsing
+  // ------------------------------------------------------------
+  // 2) CHECK SESSION (after URL hash is ready)
+  // ------------------------------------------------------------
   await new Promise(res => setTimeout(res, 120));
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  if (error) {
+    console.error("❌ getSession error:", error);
+    handleSignedOut();
+    return;
+  }
 
   if (session?.user) {
-    console.log("🔒 Existing session detected:", session.user.email);
+    console.log("🔒 Existing session:", session.user.email);
     await handleSignedInOnce(session.user);
   } else {
-    console.log("👤 No active session");
+    console.log("👤 No session — showing login");
     handleSignedOut();
   }
 }
 
 // ====================================================================
-// SIGNED IN (run ONCE ONLY)
+// SIGNED-IN HANDLER (run once only)
 // ====================================================================
 async function handleSignedInOnce(user) {
   if (window.__AUTH_GUARD__.signedInHandled) return;
 
   window.__AUTH_GUARD__.signedInHandled = true;
-
   console.log("🎉 SIGNED IN AS:", user.email);
 
-  // Create / update community row
   try {
     await backfillCommunityUser();
   } catch (err) {
-    console.error("❌ Backfill failed:", err);
+    console.error("❌ Backfill error:", err);
   }
 
   handleSignedIn(user);
@@ -176,26 +189,24 @@ async function handleSignedInOnce(user) {
 }
 
 // ====================================================================
-// UI: SIGNED IN
+// UI: Signed In
 // ====================================================================
 function handleSignedIn(user) {
-  if (userBadge) {
-    userBadge.textContent = `Logged in as: ${user.email}`;
-    userBadge.classList.remove("hidden");
-  }
+  userBadge.textContent = `Logged in as: ${user.email}`;
+  userBadge.classList.remove("hidden");
 
-  loginSection?.classList.add("fade-out");
+  loginSection.classList.add("fade-out");
 
   setTimeout(() => {
-    loginSection?.classList.add("hidden");
-    profileSection?.classList.remove("hidden");
+    loginSection.classList.add("hidden");
+    profileSection.classList.remove("hidden");
   }, 250);
 
-  logoutBtn?.classList.remove("hidden");
+  logoutBtn.classList.remove("hidden");
 }
 
 // ====================================================================
-// UI: SIGNED OUT
+// UI: Signed Out
 // ====================================================================
 function handleSignedOut() {
   userBadge?.classList.add("hidden");
@@ -209,7 +220,7 @@ function handleSignedOut() {
 }
 
 // ====================================================================
-// Export to window (GitHub Pages requirement)
+// EXPORT FOR MAIN.JS (GitHub Pages requirement)
 // ====================================================================
 window.initLoginSystem = initLoginSystem;
-window.setupLoginDOM  = setupLoginDOM;
+window.setupLoginDOM = setupLoginDOM;
