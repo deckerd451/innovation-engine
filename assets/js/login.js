@@ -1,5 +1,5 @@
 // ====================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FIXED 2025)
+// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
 // Zero loops. Zero race conditions. Correct Supabase workflow.
 // ====================================================================
 
@@ -15,6 +15,27 @@ window.__AUTH_GUARD__ = window.__AUTH_GUARD__ || {
 };
 
 // ====================================================================
+// REDIRECT URL (SINGLE DECLARATION — FIXED)
+// ====================================================================
+function buildRedirectUrl() {
+  try {
+    const origin = window.location?.origin;
+    const usableOrigin =
+      origin && origin !== "null"
+        ? origin
+        : "https://www.charlestonhacks.com";
+
+    const normalized = usableOrigin.replace(/\/$/, "");
+    return `${normalized}/2card.html`;
+  } catch (err) {
+    console.warn("[Login] Failed to build redirect URL, using fallback.");
+    return "https://www.charlestonhacks.com/2card.html";
+  }
+}
+
+const REDIRECT_URL = buildRedirectUrl();   // ✔ ONLY DECLARED ONCE
+
+// ====================================================================
 // DOM references
 // ====================================================================
 let loginSection;
@@ -24,23 +45,6 @@ let profileSection;
 let userBadge;
 let logoutBtn;
 
-// MUST MATCH SUPABASE EXACTLY
-const REDIRECT_URL = "https://www.charlestonhacks.com/2card.html";
-// Derive the redirect from the current origin so previews/localhost work
-// Fallback to production when origin is "null" (e.g., file://) to avoid invalid URLs
-function buildRedirectUrl() {
-  try {
-    const origin = window.location?.origin;
-    const usableOrigin = origin && origin !== "null" ? origin : "https://www.charlestonhacks.com";
-    const normalized = usableOrigin.replace(/\/$/, "");
-    return `${normalized}/2card.html`;
-  } catch (err) {
-    console.warn("[Login] Failed to build redirect URL, using production fallback:", err);
-    return "https://www.charlestonhacks.com/2card.html";
-  }
-}
-
-const REDIRECT_URL = buildRedirectUrl();
 /* =============================================================
    DOM SETUP – ensures login button works reliably
 ============================================================= */
@@ -109,14 +113,11 @@ async function onSubmitLogin(e) {
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // FIRST: Set up auth listener (before checking session)
+  // FIRST: Set up auth listener
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("🔄 Auth event:", event, "Session:", session?.user?.email);
 
-    if (event === "TOKEN_REFRESHED") {
-      console.log("🔄 TOKEN_REFRESHED ignored");
-      return;
-    }
+    if (event === "TOKEN_REFRESHED") return;
 
     if (event === "SIGNED_OUT") {
       window.__AUTH_GUARD__.signedInHandled = false;
@@ -124,27 +125,23 @@ export async function initLoginSystem() {
       return;
     }
 
-    if (event === "INITIAL_SESSION") {
-      // Handle INITIAL_SESSION event (this is what fires when returning from magic link)
-      if (session?.user && !window.__AUTH_GUARD__.signedInHandled) {
-        console.log("🔗 INITIAL_SESSION with user - handling sign in");
+    if (event === "INITIAL_SESSION" && session?.user) {
+      if (!window.__AUTH_GUARD__.signedInHandled) {
         await handleSignedInOnce(session.user);
       }
       return;
     }
 
     if (event === "SIGNED_IN" && session?.user) {
-      if (window.__AUTH_GUARD__.signedInHandled) {
-        console.log("⚠️ SIGNED_IN ignored – already handled");
-        return;
+      if (!window.__AUTH_GUARD__.signedInHandled) {
+        await handleSignedInOnce(session.user);
       }
-      await handleSignedInOnce(session.user);
     }
   });
 
-  // THEN: Check for existing session (with small delay to let hash parsing complete)
+  // THEN check for existing session
   await new Promise(res => setTimeout(res, 100));
-  
+
   const { data: { session }, error } = await supabase.auth.getSession();
 
   if (error) {
@@ -171,18 +168,14 @@ async function handleSignedInOnce(user) {
   window.__AUTH_GUARD__.signedInHandled = true;
   console.log("🎉 SIGNED IN AS:", user.email);
 
-  // BACKFILL community row with error handling
   try {
     await backfillCommunityUser();
   } catch (err) {
     console.error("❌ Backfill failed:", err);
-    // Don't block login on backfill failure
   }
 
-  // Update UI
   handleSignedIn(user);
 
-  // Notify main.js that auth is stable
   if (!window.__AUTH_GUARD__.initialized) {
     window.__AUTH_GUARD__.initialized = true;
     window.dispatchEvent(new CustomEvent("auth-ready"));
@@ -223,7 +216,7 @@ function handleSignedOut() {
 }
 
 // =============================================================
-// EXPORT TO WINDOW – required on GitHub Pages
+// EXPORT TO WINDOW (GitHub Pages compatibility)
 // =============================================================
 window.initLoginSystem = initLoginSystem;
 window.setupLoginDOM = setupLoginDOM;
