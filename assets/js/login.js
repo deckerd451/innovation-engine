@@ -1,5 +1,11 @@
 // ======================================================================
 // CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
+// Handles:
+//   ✔ Magic Link auth (Supabase v2)
+//   ✔ Expired link handling
+//   ✔ URL cleanup
+//   ✔ Login <-> Profile switching
+//   ✔ No infinite loops
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -75,22 +81,28 @@ async function sendMagicLink() {
 }
 
 // ======================================================================
-// 4. PROCESS MAGIC LINK (Supabase v2)
+// 4. PROCESS MAGIC LINK (Supabase v2) WITH FULL ERROR GUARD
 // ======================================================================
 async function processMagicLink() {
+  const hash = window.location.hash;
 
-  // Skip if no code= or error= in URL
- const hash = window.location.hash;
-if (!(hash.includes("access_token") || hash.includes("refresh_token"))) {
-  return;  // nothing to process
-}
+  // ❌ If Supabase returned an error (expired link, denied, invalid, etc)
+  if (hash.includes("error=")) {
+    console.warn("⚠️ Supabase magic link error detected in URL. Skipping exchange.");
 
+    // Clean URL so error does not persist
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return;
+  }
+
+  // No tokens → No processing needed
+  if (!(hash.includes("access_token") || hash.includes("refresh_token"))) {
+    return;
+  }
 
   console.log("🔁 Processing Supabase URL callback…");
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(
-    window.location.href
-  );
+  const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
 
   if (error) {
     console.error("❌ Error during magic link exchange:", error);
@@ -99,7 +111,7 @@ if (!(hash.includes("access_token") || hash.includes("refresh_token"))) {
 
   console.log("🔓 Auth: SIGNED_IN via magic link!", data);
 
-  // 🚀 CLEAN URL after successful login
+  // Clean URL after successful login
   window.history.replaceState({}, document.title, window.location.pathname);
 }
 
@@ -109,28 +121,31 @@ if (!(hash.includes("access_token") || hash.includes("refresh_token"))) {
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // STEP A — Handle magic link callback (if present)
+  // Process the callback first (if present)
   await processMagicLink();
 
-  // STEP B — Get current session properly
+  // Check current session
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
-    console.log("🟢 Already logged in as:", session.user.email);
+    console.log("🟢 Logged in:", session.user.email);
     showProfileUI();
   } else {
     console.log("🟡 No active session");
     showLoginUI();
   }
 
-  // STEP C — Auth state listener
+  // Auth listener
   supabase.auth.onAuthStateChange((event, session) => {
     console.log("⚡ Auth event:", event);
 
     if (event === "SIGNED_IN") {
+      console.log("🟢 User authenticated:", session.user.email);
       showProfileUI();
     }
+
     if (event === "SIGNED_OUT") {
+      console.log("🟡 User signed out");
       showLoginUI();
     }
   });
