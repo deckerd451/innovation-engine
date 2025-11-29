@@ -280,6 +280,36 @@
   <script type="module" src="assets/js/profile.js"></script>
   <script type="module" src="assets/js/synapse.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
+  <script>
+  // SIMPLE TAB SYSTEM (original working version)
+  document.querySelectorAll(".tab-button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+
+      // Deactivate all tab buttons
+      document.querySelectorAll(".tab-button")
+        .forEach(b => b.classList.remove("active"));
+
+      btn.classList.add("active");
+
+      // Hide all panes
+      document.querySelectorAll(".tab-content-pane")
+        .forEach(p => p.classList.remove("active-tab-pane"));
+
+      // Show selected pane
+      const pane = document.getElementById(tab);
+      if (pane) pane.classList.add("active-tab-pane");
+
+      // Special case: Synapse view
+      if (tab === "synapse") {
+        document.getElementById("synapse-container").classList.add("active");
+      } else {
+        document.getElementById("synapse-container").classList.remove("active");
+      }
+    });
+  });
+</script>
+
 
 </body>
 </html>
