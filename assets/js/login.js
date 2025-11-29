@@ -1,5 +1,6 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL & CLEAN)
+// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
+// Smart Auto-Login (Option A)
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -75,24 +76,21 @@ async function sendMagicLink() {
 }
 
 // ======================================================================
-// 4. PROCESS MAGIC LINK
+// 4. PROCESS MAGIC LINK (Supabase v2 SAFE MODE)
 // ======================================================================
 async function processMagicLink() {
   const hash = window.location.hash;
 
-  // 🚨 A) If Supabase sent an error (expired, denied, invalid link)
+  // ❌ If Supabase returned an error (expired link, etc)
   if (hash.includes("error=")) {
-    console.warn("⚠️ Supabase returned an error. Skipping token exchange.");
-
-    // Clean URL
+    console.warn("⚠️ Supabase magic link error detected in URL.");
+    showNotification("Magic link expired or invalid. Please log in again.");
     window.history.replaceState({}, document.title, window.location.pathname);
     return;
   }
 
-  // 🚨 B) If no tokens, skip completely
-  if (!(hash.includes("access_token") || hash.includes("refresh_token"))) {
-    return;
-  }
+  // No access token → Nothing to process
+  if (!hash.includes("access_token")) return;
 
   console.log("🔁 Processing Supabase URL callback…");
 
@@ -101,28 +99,27 @@ async function processMagicLink() {
   );
 
   if (error) {
-    console.error("❌ Magic link exchange failed:", error);
+    console.error("❌ Error during magic link exchange:", error);
+    showNotification("Magic link expired or invalid.");
     return;
   }
 
-  console.log("🔓 SIGNED_IN via magic link!", data);
+  console.log("🔓 Auth: SIGNED_IN via magic link!");
 
-  // Clean URL
+  // Cleanup URL so login never loops
   window.history.replaceState({}, document.title, window.location.pathname);
-}  // <-- THIS BRACE WAS MISSING IN YOUR VERSION!!!!
-// ======================================================================
-
+}
 
 // ======================================================================
-// 5. MAIN INIT
+// 5. MAIN INIT — SMART AUTO LOGIN (OPTION A)
 // ======================================================================
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // Step A — process magic link if present
+  // STEP 1 — Process magic link if present
   await processMagicLink();
 
-  // Step B — check current session
+  // STEP 2 — Check current session
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
@@ -133,11 +130,12 @@ export async function initLoginSystem() {
     showLoginUI();
   }
 
-  // Step C — listen for auth changes
+  // STEP 3 — Auth listener (fires EXACTLY once)
   supabase.auth.onAuthStateChange((event, session) => {
     console.log("⚡ Auth event:", event);
 
     if (event === "SIGNED_IN") {
+      console.log("🟢 User authenticated:", session.user.email);
       showProfileUI();
     }
 
