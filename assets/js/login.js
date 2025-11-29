@@ -80,9 +80,11 @@ async function sendMagicLink() {
 async function processMagicLink() {
 
   // Skip if no code= or error= in URL
-  if (!window.location.href.includes("code=")) {
-    return;
-  }
+ const hash = window.location.hash;
+if (!(hash.includes("access_token") || hash.includes("refresh_token"))) {
+  return;  // nothing to process
+}
+
 
   console.log("🔁 Processing Supabase URL callback…");
 
