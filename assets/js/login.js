@@ -1,10 +1,5 @@
 // ======================================================================
 // CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
-// Handles:
-//   ✔ Magic Link auth
-//   ✔ URL callback cleanup
-//   ✔ Switch Login <-> Profile sections
-//   ✔ Ensures no infinite loops
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -13,6 +8,9 @@ import { showNotification } from "./utils.js";
 // DOM refs
 let loginSection, profileSection, loginForm, loginEmail, loginButton;
 
+// ======================================================================
+// 1. SETUP LOGIN DOM
+// ======================================================================
 export function setupLoginDOM() {
   loginSection = document.getElementById("login-section");
   profileSection = document.getElementById("profile-section");
@@ -25,7 +23,6 @@ export function setupLoginDOM() {
     return;
   }
 
-  // Attach listener safely
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     await sendMagicLink();
@@ -35,7 +32,7 @@ export function setupLoginDOM() {
 }
 
 // ======================================================================
-// UI Helpers
+// 2. UI HELPERS
 // ======================================================================
 function showLoginUI() {
   loginSection.classList.remove("hidden");
@@ -48,14 +45,14 @@ function showProfileUI() {
 }
 
 // ======================================================================
-// 1) Send Magic Link
+// 3. SEND MAGIC LINK
 // ======================================================================
 async function sendMagicLink() {
   const email = loginEmail.value.trim();
   if (!email) return;
 
   loginButton.disabled = true;
-  loginButton.textContent = "Sending...";
+  loginButton.textContent = "Sending…";
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -69,66 +66,69 @@ async function sendMagicLink() {
 
   if (error) {
     console.error("❌ Magic Link error:", error.message);
-    showNotification("Error sending link. Check email format.");
+    showNotification("Error sending link. Try again.");
     return;
   }
 
+  console.log("📨 Magic link sent");
   showNotification("Magic link sent! Check your email.");
-  console.log("📨 Magic link sent successfully");
 }
 
 // ======================================================================
-// 2) Process Magic Link From URL
+// 4. PROCESS MAGIC LINK (Supabase v2)
 // ======================================================================
 async function processMagicLink() {
-  if (!window.location.hash.includes("access_token")) return;
 
-  console.log("🔑 Processing Supabase URL callback...");
-
-  const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-
-  if (error) {
-    console.error("❌ Error processing magic link:", error.message);
-  } else {
-    console.log("✨ Magic link processed:", data);
+  // Skip if no code= or error= in URL
+  if (!window.location.href.includes("code=")) {
+    return;
   }
 
-  // 🚀 CLEAN URL so auth does not re-trigger
+  console.log("🔁 Processing Supabase URL callback…");
+
+  const { data, error } = await supabase.auth.exchangeCodeForSession(
+    window.location.href
+  );
+
+  if (error) {
+    console.error("❌ Error during magic link exchange:", error);
+    return;
+  }
+
+  console.log("🔓 Auth: SIGNED_IN via magic link!", data);
+
+  // 🚀 CLEAN URL after successful login
   window.history.replaceState({}, document.title, window.location.pathname);
 }
 
 // ======================================================================
-// 3) Main Login Init
+// 5. MAIN INIT
 // ======================================================================
 export async function initLoginSystem() {
-  console.log("🔐 Initializing login system...");
+  console.log("🔐 Initializing login system…");
 
-  // Step 1 — Process magic link if present
+  // STEP A — Handle magic link callback (if present)
   await processMagicLink();
 
-  // Step 2 — Check current session
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData?.session;
+  // STEP B — Get current session properly
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (session && session.user) {
-    console.log("🟢 Already signed in:", session.user.email);
+  if (session?.user) {
+    console.log("🟢 Already logged in as:", session.user.email);
     showProfileUI();
   } else {
     console.log("🟡 No active session");
     showLoginUI();
   }
 
-  // Step 3 — Listen for auth events (single listener only)
+  // STEP C — Auth state listener
   supabase.auth.onAuthStateChange((event, session) => {
-    console.log(`⚡ Auth event: ${event}`);
+    console.log("⚡ Auth event:", event);
 
     if (event === "SIGNED_IN") {
-      console.log("🟢 User logged in:", session.user.email);
       showProfileUI();
     }
-
     if (event === "SIGNED_OUT") {
-      console.log("🟡 User logged out");
       showLoginUI();
     }
   });
