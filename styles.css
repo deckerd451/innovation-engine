@@ -2591,6 +2591,4 @@ main, .main-wrapper, .media-container {
   opacity: 0;
   transition: max-height 0.45s ease, opacity 0.45s ease;
 }
-* {
-  outline: 1px solid rgba(255, 0, 0, 0.2); /* TEMPORARY DEBUG */
-}
+
