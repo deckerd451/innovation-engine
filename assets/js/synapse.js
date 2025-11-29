@@ -1,398 +1,184 @@
-// =====================================================
-// Synapse View 3.0 — LIGHT VERSION (INLINE CSS)
-// CharlestonHacks (2025)
-// Fully functional, self-contained, no external CSS needed
-// =====================================================
+// ======================================================================
+// CharlestonHacks Innovation Engine – SYNAPSE VIEW (FINAL 2025)
+// Fully aligned with existing Supabase schema
+// ======================================================================
 
 import { supabase } from "./supabaseClient.js";
-const d3 = window.d3;
 
-// ================================================
-// INLINE CSS — injected automatically
-// ================================================
-(function injectSynapseCSS() {
-  const css = `
-    .synapse-tooltip {
-      position: absolute;
-      background: rgba(0,0,0,0.85);
-      padding: 6px 10px;
-      border-radius: 4px;
-      color: #0ff;
-      font-size: 13px;
-      pointer-events: none;
-      font-family: monospace;
-      z-index: 9999;
-    }
+let svg, width, height;
+let nodeGroup, linkGroup;
+let simulation;
+let isLoaded = false;
 
-    .profile-modal {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.92);
-      padding: 20px;
-      border-radius: 12px;
-      z-index: 99999;
-      color: white;
-      width: 280px;
-      text-align: center;
-      box-shadow: 0 0 30px rgba(0,255,255,0.3);
-      backdrop-filter: blur(6px);
-    }
+// DOM
+const synapseContainer = document.getElementById("synapse-container");
+const synapseSVG = document.getElementById("synapse-svg");
 
-    .modal-content h2 {
-      margin-top: 10px;
-      margin-bottom: 8px;
-      color: #0ff;
-      font-size: 20px;
-    }
+// ======================================================================
+// FETCH COMMUNITY NODES (DB-safe, schema-aligned)
+// ======================================================================
+async function fetchCommunity() {
+  console.log("📡 Loading community for Synapse View…");
 
-    .modal-avatar {
-      width: 88px;
-      height: 88px;
-      border-radius: 50%;
-      border: 2px solid #0ff;
-      margin-bottom: 10px;
-      object-fit: cover;
-    }
+  const { data, error } = await supabase
+    .from("community")
+    .select(`
+      id,
+      name,
+      skills,
+      interests,
+      availability,
+      image_url,
+      connection_count,
+      x,
+      y
+    `);
 
-    .modal-close {
-      position: absolute;
-      top: 6px;
-      right: 10px;
-      background: transparent;
-      border: none;
-      font-size: 28px;
-      color: #0ff;
-      cursor: pointer;
-    }
-
-    .connect-btn, .disconnect-btn {
-      margin-top: 12px;
-      padding: 8px 14px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      font-size: 14px;
-      width: 100%;
-    }
-
-    .connect-btn {
-      background: #00ccff;
-      color: black;
-    }
-
-    .disconnect-btn {
-      background: #ff0066;
-      color: white;
-    }
-
-    .disconnect-btn.hidden,
-    .connect-btn.hidden {
-      display: none;
-    }
-  `;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.appendChild(style);
-})();
-
-// ================================================
-// MAIN VARIABLES
-// ================================================
-let svg, zoomGroup, simulation, link, node, tooltip, channel;
-let nodes = [];
-let links = [];
-let width, height;
-let isSynapseActive = false;
-
-// ================================================
-// MAIN ENTRY
-// ================================================
-export async function initSynapseView() {
-  const container = document.getElementById("synapse-container");
-  if (!container) return;
-
-  d3.select("#synapse-svg").selectAll("*").remove();
-
-  width = container.clientWidth;
-  height = container.clientHeight;
-
-  svg = d3.select("#synapse-svg")
-    .attr("width", width)
-    .attr("height", height)
-    .style("cursor", "grab");
-
-  zoomGroup = svg.append("g");
-
-  tooltip = d3.select("body")
-    .append("div")
-    .attr("class", "synapse-tooltip")
-    .style("opacity", 0);
-
-  isSynapseActive = true;
-  document.addEventListener("keydown", handleEscape);
-
-  await loadGraphData();
-  drawGraph();
-  setupRealtime();
-}
-
-// ================================================
-// LOAD USERS + CONNECTIONS
-// ================================================
-async function loadGraphData() {
-  try {
-    const [{ data: community }, { data: connections }] = await Promise.all([
-      supabase.from("community").select("id, name, email, image_url, skills"),
-      supabase.from("connections").select("from_user_id, to_user_id"),
-    ]);
-
-    nodes = community.map(u => ({
-      id: u.id,
-      name: u.name || "Anonymous",
-      email: u.email,
-      image_url: u.image_url,
-      skills: Array.isArray(u.skills) ? u.skills.join(", ") : u.skills || ""
-    }));
-
-    links = connections.map(c => ({
-      source: c.from_user_id,
-      target: c.to_user_id
-    }));
-
-  } catch (err) {
-    console.error("[Synapse] Load error:", err);
+  if (error) {
+    console.error("❌ Synapse fetch failed:", error);
+    return [];
   }
+
+  // Normalize & safeguard
+  return data.map(row => ({
+    id: row.id,
+    name: row.name || "Unnamed",
+    skills: row.skills ? row.skills.split(",").map(s => s.trim()) : [],
+    interests: row.interests || [],
+    image_url: row.image_url || "",
+    availability: row.availability || "Available",
+    connection_count: row.connection_count || 0,
+    x: row.x || Math.random() * 800,
+    y: row.y || Math.random() * 600
+  }));
 }
 
-// ================================================
-// DRAW NETWORK
-// ================================================
-function drawGraph() {
+// ======================================================================
+// INITIALIZE SVG + FORCE ENGINE
+// ======================================================================
+function initSVG() {
+  width = synapseContainer.clientWidth;
+  height = synapseContainer.clientHeight;
+
+  svg = d3.select(synapseSVG);
+  svg.selectAll("*").remove(); // clear
+
+  linkGroup = svg.append("g").attr("class", "links");
+  nodeGroup = svg.append("g").attr("class", "nodes");
+}
+
+function createSimulation(nodes, links) {
   simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(110))
-    .force("charge", d3.forceManyBody().strength(-160))
-    .force("center", d3.forceCenter(width / 2, height / 2));
+    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+    .force("charge", d3.forceManyBody().strength(-180))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .on("tick", ticked);
+}
 
-  const linkGroup = zoomGroup.append("g")
-    .attr("stroke", "#0ff")
-    .attr("stroke-opacity", 0.25);
+// ======================================================================
+// RENDER GRAPH
+// ======================================================================
+function renderGraph(nodes) {
+  // TEMP: auto-generate fake links based on skills overlap
+  const links = [];
 
-  const nodeGroup = zoomGroup.append("g")
-    .attr("cursor", "pointer");
-
-  link = linkGroup.selectAll("line")
-    .data(links)
-    .join("line")
-    .attr("stroke-width", 1.1);
-
-  node = nodeGroup.selectAll("g")
-    .data(nodes)
-    .join("g")
-    .call(drag(simulation));
-
-  // Draw avatars or initials
-  node.each(function (d) {
-    const g = d3.select(this);
-
-    if (d.image_url) {
-      g.append("image")
-        .attr("href", d.image_url)
-        .attr("width", 40)
-        .attr("height", 40)
-        .attr("x", -20)
-        .attr("y", -20)
-        .attr("clip-path", "circle(20px at 20px 20px)");
-    } else {
-      g.append("circle")
-        .attr("r", 20)
-        .attr("fill", "#0099cc");
-
-      g.append("text")
-        .attr("text-anchor", "middle")
-        .attr("dy", "0.35em")
-        .attr("font-size", 14)
-        .attr("fill", "white")
-        .text(d.name?.[0]?.toUpperCase() || "?");
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const overlap = nodes[i].skills.filter(s => nodes[j].skills.includes(s));
+      if (overlap.length > 0) {
+        links.push({ source: nodes[i].id, target: nodes[j].id });
+      }
     }
-  });
+  }
 
-  // Tooltip
-  node.on("mouseover", (ev, d) => {
-    tooltip
-      .style("opacity", 1)
-      .html(`<strong>${d.name}</strong><br>${d.skills}`)
-      .style("left", ev.pageX + 10 + "px")
-      .style("top", ev.pageY - 10 + "px");
+  const linkElements = linkGroup
+    .selectAll("line")
+    .data(links)
+    .enter()
+    .append("line")
+    .attr("stroke", "rgba(0,255,255,0.3)")
+    .attr("stroke-width", 1.5);
 
-    highlightNode(d.id, true);
-  });
+  const nodeElements = nodeGroup
+    .selectAll("g")
+    .data(nodes)
+    .enter()
+    .append("g")
+    .attr("class", "synapse-node")
+    .call(
+      d3.drag()
+        .on("start", dragStart)
+        .on("drag", dragged)
+        .on("end", dragEnd)
+    );
 
-  node.on("mouseout", () => {
-    tooltip.style("opacity", 0);
-    highlightNode(null, false);
-  });
+  // Render circle (avatar or fallback)
+  nodeElements.append("circle")
+    .attr("r", 22)
+    .attr("fill", d => d.image_url ? `url(#img-${d.id})` : "#0ff")
+    .attr("stroke", "#0ff")
+    .attr("stroke-width", 1.5);
 
-  // Modal
-  node.on("click", openProfileModal);
+  // Labels
+  nodeElements.append("text")
+    .text(d => d.name)
+    .attr("x", 28)
+    .attr("y", 5)
+    .attr("fill", "#0ff")
+    .attr("font-size", "12px")
+    .attr("font-family", "monospace");
 
-  simulation.on("tick", () => {
-    link.attr("x1", d => d.source.x)
+  createSimulation(nodes, links);
+
+  function ticked() {
+    linkElements
+      .attr("x1", d => d.source.x)
       .attr("y1", d => d.source.y)
       .attr("x2", d => d.target.x)
       .attr("y2", d => d.target.y);
 
-    node.attr("transform", d => `translate(${d.x},${d.y})`);
-  });
-
-  svg.call(
-    d3.zoom().scaleExtent([0.4, 4])
-      .on("zoom", ev => zoomGroup.attr("transform", ev.transform))
-  );
+    nodeElements.attr("transform", d => `translate(${d.x}, ${d.y})`);
+  }
 }
 
-// ================================================
+// ======================================================================
 // DRAGGING
-// ================================================
-function drag(sim) {
-  return d3.drag()
-    .on("start", (e, d) => {
-      if (!e.active) sim.alphaTarget(0.3).restart();
-      d.fx = d.x; d.fy = d.y;
-    })
-    .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
-    .on("end", (e, d) => {
-      if (!e.active) sim.alphaTarget(0);
-      d.fx = null; d.fy = null;
-    });
+// ======================================================================
+function dragStart(event, d) {
+  if (!event.active) simulation.alphaTarget(0.2).restart();
+  d.fx = d.x;
+  d.fy = d.y;
 }
 
-// ================================================
-// HIGHLIGHT LINKS
-// ================================================
-function highlightNode(nodeId, active) {
-  link.attr("stroke-opacity", l =>
-    !active
-      ? 0.25
-      : (l.source.id === nodeId || l.target.id === nodeId ? 0.9 : 0.06)
-  );
+function dragged(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
 }
 
-// ================================================
-// PROFILE MODAL + CONNECT/DISCONNECT
-// ================================================
-async function openProfileModal(ev, user) {
-  document.querySelectorAll(".profile-modal").forEach(e => e.remove());
-
-  const modal = document.createElement("div");
-  modal.className = "profile-modal";
-  modal.innerHTML = `
-    <div class="modal-content">
-      <button class="modal-close">&times;</button>
-      <img src="${user.image_url || "images/default-avatar.png"}" class="modal-avatar" />
-      <h2>${user.name}</h2>
-      <p><strong>Email:</strong> ${user.email}</p>
-      <p><strong>Skills:</strong> ${user.skills}</p>
-      <button id="connectBtn" class="connect-btn">Connect</button>
-      <button id="disconnectBtn" class="disconnect-btn hidden">Disconnect</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  modal.querySelector(".modal-close").onclick = () => modal.remove();
-
-  const connectBtn = modal.querySelector("#connectBtn");
-  const disconnectBtn = modal.querySelector("#disconnectBtn");
-
-  const { data: session } = await supabase.auth.getSession();
-  const currentUser = session?.session?.user;
-
-  if (!currentUser) {
-    connectBtn.textContent = "Login Required";
-    connectBtn.disabled = true;
-    return;
-  }
-
-  // check if connected
-  const { data: existing } = await supabase
-    .from("connections")
-    .select("*")
-    .eq("from_user_id", currentUser.id)
-    .eq("to_user_id", user.id)
-    .maybeSingle();
-
-  if (existing) {
-    connectBtn.classList.add("hidden");
-    disconnectBtn.classList.remove("hidden");
-  }
-
-  // CONNECT
-  connectBtn.onclick = async () => {
-    await supabase
-      .from("connections")
-      .insert({ from_user_id: currentUser.id, to_user_id: user.id });
-
-    connectBtn.classList.add("hidden");
-    disconnectBtn.classList.remove("hidden");
-  };
-
-  // DISCONNECT
-  disconnectBtn.onclick = async () => {
-    await supabase
-      .from("connections")
-      .delete()
-      .eq("from_user_id", currentUser.id)
-      .eq("to_user_id", user.id);
-
-    disconnectBtn.classList.add("hidden");
-    connectBtn.classList.remove("hidden");
-  };
+function dragEnd(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
 }
 
-// ================================================
-// REALTIME CONNECTIONS
-// ================================================
-function setupRealtime() {
-  if (channel) channel.unsubscribe();
+// ======================================================================
+// PUBLIC INIT FUNCTION
+// ======================================================================
+export async function initSynapseView() {
+  if (isLoaded) return; // prevent double-load
+  isLoaded = true;
 
-  channel = supabase
-    .channel("realtime-connections")
-    .on("postgres_changes", { event: "*", table: "connections" }, (p) => {
-      if (p.eventType === "INSERT") {
-        links.push({
-          source: p.new.from_user_id,
-          target: p.new.to_user_id
-        });
-        simulation.alpha(0.4).restart();
-      }
+  console.log("🧠 Initializing Synapse View…");
 
-      if (p.eventType === "DELETE") {
-        links = links.filter(
-          l => !(l.source.id === p.old.from_user_id && l.target.id === p.old.to_user_id)
-        );
-        simulation.alpha(0.4).restart();
-      }
-    })
-    .subscribe();
+  initSVG();
+  const nodes = await fetchCommunity();
+  renderGraph(nodes);
+
+  console.log("🧠 Synapse ready with", nodes.length, "nodes.");
 }
 
-// ================================================
-// EXIT ON ESC
-// ================================================
-function handleEscape(e) {
-  if (e.key === "Escape") exitSynapseView();
-}
-
-function exitSynapseView() {
-  document.querySelector("header").style.display = "";
-  document.querySelector("footer").style.display = "";
-  document.getElementById("neural-bg").style.display = "";
-  document.getElementById("synapse-container").classList.remove("active");
-
-  tooltip?.remove();
-  document.querySelectorAll(".profile-modal").forEach(e => e.remove());
-
-  if (channel) channel.unsubscribe();
-  isSynapseActive = false;
-}
+// Automatically resize SVG on container resize
+window.addEventListener("resize", () => {
+  if (!isLoaded) return;
+  initSVG();
+});
