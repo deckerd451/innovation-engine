@@ -1,175 +1,159 @@
 // ======================================================================
-// CharlestonHacks – Search Engine 3.0 (Final Production Build)
-// Supports:
-//   ✔ Skill-based search
-//   ✔ Name search
-//   ✔ Team Builder
-//   ✔ Clean card rendering
-//   ✔ user_id-based RLS
+// CharlestonHacks Innovation Engine – SEARCH ENGINE (FINAL 2025)
+// Fully aligned with existing Supabase schema
+// community columns used:
+//   id, name, email, skills, interests, bio,
+//   availability, image_url, connection_count
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { DOMElements } from "./globals.js";
-import { showNotification } from "./utils.js";
 
-/* ============================================================
-   CLEAN CARD RENDERER
-============================================================ */
-function createUserCard(user) {
-  const div = document.createElement("div");
-  div.className = "user-card";
+// DOM references from globals.js
+const teamSkillsInput = DOMElements.teamSkillsInput;
+const nameInput = DOMElements.nameInput;
+const cardContainer = DOMElements.cardContainer;
+const noResults = DOMElements.noResults;
+const matchNotification = DOMElements.matchNotification;
 
-  const img = user.image_url
-    ? `<img class="user-photo" src="${user.image_url}" alt="${user.name}">`
-    : `<div class="user-photo placeholder"></div>`;
+// ======================================================================
+// LOAD COMMUNITY MEMBERS
+// ======================================================================
+async function loadCommunity() {
+  console.log("📡 Loading community for search…");
 
-  div.innerHTML = `
-    ${img}
-    <h3>${user.name || "Unnamed"}</h3>
-    <p><strong>Skills:</strong> ${user.skills || "None listed"}</p>
-    <p><strong>Email:</strong> ${user.email}</p>
-  `;
-
-  return div;
-}
-
-/* ============================================================
-   QUERY HELPERS
-============================================================ */
-async function fetchCommunity() {
   const { data, error } = await supabase
     .from("community")
-    .select("id, name, email, skills, image_url, availability");
+    .select(`
+      id,
+      name,
+      email,
+      skills,
+      interests,
+      bio,
+      availability,
+      image_url,
+      connection_count
+    `);
 
   if (error) {
-    console.error("[SearchEngine] Fetch error:", error);
+    console.error("❌ Error loading community:", error);
     return [];
   }
 
-  return data || [];
+  // Normalize skills → array
+  return data.map(person => ({
+    ...person,
+    skillsArray: person.skills
+      ? person.skills.split(",").map(s => s.trim().toLowerCase())
+      : [],
+    lowerName: person.name?.toLowerCase() || ""
+  }));
 }
 
-function normalizeSkills(str) {
-  if (!str) return [];
-  return str
-    .split(",")
-    .map(s => s.trim().toLowerCase())
-    .filter(Boolean);
-}
+// Cache to avoid repeated DB hits
+let communityCache = null;
 
-/* ============================================================
-   SKILL SEARCH
-============================================================ */
-export async function findMatchingUsers() {
-  const skillText = DOMElements.teamSkillsInput.value.trim().toLowerCase();
-  const skillList = normalizeSkills(skillText);
+// ======================================================================
+// RENDER CARDS
+// ======================================================================
+function renderCards(list) {
+  cardContainer.innerHTML = "";
 
-  if (skillList.length === 0) {
-    showNotification("Enter at least one skill.", "error");
+  if (!list.length) {
+    noResults.classList.remove("hidden");
+    matchNotification.classList.add("hidden");
     return;
   }
 
-  const allUsers = await fetchCommunity();
+  noResults.classList.add("hidden");
 
-  const matches = allUsers.filter(user => {
-    const userSkills = normalizeSkills(user.skills);
-    return skillList.every(s => userSkills.includes(s));
+  list.forEach(person => {
+    const card = document.createElement("div");
+    card.className = "profile-card";
+
+    card.innerHTML = `
+      <div class="card-header">
+        <img class="card-avatar" src="${person.image_url || "assets/default-avatar.png"}" alt="${person.name}">
+        <div class="card-name">${person.name}</div>
+      </div>
+
+      <div class="card-info">
+        <p><strong>Skills:</strong> ${person.skills || "—"}</p>
+        <p><strong>Availability:</strong> ${person.availability || "—"}</p>
+        <p><strong>Bio:</strong> ${person.bio || ""}</p>
+      </div>
+    `;
+
+    cardContainer.appendChild(card);
   });
-
-  DOMElements.cardContainer.innerHTML = "";
-
-  if (matches.length === 0) {
-    DOMElements.noResults.classList.remove("hidden");
-    DOMElements.matchNotification.classList.add("hidden");
-    return;
-  }
-
-  DOMElements.noResults.classList.add("hidden");
-  DOMElements.matchNotification.classList.remove("hidden");
-  DOMElements.matchNotification.textContent = `Found ${matches.length} matches!`;
-
-  matches.forEach(u => {
-    const card = createUserCard(u);
-    DOMElements.cardContainer.appendChild(card);
-  });
 }
 
-/* ============================================================
-   NAME SEARCH
-============================================================ */
-export async function findByName() {
-  const nameText = DOMElements.nameInput.value.trim().toLowerCase();
+// ======================================================================
+// NAME SEARCH
+// ======================================================================
+async function searchByName() {
+  const query = nameInput.value.trim().toLowerCase();
+  if (!query) return;
 
-  if (!nameText) {
-    showNotification("Enter a name to search.", "error");
-    return;
-  }
+  if (!communityCache) communityCache = await loadCommunity();
 
-  const allUsers = await fetchCommunity();
-
-  const matches = allUsers.filter(u =>
-    (u.name || "").toLowerCase().includes(nameText)
+  const results = communityCache.filter(p =>
+    p.lowerName.includes(query)
   );
 
-  DOMElements.cardContainer.innerHTML = "";
-
-  if (matches.length === 0) {
-    DOMElements.noResults.classList.remove("hidden");
-    return;
+  if (results.length === 0) {
+    noResults.classList.remove("hidden");
+    matchNotification.classList.add("hidden");
+  } else {
+    noResults.classList.add("hidden");
+    matchNotification.classList.remove("hidden");
+    matchNotification.textContent = `Found ${results.length} match${results.length === 1 ? "" : "es"}`;
   }
 
-  DOMElements.noResults.classList.add("hidden");
-
-  matches.forEach(u => {
-    const card = createUserCard(u);
-    DOMElements.cardContainer.appendChild(card);
-  });
+  renderCards(results);
 }
 
-/* ============================================================
-   TEAM BUILDER — SIMPLE MATCHING
-============================================================ */
-export async function buildBestTeam() {
-  const skillText = DOMElements.teamBuilderSkillsInput.value.trim().toLowerCase();
-  const skillList = normalizeSkills(skillText);
+// ======================================================================
+// SKILL SEARCH
+// ======================================================================
+async function searchBySkills() {
+  const raw = teamSkillsInput.value.trim().toLowerCase();
+  if (!raw) return;
 
-  const teamSize = parseInt(DOMElements.teamSizeInput.value || "0", 10);
+  if (!communityCache) communityCache = await loadCommunity();
 
-  if (skillList.length === 0) {
-    showNotification("Enter required skills.", "error");
-    return;
+  const requiredSkills = raw.split(",").map(s => s.trim());
+
+  const results = communityCache.filter(person =>
+    requiredSkills.every(skill => person.skillsArray.includes(skill))
+  );
+
+  if (results.length === 0) {
+    noResults.classList.remove("hidden");
+    matchNotification.classList.add("hidden");
+  } else {
+    noResults.classList.add("hidden");
+    matchNotification.classList.remove("hidden");
+    matchNotification.textContent = `Found ${results.length} matching people`;
   }
 
-  if (teamSize < 1 || teamSize > 6) {
-    showNotification("Team size must be between 1 and 6.", "error");
-    return;
-  }
-
-  const allUsers = await fetchCommunity();
-
-  // Score each user based on required skills they match
-  const scored = allUsers.map(user => {
-    const userSkills = normalizeSkills(user.skills);
-    const score = skillList.filter(s => userSkills.includes(s)).length;
-    return { ...user, score };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
-
-  const bestTeam = scored.slice(0, teamSize);
-
-  const container = DOMElements.bestTeamContainer;
-  container.innerHTML = "";
-
-  bestTeam.forEach(u => {
-    const card = createUserCard(u);
-    container.appendChild(card);
-  });
+  renderCards(results);
 }
 
-/* ============================================================
-   AUTOCOMPLETE HELPERS (Optional Future)
-============================================================ */
-// Could add advanced autocomplete here later.
+// ======================================================================
+// EVENT LISTENERS
+// ======================================================================
+export function initSearchEngine() {
+  console.log("🔎 Initializing search engine…");
 
-console.log("🔎 SearchEngine 3.0 ready.");
+  document
+    .getElementById("search-name-btn")
+    .addEventListener("click", searchByName);
+
+  document
+    .getElementById("find-team-btn")
+    .addEventListener("click", searchBySkills);
+
+  console.log("🔍 Search engine ready");
+}
