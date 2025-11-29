@@ -1,35 +1,41 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
-// Smart Auto-Login (Option A)
+// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (OAUTH FINAL 2025)
+// Uses:
+//   - GitHub / Google OAuth with redirect
+//   - Clean query-string callback (no hashes, no magic links)
+//   - Smart auto-login (Option A)
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // DOM refs
-let loginSection, profileSection, loginForm, loginEmail, loginButton;
+let loginSection, profileSection;
+let githubBtn, googleBtn;
 
 // ======================================================================
 // 1. SETUP LOGIN DOM
 // ======================================================================
 export function setupLoginDOM() {
-  loginSection = document.getElementById("login-section");
+  loginSection   = document.getElementById("login-section");
   profileSection = document.getElementById("profile-section");
-  loginForm = document.getElementById("login-form");
-  loginEmail = document.getElementById("login-email");
-  loginButton = document.getElementById("login-button");
 
-  if (!loginForm) {
-    console.error("❌ login-form not found in DOM");
+  githubBtn = document.getElementById("github-login");
+  googleBtn = document.getElementById("google-login");
+
+  if (!loginSection || !profileSection) {
+    console.error("❌ login-section or profile-section not found in DOM");
     return;
   }
 
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    await sendMagicLink();
-  });
+  if (githubBtn) {
+    githubBtn.addEventListener("click", () => oauthLogin("github"));
+  }
+  if (googleBtn) {
+    googleBtn.addEventListener("click", () => oauthLogin("google"));
+  }
 
-  console.log("🎨 Login DOM setup complete");
+  console.log("🎨 Login DOM setup complete (OAuth mode)");
 }
 
 // ======================================================================
@@ -46,103 +52,103 @@ function showProfileUI() {
 }
 
 // ======================================================================
-// 3. SEND MAGIC LINK
+// 3. START OAUTH LOGIN (REDIRECT FLOW)
 // ======================================================================
-async function sendMagicLink() {
-  const email = loginEmail.value.trim();
-  if (!email) return;
+async function oauthLogin(provider) {
+  console.log(`🔑 Starting OAuth login with ${provider}...`);
 
-  loginButton.disabled = true;
-  loginButton.textContent = "Sending…";
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
     options: {
-      emailRedirectTo: "https://www.charlestonhacks.com/2card.html",
+      redirectTo: "https://www.charlestonhacks.com/2card.html"
     }
   });
 
-  loginButton.disabled = false;
-  loginButton.textContent = "Send Magic Link";
-
   if (error) {
-    console.error("❌ Magic Link error:", error.message);
-    showNotification("Error sending link. Try again.");
-    return;
+    console.error("❌ OAuth error:", error);
+    showNotification("Login failed. Please try again.");
   }
 
-  console.log("📨 Magic link sent");
-  showNotification("Magic link sent! Check your email.");
+  // NOTE: On success, browser will redirect to provider, then back to 2card.html
 }
 
 // ======================================================================
-// 4. PROCESS MAGIC LINK (Supabase v2 SAFE MODE)
+// 4. HANDLE OAUTH CALLBACK (QUERY PARAMS, NOT HASH)
 // ======================================================================
-async function processMagicLink() {
-  const hash = window.location.hash;
+async function handleOAuthCallback() {
+  const url = new URL(window.location.href);
+  const params = url.searchParams;
 
-  // ❌ If Supabase returned an error (expired link, etc)
-  if (hash.includes("error=")) {
-    console.warn("⚠️ Supabase magic link error detected in URL.");
-    showNotification("Magic link expired or invalid. Please log in again.");
-    window.history.replaceState({}, document.title, window.location.pathname);
+  // Case 1: Provider sent an error
+  if (params.has("error")) {
+    const errorDesc = params.get("error_description") || "OAuth error.";
+    console.warn("⚠️ OAuth error in callback:", errorDesc);
+    showNotification("Login link expired or cancelled. Please try again.");
+
+    // Clean URL (remove ?error=...)
+    url.search = "";
+    window.history.replaceState({}, document.title, url.toString());
     return;
   }
 
-  // No access token → Nothing to process
-  if (!hash.includes("access_token")) return;
+  // Case 2: No ?code= → nothing to do
+  if (!params.has("code")) {
+    return;
+  }
 
-  console.log("🔁 Processing Supabase URL callback…");
+  console.log("🔁 Processing OAuth callback (code flow)…");
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(
     window.location.href
   );
 
   if (error) {
-    console.error("❌ Error during magic link exchange:", error);
-    showNotification("Magic link expired or invalid.");
+    console.error("❌ Error during OAuth code exchange:", error);
+    showNotification("Login failed. Please try again.");
     return;
   }
 
-  console.log("🔓 Auth: SIGNED_IN via magic link!");
+  console.log("🔓 OAuth SIGNED_IN via redirect:", data);
 
-  // Cleanup URL so login never loops
-  window.history.replaceState({}, document.title, window.location.pathname);
+  // Clean URL after successful login
+  url.search = "";
+  window.history.replaceState({}, document.title, url.toString());
 }
 
 // ======================================================================
-// 5. MAIN INIT — SMART AUTO LOGIN (OPTION A)
+// 5. MAIN INIT – SMART AUTO LOGIN (OPTION A)
 // ======================================================================
 export async function initLoginSystem() {
-  console.log("🔐 Initializing login system…");
+  console.log("🔐 Initializing login system (OAuth)…");
 
-  // STEP 1 — Process magic link if present
-  await processMagicLink();
+  // Step A – Handle OAuth callback if present
+  await handleOAuthCallback();
 
-  // STEP 2 — Check current session
+  // Step B – Check current session
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
-    console.log("🟢 Logged in:", session.user.email);
+    console.log("🟢 Already logged in as:", session.user.email);
     showProfileUI();
   } else {
     console.log("🟡 No active session");
     showLoginUI();
   }
 
-  // STEP 3 — Auth listener (fires EXACTLY once)
+  // Step C – Listen for auth state changes (single listener)
   supabase.auth.onAuthStateChange((event, session) => {
     console.log("⚡ Auth event:", event);
 
-    if (event === "SIGNED_IN") {
+    if (event === "SIGNED_IN" && session?.user) {
       console.log("🟢 User authenticated:", session.user.email);
       showProfileUI();
     }
 
     if (event === "SIGNED_OUT") {
+      console.log("🟡 User signed out");
       showLoginUI();
     }
   });
 
-  console.log("✅ Login system initialized");
+  console.log("✅ Login system initialized (OAuth)");
 }
