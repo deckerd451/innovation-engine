@@ -133,12 +133,24 @@
 
  <!-- LOGIN -->
         <div id="login-section">
-          <h2 class="section-title">Login</h2>
-          <form id="login-form">
-            <input type="email" id="login-email" placeholder="Enter your email" autocomplete="email" />
-            <button id="login-button" type="submit" class="action-btn">Send Magic Link</button>
-          </form>
-        </div>
+  <h2 class="section-title">Login</h2>
+
+  <div class="input-container" style="display:flex; flex-direction:column; gap:12px; max-width:320px; margin:0 auto;">
+    <button id="github-login" class="action-btn" type="button">
+      <i class="fab fa-github"></i> Sign in with GitHub
+    </button>
+
+    <button id="google-login" class="action-btn" type="button">
+      <i class="fab fa-google"></i> Sign in with Google
+    </button>
+  </div>
+
+  <!-- Optional helper text -->
+  <p style="margin-top:10px; font-size:14px; color:#ccc; text-align:center;">
+    Use your GitHub or Google account to sign in.
+  </p>
+</div>
+
 
         <!-- PROFILE SECTION -->
         <div id="profile-section" class="hidden">
