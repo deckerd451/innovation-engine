@@ -862,7 +862,7 @@ main, .main-wrapper, .media-container {
         --footer-spacing: 7px;
     }
 
-    /* ✅ Use the same background as desktop */
+    /* âœ… Use the same background as desktop */
     body::before,
     body.two-card-page::before {
         background: var(--bg-url) no-repeat center center;
@@ -1410,9 +1410,9 @@ main, .main-wrapper, .media-container {
   opacity: 1;
   visibility: visible;
 }
-/* ──────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* 30-Second AIFF page overrides & helpers             */
-/* ──────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* Main content wrapper */
 #main {
@@ -1458,9 +1458,9 @@ main, .main-wrapper, .media-container {
   }
 }
 
-/* ──────────────────────────────────────────────────── */
-/* If you have a “#ui-fixed” overlay or a “#toggle-names” button, tack these on; otherwise remove them */
-/* ──────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* If you have a â€œ#ui-fixedâ€ overlay or a â€œ#toggle-namesâ€ button, tack these on; otherwise remove them */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #ui-fixed {
   position: fixed;
   top: 10px;
@@ -1551,7 +1551,7 @@ main, .main-wrapper, .media-container {
   border-radius: 8px;
 }
 
-/* 2) Avatar (square crop) — you already have this, add object-position if needed */
+/* 2) Avatar (square crop) â€” you already have this, add object-position if needed */
 .avatar,
 .avatar-small {
   object-fit: cover;
@@ -1620,7 +1620,7 @@ main, .main-wrapper, .media-container {
   text-align: left;
 }
 
-/* renamed from leaderboard-skill → generic key */
+/* renamed from leaderboard-skill â†’ generic key */
 .leaderboard-key {
   text-align: left;
   padding-left: 10px;
@@ -1987,7 +1987,7 @@ main, .main-wrapper, .media-container {
    Generic Modal Styles (Endorse Skills)
    ========================================================================== */
 /* A generic modal used for the skill endorsement dialog.  It uses flexbox to
-   center the modal content within a full‑screen dimmed backdrop.  The root
+   center the modal content within a fullâ€‘screen dimmed backdrop.  The root
    `.modal` element will be toggled between `display: none` and `display: flex`
    by the JavaScript when opening or closing the modal. */
 .modal {
@@ -2035,7 +2035,7 @@ main, .main-wrapper, .media-container {
 }
 
 /* ==========================================================================
-   LOGOUT BUTTON (optional override – distinct grey style)
+   LOGOUT BUTTON (optional override â€“ distinct grey style)
    ========================================================================== */
 .logout-btn {
   background: #444;
@@ -2099,7 +2099,7 @@ main, .main-wrapper, .media-container {
   color: #ffd700;
 }
 
-/* ✅ Email as subtle subtitle under name */
+/* âœ… Email as subtle subtitle under name */
 .user-card .email {
   font-size: 0.85rem;
   color: #aaa;          /* slightly lighter gray */
@@ -2315,9 +2315,9 @@ main, .main-wrapper, .media-container {
 /* ==========================================================================
    GLOBAL TEXT ALIGNMENT
    ========================================================================== */
-/* Center align all text within the two‑card page.  By placing this rule at
+/* Center align all text within the twoâ€‘card page.  By placing this rule at
    the end of the stylesheet it takes precedence over earlier rules with
-   similar specificity, ensuring that text inside the two‑card page and all
+   similar specificity, ensuring that text inside the twoâ€‘card page and all
    nested elements is centered by default. */
 .two-card-page,
 .two-card-page * {
@@ -2591,23 +2591,6 @@ main, .main-wrapper, .media-container {
   opacity: 0;
   transition: max-height 0.45s ease, opacity 0.45s ease;
 }
-/* FORCE disable pointer events on hidden splash overlay */
-#splash-overlay.fade-out,
-#splash-overlay[style*="display: none"] {
-  pointer-events: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
+* {
+  outline: 1px solid rgba(255, 0, 0, 0.2); /* TEMPORARY DEBUG */
 }
-
-body * {
-  outline: 1px solid rgba(255, 0, 0, 0.25);
-}
-.panels-wrapper {
-  pointer-events: none !important;
-}
-
-.panels-wrapper * {
-  pointer-events: auto !important;
-}
-
-
