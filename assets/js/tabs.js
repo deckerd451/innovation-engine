@@ -1,49 +1,39 @@
-// ======================================================================
-// CharlestonHacks Innovation Engine — TAB CONTROLLER (2025 FINAL)
-// Handles:
-//   ✔ Switching between Create Profile / Search / Team Builder / Leaderboard / Synapse
-//   ✔ Always works after OAuth login
-//   ✔ No dependencies on login.js or profile.js
-// ======================================================================
+// ====================================================================
+// CharlestonHacks – Simple Tab Controller (2025 FINAL)
+// Works with any .tab-button and .tab-content-pane group
+// ====================================================================
 
 export function initTabs() {
-  console.log("🔧 Initializing tab system…");
+  const buttons = document.querySelectorAll(".tab-button");
+  const panes = document.querySelectorAll(".tab-content-pane");
 
-  // Map of section names to DOM elements
-  const sections = {
-    profile: document.getElementById("profile-section"),
-    search: document.getElementById("search-section"),
-    team: document.getElementById("team-section"),
-    leaderboard: document.getElementById("leaderboard-section"),
-    synapse: document.getElementById("synapse-section"),
-    login: document.getElementById("login-section")
-  };
-
-  // Hide all sections
-  function hideAll() {
-    Object.values(sections).forEach(el => {
-      if (el) el.classList.add("hidden");
-    });
+  if (!buttons.length || !panes.length) {
+    console.warn("Tabs: No buttons or panes found.");
+    return;
   }
 
-  // Attach click handlers to all buttons with `data-tab="profile"` etc.
-  document.querySelectorAll("[data-tab]").forEach(btn => {
+  buttons.forEach(btn => {
     btn.addEventListener("click", () => {
-      const target = btn.dataset.tab;
+      const tab = btn.dataset.tab;
 
-      console.log("📌 Tab clicked:", target);
+      // Deactivate all buttons
+      buttons.forEach(b => b.classList.remove("active"));
 
-      hideAll();
+      // Activate clicked button
+      btn.classList.add("active");
 
-      // Show the requested section
-      if (sections[target]) {
-        sections[target].classList.remove("hidden");
-        console.log("📄 Showing section:", target);
+      // Hide all panes
+      panes.forEach(p => p.classList.remove("active-tab-pane"));
+
+      // Show the selected pane
+      const target = document.getElementById(tab);
+      if (target) {
+        target.classList.add("active-tab-pane");
       } else {
-        console.warn(`⚠️ No matching section for tab: ${target}`);
+        console.warn("Tabs: No pane found for", tab);
       }
     });
   });
 
-  console.log("✨ Tabs ready");
+  console.log("✨ Tabs initialized");
 }
