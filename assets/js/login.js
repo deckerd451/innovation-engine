@@ -1,11 +1,5 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL 2025)
-// Handles:
-//   ✔ Magic Link auth (Supabase v2)
-//   ✔ Expired link handling
-//   ✔ URL cleanup
-//   ✔ Login <-> Profile switching
-//   ✔ No infinite loops
+// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FINAL & CLEAN)
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -81,39 +75,43 @@ async function sendMagicLink() {
 }
 
 // ======================================================================
-// 4. PROCESS MAGIC LINK (Supabase v2) WITH FULL ERROR GUARD
+// 4. PROCESS MAGIC LINK
 // ======================================================================
 async function processMagicLink() {
   const hash = window.location.hash;
 
-  // ❌ If Supabase returned an error (expired link, denied, invalid, etc)
+  // 🚨 A) If Supabase sent an error (expired, denied, invalid link)
   if (hash.includes("error=")) {
-    console.warn("⚠️ Supabase magic link error detected in URL. Skipping exchange.");
+    console.warn("⚠️ Supabase returned an error. Skipping token exchange.");
 
-    // Clean URL so error does not persist
+    // Clean URL
     window.history.replaceState({}, document.title, window.location.pathname);
     return;
   }
 
-  // No tokens → No processing needed
+  // 🚨 B) If no tokens, skip completely
   if (!(hash.includes("access_token") || hash.includes("refresh_token"))) {
     return;
   }
 
   console.log("🔁 Processing Supabase URL callback…");
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(
+    window.location.href
+  );
 
   if (error) {
-    console.error("❌ Error during magic link exchange:", error);
+    console.error("❌ Magic link exchange failed:", error);
     return;
   }
 
-  console.log("🔓 Auth: SIGNED_IN via magic link!", data);
+  console.log("🔓 SIGNED_IN via magic link!", data);
 
-  // Clean URL after successful login
+  // Clean URL
   window.history.replaceState({}, document.title, window.location.pathname);
-}
+}  // <-- THIS BRACE WAS MISSING IN YOUR VERSION!!!!
+// ======================================================================
+
 
 // ======================================================================
 // 5. MAIN INIT
@@ -121,10 +119,10 @@ async function processMagicLink() {
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system…");
 
-  // Process the callback first (if present)
+  // Step A — process magic link if present
   await processMagicLink();
 
-  // Check current session
+  // Step B — check current session
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
@@ -135,17 +133,15 @@ export async function initLoginSystem() {
     showLoginUI();
   }
 
-  // Auth listener
+  // Step C — listen for auth changes
   supabase.auth.onAuthStateChange((event, session) => {
     console.log("⚡ Auth event:", event);
 
     if (event === "SIGNED_IN") {
-      console.log("🟢 User authenticated:", session.user.email);
       showProfileUI();
     }
 
     if (event === "SIGNED_OUT") {
-      console.log("🟡 User signed out");
       showLoginUI();
     }
   });
