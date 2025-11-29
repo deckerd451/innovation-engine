@@ -2591,6 +2591,14 @@ main, .main-wrapper, .media-container {
   opacity: 0;
   transition: max-height 0.45s ease, opacity 0.45s ease;
 }
+/* FORCE disable pointer events on hidden splash overlay */
+#splash-overlay.fade-out,
+#splash-overlay[style*="display: none"] {
+  pointer-events: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 body * {
   outline: 1px solid rgba(255, 0, 0, 0.25);
 }
