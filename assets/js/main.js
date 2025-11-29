@@ -55,12 +55,9 @@ async function initMain() {
   console.log("✅ DOM registered");
 
   // ------------------------------------------------------------------
-  // 3) LOAD TAB SYSTEM
+  // 3) TABS — NOW INLINE IN HTML, NOT IMPORTED
   // ------------------------------------------------------------------
-  console.log("📑 Importing tab system...");
-  const { initTabs } = await import("./tabs.js");
-  initTabs();
-  console.log("📑 Tabs initialized");
+  console.log("📑 Skipping tabs.js import (handled inline)");
 
   // ------------------------------------------------------------------
   // 4) Load Core Systems
