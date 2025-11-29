@@ -55,7 +55,15 @@ async function initMain() {
   console.log("✅ DOM registered");
 
   // ------------------------------------------------------------------
-  // 3) Load Systems
+  // 3) LOAD TAB SYSTEM
+  // ------------------------------------------------------------------
+  console.log("📑 Importing tab system...");
+  const { initTabs } = await import("./tabs.js");
+  initTabs();
+  console.log("📑 Tabs initialized");
+
+  // ------------------------------------------------------------------
+  // 4) Load Core Systems
   // ------------------------------------------------------------------
   await import("./synapse.js");
   await import("./searchEngine.js");
