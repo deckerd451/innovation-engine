@@ -63,6 +63,11 @@ async function initMain() {
 if (searchModule.initSearchEngine) {
   searchModule.initSearchEngine();
 }
+  const teamBuilderModule = await import("./teamBuilder.js");
+if (teamBuilderModule.initTeamBuilder) {
+  teamBuilderModule.initTeamBuilder();
+}
+
 
 
   // ------------------------------------------------------------------
