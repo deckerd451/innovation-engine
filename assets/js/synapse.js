@@ -10,12 +10,12 @@ let nodeGroup, linkGroup;
 let simulation;
 let isLoaded = false;
 
-// DOM
+// DOM references
 const synapseContainer = document.getElementById("synapse-container");
 const synapseSVG = document.getElementById("synapse-svg");
 
 // ======================================================================
-// FETCH COMMUNITY NODES (DB-safe, schema-aligned)
+// FETCH COMMUNITY NODES (Safe + Schema-Aligned)
 // ======================================================================
 async function fetchCommunity() {
   console.log("📡 Loading community for Synapse View…");
@@ -39,7 +39,7 @@ async function fetchCommunity() {
     return [];
   }
 
-  // Normalize & safeguard
+  // Normalize
   return data.map(row => ({
     id: row.id,
     name: row.name || "Unnamed",
@@ -54,34 +54,74 @@ async function fetchCommunity() {
 }
 
 // ======================================================================
-// INITIALIZE SVG + FORCE ENGINE
+// SVG INITIALIZATION
 // ======================================================================
 function initSVG() {
   width = synapseContainer.clientWidth;
   height = synapseContainer.clientHeight;
 
   svg = d3.select(synapseSVG);
-  svg.selectAll("*").remove(); // clear
+  svg.selectAll("*").remove(); // clear previous run
 
   linkGroup = svg.append("g").attr("class", "links");
   nodeGroup = svg.append("g").attr("class", "nodes");
 }
 
-function createSimulation(nodes, links) {
-  simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
-    .force("charge", d3.forceManyBody().strength(-180))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .on("tick", ticked);
+// ======================================================================
+// DEFINE PATTERNS FOR USER AVATARS (CRITICAL)
+// ======================================================================
+function defineImagePatterns(nodes) {
+  const defs = svg.append("defs");
+
+  nodes.forEach(n => {
+    if (!n.image_url) return;
+
+    defs.append("pattern")
+      .attr("id", `img-${n.id}`)
+      .attr("patternUnits", "objectBoundingBox")
+      .attr("width", 1)
+      .attr("height", 1)
+      .append("image")
+      .attr("href", n.image_url)
+      .attr("width", 44)
+      .attr("height", 44)
+      .attr("preserveAspectRatio", "xMidYMid slice");
+  });
 }
 
 // ======================================================================
-// RENDER GRAPH
+// D3 FORCE SIMULATION ENGINE
+// ======================================================================
+function createSimulation(nodes, links) {
+  simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+    .force("charge", d3.forceManyBody().strength(-200))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .on("tick", ticked);
+
+  function ticked() {
+    linkGroup
+      .selectAll("line")
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    nodeGroup
+      .selectAll("g")
+      .attr("transform", d => `translate(${d.x}, ${d.y})`);
+  }
+}
+
+// ======================================================================
+// RENDER GRAPH (Nodes + Links)
 // ======================================================================
 function renderGraph(nodes) {
-  // TEMP: auto-generate fake links based on skills overlap
-  const links = [];
+  // 1) Add avatar patterns BEFORE drawing nodes
+  defineImagePatterns(nodes);
 
+  // 2) Create fake skill-overlap links
+  const links = [];
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const overlap = nodes[i].skills.filter(s => nodes[j].skills.includes(s));
@@ -91,14 +131,16 @@ function renderGraph(nodes) {
     }
   }
 
-  const linkElements = linkGroup
+  // 3) Draw links
+  linkGroup
     .selectAll("line")
     .data(links)
     .enter()
     .append("line")
-    .attr("stroke", "rgba(0,255,255,0.3)")
+    .attr("stroke", "rgba(0,255,255,0.35)")
     .attr("stroke-width", 1.5);
 
+  // 4) Draw nodes
   const nodeElements = nodeGroup
     .selectAll("g")
     .data(nodes)
@@ -112,14 +154,14 @@ function renderGraph(nodes) {
         .on("end", dragEnd)
     );
 
-  // Render circle (avatar or fallback)
+  // Avatar circle (or fallback)
   nodeElements.append("circle")
     .attr("r", 22)
     .attr("fill", d => d.image_url ? `url(#img-${d.id})` : "#0ff")
     .attr("stroke", "#0ff")
     .attr("stroke-width", 1.5);
 
-  // Labels
+  // Text label
   nodeElements.append("text")
     .text(d => d.name)
     .attr("x", 28)
@@ -128,24 +170,15 @@ function renderGraph(nodes) {
     .attr("font-size", "12px")
     .attr("font-family", "monospace");
 
+  // 5) Start the force engine
   createSimulation(nodes, links);
-
-  function ticked() {
-    linkElements
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
-
-    nodeElements.attr("transform", d => `translate(${d.x}, ${d.y})`);
-  }
 }
 
 // ======================================================================
-// DRAGGING
+// DRAG HANDLERS
 // ======================================================================
 function dragStart(event, d) {
-  if (!event.active) simulation.alphaTarget(0.2).restart();
+  if (!event.active) simulation.alphaTarget(0.3).restart();
   d.fx = d.x;
   d.fy = d.y;
 }
@@ -165,7 +198,7 @@ function dragEnd(event, d) {
 // PUBLIC INIT FUNCTION
 // ======================================================================
 export async function initSynapseView() {
-  if (isLoaded) return; // prevent double-load
+  if (isLoaded) return; // prevents double initialization
   isLoaded = true;
 
   console.log("🧠 Initializing Synapse View…");
@@ -174,10 +207,12 @@ export async function initSynapseView() {
   const nodes = await fetchCommunity();
   renderGraph(nodes);
 
-  console.log("🧠 Synapse ready with", nodes.length, "nodes.");
+  console.log(`🧠 Synapse ready (${nodes.length} nodes).`);
 }
 
-// Automatically resize SVG on container resize
+// ======================================================================
+// AUTO-RESIZE ON WINDOW RESIZE
+// ======================================================================
 window.addEventListener("resize", () => {
   if (!isLoaded) return;
   initSVG();
