@@ -67,6 +67,11 @@ if (searchModule.initSearchEngine) {
 if (teamBuilderModule.initTeamBuilder) {
   teamBuilderModule.initTeamBuilder();
 }
+  const leaderboardModule = await import("./leaderboard.js");
+if (leaderboardModule.initLeaderboard) {
+  leaderboardModule.initLeaderboard();
+}
+
 
 
 
