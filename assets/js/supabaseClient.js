@@ -1,10 +1,5 @@
 // ======================================================================
 // CharlestonHacks Innovation Engine – SUPABASE CLIENT (FINAL 2025)
-// Fully aligned with existing community schema
-// Handles:
-//   ✔ Global supabase client
-//   ✔ OAuth login (GitHub, Google)
-//   ✔ ensureCommunityUser() — correct upsert into community table
 // ======================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -24,7 +19,7 @@ export const supabase = createClient(
   }
 );
 
-// Make globally visible for debugging
+// Debug access
 window.supabase = supabase;
 
 // ======================================================================
@@ -49,12 +44,8 @@ export async function signInWithGoogle() {
 }
 
 // ======================================================================
-// 3. Ensure User Exists in community Table
+// 3. Ensure User Exists (Upsert Fix)
 // ======================================================================
-// Called after login to make sure community row exists
-// ONLY inserts fields that ACTUALLY exist in your Supabase schema
-// ======================================================================
-
 export async function ensureCommunityUser() {
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData?.session;
@@ -66,28 +57,11 @@ export async function ensureCommunityUser() {
 
   const user = session.user;
 
-  // Query community table to see if user already exists
-  const { data: existing, error: selectErr } = await supabase
-    .from("community")
-    .select("id, user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (selectErr) {
-    console.error("❌ Error checking community table:", selectErr);
-    return;
-  }
-
-  if (existing) {
-    console.log("ℹ️ Community profile already exists:", existing.id);
-    return;
-  }
-
-  // Insert minimal required row
+  // Payload exactly matching your schema
   const payload = {
     user_id: user.id,
     email: user.email,
-    name: user.email ? user.email.split("@")[0] : "New User",
+    name: user.email?.split("@")[0] || "New User",
     skills: "",
     interests: [],
     availability: "Available",
@@ -95,20 +69,23 @@ export async function ensureCommunityUser() {
     profile_completed: false
   };
 
-  const { error: insertErr } = await supabase
+  // 🚀 UPSERT — prevents ALL duplicate key errors
+  const { data, error } = await supabase
     .from("community")
-    .insert(payload);
+    .upsert(payload, { onConflict: "email" })
+    .select()
+    .single();
 
-  if (insertErr) {
-    console.error("❌ Failed to create community profile:", insertErr);
+  if (error) {
+    console.error("❌ Failed to upsert community profile:", error);
     return;
   }
 
-  console.log("✅ New community profile created for:", user.email);
+  console.log("✅ Community profile ensured for:", data.email, "→ id:", data.id);
 }
 
 // ======================================================================
-// 4. AUTO ENSURE COMMUNITY USER AFTER LOGIN
+// 4. AUTO CALL COMMUNITY ENSURE AFTER LOGIN
 // ======================================================================
 supabase.auth.onAuthStateChange(async (event, session) => {
   console.log("⚡ Auth State Change:", event);
