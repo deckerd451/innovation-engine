@@ -2777,6 +2777,82 @@ main, .main-wrapper, .media-container {
   font-weight: 700;
   color: #ffe600;
 }
+/* ============================================================
+   LEADERBOARD FIX (FINAL)
+   ============================================================ */
+
+.leaderboard-panel {
+  margin: 0 auto;
+  padding: 20px;
+  width: 90%;
+  max-width: 600px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+}
+
+#leaderboard-rows {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* One row */
+.lb-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 60px;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  transition: 0.25s ease;
+}
+
+.lb-row:hover {
+  transform: translateY(-3px);
+  border-color: #ffd700;
+  box-shadow: 0 0 14px rgba(255,215,0,0.35);
+}
+
+/* Avatar */
+.lb-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ffd700;
+}
+
+/* Name + subtitle */
+.lb-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.lb-name {
+  color: #ffd700;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.lb-sub {
+  font-size: 0.8rem;
+  color: #bbb;
+}
+
+/* Right side score */
+.lb-score {
+  text-align: right;
+  font-size: 1.2rem;
+  color: #4cafef;
+  font-weight: bold;
+}
+
 
 
 
