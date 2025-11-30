@@ -59,11 +59,15 @@ async function initMain() {
   registerDomElement("loginSection", document.getElementById("login-section"));
 
   console.log("✅ DOM registered");
+  const searchModule = await import("./searchEngine.js");
+if (searchModule.initSearchEngine) {
+  searchModule.initSearchEngine();
+}
+
 
   // ------------------------------------------------------------------
   // 4) Load Core Systems in correct order (search → profile → synapse)
   // ------------------------------------------------------------------
-  await import("./searchEngine.js");
   await import("./profile.js");
   await import("./synapse.js");
 
