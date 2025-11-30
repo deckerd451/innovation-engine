@@ -2591,4 +2591,119 @@ main, .main-wrapper, .media-container {
   opacity: 0;
   transition: max-height 0.45s ease, opacity 0.45s ease;
 }
+/* ============================
+   CharlestonHacks Pro Card UI
+   ============================ */
+
+.result-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  margin: 14px 0;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  backdrop-filter: blur(6px);
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.result-card:hover {
+  transform: translateY(-3px);
+  border-color: #ffd700;
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.35);
+}
+
+/* Avatar */
+.profile-avatar {
+  width: 82px;
+  height: 82px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+  flex-shrink: 0;
+  background: #111;
+}
+
+/* Text Section */
+.result-info {
+  flex: 1;
+  color: white;
+}
+
+.result-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+/* Availability Dot */
+.availability-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status-Available { background: #00ff88; }
+.status-Busy      { background: #ff8800; }
+.status-NotLooking { background: #888; }
+
+/* Skills Chips */
+.skills-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.skill-chip {
+  padding: 4px 10px;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: #ffd700;
+  text-transform: lowercase;
+  letter-spacing: 0.3px;
+}
+
+/* Mobile Optimization */
+@media (max-width: 480px) {
+  .profile-avatar {
+    width: 70px;
+    height: 70px;
+  }
+
+  .result-card {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .result-name {
+    font-size: 1.1rem;
+  }
+}
+
+/* Optional: entrance animation */
+.result-card {
+  animation: fadeSlideIn 0.35s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 
