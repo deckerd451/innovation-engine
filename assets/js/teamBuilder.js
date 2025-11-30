@@ -5,25 +5,11 @@
 import { supabase } from "./supabaseClient.js";
 import { DOMElements } from "./globals.js";
 
-// Pull dom references from globals
-const input = DOMElements.teamBuilderInput;
-const teamSizeInput = DOMElements.teamSize;
-const container = DOMElements.bestTeamContainer;
+// Cached community list
+let communityCache = null;
 
-// Helper: convert "aws, python" → ["aws", "python"]
-function normalizeSkills(str) {
-  return str
-    .split(",")
-    .map(s => s.trim().toLowerCase())
-    .filter(s => s.length > 0);
-}
-
-// Load full community only once
-let teamCommunityCache = null;
-
+// Load all community members (same normalization as searchEngine.js)
 async function loadCommunity() {
-  if (teamCommunityCache) return teamCommunityCache;
-
   const { data, error } = await supabase
     .from("community")
     .select(`
@@ -31,102 +17,118 @@ async function loadCommunity() {
       name,
       email,
       skills,
+      interests,
+      bio,
       availability,
       image_url,
       connection_count
     `);
 
   if (error) {
-    console.error("❌ TeamBuilder load error:", error);
+    console.error("❌ TeamBuilder: failed loading community:", error);
     return [];
   }
 
-  teamCommunityCache = data.map(person => ({
+  return data.map(person => ({
     ...person,
     skillsArray: person.skills
       ? person.skills.split(",").map(s => s.trim().toLowerCase())
-      : []
+      : [],
+    lowerName: person.name?.toLowerCase() || ""
   }));
-
-  return teamCommunityCache;
 }
 
-// Create card HTML
-function createTeamCard(person, matchedSkills) {
-  const img = person.image_url || "assets/default-avatar.png";
+// Core team building algorithm
+function buildBestTeam(community, requiredSkills, teamSize) {
+  if (!community.length) return [];
 
-  return `
-    <div class="team-card">
-      <img src="${img}" class="team-avatar" />
+  // Simple scoring: each member gets points for each required skill they cover
+  return community
+    .map(person => {
+      let score = 0;
+      requiredSkills.forEach(skill => {
+        if (person.skillsArray.includes(skill)) score++;
+      });
+      return { ...person, score };
+    })
+    .filter(p => p.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, teamSize);
+}
 
-      <div class="team-info">
-        <div class="team-name">${person.name}</div>
+// Render card UI (same styling as searchEngine.js)
+function createPersonCard(person) {
+  const card = document.createElement("div");
+  card.className = "result-card";
 
-        <div class="team-sub">
-          <span class="availability ${person.availability?.replace(/\s+/g, "")}">
-            ${person.availability || "Available"}
-          </span>
-          •
-          <span class="connections">${person.connection_count || 0} connections</span>
-        </div>
+  const availability = (person.availability || "Available").replace(/\s+/g, "");
 
-        <div class="team-skills">
-          ${matchedSkills.map(s => `<span class="matched-skill">${s}</span>`).join("")}
-        </div>
+  const skillsArr = (person.skills || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  card.innerHTML = `
+    <img 
+      src="${person.image_url || "assets/default-avatar.png"}"
+      class="profile-avatar"
+      alt="${person.name || "Profile"}"
+    />
+
+    <div class="result-info">
+      <div class="result-name">
+        <span class="availability-dot status-${availability}"></span>
+        ${person.name || "Unnamed"}
+      </div>
+
+      <div class="skills-chips">
+        ${skillsArr.map(skill => `<span class="skill-chip">${skill}</span>`).join("")}
       </div>
     </div>
   `;
+
+  return card;
 }
 
-// Main builder logic
-async function buildTeam() {
-  const req = normalizeSkills(input.value);
-  const size = parseInt(teamSizeInput.value || "3", 10);
+// Render team
+function renderTeam(team) {
+  const container = DOMElements.bestTeamContainer;
+  container.innerHTML = "";
 
-  if (req.length === 0) {
-    container.innerHTML = `<div class="notification">Enter required skills.</div>`;
+  if (!team.length) {
+    container.innerHTML = `<p class="notification">No matching teammates found.</p>`;
     return;
   }
 
-  const people = await loadCommunity();
-
-  // Each person gets a score based on # of matched skills
-  const scored = people.map(p => {
-    const match = req.filter(skill => p.skillsArray.includes(skill));
-    return {
-      ...p,
-      matchedSkills: match,
-      score: match.length
-    };
+  team.forEach(person => {
+    container.appendChild(createPersonCard(person));
   });
-
-  // Sort: score, then connection_count
-  scored.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return (b.connection_count || 0) - (a.connection_count || 0);
-  });
-
-  const best = scored.slice(0, size);
-
-  // Render
-  container.innerHTML = best
-    .map(p => createTeamCard(p, p.matchedSkills))
-    .join("");
-
-  if (best.length === 0) {
-    container.innerHTML = `<div class="notification">No matches found.</div>`;
-  }
 }
 
-// Event listeners
+// ======================================================================
+// Initialize Team Builder
+// ======================================================================
 export function initTeamBuilder() {
-  console.log("🧩 TeamBuilder initialized");
+  console.log("🤝 Initializing Team Builder…");
 
+  const input = DOMElements.teamBuilderInput;
+  const sizeInput = DOMElements.teamSize;
   const btn = DOMElements.buildTeamBtn;
-  if (!btn) {
-    console.error("❌ buildTeamBtn missing in DOM");
-    return;
-  }
 
-  btn.addEventListener("click", buildTeam);
+  btn.addEventListener("click", async () => {
+    const raw = input.value.trim().toLowerCase();
+    const teamSize = Math.min(Math.max(parseInt(sizeInput.value) || 1, 1), 6);
+
+    if (!raw) return;
+
+    if (!communityCache) communityCache = await loadCommunity();
+    if (!communityCache.length) return;
+
+    const requiredSkills = raw.split(",").map(s => s.trim());
+
+    const team = buildBestTeam(communityCache, requiredSkills, teamSize);
+    renderTeam(team);
+  });
+
+  console.log("🤝 TeamBuilder initialized");
 }
