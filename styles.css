@@ -2705,5 +2705,78 @@ main, .main-wrapper, .media-container {
     transform: translateY(0);
   }
 }
+.team-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 18px;
+  border-radius: 14px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 16px rgba(0,0,0,0.6);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.team-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 22px rgba(255,234,0,0.35);
+}
+
+.team-card .profile-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ffe600;
+  margin-bottom: 10px;
+}
+
+.team-card .person-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.team-card .skill-chip {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 10px;
+  padding: 4px 10px;
+  margin: 3px;
+  font-size: 0.75rem;
+  color: #ffe600;
+  display: inline-block;
+}
+.leaderboard-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(6px);
+  transition: transform 0.2s ease;
+}
+
+.leaderboard-row:hover {
+  transform: translateY(-3px);
+  border-color: #ffe600;
+}
+
+.leaderboard-label {
+  font-size: 0.9rem;
+  color: #fff;
+}
+
+.leaderboard-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffe600;
+}
+
 
 
