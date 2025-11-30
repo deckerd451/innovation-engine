@@ -18,7 +18,12 @@ async function initMain() {
   console.log("📌 Main Controller Loaded");
 
   // ------------------------------------------------------------------
-  // 1) LOGIN MODULE
+  // 1) GLOBALS FIRST — must be loaded before login, search, profile
+  // ------------------------------------------------------------------
+  const { registerDomElement } = await import("./globals.js");
+
+  // ------------------------------------------------------------------
+  // 2) LOGIN MODULE
   // ------------------------------------------------------------------
   console.log("📥 Importing login module...");
   const loginModule = await import("./login.js");
@@ -33,38 +38,34 @@ async function initMain() {
   await initLoginSystem();
 
   // ------------------------------------------------------------------
-  // 2) GLOBALS
+  // 3) REGISTER ALL DOM ELEMENTS
   // ------------------------------------------------------------------
-  const { registerDomElement } = await import("./globals.js");
-
   registerDomElement("teamSkillsInput", document.getElementById("teamSkillsInput"));
+  registerDomElement("autocompleteTeamSkills", document.getElementById("autocomplete-team-skills"));
   registerDomElement("cardContainer", document.getElementById("cardContainer"));
   registerDomElement("noResults", document.getElementById("noResults"));
   registerDomElement("matchNotification", document.getElementById("matchNotification"));
   registerDomElement("nameInput", document.getElementById("nameInput"));
 
+  // Team builder
   registerDomElement("teamBuilderInput", document.getElementById("team-skills-input"));
   registerDomElement("autocompleteTeamBuilder", document.getElementById("autocomplete-team-builder"));
   registerDomElement("teamSize", document.getElementById("teamSize"));
   registerDomElement("buildTeamBtn", document.getElementById("buildTeamBtn"));
   registerDomElement("bestTeamContainer", document.getElementById("bestTeamContainer"));
 
+  // Auth sections
   registerDomElement("profileSection", document.getElementById("profile-section"));
   registerDomElement("loginSection", document.getElementById("login-section"));
 
   console.log("✅ DOM registered");
 
   // ------------------------------------------------------------------
-  // 3) TABS — NOW INLINE IN HTML, NOT IMPORTED
+  // 4) Load Core Systems in correct order (search → profile → synapse)
   // ------------------------------------------------------------------
-  console.log("📑 Skipping tabs.js import (handled inline)");
-
-  // ------------------------------------------------------------------
-  // 4) Load Core Systems
-  // ------------------------------------------------------------------
-  await import("./synapse.js");
   await import("./searchEngine.js");
   await import("./profile.js");
+  await import("./synapse.js");
 
   console.log("🎉 All systems ready!");
 }
