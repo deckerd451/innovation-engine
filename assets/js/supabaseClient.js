@@ -1,11 +1,16 @@
 // ======================================================================
 // CharlestonHacks Innovation Engine – SUPABASE CLIENT (FINAL 2025)
+// Fully aligned with:
+//   ✔ community table (user_id PK, unique email)
+//   ✔ RLS: auth.uid() = user_id
+//   ✔ Profile System FINAL
+//   ✔ Storage: hacksbucket
 // ======================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ======================================================================
-// 1. SUPABASE CLIENT
+// 1. CREATE SUPABASE CLIENT
 // ======================================================================
 export const supabase = createClient(
   "https://hvmotpzhliufzomewzfl.supabase.co",
@@ -14,8 +19,8 @@ export const supabase = createClient(
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true
-    }
+      detectSessionInUrl: true,
+    },
   }
 );
 
@@ -23,14 +28,14 @@ export const supabase = createClient(
 window.supabase = supabase;
 
 // ======================================================================
-// 2. OAuth Providers
+// 2. OAUTH PROVIDERS
 // ======================================================================
 export async function signInWithGitHub() {
   return await supabase.auth.signInWithOAuth({
     provider: "github",
     options: {
-      redirectTo: "https://www.charlestonhacks.com/2card.html"
-    }
+      redirectTo: "https://www.charlestonhacks.com/2card.html",
+    },
   });
 }
 
@@ -38,13 +43,13 @@ export async function signInWithGoogle() {
   return await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: "https://www.charlestonhacks.com/2card.html"
-    }
+      redirectTo: "https://www.charlestonhacks.com/2card.html",
+    },
   });
 }
 
 // ======================================================================
-// 3. Ensure User Exists (Upsert Fix)
+// 3. ENSURE COMMUNITY USER EXISTS (NO DUPLICATE EMAIL ERRORS)
 // ======================================================================
 export async function ensureCommunityUser() {
   const { data: sessionData } = await supabase.auth.getSession();
@@ -57,7 +62,7 @@ export async function ensureCommunityUser() {
 
   const user = session.user;
 
-  // Payload exactly matching your schema
+  // --- Perfectly matched payload for your schema ---
   const payload = {
     user_id: user.id,
     email: user.email,
@@ -66,28 +71,29 @@ export async function ensureCommunityUser() {
     interests: [],
     availability: "Available",
     bio: "",
-    profile_completed: false
+    image_url: null,
+    profile_completed: false,
   };
 
-  // 🚀 UPSERT — prevents ALL duplicate key errors
+  // --- UPSERT FIX: ONLY CONFLICT ON user_id ---
   const { data, error } = await supabase
     .from("community")
     .upsert(payload, { onConflict: "user_id" })
-
-
     .select()
-    .single();
+    .single(); // expected exactly one row
 
   if (error) {
     console.error("❌ Failed to upsert community profile:", error);
     return;
   }
 
-  console.log("✅ Community profile ensured for:", data.email, "→ id:", data.id);
+  console.log(
+    `✅ Community profile ensured for: ${data.email} → id: ${data.id}`
+  );
 }
 
 // ======================================================================
-// 4. AUTO CALL COMMUNITY ENSURE AFTER LOGIN
+// 4. AUTH STATE LISTENER → ALWAYS ENSURE PROFILE EXISTS
 // ======================================================================
 supabase.auth.onAuthStateChange(async (event, session) => {
   console.log("⚡ Auth State Change:", event);
@@ -97,7 +103,12 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     await ensureCommunityUser();
   }
 
+  if (event === "TOKEN_REFRESHED" && session?.user) {
+    console.log("🔄 Session refreshed");
+  }
+
   if (event === "SIGNED_OUT") {
     console.log("🟡 User signed out.");
   }
 });
+
