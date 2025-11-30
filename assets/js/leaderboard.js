@@ -1,17 +1,20 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – LEADERBOARD (FINAL 2025)
+// CharlestonHacks Innovation Engine – LEADERBOARD (FINAL 2025 REWRITE)
+// Clean • Predictable • Matches CSS • Fully Synced With UI
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
-import { DOMElements } from "./globals.js";
 
-// Load all community members
+// ======================================================================
+// 1) LOAD COMMUNITY DATA
+// ======================================================================
 async function loadCommunity() {
   const { data, error } = await supabase
     .from("community")
     .select(`
       id,
       name,
+      email,
       skills,
       connection_count,
       image_url,
@@ -19,10 +22,11 @@ async function loadCommunity() {
     `);
 
   if (error) {
-    console.error("❌ Leaderboard load error:", error);
+    console.error("❌ Leaderboard: Failed to load community:", error);
     return [];
   }
 
+  // Normalize rows
   return data.map(person => ({
     ...person,
     skillsArray: person.skills
@@ -31,44 +35,56 @@ async function loadCommunity() {
   }));
 }
 
-// Generate Leaderboard Rows
+// ======================================================================
+// 2) RENDER LEADERBOARD ROWS
+// ======================================================================
 function renderLeaderboardRows(list) {
-  const rowsContainer = document.getElementById("leaderboard-rows");
-  rowsContainer.innerHTML = "";
+  const rows = document.getElementById("leaderboard-rows");
+  if (!rows) {
+    console.error("❌ Missing #leaderboard-rows container.");
+    return;
+  }
+
+  rows.innerHTML = "";
 
   list.forEach(item => {
     const row = document.createElement("div");
     row.className = "lb-row";
 
+    const avatar = item.image_url || "assets/default-avatar.png";
+    const sub = item.subtext || "";
+    const score = item.score ?? 0;
+
     row.innerHTML = `
-      <img 
-        src="${item.image_url || "assets/default-avatar.png"}"
-        class="lb-avatar"
-      />
+      <img src="${avatar}" class="lb-avatar" />
 
       <div class="lb-info">
         <div class="lb-name">${item.name}</div>
-        <div class="lb-sub">${item.subtext}</div>
+        <div class="lb-sub">${sub}</div>
       </div>
 
-      <div class="lb-score">${item.score}</div>
+      <div class="lb-score">${score}</div>
     `;
 
-    rowsContainer.appendChild(row);
+    rows.appendChild(row);
   });
 }
 
-// Top Skills
+// ======================================================================
+// 3) LEADERBOARD MODES
+// ======================================================================
+
+// --- TOP SKILLS -------------------------------------------------------
 function makeTopSkills(data) {
-  const counter = {};
+  const freq = {};
 
   data.forEach(person => {
     person.skillsArray.forEach(skill => {
-      counter[skill] = (counter[skill] || 0) + 1;
+      freq[skill] = (freq[skill] || 0) + 1;
     });
   });
 
-  return Object.entries(counter)
+  return Object.entries(freq)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15)
     .map(([skill, count]) => ({
@@ -79,7 +95,7 @@ function makeTopSkills(data) {
     }));
 }
 
-// Top Connectors
+// --- TOP CONNECTORS ---------------------------------------------------
 function makeTopConnectors(data) {
   return data
     .sort((a, b) => (b.connection_count || 0) - (a.connection_count || 0))
@@ -92,13 +108,13 @@ function makeTopConnectors(data) {
     }));
 }
 
-// Rising Stars (skills high, connections low)
+// --- RISING STARS -----------------------------------------------------
 function makeRisingStars(data) {
   return data
     .map(person => ({
       name: person.name,
       image_url: person.image_url,
-      subtext: "Potential",
+      subtext: "Potential Score",
       score: (person.skillsArray.length || 0) * 2 - (person.connection_count || 0)
     }))
     .sort((a, b) => b.score - a.score)
@@ -106,28 +122,45 @@ function makeRisingStars(data) {
 }
 
 // ======================================================================
-// INIT
+// 4) INIT LEADERBOARD
 // ======================================================================
 export function initLeaderboard() {
   console.log("🏆 Initializing Leaderboard…");
 
   const tabs = document.querySelectorAll(".lb-tab");
+  if (!tabs.length) {
+    console.error("❌ No .lb-tab buttons found.");
+    return;
+  }
 
   tabs.forEach(btn => {
     btn.addEventListener("click", async () => {
-      tabs.forEach(b => b.classList.remove("active"));
+      // Highlight active tab
+      tabs.forEach(t => t.classList.remove("active"));
       btn.classList.add("active");
 
-      const type = btn.dataset.type;
-
+      const mode = btn.dataset.type;
       const data = await loadCommunity();
       if (!data.length) return;
 
       let list = [];
 
-      if (type === "skills") list = makeTopSkills(data);
-      if (type === "connectors") list = makeTopConnectors(data);
-      if (type === "rising") list = makeRisingStars(data);
+      switch (mode) {
+        case "skills":
+          list = makeTopSkills(data);
+          break;
+
+        case "connectors":
+          list = makeTopConnectors(data);
+          break;
+
+        case "rising":
+          list = makeRisingStars(data);
+          break;
+
+        default:
+          console.warn("⚠️ Unknown leaderboard mode:", mode);
+      }
 
       renderLeaderboardRows(list);
     });
