@@ -1,36 +1,37 @@
 // ======================================================================
 // CharlestonHacks Innovation Engine – PROFILE CONTROLLER (FINAL 2025)
-// Works with: 
-//   ✔ community table (user_id PK, unique email)
+// Works with:
+//   ✔ community table
 //   ✔ RLS: auth.uid() = user_id
+//   ✔ Storage bucket: hacksbucket
 //   ✔ supabaseClient.js ensureCommunityUser()
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
-// DOM ELEMENTS
+// DOM
 const form = document.getElementById("skills-form");
 const previewImg = document.getElementById("preview");
 
 const firstNameInput = document.getElementById("first-name");
-const lastNameInput  = document.getElementById("last-name");
-const emailInput     = document.getElementById("email");
-const skillsInput    = document.getElementById("skills-input");
-const bioInput       = document.getElementById("bio-input");
+const lastNameInput = document.getElementById("last-name");
+const emailInput = document.getElementById("email");
+const skillsInput = document.getElementById("skills-input");
+const bioInput = document.getElementById("bio-input");
 const availabilityInput = document.getElementById("availability-input");
 const newsletterInput = document.getElementById("newsletter-opt-in");
 
 const photoInput = document.getElementById("photo-input");
 
 const progressBar = document.querySelector(".profile-bar-inner");
-const progressMsg  = document.getElementById("profile-progress-msg");
+const progressMsg = document.getElementById("profile-progress-msg");
 
 let currentUser = null;
 let currentProfile = null;
 
 // ======================================================================
-// LOAD CURRENT USER + PROFILE
+// LOAD USER + PROFILE
 // ======================================================================
 async function loadProfile() {
   const {
@@ -38,7 +39,7 @@ async function loadProfile() {
   } = await supabase.auth.getSession();
 
   if (!session?.user) {
-    console.warn("No user logged in.");
+    console.warn("No logged in user.");
     return;
   }
 
@@ -51,35 +52,36 @@ async function loadProfile() {
     .single();
 
   if (error) {
-    console.error("❌ profile load error:", error);
+    console.error("❌ Error loading profile:", error);
     return;
   }
 
   currentProfile = data;
-
   fillProfileForm();
   updateProgressBar();
 }
 
 // ======================================================================
-// FILL FORM WITH EXISTING PROFILE
+// POPULATE FORM
 // ======================================================================
 function fillProfileForm() {
   if (!currentProfile) return;
 
   emailInput.value = currentProfile.email || "";
-  
-  // Split existing name
-  const [first, ...rest] = (currentProfile.name || "").split(" ");
-  firstNameInput.value = first || "";
-  lastNameInput.value = rest.join(" ") || "";
+
+  // Name splitting
+  const nameParts = (currentProfile.name || "").trim().split(" ");
+  firstNameInput.value = nameParts[0] || "";
+  lastNameInput.value = nameParts.slice(1).join(" ") || "";
 
   skillsInput.value = currentProfile.skills || "";
   bioInput.value = currentProfile.bio || "";
   availabilityInput.value = currentProfile.availability || "Available";
 
-  previewImg.src = currentProfile.image_url || "";
-  if (currentProfile.image_url) previewImg.classList.remove("hidden");
+  if (currentProfile.image_url) {
+    previewImg.src = currentProfile.image_url;
+    previewImg.classList.remove("hidden");
+  }
 
   newsletterInput.checked = currentProfile.newsletter_opt_in ?? false;
 }
@@ -91,37 +93,37 @@ async function uploadPhoto(file) {
   if (!file) return null;
   if (!currentUser) return null;
 
-  const filePath = `avatars/${currentUser.id}-${Date.now()}.png`;
+  const ext = file.name.split(".").pop();
+  const filePath = `avatars/${currentUser.id}/avatar-${Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("hacksbucket")
     .upload(filePath, file, { upsert: true });
 
   if (uploadError) {
-    console.error("❌ photo upload error:", uploadError);
-    showNotification("Photo upload failed", "error");
+    console.error("❌ Upload failed:", uploadError);
+    showNotification("Photo upload failed!", "error");
     return null;
   }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("profile-photos").getPublicUrl(filePath);
+  // NEW API: .getPublicUrl()
+  const { data } = supabase.storage.from("hacksbucket").getPublicUrl(filePath);
 
-  return publicUrl;
+  return data.publicUrl || null;
 }
 
 // ======================================================================
 // SAVE PROFILE
 // ======================================================================
-async function saveProfile(e) {
-  e.preventDefault();
+async function saveProfile(event) {
+  event.preventDefault();
   if (!currentUser) return;
 
-  progressMsg.textContent = "Saving...";
+  progressMsg.textContent = "Saving…";
   progressBar.style.width = "40%";
 
-  // Handle photo upload if selected
   let image_url = currentProfile?.image_url || null;
+
   if (photoInput.files.length > 0) {
     image_url = await uploadPhoto(photoInput.files[0]);
   }
@@ -134,7 +136,7 @@ async function saveProfile(e) {
     availability: availabilityInput.value,
     image_url,
     newsletter_opt_in: newsletterInput.checked,
-    profile_completed: true,
+    profile_completed: true
   };
 
   const { data, error } = await supabase
@@ -158,23 +160,24 @@ async function saveProfile(e) {
 }
 
 // ======================================================================
-// UPDATE COMPLETION PROGRESS
+// PROFILE COMPLETION BAR
 // ======================================================================
 function updateProgressBar() {
-  if (!currentProfile) return;
+  const p = currentProfile;
+  if (!p) return;
 
   let score = 0;
-  if (currentProfile.name) score += 20;
-  if (currentProfile.skills) score += 20;
-  if (currentProfile.bio) score += 20;
-  if (currentProfile.image_url) score += 20;
-  if (currentProfile.availability) score += 20;
+  if (p.name) score += 20;
+  if (p.skills) score += 20;
+  if (p.bio) score += 20;
+  if (p.image_url) score += 20;
+  if (p.availability) score += 20;
 
   progressBar.style.width = `${score}%`;
 }
 
 // ======================================================================
-// LIVE PREVIEW FOR PHOTO
+// LIVE PHOTO PREVIEW
 // ======================================================================
 photoInput.addEventListener("change", () => {
   const file = photoInput.files[0];
@@ -189,7 +192,7 @@ photoInput.addEventListener("change", () => {
 });
 
 // ======================================================================
-// INIT
+// INIT EXPORT
 // ======================================================================
 export async function initProfileForm() {
   console.log("👤 Initializing Profile Form…");
