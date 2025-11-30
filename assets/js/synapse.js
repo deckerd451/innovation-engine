@@ -1,24 +1,42 @@
 // ======================================================================
 // CharlestonHacks Innovation Engine – SYNAPSE VIEW (FINAL 2025)
-// Fully aligned with existing Supabase schema
+// Pure SVG implementation (no D3), aligned with community schema
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
 
-let svg, width, height;
-let nodeGroup, linkGroup;
-let simulation;
-let isLoaded = false;
-
-// DOM references
-const synapseContainer = document.getElementById("synapse-container");
-const synapseSVG = document.getElementById("synapse-svg");
+let isInitialized = false;
+let nodesCache = [];
+let linksCache = [];
 
 // ======================================================================
-// FETCH COMMUNITY NODES (Safe + Schema-Aligned)
+// DOM HELPERS
+// ======================================================================
+function getElements() {
+  const container = document.getElementById("synapse");
+  const svg = document.getElementById("synapse-svg");
+
+  if (!container || !svg) {
+    console.warn("🧠 Synapse: container or SVG not found in DOM");
+    return null;
+  }
+
+  // Tooltip div (create if missing)
+  let tooltip = document.querySelector(".synapse-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.className = "synapse-tooltip";
+    document.body.appendChild(tooltip);
+  }
+
+  return { container, svg, tooltip };
+}
+
+// ======================================================================
+// FETCH COMMUNITY DATA
 // ======================================================================
 async function fetchCommunity() {
-  console.log("📡 Loading community for Synapse View…");
+  console.log("📡 Synapse: loading community nodes…");
 
   const { data, error } = await supabase
     .from("community")
@@ -29,9 +47,7 @@ async function fetchCommunity() {
       interests,
       availability,
       image_url,
-      connection_count,
-      x,
-      y
+      connection_count
     `);
 
   if (error) {
@@ -39,181 +55,220 @@ async function fetchCommunity() {
     return [];
   }
 
-  // Normalize
-  return data.map(row => ({
+  const cleaned = data.map((row) => ({
     id: row.id,
     name: row.name || "Unnamed",
-    skills: row.skills ? row.skills.split(",").map(s => s.trim()) : [],
-    interests: row.interests || [],
-    image_url: row.image_url || "",
+    skills: row.skills
+      ? row.skills
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [],
+    interests: Array.isArray(row.interests) ? row.interests : [],
     availability: row.availability || "Available",
+    image_url: row.image_url || "",
     connection_count: row.connection_count || 0,
-    x: row.x || Math.random() * 800,
-    y: row.y || Math.random() * 600
   }));
+
+  console.log(`🧠 Synapse: loaded ${cleaned.length} members`);
+  return cleaned;
 }
 
 // ======================================================================
-// SVG INITIALIZATION
+// LAYOUT + LINK GENERATION
 // ======================================================================
-function initSVG() {
-  width = synapseContainer.clientWidth;
-  height = synapseContainer.clientHeight;
-
-  svg = d3.select(synapseSVG);
-  svg.selectAll("*").remove(); // clear previous run
-
-  linkGroup = svg.append("g").attr("class", "links");
-  nodeGroup = svg.append("g").attr("class", "nodes");
-}
-
-// ======================================================================
-// DEFINE PATTERNS FOR USER AVATARS (CRITICAL)
-// ======================================================================
-function defineImagePatterns(nodes) {
-  const defs = svg.append("defs");
-
-  nodes.forEach(n => {
-    if (!n.image_url) return;
-
-    defs.append("pattern")
-      .attr("id", `img-${n.id}`)
-      .attr("patternUnits", "objectBoundingBox")
-      .attr("width", 1)
-      .attr("height", 1)
-      .append("image")
-      .attr("href", n.image_url)
-      .attr("width", 44)
-      .attr("height", 44)
-      .attr("preserveAspectRatio", "xMidYMid slice");
-  });
-}
-
-// ======================================================================
-// D3 FORCE SIMULATION ENGINE
-// ======================================================================
-function createSimulation(nodes, links) {
-  simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
-    .force("charge", d3.forceManyBody().strength(-200))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .on("tick", ticked);
-
-  function ticked() {
-    linkGroup
-      .selectAll("line")
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
-
-    nodeGroup
-      .selectAll("g")
-      .attr("transform", d => `translate(${d.x}, ${d.y})`);
-  }
-}
-
-// ======================================================================
-// RENDER GRAPH (Nodes + Links)
-// ======================================================================
-function renderGraph(nodes) {
-  // 1) Add avatar patterns BEFORE drawing nodes
-  defineImagePatterns(nodes);
-
-  // 2) Create fake skill-overlap links
+function buildLinks(nodes) {
   const links = [];
+  const maxLinksPerNode = 4;
+
   for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      const overlap = nodes[i].skills.filter(s => nodes[j].skills.includes(s));
+    let count = 0;
+    for (let j = 0; j < nodes.length; j++) {
+      if (i === j) continue;
+      if (count >= maxLinksPerNode) break;
+
+      const overlap = nodes[i].skills.filter((s) =>
+        nodes[j].skills.includes(s)
+      );
       if (overlap.length > 0) {
-        links.push({ source: nodes[i].id, target: nodes[j].id });
+        links.push({
+          source: nodes[i].id,
+          target: nodes[j].id,
+          label: overlap[0],
+        });
+        count++;
       }
     }
   }
 
-  // 3) Draw links
-  linkGroup
-    .selectAll("line")
-    .data(links)
-    .enter()
-    .append("line")
-    .attr("stroke", "rgba(0,255,255,0.35)")
-    .attr("stroke-width", 1.5);
+  return links;
+}
 
-  // 4) Draw nodes
-  const nodeElements = nodeGroup
-    .selectAll("g")
-    .data(nodes)
-    .enter()
-    .append("g")
-    .attr("class", "synapse-node")
-    .call(
-      d3.drag()
-        .on("start", dragStart)
-        .on("drag", dragged)
-        .on("end", dragEnd)
-    );
+function applyRadialLayout(nodes, width, height) {
+  if (!nodes.length) return;
 
-  // Avatar circle (or fallback)
-  nodeElements.append("circle")
-    .attr("r", 22)
-    .attr("fill", d => d.image_url ? `url(#img-${d.id})` : "#0ff")
-    .attr("stroke", "#0ff")
-    .attr("stroke-width", 1.5);
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = Math.min(width, height) / 2 - 80;
 
-  // Text label
-  nodeElements.append("text")
-    .text(d => d.name)
-    .attr("x", 28)
-    .attr("y", 5)
-    .attr("fill", "#0ff")
-    .attr("font-size", "12px")
-    .attr("font-family", "monospace");
-
-  // 5) Start the force engine
-  createSimulation(nodes, links);
+  nodes.forEach((node, index) => {
+    const angle = (2 * Math.PI * index) / nodes.length;
+    node.x = cx + radius * Math.cos(angle);
+    node.y = cy + radius * Math.sin(angle);
+  });
 }
 
 // ======================================================================
-// DRAG HANDLERS
+// SVG RENDERING
 // ======================================================================
-function dragStart(event, d) {
-  if (!event.active) simulation.alphaTarget(0.3).restart();
-  d.fx = d.x;
-  d.fy = d.y;
-}
+function renderSynapse(nodes, links, svg, tooltip, container) {
+  const svgNS = "http://www.w3.org/2000/svg";
 
-function dragged(event, d) {
-  d.fx = event.x;
-  d.fy = event.y;
-}
+  // Determine size (fallback if hidden)
+  let width = container.clientWidth || 900;
+  let height = container.clientHeight || 600;
 
-function dragEnd(event, d) {
-  if (!event.active) simulation.alphaTarget(0);
-  d.fx = null;
-  d.fy = null;
+  svg.innerHTML = "";
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+  // Group layers
+  const linkGroup = document.createElementNS(svgNS, "g");
+  const nodeGroup = document.createElementNS(svgNS, "g");
+  linkGroup.setAttribute("class", "synapse-links");
+  nodeGroup.setAttribute("class", "synapse-nodes");
+
+  svg.appendChild(linkGroup);
+  svg.appendChild(nodeGroup);
+
+  // ---- Links ----
+  links.forEach((link) => {
+    const source = nodes.find((n) => n.id === link.source);
+    const target = nodes.find((n) => n.id === link.target);
+    if (!source || !target) return;
+
+    const line = document.createElementNS(svgNS, "line");
+    line.setAttribute("x1", source.x);
+    line.setAttribute("y1", source.y);
+    line.setAttribute("x2", target.x);
+    line.setAttribute("y2", target.y);
+    line.setAttribute("stroke", "rgba(0, 255, 255, 0.25)");
+    line.setAttribute("stroke-width", "1.2");
+
+    linkGroup.appendChild(line);
+  });
+
+  // ---- Nodes ----
+  nodes.forEach((node) => {
+    const g = document.createElementNS(svgNS, "g");
+    g.setAttribute("transform", `translate(${node.x}, ${node.y})`);
+    g.setAttribute("class", "synapse-node");
+
+    const circle = document.createElementNS(svgNS, "circle");
+    circle.setAttribute("r", "20");
+    circle.setAttribute("fill", "#001820");
+    circle.setAttribute("stroke", "#00ffff");
+    circle.setAttribute("stroke-width", "1.5");
+
+    const name = document.createElementNS(svgNS, "text");
+    name.textContent = node.name;
+    name.setAttribute("x", "0");
+    name.setAttribute("y", "40");
+    name.setAttribute("fill", "#00ffff");
+    name.setAttribute("font-size", "12");
+    name.setAttribute("text-anchor", "middle");
+    name.setAttribute("font-family", "monospace");
+
+    g.appendChild(circle);
+    g.appendChild(name);
+    nodeGroup.appendChild(g);
+
+    // ---- Tooltip events ----
+    const skillsPreview = node.skills.slice(0, 4).join(", ") || "No skills yet";
+    const tooltipText = `
+${node.name}
+Availability: ${node.availability}
+Connections: ${node.connection_count}
+Skills: ${skillsPreview}
+`.trim();
+
+    g.addEventListener("mouseenter", (evt) => {
+      tooltip.textContent = tooltipText;
+      tooltip.style.opacity = "1";
+      tooltip.style.visibility = "visible";
+
+      const rect = svg.getBoundingClientRect();
+      tooltip.style.left = `${rect.left + node.x + 12}px`;
+      tooltip.style.top = `${rect.top + node.y - 10}px`;
+    });
+
+    g.addEventListener("mouseleave", () => {
+      tooltip.style.opacity = "0";
+      tooltip.style.visibility = "hidden";
+    });
+  });
 }
 
 // ======================================================================
-// PUBLIC INIT FUNCTION
+// PUBLIC INIT
 // ======================================================================
 export async function initSynapseView() {
-  if (isLoaded) return; // prevents double initialization
-  isLoaded = true;
+  if (isInitialized) {
+    // If container was resized while hidden, re-render with cached data
+    const els = getElements();
+    if (!els || !nodesCache.length) return;
+    applyRadialLayout(
+      nodesCache,
+      els.container.clientWidth || 900,
+      els.container.clientHeight || 600
+    );
+    renderSynapse(nodesCache, linksCache, els.svg, els.tooltip, els.container);
+    return;
+  }
+
+  const els = getElements();
+  if (!els) return;
 
   console.log("🧠 Initializing Synapse View…");
 
-  initSVG();
   const nodes = await fetchCommunity();
-  renderGraph(nodes);
+  if (!nodes.length) {
+    console.warn("🧠 Synapse: no community data to render");
+    return;
+  }
 
-  console.log(`🧠 Synapse ready (${nodes.length} nodes).`);
+  const links = buildLinks(nodes);
+  applyRadialLayout(
+    nodes,
+    els.container.clientWidth || 900,
+    els.container.clientHeight || 600
+  );
+  renderSynapse(nodes, links, els.svg, els.tooltip, els.container);
+
+  nodesCache = nodes;
+  linksCache = links;
+  isInitialized = true;
+
+  console.log(`🧠 Synapse ready with ${nodes.length} nodes and ${links.length} links`);
 }
 
 // ======================================================================
-// AUTO-RESIZE ON WINDOW RESIZE
+// AUTO-INIT WHEN MODULE IS IMPORTED
 // ======================================================================
+initSynapseView().catch((err) =>
+  console.error("❌ Synapse initialization error:", err)
+);
+
+// Optional: re-layout on window resize (only if already initialized)
 window.addEventListener("resize", () => {
-  if (!isLoaded) return;
-  initSVG();
+  if (!isInitialized || !nodesCache.length) return;
+  const els = getElements();
+  if (!els) return;
+
+  applyRadialLayout(
+    nodesCache,
+    els.container.clientWidth || 900,
+    els.container.clientHeight || 600
+  );
+  renderSynapse(nodesCache, linksCache, els.svg, els.tooltip, els.container);
 });
