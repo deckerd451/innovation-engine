@@ -94,7 +94,7 @@ async function uploadPhoto(file) {
   const filePath = `avatars/${currentUser.id}-${Date.now()}.png`;
 
   const { error: uploadError } = await supabase.storage
-    .from("profile-photos")
+    .from("hacksbucket")
     .upload(filePath, file, { upsert: true });
 
   if (uploadError) {
