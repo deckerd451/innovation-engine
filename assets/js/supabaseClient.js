@@ -72,7 +72,7 @@ export async function ensureCommunityUser() {
   // 🚀 UPSERT — prevents ALL duplicate key errors
   const { data, error } = await supabase
     .from("community")
-    .upsert(payload, { onConflict: "email" })
+    .upsert(payload, { onConflict: "user_id" })
     .select()
     .single();
 
