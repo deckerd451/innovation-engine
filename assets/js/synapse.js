@@ -1,184 +1,255 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – SYNAPSE VIEW (FINAL 2025)
-// Fully aligned with existing Supabase schema
+// CharlestonHacks – Synapse View 2025 FINAL BUILD
+// Fully compatible with:
+//   ✔ New 2card.html fullscreen container
+//   ✔ community table (id, name, email, skills, image_url, etc.)
+//   ✔ connections table (from_user_id, to_user_id, type, created_at, status)
+//   ✔ D3 v7.x
 // ======================================================================
 
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { supabase } from "./supabaseClient.js";
 
-let svg, width, height;
-let nodeGroup, linkGroup;
-let simulation;
-let isLoaded = false;
+let synapseInitialized = false;
+let simulation = null;
 
-// DOM
-const synapseContainer = document.getElementById("synapse-container");
-const synapseSVG = document.getElementById("synapse-svg");
+let selectedNode = null;   // for click-to-connect
+let svg, g, tooltip;
 
-// ======================================================================
-// FETCH COMMUNITY NODES (DB-safe, schema-aligned)
-// ======================================================================
-async function fetchCommunity() {
-  console.log("📡 Loading community for Synapse View…");
+// ================================================================
+// MAIN ENTRY
+// ================================================================
+export async function initSynapseView() {
+  if (synapseInitialized) {
+    console.log("[Synapse] Already initialized — skipping.");
+    return;
+  }
 
+  synapseInitialized = true;
+  console.log("[Synapse] Initializing…");
+
+  const container = document.getElementById("synapse-container");
+  const svgEl = document.getElementById("synapse-svg");
+
+  if (!container || !svgEl) {
+    console.error("[Synapse] Container or SVG missing.");
+    return;
+  }
+
+  // Clear old SVG
+  svgEl.innerHTML = "";
+
+  const width = svgEl.clientWidth || window.innerWidth;
+  const height = svgEl.clientHeight || window.innerHeight;
+
+  // Build SVG via d3
+  svg = d3.select(svgEl)
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("viewBox", [0, 0, width, height]);
+
+  g = svg.append("g");
+
+  // Zoom/Pan
+  svg.call(
+    d3.zoom().on("zoom", (event) => g.attr("transform", event.transform))
+  );
+
+  // Tooltip
+  tooltip = d3.select("body")
+    .append("div")
+    .attr("class", "synapse-tooltip")
+    .style("opacity", 0);
+
+  // Load Data
+  const nodes = await loadNodes();
+  const links = await loadLinks();
+  if (!nodes.length) {
+    showFallback("No user profiles found.");
+    return;
+  }
+
+  drawGraph(nodes, links, width, height);
+  console.log("[Synapse] View ready.");
+}
+
+// ================================================================
+// LOAD NODES
+// ================================================================
+async function loadNodes() {
   const { data, error } = await supabase
     .from("community")
-    .select(`
-      id,
-      name,
-      skills,
-      interests,
-      availability,
-      image_url,
-      connection_count,
-      x,
-      y
-    `);
+    .select("id, name, skills, interests, image_url, email");
 
   if (error) {
-    console.error("❌ Synapse fetch failed:", error);
+    console.error("[Synapse] Node load error:", error);
     return [];
   }
 
-  // Normalize & safeguard
-  return data.map(row => ({
-    id: row.id,
-    name: row.name || "Unnamed",
-    skills: row.skills ? row.skills.split(",").map(s => s.trim()) : [],
-    interests: row.interests || [],
-    image_url: row.image_url || "",
-    availability: row.availability || "Available",
-    connection_count: row.connection_count || 0,
-    x: row.x || Math.random() * 800,
-    y: row.y || Math.random() * 600
+  return data || [];
+}
+
+// ================================================================
+// LOAD LINKS
+// ================================================================
+async function loadLinks() {
+  const { data, error } = await supabase
+    .from("connections")
+    .select("from_user_id, to_user_id, type, created_at");
+
+  if (error) {
+    console.error("[Synapse] Link load error:", error);
+    return [];
+  }
+
+  return (data || []).map((l) => ({
+    source: l.from_user_id,
+    target: l.to_user_id,
+    type: l.type
   }));
 }
 
-// ======================================================================
-// INITIALIZE SVG + FORCE ENGINE
-// ======================================================================
-function initSVG() {
-  width = synapseContainer.clientWidth;
-  height = synapseContainer.clientHeight;
-
-  svg = d3.select(synapseSVG);
-  svg.selectAll("*").remove(); // clear
-
-  linkGroup = svg.append("g").attr("class", "links");
-  nodeGroup = svg.append("g").attr("class", "nodes");
+// ================================================================
+// FALLBACK
+// ================================================================
+function showFallback(msg) {
+  const container = document.getElementById("synapse-container");
+  container.innerHTML = `<div style="color:white; text-align:center; margin-top:40px;">${msg}</div>`;
 }
 
-function createSimulation(nodes, links) {
-  simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
-    .force("charge", d3.forceManyBody().strength(-180))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .on("tick", ticked);
-}
+// ================================================================
+// DRAW GRAPH
+// ================================================================
+function drawGraph(nodes, links, width, height) {
 
-// ======================================================================
-// RENDER GRAPH
-// ======================================================================
-function renderGraph(nodes) {
-  // TEMP: auto-generate fake links based on skills overlap
-  const links = [];
-
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      const overlap = nodes[i].skills.filter(s => nodes[j].skills.includes(s));
-      if (overlap.length > 0) {
-        links.push({ source: nodes[i].id, target: nodes[j].id });
-      }
-    }
-  }
-
-  const linkElements = linkGroup
+  // Lines
+  const link = g.append("g")
+    .attr("stroke", "#999")
+    .attr("stroke-opacity", 0.6)
     .selectAll("line")
     .data(links)
     .enter()
     .append("line")
-    .attr("stroke", "rgba(0,255,255,0.3)")
     .attr("stroke-width", 1.5);
 
-  const nodeElements = nodeGroup
-    .selectAll("g")
+  // Circles
+  const node = g.append("g")
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1.5)
+    .selectAll("circle")
     .data(nodes)
     .enter()
-    .append("g")
-    .attr("class", "synapse-node")
-    .call(
-      d3.drag()
-        .on("start", dragStart)
-        .on("drag", dragged)
-        .on("end", dragEnd)
-    );
-
-  // Render circle (avatar or fallback)
-  nodeElements.append("circle")
-    .attr("r", 22)
-    .attr("fill", d => d.image_url ? `url(#img-${d.id})` : "#0ff")
-    .attr("stroke", "#0ff")
-    .attr("stroke-width", 1.5);
+    .append("circle")
+    .attr("r", 12)
+    .attr("fill", "#39f")
+    .style("cursor", "pointer")
+    .call(d3.drag()
+      .on("start", dragStart)
+      .on("drag", dragged)
+      .on("end", dragEnd)
+    )
+    .on("mouseover", (event, d) => {
+      tooltip
+        .style("opacity", 1)
+        .html(`<strong>${d.name}</strong><br>${d.skills || ""}`)
+    })
+    .on("mousemove", (event) => {
+      tooltip.style("left", event.pageX + 10 + "px")
+             .style("top", event.pageY + 10 + "px");
+    })
+    .on("mouseout", () => tooltip.style("opacity", 0))
+    .on("click", (event, d) => handleNodeClick(d, node));
 
   // Labels
-  nodeElements.append("text")
-    .text(d => d.name)
-    .attr("x", 28)
-    .attr("y", 5)
-    .attr("fill", "#0ff")
-    .attr("font-size", "12px")
-    .attr("font-family", "monospace");
+  const label = g.append("g")
+    .selectAll("text")
+    .data(nodes)
+    .enter()
+    .append("text")
+    .text((d) => d.name)
+    .attr("font-size", 12)
+    .attr("dx", 16)
+    .attr("dy", ".35em")
+    .style("fill", "#fff");
 
-  createSimulation(nodes, links);
+  // SIMULATION
+  simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id((d) => d.id).distance(140))
+    .force("charge", d3.forceManyBody().strength(-320))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .on("tick", () => {
+      link
+        .attr("x1", (d) => d.source.x)
+        .attr("y1", (d) => d.source.y)
+        .attr("x2", (d) => d.target.x)
+        .attr("y2", (d) => d.target.y);
 
-  function ticked() {
-    linkElements
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
+      node
+        .attr("cx", (d) => d.x)
+        .attr("cy", (d) => d.y);
 
-    nodeElements.attr("transform", d => `translate(${d.x}, ${d.y})`);
-  }
+      label
+        .attr("x", (d) => d.x)
+        .attr("y", (d) => d.y);
+    });
 }
 
-// ======================================================================
-// DRAGGING
-// ======================================================================
+// ================================================================
+// NODE CLICK BEHAVIOR
+// ================================================================
+async function handleNodeClick(d, nodeSel) {
+
+  // Click 1 → SELECT node
+  if (!selectedNode) {
+    selectedNode = d;
+    highlight(nodeSel, d.id, true);
+    return;
+  }
+
+  // Click same node → UNSELECT
+  if (selectedNode.id === d.id) {
+    highlight(nodeSel, d.id, false);
+    selectedNode = null;
+    return;
+  }
+
+  // Click 2 → CREATE CONNECTION
+  const { error } = await supabase.from("connections").insert({
+    from_user_id: selectedNode.id,
+    to_user_id: d.id,
+    type: "generic",
+    status: "active"
+  });
+
+  highlight(nodeSel, selectedNode.id, false);
+  selectedNode = null;
+
+  if (error) {
+    console.error("[Synapse] Connection error:", error);
+    return;
+  }
+  console.log("[Synapse] Connection created.");
+}
+
+// Highlight selected
+function highlight(nodeSel, id, on) {
+  nodeSel.filter((n) => n.id === id)
+    .attr("stroke", on ? "yellow" : "#fff")
+    .attr("stroke-width", on ? 4 : 1.5);
+}
+
+// Drag handlers
 function dragStart(event, d) {
-  if (!event.active) simulation.alphaTarget(0.2).restart();
+  if (!event.active) simulation.alphaTarget(0.3).restart();
   d.fx = d.x;
   d.fy = d.y;
 }
-
 function dragged(event, d) {
   d.fx = event.x;
   d.fy = event.y;
 }
-
 function dragEnd(event, d) {
   if (!event.active) simulation.alphaTarget(0);
   d.fx = null;
   d.fy = null;
 }
-
-// ======================================================================
-// PUBLIC INIT FUNCTION
-// ======================================================================
-export async function initSynapseView() {
-  if (isLoaded) return; // prevent double-load
-  isLoaded = true;
-
-  console.log("🧠 Initializing Synapse View…");
-
-  initSVG();
-  const nodes = await fetchCommunity();
-  renderGraph(nodes);
-
-  console.log("🧠 Synapse ready with", nodes.length, "nodes.");
-}
-
-// Automatically resize SVG on container resize
-window.addEventListener("resize", () => {
-  if (!isLoaded) return;
-  initSVG();
-});
