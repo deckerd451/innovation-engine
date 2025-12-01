@@ -1,374 +1,272 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – SYNAPSE VIEW (FINAL + CONNECTIONS)
-// Features:
-//   ✔ Real Supabase connections
-//   ✔ Lazy load on tab activation
-//   ✔ Click-to-open-profile-card
-//   ✔ SHIFT-click Node A → Click Node B = CREATE CONNECTION
-//   ✔ Visual highlight + live link creation
-//   ✔ Auto-update connection_count
-//   ✔ Smooth zoom/pan + tooltips
+// CharlestonHacks Innovation Engine — SYNAPSE 3.0 (FINAL BUILD)
+// Fullscreen force graph, lazy-loaded, stable sizing, real connections,
+// click-to-open-profile-card, click-to-create-connection
 // ======================================================================
 
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { supabase } from "./supabaseClient.js";
+import { showNotification } from "./utils.js";
 
-let svg, width, height;
-let nodeGroup, linkGroup;
-let simulation;
-let tooltip;
-
-let nodes = [];
-let links = [];
-let isInitialized = false;
-
-// For click-to-connect mode
-let pendingSourceNode = null;
-
-// DOM
-const container = document.getElementById("synapse-container");
-const svgEl = document.getElementById("synapse-svg");
+let synapseInitialized = false;
+let simulation = null;
+let selectedNode = null;
 
 // ======================================================================
-// FETCH NODES
+// MAIN ENTRY POINT (called only when Synapse tab becomes active)
 // ======================================================================
-async function fetchCommunity() {
-  console.log("📡 Synapse: Loading community…");
+export async function initSynapseView() {
+  if (synapseInitialized) {
+    console.log("🔁 Synapse already initialized.");
+    return;
+  }
+  synapseInitialized = true;
 
-  const { data, error } = await supabase
-    .from("community")
-    .select(`
-      id,
-      name,
-      skills,
-      interests,
-      availability,
-      image_url,
-      connection_count,
-      x,
-      y
-    `);
+  console.log("🧠 Initializing Synapse View…");
 
-  if (error) {
-    console.error("❌ Failed to load community:", error);
-    return [];
+  const container = document.getElementById("synapse-container");
+  if (!container) {
+    console.error("❌ No #synapse-container found in DOM");
+    return;
   }
 
-  return data.map(row => ({
-    id: row.id,
-    name: row.name || "Unnamed",
-    skills: row.skills ? row.skills.split(",").map(s => s.trim()) : [],
-    interests: row.interests || [],
-    image_url: row.image_url || null,
-    availability: row.availability || "Available",
-    connection_count: row.connection_count || 0,
-    x: row.x || Math.random() * 400,
-    y: row.y || Math.random() * 300
-  }));
-}
+  // Ensure visible before measuring
+  container.classList.add("active");
 
-// ======================================================================
-// FETCH EXISTING CONNECTIONS
-// ======================================================================
-async function fetchConnections() {
-  console.log("🔌 Synapse: Loading real connections…");
+  // Force a layout reflow
+  await new Promise((r) => setTimeout(r, 50));
 
-  const { data, error } = await supabase
-    .from("connections")
-    .select("source, target");
+  const width = container.clientWidth || window.innerWidth;
+  const height = container.clientHeight || window.innerHeight;
 
-  if (error) {
-    console.error("❌ Failed to load connections:", error);
-    return [];
-  }
+  console.log("📐 Synapse size:", width, height);
 
-  return data.map(l => ({
-    source: l.source,
-    target: l.target
-  }));
-}
+  container.innerHTML = ""; // Clear old SVG etc.
 
-// ======================================================================
-// SAVE NEW CONNECTION
-// ======================================================================
-async function createConnection(sourceId, targetId) {
-  console.log("✨ Creating connection:", sourceId, "→", targetId);
+  // ====================================================================
+  // SVG + GRAPH LAYER
+  // ====================================================================
+  const svg = d3
+    .select(container)
+    .append("svg")
+    .attr("id", "synapse-svg")
+    .attr("width", width)
+    .attr("height", height)
+    .style("background", "rgba(0,0,0,0.92)");
 
-  const { error } = await supabase
-    .from("connections")
-    .insert([{ source: sourceId, target: targetId }]);
+  const g = svg.append("g");
 
-  if (error) {
-    console.error("❌ Failed to create connection:", error);
-    return false;
-  }
+  // ====================================================================
+  // ZOOM & PAN
+  // ====================================================================
+  svg.call(
+    d3
+      .zoom()
+      .scaleExtent([0.1, 5])
+      .on("zoom", (event) => g.attr("transform", event.transform))
+  );
 
-  return true;
-}
-
-// ======================================================================
-// UPDATE connection_count in community table
-// ======================================================================
-async function bumpConnectionCounts(a, b) {
-  await supabase.from("community")
-    .update({ connection_count: (a.connection_count || 0) + 1 })
-    .eq("id", a.id);
-
-  await supabase.from("community")
-    .update({ connection_count: (b.connection_count || 0) + 1 })
-    .eq("id", b.id);
-
-  a.connection_count++;
-  b.connection_count++;
-}
-
-// ======================================================================
-// HIGHLIGHT SELECTED (for connection mode)
-// ======================================================================
-function highlightPending(node) {
-  nodeGroup.selectAll("circle")
-    .attr("stroke", d => d.id === node.id ? "#ff0" : "#0ff")
-    .attr("stroke-width", d => d.id === node.id ? 3 : 1.2);
-}
-
-function clearHighlight() {
-  nodeGroup.selectAll("circle")
-    .attr("stroke", "#0ff")
-    .attr("stroke-width", 1.2);
-}
-
-// ======================================================================
-// INITIALIZE SVG
-// ======================================================================
-function initSVG() {
-  width = container.clientWidth;
-  height = container.clientHeight;
-
-  svg = d3.select(svgEl);
-  svg.selectAll("*").remove();
-
-  // Zoom behavior
-  const zoom = d3.zoom()
-    .scaleExtent([0.4, 2.5])
-    .on("zoom", (event) => {
-      nodeGroup.attr("transform", event.transform);
-      linkGroup.attr("transform", event.transform);
-    });
-
-  svg.call(zoom);
-
-  linkGroup = svg.append("g").attr("class", "links");
-  nodeGroup = svg.append("g").attr("class", "nodes");
-
-  tooltip = d3
+  // ====================================================================
+  // TOOLTIP
+  // ====================================================================
+  const tooltip = d3
     .select("body")
     .append("div")
     .attr("class", "synapse-tooltip")
     .style("opacity", 0);
-}
 
-// ======================================================================
-// RENDER GRAPH
-// ======================================================================
-function renderGraph() {
-  const idToNode = new Map(nodes.map(n => [n.id, n]));
-  
-  const safeLinks = links
-    .map(l => ({
-      source: idToNode.get(l.source),
-      target: idToNode.get(l.target),
-    }))
-    .filter(l => l.source && l.target);
+  // ====================================================================
+  // LOAD NODES FROM SUPABASE
+  // ====================================================================
+  const { data: nodes, error: nodeError } = await supabase
+    .from("community")
+    .select("id, name, skills, interests, image_url");
 
-  // Render link lines
-  const linkElements = linkGroup
+  if (nodeError) {
+    console.error("❌ Error loading nodes:", nodeError);
+    return;
+  }
+
+  if (!nodes || nodes.length === 0) {
+    container.innerHTML = "<div style='color:white;padding:20px;text-align:center;'>No community members found</div>";
+    return;
+  }
+
+  // ====================================================================
+  // LOAD CONNECTIONS FROM SUPABASE
+  // ====================================================================
+  const { data: linkData, error: linkError } = await supabase
+    .from("connections")
+    .select("from_user_id, to_user_id, type, created_at");
+
+  if (linkError) {
+    console.error("❌ Error loading connections:", linkError);
+  }
+
+  const links = (linkData || []).map((l) => ({
+    source: l.from_user_id,
+    target: l.to_user_id,
+    type: l.type || "generic",
+    created_at: l.created_at,
+  }));
+
+  console.log(`✔ Loaded ${nodes.length} nodes, ${links.length} links`);
+
+  // ====================================================================
+  // LINKS
+  // ====================================================================
+  const link = g
+    .append("g")
+    .attr("stroke", "#999")
+    .attr("stroke-opacity", 0.6)
     .selectAll("line")
-    .data(safeLinks)
+    .data(links)
     .enter()
     .append("line")
-    .attr("stroke", "rgba(0,255,255,0.25)")
-    .attr("stroke-width", 1.3);
+    .attr("stroke-width", 1.5);
 
-  // Render nodes
-  const nodeElements = nodeGroup
-    .selectAll("g")
+  // ====================================================================
+  // NODES
+  // ====================================================================
+  const node = g
+    .append("g")
+    .selectAll("circle")
     .data(nodes)
     .enter()
+    .append("circle")
+    .attr("r", 10)
+    .attr("fill", "#4af")
+    .style("cursor", "pointer")
+    .call(
+      d3
+        .drag()
+        .on("start", dragStarted)
+        .on("drag", dragged)
+        .on("end", dragEnded)
+    )
+    // Tooltip
+    .on("mouseover", (event, d) => {
+      tooltip
+        .style("opacity", 1)
+        .html(
+          `<strong>${d.name}</strong><br>
+          ${d.skills || ""}<br>
+          ${d.interests || ""}`
+        );
+    })
+    .on("mousemove", (event) => {
+      tooltip.style("left", event.pageX + 12 + "px");
+      tooltip.style("top", event.pageY + 12 + "px");
+    })
+    .on("mouseout", () => tooltip.style("opacity", 0))
+    // Click actions
+    .on("click", (event, d) => handleNodeClick(d, node));
+
+  // ====================================================================
+  // LABELS
+  // ====================================================================
+  const label = g
     .append("g")
-    .attr("class", "synapse-node")
-    .call(d3.drag()
-      .on("start", dragStart)
-      .on("drag", dragged)
-      .on("end", dragEnd)
-    );
-
-  // Avatar circle
-  nodeElements.append("circle")
-    .attr("r", 22)
-    .attr("fill", d => d.image_url ? `url(#img-${d.id})` : "#0ff")
-    .attr("stroke", "#0ff")
-    .attr("stroke-width", 1.2)
-    .on("mouseover", (_, d) => showTooltip(d))
-    .on("mouseout", () => hideTooltip())
-    .on("click", (_, d) => handleNodeClick(d));
-
-  // Name
-  nodeElements.append("text")
-    .text(d => d.name)
-    .attr("x", 28)
-    .attr("y", 5)
-    .attr("fill", "#0ff")
-    .attr("font-size", "12px")
+    .selectAll("text")
+    .data(nodes)
+    .enter()
+    .append("text")
+    .text((d) => d.name)
+    .attr("font-size", 10)
+    .attr("dy", "-0.9em")
+    .attr("text-anchor", "middle")
+    .style("fill", "#fff")
     .style("pointer-events", "none");
 
-  // Force engine
-  simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(safeLinks).id(d => d.id).distance(120))
-    .force("charge", d3.forceManyBody().strength(-220))
+  // ====================================================================
+  // FORCE SIMULATION
+  // ====================================================================
+  simulation = d3
+    .forceSimulation(nodes)
+    .force(
+      "link",
+      d3.forceLink(links).id((d) => d.id).distance(120)
+    )
+    .force("charge", d3.forceManyBody().strength(-280))
     .force("center", d3.forceCenter(width / 2, height / 2))
-    .on("tick", () => {
-      linkElements
-        .attr("x1", d => d.source.x)
-        .attr("y1", d => d.source.y)
-        .attr("x2", d => d.target.x)
-        .attr("y2", d => d.target.y);
+    .on("tick", ticked);
 
-      nodeElements.attr("transform", d => `translate(${d.x}, ${d.y})`);
-    });
+  function ticked() {
+    link
+      .attr("x1", (d) => d.source.x)
+      .attr("y1", (d) => d.source.y)
+      .attr("x2", (d) => d.target.x)
+      .attr("y2", (d) => d.target.y);
+
+    node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+    label.attr("x", (d) => d.x).attr("y", (d) => d.y);
+  }
+
+  console.log("✔ Synapse View Loaded");
 }
 
 // ======================================================================
-// NODE CLICK HANDLER (open profile OR connect)
+// CLICK HANDLING
 // ======================================================================
-async function handleNodeClick(node) {
-  if (d3.event.shiftKey) {
-    // SHIFT-CLICK = SELECT FIRST NODE
-    pendingSourceNode = node;
-    highlightPending(node);
-    showNotification("Select a second person to create a connection.", "info");
+async function handleNodeClick(d, nodeSelection) {
+  // If no selection: select source
+  if (!selectedNode) {
+    selectedNode = d;
+    highlightNode(nodeSelection, d.id, true);
+    showNotification(`Selected ${d.name}. Click another node to connect.`, "info");
     return;
   }
 
-  // NORMAL CLICK (open card)
-  if (pendingSourceNode) {
-    await attemptConnection(node);
+  // If clicking same node: deselect
+  if (selectedNode.id === d.id) {
+    highlightNode(nodeSelection, d.id, false);
+    selectedNode = null;
+    showNotification(`Selection cleared.`, "info");
     return;
   }
 
-  // Open profile card
-  window.dispatchEvent(new CustomEvent("openProfileCard", { detail: node }));
-  document.querySelector('.tab-button[data-tab="search"]').click();
+  // Otherwise create connection
+  const { error } = await supabase.from("connections").insert([
+    {
+      from_user_id: selectedNode.id,
+      to_user_id: d.id,
+      type: "generic",
+    },
+  ]);
+
+  if (error) {
+    showNotification("Connection failed: " + error.message, "error");
+    console.error(error);
+  } else {
+    showNotification(`Connected ${selectedNode.name} → ${d.name}`, "success");
+  }
+
+  highlightNode(nodeSelection, selectedNode.id, false);
+  selectedNode = null;
+}
+
+// Highlight selected node
+function highlightNode(nodeSelection, id, active) {
+  nodeSelection
+    .filter((n) => n.id === id)
+    .attr("stroke", active ? "yellow" : "white")
+    .attr("stroke-width", active ? 4 : 1.5);
 }
 
 // ======================================================================
-// ATTEMPT TO CREATE CONNECTION
+// DRAGGING
 // ======================================================================
-async function attemptConnection(targetNode) {
-  const source = pendingSourceNode;
-
-  if (!source || source.id === targetNode.id) {
-    showNotification("Cannot connect a user to themselves.", "error");
-    clearHighlight();
-    pendingSourceNode = null;
-    return;
-  }
-
-  // Check if connection exists
-  const exists = links.some(
-    l => (l.source === source.id && l.target === targetNode.id)
-      || (l.source === targetNode.id && l.target === source.id)
-  );
-
-  if (exists) {
-    showNotification("Connection already exists!", "warning");
-    clearHighlight();
-    pendingSourceNode = null;
-    return;
-  }
-
-  // CREATE IN DB
-  const ok = await createConnection(source.id, targetNode.id);
-
-  if (!ok) {
-    showNotification("Failed to create connection.", "error");
-    pendingSourceNode = null;
-    clearHighlight();
-    return;
-  }
-
-  // Update local graph
-  links.push({ source: source.id, target: targetNode.id });
-  bumpConnectionCounts(source, targetNode);
-
-  showNotification("New connection created!", "success");
-
-  clearHighlight();
-  pendingSourceNode = null;
-
-  // Re-render force layout
-  initSVG();
-  renderGraph();
-}
-
-// ======================================================================
-// TOOLTIP
-// ======================================================================
-function showTooltip(d) {
-  tooltip
-    .style("opacity", 1)
-    .html(`
-      <b>${d.name}</b><br>
-      Skills: ${d.skills.join(", ")}<br>
-      Connections: ${d.connection_count}
-    `)
-    .style("left", `${d3.event.pageX + 12}px`)
-    .style("top", `${d3.event.pageY - 10}px`);
-}
-
-function hideTooltip() {
-  tooltip.style("opacity", 0);
-}
-
-// ======================================================================
-// DRAG BEHAVIOR
-// ======================================================================
-function dragStart(event, d) {
+function dragStarted(event, d) {
   if (!event.active) simulation.alphaTarget(0.3).restart();
   d.fx = d.x;
   d.fy = d.y;
 }
-
 function dragged(event, d) {
   d.fx = event.x;
   d.fy = event.y;
 }
-
-function dragEnd(event, d) {
+function dragEnded(event, d) {
   if (!event.active) simulation.alphaTarget(0);
   d.fx = null;
   d.fy = null;
 }
-
-// ======================================================================
-// INIT (Lazy loaded when Synapse tab is clicked)
-// ======================================================================
-export async function initSynapseView() {
-  if (isInitialized) return;
-
-  nodes = await fetchCommunity();
-  links = await fetchConnections();
-
-  console.log("🧠 Synapse:", nodes.length, "nodes,", links.length, "links");
-
-  initSVG();
-  renderGraph();
-
-  isInitialized = true;
-}
-
-// ======================================================================
-// RESIZE
-// ======================================================================
-window.addEventListener("resize", () => {
-  if (!isInitialized) return;
-  initSynapseView();
-});
