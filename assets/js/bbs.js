@@ -1,5 +1,6 @@
 // =======================================================================
-// CharlestonHacks BBS – FINAL PATCHED BUILD (2025)
+// CharlestonHacks BBS – FINAL WORKING BUILD (2025)
+// Supabase-safe, waits for window.supabase, waits for session, fully stable
 // =======================================================================
 
 import { startZork, sendZorkCommand } from "./zorkLoader.js";
@@ -7,68 +8,74 @@ import { startZork, sendZorkCommand } from "./zorkLoader.js";
 let supabase = null;
 
 // =======================================================================
-// WAIT FOR AUTH VIA AUTH STATE CHANGE
+// 0. WAIT FOR window.supabase (main.js must load first)
 // =======================================================================
-
-function waitForSupabaseReady() {
+async function waitForWindowSupabase() {
   return new Promise(resolve => {
-    console.log("[BBS] Listening for Supabase auth events…");
+    const check = setInterval(() => {
+      if (window.supabase) {
+        clearInterval(check);
+        resolve(window.supabase);
+      }
+    }, 40);
+  });
+}
 
-    // Check immediately (in case session already ready)
-    supabase.auth.getSession().then(({ data }) => {
+// =======================================================================
+// 1. WAIT FOR AUTH SESSION
+// =======================================================================
+async function waitForSupabaseSession() {
+  return new Promise(resolve => {
+    let resolved = false;
+
+    // Immediate session check
+    window.supabase.auth.getSession().then(({ data }) => {
       if (data?.session) {
-        console.log("[BBS] Supabase session ready immediately:", data.session.user.email);
-        return resolve();
+        resolved = true;
+        resolve(data.session);
       }
     });
 
-    // Listen for future changes
-    supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[BBS] Auth event:", event, session);
-      if (session) {
-        console.log("[BBS] Supabase session now ready:", session.user.email);
-        resolve();
+    // Listener for future events
+    window.supabase.auth.onAuthStateChange((event, session) => {
+      if (!resolved && session) {
+        resolved = true;
+        resolve(session);
       }
     });
   });
 }
 
+// =======================================================================
+// 2. DOMContentLoaded → Bootstrap BBS
+// =======================================================================
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("[BBS] DOMContentLoaded → pulling window.supabase…");
+  console.log("[BBS] DOMContentLoaded → Waiting for supabase…");
 
-  // 💥 THIS is the correct moment to bind the client
-  supabase = window.supabase;
+  // Wait for main.js to attach supabase
+  supabase = await waitForWindowSupabase();
+  console.log("[BBS] window.supabase is ready:", supabase);
 
-  if (!supabase) {
-    console.error("[BBS] ❌ window.supabase missing!");
-    return;
-  }
+  // Wait for a valid session
+  console.log("[BBS] Waiting for auth session…");
+  await waitForSupabaseSession();
+  console.log("[BBS] Auth session detected.");
 
-  console.log("[BBS] Supabase client detected:", supabase);
-
-  await waitForSupabaseReady();
   initBBS();
 });
 
-
-
 // =======================================================================
-// 2. Main BBS Initialization
+// 3. MAIN BBS INITIALIZATION
 // =======================================================================
-
 async function initBBS() {
-
   console.log("[BBS] initBBS() START");
 
-  // Username
+  // Username system
   function getUsername() {
     const stored = localStorage.getItem("bbs_username");
-    if (stored) {
-      console.log("[BBS] Loaded stored username:", stored);
-      return stored;
-    }
+    if (stored) return stored;
+
     const generated = "Guest" + Math.floor(Math.random() * 9999);
-    console.log("[BBS] Generated username:", generated);
     localStorage.setItem("bbs_username", generated);
     return generated;
   }
@@ -76,59 +83,45 @@ async function initBBS() {
   const username = getUsername();
   window.bbsUsername = username;
 
-  // DOM Elements
+  // DOM
   const screen = document.getElementById("bbs-screen");
   const form = document.getElementById("bbs-form");
   const input = document.getElementById("bbs-input");
   const onlineDiv = document.getElementById("bbs-online-list");
 
-  console.log("[BBS] DOM Elements:", { screen, form, input, onlineDiv });
-
   if (!screen || !form || !input) {
-    console.error("[BBS] ❌ Required BBS elements missing. Aborting init.");
+    console.error("[BBS] ❌ Required BBS elements missing from DOM.");
     return;
   }
 
-  // ===================================================================
-  // WRITE UTIL
-  // ===================================================================
+  // Write function
   function write(text) {
-    console.log("[BBS] write():", text);
-
     text.split("\n").forEach(line => {
       const div = document.createElement("div");
       div.textContent = line;
       screen.appendChild(div);
     });
-
     screen.scrollTop = screen.scrollHeight;
   }
 
   // ===================================================================
-  // LOAD EXISTING MESSAGES
+  // LOAD MESSAGE HISTORY
   // ===================================================================
   async function loadMessages() {
     console.log("[BBS] Loading messages…");
 
-    try {
-      const { data, error } = await supabase
-        .from("bbs_messages")
-        .select("*")
-        .order("created_at", { ascending: true });
+    const { data, error } = await supabase
+      .from("bbs_messages")
+      .select("*")
+      .order("created_at", { ascending: true });
 
-      if (error) {
-        console.error("[BBS] ❌ Load error:", error);
-        return;
-      }
-
-      console.log(`[BBS] Loaded ${data.length} messages from DB`);
-      screen.innerHTML = "";
-
-      data.forEach(msg => write(`[${msg.username}] ${msg.text}`));
-
-    } catch (err) {
-      console.error("[BBS] ❌ Unexpected loadMessages error:", err);
+    if (error) {
+      console.error("[BBS] Load messages failed:", error);
+      return;
     }
+
+    screen.innerHTML = "";
+    data.forEach(msg => write(`[${msg.username}] ${msg.text}`));
   }
 
   await loadMessages();
@@ -136,19 +129,13 @@ async function initBBS() {
   // ===================================================================
   // REALTIME CHANNEL
   // ===================================================================
-  console.log("[BBS] Subscribing to realtime channel…");
-
   supabase
     .channel("bbs_messages_channel")
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "bbs_messages" },
       payload => {
-        console.log("[BBS] Realtime received:", payload);
-
         const msg = payload.new;
-
-        // Avoid echoing your own messages
         if (msg.username !== username) {
           write(`[${msg.username}] ${msg.text}`);
         }
@@ -157,11 +144,9 @@ async function initBBS() {
     .subscribe();
 
   // ===================================================================
-  // ONLINE PRESENCE
+  // HEARTBEAT (online presence)
   // ===================================================================
   async function heartbeat() {
-    console.log("[BBS] Heartbeat → marking online");
-
     await supabase.from("bbs_online").upsert({
       username,
       last_seen: new Date().toISOString()
@@ -171,19 +156,11 @@ async function initBBS() {
   heartbeat();
   setInterval(heartbeat, 10000);
 
+  // Active users
   async function loadOnlineUsers() {
-    console.log("[BBS] Loading active users…");
-
-    try {
-      const { data } = await supabase.from("bbs_online_active").select("*");
-      console.log("[BBS] Active users:", data);
-
-      const names = data?.map(u => u.username) || [];
-      onlineDiv.textContent = names.length ? names.join(", ") : "none";
-
-    } catch (err) {
-      console.error("[BBS] loadOnlineUsers error:", err);
-    }
+    const { data } = await supabase.from("bbs_online_active").select("*");
+    const names = data?.map(u => u.username) || [];
+    onlineDiv.textContent = names.length ? names.join(", ") : "none";
   }
 
   loadOnlineUsers();
@@ -194,59 +171,44 @@ async function initBBS() {
   // ===================================================================
   let mode = "chat";
 
-  // ===================================================================
-  // FORM SUBMISSION
-  // ===================================================================
-  form.addEventListener("submit", async (e) => {
+  form.addEventListener("submit", async e => {
     e.preventDefault();
-
-    // Prevent bubble → fixes “exit to card” bug
     e.stopPropagation();
-    e.stopImmediatePropagation();
 
     const text = input.value.trim();
     input.value = "";
 
-    console.log("[BBS] Submit:", text);
-
-    if (!text) {
-      console.log("[BBS] Empty message ignored");
-      return;
-    }
+    if (!text) return;
 
     // ----- ZORK MODE -----
     if (mode === "zork") {
-
       if (text === "/exit") {
-        write("Exited ZORK → Returning to chat.\n");
+        write("Exited ZORK → back to chat.\n");
         mode = "chat";
         return;
       }
 
-      console.log("[BBS] ZORK command:", text);
       sendZorkCommand(text, write);
       return;
     }
 
     // ----- ENTER ZORK -----
     if (text === "zork" || text === "play zork") {
-      console.log("[BBS] Entering ZORK mode");
+      write("Entering ZORK… Type /exit to leave.\n");
       mode = "zork";
-      write("Initializing ZORK… Type /exit to leave.\n");
       await startZork(write);
       return;
     }
 
     // ----- NORMAL CHAT -----
     write(`[${username}] ${text}`);
-    console.log("[BBS] Inserting message:", text);
 
     const { error } = await supabase.from("bbs_messages").insert({
       username,
       text
     });
 
-    if (error) console.error("[BBS] ❌ Insert error:", error);
+    if (error) console.error("[BBS] Insert error:", error);
   });
 
   console.log("[BBS] initBBS() COMPLETE");
