@@ -1,6 +1,13 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – SYNAPSE VIEW (FINAL 2025)
-// Fullscreen, zoom, pan, avatars, safe layout, performance optimized
+// CharlestonHacks Innovation Engine – SYNAPSE VIEW 3.0 (FINAL 2025)
+// Features:
+//   ✔ Lazy-load on tab open
+//   ✔ Pan + zoom
+//   ✔ Drag nodes
+//   ✔ Skill-based auto-links
+//   ✔ Fullscreen overlay
+//   ✔ Tooltips
+//   ✔ Works with your existing community schema
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -8,42 +15,50 @@ import { supabase } from "./supabaseClient.js";
 let svg, width, height;
 let nodeGroup, linkGroup;
 let simulation;
-let zoomHandler;
-let isLoaded = false;
+let tooltip;
+let isInitialized = false;
+let activeNodes = [];
+let activeLinks = [];
 
-// DOM
-const container = document.getElementById("synapse-container");
+// DOM refs
+const synapseContainer = document.getElementById("synapse-container");
 const synapseSVG = document.getElementById("synapse-svg");
 
 // ======================================================================
-// FETCH COMMUNITY (schema-safe)
+// FETCH COMMUNITY FROM SUPABASE
 // ======================================================================
 async function fetchCommunity() {
+  console.log("📡 Fetching community for Synapse…");
+
   const { data, error } = await supabase
     .from("community")
     .select(`
       id,
       name,
       skills,
-      image_url,
+      interests,
       availability,
+      image_url,
+      connection_count,
       x,
       y
     `);
 
   if (error) {
-    console.error("❌ Synapse fetch error:", error);
+    console.error("❌ Synapse fetch failed:", error);
     return [];
   }
 
-  return data.map(p => ({
-    id: p.id,
-    name: p.name || "Unnamed",
-    skills: p.skills ? p.skills.split(",").map(s => s.trim()) : [],
-    image_url: p.image_url || "",
-    availability: p.availability || "Available",
-    x: p.x || Math.random() * 800,
-    y: p.y || Math.random() * 600
+  return data.map(row => ({
+    id: row.id,
+    name: row.name || "Unnamed",
+    skills: row.skills ? row.skills.split(",").map(s => s.trim().toLowerCase()) : [],
+    interests: row.interests || [],
+    image_url: row.image_url || "",
+    availability: row.availability || "Available",
+    connection_count: row.connection_count || 0,
+    x: row.x || Math.random() * 800,
+    y: row.y || Math.random() * 600,
   }));
 }
 
@@ -51,42 +66,43 @@ async function fetchCommunity() {
 // INITIALIZE SVG
 // ======================================================================
 function initSVG() {
-  width = container.clientWidth;
-  height = container.clientHeight;
+  width = synapseContainer.clientWidth;
+  height = synapseContainer.clientHeight;
 
   svg = d3.select(synapseSVG);
   svg.selectAll("*").remove();
 
-  // Wrapper group for zoom/pan
-  const zoomLayer = svg.append("g").attr("class", "zoom-layer");
+  // Pan + zoom
+  svg.call(
+    d3.zoom()
+      .scaleExtent([0.3, 2])
+      .on("zoom", event => {
+        nodeGroup.attr("transform", event.transform);
+        linkGroup.attr("transform", event.transform);
+      })
+  );
 
-  linkGroup = zoomLayer.append("g").attr("class", "links");
-  nodeGroup = zoomLayer.append("g").attr("class", "nodes");
+  linkGroup = svg.append("g").attr("class", "links");
+  nodeGroup = svg.append("g").attr("class", "nodes");
 
-  // Enable zoom
-  zoomHandler = d3.zoom()
-    .scaleExtent([0.2, 2.5])
-    .on("zoom", (event) => {
-      zoomLayer.attr("transform", event.transform);
-    });
-
-  svg.call(zoomHandler);
+  // Tooltip
+  tooltip = d3.select("body")
+    .append("div")
+    .attr("class", "synapse-tooltip")
+    .style("opacity", 0);
 }
 
 // ======================================================================
-// BUILD LINKS BASED ON SKILL OVERLAP
+// CREATE LINKS BASED ON SKILL OVERLAP
 // ======================================================================
-function buildLinks(nodes) {
+function computeLinks(nodes) {
   const links = [];
+
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const overlap = nodes[i].skills.filter(s => nodes[j].skills.includes(s));
       if (overlap.length > 0) {
-        links.push({
-          source: nodes[i].id,
-          target: nodes[j].id,
-          strength: Math.min(0.05 * overlap.length, 0.1)
-        });
+        links.push({ source: nodes[i].id, target: nodes[j].id });
       }
     }
   }
@@ -94,70 +110,91 @@ function buildLinks(nodes) {
 }
 
 // ======================================================================
-// RENDER GRAPH
+// FORCE SIMULATION
 // ======================================================================
-function renderGraph(nodes) {
-  const links = buildLinks(nodes);
-
-  // Draw links
-  const linkElements = linkGroup
-    .selectAll("line")
-    .data(links)
-    .enter()
-    .append("line")
-    .attr("stroke", "rgba(0,255,255,.25)")
-    .attr("stroke-width", 1.2);
-
-  // Draw nodes
-  const node = nodeGroup
-    .selectAll("g")
-    .data(nodes)
-    .enter()
-    .append("g")
-    .attr("class", "synapse-node")
-    .call(
-      d3.drag()
-        .on("start", dragStart)
-        .on("drag", dragged)
-        .on("end", dragEnd)
-    )
-    .on("click", d => {
-      console.log("Clicked:", d.name); 
-      // FUTURE: open profile card sidebar
-    });
-
-  node.append("circle")
-    .attr("r", 26)
-    .attr("fill", d => d.image_url ? `url(#img-${d.id})` : "#0ff")
-    .attr("stroke", "#0ff")
-    .attr("stroke-width", 1.5);
-
-  node.append("text")
-    .text(d => d.name)
-    .attr("x", 32)
-    .attr("y", 5)
-    .attr("fill", "#0ff")
-    .attr("font-size", "12px")
-    .attr("font-family", "monospace");
-
-  // Run physics
+function createSimulation(nodes, links) {
   simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(140).strength(d => d.strength))
-    .force("charge", d3.forceManyBody().strength(-260))
+    .force("link", d3.forceLink(links).id(d => d.id).distance(140))
+    .force("charge", d3.forceManyBody().strength(-200))
     .force("center", d3.forceCenter(width / 2, height / 2))
     .on("tick", () => {
-      linkElements
+      svg.selectAll(".link")
         .attr("x1", d => d.source.x)
         .attr("y1", d => d.source.y)
         .attr("x2", d => d.target.x)
         .attr("y2", d => d.target.y);
 
-      node.attr("transform", d => `translate(${d.x}, ${d.y})`);
+      svg.selectAll(".node-group")
+        .attr("transform", d => `translate(${d.x}, ${d.y})`);
     });
 }
 
 // ======================================================================
-// DRAG BEHAVIOR
+// RENDER GRAPH
+// ======================================================================
+function renderGraph(nodes, links) {
+  // Render links
+  linkGroup.selectAll("line")
+    .data(links)
+    .enter()
+    .append("line")
+    .attr("class", "link")
+    .attr("stroke", "rgba(0,255,255,0.3)")
+    .attr("stroke-width", 1.5);
+
+  // Node groups
+  const nodeElements = nodeGroup.selectAll(".node-group")
+    .data(nodes)
+    .enter()
+    .append("g")
+    .attr("class", "node-group")
+    .call(
+      d3.drag()
+        .on("start", dragStart)
+        .on("drag", dragMove)
+        .on("end", dragEnd)
+    );
+
+  // Avatar circle
+  nodeElements.append("circle")
+    .attr("r", 22)
+    .attr("fill", d => d.image_url ? `url(#img-${d.id})` : "#0ff")
+    .attr("stroke", "#0ff")
+    .attr("stroke-width", 1.5);
+
+  // Name label
+  nodeElements.append("text")
+    .text(d => d.name)
+    .attr("x", 28)
+    .attr("y", 5)
+    .attr("fill", "#0ff")
+    .attr("font-size", "12px")
+    .attr("font-family", "monospace");
+
+  // Tooltip events
+  nodeElements
+    .on("mouseover", (event, d) => {
+      tooltip
+        .style("opacity", 1)
+        .html(`
+          <strong>${d.name}</strong><br>
+          Skills: ${d.skills.join(", ") || "None"}<br>
+          Availability: ${d.availability}
+        `);
+    })
+    .on("mousemove", event => {
+      tooltip.style("left", (event.pageX + 10) + "px")
+             .style("top", (event.pageY + 10) + "px");
+    })
+    .on("mouseout", () => {
+      tooltip.style("opacity", 0);
+    });
+
+  createSimulation(nodes, links);
+}
+
+// ======================================================================
+// DRAG HANDLERS
 // ======================================================================
 function dragStart(event, d) {
   if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -165,7 +202,7 @@ function dragStart(event, d) {
   d.fy = d.y;
 }
 
-function dragged(event, d) {
+function dragMove(event, d) {
   d.fx = event.x;
   d.fy = event.y;
 }
@@ -177,33 +214,47 @@ function dragEnd(event, d) {
 }
 
 // ======================================================================
-// PUBLIC INIT
+// LAZY-LOAD SYNAPSE WHEN TAB IS OPENED
 // ======================================================================
 export async function initSynapseView() {
-  if (isLoaded) return;
-  isLoaded = true;
+  if (isInitialized) {
+    console.log("🧠 Synapse already initialized.");
+    return;
+  }
 
   console.log("🧠 Initializing Synapse View…");
 
-  // SAFETY: auto-fix too-small containers
-  if (container.clientWidth < 600) {
-    console.warn("⚠️ Synapse container too narrow, forcing fullscreen layout");
-    container.style.width = "100vw";
-    container.style.height = "100vh";
-  }
-
   initSVG();
+  activeNodes = await fetchCommunity();
+  activeLinks = computeLinks(activeNodes);
 
-  const nodes = await fetchCommunity();
-  console.log(`🧠 Loaded ${nodes.length} nodes`);
+  renderGraph(activeNodes, activeLinks);
 
-  renderGraph(nodes);
-
-  console.log("🧠 Synapse ready!");
+  isInitialized = true;
+  console.log("🧠 Synapse ready with", activeNodes.length, "nodes.");
 }
 
-// Handle window resize
+// ======================================================================
+// TAB DETECTION – Only initialize when user clicks Synapse tab
+// ======================================================================
+document.querySelectorAll(".tab-button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+
+    if (tab === "synapse") {
+      synapseContainer.classList.add("active");
+      setTimeout(() => initSynapseView(), 150);
+    } else {
+      synapseContainer.classList.remove("active");
+    }
+  });
+});
+
+// ======================================================================
+// RESIZE SVG ON WINDOW RESIZE
+// ======================================================================
 window.addEventListener("resize", () => {
-  if (!isLoaded) return;
+  if (!isInitialized) return;
   initSVG();
+  renderGraph(activeNodes, activeLinks);
 });
