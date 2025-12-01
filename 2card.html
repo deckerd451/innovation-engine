@@ -281,24 +281,26 @@
     </main>
   </div> <!-- END container -->
 
+<!-- ========================= -->
+<!-- SCRIPTS (CORRECT ORDER) -->
+<!-- ========================= -->
 
+<!-- 0️⃣ D3 must load first (correct URL) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
-
-  <!-- ========================= -->
-  <!-- SCRIPTS -->
-  <!-- ========================= -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-  <!-- ============================== -->
-<!-- SUPABASE MUST LOAD FIRST      -->
-<!-- ============================== -->
+<!-- 1️⃣ Supabase must load BEFORE main.js -->
 <script type="module">
   import { supabase } from "./assets/js/supabaseClient.js";
   window.supabase = supabase;
   console.log("%cSupabase injected into window.", "color:#0ff");
 </script>
 
-  <script type="module" src="assets/js/main.js"></script>
-  <script type="module" src="assets/js/neuralBackground.js"></script>
+<!-- 2️⃣ Main controller -->
+<script type="module" src="assets/js/main.js"></script>
+
+<!-- 3️⃣ Background animation -->
+<script type="module" src="assets/js/neuralBackground.js"></script>
+
 
 
   <!-- Tab logic (Synapse + BBS lazy-loading) -->
