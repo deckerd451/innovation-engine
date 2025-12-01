@@ -219,3 +219,105 @@ label {
   color: #ffcf33;
   box-shadow: 0 0 10px rgba(255,207,51,0.25);
 }
+/* ============================================================
+   FIX: Restore proper formatting for search results
+   ============================================================ */
+
+/* Stop global .two-card-page alignment from breaking cards */
+.search-section *,
+.result-card *,
+.team-card *,
+.user-card * {
+  text-align: left !important;
+}
+
+/* Keep the results container from expanding vertically */
+#resultsBox,
+.results-container {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 10px 0;
+  width: 100%;
+}
+
+/* Restore CharlestonHacks result-card layout */
+.result-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 16px;
+  padding: 16px;
+  margin: 16px auto;
+  width: 90%;
+  max-width: 620px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+
+/* Avatar — consistent circle crop */
+.profile-avatar {
+  width: 82px !important;
+  height: 82px !important;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  border: 2px solid #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+  flex-shrink: 0;
+}
+
+/* Restore text block formatting */
+.result-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  color: white;
+  gap: 4px;
+  text-align: left;
+}
+
+.result-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffd700;
+  margin-bottom: 4px;
+}
+
+/* Consistent skill chip styling */
+.skills-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.skills-chips .skill-chip {
+  padding: 4px 10px;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: #ffd700;
+  text-transform: lowercase;
+}
+
+/* Prevent images inside results from stretching */
+.result-card img {
+  object-fit: cover !important;
+  object-position: center !important;
+  display: block;
+}
+
+/* Prevent the neural canvas from overlapping results */
+#neural-bg,
+#neural-interactive {
+  z-index: -2 !important;
+}
+
