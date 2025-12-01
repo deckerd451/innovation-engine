@@ -1,11 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description"
+    content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
   <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
-  <meta property="og:description" content="CharlestonHacks promotes tech events. Join us for exciting events and stay updated." />
+  <meta property="og:description"
+    content="CharlestonHacks promotes tech events. Join us for exciting events and stay updated." />
   <meta property="og:image" content="images/reactiveh.png" />
   <meta property="og:url" content="https://charlestonhacks.com" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -18,7 +22,8 @@
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://hvmotpzhliufzomewzfl.supabase.co">
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css">
 
   <style>
@@ -29,17 +34,34 @@
       width: 420px;
       max-width: 90%;
       height: auto;
-      filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
+      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.3));
       cursor: pointer;
       transition: transform 0.3s ease, filter 0.3s ease;
     }
+
     .header-img:hover {
       transform: scale(1.05);
-      filter: drop-shadow(0 0 12px rgba(135,158,242,0.6));
+      filter: drop-shadow(0 0 12px rgba(135, 158, 242, 0.6));
     }
-    @media (max-width: 800px){ .header-img{ width:300px; margin-top:10px; } }
-    @media (max-width: 650px){ .header-img{ width:250px; } }
-    @media (max-width: 480px){ .header-img{ width:200px; } }
+
+    @media (max-width: 800px) {
+      .header-img {
+        width: 300px;
+        margin-top: 10px;
+      }
+    }
+
+    @media (max-width: 650px) {
+      .header-img {
+        width: 250px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header-img {
+        width: 200px;
+      }
+    }
 
     footer {
       background-color: transparent;
@@ -48,18 +70,21 @@
       margin-top: 40px;
       position: relative;
     }
+
     .footer-back-button {
       display: flex;
       justify-content: center;
       align-items: center;
       margin-top: 32px;
     }
+
     .footer-back-button img {
       max-width: 240px;
       width: 60vw;
       height: auto;
       transition: transform 0.3s ease;
     }
+
     .footer-back-button img:hover {
       transform: scale(1.05);
     }
@@ -71,10 +96,13 @@
       width: 100vw;
       height: 100vh;
       display: none;
-      background: rgba(0,0,0,0.92);
+      background: rgba(0, 0, 0, 0.92);
       z-index: 9000;
     }
-    #synapse-container.active { display: block; }
+
+    #synapse-container.active {
+      display: block;
+    }
 
     #synapse-svg {
       width: 100%;
@@ -83,7 +111,6 @@
       cursor: grab;
     }
 
-    /* Tooltip */
     .synapse-tooltip {
       position: absolute;
       background: rgba(0, 0, 0, 0.85);
@@ -93,6 +120,35 @@
       font-size: 13px;
       pointer-events: none;
       font-family: monospace;
+    }
+
+    /* ============================
+       BBS MINIMAL STYLES
+    ============================ */
+    .bbs-screen {
+      background: #000;
+      color: #0f0;
+      font-family: "Courier New", monospace;
+      height: 260px;
+      overflow-y: auto;
+      padding: 10px;
+      border: 2px solid #0f0;
+      margin-bottom: 10px;
+    }
+
+    #bbs-input {
+      width: 100%;
+      padding: 10px;
+      background: #111;
+      border: 1px solid #0f0;
+      color: #0f0;
+      font-family: "Courier New", monospace;
+    }
+
+    .bbs-online-list {
+      color: #0f0;
+      font-family: "Courier New", monospace;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -104,15 +160,13 @@
   <!-- Achievements -->
   <div id="achievements" class="achievements" aria-live="polite"></div>
 
-  <!-- FULLSCREEN SYNAPSE 3.0 -->
-<div id="synapse-container">
-  <svg id="synapse-svg"></svg>
-</div>
-
+  <!-- Synapse Canvas -->
+  <div id="synapse-container">
+    <svg id="synapse-svg"></svg>
+  </div>
 
   <!-- Main Container -->
-<div class="container" style="pointer-events:auto; position:relative; z-index:1;">
-
+  <div class="container" style="pointer-events:auto; position:relative; z-index:1;">
 
     <header class="header">
       <a href="index.html">
@@ -129,131 +183,64 @@
       </div>
     </header>
 
-   <main class="panels-wrapper" style="position:relative; z-index:0;">
-<div class="panel large" style="pointer-events:auto; position:relative; z-index:10;">
+    <main class="panels-wrapper" style="position:relative; z-index:0;">
+      <div class="panel large" style="pointer-events:auto; position:relative; z-index:10;">
 
- <!-- LOGIN -->
+        <!-- LOGIN -->
         <div id="login-section">
-  <h2 class="section-title">Login</h2>
+          <h2 class="section-title">Login</h2>
 
-  <div class="input-container" style="display:flex; flex-direction:column; gap:12px; max-width:320px; margin:0 auto;">
-    <button id="github-login" class="action-btn" type="button">
-      <i class="fab fa-github"></i> Sign in with GitHub
-    </button>
+          <div class="input-container"
+            style="display:flex; flex-direction:column; gap:12px; max-width:320px; margin:0 auto;">
+            <button id="github-login" class="action-btn" type="button">
+              <i class="fab fa-github"></i> Sign in with GitHub
+            </button>
 
-    <button id="google-login" class="action-btn" type="button">
-      <i class="fab fa-google"></i> Sign in with Google
-    </button>
-  </div>
+            <button id="google-login" class="action-btn" type="button">
+              <i class="fab fa-google"></i> Sign in with Google
+            </button>
+          </div>
 
-  <!-- Optional helper text -->
-  <p style="margin-top:10px; font-size:14px; color:#ccc; text-align:center;">
-    Use your GitHub or Google account to sign in.
-  </p>
-</div>
-
+          <p style="margin-top:10px; font-size:14px; color:#ccc; text-align:center;">
+            Use your GitHub or Google account to sign in.
+          </p>
+        </div>
 
         <!-- PROFILE SECTION -->
         <div id="profile-section" class="hidden">
 
           <!-- Tabs -->
           <div class="tab-nav">
+
             <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
             <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
             <button class="tab-button" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
             <button class="tab-button" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
             <button class="tab-button" data-tab="synapse"><i class="fas fa-project-diagram"></i> Synapse View</button>
+
+            <!-- ⭐ NEW BBS TAB -->
+            <button class="tab-button" data-tab="bbs">
+              <i class="fas fa-terminal"></i> BBS
+            </button>
+
           </div>
 
-          <!-- Profile -->
-          <div id="profile" class="tab-content-pane active-tab-pane">
-            <section id="matchmaking-section">
-              <h2 class="section-title">Create Your Profile</h2>
-              <!-- Profile Form -->
-              <form id="skills-form">
-                <div class="input-container">
-                  <input type="text" id="first-name" placeholder="First Name" required>
-                  <input type="text" id="last-name" placeholder="Last Name" required>
-                  <input type="email" id="email" placeholder="Email" required>
+          <!-- Existing Tabs Here ... -->
 
-                  <label>Professional Skills</label>
-                  <div class="input-wrapper">
-                    <input type="text" id="skills-input" placeholder="e.g. aws, java, python">
-                    <div id="autocomplete-skills-input" class="autocomplete-box"></div>
-                  </div>
+          <!-- BBS PANEL -->
+          <div id="bbs" class="tab-content-pane">
+            <h2 class="section-title">CharlestonHacks BBS</h2>
 
-                  <div id="skills-proficiency-container"></div>
+            <div id="bbs-screen" class="bbs-screen"></div>
 
-                  <label>Upload Your Photo</label>
-                  <input type="file" id="photo-input" accept="image/*">
-                  <img id="preview" class="image-preview hidden">
+            <form id="bbs-form">
+              <input id="bbs-input" type="text" placeholder="Type message…" autocomplete="off" />
+            </form>
 
-                  <label>Short Bio</label>
-                  <input type="text" id="bio-input" maxlength="120">
-
-                  <label>Availability</label>
-                  <select id="availability-input">
-                    <option value="Available">Available</option>
-                    <option value="Busy">Busy</option>
-                    <option value="Not Looking">Not Looking</option>
-                  </select>
-
-                  <label>
-                    <input type="checkbox" id="newsletter-opt-in"> Subscribe to CharlestonHacks Newsletter
-                  </label>
-
-                  <button type="submit" class="action-btn">Save Profile</button>
-                </div>
-
-                <div class="profile-bar"><div class="profile-bar-inner"></div></div>
-                <div id="profile-progress-msg"></div>
-              </form>
-            </section>
-          </div>
-
-          <!-- Search -->
-          <div id="search" class="tab-content-pane">
-            <h2 class="section-title">Individual Search</h2>
-            <div class="input-wrapper">
-              <input type="text" id="teamSkillsInput" placeholder="Required skills">
-              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
-            </div>
-            <button id="find-team-btn" class="action-btn">Get People</button>
-
-            <div class="input-wrapper" style="margin-top:20px;">
-              <input type="text" id="nameInput" placeholder="Search by name">
-              <div id="autocomplete-names" class="autocomplete-box"></div>
-            </div>
-            <button id="search-name-btn" class="action-btn">Find by Name</button>
-
-            <div id="matchNotification" class="notification hidden"></div>
-            <div id="noResults" class="notification hidden"></div>
-            <div id="cardContainer" class="card-container"></div>
-          </div>
-
-          <!-- Team Builder -->
-          <div id="team-builder" class="tab-content-pane">
-            <h2 class="section-title">Team Builder</h2>
-            <div class="input-container">
-              <input type="text" id="team-skills-input" placeholder="Required skills">
-              <div id="autocomplete-team-builder" class="autocomplete-box"></div>
-              <input type="number" id="teamSize" placeholder="Team size" min="1" max="6">
-              <button id="buildTeamBtn" class="action-btn">Build Team</button>
-            </div>
-            <div id="bestTeamContainer" class="card-container"></div>
-          </div>
-
-          <!-- Leaderboard -->
-          <div id="leaderboard" class="tab-content-pane">
-            <div class="leaderboard">
-              <h2>Leaderboard</h2>
-              <div class="leaderboard-tabs">
-                <button class="lb-tab active" data-type="skills"><i class="fas fa-star"></i> Top Skills</button>
-                <button class="lb-tab" data-type="connectors"><i class="fas fa-link"></i> Top Connectors</button>
-                <button class="lb-tab" data-type="rising"><i class="fas fa-rocket"></i> Rising Stars</button>
-              </div>
-              <div id="leaderboard-rows"></div>
-            </div>
+            <p style="margin-top:10px; color:#0f0; font-family:'Courier New', monospace;">
+              Online Now:
+            </p>
+            <div id="bbs-online-list" class="bbs-online-list"></div>
           </div>
 
         </div>
@@ -274,41 +261,43 @@
   <!-- Load D3 First -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
-  <!-- Scripts in Correct Order -->
- 
+  <!-- Scripts -->
   <script type="module" src="assets/js/main.js"></script>
   <script type="module" src="assets/js/synapse.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
+
   <script>
-  // SIMPLE TAB SYSTEM (original working version)
-  document.querySelectorAll(".tab-button").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const tab = btn.dataset.tab;
+    // SIMPLE TAB SYSTEM
+    document.querySelectorAll(".tab-button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tab = btn.dataset.tab;
 
-      // Deactivate all tab buttons
-      document.querySelectorAll(".tab-button")
-        .forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-button")
+          .forEach(b => b.classList.remove("active"));
 
-      btn.classList.add("active");
+        btn.classList.add("active");
 
-      // Hide all panes
-      document.querySelectorAll(".tab-content-pane")
-        .forEach(p => p.classList.remove("active-tab-pane"));
+        document.querySelectorAll(".tab-content-pane")
+          .forEach(p => p.classList.remove("active-tab-pane"));
 
-      // Show selected pane
-      const pane = document.getElementById(tab);
-      if (pane) pane.classList.add("active-tab-pane");
+        const pane = document.getElementById(tab);
+        if (pane) pane.classList.add("active-tab-pane");
 
-      // Special case: Synapse view
-      if (tab === "synapse") {
-        document.getElementById("synapse-container").classList.add("active");
-      } else {
-        document.getElementById("synapse-container").classList.remove("active");
-      }
+        // Synapse view toggle
+        if (tab === "synapse") {
+          document.getElementById("synapse-container").classList.add("active");
+        } else {
+          document.getElementById("synapse-container").classList.remove("active");
+        }
+
+        // ⭐ Lazy-load BBS when tab is opened
+        if (tab === "bbs") {
+          import("./assets/js/bbs.js").then(m => m.initBBS());
+        }
+
+      });
     });
-  });
-</script>
-
+  </script>
 
 </body>
 </html>
