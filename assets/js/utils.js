@@ -1,9 +1,8 @@
 // ===============================================
-// ENHANCED FILE: assets/js/utils.js (FINAL 2025)
+// ENHANCED FILE: assets/js/utils.js
 // ===============================================
 // Improvements:
 //  - Animated toast notifications with fade effects
-//  - Now supports: success, error, info, warning
 //  - Reusable email validation + element clearing
 //  - Auto-styled notification container
 // ===============================================
@@ -11,11 +10,10 @@
 /**
  * Show a temporary toast notification
  * @param {string} message - Text to display
- * @param {"success"|"error"|"info"|"warning"} type
+ * @param {"success"|"error"|"info"} type
  */
 export function showNotification(message, type = "info") {
   let container = document.getElementById("notification-container");
-
   if (!container) {
     container = document.createElement("div");
     container.id = "notification-container";
@@ -32,7 +30,7 @@ export function showNotification(message, type = "info") {
   }
 
   const notif = document.createElement("div");
-  notif.className = `notification ${type}`;
+  notif.className = notification ${type};
   notif.textContent = message;
 
   // Styles for each toast
@@ -45,15 +43,13 @@ export function showNotification(message, type = "info") {
     opacity: "0",
     transform: "translateY(-10px)",
     transition: "all 0.3s ease",
-    fontFamily: "Inter, sans-serif",
   });
 
   // Color by type
   const colors = {
-    success: "#16a34a",   // green
-    error: "#dc2626",     // red
-    info: "#2563eb",      // blue
-    warning: "#ca8a04",   // gold (NEW)
+    success: "#16a34a",
+    error: "#dc2626",
+    info: "#2563eb",
   };
   notif.style.background = colors[type] || colors.info;
 
