@@ -1,303 +1,256 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description"
-    content="Join CharlestonHacks for transformative hackathons and tech meetups in Charleston, SC. Build, learn, and connect with local innovators.">
-  <meta property="og:title" content="CharlestonHacks | Charleston Hackathons & Tech Events" />
-  <meta property="og:description"
-    content="CharlestonHacks promotes tech events. Join us for exciting events and stay updated." />
-  <meta property="og:image" content="images/reactiveh.png" />
-  <meta property="og:url" content="https://charlestonhacks.com" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <title>Innovation Engine - CharlestonHacks</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="CharlestonHacks Innovation Engine" />
+  <title>CharlestonHacks Innovation Engine</title>
 
   <link rel="icon" href="favicon.ico" />
-  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
-  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://hvmotpzhliufzomewzfl.supabase.co">
-
-  <link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="styles.css">
-
+  <!-- Lazy-loaded Synapse SVG overlay styles -->
   <style>
-    /* Header Image */
-    .header-img {
-      display: block;
-      margin: 20px auto;
-      width: 420px;
-      max-width: 90%;
-      height: auto;
-      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.3));
-      cursor: pointer;
-      transition: transform 0.3s ease, filter 0.3s ease;
-    }
-
-    .header-img:hover {
-      transform: scale(1.05);
-      filter: drop-shadow(0 0 12px rgba(135, 158, 242, 0.6));
-    }
-
-    @media (max-width: 800px) {
-      .header-img {
-        width: 300px;
-        margin-top: 10px;
-      }
-    }
-
-    @media (max-width: 650px) {
-      .header-img {
-        width: 250px;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .header-img {
-        width: 200px;
-      }
-    }
-
-    footer {
-      background-color: transparent;
-      text-align: center;
-      padding: 32px 20px 64px;
-      margin-top: 40px;
-      position: relative;
-    }
-
-    .footer-back-button {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-top: 32px;
-    }
-
-    .footer-back-button img {
-      max-width: 240px;
-      width: 60vw;
-      height: auto;
-      transition: transform 0.3s ease;
-    }
-
-    .footer-back-button img:hover {
-      transform: scale(1.05);
-    }
-
-    /* Fullscreen Synapse Container */
     #synapse-container {
       position: fixed;
       inset: 0;
       width: 100vw;
       height: 100vh;
-      display: none;
-      background: rgba(0, 0, 0, 0.92);
+      background: rgba(0,0,0,0.92);
       z-index: 9000;
+      display: none;
     }
-
-    #synapse-container.active {
-      display: block;
-    }
-
-    #synapse-svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-      cursor: grab;
-    }
+    #synapse-container.active { display:block; }
+    #synapse-svg { width:100%; height:100%; cursor:grab; display:block; }
 
     .synapse-tooltip {
-      position: absolute;
-      background: rgba(0, 0, 0, 0.85);
-      padding: 6px 10px;
-      border-radius: 4px;
-      color: #0ff;
-      font-size: 13px;
-      pointer-events: none;
-      font-family: monospace;
+      position:absolute;
+      background:rgba(0,0,0,0.85);
+      color:#0ff;
+      padding:6px 10px;
+      border-radius:4px;
+      pointer-events:none;
+      font-size:13px;
+      font-family:monospace;
+      display:none;
     }
 
-    /* ============================
-       BBS MINIMAL STYLES
-    ============================ */
-    .bbs-screen {
-      background: #000;
-      color: #0f0;
-      font-family: "Courier New", monospace;
-      height: 260px;
-      overflow-y: auto;
-      padding: 10px;
-      border: 2px solid #0f0;
-      margin-bottom: 10px;
-    }
-
-    #bbs-input {
-      width: 100%;
-      padding: 10px;
-      background: #111;
-      border: 1px solid #0f0;
-      color: #0f0;
-      font-family: "Courier New", monospace;
-    }
-
-    .bbs-online-list {
-      color: #0f0;
-      font-family: "Courier New", monospace;
-      font-size: 14px;
+    /* BBS modal container */
+    #bbs-modal {
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(0,0,0,0.85);
+      z-index:10000;
     }
   </style>
 </head>
 
+
 <body class="two-card-page">
-  <!-- Neural Background -->
+
+  <!-- Background -->
   <canvas id="neural-bg"></canvas>
 
-  <!-- Achievements -->
-  <div id="achievements" class="achievements" aria-live="polite"></div>
-
-  <!-- Synapse Canvas -->
+  <!-- Fullscreen Synapse Overlay -->
   <div id="synapse-container">
     <svg id="synapse-svg"></svg>
   </div>
 
-  <!-- Main Container -->
-  <div class="container" style="pointer-events:auto; position:relative; z-index:1;">
+  <!-- BBS Modal -->
+  <div id="bbs-modal"></div>
 
+  <!-- Main App Wrapper -->
+  <div class="container">
+
+    <!-- HEADER -->
     <header class="header">
       <a href="index.html">
-        <img src="images/ieheader.webp" alt="Innovation Engine Header" class="header-img">
+        <img src="images/ieheader.webp" alt="CharlestonHacks" class="header-img"/>
       </a>
 
-      <p style="color:#ccc; margin-top:6px;">Making Invisible Networks Visible</p>
+      <p style="color:#ccc;">Making Invisible Networks Visible</p>
 
       <div class="auth-controls">
         <span class="user-badge hidden" id="user-badge"></span>
-        <button class="logout-btn action-btn hidden" id="logout-btn">
+        <button id="logout-btn" class="logout-btn action-btn hidden">
           <i class="fas fa-sign-out-alt"></i> Logout
         </button>
       </div>
     </header>
 
-    <main class="panels-wrapper" style="position:relative; z-index:0;">
-      <div class="panel large" style="pointer-events:auto; position:relative; z-index:10;">
+    <!-- MAIN PANELS WRAPPER -->
+    <main class="panels-wrapper">
 
-        <!-- LOGIN -->
-        <div id="login-section">
-          <h2 class="section-title">Login</h2>
-
-          <div class="input-container"
-            style="display:flex; flex-direction:column; gap:12px; max-width:320px; margin:0 auto;">
-            <button id="github-login" class="action-btn" type="button">
-              <i class="fab fa-github"></i> Sign in with GitHub
-            </button>
-
-            <button id="google-login" class="action-btn" type="button">
-              <i class="fab fa-google"></i> Sign in with Google
-            </button>
-          </div>
-
-          <p style="margin-top:10px; font-size:14px; color:#ccc; text-align:center;">
-            Use your GitHub or Google account to sign in.
-          </p>
-        </div>
-
-        <!-- PROFILE SECTION -->
-        <div id="profile-section" class="hidden">
-
-          <!-- Tabs -->
-          <div class="tab-nav">
-
-            <button class="tab-button active" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
-            <button class="tab-button" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
-            <button class="tab-button" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
-            <button class="tab-button" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
-            <button class="tab-button" data-tab="synapse"><i class="fas fa-project-diagram"></i> Synapse View</button>
-
-            <!-- ⭐ NEW BBS TAB -->
-            <button class="tab-button" data-tab="bbs">
-              <i class="fas fa-terminal"></i> BBS
-            </button>
-
-          </div>
-
-          <!-- Existing Tabs Here ... -->
-
-          <!-- BBS PANEL -->
-          <div id="bbs" class="tab-content-pane">
-            <h2 class="section-title">CharlestonHacks BBS</h2>
-
-            <div id="bbs-screen" class="bbs-screen"></div>
-
-            <form id="bbs-form">
-              <input id="bbs-input" type="text" placeholder="Type message…" autocomplete="off" />
-            </form>
-
-            <p style="margin-top:10px; color:#0f0; font-family:'Courier New', monospace;">
-              Online Now:
-            </p>
-            <div id="bbs-online-list" class="bbs-online-list"></div>
-          </div>
-
-        </div>
+      <!-- BUTTON ROW (like original 2card UI) -->
+      <div class="button-row">
+        <button class="top-btn" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
+        <button class="top-btn" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
+        <button class="top-btn" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
+        <button class="top-btn" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
+        <button class="top-btn" data-tab="synapse"><i class="fas fa-project-diagram"></i> Synapse View</button>
+        <button class="top-btn" id="open-bbs"><i class="fas fa-terminal"></i> BBS</button>
       </div>
+
+      <!-- TAB CONTENT AREAS -->
+
+      <!-- LOGIN -->
+      <section id="login-section" class="tab-content-pane active-tab-pane">
+        <h2 class="section-title">Login</h2>
+
+        <div style="max-width:320px; margin:0 auto; display:flex; flex-direction:column; gap:12px;">
+          <button id="github-login" class="action-btn"><i class="fab fa-github"></i> Sign in with GitHub</button>
+          <button id="google-login" class="action-btn"><i class="fab fa-google"></i> Sign in with Google</button>
+        </div>
+
+        <p style="text-align:center; color:#ccc; margin-top:12px;">
+          Use any provider to access the Innovation Engine.
+        </p>
+      </section>
+
+      <!-- PROFILE -->
+      <section id="profile" class="tab-content-pane">
+        <h2 class="section-title">Create Your Profile</h2>
+
+        <form id="skills-form">
+          <div class="input-container">
+
+            <input id="first-name" type="text" placeholder="First Name">
+            <input id="last-name" type="text" placeholder="Last Name">
+            <input id="email" type="email" placeholder="Email">
+
+            <label>Skills</label>
+            <div class="input-wrapper">
+              <input id="skills-input" placeholder="e.g. aws, python">
+              <div id="autocomplete-skills-input" class="autocomplete-box"></div>
+            </div>
+
+            <label>Bio</label>
+            <input id="bio-input" maxlength="120"/>
+
+            <label>Availability</label>
+            <select id="availability-input">
+              <option>Available</option>
+              <option>Busy</option>
+              <option>Not Looking</option>
+            </select>
+
+            <label>Upload Photo</label>
+            <input id="photo-input" type="file" accept="image/*"/>
+            <img id="preview" class="image-preview hidden">
+
+            <label><input type="checkbox" id="newsletter-opt-in"> Subscribe to Newsletter</label>
+
+            <button class="action-btn" type="submit">Save Profile</button>
+          </div>
+
+          <div class="profile-bar"><div class="profile-bar-inner"></div></div>
+          <div id="profile-progress-msg"></div>
+        </form>
+      </section>
+
+      <!-- SEARCH -->
+      <section id="search" class="tab-content-pane">
+        <h2 class="section-title">Individual Search</h2>
+
+        <div class="input-wrapper">
+          <input id="teamSkillsInput" placeholder="Required skills">
+          <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+        </div>
+
+        <button id="find-team-btn" class="action-btn">Get People</button>
+
+        <div class="input-wrapper" style="margin-top:20px;">
+          <input id="nameInput" placeholder="Search by name">
+          <div id="autocomplete-names" class="autocomplete-box"></div>
+        </div>
+
+        <button id="search-name-btn" class="action-btn">Find by Name</button>
+
+        <div id="matchNotification" class="notification hidden"></div>
+        <div id="noResults" class="notification hidden"></div>
+
+        <div id="cardContainer" class="card-container"></div>
+      </section>
+
+      <!-- TEAM BUILDER -->
+      <section id="team-builder" class="tab-content-pane">
+        <h2 class="section-title">Team Builder</h2>
+
+        <div class="input-container">
+          <input id="team-builder-input" placeholder="Required skills">
+          <div id="autocompleteTeamBuilder" class="autocomplete-box"></div>
+
+          <input id="teamSize" type="number" min="1" max="6" placeholder="Team Size">
+
+          <button id="buildTeamBtn" class="action-btn">Build Team</button>
+        </div>
+
+        <div id="bestTeamContainer" class="card-container"></div>
+      </section>
+
+      <!-- LEADERBOARD -->
+      <section id="leaderboard" class="tab-content-pane">
+        <h2>Leaderboard</h2>
+        <div class="leaderboard-tabs">
+          <button class="lb-tab active" data-type="skills"><i class="fas fa-star"></i> Top Skills</button>
+          <button class="lb-tab" data-type="connectors"><i class="fas fa-link"></i> Top Connectors</button>
+          <button class="lb-tab" data-type="rising"><i class="fas fa-rocket"></i> Rising Stars</button>
+        </div>
+        <div id="leaderboard-rows"></div>
+      </section>
+
     </main>
   </div>
 
-  <!-- Footer -->
-  <footer>
-    <div class="footer-back-button">
-      <a href="index.html">
-        <img src="assets/chbackbuttonred.png" alt="Back to Home" />
-      </a>
-    </div>
-    <p style="margin-top:16px; font-size:16px;">© 2025 CharlestonHacks. All rights reserved.</p>
-  </footer>
-
-  <!-- Load D3 First -->
+  <!-- JS ORDER -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-
-  <!-- Scripts -->
   <script type="module" src="assets/js/main.js"></script>
-  <script type="module" src="assets/js/synapse.js"></script>
   <script type="module" src="assets/js/neuralBackground.js"></script>
+  <!-- Synapse and BBS lazy-loaded dynamically -->
 
   <script>
-    // SIMPLE TAB SYSTEM
-    document.querySelectorAll(".tab-button").forEach(btn => {
+    // Simple tab system:
+    document.querySelectorAll(".top-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const tab = btn.dataset.tab;
 
-        document.querySelectorAll(".tab-button")
-          .forEach(b => b.classList.remove("active"));
-
-        btn.classList.add("active");
-
+        // Toggle content panes
         document.querySelectorAll(".tab-content-pane")
           .forEach(p => p.classList.remove("active-tab-pane"));
 
         const pane = document.getElementById(tab);
         if (pane) pane.classList.add("active-tab-pane");
 
-        // Synapse view toggle
+        // Special case: Synapse
         if (tab === "synapse") {
           document.getElementById("synapse-container").classList.add("active");
+
+          import("./assets/js/synapse.js").then(m => m.initSynapseView());
         } else {
           document.getElementById("synapse-container").classList.remove("active");
         }
+      });
+    });
 
-        // ⭐ Lazy-load BBS when tab is opened
-        if (tab === "bbs") {
-          import("./assets/js/bbs.js").then(m => m.initBBS());
-        }
+    // BBS OPEN
+    document.getElementById("open-bbs").addEventListener("click", () => {
+      const modal = document.getElementById("bbs-modal");
+      modal.style.display = "flex";
 
+      // Lazy load BBS script
+      import("./assets/js/bbs.js").then(m => {
+        if (m.initBBS) m.initBBS();
+      });
+
+      // Escape closes
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") modal.style.display = "none";
       });
     });
   </script>
-
 </body>
 </html>
