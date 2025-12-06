@@ -62,14 +62,14 @@ let isFlipping = false;
 export function initCardFlip(CONFIG) {
   console.log('🚀 Initializing Portal Card System...');
   
-  // Create portal overlay element (if it doesn't exist)
+  // Inject portal animation styles first
+  injectPortalStyles();
+  
+  // Create portal overlay element
   createPortalOverlay();
   
   // Set up click handlers for all clickable areas
   setupPortalClickHandlers(CONFIG);
-  
-  // Preserve existing card flip functionality
-  preserveExistingCardBehavior(CONFIG);
   
   console.log('✅ Portal System Ready');
 }
@@ -80,6 +80,7 @@ export function initCardFlip(CONFIG) {
 function createPortalOverlay() {
   // Check if overlay already exists
   if (document.getElementById('portal-overlay')) {
+    console.log('Portal overlay already exists');
     return;
   }
   
@@ -100,6 +101,9 @@ function createPortalOverlay() {
   const mediaContainer = document.querySelector('.media-container');
   if (mediaContainer) {
     mediaContainer.appendChild(overlay);
+    console.log('Portal overlay created');
+  } else {
+    console.error('Media container not found!');
   }
 }
 
@@ -109,31 +113,37 @@ function createPortalOverlay() {
  */
 function setupPortalClickHandlers(CONFIG) {
   const buttons = document.querySelectorAll('.clickable-area');
+  console.log(`Found ${buttons.length} clickable areas`);
   
-  buttons.forEach(btn => {
-    // Remove existing click listeners by cloning
-    const newBtn = btn.cloneNode(true);
-    btn.parentNode.replaceChild(newBtn, btn);
+  buttons.forEach((btn, index) => {
+    // Find which portal area this is
+    const portalKey = findPortalKey(btn);
+    console.log(`Button ${index}: ${portalKey}`);
     
-    // Add new portal click handler
-    newBtn.addEventListener('click', (e) => {
+    if (!portalKey) {
+      console.warn(`No portal mapping found for button ${index}`, btn.classList);
+      return;
+    }
+    
+    // Add click handler
+    btn.addEventListener('click', (e) => {
       e.preventDefault();
+      e.stopPropagation();
+      
+      console.log(`🎯 Portal clicked: ${portalKey}`);
       
       // Don't trigger if already flipping
-      if (isFlipping) return;
-      
-      // Find which portal area was clicked
-      const portalKey = findPortalKey(newBtn);
-      if (!portalKey) {
-        console.warn('Unknown portal area clicked');
+      if (isFlipping) {
+        console.log('Already flipping, ignoring click');
         return;
       }
       
       const portal = PORTAL_MAP[portalKey];
       
       // Play sound
-      const soundName = newBtn.dataset.sound;
+      const soundName = btn.dataset.sound;
       if (soundName && CONFIG.sounds && CONFIG.sounds[soundName]) {
+        console.log(`Playing sound: ${soundName}`);
         CONFIG.sounds[soundName].play().catch(err => {
           console.log('Sound play failed:', err);
         });
@@ -144,16 +154,16 @@ function setupPortalClickHandlers(CONFIG) {
     });
     
     // Preserve hover info behavior
-    newBtn.addEventListener('mouseover', () => {
+    btn.addEventListener('mouseover', () => {
       const infoLine = document.getElementById('infoLine');
       const infoText = document.getElementById('infoText');
       if (infoLine && infoText) {
         infoLine.style.opacity = '1';
-        infoText.textContent = newBtn.dataset.info || '';
+        infoText.textContent = btn.dataset.info || '';
       }
     });
     
-    newBtn.addEventListener('mouseout', () => {
+    btn.addEventListener('mouseout', () => {
       const infoLine = document.getElementById('infoLine');
       const infoText = document.getElementById('infoText');
       if (infoLine && infoText) {
@@ -184,6 +194,7 @@ function findPortalKey(btn) {
  * @param {Object} portal - Portal configuration object
  */
 function triggerPortalSequence(portal) {
+  console.log(`🌀 Starting portal sequence: ${portal.functionName}`);
   isFlipping = true;
   
   // Step 1: Show portal overlay with function name
@@ -204,7 +215,12 @@ function triggerPortalSequence(portal) {
  */
 function showPortalText(portal) {
   const overlay = document.getElementById('portal-overlay');
-  if (!overlay) return;
+  if (!overlay) {
+    console.error('Portal overlay not found!');
+    return;
+  }
+  
+  console.log(`Displaying portal text: ${portal.functionName}`);
   
   // Create portal rings animation
   const ringsHTML = `
@@ -256,9 +272,6 @@ function showPortalText(portal) {
   `;
   
   overlay.style.display = 'flex';
-  
-  // Inject portal animation styles if not already present
-  injectPortalStyles();
 }
 
 /**
@@ -268,10 +281,14 @@ function startCardFlip() {
   const card = document.getElementById('missionImage');
   const frame = document.getElementById('cardFrame');
   
+  console.log('Starting card flip animation');
+  
   if (card) {
     card.style.transition = 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)';
     card.style.transformStyle = 'preserve-3d';
     card.style.transform = 'rotateY(180deg)';
+  } else {
+    console.error('Card image not found!');
   }
   
   if (frame) {
@@ -286,14 +303,11 @@ function startCardFlip() {
  * @param {Object} portal - Portal configuration
  */
 function executePortalFunction(portal) {
-  console.log(`🌀 Executing: ${portal.functionName}`);
-  console.log(`📍 Destination: ${portal.destination}`);
+  console.log(`🚀 Executing: ${portal.functionName}`);
+  console.log(`📍 Navigating to: ${portal.destination}`);
   
   // Navigate to the destination
   window.location.href = portal.destination;
-  
-  // Reset flip state (won't be needed since we're navigating, but good practice)
-  isFlipping = false;
 }
 
 /**
@@ -301,7 +315,10 @@ function executePortalFunction(portal) {
  */
 function injectPortalStyles() {
   // Check if styles already injected
-  if (document.getElementById('portal-styles')) return;
+  if (document.getElementById('portal-styles')) {
+    console.log('Portal styles already injected');
+    return;
+  }
   
   const style = document.createElement('style');
   style.id = 'portal-styles';
@@ -384,23 +401,7 @@ function injectPortalStyles() {
   `;
   
   document.head.appendChild(style);
-}
-
-/**
- * Preserve any existing card flip behavior
- * @param {Object} CONFIG - Configuration object
- */
-function preserveExistingCardBehavior(CONFIG) {
-  // Any existing card flip logic that should be maintained
-  // This ensures backward compatibility with your current system
-  
-  // For example, if you have video play functionality:
-  const video = document.getElementById('missionVideo');
-  if (video) {
-    video.addEventListener('ended', () => {
-      console.log('Video ended - card behavior preserved');
-    });
-  }
+  console.log('Portal styles injected');
 }
 
 /**
