@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+
+  <meta name="description" content="CharlestonHacks Innovation Engine"/>
+  <title>CharlestonHacks Innovation Engine</title>
+
+  <link rel="icon" href="favicon.ico"/>
+  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/engine.css" />
+  <link rel="stylesheet" href="assets/css/overlays.css" />
+
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <style>
+    /* Fullscreen Synapse Layer */
+    #synapse-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.92);
+      display: none;
+      z-index: 9999;
+    }
+    #synapse-container.active { display: block; }
+
+    #synapse-svg {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      display: block;
+    }
+
+    .synapse-tooltip {
+      position: absolute;
+      background: rgba(0,0,0,0.85);
+      padding: 6px 10px;
+      color: #0ff;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 12px;
+      font-family: monospace;
+      display: none;
+    }
+
+    /* BBS */
+    #bbs-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 12000;
+    }
+
+    /* Leaderboard styling to match card container style */
+    #leaderboard-rows {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .leaderboard-card {
+      background: rgba(0, 224, 255, 0.05);
+      border: 1px solid rgba(0, 224, 255, 0.3);
+      border-radius: 8px;
+      padding: 1.2rem;
+      transition: all 0.3s ease;
+    }
+
+    .leaderboard-card:hover {
+      background: rgba(0, 224, 255, 0.1);
+      border-color: #00e0ff;
+      box-shadow: 0 0 20px rgba(0, 224, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .leaderboard-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .leaderboard-rank {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #c9a35e;
+      min-width: 40px;
+    }
+
+    .leaderboard-card-header img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #00e0ff;
+    }
+
+    .leaderboard-card-info h3 {
+      margin: 0;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+
+    .leaderboard-card-info p {
+      margin: 0.25rem 0 0;
+      color: #aaa;
+      font-size: 0.85rem;
+    }
+
+    .leaderboard-card-body {
+      margin-top: 0.75rem;
+      color: #ccc;
+      font-size: 0.9rem;
+    }
+
+    .leaderboard-stats {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .leaderboard-stat {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #00e0ff;
+    }
+
+    .leaderboard-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .lb-tab {
+      flex: 1;
+      background: rgba(0, 224, 255, 0.05);
+      border: 1px solid rgba(0, 224, 255, 0.3);
+      color: #00e0ff;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .lb-tab:hover {
+      background: rgba(0, 224, 255, 0.1);
+      border-color: #00e0ff;
+    }
+
+    .lb-tab.active {
+      background: rgba(0, 224, 255, 0.2);
+      border-color: #00e0ff;
+      box-shadow: 0 0 15px rgba(0, 224, 255, 0.3);
+    }
+
+    /* Notification styles */
+    .notification {
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .notification.success {
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid #0f0;
+      color: #0f0;
+    }
+
+    .notification.error {
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid #f00;
+      color: #f00;
+    }
+
+    .notification.info {
+      background: rgba(0, 224, 255, 0.1);
+      border: 1px solid #00e0ff;
+      color: #00e0ff;
+    }
+  </style>
+</head>
+
+<body class="two-card-page">
+  <!-- Background -->
+  <canvas id="neural-bg"></canvas>
+
+  <!-- Achievements -->
+  <div id="achievements" class="achievements" aria-live="polite"></div>
+
+  <!-- FULLSCREEN SYNAPSE -->
+  <div id="synapse-container">
+    <svg id="synapse-svg"></svg>
+  </div>
+
+  <!-- BBS Modal -->
+  <div id="bbs-modal"></div>
+
+  <!-- MAIN CONTAINER -->
+  <div class="container">
+
+    <!-- HEADER -->
+    <header class="header">
+      <a href="index.html">
+        <img src="images/ieheader.webp" class="header-img" alt="CharlestonHacks"/>
+      </a>
+
+      <p style="color:#ccc;">Making Invisible Networks Visible</p>
+
+      <div class="auth-controls">
+        <span id="user-badge" class="user-badge hidden"></span>
+        <button id="logout-btn" class="logout-btn action-btn hidden">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN PANELS -->
+    <main class="panels-wrapper">
+
+      <!-- TOP BUTTON ROW -->
+      <div class="button-row">
+        <button class="top-btn" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
+        <button class="top-btn" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
+        <button class="top-btn" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
+        <button class="top-btn" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</button>
+        <button class="top-btn" data-tab="synapse"><i class="fas fa-project-diagram"></i> Synapse View</button>
+        <button class="top-btn" id="open-bbs"><i class="fas fa-terminal"></i> BBS</button>
+      </div>
+
+      <!-- ========================= -->
+      <!-- LOGIN SECTION (DEFAULT) -->
+      <!-- ========================= -->
+      <section id="login-section" class="tab-content-pane active-tab-pane">
+        <h2 class="section-title">Login</h2>
+
+        <div style="max-width:320px; margin:0 auto; display:flex; flex-direction:column; gap:12px;">
+          <button id="github-login" class="action-btn">
+            <i class="fab fa-github"></i> Sign in with GitHub
+          </button>
+
+          <button id="google-login" class="action-btn">
+            <i class="fab fa-google"></i> Sign in with Google
+          </button>
+        </div>
+
+        <p style="text-align:center; color:#ccc; margin-top:12px;">
+          Use any provider to access the Innovation Engine.
+        </p>
+      </section>
+
+      <!-- ========================= -->
+      <!-- PROFILE SECTION WRAPPER -->
+      <!-- ========================= -->
+      <div id="profile-section" class="hidden">
+
+        <!-- PROFILE TAB -->
+        <section id="profile" class="tab-content-pane">
+          <h2 class="section-title">Create Your Profile</h2>
+
+          <form id="skills-form">
+            <div class="input-container">
+              <input id="first-name" placeholder="First Name"/>
+              <input id="last-name" placeholder="Last Name"/>
+              <input id="email" type="email" placeholder="Email"/>
+
+              <label>Skills</label>
+              <div class="input-wrapper">
+                <input id="skills-input" placeholder="e.g. aws, python"/>
+                <div id="autocomplete-skills-input" class="autocomplete-box"></div>
+              </div>
+
+              <label>Bio</label>
+              <input id="bio-input" maxlength="120"/>
+
+              <label>Availability</label>
+              <select id="availability-input">
+                <option>Available</option>
+                <option>Busy</option>
+                <option>Not Looking</option>
+              </select>
+
+              <label>Upload Photo</label>
+              <input id="photo-input" type="file" accept="image/*"/>
+              <img id="preview" class="image-preview hidden"/>
+
+              <label><input id="newsletter-opt-in" type="checkbox"> Subscribe to Newsletter</label>
+
+              <button class="action-btn" type="submit">Save Profile</button>
+            </div>
+
+            <div class="profile-bar"><div class="profile-bar-inner"></div></div>
+            <div id="profile-progress-msg"></div>
+          </form>
+        </section>
+
+        <!-- ========================= -->
+        <!-- SEARCH (RESTYLED) -->
+        <!-- ========================= -->
+        <section id="search" class="tab-content-pane">
+          <h2 class="section-title">Individual Search</h2>
+
+          <div class="input-container">
+            <label>Search by Skills</label>
+            <div class="input-wrapper">
+              <input id="teamSkillsInput" placeholder="Required skills"/>
+              <div id="autocomplete-team-skills" class="autocomplete-box"></div>
+            </div>
+
+            <button id="find-team-btn" class="action-btn">Get People</button>
+
+            <label style="margin-top: 1.5rem;">Search by Name</label>
+            <div class="input-wrapper">
+              <input id="nameInput" placeholder="Search by name"/>
+              <div id="autocomplete-names" class="autocomplete-box"></div>
+            </div>
+
+            <button id="search-name-btn" class="action-btn">Find by Name</button>
+          </div>
+
+          <div id="matchNotification" class="notification hidden"></div>
+          <div id="noResults" class="notification hidden"></div>
+          <div id="cardContainer" class="card-container"></div>
+        </section>
+
+        <!-- ========================= -->
+        <!-- TEAM BUILDER -->
+        <!-- ========================= -->
+        <section id="team-builder" class="tab-content-pane">
+          <h2 class="section-title">Team Builder</h2>
+
+          <div class="input-container">
+            <input id="team-builder-input" placeholder="Required skills"/>
+            <div id="autocompleteTeamBuilder" class="autocomplete-box"></div>
+
+            <input id="teamSize" type="number" min="1" max="6" placeholder="Team Size"/>
+
+            <button id="buildTeamBtn" class="action-btn">Build Team</button>
+          </div>
+
+          <div id="bestTeamContainer" class="card-container"></div>
+        </section>
+
+        <!-- ========================= -->
+        <!-- LEADERBOARD -->
+        <!-- ========================= -->
+        <section id="leaderboard" class="tab-content-pane">
+          <h2 class="section-title">Leaderboard</h2>
+
+          <div class="leaderboard-tabs">
+            <button class="lb-tab active" data-type="skills">
+              <i class="fas fa-star"></i> Top Skills
+            </button>
+
+            <button class="lb-tab" data-type="connectors">
+              <i class="fas fa-link"></i> Top Connectors
+            </button>
+
+            <button class="lb-tab" data-type="rising">
+              <i class="fas fa-rocket"></i> Rising Stars
+            </button>
+          </div>
+
+          <div id="leaderboard-rows"></div>
+        </section>
+
+        <!-- ========================= -->
+        <!-- SYNAPSE PLACEHOLDER -->
+        <!-- ========================= -->
+        <section id="synapse" class="tab-content-pane">
+          <h2 class="section-title">Synapse View (Loading…)</h2>
+          <p style="color:#aaa;">Launching fullscreen network visualization…</p>
+        </section>
+
+      </div> <!-- END profile-section -->
+
+    </main>
+  </div> <!-- END container -->
+
+  <!-- ========================= -->
+  <!-- SCRIPTS (CORRECT ORDER) -->
+  <!-- ========================= -->
+
+  <!-- D3 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+  <!-- Supabase -->
+  <script type="module">
+    import { supabase } from "./assets/js/supabaseClient.js";
+    window.supabase = supabase;
+    console.log("%cSupabase injected into window.", "color:#0ff");
+  </script>
+
+  <!-- Profile System (NEW - Load BEFORE main.js) -->
+  <script type="module">
+    import { initProfileSystem } from "./assets/js/profileSystem.js";
+    
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initProfileSystem);
+    } else {
+      initProfileSystem();
+    }
+  </script>
+
+  <!-- Main controller -->
+  <script type="module" src="assets/js/main.js"></script>
+
+  <!-- Background animation -->
+  <script type="module" src="assets/js/neuralBackground.js"></script>
+
+  <!-- Tab logic (Synapse + BBS lazy-loading) -->
+  <script>
+    document.querySelectorAll(".top-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tab = btn.dataset.tab;
+
+        // Hide all panes
+        document.querySelectorAll(".tab-content-pane").forEach(p =>
+          p.classList.remove("active-tab-pane")
+        );
+
+        // Show selected pane
+        const pane = document.getElementById(tab);
+        if (pane) pane.classList.add("active-tab-pane");
+
+        // Synapse special case – fullscreen
+        if (tab === "synapse") {
+          document.getElementById("synapse-container").classList.add("active");
+          import("./assets/js/synapse.js").then(m => m.initSynapseView());
+        } else {
+          document.getElementById("synapse-container").classList.remove("active");
+        }
+      });
+    });
+
+    // BBS open
+    document.getElementById("open-bbs").addEventListener("click", () => {
+      const modal = document.getElementById("bbs-modal");
+      modal.style.display = "flex";
+
+      import("./assets/js/bbs.js").then(m => m.initBBS?.());
+
+      window.addEventListener("keydown", e => {
+        if (e.key === "Escape") modal.style.display = "none";
+      });
+    });
+  </script>
+
+</body>
+</html>
