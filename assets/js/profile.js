@@ -7,6 +7,7 @@
 //   ✓ Login.js custom events
 //   ✓ Auto-populate for existing users
 //   ✓ Dynamic title/button text
+//   ✓ FIXED: Always UPDATE (ensureCommunityUser creates row)
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -182,6 +183,8 @@ async function uploadPhoto(file) {
   const ext = file.name.split(".").pop();
   const filePath = `avatars/${currentUser.id}/avatar-${Date.now()}.${ext}`;
 
+  console.log("📤 Uploading photo to:", filePath);
+
   const { error: uploadError } = await supabase.storage
     .from("hacksbucket")
     .upload(filePath, file, { upsert: true });
@@ -199,88 +202,98 @@ async function uploadPhoto(file) {
 }
 
 // ======================================================================
-// SAVE PROFILE
+// SAVE PROFILE (ALWAYS UPDATE - ensureCommunityUser creates row)
 // ======================================================================
 async function saveProfile(event) {
   event.preventDefault();
   if (!currentUser) {
     console.error("❌ No current user");
+    showNotification("Not logged in", "error");
     return;
   }
 
+  console.log("💾 Starting profile save...");
   progressMsg.textContent = "Saving…";
+  progressMsg.style.color = "#00e0ff";
   progressBar.style.width = "40%";
 
-  let image_url = currentProfile?.image_url || null;
-
-  if (photoInput.files.length > 0) {
-    image_url = await uploadPhoto(photoInput.files[0]);
+  // Disable submit button to prevent double-clicks
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Saving...";
   }
 
-  const profileData = {
-    name: `${firstNameInput.value} ${lastNameInput.value}`.trim(),
-    email: emailInput.value,
-    skills: skillsInput.value.trim(),
-    bio: bioInput.value.trim(),
-    availability: availabilityInput.value,
-    image_url,
-    newsletter_opt_in: newsletterInput.checked,
-    profile_completed: true,
-    updated_at: new Date().toISOString()
-  };
+  try {
+    let image_url = currentProfile?.image_url || null;
 
-  let result, error;
+    // Upload photo if selected
+    if (photoInput.files.length > 0) {
+      console.log("📷 Uploading new photo...");
+      progressMsg.textContent = "Uploading photo…";
+      image_url = await uploadPhoto(photoInput.files[0]);
+      progressBar.style.width = "60%";
+    }
 
-  // Check if this is a new profile or update
-  if (currentProfile) {
-    // UPDATE existing profile
-    const updateResult = await supabase
+    const profileData = {
+      name: `${firstNameInput.value} ${lastNameInput.value}`.trim(),
+      email: emailInput.value,
+      skills: skillsInput.value.trim(),
+      bio: bioInput.value.trim(),
+      availability: availabilityInput.value,
+      image_url,
+      newsletter_opt_in: newsletterInput.checked,
+      newsletter_opt_in_at: newsletterInput.checked ? new Date().toISOString() : null,
+      profile_completed: true,
+      updated_at: new Date().toISOString()
+    };
+
+    console.log("📤 Updating profile with data:", profileData);
+    progressMsg.textContent = "Saving profile…";
+    progressBar.style.width = "80%";
+
+    // ALWAYS UPDATE (ensureCommunityUser already created the row)
+    const { data: result, error } = await supabase
       .from("community")
       .update(profileData)
       .eq("user_id", currentUser.id)
       .select()
       .single();
-    
-    result = updateResult.data;
-    error = updateResult.error;
-  } else {
-    // INSERT new profile
-    const insertResult = await supabase
-      .from("community")
-      .insert([{
-        user_id: currentUser.id,
-        ...profileData,
-        created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
-    
-    result = insertResult.data;
-    error = insertResult.error;
-  }
 
-  if (error) {
-    console.error("❌ Profile save failed:", error);
-    showNotification("Profile save failed!", "error");
-    progressMsg.textContent = "Save failed!";
+    if (error) {
+      console.error("❌ Profile save failed:", error);
+      showNotification("Profile save failed: " + error.message, "error");
+      progressMsg.textContent = "Save failed!";
+      progressMsg.style.color = "#f00";
+      progressBar.style.width = "0%";
+      return;
+    }
+
+    currentProfile = result;
+
+    progressBar.style.width = "100%";
+    progressMsg.textContent = "Profile saved!";
+    progressMsg.style.color = "#0f0";
+    
+    showNotification("Profile updated successfully!", "success");
+    
+    // Update UI to reflect existing user
+    updateUIForExistingUser();
+    updateProgressBar();
+
+    console.log("✅ Profile saved successfully:", result);
+
+  } catch (err) {
+    console.error("❌ Exception during save:", err);
+    showNotification("An error occurred while saving", "error");
+    progressMsg.textContent = "Error!";
     progressMsg.style.color = "#f00";
-    return;
+  } finally {
+    // Re-enable submit button
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = currentProfile ? "Update Profile" : "Save Profile";
+    }
   }
-
-  currentProfile = result;
-
-  progressBar.style.width = "100%";
-  progressMsg.textContent = "Profile saved!";
-  progressMsg.style.color = "#0f0";
-  
-  const message = currentProfile ? "Profile updated successfully!" : "Profile created successfully!";
-  showNotification(message, "success");
-  
-  // Update UI to reflect existing user
-  updateUIForExistingUser();
-  updateProgressBar();
-
-  console.log("✅ Profile saved successfully");
 }
 
 // ======================================================================
