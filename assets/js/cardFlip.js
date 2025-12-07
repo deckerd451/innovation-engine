@@ -1,5 +1,13 @@
-// cardFlip.js - CharlestonHacks Portal Card System
-// Updated to support flip-to-function portal UX
+// ===============================================
+// CharlestonHacks Card Flip Logic (Portal Enhanced)
+// ===============================================
+// ✅ Portal flip animation with function names on button clicks
+// ✅ Random video clips play automatically (only once per portal per session)
+// ✅ Shows BTC tracker when Descartes.png appears
+// ✅ Triggers chat bubble when Medusa.png appears
+// ===============================================
+
+import { setupChatBubble } from './chatBubble.js';
 
 // Portal routing map - links each clickable area to its function
 const PORTAL_MAP = {
@@ -54,36 +62,185 @@ const PORTAL_MAP = {
 };
 
 let isFlipping = false;
+let videoPlaying = false;
+let visitedPortals = new Set(); // Track which portals have been clicked this session
+let randomAnimationTimer = null;
 
-/**
- * Initialize the card flip portal system
- * @param {Object} CONFIG - Configuration object with sounds and other settings
- */
 export function initCardFlip(CONFIG) {
-  console.log('🚀 Initializing Portal Card System...');
-  
-  // Inject portal animation styles first
+  const missionImage = document.getElementById('missionImage');
+  const missionVideo = document.getElementById('missionVideo');
+  const cardFrame    = document.getElementById('cardFrame');
+  const btcElement   = document.getElementById('btcPrice');
+
+  if (!missionImage || !missionVideo || !cardFrame) return;
+
+  // Inject portal animation styles
   injectPortalStyles();
   
   // Create portal overlay element
   createPortalOverlay();
-  
-  // Set up click handlers for all clickable areas
+
+  // ===== Helper Functions =====
+  const getRandomCardImage = () => {
+    const arr = CONFIG.cardImages;
+    return arr[Math.floor(Math.random() * arr.length)];
+  };
+
+  const getRandomFlipClass = () =>
+    Math.random() > 0.5 ? 'flip-image-x' : 'flip-image-y';
+
+  const getRandomVideo = () => {
+    const arr = CONFIG.videos;
+    return arr[Math.floor(Math.random() * arr.length)];
+  };
+
+  const playSound = (soundKey) => {
+    const audio = CONFIG.sounds[soundKey];
+    if (audio) {
+      audio.currentTime = 0;
+      audio.volume = soundKey === 'cardflip' ? 0.45 : 0.7;
+      audio.play().catch(() => {});
+    }
+  };
+
+  // ===== BTC Visibility Helper =====
+  function updateBTCVisibility(currentCardSrc) {
+    if (!btcElement) return;
+    if (typeof currentCardSrc === 'string' && currentCardSrc.includes('Descartes.png')) {
+      btcElement.classList.add('visible');
+    } else {
+      btcElement.classList.remove('visible');
+    }
+  }
+
+  // ===== Play Random Video Animation =====
+  function playRandomVideoAnimation() {
+    if (videoPlaying || isFlipping) return;
+
+    console.log('🎬 Playing random video animation');
+
+    // Select next random card + animation
+    const flipClass = getRandomFlipClass();
+    const newImage = getRandomCardImage();
+    missionImage.src = newImage;
+    missionImage.classList.add(flipClass);
+    playSound('cardflip');
+
+    // 💬 Trigger chat bubble when Medusa appears
+    if (typeof newImage === 'string' && newImage.includes('Medusa.png')) {
+      setupChatBubble();
+    }
+
+    // 💰 Show BTC only for Descartes.png
+    updateBTCVisibility(newImage);
+
+    // Clean up flip animation class
+    setTimeout(() => missionImage.classList.remove(flipClass), 1200);
+
+    // 🎬 Select a random video to accompany the card
+    const videoSrc = getRandomVideo();
+    missionVideo.src = videoSrc;
+    missionVideo.style.display = 'block';
+    cardFrame.style.display    = 'block';
+    setTimeout(() => (missionVideo.style.opacity = 1), 100);
+    missionVideo.muted = false;
+
+    // 🖥 Responsive controls
+    if (window.matchMedia('(max-width: 600px)').matches) {
+      missionVideo.removeAttribute('controls');
+    } else {
+      missionVideo.setAttribute('controls', '');
+    }
+
+    missionVideo.load();
+    missionVideo.play();
+    videoPlaying = true;
+
+    // 🔄 Restore state when video ends
+    missionVideo.onended = () => {
+      missionVideo.pause();
+      missionVideo.style.display = 'none';
+      missionVideo.style.opacity = 0;
+      cardFrame.style.display = 'none';
+      videoPlaying = false;
+    };
+  }
+
+  // ===== Random Video Animations for Unvisited Portals =====
+  function startRandomAnimations() {
+    // Wait 3 seconds before starting random animations
+    setTimeout(() => {
+      triggerRandomAnimation();
+    }, 3000);
+  }
+
+  function triggerRandomAnimation() {
+    // Don't animate if user is actively using the card
+    if (isFlipping || videoPlaying) {
+      scheduleNextRandomAnimation();
+      return;
+    }
+
+    // Get all portal keys that haven't been visited
+    const allPortalKeys = Object.keys(PORTAL_MAP);
+    const unvisitedPortals = allPortalKeys.filter(key => !visitedPortals.has(key));
+
+    // If all portals have been visited, stop random animations
+    if (unvisitedPortals.length === 0) {
+      console.log('🎉 All portals visited - stopping random video animations');
+      return;
+    }
+
+    // Play a random video animation
+    playRandomVideoAnimation();
+
+    // Schedule next random animation
+    scheduleNextRandomAnimation();
+  }
+
+  function scheduleNextRandomAnimation() {
+    // Clear any existing timer
+    if (randomAnimationTimer) {
+      clearTimeout(randomAnimationTimer);
+    }
+
+    // Random interval between 8-15 seconds
+    const interval = 8000 + Math.random() * 7000;
+    randomAnimationTimer = setTimeout(() => {
+      triggerRandomAnimation();
+    }, interval);
+  }
+
+  // ===== Portal Button Click Handlers =====
   setupPortalClickHandlers(CONFIG);
-  
-  console.log('✅ Portal System Ready');
+
+  // ===== Original Card Click Handler (preserved for manual clicks) =====
+  missionImage.addEventListener('click', () => {
+    if (videoPlaying || isFlipping) return;
+    playRandomVideoAnimation();
+  });
+
+  // ===== Keyboard Accessibility =====
+  missionImage.setAttribute('tabindex', '0');
+  missionImage.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') missionImage.click();
+  });
+
+  // Start random animations
+  startRandomAnimations();
+
+  console.log('✅ Portal Card System with Video Animations Ready');
 }
 
 /**
  * Create the portal overlay element for displaying function names
  */
 function createPortalOverlay() {
-  // Check if overlay already exists
   if (document.getElementById('portal-overlay')) {
     console.log('Portal overlay already exists');
     return;
   }
-  
+
   const overlay = document.createElement('div');
   overlay.id = 'portal-overlay';
   overlay.style.cssText = `
@@ -97,49 +254,49 @@ function createPortalOverlay() {
     z-index: 150;
     pointer-events: none;
   `;
-  
+
   const mediaContainer = document.querySelector('.media-container');
   if (mediaContainer) {
     mediaContainer.appendChild(overlay);
     console.log('Portal overlay created');
-  } else {
-    console.error('Media container not found!');
   }
 }
 
 /**
  * Set up portal click handlers for all clickable areas
- * @param {Object} CONFIG - Configuration object
  */
 function setupPortalClickHandlers(CONFIG) {
   const buttons = document.querySelectorAll('.clickable-area');
   console.log(`Found ${buttons.length} clickable areas`);
-  
+
   buttons.forEach((btn, index) => {
-    // Find which portal area this is
     const portalKey = findPortalKey(btn);
     console.log(`Button ${index}: ${portalKey}`);
-    
+
     if (!portalKey) {
       console.warn(`No portal mapping found for button ${index}`, btn.classList);
       return;
     }
-    
+
     // Add click handler
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       console.log(`🎯 Portal clicked: ${portalKey}`);
-      
-      // Don't trigger if already flipping
-      if (isFlipping) {
-        console.log('Already flipping, ignoring click');
+
+      // Don't trigger if already flipping or video playing
+      if (isFlipping || videoPlaying) {
+        console.log('Card busy, ignoring click');
         return;
       }
-      
+
+      // Mark this portal as visited
+      visitedPortals.add(portalKey);
+      console.log(`✓ Portal ${portalKey} marked as visited`);
+
       const portal = PORTAL_MAP[portalKey];
-      
+
       // Play sound
       const soundName = btn.dataset.sound;
       if (soundName && CONFIG.sounds && CONFIG.sounds[soundName]) {
@@ -148,11 +305,11 @@ function setupPortalClickHandlers(CONFIG) {
           console.log('Sound play failed:', err);
         });
       }
-      
+
       // Trigger portal flip sequence
       triggerPortalSequence(portal);
     });
-    
+
     // Preserve hover info behavior
     btn.addEventListener('mouseover', () => {
       const infoLine = document.getElementById('infoLine');
@@ -162,7 +319,7 @@ function setupPortalClickHandlers(CONFIG) {
         infoText.textContent = btn.dataset.info || '';
       }
     });
-    
+
     btn.addEventListener('mouseout', () => {
       const infoLine = document.getElementById('infoLine');
       const infoText = document.getElementById('infoText');
@@ -176,8 +333,6 @@ function setupPortalClickHandlers(CONFIG) {
 
 /**
  * Find the portal key from button classes
- * @param {HTMLElement} btn - Button element
- * @returns {string|null} Portal key
  */
 function findPortalKey(btn) {
   const classList = Array.from(btn.classList);
@@ -191,18 +346,22 @@ function findPortalKey(btn) {
 
 /**
  * Trigger the complete portal flip sequence
- * @param {Object} portal - Portal configuration object
  */
 function triggerPortalSequence(portal) {
   console.log(`🌀 Starting portal sequence: ${portal.functionName}`);
   isFlipping = true;
-  
+
+  // Cancel any pending random animations
+  if (randomAnimationTimer) {
+    clearTimeout(randomAnimationTimer);
+  }
+
   // Step 1: Show portal overlay with function name
   showPortalText(portal);
-  
+
   // Step 2: Start flip animation
   startCardFlip();
-  
+
   // Step 3: Execute portal function after flip completes
   setTimeout(() => {
     executePortalFunction(portal);
@@ -211,7 +370,6 @@ function triggerPortalSequence(portal) {
 
 /**
  * Display the portal function name with sci-fi styling
- * @param {Object} portal - Portal configuration
  */
 function showPortalText(portal) {
   const overlay = document.getElementById('portal-overlay');
@@ -219,9 +377,9 @@ function showPortalText(portal) {
     console.error('Portal overlay not found!');
     return;
   }
-  
+
   console.log(`Displaying portal text: ${portal.functionName}`);
-  
+
   // Create portal rings animation
   const ringsHTML = `
     <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;">
@@ -230,7 +388,7 @@ function showPortalText(portal) {
       <div class="portal-ring portal-ring-3"></div>
     </div>
   `;
-  
+
   // Create function name display
   overlay.innerHTML = `
     ${ringsHTML}
@@ -270,7 +428,7 @@ function showPortalText(portal) {
       </div>
     </div>
   `;
-  
+
   overlay.style.display = 'flex';
 }
 
@@ -280,17 +438,15 @@ function showPortalText(portal) {
 function startCardFlip() {
   const card = document.getElementById('missionImage');
   const frame = document.getElementById('cardFrame');
-  
+
   console.log('Starting card flip animation');
-  
+
   if (card) {
     card.style.transition = 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)';
     card.style.transformStyle = 'preserve-3d';
     card.style.transform = 'rotateY(180deg)';
-  } else {
-    console.error('Card image not found!');
   }
-  
+
   if (frame) {
     frame.style.transition = 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)';
     frame.style.transformStyle = 'preserve-3d';
@@ -300,12 +456,11 @@ function startCardFlip() {
 
 /**
  * Execute the portal function (navigate to destination)
- * @param {Object} portal - Portal configuration
  */
 function executePortalFunction(portal) {
   console.log(`🚀 Executing: ${portal.functionName}`);
   console.log(`📍 Navigating to: ${portal.destination}`);
-  
+
   // Navigate to the destination
   window.location.href = portal.destination;
 }
@@ -314,12 +469,11 @@ function executePortalFunction(portal) {
  * Inject CSS styles for portal animations
  */
 function injectPortalStyles() {
-  // Check if styles already injected
   if (document.getElementById('portal-styles')) {
     console.log('Portal styles already injected');
     return;
   }
-  
+
   const style = document.createElement('style');
   style.id = 'portal-styles';
   style.textContent = `
@@ -399,26 +553,33 @@ function injectPortalStyles() {
       animation: loadingDot 1.4s ease-in-out infinite;
     }
   `;
-  
+
   document.head.appendChild(style);
   console.log('Portal styles injected');
 }
 
 /**
  * Public function to manually trigger a portal
- * @param {string} portalKey - Key from PORTAL_MAP
  */
 export function openPortal(portalKey) {
   const portal = PORTAL_MAP[portalKey];
   if (portal && !isFlipping) {
+    visitedPortals.add(portalKey);
     triggerPortalSequence(portal);
   }
 }
 
 /**
  * Get all available portals
- * @returns {Object} Portal map
  */
 export function getPortals() {
   return { ...PORTAL_MAP };
+}
+
+/**
+ * Reset visited portals (useful for testing)
+ */
+export function resetVisitedPortals() {
+  visitedPortals.clear();
+  console.log('🔄 Visited portals reset');
 }
