@@ -1,68 +1,101 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – PROFILE CONTROLLER (FINAL 2025)
+// CharlestonHacks Innovation Engine — PROFILE CONTROLLER (COMPLETE 2025)
 // Works with:
-//   ✔ community table
-//   ✔ RLS: auth.uid() = user_id
-//   ✔ Storage bucket: hacksbucket
-//   ✔ supabaseClient.js ensureCommunityUser()
+//   ✓ community table
+//   ✓ RLS: auth.uid() = user_id
+//   ✓ Storage bucket: hacksbucket
+//   ✓ Login.js custom events
+//   ✓ Auto-populate for existing users
+//   ✓ Dynamic title/button text
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // DOM
-const form = document.getElementById("skills-form");
-const previewImg = document.getElementById("preview");
-
-const firstNameInput = document.getElementById("first-name");
-const lastNameInput = document.getElementById("last-name");
-const emailInput = document.getElementById("email");
-const skillsInput = document.getElementById("skills-input");
-const bioInput = document.getElementById("bio-input");
-const availabilityInput = document.getElementById("availability-input");
-const newsletterInput = document.getElementById("newsletter-opt-in");
-
-const photoInput = document.getElementById("photo-input");
-
-const progressBar = document.querySelector(".profile-bar-inner");
-const progressMsg = document.getElementById("profile-progress-msg");
+let form, previewImg;
+let firstNameInput, lastNameInput, emailInput, skillsInput;
+let bioInput, availabilityInput, newsletterInput, photoInput;
+let progressBar, progressMsg;
+let profileTitle, submitButton;
 
 let currentUser = null;
 let currentProfile = null;
 
 // ======================================================================
+// INITIALIZE DOM REFERENCES
+// ======================================================================
+function initDOMRefs() {
+  form = document.getElementById("skills-form");
+  previewImg = document.getElementById("preview");
+
+  firstNameInput = document.getElementById("first-name");
+  lastNameInput = document.getElementById("last-name");
+  emailInput = document.getElementById("email");
+  skillsInput = document.getElementById("skills-input");
+  bioInput = document.getElementById("bio-input");
+  availabilityInput = document.getElementById("availability-input");
+  newsletterInput = document.getElementById("newsletter-opt-in");
+  photoInput = document.getElementById("photo-input");
+
+  progressBar = document.querySelector(".profile-bar-inner");
+  progressMsg = document.getElementById("profile-progress-msg");
+  
+  profileTitle = document.querySelector("#profile .section-title");
+  submitButton = document.querySelector("#skills-form button[type='submit']");
+
+  if (!form) {
+    console.error("❌ Profile form not found in DOM");
+    return false;
+  }
+  
+  return true;
+}
+
+// ======================================================================
 // LOAD USER + PROFILE
 // ======================================================================
-async function loadProfile() {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user) {
-    console.warn("No logged in user.");
-    return;
+async function loadProfile(user) {
+  if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      console.warn("⚠️ No logged in user.");
+      return;
+    }
+    user = session.user;
   }
 
-  currentUser = session.user;
+  currentUser = user;
+  console.log("👤 Loading profile for:", user.email);
 
   const { data, error } = await supabase
     .from("community")
     .select("*")
-    .eq("user_id", currentUser.id)
+    .eq("user_id", user.id)
     .single();
 
   if (error) {
+    if (error.code === 'PGRST116') {
+      // No profile exists - new user
+      console.log("🆕 No profile found - new user");
+      currentProfile = null;
+      prefillNewUser(user);
+      updateUIForNewUser();
+      return;
+    }
     console.error("❌ Error loading profile:", error);
     return;
   }
 
   currentProfile = data;
+  console.log("✅ Profile loaded:", currentProfile.name);
   fillProfileForm();
   updateProgressBar();
+  updateUIForExistingUser();
 }
 
 // ======================================================================
-// POPULATE FORM
+// POPULATE FORM (EXISTING USER)
 // ======================================================================
 function fillProfileForm() {
   if (!currentProfile) return;
@@ -84,6 +117,59 @@ function fillProfileForm() {
   }
 
   newsletterInput.checked = currentProfile.newsletter_opt_in ?? false;
+  
+  console.log("✅ Profile form populated");
+}
+
+// ======================================================================
+// PREFILL NEW USER (FROM OAUTH DATA)
+// ======================================================================
+function prefillNewUser(user) {
+  // Prefill email
+  if (user.email) {
+    emailInput.value = user.email;
+  }
+
+  // Try to get name from OAuth metadata
+  if (user.user_metadata) {
+    const fullName = user.user_metadata.full_name || user.user_metadata.name;
+    if (fullName) {
+      const names = fullName.split(' ');
+      firstNameInput.value = names[0] || '';
+      lastNameInput.value = names.slice(1).join(' ') || '';
+    }
+
+    // Try to get avatar from OAuth
+    if (user.user_metadata.avatar_url) {
+      previewImg.src = user.user_metadata.avatar_url;
+      previewImg.classList.remove("hidden");
+    }
+  }
+
+  console.log("✅ New user info prefilled");
+}
+
+// ======================================================================
+// UPDATE UI BASED ON USER STATUS
+// ======================================================================
+function updateUIForExistingUser() {
+  if (profileTitle) {
+    profileTitle.textContent = "Your Profile";
+  }
+  if (submitButton) {
+    submitButton.textContent = "Update Profile";
+  }
+  console.log("📝 UI updated for existing user");
+}
+
+function updateUIForNewUser() {
+  if (profileTitle) {
+    profileTitle.textContent = "Create Your Profile";
+  }
+  if (submitButton) {
+    submitButton.textContent = "Save Profile";
+  }
+  console.log("📝 UI updated for new user");
 }
 
 // ======================================================================
@@ -106,9 +192,9 @@ async function uploadPhoto(file) {
     return null;
   }
 
-  // NEW API: .getPublicUrl()
   const { data } = supabase.storage.from("hacksbucket").getPublicUrl(filePath);
 
+  console.log("✅ Photo uploaded:", data.publicUrl);
   return data.publicUrl || null;
 }
 
@@ -117,7 +203,10 @@ async function uploadPhoto(file) {
 // ======================================================================
 async function saveProfile(event) {
   event.preventDefault();
-  if (!currentUser) return;
+  if (!currentUser) {
+    console.error("❌ No current user");
+    return;
+  }
 
   progressMsg.textContent = "Saving…";
   progressBar.style.width = "40%";
@@ -128,7 +217,7 @@ async function saveProfile(event) {
     image_url = await uploadPhoto(photoInput.files[0]);
   }
 
-  const updated = {
+  const profileData = {
     name: `${firstNameInput.value} ${lastNameInput.value}`.trim(),
     email: emailInput.value,
     skills: skillsInput.value.trim(),
@@ -136,27 +225,62 @@ async function saveProfile(event) {
     availability: availabilityInput.value,
     image_url,
     newsletter_opt_in: newsletterInput.checked,
-    profile_completed: true
+    profile_completed: true,
+    updated_at: new Date().toISOString()
   };
 
-  const { data, error } = await supabase
-    .from("community")
-    .update(updated)
-    .eq("user_id", currentUser.id)
-    .select()
-    .single();
+  let result, error;
+
+  // Check if this is a new profile or update
+  if (currentProfile) {
+    // UPDATE existing profile
+    const updateResult = await supabase
+      .from("community")
+      .update(profileData)
+      .eq("user_id", currentUser.id)
+      .select()
+      .single();
+    
+    result = updateResult.data;
+    error = updateResult.error;
+  } else {
+    // INSERT new profile
+    const insertResult = await supabase
+      .from("community")
+      .insert([{
+        user_id: currentUser.id,
+        ...profileData,
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+    
+    result = insertResult.data;
+    error = insertResult.error;
+  }
 
   if (error) {
-    console.error("❌ Profile update failed:", error);
-    showNotification("Profile update failed!", "error");
+    console.error("❌ Profile save failed:", error);
+    showNotification("Profile save failed!", "error");
+    progressMsg.textContent = "Save failed!";
+    progressMsg.style.color = "#f00";
     return;
   }
 
-  currentProfile = data;
+  currentProfile = result;
 
   progressBar.style.width = "100%";
   progressMsg.textContent = "Profile saved!";
-  showNotification("Profile updated successfully!", "success");
+  progressMsg.style.color = "#0f0";
+  
+  const message = currentProfile ? "Profile updated successfully!" : "Profile created successfully!";
+  showNotification(message, "success");
+  
+  // Update UI to reflect existing user
+  updateUIForExistingUser();
+  updateProgressBar();
+
+  console.log("✅ Profile saved successfully");
 }
 
 // ======================================================================
@@ -164,32 +288,75 @@ async function saveProfile(event) {
 // ======================================================================
 function updateProgressBar() {
   const p = currentProfile;
-  if (!p) return;
+  if (!p) {
+    progressBar.style.width = "0%";
+    return;
+  }
 
   let score = 0;
-  if (p.name) score += 20;
-  if (p.skills) score += 20;
-  if (p.bio) score += 20;
+  if (p.name && p.name.trim()) score += 20;
+  if (p.skills && p.skills.trim()) score += 20;
+  if (p.bio && p.bio.trim()) score += 20;
   if (p.image_url) score += 20;
   if (p.availability) score += 20;
 
   progressBar.style.width = `${score}%`;
+  
+  if (score === 100) {
+    progressMsg.textContent = "✅ Profile Complete!";
+    progressMsg.style.color = "#0f0";
+  } else {
+    progressMsg.textContent = `Profile ${score}% complete`;
+    progressMsg.style.color = "#00e0ff";
+  }
+}
+
+// ======================================================================
+// LISTEN FOR LOGIN EVENTS FROM login.js
+// ======================================================================
+function setupEventListeners() {
+  // Event fired by login.js when existing profile is loaded
+  window.addEventListener('profile-loaded', (event) => {
+    console.log("📨 Received profile-loaded event");
+    const { profile, user } = event.detail;
+    currentUser = user;
+    currentProfile = profile;
+    fillProfileForm();
+    updateProgressBar();
+    updateUIForExistingUser();
+  });
+
+  // Event fired by login.js when new user (no profile)
+  window.addEventListener('profile-new', (event) => {
+    console.log("📨 Received profile-new event");
+    const { user } = event.detail;
+    currentUser = user;
+    currentProfile = null;
+    prefillNewUser(user);
+    updateUIForNewUser();
+  });
 }
 
 // ======================================================================
 // LIVE PHOTO PREVIEW
 // ======================================================================
-photoInput.addEventListener("change", () => {
-  const file = photoInput.files[0];
-  if (!file) return;
+function setupPhotoPreview() {
+  if (!photoInput || !previewImg) return;
+  
+  photoInput.addEventListener("change", () => {
+    const file = photoInput.files[0];
+    if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    previewImg.src = e.target.result;
-    previewImg.classList.remove("hidden");
-  };
-  reader.readAsDataURL(file);
-});
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewImg.classList.remove("hidden");
+    };
+    reader.readAsDataURL(file);
+  });
+  
+  console.log("✅ Photo preview handler attached");
+}
 
 // ======================================================================
 // INIT EXPORT
@@ -197,8 +364,29 @@ photoInput.addEventListener("change", () => {
 export async function initProfileForm() {
   console.log("👤 Initializing Profile Form…");
 
-  await loadProfile();
-  form.addEventListener("submit", saveProfile);
+  // Initialize DOM references
+  if (!initDOMRefs()) {
+    console.error("❌ Failed to initialize DOM references");
+    return;
+  }
 
-  console.log("👤 Profile system ready.");
+  // Setup event listeners for login.js events
+  setupEventListeners();
+
+  // Setup photo preview
+  setupPhotoPreview();
+
+  // Setup form submit handler
+  if (form) {
+    form.addEventListener("submit", saveProfile);
+    console.log("✅ Form submit handler attached");
+  }
+
+  // Load profile for current user (if already logged in)
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    await loadProfile(session.user);
+  }
+
+  console.log("✅ Profile system ready");
 }
