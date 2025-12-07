@@ -1,16 +1,16 @@
 // ======================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (OAUTH FINAL 2025)
+// CharlestonHacks Innovation Engine — LOGIN CONTROLLER (FIXED 2025)
 // Uses:
 //   - GitHub / Google OAuth with redirect
 //   - Clean query-string callback (no hashes, no magic links)
-//   - Smart auto-login (Option A)
+//   - Smart auto-login with profile loading
 // ======================================================================
 
 import { supabase } from "./supabaseClient.js";
 import { showNotification } from "./utils.js";
 
 // DOM refs
-let loginSection, profileSection;
+let loginSection, profileSection, userBadge, logoutBtn;
 let githubBtn, googleBtn;
 
 // ======================================================================
@@ -19,6 +19,8 @@ let githubBtn, googleBtn;
 export function setupLoginDOM() {
   loginSection   = document.getElementById("login-section");
   profileSection = document.getElementById("profile-section");
+  userBadge      = document.getElementById("user-badge");
+  logoutBtn      = document.getElementById("logout-btn");
 
   githubBtn = document.getElementById("github-login");
   googleBtn = document.getElementById("google-login");
@@ -28,6 +30,7 @@ export function setupLoginDOM() {
     return;
   }
 
+  // Setup OAuth buttons
   if (githubBtn) {
     githubBtn.addEventListener("click", () => oauthLogin("github"));
   }
@@ -35,20 +38,60 @@ export function setupLoginDOM() {
     googleBtn.addEventListener("click", () => oauthLogin("google"));
   }
 
+  // Setup logout button
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", handleLogout);
+  }
+
   console.log("🎨 Login DOM setup complete (OAuth mode)");
 }
 
 // ======================================================================
-// 2. UI HELPERS
+// 2. UI HELPERS (FIXED FOR CORRECT CLASS NAMES)
 // ======================================================================
 function showLoginUI() {
+  // Show login section
+  loginSection.classList.add("active-tab-pane");
   loginSection.classList.remove("hidden");
+  
+  // Hide profile section
   profileSection.classList.add("hidden");
+  profileSection.classList.remove("active-tab-pane");
+  
+  // Hide user badge and logout
+  if (userBadge) userBadge.classList.add("hidden");
+  if (logoutBtn) logoutBtn.classList.add("hidden");
+  
+  console.log("🔒 Showing login UI");
 }
 
-function showProfileUI() {
+function showProfileUI(user) {
+  // Hide login section
+  loginSection.classList.remove("active-tab-pane");
   loginSection.classList.add("hidden");
+  
+  // Show profile section
   profileSection.classList.remove("hidden");
+  
+  // Show the profile tab by default
+  const profileTab = document.getElementById("profile");
+  if (profileTab) {
+    document.querySelectorAll(".tab-content-pane").forEach(p =>
+      p.classList.remove("active-tab-pane")
+    );
+    profileTab.classList.add("active-tab-pane");
+  }
+  
+  // Show user badge and logout button
+  if (userBadge && user?.email) {
+    userBadge.textContent = user.email;
+    userBadge.classList.remove("hidden");
+  }
+  if (logoutBtn) {
+    logoutBtn.classList.remove("hidden");
+  }
+  
+  console.log("✅ Showing profile UI for:", user?.email);
 }
 
 // ======================================================================
@@ -60,13 +103,13 @@ async function oauthLogin(provider) {
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: "https://www.charlestonhacks.com/2card.html"
+      redirectTo: window.location.origin + "/2card.html"
     }
   });
 
   if (error) {
     console.error("❌ OAuth error:", error);
-    showNotification("Login failed. Please try again.");
+    showNotification("Login failed. Please try again.", "error");
   }
 
   // NOTE: On success, browser will redirect to provider, then back to 2card.html
@@ -83,7 +126,7 @@ async function handleOAuthCallback() {
   if (params.has("error")) {
     const errorDesc = params.get("error_description") || "OAuth error.";
     console.warn("⚠️ OAuth error in callback:", errorDesc);
-    showNotification("Login link expired or cancelled. Please try again.");
+    showNotification("Login link expired or cancelled. Please try again.", "error");
 
     // Clean URL (remove ?error=...)
     url.search = "";
@@ -96,7 +139,7 @@ async function handleOAuthCallback() {
     return;
   }
 
-  console.log("🔁 Processing OAuth callback (code flow)…");
+  console.log("🔍 Processing OAuth callback (code flow)…");
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(
     window.location.href
@@ -104,11 +147,11 @@ async function handleOAuthCallback() {
 
   if (error) {
     console.error("❌ Error during OAuth code exchange:", error);
-    showNotification("Login failed. Please try again.");
+    showNotification("Login failed. Please try again.", "error");
     return;
   }
 
-  console.log("🔓 OAuth SIGNED_IN via redirect:", data);
+  console.log("🔓 OAuth SIGNED_IN via redirect:", data.user?.email);
 
   // Clean URL after successful login
   url.search = "";
@@ -116,32 +159,100 @@ async function handleOAuthCallback() {
 }
 
 // ======================================================================
-// 5. MAIN INIT – SMART AUTO LOGIN (OPTION A)
+// 5. HANDLE LOGOUT
+// ======================================================================
+async function handleLogout() {
+  console.log("👋 Logging out...");
+  
+  const { error } = await supabase.auth.signOut();
+  
+  if (error) {
+    console.error("❌ Logout error:", error);
+    showNotification("Logout failed. Please try again.", "error");
+  } else {
+    console.log("✅ Logged out successfully");
+    showNotification("Logged out successfully", "success");
+    showLoginUI();
+  }
+}
+
+// ======================================================================
+// 6. LOAD USER PROFILE DATA (AFTER LOGIN)
+// ======================================================================
+async function loadUserProfile(user) {
+  console.log("👤 Loading profile for:", user.email);
+  
+  try {
+    // Fetch from community table
+    const { data: profile, error } = await supabase
+      .from('community')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      console.error('❌ Error fetching profile:', error);
+      return null;
+    }
+    
+    if (profile) {
+      console.log('📋 Existing profile found');
+      
+      // Trigger profile form population
+      window.dispatchEvent(new CustomEvent('profile-loaded', { 
+        detail: { profile, user } 
+      }));
+      
+      return profile;
+    } else {
+      console.log('🆕 New user - no profile yet');
+      
+      // Trigger new user flow
+      window.dispatchEvent(new CustomEvent('profile-new', { 
+        detail: { user } 
+      }));
+      
+      return null;
+    }
+  } catch (err) {
+    console.error('❌ Exception loading profile:', err);
+    return null;
+  }
+}
+
+// ======================================================================
+// 7. MAIN INIT — SMART AUTO LOGIN
 // ======================================================================
 export async function initLoginSystem() {
   console.log("🔐 Initializing login system (OAuth)…");
 
-  // Step A – Handle OAuth callback if present
+  // Step A — Handle OAuth callback if present
   await handleOAuthCallback();
 
-  // Step B – Check current session
+  // Step B — Check current session
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
     console.log("🟢 Already logged in as:", session.user.email);
-    showProfileUI();
+    showProfileUI(session.user);
+    
+    // Load user profile data
+    await loadUserProfile(session.user);
   } else {
     console.log("🟡 No active session");
     showLoginUI();
   }
 
-  // Step C – Listen for auth state changes (single listener)
-  supabase.auth.onAuthStateChange((event, session) => {
+  // Step C — Listen for auth state changes (single listener)
+  supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("⚡ Auth event:", event);
 
     if (event === "SIGNED_IN" && session?.user) {
       console.log("🟢 User authenticated:", session.user.email);
-      showProfileUI();
+      showProfileUI(session.user);
+      
+      // Load user profile data
+      await loadUserProfile(session.user);
     }
 
     if (event === "SIGNED_OUT") {
