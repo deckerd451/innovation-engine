@@ -13,7 +13,7 @@
  */
 
 // eventsPage.js
-const FEED_URL = "https://charlestonhacks-events-worker.your‑subdomain.workers.dev/";
+const FEED_URL = "https://charlestonhacks-events-worker.deckerdb26354.workers.dev";
 // leave FALLBACK_URL as is
 const FALLBACK_URL = "assets/data/events.json";
 
