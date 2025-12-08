@@ -12,9 +12,11 @@
  * populates the page.
  */
 
-const FEED_URL =
-  "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/";
+// eventsPage.js
+const FEED_URL = "https://charlestonhacks-events-worker.your‑subdomain.workers.dev/";
+// leave FALLBACK_URL as is
 const FALLBACK_URL = "assets/data/events.json";
+
 
 // Format a date string into a friendly representation.  If no date is
 // provided a placeholder string is returned instead.
