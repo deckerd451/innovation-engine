@@ -1,189 +1,194 @@
-/**
- * CharlestonHacks Robust Events Worker
- *
- * This Cloudflare Worker aggregates events from multiple sources, normalises
- * the payloads into a common format and responds with a JSON object that
- * includes a `lastUpdated` timestamp.  It caches the output for a short
- * period (10 minutes by default) to prevent excessive upstream requests and
- * adds permissive CORS headers so that browsers can fetch it directly.
- *
- * To deploy this Worker you can use Wrangler (https://developers.cloudflare.com/workers/cli/).  
- * See README.md in this directory for setup instructions.
- */
-
-const CACHE_TTL_SECONDS = 600; // 10 minutes
-
-// List the sources you want to aggregate. Each entry defines a URL and a
-// resolver function that extracts the array of events from the response.
-const SOURCES = [
-  {
-    name: "CharlestonHacks Feed",
-    url: "https://charlestonhacks-events-proxy.deckerdb26354.workers.dev/",
-    resolve: (data) => {
-      // The worker returns { events: [...], lastUpdated: ... }
-      return Array.isArray(data.events) ? data.events : [];
-    },
-  },
-  // Add additional sources here.  Each source should return events as an
-  // array of objects with at least a `title` property.  See the
-  // normaliseEvent() function below for optional fields.
-];
+// worker.js – CharlestonHacks Robust Events Worker (ChuckTown Startups)
 
 /**
- * Normalise a raw event into a uniform shape.  If a property is missing
- * from the input it will be omitted from the output.  Feel free to
- * extend this function with your own normalisation logic (e.g. parsing
- * dates, resolving relative image URLs, etc.).
+ * This Worker scrapes the ChuckTown Startups homepage and extracts the
+ * "UPCOMING EVENTS" section into a normalized JSON feed.
  *
- * @param {Object} ev Raw event object from a source
- * @param {String} sourceName Human readable source name
+ * Output:
+ * {
+ *   "events": [
+ *      {
+ *        "title": "Bites vs. Bytes at Reforged Gaming Lounge Every Monday",
+ *        "startDate": "2025-12-08T22:00:00.000Z", // ISO or null if unknown
+ *        "location": "Reforged Gaming Lounge, North Charleston",
+ *        "link": "https://chucktownstartups.com/event-6437955",
+ *        "source": "ChuckTown Startups",
+ *        "description": null
+ *      },
+ *      ...
+ *   ],
+ *   "lastUpdated": "2025-12-08T09:37:46.943Z"
+ * }
  */
-function normaliseEvent(ev, sourceName) {
-  const out = {
-    title: ev.title?.toString().trim(),
-    source: sourceName,
-  };
-  if (ev.startDate) {
-    // Ensure date is ISO string. If parsing fails, drop the property.
-    const d = new Date(ev.startDate);
-    if (!isNaN(d)) out.startDate = d.toISOString();
-  }
-  if (ev.location) out.location = ev.location.toString().trim();
-  if (ev.link) out.link = ev.link.toString().trim();
-  if (ev.description) out.description = ev.description.toString().trim();
-  if (ev.image) out.image = ev.image.toString().trim();
-  return out;
-}
 
-/**
- * Attempt to fetch a URL, retrying with exponential backoff on failure.
- * Some providers intermittently return errors; this helper reduces the
- * likelihood of a single failure causing the entire aggregation to fail.
- *
- * @param {string} url The URL to fetch
- * @param {number} retries Number of retry attempts
- */
-async function safeFetch(url, retries = 2) {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        // Set a user agent so that providers don't block generic bots.
-        'User-Agent': 'CharlestonHacksBot/1.0',
-        'Accept': 'application/json',
-      },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res;
-  } catch (err) {
-    if (retries > 0) {
-      // wait before retrying (simple exponential backoff)
-      await new Promise((resolve) => setTimeout(resolve, 500 * (3 - retries)));
-      return safeFetch(url, retries - 1);
+const HOMEPAGE_URL = "https://chucktownstartups.com/";
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+const JSON_HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "public, max-age=600", // 10 minutes
+  ...CORS_HEADERS,
+};
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // Handle CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
-    throw err;
-  }
-}
 
-/**
- * Aggregate events from all configured sources.  If one source fails it
- * will be silently skipped but logged to the console.  The return
- * value is an array of normalised event objects.
- */
-async function gatherEvents() {
-  const events = [];
-  for (const src of SOURCES) {
+    if (request.method !== "GET") {
+      return new Response("Method Not Allowed", {
+        status: 405,
+        headers: CORS_HEADERS,
+      });
+    }
+
     try {
-      const res = await safeFetch(src.url);
-      const data = await res.json();
-      const rawEvents = src.resolve(data);
-      if (Array.isArray(rawEvents)) {
-        for (const ev of rawEvents) {
-          events.push(normaliseEvent(ev, src.name));
-        }
-      }
+      const events = await fetchChucktownEvents();
+      const body = JSON.stringify({
+        events,
+        lastUpdated: new Date().toISOString(),
+      });
+
+      return new Response(body, { status: 200, headers: JSON_HEADERS });
     } catch (err) {
-      console.error(`Failed to fetch from ${src.name}:`, err);
-      // Continue with other sources
+      console.error("Worker error:", err);
+
+      return new Response(
+        JSON.stringify({
+          events: [],
+          lastUpdated: new Date().toISOString(),
+          error: "Failed to fetch events",
+        }),
+        { status: 500, headers: JSON_HEADERS }
+      );
     }
+  },
+};
+
+/**
+ * Fetch and parse events from ChuckTown Startups homepage.
+ */
+async function fetchChucktownEvents() {
+  const res = await fetch(HOMEPAGE_URL, {
+    // Cloudflare edge caching hint
+    cf: { cacheTtl: 600, cacheEverything: true },
+  });
+
+  if (!res.ok) {
+    throw new Error(`ChuckTown fetch failed: ${res.status}`);
   }
+
+  const html = await res.text();
+  return parseChucktownHomepage(html);
+}
+
+/**
+ * Very lightweight HTML parser tailored to the current ChuckTown Startups
+ * homepage structure.
+ *
+ * Strategy:
+ *  - Find the "UPCOMING EVENTS" heading to narrow search window.
+ *  - Within that slice, look for links to /event-xxxxx.
+ *  - The anchor text is the event title.
+ *  - Text immediately after the anchor often contains date & location
+ *    like: "Mon, December 08, 2025 5:00 PM | Reforged Gaming Lounge..."
+ */
+function parseChucktownHomepage(html) {
+  const events = [];
+
+  const headingIndex = html.indexOf("UPCOMING EVENTS");
+  if (headingIndex === -1) {
+    // Fallback: return empty but don't crash
+    return events;
+  }
+
+  // Slice out a chunk after the heading to avoid parsing the whole page.
+  const slice = html.slice(headingIndex, headingIndex + 8000);
+
+  // Normalize whitespace a bit to help our regex.
+  const normalized = slice.replace(/\r\n/g, "\n");
+
+  // Regex to capture event link and text after it.
+  // 1: href (event URL)
+  // 2: title (inside <a>...</a>)
+  // 3: trailing text until next < (often includes date/location)
+  const re =
+    /<a\s+href="(https:\/\/chucktownstartups\.com\/event-[^"]+)">([^<]+)<\/a>([^<]*)/gi;
+
+  let match;
+  while ((match = re.exec(normalized)) !== null) {
+    const href = match[1];
+    const rawTitle = match[2] || "";
+    const trailing = (match[3] || "").replace(/&nbsp;/gi, " ").trim();
+
+    const title = decodeHtmlEntities(rawTitle.trim());
+    let startDate = null;
+    let location = null;
+
+    if (trailing) {
+      // Example trailing:
+      // "Mon, December 08, 2025 5:00 PM | Reforged Gaming Lounge, 8484 Dorchester Road, North Charleston"
+      const cleaned = trailing.replace(/\s+/g, " ").trim();
+      const parts = cleaned.split("|");
+
+      if (parts.length > 0) {
+        const dateStr = parts[0].trim();
+        const parsed = parseLooseDate(dateStr);
+        if (parsed) startDate = parsed;
+      }
+
+      if (parts.length > 1) {
+        const locStr = parts.slice(1).join("|").trim();
+        if (locStr) location = decodeHtmlEntities(locStr);
+      }
+    }
+
+    events.push({
+      title,
+      startDate, // ISO string or null
+      location,
+      link: href,
+      source: "ChuckTown Startups",
+      description: null,
+    });
+  }
+
   return events;
 }
 
 /**
- * Build the JSON response object with events and metadata.
+ * Very forgiving date parser for strings like:
+ * "Mon, December 08, 2025 5:00 PM"
  */
-async function buildPayload() {
-  const events = await gatherEvents();
-  return {
-    events,
-    lastUpdated: new Date().toISOString(),
-  };
+function parseLooseDate(str) {
+  if (!str) return null;
+
+  // Remove weekday abbreviation if present (e.g. "Mon, ")
+  const cleaned = str.replace(/^[A-Za-z]{3,9},?\s+/, "");
+  const d = new Date(cleaned);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 /**
- * Construct CORS headers for JSON responses.  All responses from this
- * worker use these headers to permit direct browser access.
+ * Basic HTML entity decoding for the most common entities.
  */
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json',
-  };
-}
+function decodeHtmlEntities(str) {
+  if (!str) return "";
 
-/**
- * The fetch handler implements HTTP caching and CORS.  It responds to
- * OPTIONS preflight requests and GET requests.  Other methods return
- * HTTP 405.
- */
-async function handleRequest(request) {
-  const url = new URL(request.url);
-  // CORS preflight
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders() });
-  }
-  if (request.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-      status: 405,
-      headers: corsHeaders(),
-    });
-  }
-  // Use the request URL as part of the cache key so that different
-  // querystrings produce distinct cached responses.
-  const cacheKey = new Request(url.toString(), request);
-  const cache = caches.default;
-  // Attempt to serve from cache first
-  let response = await cache.match(cacheKey);
-  if (response) {
-    // Add header to indicate the response came from cache
-    const headers = new Headers(response.headers);
-    headers.set('X-Cache', 'HIT');
-    return new Response(response.body, { status: response.status, headers });
-  }
-  // Not in cache: generate fresh payload
-  try {
-    const payload = await buildPayload();
-    response = new Response(JSON.stringify(payload), {
-      status: 200,
-      headers: corsHeaders(),
-    });
-    // Tag response for debugging
-    response.headers.set('X-Cache', 'MISS');
-    // Cache the response
-    const ttl = CACHE_TTL_SECONDS;
-    await cache.put(cacheKey, response.clone());
-    // Also attach a Cache-Control header for clients (e.g. CDN) if needed
-    response.headers.set('Cache-Control', `public, max-age=${ttl}`);
-    return response;
-  } catch (err) {
-    console.error('Error generating payload:', err);
-    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
-      status: 500,
-      headers: corsHeaders(),
-    });
-  }
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
 }
-
-export default { fetch: handleRequest };
