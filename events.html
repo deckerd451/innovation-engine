@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upcoming Charleston Events</title>
+  <!--
+    Stand‑alone events page
+
+    This page provides a full‑screen view of upcoming Charleston tech events.
+    It consumes the same data as the homepage overlay but presents it in a
+    dedicated, scrollable layout.  Events are grouped into friendly
+    categories such as “Today”, “This Week”, “Next Week” and so on.  If
+    fetching from the remote API fails the page automatically falls back
+    to a bundled JSON file under assets/data/events.json.
+
+    To integrate this page into the site simply add a link pointing to
+    /events.html from your navigation.  No server‑side rendering is
+    required – everything is handled client side via eventsPage.js.
+  -->
+  <link rel="stylesheet" href="assets/css/events.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Upcoming Charleston Events</h1>
+    <!-- Will be populated with the time the feed was last updated -->
+    <p id="lastUpdated"></p>
+    <!-- List container into which sections and events will be rendered -->
+    <div id="events-list"></div>
+  </div>
+  <script src="assets/js/eventsPage.js"></script>
+</body>
+</html>
