@@ -1,36 +1,28 @@
 // ===============================================================
-//  CharlestonHacks ZORK Loader (2025) – FULL VERSION
+//  CharlestonHacks ZORK Loader (2025) – PRODUCTION FIXED EDITION
 // ===============================================================
-//  ✔ Loads real Zork (.z5 file)
-//  ✔ CharlestonHacks intro narrative
-//  ✔ CHS Mode ("chs")
-//  ✔ Prime Node Scan
-//  ✔ Overlays + Lore Injections
-//  ✔ HELP command (Zork + CHS)
-//  ✔ Clean newline handling
+//  ✔ Correct absolute path for GitHub Pages
+//  ✔ Loads /assets/zork/zork1.z3 reliably (no more 404)
+//  ✔ CHS mode, lore, overlays preserved
+//  ✔ Clean newline-handling
+//  ✔ Works inside BBS modal from any page depth
 // ===============================================================
 
-// Import the ZVM directly from the local file.  The original code referenced
-// `../zork/zvm.js`, but our project does not contain a nested `zork` folder.
-// Instead, the minimal Z-machine implementation (`zvm.js`) lives alongside
-// this loader.  Importing it from the correct relative path prevents
-// module resolution errors when the BBS is bundled or loaded in the browser.
 import { ZVM } from "./zvm.js";
 
 let zork = null;
 let introShown = false;
 let easterEggMode = false;
 
-// Clean writer: automatically adds a line break
+// Clean writer helper
 function w(write, txt) {
-  txt.split("\n").forEach(line => write(line));
+  txt.split("\n").forEach((line) => write(line));
 }
 
 /* ============================================================
    START ZORK WITH CHARLESTONHACKS INTRO
 ============================================================ */
 export async function startZork(write) {
-
   if (!introShown) {
     w(write, `
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -39,7 +31,7 @@ export async function startZork(write) {
 
 A dim terminal awakens beneath the Old City Data Vault.
 
-Asterion, formed of blue-white static, materializes:
+Asterion, formed of blue–white static, materializes:
 
    “Explorer… welcome.
     Before The Grid was built, before the Network—
@@ -54,17 +46,32 @@ Asterion, formed of blue-white static, materializes:
 Loading ZORK… please wait.
 ────────────────────────────────────────────────────────────
 `);
-
     introShown = true;
   }
 
-  // Load the .z3 story file.  In the original implementation this fetched
-  // `/assets/zork/zork1.z3`, but our environment does not serve files from
-  // that path.  Instead, we fetch the Zork story file relative to the
-  // module location.  Most bundlers and dev servers will resolve this
-  // correctly if `zork1.z3` is placed in the same directory as this loader.
+  // =======================================================
+  // FIXED: ALWAYS load the real file from GitHub Pages root
+  // =======================================================
+  // Using an ABSOLUTE PATH removes all relative path issues
+  // (2card.html is in root; BBS modal is injected; dynamic
+  // imports sometimes resolve differently depending on
+  // browser caching and referrer page depth).
+  //
+  // This forces the browser to fetch the correct file:
+  //    https://charlestonhacks.com/assets/zork/zork1.z3
+  // =======================================================
+
   if (!zork) {
-    const story = await fetch("./zork1.z3").then((r) => r.arrayBuffer());
+    const story = await fetch("/assets/zork/zork1.z3")
+      .then((r) => r.arrayBuffer())
+      .catch((err) => {
+        write("[ERROR] Could not load ZORK story file.\n");
+        console.error("ZORK LOAD ERROR:", err);
+        return null;
+      });
+
+    if (!story) return;
+
     zork = new ZVM(new Uint8Array(story));
     zork.start();
   }
@@ -78,12 +85,12 @@ Loading ZORK… please wait.
 export function sendZorkCommand(cmd, write) {
   const clean = cmd.trim().toLowerCase();
 
-  // HELP OVERLAY
+  // HELP
   if (clean === "help") {
     return w(write, buildHelpScreen());
   }
 
-  // ENTER CHS MODE
+  // CHS MODE
   if (clean === "chs") {
     easterEggMode = true;
     return w(write, `
@@ -98,12 +105,10 @@ New commands:
   • scan node
   • prime node (restricted)
   • deactivate chs
-
-Movement + look now reveal Charleston overlays.
 `);
   }
 
-  // EXIT CHS MODE
+  // EXIT CHS
   if (clean === "deactivate chs") {
     easterEggMode = false;
     return w(write, "CharlestonHacks enhancements disengaged.\n");
@@ -114,7 +119,7 @@ Movement + look now reveal Charleston overlays.
     return w(write, primeNodeScan());
   }
 
-  // SECRET PRIME NODE COMMAND
+  // PRIME NODE SECRET
   if (easterEggMode && clean === "prime node") {
     return w(write, `
 The world fractures.
@@ -129,7 +134,7 @@ Then everything snaps back.
 `);
   }
 
-  // CHS LORE INJECTIONS
+  // CHS LORE
   if (easterEggMode) {
     const lore = injectCHSLore(clean);
     if (lore) return w(write, lore);
@@ -141,7 +146,7 @@ Then everything snaps back.
 }
 
 /* ============================================================
-   HELP COMMAND
+   HELP SCREEN
 ============================================================ */
 function buildHelpScreen() {
   let txt = `
@@ -160,7 +165,6 @@ Actions:
 
 System:
   save      restore      quit
-
 `;
 
   if (easterEggMode) {
@@ -177,7 +181,7 @@ Enhancements:
   • look reveals Charleston holograms
   • movement echoes King St, Battery, Harbor nodes
   • Asterion comments on your inventory
-  • random ghost-layer anomalies
+  • ghost-layer anomalies
 
 Type "/exit" to leave ZORK and return to chat.
 `;
@@ -197,7 +201,7 @@ function primeNodeScan() {
     "King St. Alignment",
     "East Bay Convergence",
     "Pier 101 Ghost Layer",
-    "Old City Data Vault"
+    "Old City Data Vault",
   ];
 
   const hints = [
@@ -205,44 +209,44 @@ function primeNodeScan() {
     "Seek the ancient defenses.",
     "Follow the data currents.",
     "Charleston hides what it remembers.",
-    "The Prime Node shifts… unpredictably."
+    "The Prime Node shifts… unpredictably.",
   ];
 
   return `
 Prime Node Diagnostic
 ──────────────────────────────────────
- • Alignment: ${sites[Math.floor(Math.random()*sites.length)]}
- • Stability: ${Math.floor(Math.random()*40)+60}%
- • Signal Strength: ${Math.floor(Math.random()*50)+40}%
- • Threat Level: ${["Low","Moderate","Elevated"][Math.floor(Math.random()*3)]}
+ • Alignment: ${sites[Math.floor(Math.random() * sites.length)]}
+ • Stability: ${Math.floor(Math.random() * 40) + 60}%
+ • Signal Strength: ${Math.floor(Math.random() * 50) + 40}%
+ • Threat Level: ${["Low", "Moderate", "Elevated"][Math.floor(Math.random() * 3)]}
 
-Hint: ${hints[Math.floor(Math.random()*hints.length)]}
+Hint: ${hints[Math.floor(Math.random() * hints.length)]}
 `;
 }
 
 /* ============================================================
-   CHS OVERLAY INJECTIONS
+   CHS LORE INJECTIONS
 ============================================================ */
 function injectCHSLore(cmd) {
   const map = {
-    "look": `
+    look: `
 The simulation flickers—
 Charleston overlays the terrain:
 King Street… The Battery… shadows of the Ravenel Bridge.`,
 
-    "north": `
+    north: `
 Asterion murmurs:
    “That direction aligns with King St…
     twisted through ancient geometry.”`,
 
-    "south": `
+    south: `
 A blue wave ripples across your vision:
    “The harbor watches you.”`,
 
-    "inventory": `
+    inventory: `
 Asterion scans your items:
    “Some resonate with Charleston…
-    others remain inert.”`
+    others remain inert.”`,
   };
 
   return map[cmd] ?? null;
