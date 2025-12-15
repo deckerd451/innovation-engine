@@ -539,11 +539,12 @@ body {
 }
 
 #btcPrice {
-  top: 185px;
+  top: 200px;
   left: 20px;
   color: var(--cyan);
   transform: none;
   border-color: rgba(0, 224, 255, 0.3);
+  z-index: 1000;
 }
 
 #btcPrice:hover {
@@ -985,7 +986,7 @@ body {
   #btcPrice {
     font-size: 0.9rem;
     padding: 0.6rem 1rem;
-    top: 165px;
+    top: 180px;
     left: 10px;
   }
   
@@ -1589,7 +1590,172 @@ button:focus {
   <script type="module">
     import "/assets/js/neuralBackground.js";
     import "/assets/js/supabaseClient.js";
-    import "/assets/js/bbs.js";
+  </script>
+
+  <!-- Anonymous BBS Chat System -->
+  <script type="module">
+    (async function() {
+      // Wait for Supabase to be ready
+      let retries = 0;
+      while (!window.supabase && retries < 20) {
+        await new Promise(r => setTimeout(r, 300));
+        retries++;
+      }
+
+      if (!window.supabase) {
+        console.warn('Supabase not available for BBS');
+        return;
+      }
+
+      const bbsScreen = document.getElementById('bbs-screen');
+      const bbsInput = document.getElementById('bbs-input');
+      const bbsForm = document.getElementById('bbs-form');
+      const bbsOnlineList = document.getElementById('bbs-online-list');
+      
+      // Generate anonymous username
+      const adjectives = ['Swift', 'Bright', 'Silent', 'Bold', 'Clever', 'Wise', 'Noble', 'Quick', 'Brave', 'Calm'];
+      const nouns = ['Hacker', 'Coder', 'Builder', 'Maker', 'Thinker', 'Dreamer', 'Creator', 'Innovator', 'Pioneer', 'Explorer'];
+      const randomName = `${adjectives[Math.floor(Math.random() * adjectives.length)]}${nouns[Math.floor(Math.random() * nouns.length)]}${Math.floor(Math.random() * 999)}`;
+      
+      let username = localStorage.getItem('bbs_username') || randomName;
+      localStorage.setItem('bbs_username', username);
+
+      // Display welcome message
+      function addSystemMessage(text) {
+        const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        bbsScreen.textContent += `[${time}] *** ${text} ***\n`;
+        bbsScreen.scrollTop = bbsScreen.scrollHeight;
+      }
+
+      function addMessage(msg) {
+        const time = new Date(msg.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        bbsScreen.textContent += `[${time}] <${msg.username}>: ${msg.message}\n`;
+        bbsScreen.scrollTop = bbsScreen.scrollHeight;
+      }
+
+      // Load recent messages
+      async function loadMessages() {
+        try {
+          const { data, error } = await window.supabase
+            .from('bbs_messages')
+            .select('*')
+            .order('created_at', { ascending: true })
+            .limit(50);
+
+          if (error) {
+            console.error('Error loading messages:', error);
+            addSystemMessage('Error loading chat history');
+            return;
+          }
+
+          bbsScreen.textContent = '';
+          addSystemMessage(`Welcome to CharlestonHacks BBS, ${username}!`);
+          addSystemMessage('Type your message and press Enter to chat');
+          
+          if (data && data.length > 0) {
+            data.forEach(msg => addMessage(msg));
+          }
+        } catch (err) {
+          console.error('BBS load error:', err);
+          addSystemMessage('Chat system starting...');
+        }
+      }
+
+      // Send message
+      async function sendMessage(text) {
+        if (!text.trim()) return;
+
+        try {
+          const { error } = await window.supabase
+            .from('bbs_messages')
+            .insert({
+              username: username,
+              message: text.trim(),
+              created_at: new Date().toISOString()
+            });
+
+          if (error) {
+            console.error('Error sending message:', error);
+            addSystemMessage('Error sending message');
+          }
+          
+          bbsInput.value = '';
+        } catch (err) {
+          console.error('BBS send error:', err);
+          addSystemMessage('Could not send message');
+        }
+      }
+
+      // Subscribe to new messages
+      let subscription;
+      function subscribeToMessages() {
+        subscription = window.supabase
+          .channel('bbs_messages')
+          .on('postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'bbs_messages' },
+            (payload) => {
+              if (payload.new) {
+                addMessage(payload.new);
+              }
+            }
+          )
+          .subscribe();
+      }
+
+      // Update online users count (simplified)
+      async function updateOnlineUsers() {
+        try {
+          // Get messages from last 5 minutes to estimate active users
+          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+          const { data, error } = await window.supabase
+            .from('bbs_messages')
+            .select('username')
+            .gte('created_at', fiveMinutesAgo);
+
+          if (!error && data) {
+            const uniqueUsers = [...new Set(data.map(m => m.username))];
+            bbsOnlineList.textContent = `${uniqueUsers.length} active user(s)`;
+          } else {
+            bbsOnlineList.textContent = 'Connecting...';
+          }
+        } catch (err) {
+          console.error('Error updating online users:', err);
+        }
+      }
+
+      // Form submit handler
+      if (bbsForm) {
+        bbsForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          sendMessage(bbsInput.value);
+        });
+      }
+
+      // Initialize when BBS is opened
+      const bbsOverlay = document.getElementById('bbs-overlay');
+      const openBbsBtn = document.getElementById('open-bbs');
+      
+      if (openBbsBtn) {
+        openBbsBtn.addEventListener('click', async () => {
+          await loadMessages();
+          subscribeToMessages();
+          updateOnlineUsers();
+          setInterval(updateOnlineUsers, 30000); // Update every 30 seconds
+        });
+      }
+
+      // Cleanup on close
+      const closeBbsBtn = document.getElementById('close-bbs');
+      if (closeBbsBtn) {
+        closeBbsBtn.addEventListener('click', () => {
+          if (subscription) {
+            window.supabase.removeChannel(subscription);
+          }
+        });
+      }
+
+      console.log('📡 Anonymous BBS Chat Ready');
+    })();
   </script>
 
   <!-- Events Loader -->
