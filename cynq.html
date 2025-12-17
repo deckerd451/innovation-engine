@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  
+  <title>CYNQ - Human-Centered Design Workflow | CharlestonHacks</title>
+  <meta name="description" content="Interactive Human-Centered Design workflow tool for ideation, prototyping, and iteration."/>
+  
+  <link rel="icon" href="favicon.ico"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  
+  <style>
+    :root {
+      --gold: #c9a35e;
+      --gold-glow: rgba(201, 163, 94, 0.6);
+      --cyan: #00e0ff;
+      --cyan-glow: rgba(0, 224, 255, 0.4);
+      --bg-dark: #000;
+      --bg-card: #0a0a0a;
+      --text-primary: #fff;
+      --text-secondary: #aaa;
+      --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.3);
+      --shadow-glow: 0 0 30px var(--cyan-glow);
+      --border-radius: 12px;
+      --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: rgba(0, 0, 0, 0.95);
+      border-bottom: 2px solid var(--cyan);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, var(--gold), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--gold), #d4b684);
+      color: #000;
+      border: none;
+      padding: 0.6rem 1.5rem;
+      border-radius: 50px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      font-size: 0.9rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--gold-glow);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid var(--cyan);
+      color: var(--cyan);
+    }
+
+    .btn-secondary:hover {
+      background: var(--cyan);
+      color: #000;
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+
+    /* Workflow Stages */
+    .workflow-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .workflow-stage {
+      background: rgba(0, 224, 255, 0.05);
+      border: 2px solid var(--cyan);
+      border-radius: var(--border-radius);
+      padding: 1.5rem;
+      min-height: 400px;
+      position: relative;
+      transition: var(--transition-smooth);
+    }
+
+    .workflow-stage:hover {
+      background: rgba(0, 224, 255, 0.1);
+      border-color: var(--gold);
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px var(--cyan-glow);
+    }
+
+    .stage-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(0, 224, 255, 0.3);
+    }
+
+    .stage-header h2 {
+      font-size: 1.4rem;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stage-count {
+      background: var(--cyan);
+      color: #000;
+      padding: 0.3rem 0.7rem;
+      border-radius: 50%;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
+    /* Cards */
+    .card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .card {
+      background: rgba(10, 10, 10, 0.8);
+      border: 1px solid rgba(0, 224, 255, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      cursor: grab;
+      transition: var(--transition-smooth);
+      position: relative;
+    }
+
+    .card:hover {
+      border-color: var(--gold);
+      transform: translateX(5px);
+      box-shadow: 0 5px 15px rgba(201, 163, 94, 0.3);
+    }
+
+    .card:active {
+      cursor: grabbing;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .card-description {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .icon-btn {
+      background: transparent;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      font-size: 0.9rem;
+    }
+
+    .icon-btn:hover {
+      background: var(--cyan);
+      color: #000;
+    }
+
+    /* Add Card Button */
+    .add-card-btn {
+      width: 100%;
+      padding: 0.8rem;
+      background: rgba(0, 224, 255, 0.1);
+      border: 2px dashed var(--cyan);
+      border-radius: 8px;
+      color: var(--cyan);
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .add-card-btn:hover {
+      background: rgba(0, 224, 255, 0.2);
+      border-style: solid;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      backdrop-filter: blur(8px);
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 2px solid var(--cyan);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal h2 {
+      color: var(--cyan);
+      margin-bottom: 1.5rem;
+      font-size: 1.6rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      background: rgba(0, 224, 255, 0.05);
+      border: 1px solid var(--cyan);
+      border-radius: 8px;
+      padding: 0.8rem;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 2rem;
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--cyan);
+      font-size: 1.2rem;
+    }
+
+    .loading i {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Auth Gate */
+    .auth-gate {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      text-align: center;
+    }
+
+    .auth-gate.active {
+      display: flex;
+    }
+
+    .auth-gate h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--gold), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .auth-gate p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+      max-width: 500px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .workflow-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="header">
+    <h1>🧠 CYNQ Workflow</h1>
+    <div class="user-info">
+      <span id="user-email"></span>
+      <button id="back-to-portal" class="btn btn-secondary">← Back to Portal</button>
+      <button id="sign-out-btn" class="btn" style="display: none;">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Auth Gate -->
+  <div id="auth-gate" class="auth-gate">
+    <h2>Welcome to CYNQ</h2>
+    <p>Sign in with your CharlestonHacks account to access the Human-Centered Design workflow system.</p>
+    <button id="sign-in-btn" class="btn">Sign In</button>
+  </div>
+
+  <!-- Main App -->
+  <main class="container" id="app-content" style="display: none;">
+    <div class="workflow-container">
+      <!-- Empathize Stage -->
+      <div class="workflow-stage" data-stage="empathize">
+        <div class="stage-header">
+          <h2>
+            <i class="fas fa-heart"></i>
+            Empathize
+          </h2>
+          <span class="stage-count" id="count-empathize">0</span>
+        </div>
+        <div class="card-list" id="stage-empathize"></div>
+        <button class="add-card-btn" onclick="openModal('empathize')">
+          <i class="fas fa-plus"></i>
+          Add Research
+        </button>
+      </div>
+
+      <!-- Define Stage -->
+      <div class="workflow-stage" data-stage="define">
+        <div class="stage-header">
+          <h2>
+            <i class="fas fa-bullseye"></i>
+            Define
+          </h2>
+          <span class="stage-count" id="count-define">0</span>
+        </div>
+        <div class="card-list" id="stage-define"></div>
+        <button class="add-card-btn" onclick="openModal('define')">
+          <i class="fas fa-plus"></i>
+          Add Problem
+        </button>
+      </div>
+
+      <!-- Ideate Stage -->
+      <div class="workflow-stage" data-stage="ideate">
+        <div class="stage-header">
+          <h2>
+            <i class="fas fa-lightbulb"></i>
+            Ideate
+          </h2>
+          <span class="stage-count" id="count-ideate">0</span>
+        </div>
+        <div class="card-list" id="stage-ideate"></div>
+        <button class="add-card-btn" onclick="openModal('ideate')">
+          <i class="fas fa-plus"></i>
+          Add Idea
+        </button>
+      </div>
+
+      <!-- Prototype Stage -->
+      <div class="workflow-stage" data-stage="prototype">
+        <div class="stage-header">
+          <h2>
+            <i class="fas fa-cube"></i>
+            Prototype
+          </h2>
+          <span class="stage-count" id="count-prototype">0</span>
+        </div>
+        <div class="card-list" id="stage-prototype"></div>
+        <button class="add-card-btn" onclick="openModal('prototype')">
+          <i class="fas fa-plus"></i>
+          Add Prototype
+        </button>
+      </div>
+
+      <!-- Test Stage -->
+      <div class="workflow-stage" data-stage="test">
+        <div class="stage-header">
+          <h2>
+            <i class="fas fa-flask"></i>
+            Test
+          </h2>
+          <span class="stage-count" id="count-test">0</span>
+        </div>
+        <div class="card-list" id="stage-test"></div>
+        <button class="add-card-btn" onclick="openModal('test')">
+          <i class="fas fa-plus"></i>
+          Add Test Result
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <h2 id="modal-title">Add Card</h2>
+      <form id="card-form">
+        <div class="form-group">
+          <label for="card-title">Title</label>
+          <input type="text" id="card-title" required placeholder="Brief title...">
+        </div>
+        <div class="form-group">
+          <label for="card-description">Description</label>
+          <textarea id="card-description" required placeholder="Detailed description..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="card-stage">Stage</label>
+          <select id="card-stage">
+            <option value="empathize">Empathize</option>
+            <option value="define">Define</option>
+            <option value="ideate">Ideate</option>
+            <option value="prototype">Prototype</option>
+            <option value="test">Test</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { supabase, signInWithGitHub, signInWithGoogle } from './assets/js/supabaseClient.js';
+
+    let currentUser = null;
+    let currentEditId = null;
+
+    // Check auth state on load
+    async function checkAuth() {
+      console.log('🔍 Checking auth state...');
+      
+      // Wait for DOM elements to exist
+      const waitForElements = () => {
+        return new Promise((resolve) => {
+          const check = () => {
+            const authGate = document.getElementById('auth-gate');
+            const appContent = document.getElementById('app-content');
+            const userEmail = document.getElementById('user-email');
+            
+            if (authGate && appContent && userEmail) {
+              console.log('✅ All DOM elements found');
+              resolve();
+            } else {
+              console.log('⏳ Waiting for DOM elements...');
+              setTimeout(check, 50);
+            }
+          };
+          check();
+        });
+      };
+      
+      await waitForElements();
+      
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('📋 Session check complete:', { hasSession: !!session, hasUser: !!session?.user, error });
+      
+      if (session?.user) {
+        console.log('✅ User authenticated:', session.user.email);
+        currentUser = session.user;
+        console.log('📞 Calling showApp()...');
+        showApp();
+        console.log('📞 Calling loadCards()...');
+        await loadCards();
+        console.log('✅ Initialization complete!');
+      } else {
+        console.log('❌ No session found');
+        showAuthGate();
+      }
+    }
+
+    function showAuthGate() {
+      console.log('📋 Showing auth gate');
+      const authGate = document.getElementById('auth-gate');
+      const appContent = document.getElementById('app-content');
+      if (authGate) authGate.classList.add('active');
+      if (appContent) appContent.style.display = 'none';
+    }
+
+    function showApp() {
+      console.log('🎯 showApp() called');
+      const authGate = document.getElementById('auth-gate');
+      const appContent = document.getElementById('app-content');
+      const userEmail = document.getElementById('user-email');
+      const signOutBtn = document.getElementById('sign-out-btn');
+      
+      console.log('Elements check:', {
+        authGate: !!authGate,
+        appContent: !!appContent, 
+        userEmail: !!userEmail,
+        signOutBtn: !!signOutBtn
+      });
+      
+      if (authGate) {
+        authGate.classList.remove('active');
+        authGate.style.display = 'none';
+        console.log('✅ Auth gate hidden');
+      }
+      if (appContent) {
+        appContent.style.display = 'block';
+        console.log('✅ App content display set to:', appContent.style.display);
+        // Force a reflow
+        appContent.offsetHeight;
+      }
+      if (userEmail && currentUser) {
+        userEmail.textContent = currentUser.email;
+        console.log('✅ User email set');
+      }
+      if (signOutBtn) {
+        signOutBtn.style.display = 'block';
+        console.log('✅ Sign out button shown');
+      }
+      console.log('🎉 showApp() complete');
+    }
+
+    // Sign in handlers
+    document.getElementById('sign-in-btn').addEventListener('click', async () => {
+      const choice = confirm('Sign in with GitHub? (Cancel for Google)');
+      if (choice) {
+        await signInWithGitHub();
+      } else {
+        await signInWithGoogle();
+      }
+    });
+
+    // BACKUP: Listen for auth state changes directly
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔔 Direct auth state listener:', event);
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('🔔 Direct listener: User signed in, setting up app');
+        currentUser = session.user;
+        
+        // Wait a tiny bit for DOM to be ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        console.log('🔔 Direct listener: Calling showApp()');
+        showApp();
+        
+        console.log('🔔 Direct listener: Loading cards');
+        await loadCards();
+        
+        console.log('🔔 Direct listener: Complete!');
+      }
+    });
+
+    // Sign out
+    document.getElementById('sign-out-btn').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.reload();
+    });
+
+    // Back to portal
+    document.getElementById('back-to-portal').addEventListener('click', () => {
+      window.location.href = '/2card.html';
+    });
+
+    // Load cards from Supabase
+    async function loadCards() {
+      try {
+        const { data, error } = await supabase
+          .from('cynq_cards')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Clear all stages
+        ['empathize', 'define', 'ideate', 'prototype', 'test'].forEach(stage => {
+          document.getElementById(`stage-${stage}`).innerHTML = '';
+          document.getElementById(`count-${stage}`).textContent = '0';
+        });
+
+        // Render cards
+        data.forEach(card => renderCard(card));
+        
+        // Update counts
+        updateCounts(data);
+      } catch (error) {
+        console.error('Error loading cards:', error);
+      }
+    }
+
+    function renderCard(card) {
+      const container = document.getElementById(`stage-${card.stage}`);
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.draggable = true;
+      cardEl.dataset.id = card.id;
+      
+      cardEl.innerHTML = `
+        <div class="card-title">${escapeHtml(card.title)}</div>
+        <div class="card-description">${escapeHtml(card.description)}</div>
+        <div class="card-meta">
+          <span>${new Date(card.created_at).toLocaleDateString()}</span>
+          <div class="card-actions">
+            <button class="icon-btn" onclick="editCard('${card.id}')">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="icon-btn" onclick="deleteCard('${card.id}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Drag and drop
+      cardEl.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', card.id);
+        cardEl.style.opacity = '0.5';
+      });
+
+      cardEl.addEventListener('dragend', () => {
+        cardEl.style.opacity = '1';
+      });
+
+      container.appendChild(cardEl);
+    }
+
+    // Drag and drop for stages
+    document.querySelectorAll('.workflow-stage').forEach(stage => {
+      stage.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        stage.style.background = 'rgba(0, 224, 255, 0.15)';
+      });
+
+      stage.addEventListener('dragleave', () => {
+        stage.style.background = 'rgba(0, 224, 255, 0.05)';
+      });
+
+      stage.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        stage.style.background = 'rgba(0, 224, 255, 0.05)';
+        
+        const cardId = e.dataTransfer.getData('text/plain');
+        const newStage = stage.dataset.stage;
+        
+        await updateCardStage(cardId, newStage);
+      });
+    });
+
+    async function updateCardStage(cardId, newStage) {
+      try {
+        const { error } = await supabase
+          .from('cynq_cards')
+          .update({ stage: newStage })
+          .eq('id', cardId);
+
+        if (error) throw error;
+        
+        await loadCards();
+      } catch (error) {
+        console.error('Error updating stage:', error);
+        alert('Failed to update stage');
+      }
+    }
+
+    function updateCounts(cards) {
+      const counts = cards.reduce((acc, card) => {
+        acc[card.stage] = (acc[card.stage] || 0) + 1;
+        return acc;
+      }, {});
+
+      Object.entries(counts).forEach(([stage, count]) => {
+        document.getElementById(`count-${stage}`).textContent = count;
+      });
+    }
+
+    // Modal functions
+    window.openModal = (stage) => {
+      document.getElementById('modal-overlay').classList.add('active');
+      document.getElementById('card-stage').value = stage;
+      document.getElementById('modal-title').textContent = `Add to ${stage.charAt(0).toUpperCase() + stage.slice(1)}`;
+      currentEditId = null;
+    };
+
+    window.closeModal = () => {
+      document.getElementById('modal-overlay').classList.remove('active');
+      document.getElementById('card-form').reset();
+      currentEditId = null;
+    };
+
+    window.editCard = async (id) => {
+      try {
+        const { data, error } = await supabase
+          .from('cynq_cards')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+
+        document.getElementById('card-title').value = data.title;
+        document.getElementById('card-description').value = data.description;
+        document.getElementById('card-stage').value = data.stage;
+        document.getElementById('modal-title').textContent = 'Edit Card';
+        currentEditId = id;
+        
+        document.getElementById('modal-overlay').classList.add('active');
+      } catch (error) {
+        console.error('Error loading card:', error);
+      }
+    };
+
+    window.deleteCard = async (id) => {
+      if (!confirm('Delete this card?')) return;
+
+      try {
+        const { error } = await supabase
+          .from('cynq_cards')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+        
+        await loadCards();
+      } catch (error) {
+        console.error('Error deleting card:', error);
+        alert('Failed to delete card');
+      }
+    };
+
+    // Form submission
+    document.getElementById('card-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      console.log('💾 Form submitted');
+
+      // Verify user is still authenticated
+      if (!currentUser) {
+        console.error('❌ No current user');
+        alert('Please sign in to save cards');
+        return;
+      }
+      
+      console.log('✅ Current user:', currentUser.email, 'ID:', currentUser.id);
+
+      const cardData = {
+        title: document.getElementById('card-title').value,
+        description: document.getElementById('card-description').value,
+        stage: document.getElementById('card-stage').value
+      };
+      
+      console.log('📝 Card data:', cardData);
+
+      try {
+        if (currentEditId) {
+          console.log('✏️ Updating card:', currentEditId);
+          // Update existing card (don't include user_id in update)
+          const { error } = await supabase
+            .from('cynq_cards')
+            .update(cardData)
+            .eq('id', currentEditId);
+
+          if (error) {
+            console.error('❌ Update error:', error);
+            throw error;
+          }
+          console.log('✅ Card updated');
+        } else {
+          console.log('➕ Inserting new card');
+          // Insert new card (add user_id for insert) - DON'T use .select()
+          const insertData = {
+            ...cardData,
+            user_id: currentUser.id
+          };
+          console.log('📤 Inserting:', insertData);
+          
+          const { error } = await supabase
+            .from('cynq_cards')
+            .insert(insertData);
+
+          if (error) {
+            console.error('❌ Insert error:', error);
+            throw error;
+          }
+          console.log('✅ Card inserted');
+        }
+
+        console.log('🚪 Closing modal');
+        closeModal();
+        console.log('🔄 Reloading cards');
+        await loadCards();
+        console.log('✅ Save complete!');
+      } catch (error) {
+        console.error('💥 Error saving card:', error);
+        alert('Failed to save card: ' + (error.message || 'Unknown error'));
+      }
+    });
+
+    // Close modal on overlay click
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-overlay') {
+        closeModal();
+      }
+    });
+
+    // Escape key closes modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+
+    // Utility function
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initialize - wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', checkAuth);
+    } else {
+      // DOM is already ready
+      checkAuth();
+    }
+  </script>
+</body>
+</html>
