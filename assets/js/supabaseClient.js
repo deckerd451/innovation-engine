@@ -26,12 +26,11 @@ export const supabase = createClient(
   }
 );
 
-// Debug access - only set once to avoid "already declared" errors
+// Debug access - only set once
 if (!window.supabase) {
   window.supabase = supabase;
   console.log("✅ Supabase client initialized");
 }
-
 // ======================================================================
 // 2. OAUTH PROVIDERS
 // ======================================================================
