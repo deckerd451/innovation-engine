@@ -577,446 +577,183 @@
 
   <!-- Scripts -->
   <script type="module">
-    import { supabase, signInWithGitHub, signInWithGoogle } from './assets/js/supabaseClient.js';
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
-    // ===================================================================
-    // 🔧 DIRECT FETCH FALLBACK - FIXES HANGING INSERT BUG
-    // ===================================================================
-    const SUPABASE_URL = 'https://hvmotpzhliufzomewzfl.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s';
+  // =====================================================
+  // ✅ SINGLE SUPABASE CLIENT (FIX)
+  // =====================================================
+  const supabase = createClient(
+  'https://hvmotpzhliufzomewzfl.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s'
+);
 
-    async function directInsert(tableName, data) {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify(data)
-      });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Insert failed');
-      }
+  let currentUser = null;
+  let currentEditId = null;
 
-      return await response.json();
-    }
+  // OAuth helpers (replaces supabaseClient.js)
+  const signInWithGitHub = () =>
+    supabase.auth.signInWithOAuth({ provider: 'github' });
 
-    async function directUpdate(tableName, id, updates) {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?id=eq.${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify(updates)
-      });
+  const signInWithGoogle = () =>
+    supabase.auth.signInWithOAuth({ provider: 'google' });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Update failed');
-      }
+  // =====================================================
+  // AUTH
+  // =====================================================
+  async function checkAuth() {
+    const { data: { session } } = await supabase.auth.getSession();
 
-      return await response.json();
-    }
-    // ===================================================================
-
-    let currentUser = null;
-    let currentEditId = null;
-
-    // Check auth state on load
-    async function checkAuth() {
-      console.log('🔍 Checking auth state...');
-      
-      const waitForElements = () => {
-        return new Promise((resolve) => {
-          const check = () => {
-            const authGate = document.getElementById('auth-gate');
-            const appContent = document.getElementById('app-content');
-            const userEmail = document.getElementById('user-email');
-            
-            if (authGate && appContent && userEmail) {
-              console.log('✅ All DOM elements found');
-              resolve();
-            } else {
-              console.log('⏳ Waiting for DOM elements...');
-              setTimeout(check, 50);
-            }
-          };
-          check();
-        });
-      };
-      
-      await waitForElements();
-      
-      const { data: { session }, error } = await supabase.auth.getSession();
-      console.log('📋 Session check complete:', { hasSession: !!session, hasUser: !!session?.user, error });
-      
-      if (session?.user) {
-        console.log('✅ User authenticated:', session.user.email);
-        currentUser = session.user;
-        showApp();
-        await loadCards();
-      } else {
-        console.log('❌ No session found');
-        showAuthGate();
-      }
-    }
-
-    function showAuthGate() {
-      console.log('📋 Showing auth gate');
-      const authGate = document.getElementById('auth-gate');
-      const appContent = document.getElementById('app-content');
-      if (authGate) authGate.classList.add('active');
-      if (appContent) appContent.style.display = 'none';
-    }
-
-    function showApp() {
-      console.log('🎯 showApp() called');
-      const authGate = document.getElementById('auth-gate');
-      const appContent = document.getElementById('app-content');
-      const userEmail = document.getElementById('user-email');
-      const signOutBtn = document.getElementById('sign-out-btn');
-      
-      if (authGate) {
-        authGate.classList.remove('active');
-        authGate.style.display = 'none';
-      }
-      if (appContent) {
-        appContent.style.display = 'block';
-        appContent.offsetHeight; // Force reflow
-      }
-      if (userEmail && currentUser) {
-        userEmail.textContent = currentUser.email;
-      }
-      if (signOutBtn) {
-        signOutBtn.style.display = 'block';
-      }
-    }
-
-    // Sign in handlers
-    document.getElementById('sign-in-btn').addEventListener('click', async () => {
-      const choice = confirm('Sign in with GitHub? (Cancel for Google)');
-      if (choice) {
-        await signInWithGitHub();
-      } else {
-        await signInWithGoogle();
-      }
-    });
-
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔔 Auth state change:', event);
-      
-      if (event === 'SIGNED_IN' && session?.user) {
-        currentUser = session.user;
-        await new Promise(resolve => setTimeout(resolve, 100));
-        showApp();
-        await loadCards();
-      }
-    });
-
-    // Sign out
-    document.getElementById('sign-out-btn').addEventListener('click', async () => {
-      await supabase.auth.signOut();
-      window.location.reload();
-    });
-
-    // Back to portal
-    document.getElementById('back-to-portal').addEventListener('click', () => {
-      window.location.href = '/2card.html';
-    });
-
-    // Help button
-    document.getElementById('help-btn').addEventListener('click', () => {
-      document.getElementById('help-modal').classList.add('active');
-    });
-
-    // Load cards from Supabase
-    async function loadCards() {
-      try {
-        const { data, error } = await supabase
-          .from('cynq_cards')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        // Clear all stages
-        ['empathize', 'define', 'ideate', 'prototype', 'test'].forEach(stage => {
-          document.getElementById(`stage-${stage}`).innerHTML = '';
-          document.getElementById(`count-${stage}`).textContent = '0';
-        });
-
-        // Render cards
-        data.forEach(card => renderCard(card));
-        
-        // Update counts
-        updateCounts(data);
-      } catch (error) {
-        console.error('Error loading cards:', error);
-      }
-    }
-
-    function renderCard(card) {
-      const container = document.getElementById(`stage-${card.stage}`);
-      const cardEl = document.createElement('div');
-      cardEl.className = 'card';
-      cardEl.draggable = true;
-      cardEl.dataset.id = card.id;
-      
-      cardEl.innerHTML = `
-        <div class="card-title">${escapeHtml(card.title)}</div>
-        <div class="card-description">${escapeHtml(card.description)}</div>
-        <div class="card-meta">
-          <span>${new Date(card.created_at).toLocaleDateString()}</span>
-          <div class="card-actions">
-            <button class="icon-btn" onclick="editCard('${card.id}')">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="icon-btn" onclick="deleteCard('${card.id}')">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      `;
-
-      // Drag and drop
-      cardEl.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', card.id);
-        cardEl.style.opacity = '0.5';
-      });
-
-      cardEl.addEventListener('dragend', () => {
-        cardEl.style.opacity = '1';
-      });
-
-      container.appendChild(cardEl);
-    }
-
-    // Drag and drop for stages
-    document.querySelectorAll('.workflow-stage').forEach(stage => {
-      stage.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        stage.style.background = 'rgba(0, 224, 255, 0.15)';
-      });
-
-      stage.addEventListener('dragleave', () => {
-        stage.style.background = 'rgba(0, 224, 255, 0.05)';
-      });
-
-      stage.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        stage.style.background = 'rgba(0, 224, 255, 0.05)';
-        
-        const cardId = e.dataTransfer.getData('text/plain');
-        const newStage = stage.dataset.stage;
-        
-        await updateCardStage(cardId, newStage);
-      });
-    });
-
-    async function updateCardStage(cardId, newStage) {
-      try {
-        const { error } = await supabase
-          .from('cynq_cards')
-          .update({ stage: newStage })
-          .eq('id', cardId);
-
-        if (error) throw error;
-        
-        await loadCards();
-      } catch (error) {
-        console.error('Error updating stage:', error);
-        alert('Failed to update stage');
-      }
-    }
-
-    function updateCounts(cards) {
-      const counts = cards.reduce((acc, card) => {
-        acc[card.stage] = (acc[card.stage] || 0) + 1;
-        return acc;
-      }, {});
-
-      Object.entries(counts).forEach(([stage, count]) => {
-        document.getElementById(`count-${stage}`).textContent = count;
-      });
-    }
-
-    // Modal functions
-    const stagePlaceholders = {
-      empathize: {
-        title: "e.g., User interview findings",
-        description: "What did you learn about your users? Include observations, pain points, behaviors, needs, or quotes from research."
-      },
-      define: {
-        title: "e.g., How might we...?",
-        description: "Frame the problem you're solving. Start with 'How might we...' or clearly state the user need you're addressing."
-      },
-      ideate: {
-        title: "e.g., Mobile app solution",
-        description: "Describe your solution idea. Don't worry about feasibility yet - focus on creativity and addressing the user need."
-      },
-      prototype: {
-        title: "e.g., Low-fidelity wireframe",
-        description: "Describe what you're building to test your idea. Include mockups, sketches, code samples, or prototype descriptions."
-      },
-      test: {
-        title: "e.g., User feedback session",
-        description: "What did you learn from testing? Include user feedback, metrics, what worked, what didn't, and next steps."
-      }
-    };
-
-    window.openModal = (stage) => {
-      const titleInput = document.getElementById('card-title');
-      const descInput = document.getElementById('card-description');
-      
-      titleInput.placeholder = stagePlaceholders[stage].title;
-      descInput.placeholder = stagePlaceholders[stage].description;
-      
-      document.getElementById('modal-overlay').classList.add('active');
-      document.getElementById('card-stage').value = stage;
-      document.getElementById('modal-title').textContent = `Add to ${stage.charAt(0).toUpperCase() + stage.slice(1)}`;
-      currentEditId = null;
-      
-      setTimeout(() => titleInput.focus(), 100);
-    };
-
-    window.closeModal = () => {
-      document.getElementById('modal-overlay').classList.remove('active');
-      document.getElementById('card-form').reset();
-      currentEditId = null;
-    };
-
-    window.closeHelpModal = () => {
-      document.getElementById('help-modal').classList.remove('active');
-    };
-
-    window.editCard = async (id) => {
-      try {
-        const { data, error } = await supabase
-          .from('cynq_cards')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (error) throw error;
-
-        document.getElementById('card-title').value = data.title;
-        document.getElementById('card-description').value = data.description;
-        document.getElementById('card-stage').value = data.stage;
-        document.getElementById('modal-title').textContent = 'Edit Card';
-        currentEditId = id;
-        
-        document.getElementById('modal-overlay').classList.add('active');
-      } catch (error) {
-        console.error('Error loading card:', error);
-      }
-    };
-
-    window.deleteCard = async (id) => {
-      if (!confirm('Delete this card?')) return;
-
-      try {
-        const { error } = await supabase
-          .from('cynq_cards')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
-        
-        await loadCards();
-      } catch (error) {
-        console.error('Error deleting card:', error);
-        alert('Failed to delete card');
-      }
-    };
-
-    // Form submission - USING DIRECT FETCH FALLBACK
-    document.getElementById('card-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      console.log('💾 Form submitted');
-
-      if (!currentUser) {
-        console.error('❌ No current user');
-        alert('Please sign in to save cards');
-        return;
-      }
-
-      const cardData = {
-        title: document.getElementById('card-title').value,
-        description: document.getElementById('card-description').value,
-        stage: document.getElementById('card-stage').value
-      };
-
-      try {
-        if (currentEditId) {
-          console.log('✏️ Updating card:', currentEditId);
-          await directUpdate('cynq_cards', currentEditId, cardData);
-          console.log('✅ Card updated via direct fetch');
-        } else {
-          console.log('➕ Inserting new card via DIRECT FETCH');
-          const insertData = {
-            ...cardData,
-            user_id: currentUser.id
-          };
-          
-          const result = await directInsert('cynq_cards', [insertData]);
-          console.log('✅ Card inserted successfully:', result);
-        }
-
-        closeModal();
-        await loadCards();
-        console.log('✅ Save complete!');
-      } catch (error) {
-        console.error('💥 Error saving card:', error);
-        alert('Failed to save card: ' + (error.message || 'Unknown error'));
-      }
-    });
-
-    // Close modal on overlay click
-    document.getElementById('modal-overlay').addEventListener('click', (e) => {
-      if (e.target.id === 'modal-overlay') {
-        closeModal();
-      }
-    });
-
-    document.getElementById('help-modal').addEventListener('click', (e) => {
-      if (e.target.id === 'help-modal') {
-        closeHelpModal();
-      }
-    });
-
-    // Escape key closes modals
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        closeModal();
-        closeHelpModal();
-      }
-    });
-
-    // Utility function
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // Initialize
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', checkAuth);
+    if (session?.user) {
+      currentUser = session.user;
+      showApp();
+      await loadCards();
     } else {
-      checkAuth();
+      showAuthGate();
     }
-  </script>
+  }
+
+  function showAuthGate() {
+    document.getElementById('auth-gate').classList.add('active');
+    document.getElementById('app-content').style.display = 'none';
+  }
+
+  function showApp() {
+    document.getElementById('auth-gate').classList.remove('active');
+    document.getElementById('app-content').style.display = 'block';
+    document.getElementById('user-email').textContent = currentUser.email;
+    document.getElementById('sign-out-btn').style.display = 'block';
+  }
+
+  document.getElementById('sign-in-btn').addEventListener('click', async () => {
+    const choice = confirm('Sign in with GitHub? (Cancel for Google)');
+    choice ? await signInWithGitHub() : await signInWithGoogle();
+  });
+
+  document.getElementById('sign-out-btn').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    window.location.reload();
+  });
+
+  document.getElementById('back-to-portal').addEventListener('click', () => {
+    window.location.href = '/2card.html';
+  });
+
+  // =====================================================
+  // DATA
+  // =====================================================
+  async function loadCards() {
+    const { data, error } = await supabase
+      .from('cynq_cards')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    ['empathize', 'define', 'ideate', 'prototype', 'test'].forEach(stage => {
+      document.getElementById(`stage-${stage}`).innerHTML = '';
+      document.getElementById(`count-${stage}`).textContent = '0';
+    });
+
+    data.forEach(renderCard);
+    updateCounts(data);
+  }
+
+  function renderCard(card) {
+    const container = document.getElementById(`stage-${card.stage}`);
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.dataset.id = card.id;
+
+    el.innerHTML = `
+      <div class="card-title">${escapeHtml(card.title)}</div>
+      <div class="card-description">${escapeHtml(card.description)}</div>
+      <div class="card-meta">
+        <span>${new Date(card.created_at).toLocaleDateString()}</span>
+        <div class="card-actions">
+          <button class="icon-btn" onclick="editCard('${card.id}')"><i class="fas fa-edit"></i></button>
+          <button class="icon-btn" onclick="deleteCard('${card.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(el);
+  }
+
+  function updateCounts(cards) {
+    const counts = cards.reduce((a, c) => {
+      a[c.stage] = (a[c.stage] || 0) + 1;
+      return a;
+    }, {});
+
+    Object.entries(counts).forEach(([s, n]) => {
+      document.getElementById(`count-${s}`).textContent = n;
+    });
+  }
+
+  // =====================================================
+  // CRUD
+  // =====================================================
+  window.openModal = stage => {
+    document.getElementById('modal-overlay').classList.add('active');
+    document.getElementById('card-stage').value = stage;
+    currentEditId = null;
+  };
+
+  window.closeModal = () => {
+    document.getElementById('modal-overlay').classList.remove('active');
+    document.getElementById('card-form').reset();
+    currentEditId = null;
+  };
+
+  window.editCard = async id => {
+    const { data } = await supabase.from('cynq_cards').select('*').eq('id', id).single();
+    document.getElementById('card-title').value = data.title;
+    document.getElementById('card-description').value = data.description;
+    document.getElementById('card-stage').value = data.stage;
+    currentEditId = id;
+    document.getElementById('modal-overlay').classList.add('active');
+  };
+
+  window.deleteCard = async id => {
+    if (!confirm('Delete this card?')) return;
+    await supabase.from('cynq_cards').delete().eq('id', id);
+    await loadCards();
+  };
+
+  document.getElementById('card-form').addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const data = {
+      title: card-title.value,
+      description: card-description.value,
+      stage: card-stage.value,
+      user_id: currentUser.id
+    };
+
+    if (currentEditId) {
+      await supabase.from('cynq_cards').update(data).eq('id', currentEditId);
+    } else {
+      await supabase.from('cynq_cards').insert(data).select();
+    }
+
+    closeModal();
+    await loadCards();
+  });
+
+  function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+  }
+
+  // INIT
+  checkAuth();
+</script>
+
 </body>
 </html>
