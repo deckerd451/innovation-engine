@@ -9,14 +9,15 @@
   <title>CharlestonHacks Innovation Engine</title>
 
   <link rel="icon" href="favicon.ico"/>
-  <link rel="stylesheet" href="assets/css/base.css" />
+ <link rel="stylesheet" href="assets/css/base.css" />
   <link rel="stylesheet" href="assets/css/engine.css" />
   <link rel="stylesheet" href="assets/css/overlays.css" />
   <link rel="stylesheet" href="assets/css/connections.css" />
+  <link rel="stylesheet" href="assets/css/cynq.css" />
+  <link rel="stylesheet" href="assets/css/dashboard.css" />
 
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-
   <style>
     /* Fullscreen Synapse Layer */
     #synapse-container {
@@ -418,8 +419,9 @@
     <!-- MAIN PANELS -->
     <main class="panels-wrapper">
 
-      <!-- TOP BUTTON ROW (Hidden until authenticated) -->
+       <!-- TOP BUTTON ROW (Hidden until authenticated) -->
       <div class="button-row auth-hidden" id="main-nav">
+        <button class="top-btn" data-tab="dashboard"><i class="fas fa-home"></i> Dashboard</button>
         <button class="top-btn" data-tab="profile"><i class="fas fa-user-plus"></i> Create Profile</button>
         <button class="top-btn" data-tab="search"><i class="fas fa-search"></i> Individual Search</button>
         <button class="top-btn" data-tab="team-builder"><i class="fas fa-users"></i> Team Builder</button>
@@ -427,7 +429,7 @@
         <button class="top-btn" data-tab="connections" id="connections-btn"><i class="fas fa-user-friends"></i> Connections <span class="pending-count-badge hidden">0</span></button>
         <button class="top-btn" data-tab="synapse"><i class="fas fa-project-diagram"></i> Synapse View</button>
         <button class="top-btn" id="open-bbs"><i class="fas fa-terminal"></i> BBS</button>
-        <button class="top-btn" onclick="window.location.href='/cynq.html'"><i class="fas fa-brain"></i> CYNQ Workflow</button>
+        <button class="top-btn" data-tab="cynq"><i class="fas fa-lightbulb"></i> Innovation Hub</button>
       </div>
 
       <!-- ========================= -->
@@ -450,10 +452,18 @@
         </div>
       </section>
 
-      <!-- ========================= -->
       <!-- PROFILE SECTION WRAPPER (Hidden until authenticated) -->
       <!-- ========================= -->
       <div id="profile-section" class="hidden">
+
+        <!-- ========================= -->
+        <!-- DASHBOARD TAB -->
+        <!-- ========================= -->
+        <section id="dashboard" class="tab-content-pane">
+          <div id="dashboard-container">
+            <p style="color:#aaa;">Loading dashboard...</p>
+          </div>
+        </section>
 
         <!-- PROFILE TAB -->
         <section id="profile" class="tab-content-pane">
@@ -579,12 +589,21 @@
           </div>
         </section>
 
-        <!-- ========================= -->
+       <!-- ========================= -->
         <!-- SYNAPSE PLACEHOLDER -->
         <!-- ========================= -->
         <section id="synapse" class="tab-content-pane">
           <h2 class="section-title">Synapse View (Loading…)</h2>
           <p style="color:#aaa;">Launching fullscreen network visualization…</p>
+        </section>
+
+        <!-- ========================= -->
+        <!-- INNOVATION HUB TAB -->
+        <!-- ========================= -->
+        <section id="cynq" class="tab-content-pane">
+          <div id="cynq-app">
+            <p style="color:#aaa;">Loading Innovation Hub...</p>
+          </div>
         </section>
 
       </div> <!-- END profile-section -->
@@ -606,11 +625,16 @@
     console.log("%cSupabase injected into window.", "color:#0ff");
   </script>
 
-  <!-- Main controller -->
+<!-- Main controller -->
   <script type="module" src="assets/js/main.js"></script>
 
   <!-- Background animation -->
   <script type="module" src="assets/js/neuralBackground.js"></script>
+
+  <!-- Ecosystem Connector & CYNQ -->
+  <script src="assets/js/ecosystem-connector.js"></script>
+  <script src="assets/js/cynq.js"></script>
+  <script src="assets/js/dashboard.js"></script>
 
   <!-- Auth State Manager -->
   <script type="module">
@@ -1231,6 +1255,7 @@
       if (e.key === 'Escape') closeEndorseModal();
     });
   </script>
+
 
 </body>
 </html>
