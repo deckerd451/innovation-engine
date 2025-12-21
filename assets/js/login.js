@@ -75,12 +75,13 @@ function clearProfileForm() {
     form.reset();
   }
   
-  // Clear preview image
-  const previewImg = document.getElementById("preview");
-  if (previewImg) {
-    previewImg.src = "";
-    previewImg.classList.add("hidden");
-  }
+// Clear preview image (FIX: never set img.src = "")
+const previewImg = document.getElementById("preview");
+if (previewImg) {
+  previewImg.removeAttribute("src");
+  previewImg.classList.add("hidden");
+}
+
   
   // Reset progress bar
   const progressBar = document.querySelector(".profile-bar-inner");
