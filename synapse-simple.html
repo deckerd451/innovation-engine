@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Synapse • Charleston Innovation Engine</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0a0a0f;
+      --bg-card: #16161f;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --accent-gold: #d4af37;
+      --accent-cyan: #00e0ff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Crimson Pro', serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      overflow-x: hidden;
+    }
+
+    /* Hide everything initially */
+    .hidden { display: none !important; }
+
+    /* Top bar */
+    .top-bar {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+    }
+
+    /* Today's Card */
+    .today-container {
+      padding: 24px 20px;
+      max-width: 600px;
+      margin: 0 auto;
+      min-height: calc(100vh - 140px);
+    }
+
+    .date-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      opacity: 0.6;
+    }
+
+    .person-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-gold));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--bg-dark);
+      flex-shrink: 0;
+      border: 2px solid rgba(0, 224, 255, 0.2);
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+
+    .person-name {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .person-bio {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .connection-reason {
+      font-size: 18px;
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+
+    .connection-reason strong {
+      color: var(--accent-gold);
+    }
+
+    .skills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .skill-tag {
+      padding: 6px 14px;
+      background: rgba(0, 224, 255, 0.1);
+      border: 1px solid rgba(0, 224, 255, 0.2);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--accent-cyan);
+      font-family: 'Space Mono', monospace;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 14px 20px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Crimson Pro', serif;
+    }
+
+    .btn-primary {
+      background: var(--accent-cyan);
+      color: var(--bg-dark);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .why-matters {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .why-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .why-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    /* Bottom Nav */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(22, 22, 31, 0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .nav-item:active {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-item.active .nav-label {
+      color: var(--accent-cyan);
+    }
+
+    .nav-icon {
+      font-size: 20px;
+    }
+
+    .nav-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Loading state */
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+    }
+
+    /* Hint */
+    .nav-hint {
+      text-align: center;
+      padding: 32px 20px;
+      opacity: 0.5;
+    }
+
+    .nav-hint-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="logo">Synapse</div>
+  </div>
+
+  <!-- Today's View -->
+  <div id="today-view" class="today-container">
+    <div class="date-label" id="current-date"></div>
+    
+    <div id="loading" class="loading">
+      Finding your connection...
+    </div>
+
+    <div id="person-card" class="person-card hidden">
+      <div class="card-header">
+        <div class="avatar" id="avatar">
+          <img id="avatar-img" class="hidden" src="" alt="">
+          <span id="avatar-initials"></span>
+        </div>
+        <div>
+          <div class="person-name" id="person-name"></div>
+          <div class="person-bio" id="person-bio"></div>
+        </div>
+      </div>
+      
+      <div class="connection-reason" id="reason"></div>
+      
+      <div class="skills" id="skills"></div>
+      
+      <div class="actions">
+        <button class="btn btn-secondary" id="btn-next">Next</button>
+        <button class="btn btn-primary" id="btn-connect">Connect</button>
+      </div>
+      
+      <div class="why-matters">
+        <div class="why-label">Why this matters</div>
+        <div class="why-text" id="why-text"></div>
+      </div>
+    </div>
+
+    <div class="nav-hint">
+      <div class="nav-hint-text">Tap Discover below to explore more</div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-view="today">
+      <div class="nav-icon">✨</div>
+      <div class="nav-label">Today</div>
+    </div>
+    <div class="nav-item" data-view="discover">
+      <div class="nav-icon">🔍</div>
+      <div class="nav-label">Discover</div>
+    </div>
+    <div class="nav-item" data-view="network">
+      <div class="nav-icon">🕸️</div>
+      <div class="nav-label">Network</div>
+    </div>
+  </nav>
+
+  <!-- Include your existing Supabase client -->
+  <script type="module">
+    import { supabase } from './assets/js/supabaseClient.js';
+    window.supabase = supabase;
+  </script>
+
+  <!-- Main Logic -->
+  <script>
+    // Set date
+    const dateEl = document.getElementById('current-date');
+    const today = new Date();
+    dateEl.textContent = today.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
+    let currentPerson = null;
+    let allPeople = [];
+    let shownToday = new Set();
+
+    // Wait for Supabase
+    async function init() {
+      while (!window.supabase) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Check auth
+      const { data: { session } } = await window.supabase.auth.getSession();
+      if (!session) {
+        window.location.href = '2card.html'; // Redirect to login
+        return;
+      }
+
+      loadPerson();
+    }
+
+    // Load a random person
+    async function loadPerson() {
+      const loading = document.getElementById('loading');
+      const card = document.getElementById('person-card');
+
+      loading.classList.remove('hidden');
+      card.classList.add('hidden');
+
+      try {
+        // Get current user
+        const { data: { user }, error: userError } = await window.supabase.auth.getUser();
+        if (userError) throw userError;
+        
+        console.log('🔍 Loading person for user:', user.email);
+        
+        // Get current user's community profile
+        const { data: currentUserProfile, error: profileError } = await window.supabase
+          .from('community')
+          .select('id, skills, interests')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile error:', profileError);
+          loading.textContent = 'Please create your profile first';
+          setTimeout(() => {
+            window.location.href = '2card.html#profile';
+          }, 2000);
+          return;
+        }
+
+        console.log('👤 Current user profile:', currentUserProfile);
+
+        // Get all people (not connected, not self)
+        const { data: people, error: peopleError } = await window.supabase
+          .from('community')
+          .select('*')
+          .neq('id', currentUserProfile.id);
+
+        if (peopleError) throw peopleError;
+
+        console.log('👥 Found people:', people?.length || 0);
+
+        if (!people || people.length === 0) {
+          loading.textContent = 'No other members yet. Invite your network!';
+          return;
+        }
+
+        // Filter out already shown today
+        const available = people.filter(p => !shownToday.has(p.id));
+        
+        if (available.length === 0) {
+          // Shown everyone, reset
+          shownToday.clear();
+          loadPerson();
+          return;
+        }
+
+        // Score and pick best match
+        const scored = available.map(p => ({
+          person: p,
+          score: calculateScore(currentUserProfile, p)
+        }));
+
+        scored.sort((a, b) => b.score - a.score);
+        
+        console.log('🎯 Top matches:', scored.slice(0, 3).map(s => ({ name: s.person.name, score: s.score })));
+        
+        // Pick from top 3
+        const topPeople = scored.slice(0, 3);
+        const selected = topPeople[Math.floor(Math.random() * topPeople.length)];
+        
+        currentPerson = selected.person;
+        shownToday.add(currentPerson.id);
+
+        displayPerson(currentPerson, currentUserProfile);
+
+      } catch (error) {
+        console.error('❌ Error loading person:', error);
+        loading.textContent = `Error: ${error.message}. Check console for details.`;
+      }
+    }
+
+    // Parse skills from text or array
+    function parseSkills(skills) {
+      if (!skills) return [];
+      if (Array.isArray(skills)) return skills;
+      // Handle comma or semicolon separated text
+      return skills.split(/[,;]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+    }
+
+    // Calculate match score
+    function calculateScore(user, other) {
+      let score = Math.random() * 20; // Base randomness
+
+      // Parse skills
+      const userSkills = parseSkills(user.skills);
+      const otherSkills = parseSkills(other.skills);
+      
+      // Shared skills
+      const shared = userSkills.filter(s => otherSkills.includes(s));
+      score += shared.length * 15;
+
+      // Shared interests (if they exist)
+      const userInterests = Array.isArray(user.interests) ? user.interests : [];
+      const otherInterests = Array.isArray(other.interests) ? other.interests : [];
+      const sharedInterests = userInterests.filter(i => otherInterests.includes(i));
+      score += sharedInterests.length * 12;
+
+      return score;
+    }
+
+    // Display person
+    function displayPerson(person, currentUser) {
+      const loading = document.getElementById('loading');
+      const card = document.getElementById('person-card');
+      
+      // Name
+      document.getElementById('person-name').textContent = person.name || 'Anonymous';
+      
+      // Bio
+      document.getElementById('person-bio').textContent = person.bio || 'Charleston tech community member';
+      
+      // Avatar
+      const initials = (person.name || 'A').split(' ').map(n => n[0]).join('').toUpperCase();
+      document.getElementById('avatar-initials').textContent = initials;
+      
+      if (person.image_url) {
+        const img = document.getElementById('avatar-img');
+        img.src = person.image_url;
+        img.classList.remove('hidden');
+        document.getElementById('avatar-initials').style.display = 'none';
+      }
+
+      // Generate reason
+      const reason = generateReason(currentUser, person);
+      document.getElementById('reason').innerHTML = reason;
+
+      // Skills
+      const skillsEl = document.getElementById('skills');
+      skillsEl.innerHTML = '';
+      const skills = parseSkills(person.skills);
+      skills.slice(0, 4).forEach(skill => {
+        const tag = document.createElement('div');
+        tag.className = 'skill-tag';
+        tag.textContent = skill;
+        skillsEl.appendChild(tag);
+      });
+
+      // Why it matters
+      const why = generateWhy(person);
+      document.getElementById('why-text').textContent = why;
+
+      loading.classList.add('hidden');
+      card.classList.remove('hidden');
+    }
+
+    // Generate connection reason
+    function generateReason(user, other) {
+      const userSkills = parseSkills(user.skills);
+      const otherSkills = parseSkills(other.skills);
+      const shared = userSkills.filter(s => otherSkills.includes(s));
+
+      if (shared.length > 0) {
+        return `You both have expertise in <strong>${shared[0]}</strong> and could collaborate or learn from each other.`;
+      }
+
+      const userInterests = Array.isArray(user.interests) ? user.interests : [];
+      const otherInterests = Array.isArray(other.interests) ? other.interests : [];
+      const sharedInterests = userInterests.filter(i => otherInterests.includes(i));
+
+      if (sharedInterests.length > 0) {
+        return `You share an interest in <strong>${sharedInterests[0]}</strong> and have complementary backgrounds.`;
+      }
+
+      return `${other.name?.split(' ')[0] || 'They'} is an active member of the Charleston tech community with unique expertise.`;
+    }
+
+    // Generate why it matters
+    function generateWhy(person) {
+      const firstName = person.name?.split(' ')[0] || 'This person';
+      
+      const templates = [
+        `${firstName} brings valuable perspective from their work in the Charleston tech scene. Connecting with diverse backgrounds strengthens your network and opens new opportunities.`,
+        `Building meaningful connections with people like ${firstName} helps you discover unexpected collaborations and stay connected to the local innovation ecosystem.`,
+        `${firstName} is part of Charleston's growing tech community. These connections often lead to partnerships, learning opportunities, and lasting professional relationships.`
+      ];
+
+      return templates[Math.floor(Math.random() * templates.length)];
+    }
+
+    // Button handlers
+    document.getElementById('btn-next').addEventListener('click', () => {
+      loadPerson();
+    });
+
+    document.getElementById('btn-connect').addEventListener('click', async () => {
+      if (!currentPerson) return;
+
+      const btn = document.getElementById('btn-connect');
+      btn.textContent = 'Connecting...';
+      btn.disabled = true;
+
+      try {
+        // Get current user's community ID
+        const { data: { user } } = await window.supabase.auth.getUser();
+        const { data: fromUser } = await window.supabase
+          .from('community')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        // Create connection request
+        await window.supabase
+          .from('connection_requests')
+          .insert({
+            from_user_id: fromUser.id,
+            to_user_id: currentPerson.id,
+            status: 'pending'
+          });
+
+        btn.textContent = 'Connected! ✨';
+        
+        setTimeout(() => {
+          loadPerson();
+          btn.textContent = 'Connect';
+          btn.disabled = false;
+        }, 1500);
+
+      } catch (error) {
+        console.error('Error connecting:', error);
+        btn.textContent = 'Error - Try Again';
+        btn.disabled = false;
+      }
+    });
+
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const view = item.dataset.view;
+        
+        if (view === 'discover' || view === 'network') {
+          // Redirect to full app
+          window.location.href = `2card.html#${view}`;
+        }
+      });
+    });
+
+    // Initialize
+    init();
+  </script>
+</body>
+</html>
