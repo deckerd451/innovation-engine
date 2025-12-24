@@ -1872,28 +1872,32 @@ button:focus {
   <!-- Modal Controls -->
   <script>
     // Calendar Modal
-    document.getElementById("open-calendar")?.addEventListener("click", () => {
-      document.getElementById("events-overlay").classList.add("active");
-    });
+   // Calendar Modal Controls
+const openCalendarBtn = document.getElementById("open-calendar");
+const eventsOverlay = document.getElementById("events-overlay");
 
-    document.getElementById("close-overlay")?.addEventListener("click", () => {
-      document.getElementById("events-overlay").classList.remove("active");
-    });
+if (openCalendarBtn && eventsOverlay) {
+  openCalendarBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    eventsOverlay.classList.add("active");
+    // Ensure the feed starts loading if it hasn't yet
+    if (typeof loadEvents === "function") {
+      loadEvents();
+    }
+  });
+}
 
-    document.getElementById("events-overlay")?.addEventListener("click", (e) => {
-      const modal = document.querySelector(".events-modal");
-      if (modal && !modal.contains(e.target)) {
-        document.getElementById("events-overlay").classList.remove("active");
-      }
-    });
+// Global close logic for the Events Overlay
+document.getElementById("close-overlay")?.addEventListener("click", () => {
+  eventsOverlay.classList.remove("active");
+});
 
-    // Escape key closes all modals
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        document.getElementById("events-overlay")?.classList.remove("active");
-        document.getElementById("mystery-overlay")?.classList.remove("active");
-      }
-    });
+// Close when clicking outside the modal
+eventsOverlay?.addEventListener("click", (e) => {
+  if (e.target === eventsOverlay) {
+    eventsOverlay.classList.remove("active");
+  }
+});
 
     // Mystery modal close button
     document.getElementById("close-mystery")?.addEventListener("click", () => {
