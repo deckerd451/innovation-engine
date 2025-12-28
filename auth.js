@@ -231,111 +231,119 @@ window.handleLogout = async function() {
 }
 
 // ======================================================================
-// 6. LOAD & CHECK FOR USER PROFILE
+// 6. LOAD USER PROFILE DATA (AFTER LOGIN) - FIXED VERSION
 // ======================================================================
-async function loadUserProfile(userId, userEmail) {
-  console.log(`🔍 Loading profile for user: ${userEmail}`);
+async function loadUserProfile(user) {
+  console.log("👤 Loading profile for:", user.email);
+  console.log("🔍 User ID:", user.id);
   
   try {
-    const { data, error } = await supabase
+    // Fetch from community table with ALL columns explicitly
+    const { data: profiles, error } = await window.supabase
       .from('community')
       .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', user.id);
+    
+    console.log("📊 Query result:", { profiles, error });
     
     if (error) {
-      console.error('Error loading profile:', error);
+      console.error('❌ Error fetching profile:', error);
+      
+      // Still fire new user event if query fails
+      console.log('🆕 Treating as new user due to query error');
+      window.dispatchEvent(new CustomEvent('profile-new', { 
+        detail: { user } 
+      }));
       return null;
     }
     
-    return data;
+    // Check if we got results
+    if (profiles && profiles.length > 0) {
+      const profile = profiles[0];
+      console.log('📋 Existing profile found:', profile);
+      console.log('📝 Profile details:', {
+        name: profile.name,
+        skills: profile.skills,
+        bio: profile.bio,
+        interests: profile.interests,
+        availability: profile.availability,
+        image_url: profile.image_url
+      });
+      
+      // Trigger profile form population
+      window.dispatchEvent(new CustomEvent('profile-loaded', { 
+        detail: { profile, user } 
+      }));
+      
+      return profile;
+    } else {
+      console.log('🆕 New user - no profile rows found');
+      
+      // Trigger new user flow
+      window.dispatchEvent(new CustomEvent('profile-new', { 
+        detail: { user } 
+      }));
+      
+      return null;
+    }
   } catch (err) {
-    console.error('Load profile error:', err);
+    console.error('❌ Exception loading profile:', err);
+    
+    // Fire new user event on exception
+    window.dispatchEvent(new CustomEvent('profile-new', { 
+      detail: { user } 
+    }));
+    
     return null;
   }
 }
 
 // ======================================================================
-// 7. INIT LOGIN SYSTEM (RUNS ON PAGE LOAD)
+// 7. INIT LOGIN SYSTEM - WORKING VERSION
 // ======================================================================
 async function initLoginSystem() {
-  console.log("🎬 Initializing login system...");
+  console.log("🚀 Initializing login system (OAuth)…");
 
-  try {
-    // Handle OAuth callback first
-    await handleOAuthCallback();
-    console.log("✅ OAuth callback handled");
+  // Step A – Handle OAuth callback if present
+  await handleOAuthCallback();
 
-    // Check current session
-    console.log("🔍 Checking session...");
-    const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
-    console.log("📋 Session check complete:", { hasSession: !!session, error: sessionError });
+  // Step B – Check current session
+  const { data: { session } } = await window.supabase.auth.getSession();
 
-    if (sessionError) {
-      console.error("❌ Session error:", sessionError);
-      showLoginUI();
-      return;
-    }
-
-    if (!session || !session.user) {
-      console.log("🔒 No active session → showing login UI");
-      showLoginUI();
-      return;
-    }
-
-    const user = session.user;
-    console.log("✅ Active session found:", user.email);
-
-    // Show profile UI immediately
-    showProfileUI(user);
-
-    // Load profile from database
-    console.log("🔍 Loading user profile...");
-    const profile = await loadUserProfile(user.id, user.email);
-
-    if (profile) {
-      console.log("✅ Profile found:", profile);
-      // Dispatch profile-loaded event for dashboard.js
-      window.dispatchEvent(new CustomEvent('profile-loaded', { 
-        detail: { user, profile }
-      }));
-    } else {
-      console.log("🆕 No profile found → new user");
-      // Dispatch new user event for dashboard.js
-      window.dispatchEvent(new CustomEvent('profile-new', { 
-        detail: { user }
-      }));
-    }
-
-    // Listen for auth state changes
-    window.supabase.auth.onAuthStateChange((event, session) => {
-      console.log("🔔 Auth state changed:", event);
-      
-      if (event === 'SIGNED_OUT') {
-        showLoginUI();
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        showProfileUI(session.user);
-        // Reload profile
-        loadUserProfile(session.user.id, session.user.email).then(profile => {
-          if (profile) {
-            window.dispatchEvent(new CustomEvent('profile-loaded', { 
-              detail: { user: session.user, profile }
-            }));
-          } else {
-            window.dispatchEvent(new CustomEvent('profile-new', { 
-              detail: { user: session.user }
-            }));
-          }
-        });
-      }
-    });
-
-    console.log("✅ Login system initialized");
-  } catch (error) {
-    console.error("❌ FATAL ERROR in initLoginSystem:", error);
-    console.error("Error stack:", error.stack);
+  if (session?.user) {
+    console.log("🟢 Already logged in as:", session.user.email);
+    showProfileUI(session.user);
+    
+    // IMPORTANT: Add a small delay to ensure profile.js listeners are ready
+    setTimeout(async () => {
+      await loadUserProfile(session.user);
+    }, 100);
+  } else {
+    console.log("🟡 No active session");
     showLoginUI();
   }
+
+  // Step C – Listen for auth state changes (single listener)
+  window.supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log("⚡ Auth event:", event);
+
+    if (event === "SIGNED_IN" && session?.user) {
+      console.log("🟢 User authenticated:", session.user.email);
+      showProfileUI(session.user);
+      
+      // Add delay for event listeners
+      setTimeout(async () => {
+        await loadUserProfile(session.user);
+      }, 100);
+    }
+
+    if (event === "SIGNED_OUT") {
+      console.log("🟡 User signed out");
+      showLoginUI();
+    }
+  });
+
+  console.log("✅ Login system initialized (OAuth)");
 }
 
 // ======================================================================
