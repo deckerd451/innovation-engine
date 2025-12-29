@@ -1,0 +1,132 @@
+// ================================================================
+// PROJECTS MODULE
+// ================================================================
+// Handles project creation, viewing, and management
+
+import { supabase } from './supabaseClient.js';
+
+let currentUserProfile = null;
+
+// Initialize module
+export function initProjects(userProfile) {
+  currentUserProfile = userProfile;
+}
+
+// ========================
+// MODAL CONTROL
+// ========================
+
+export async function openProjectsModal() {
+  const modal = document.getElementById('projects-modal');
+  modal.classList.add('active');
+  await loadProjects();
+}
+
+export function closeProjectsModal() {
+  document.getElementById('projects-modal').classList.remove('active');
+  hideCreateProjectForm();
+}
+
+// ========================
+// PROJECT FORM
+// ========================
+
+export function showCreateProjectForm() {
+  document.getElementById('project-form').style.display = 'block';
+}
+
+export function hideCreateProjectForm() {
+  document.getElementById('project-form').style.display = 'none';
+  document.getElementById('project-name').value = '';
+  document.getElementById('project-description').value = '';
+  document.getElementById('project-skills').value = '';
+}
+
+export async function createProject(event) {
+  event.preventDefault();
+  
+  const name = document.getElementById('project-name').value;
+  const description = document.getElementById('project-description').value;
+  const skills = document.getElementById('project-skills').value;
+  
+  const { data, error } = await supabase
+    .from('projects')
+    .insert([{
+      name,
+      description,
+      required_skills: skills,
+      creator_id: currentUserProfile.id,
+      status: 'active'
+    }])
+    .select();
+  
+  if (error) {
+    console.error('Error creating project:', error);
+    alert('Error creating project. Please try again.');
+    return;
+  }
+  
+  hideCreateProjectForm();
+  await loadProjects();
+}
+
+// ========================
+// PROJECT LOADING
+// ========================
+
+async function loadProjects() {
+  const listEl = document.getElementById('projects-list');
+  
+  const { data: projects } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      creator:community!projects_creator_id_fkey(name)
+    `)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+  
+  if (!projects || projects.length === 0) {
+    listEl.innerHTML = `
+      <div style="text-align: center; color: #aaa; padding: 2rem;">
+        <i class="fas fa-folder-open" style="font-size: 3rem; opacity: 0.3;"></i>
+        <p style="margin-top: 1rem;">No projects yet</p>
+        <p style="font-size: 0.85rem;">Create your first project above!</p>
+      </div>
+    `;
+    return;
+  }
+  
+  let html = '';
+  projects.forEach(project => {
+    const isOwner = project.creator_id === currentUserProfile.id;
+    
+    html += `
+      <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+          <h3 style="color: #00e0ff; margin: 0; font-size: 1.1rem;">${project.name}</h3>
+          ${isOwner ? '<span style="background: rgba(0,224,255,0.2); color: #00e0ff; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem;">Your Project</span>' : ''}
+        </div>
+        <p style="color: #aaa; font-size: 0.85rem; margin-bottom: 0.5rem;">by ${project.creator?.name || 'Unknown'}</p>
+        <p style="color: white; margin-bottom: 1rem;">${project.description}</p>
+        ${project.required_skills ? `
+          <div style="margin-bottom: 1rem;">
+            <p style="color: #aaa; font-size: 0.85rem; margin-bottom: 0.5rem;">Required Skills:</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              ${project.required_skills.split(',').map(skill => `
+                <span style="background: rgba(0,224,255,0.2); color: #00e0ff; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem;">${skill.trim()}</span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        ${!isOwner ? `
+          <button class="btn btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-hand-paper"></i> Express Interest
+          </button>
+        ` : ''}
+      </div>
+    `;
+  });
+  
+  listEl.innerHTML = html;
+}
