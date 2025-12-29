@@ -18,9 +18,13 @@
   <canvas id="neural-bg" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"></canvas>
 
   <!-- Login Section -->
-  <div id="login-section" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 9999; overflow: hidden;">
+  <div id="login-section" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 9999; overflow: hidden; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);">
     <div class="login-container">
-      <img src="ieheader.webp" alt="CharlestonHacks Innovation Engine" style="max-width: 100%; height: auto; margin-bottom: 1rem;">
+      <img src="ieheader.webp" 
+           alt="CharlestonHacks Innovation Engine" 
+           style="max-width: 100%; height: auto; margin-bottom: 1rem;"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <h1 style="display: none; color: #00e0ff; font-size: 2rem; margin-bottom: 1rem;">CharlestonHacks Innovation Engine</h1>
       <p>Making Invisible Networks Visible</p>
       
       <div class="oauth-buttons">
@@ -40,11 +44,15 @@
   <!-- OLD PROFILE SECTION REMOVED - NOW USING INLINE PROFILE EDITOR -->
 
   <!-- Fixed Header -->
-  <header class="unified-header">
+  <header class="unified-header hidden" id="main-header">
     <div class="header-content">
       <div class="header-logo">
         <a href="https://charlestonhacks.com/" style="display: flex; align-items: center; text-decoration: none;">
-          <img src="charlestonhackslogo.svg" alt="CharlestonHacks" style="height: 40px; width: auto; cursor: pointer;">
+          <img src="charlestonhackslogo.svg" 
+               alt="CharlestonHacks" 
+               style="height: 40px; width: auto; cursor: pointer;"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <span style="display: none; color: #00e0ff; font-size: 1.5rem; font-weight: bold;">CharlestonHacks</span>
         </a>
       </div>
       
@@ -71,7 +79,7 @@
   </header>
 
   <!-- Main Container -->
-  <div class="unified-main">
+  <div class="unified-main hidden" id="main-content">
     
     <!-- Hero Section -->
     <section class="hero-section">
