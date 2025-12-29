@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CharlestonHacks Innovation Engine</title>
+  <link rel="icon" href="favicon.ico"/>
+  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/engine.css" />
+  <link rel="stylesheet" href="assets/css/overlays.css" />
+  <link rel="stylesheet" href="assets/css/connections.css" />
+  <link rel="stylesheet" href="assets/css/cynq.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <!-- Neural Network Background -->
+  <canvas id="neural-bg" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"></canvas>
+
+  <!-- Login Section -->
+  <div id="login-section" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 9999; overflow: hidden; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);">
+    <div class="login-container">
+      <img src="ieheader.webp" 
+           alt="CharlestonHacks Innovation Engine" 
+           style="max-width: 100%; height: auto; margin-bottom: 1rem;"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <h1 style="display: none; color: #00e0ff; font-size: 2rem; margin-bottom: 1rem;">CharlestonHacks Innovation Engine</h1>
+      <p>Making Invisible Networks Visible</p>
+      
+      <div class="oauth-buttons">
+        <button id="github-login" class="oauth-btn">
+          <i class="fab fa-github"></i>
+          Continue with GitHub
+        </button>
+        
+        <button id="google-login" class="oauth-btn">
+          <i class="fab fa-google"></i>
+          Continue with Google
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OLD PROFILE SECTION REMOVED - NOW USING INLINE PROFILE EDITOR -->
+
+  <!-- Fixed Header (Floating Overlay) -->
+  <header class="unified-header hidden" id="main-header" style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(10, 14, 39, 0.95); backdrop-filter: blur(10px); border-bottom: 2px solid rgba(0, 224, 255, 0.3);">
+    <div class="header-content">
+      <div class="header-logo">
+        <a href="https://charlestonhacks.com/" style="display: flex; align-items: center; text-decoration: none;">
+          <img src="charlestonhackslogo.svg" 
+               alt="CharlestonHacks" 
+               style="height: 40px; width: auto; cursor: pointer;"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <span style="display: none; color: #00e0ff; font-size: 1.5rem; font-weight: bold;">CharlestonHacks</span>
+        </a>
+      </div>
+      
+      <div class="header-search">
+        <i class="fas fa-search"></i>
+        <input type="text" id="global-search" placeholder="Search people, skills, projects...">
+      </div>
+      
+      <div class="header-actions">
+        <div class="header-notification" id="notifications-bell" onclick="scrollToSection('network')" style="cursor: pointer;" title="View pending requests">
+          <i class="fas fa-bell"></i>
+          <span class="notification-badge hidden" id="notif-count">0</span>
+        </div>
+        
+        <div class="user-menu" id="user-menu" onclick="handleLogout()" style="cursor: pointer;" title="Click to sign out">
+          <div class="user-avatar" id="user-avatar-header">
+            <span id="user-initials-header">?</span>
+          </div>
+          <span id="user-name-header">Loading...</span>
+          <i class="fas fa-sign-out-alt"></i>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container - Fixed Non-Scrollable Page -->
+  <!-- Main Container - Fullscreen Synapse with Overlays -->
+  <div class="unified-main hidden" id="main-content" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden;">
+    
+    <!-- Synapse Visualization (Fullscreen Background) -->
+    <div id="synapse-main-view" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">
+      <svg id="synapse-svg" style="width: 100%; height: 100%;"></svg>
+    </div>
+
+    <!-- Bottom Stats Bar (Floating Overlay) -->
+    <div class="bottom-stats-bar" style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(10, 14, 39, 0.95); border-top: 2px solid rgba(0, 224, 255, 0.3); padding: 0.75rem; display: flex; gap: 0.5rem; justify-content: space-around; backdrop-filter: blur(10px); z-index: 100;">
+      
+      <div class="stat-card-mini" onclick="openMessagesModal()" style="flex: 1; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-envelope"></i></div>
+        <div class="value" id="unread-messages" style="font-size: 1.5rem; font-weight: bold; color: white;">0</div>
+        <div class="label" style="font-size: 0.75rem; color: #aaa; text-transform: uppercase;">Messages</div>
+      </div>
+
+      <div class="stat-card-mini" onclick="openProjectsModal()" style="flex: 1; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-lightbulb"></i></div>
+        <div class="value" id="active-projects" style="font-size: 1.5rem; font-weight: bold; color: white;">0</div>
+        <div class="label" style="font-size: 0.75rem; color: #aaa; text-transform: uppercase;">Projects</div>
+      </div>
+
+      <div class="stat-card-mini" onclick="openEndorsementsModal()" style="flex: 1; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-star"></i></div>
+        <div class="value" id="total-endorsements" style="font-size: 1.5rem; font-weight: bold; color: white;">0</div>
+        <div class="label" style="font-size: 0.75rem; color: #aaa; text-transform: uppercase;">Endorsements</div>
+      </div>
+
+      <div class="stat-card-mini" style="flex: 1; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; padding: 0.75rem; text-align: center;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-users"></i></div>
+        <div class="value" id="network-size" style="font-size: 1.5rem; font-weight: bold; color: white;">0</div>
+        <div class="label" style="font-size: 0.75rem; color: #aaa; text-transform: uppercase;">Network</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- OLD SECTIONS REMOVED (Messages, Discovery, Connections, Innovation Hub, Profile) -->
+
+
+  <!-- Floating Action Buttons -->
+  <div class="floating-actions">
+    <button class="fab" id="fab-bbs" title="Open BBS">
+      <i class="fas fa-terminal"></i>
+      <span class="fab-label">BBS</span>
+    </button>
+    <button class="fab" id="fab-edit-profile" title="Edit Profile" onclick="openProfileModal()">
+      <i class="fas fa-user-edit"></i>
+      <span class="fab-label">Edit Profile</span>
+    </button>
+    <button class="fab" id="fab-quick-connect" title="Quick Connect" onclick="openQuickConnectModal()">
+      <i class="fas fa-user-plus"></i>
+      <span class="fab-label">Quick Connect</span>
+    </button>
+  </div>
+
+  <!-- Profile Modal -->
+  <div class="modal" id="profile-modal">
+    <div class="modal-content">
+      <button class="modal-close" id="close-profile-modal">
+        <i class="fas fa-times"></i>
+      </button>
+      <div id="modal-profile-content">
+        <!-- Will be populated when viewing a profile -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages Modal -->
+  <div class="modal" id="messages-modal">
+    <div class="modal-content" style="max-width: 900px;">
+      <button class="modal-close" onclick="closeMessagesModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 style="color: #00e0ff; margin-bottom: 1.5rem;">
+        <i class="fas fa-envelope"></i> Messages
+      </h2>
+      
+      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; height: 500px;">
+        <!-- Conversations List -->
+        <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1rem; overflow-y: auto;">
+          <h3 style="color: #00e0ff; font-size: 0.9rem; margin-bottom: 1rem; text-transform: uppercase;">Conversations</h3>
+          <div id="modal-conversations-list">
+            <div style="text-align: center; color: #aaa; padding: 2rem;">
+              <i class="fas fa-comments" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+              <p>Loading conversations...</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Active Conversation -->
+        <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column;">
+          <h3 id="modal-conversation-title" style="color: #00e0ff; font-size: 0.9rem; margin-bottom: 1rem; text-transform: uppercase;">Select a conversation</h3>
+          
+          <div id="modal-conversation-messages" style="flex: 1; overflow-y: auto; margin-bottom: 1rem; padding: 0.5rem;">
+            <div style="text-align: center; color: #aaa; padding: 3rem;">
+              <i class="fas fa-comment-dots" style="font-size: 3rem; opacity: 0.2;"></i>
+              <p style="margin-top: 1rem;">Select a conversation to view messages</p>
+            </div>
+          </div>
+          
+          <div id="modal-message-input" style="display: none;">
+            <form onsubmit="sendModalMessage(event)" style="display: flex; gap: 0.5rem;">
+              <input type="text" id="modal-message-text" placeholder="Type a message..." style="flex: 1; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit;" required>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Projects Modal -->
+  <div class="modal" id="projects-modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <button class="modal-close" onclick="closeProjectsModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 style="color: #00e0ff; margin-bottom: 1.5rem;">
+        <i class="fas fa-lightbulb"></i> Projects
+      </h2>
+      
+      <div style="margin-bottom: 1.5rem;">
+        <button onclick="showCreateProjectForm()" class="btn btn-primary">
+          <i class="fas fa-plus"></i> New Project
+        </button>
+      </div>
+      
+      <div id="project-form" style="display: none; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h3 style="color: #00e0ff; margin-bottom: 1rem;">Create New Project</h3>
+        <form onsubmit="createProject(event)">
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Project Name *</label>
+            <input type="text" id="project-name" required style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit;">
+          </div>
+          
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Description *</label>
+            <textarea id="project-description" rows="3" required style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit; resize: vertical;"></textarea>
+          </div>
+          
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Required Skills (comma-separated)</label>
+            <input type="text" id="project-skills" placeholder="e.g., JavaScript, React, Design" style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit;">
+          </div>
+          
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Create Project
+            </button>
+            <button type="button" onclick="hideCreateProjectForm()" class="btn" style="background: rgba(255,255,255,0.1);">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <div id="projects-list" style="max-height: 400px; overflow-y: auto;">
+        <div style="text-align: center; color: #aaa; padding: 2rem;">
+          <i class="fas fa-folder-open" style="font-size: 3rem; opacity: 0.3;"></i>
+          <p style="margin-top: 1rem;">Loading projects...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Endorsements Modal -->
+  <div class="modal" id="endorsements-modal">
+    <div class="modal-content" style="max-width: 700px;">
+      <button class="modal-close" onclick="closeEndorsementsModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 style="color: #00e0ff; margin-bottom: 1.5rem;">
+        <i class="fas fa-star"></i> Endorsements
+      </h2>
+      
+      <div style="margin-bottom: 2rem;">
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+          <button onclick="showEndorsementsTab('received')" id="endorsements-tab-received" class="tab-btn active" style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">
+            Received
+          </button>
+          <button onclick="showEndorsementsTab('given')" id="endorsements-tab-given" class="tab-btn" style="flex: 1; padding: 0.75rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; cursor: pointer;">
+            Given
+          </button>
+        </div>
+        
+        <div id="endorsements-received" style="max-height: 400px; overflow-y: auto;">
+          <div style="text-align: center; color: #aaa; padding: 2rem;">
+            <i class="fas fa-star" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p style="margin-top: 1rem;">Loading endorsements...</p>
+          </div>
+        </div>
+        
+        <div id="endorsements-given" style="display: none; max-height: 400px; overflow-y: auto;">
+          <div style="text-align: center; color: #aaa; padding: 2rem;">
+            <i class="fas fa-star" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p style="margin-top: 1rem;">Loading endorsements...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Connect Modal -->
+  <div class="modal" id="quick-connect-modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <button class="modal-close" onclick="closeQuickConnectModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 style="color: #00e0ff; margin-bottom: 1.5rem;">
+        <i class="fas fa-user-plus"></i> Quick Connect
+      </h2>
+      
+      <p style="color: #aaa; margin-bottom: 1.5rem;">Connect with people who share your interests and skills</p>
+      
+      <div id="quick-connect-list" style="max-height: 500px; overflow-y: auto;">
+        <div style="text-align: center; color: #aaa; padding: 2rem;">
+          <i class="fas fa-users" style="font-size: 3rem; opacity: 0.3;"></i>
+          <p style="margin-top: 1rem;">Loading suggested connections...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Synapse Container -->
+  <!-- OLD SYNAPSE CONTAINER REMOVED - Synapse is now the main view -->
+
+  <!-- BBS Modal -->
+  <div id="bbs-modal">
+    <!-- BBS content will be loaded here -->
+  </div>
+
+  </div>
+
+  <!-- User badge and logout -->
+  <div id="user-badge" class="hidden"></div>
+  <button id="logout-btn" class="hidden">Sign Out</button>
+
+  <!-- External modules -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <!-- Load Supabase client first -->
+  <script type="module" src="assets/js/supabaseClient.js"></script>
+  <script src="assets/js/ecosystem-connector.js"></script>
+  <script src="assets/js/cynq.js"></script>
+  <!-- Neural background -->
+  <script src="assets/js/neuralBackground.js"></script>
+  <!-- Load modular dashboard files in order -->
+  <script type="module" src="auth.js"></script>
+  <script type="module" src="profile.js"></script>
+  <script type="module" src="dashboard.js"></script>
+  <script type="module" src="main.js"></script>
+  <!-- BBS System -->
+  <script type="module">
+    import { initBBS } from './assets/js/bbs.js';
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      const bbsBtn = document.getElementById('fab-bbs');
+      if (bbsBtn) {
+        bbsBtn.addEventListener('click', () => {
+          initBBS();
+        });
+      }
+    });
+  </script>
+  
+  <!-- Synapse System - Auto-Initialize -->
+  <script type="module">
+    import { initSynapseView } from './assets/js/synapse.js';
+    
+    let synapseInitialized = false;
+    
+    // Initialize synapse automatically when user logs in (only once)
+    window.addEventListener('profile-loaded', async () => {
+      if (synapseInitialized) {
+        console.log('🌐 Synapse already initialized, skipping...');
+        return;
+      }
+      
+      console.log('🌐 Auto-initializing synapse view...');
+      synapseInitialized = true;
+      await initSynapseView();
+    });
+  </script>
+  
+  <!-- Modal Modules -->
+  <script type="module">
+    import { supabase } from './assets/js/supabaseClient.js';
+    import { 
+      initMessages, 
+      openMessagesModal, 
+      closeMessagesModal, 
+      openConversation, 
+      sendModalMessage 
+    } from './assets/js/messages.js';
+    import { 
+      initProjects, 
+      openProjectsModal, 
+      closeProjectsModal, 
+      showCreateProjectForm, 
+      hideCreateProjectForm, 
+      createProject 
+    } from './assets/js/projects.js';
+    import { 
+      initEndorsements, 
+      openEndorsementsModal, 
+      closeEndorsementsModal, 
+      showEndorsementsTab 
+    } from './assets/js/endorsements.js';
+    import { 
+      initQuickConnect, 
+      openQuickConnectModal, 
+      closeQuickConnectModal, 
+      quickConnect 
+    } from './assets/js/quickConnect.js';
+    
+    let currentUserProfile = null;
+    
+    // Listen for user login and initialize all modules
+    window.addEventListener('profile-loaded', (e) => {
+      currentUserProfile = e.detail.profile;
+      
+      // Initialize all modal modules
+      initMessages(currentUserProfile);
+      initProjects(currentUserProfile);
+      initEndorsements(currentUserProfile);
+      initQuickConnect(currentUserProfile);
+    });
+    
+    // Expose functions to global scope for onclick handlers
+    window.openMessagesModal = openMessagesModal;
+    window.closeMessagesModal = closeMessagesModal;
+    window.openConversation = openConversation;
+    window.sendModalMessage = sendModalMessage;
+    
+    window.openProjectsModal = openProjectsModal;
+    window.closeProjectsModal = closeProjectsModal;
+    window.showCreateProjectForm = showCreateProjectForm;
+    window.hideCreateProjectForm = hideCreateProjectForm;
+    window.createProject = createProject;
+    
+    window.openEndorsementsModal = openEndorsementsModal;
+    window.closeEndorsementsModal = closeEndorsementsModal;
+    window.showEndorsementsTab = showEndorsementsTab;
+    
+    window.openQuickConnectModal = openQuickConnectModal;
+    window.closeQuickConnectModal = closeQuickConnectModal;
+    window.quickConnect = quickConnect;
+    
+    // Profile Modal (existing)
+    window.openProfileModal = function() {
+      document.getElementById('profile-modal').classList.add('active');
+    }
+  </script>
+</body>
+</html>
+<style>
+/* Bottom Stats Bar Hover Effects */
+.stat-card-mini:hover {
+  transform: translateY(-3px);
+  background: rgba(0,224,255,0.15) !important;
+  border-color: rgba(0,224,255,0.5) !important;
+  box-shadow: 0 4px 12px rgba(0,224,255,0.3);
+}
+
+/* Fixed page - no scrolling */
+body {
+  overflow: hidden;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .bottom-stats-bar {
+    gap: 0.25rem;
+    padding: 0.5rem;
+  }
+  
+  .stat-card-mini {
+    padding: 0.5rem !important;
+  }
+  
+  .stat-card-mini .label {
+    font-size: 0.65rem !important;
+  }
+  
+  .stat-card-mini .value {
+    font-size: 1.25rem !important;
+  }
+}
+</style>
