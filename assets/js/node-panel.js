@@ -286,7 +286,7 @@ async function renderPersonPanel(nodeData) {
     <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1.5rem; backdrop-filter: blur(10px);">
       ${profile.id === currentUserProfile?.id ? `
         <!-- Own Profile -->
-        <button onclick="openProfileModal()" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
+        <button onclick="closeNodePanel(); window.openProfileEditor?.();" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
           <i class="fas fa-edit"></i> Edit Profile
         </button>
       ` : `
@@ -562,14 +562,307 @@ window.sendMessage = function(userId) {
   window.openMessagesModal();
 };
 
-window.endorseSkill = function(userId) {
-  // Open endorsement modal
-  alert('Endorse skill feature - integrate with endorsements modal');
+window.endorseSkill = async function(userId) {
+  try {
+    const { data: profile } = await supabase
+      .from('community')
+      .select('name, skills')
+      .eq('id', userId)
+      .single();
+
+    if (!profile || !profile.skills) {
+      alert('No skills to endorse');
+      return;
+    }
+
+    const skills = profile.skills.split(',').map(s => s.trim());
+
+    // Create selection modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    modal.innerHTML = `
+      <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(0, 224, 255, 0.5); border-radius: 16px; padding: 2rem; max-width: 500px; width: 90%;">
+        <h2 style="color: #00e0ff; margin-bottom: 1rem;">
+          <i class="fas fa-star"></i> Endorse ${profile.name}
+        </h2>
+        <p style="color: #ddd; margin-bottom: 1.5rem;">Select a skill to endorse:</p>
+
+        <div id="skill-selection" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;">
+          ${skills.map(skill => `
+            <button onclick="confirmEndorsement('${userId}', '${skill.replace(/'/g, "\\'")}', '${profile.name.replace(/'/g, "\\'")}', this)" style="padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
+              <div style="font-weight: bold; font-size: 1rem; margin-bottom: 0.25rem;">${skill}</div>
+              <div style="color: #aaa; font-size: 0.85rem;">Click to endorse</div>
+            </button>
+          `).join('')}
+        </div>
+
+        <button onclick="this.closest('[style*=\\'position: fixed\\']').remove()" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+          Cancel
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+  } catch (error) {
+    console.error('Error showing endorsement modal:', error);
+    alert('Failed to load skills');
+  }
 };
 
-window.inviteToProject = function(userId) {
-  // Open project invitation modal
-  alert('Invite to project feature - coming soon!');
+window.confirmEndorsement = async function(userId, skill, userName, button) {
+  button.disabled = true;
+  button.style.opacity = '0.5';
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('Please log in to endorse');
+      return;
+    }
+
+    const { data: endorserProfile } = await supabase
+      .from('community')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!endorserProfile) {
+      alert('Profile not found');
+      return;
+    }
+
+    // Check if already endorsed
+    const { data: existing } = await supabase
+      .from('endorsements')
+      .select('id')
+      .eq('endorser_community_id', endorserProfile.id)
+      .eq('endorsed_community_id', userId)
+      .eq('skill', skill)
+      .single();
+
+    if (existing) {
+      alert('You already endorsed this skill!');
+      return;
+    }
+
+    // Insert endorsement
+    const { error } = await supabase
+      .from('endorsements')
+      .insert({
+        endorser_id: user.id,
+        endorser_community_id: endorserProfile.id,
+        endorsed_id: userId,
+        endorsed_community_id: userId,
+        skill: skill
+      });
+
+    if (error) throw error;
+
+    // Close modal
+    button.closest('[style*="position: fixed"]').remove();
+
+    // Show success
+    showToastNotification(`✨ You endorsed ${userName} for ${skill}!`, 'success');
+
+    // Reload panel to show updated endorsements
+    if (currentNodeData) {
+      await loadNodeDetails(currentNodeData);
+    }
+
+  } catch (error) {
+    console.error('Error endorsing skill:', error);
+    alert('Failed to endorse: ' + error.message);
+    button.disabled = false;
+    button.style.opacity = '1';
+  }
+};
+
+function showToastNotification(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: ${type === 'success' ? 'linear-gradient(135deg, #00ff88, #00cc66)' : 'linear-gradient(135deg, #00e0ff, #0080ff)'};
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+    font-weight: bold;
+    animation: slideIn 0.3s ease-out;
+  `;
+  toast.textContent = message;
+
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-in';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+window.inviteToProject = async function(userId) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('Please log in to invite to projects');
+      return;
+    }
+
+    const { data: currentProfile } = await supabase
+      .from('community')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!currentProfile) {
+      alert('Profile not found');
+      return;
+    }
+
+    // Get user's name for display
+    const { data: targetProfile } = await supabase
+      .from('community')
+      .select('name')
+      .eq('id', userId)
+      .single();
+
+    // Get projects where current user is creator
+    const { data: projects } = await supabase
+      .from('projects')
+      .select('id, title, description, status')
+      .eq('creator_id', currentProfile.id)
+      .in('status', ['open', 'active', 'in-progress']);
+
+    if (!projects || projects.length === 0) {
+      alert('You need to create a project first!');
+      return;
+    }
+
+    // Check which projects the target user is already in
+    const { data: existingMemberships } = await supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', userId);
+
+    const existingProjectIds = new Set(existingMemberships?.map(m => m.project_id) || []);
+    const availableProjects = projects.filter(p => !existingProjectIds.has(p.id));
+
+    if (availableProjects.length === 0) {
+      alert(`${targetProfile?.name || 'This user'} is already in all your active projects!`);
+      return;
+    }
+
+    // Create project selection modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    modal.innerHTML = `
+      <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 2rem; max-width: 600px; width: 90%;">
+        <h2 style="color: #ff6b6b; margin-bottom: 1rem;">
+          <i class="fas fa-plus-circle"></i> Invite ${targetProfile?.name || 'User'} to Project
+        </h2>
+        <p style="color: #ddd; margin-bottom: 1.5rem;">Select a project to invite them to:</p>
+
+        <div id="project-selection" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; max-height: 400px; overflow-y: auto;">
+          ${availableProjects.map(project => `
+            <button onclick="confirmProjectInvitation('${userId}', '${project.id}', '${project.title.replace(/'/g, "\\'")}', '${targetProfile?.name?.replace(/'/g, "\\'") || 'User'}', this)" style="padding: 1.25rem; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(255,107,107,0.1)'">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                <div style="font-weight: bold; font-size: 1.1rem; color: #ff6b6b;">${project.title}</div>
+                <div style="background: rgba(255,107,107,0.2); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; color: #ff6b6b;">${project.status}</div>
+              </div>
+              ${project.description ? `<div style="color: #aaa; font-size: 0.9rem; line-height: 1.4;">${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}</div>` : ''}
+            </button>
+          `).join('')}
+        </div>
+
+        <button onclick="this.closest('[style*=\\'position: fixed\\']').remove()" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+          Cancel
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+  } catch (error) {
+    console.error('Error showing project invitation modal:', error);
+    alert('Failed to load projects: ' + error.message);
+  }
+};
+
+window.confirmProjectInvitation = async function(userId, projectId, projectTitle, userName, button) {
+  button.disabled = true;
+  button.style.opacity = '0.5';
+  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Inviting...';
+
+  try {
+    // Add user to project_members
+    const { error } = await supabase
+      .from('project_members')
+      .insert({
+        project_id: projectId,
+        user_id: userId,
+        role: 'member'
+      });
+
+    if (error) throw error;
+
+    // Close modal
+    button.closest('[style*="position: fixed"]').remove();
+
+    // Show success
+    showToastNotification(`🎉 ${userName} has been added to ${projectTitle}!`, 'success');
+
+    // Log activity
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase
+        .from('activity_log')
+        .insert({
+          auth_user_id: user.id,
+          action_type: 'project_member_added',
+          details: {
+            project_id: projectId,
+            invited_user_id: userId,
+            project_title: projectTitle
+          }
+        });
+    } catch (logError) {
+      console.error('Error logging activity:', logError);
+    }
+
+  } catch (error) {
+    console.error('Error inviting to project:', error);
+    alert('Failed to invite: ' + error.message);
+    button.disabled = false;
+    button.style.opacity = '1';
+    button.innerHTML = projectTitle;
+  }
 };
 
 window.joinProjectFromPanel = async function(projectId) {
