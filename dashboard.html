@@ -59,6 +59,9 @@
       <div class="header-search">
         <i class="fas fa-search"></i>
         <input type="text" id="global-search" placeholder="Search people, skills, projects...">
+        <button id="search-button" onclick="handleGlobalSearch({key: 'Enter', target: document.getElementById('global-search')})" style="background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; padding: 0.5rem 1rem; border-radius: 8px; color: white; cursor: pointer; margin-left: 0.5rem; font-weight: bold; transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+          <i class="fas fa-arrow-right"></i> Search
+        </button>
       </div>
       
       <div class="header-actions">
@@ -67,12 +70,12 @@
           <span class="notification-badge hidden" id="notif-count">0</span>
         </div>
         
-        <div class="user-menu" id="user-menu" onclick="handleLogout()" style="cursor: pointer;" title="Click to sign out">
+        <div class="user-menu" id="user-menu" onclick="openProfileModal()" style="cursor: pointer;" title="View your profile">
           <div class="user-avatar" id="user-avatar-header">
             <span id="user-initials-header">?</span>
           </div>
           <span id="user-name-header">Loading...</span>
-          <i class="fas fa-sign-out-alt"></i>
+          <i class="fas fa-user-circle"></i>
         </div>
       </div>
     </div>
@@ -114,20 +117,20 @@
         <div class="label" style="font-size: 0.75rem; color: #aaa; text-transform: uppercase;">Network</div>
       </div>
       
-      <!-- NEW: Action buttons from FABs -->
-      <div class="stat-card-mini" id="btn-bbs" onclick="document.getElementById('fab-bbs-trigger').click()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(255,165,0,0.1); border: 1px solid rgba(255,165,0,0.3); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
-        <div class="icon" style="font-size: 1.5rem; color: #ffa500; margin-bottom: 0.25rem;"><i class="fas fa-terminal"></i></div>
-        <div class="label" style="font-size: 0.85rem; color: #ffa500; text-transform: uppercase; margin-top: 0.5rem;">BBS</div>
+      <!-- NEW: Action buttons from FABs - All using blue color scheme -->
+      <div class="stat-card-mini" id="btn-bbs" onclick="document.getElementById('fab-bbs-trigger').click()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-terminal"></i></div>
+        <div class="label" style="font-size: 0.85rem; color: #00e0ff; text-transform: uppercase; margin-top: 0.5rem;">BBS</div>
       </div>
-      
-      <div class="stat-card-mini" onclick="openProfileModal()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
-        <div class="icon" style="font-size: 1.5rem; color: #8a2be2; margin-bottom: 0.25rem;"><i class="fas fa-user-edit"></i></div>
-        <div class="label" style="font-size: 0.85rem; color: #8a2be2; text-transform: uppercase; margin-top: 0.5rem;">Edit Profile</div>
+
+      <div class="stat-card-mini" onclick="openProfileModal()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-user-edit"></i></div>
+        <div class="label" style="font-size: 0.85rem; color: #00e0ff; text-transform: uppercase; margin-top: 0.5rem;">Edit Profile</div>
       </div>
-      
-      <div class="stat-card-mini" onclick="openQuickConnectModal()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(0,255,127,0.1); border: 1px solid rgba(0,255,127,0.3); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
-        <div class="icon" style="font-size: 1.5rem; color: #00ff7f; margin-bottom: 0.25rem;"><i class="fas fa-user-plus"></i></div>
-        <div class="label" style="font-size: 0.85rem; color: #00ff7f; text-transform: uppercase; margin-top: 0.5rem;">Quick Connect</div>
+
+      <div class="stat-card-mini" onclick="openQuickConnectModal()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-user-plus"></i></div>
+        <div class="label" style="font-size: 0.85rem; color: #00e0ff; text-transform: uppercase; margin-top: 0.5rem;">Quick Connect</div>
       </div>
     </div>
 

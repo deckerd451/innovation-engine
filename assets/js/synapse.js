@@ -11,6 +11,8 @@ import {
   formatTimeAgo
 } from './connections.js';
 
+import { getAllProjectMembers } from './projects.js';
+
 let supabase = null;
 let svg = null;
 let simulation = null;
@@ -20,6 +22,8 @@ let nodeElements = null;
 let linkElements = null;
 let currentUserCommunityId = null;
 let connectionsData = [];
+let projectMembersData = [];
+let projectCircles = null;
 let zoomBehavior = null;
 let container = null;
 let isInitialized = false;  // Guard to prevent duplicate initialization
@@ -144,16 +148,23 @@ async function loadSynapseData() {
     // Load connections
     connectionsData = await getAllConnectionsForSynapse();
 
+    // Load project members for circle visualization
+    projectMembersData = await getAllProjectMembers();
+
     // Create nodes
     nodes = (members || []).map((member, index) => {
       const isCurrentUser = member.id === currentUserCommunityId;
-      
+
       // Check if this user is connected to current user
-      const hasConnection = connectionsData.some(conn => 
+      const hasConnection = connectionsData.some(conn =>
         (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
         (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id)
       );
-      
+
+      // Check which projects this user is part of
+      const userProjects = projectMembersData.filter(pm => pm.user_id === member.id);
+      const projectIds = userProjects.map(pm => pm.project_id);
+
       return {
         id: member.id,
         name: member.name || 'Anonymous',
@@ -169,7 +180,10 @@ async function loadSynapseData() {
         y: member.y || Math.random() * window.innerHeight,
         isCurrentUser: isCurrentUser,
         // NEW: Only show image if current user OR has connection
-        shouldShowImage: isCurrentUser || hasConnection
+        shouldShowImage: isCurrentUser || hasConnection,
+        // NEW: Project membership for circle visualization
+        projects: projectIds,
+        projectDetails: userProjects
       };
     });
 
@@ -249,6 +263,97 @@ function addSuggestedLinks() {
   console.log(`Added ${links.filter(l => l.status === 'suggested').length} suggested connections for current user`);
 }
 
+// Draw project circles around members
+function drawProjectCircles() {
+  // Group nodes by project
+  const projectGroups = {};
+
+  // Get unique projects
+  const allProjects = new Set();
+  nodes.forEach(node => {
+    if (node.projects && node.projects.length > 0) {
+      node.projects.forEach(projectId => {
+        allProjects.add(projectId);
+        if (!projectGroups[projectId]) {
+          projectGroups[projectId] = [];
+        }
+        projectGroups[projectId].push(node);
+      });
+    }
+  });
+
+  // Create circle group (will be updated on tick)
+  projectCircles = container.insert('g', ':first-child')
+    .attr('class', 'project-circles')
+    .selectAll('circle')
+    .data(Object.entries(projectGroups))
+    .enter()
+    .append('circle')
+    .attr('class', 'project-circle')
+    .attr('fill', 'none')
+    .attr('stroke', 'rgba(255, 165, 0, 0.5)')  // Orange dashed circle
+    .attr('stroke-width', 2)
+    .attr('stroke-dasharray', '10,5')
+    .attr('opacity', 0.6);
+
+  console.log(`Created ${Object.keys(projectGroups).length} project circles`);
+}
+
+// Update project circle positions on simulation tick
+function updateProjectCircles() {
+  if (!projectCircles) return;
+
+  projectCircles.each(function([projectId, projectNodes]) {
+    if (projectNodes.length === 0) return;
+
+    // Calculate center of all nodes in this project
+    let centerX = 0;
+    let centerY = 0;
+    projectNodes.forEach(node => {
+      centerX += node.x;
+      centerY += node.y;
+    });
+    centerX /= projectNodes.length;
+    centerY /= projectNodes.length;
+
+    // Calculate radius (distance from center to furthest node + padding)
+    let maxDistance = 0;
+    projectNodes.forEach(node => {
+      const distance = Math.sqrt(
+        Math.pow(node.x - centerX, 2) + Math.pow(node.y - centerY, 2)
+      );
+      maxDistance = Math.max(maxDistance, distance);
+    });
+
+    const radius = maxDistance + 80; // Add padding
+
+    // Update circle
+    d3.select(this)
+      .attr('cx', centerX)
+      .attr('cy', centerY)
+      .attr('r', radius);
+  });
+}
+
+// Refresh synapse with updated project circles
+window.refreshSynapseProjectCircles = async function() {
+  console.log('Refreshing synapse project circles...');
+
+  // Reload data
+  await loadSynapseData();
+
+  // Restart simulation
+  if (simulation) {
+    simulation.stop();
+  }
+
+  // Clear and redraw
+  container.selectAll('*').remove();
+  startSimulation();
+
+  console.log('Project circles refreshed');
+};
+
 // Start D3 force simulation
 function startSimulation() {
   const width = window.innerWidth;
@@ -278,6 +383,9 @@ function startSimulation() {
     .alphaDecay(0.05)      // Faster settling (default: 0.0228) - settles 2x faster
     .velocityDecay(0.6)    // More friction (default: 0.4) - smoother movement
     .alphaMin(0.001);      // Stop earlier (default: 0.001)
+
+  // Create project circles (draw first, so they appear behind everything)
+  drawProjectCircles();
 
   // Create links
   linkElements = container.append('g')
@@ -396,7 +504,7 @@ function startSimulation() {
     tickCount++;
     // Only update every 2nd tick for better performance (60fps -> 30fps updates)
     if (tickCount % 2 !== 0) return;
-    
+
     linkElements
       .attr('x1', d => d.source.x)
       .attr('y1', d => d.source.y)
@@ -404,6 +512,9 @@ function startSimulation() {
       .attr('y2', d => d.target.y);
 
     nodeElements.attr('transform', d => `translate(${d.x},${d.y})`);
+
+    // Update project circles
+    updateProjectCircles();
   });
 
   // Auto-stop simulation after settling to save CPU
