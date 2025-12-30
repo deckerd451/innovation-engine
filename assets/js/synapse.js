@@ -12,6 +12,7 @@ import {
 } from './connections.js';
 
 import { getAllProjectMembers } from './projects.js';
+import { openNodePanel } from './node-panel.js';
 
 let supabase = null;
 let svg = null;
@@ -425,7 +426,15 @@ function startSimulation() {
     )
     .on('click', (event, d) => {
       event.stopPropagation();
-      showProfileCard(d, event);
+      // Use new node panel for better UX
+      openNodePanel({
+        id: d.id,
+        name: d.name,
+        type: 'person',
+        ...d
+      });
+      // Keep old profile card as fallback
+      // showProfileCard(d, event);
     });
 
   // Add node circles with dynamic sizing

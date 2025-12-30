@@ -20,12 +20,31 @@
   <!-- Login Section -->
   <div id="login-section" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 9999; overflow: hidden; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);">
     <div class="login-container">
-      <img src="ieheader.webp" 
-           alt="CharlestonHacks Innovation Engine" 
+      <img src="ieheader.webp"
+           alt="CharlestonHacks Innovation Engine"
            style="max-width: 100%; height: auto; margin-bottom: 1rem;"
            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
       <h1 style="display: none; color: #00e0ff; font-size: 2rem; margin-bottom: 1rem;">CharlestonHacks Innovation Engine</h1>
-      <p>Making Invisible Networks Visible</p>
+      <h2 style="color: #00e0ff; font-size: 1.5rem; font-weight: bold; margin-bottom: 0.75rem;">Making Invisible Networks Visible</h2>
+      <p style="color: #ddd; font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem; max-width: 500px;">
+        Discover people, skills, and collaboration opportunities in your innovation ecosystem.
+        Connect with the right people, join projects, and build something amazing together.
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; max-width: 600px;">
+        <div style="text-align: center;">
+          <i class="fas fa-network-wired" style="font-size: 2rem; color: #00e0ff; margin-bottom: 0.5rem;"></i>
+          <div style="color: #ddd; font-size: 0.9rem;">Visualize Your Network</div>
+        </div>
+        <div style="text-align: center;">
+          <i class="fas fa-search" style="font-size: 2rem; color: #00e0ff; margin-bottom: 0.5rem;"></i>
+          <div style="color: #ddd; font-size: 0.9rem;">Find Skills & People</div>
+        </div>
+        <div style="text-align: center;">
+          <i class="fas fa-users" style="font-size: 2rem; color: #00e0ff; margin-bottom: 0.5rem;"></i>
+          <div style="color: #ddd; font-size: 0.9rem;">Build Together</div>
+        </div>
+      </div>
       
       <div class="oauth-buttons">
         <button id="github-login" class="oauth-btn">
@@ -131,6 +150,16 @@
       <div class="stat-card-mini" onclick="openQuickConnectModal()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
         <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-user-plus"></i></div>
         <div class="label" style="font-size: 0.85rem; color: #00e0ff; text-transform: uppercase; margin-top: 0.5rem;">Quick Connect</div>
+      </div>
+
+      <div class="stat-card-mini" onclick="toggleFilterPanel()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-filter"></i></div>
+        <div class="label" style="font-size: 0.85rem; color: #00e0ff; text-transform: uppercase; margin-top: 0.5rem;">Filters</div>
+      </div>
+
+      <div class="stat-card-mini" onclick="toggleLegend()" style="flex: 0 0 150px; min-width: 150px; cursor: pointer; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; text-align: center; transition: all 0.2s;">
+        <div class="icon" style="font-size: 1.5rem; color: #00e0ff; margin-bottom: 0.25rem;"><i class="fas fa-info-circle"></i></div>
+        <div class="label" style="font-size: 0.85rem; color: #00e0ff; text-transform: uppercase; margin-top: 0.5rem;">Legend</div>
       </div>
     </div>
 
@@ -336,6 +365,14 @@
   <script src="assets/js/cynq.js"></script>
   <!-- Neural background -->
   <script src="assets/js/neuralBackground.js"></script>
+
+  <!-- New Feature Modules -->
+  <script type="module" src="assets/js/onboarding.js"></script>
+  <script type="module" src="assets/js/node-panel.js"></script>
+  <script type="module" src="assets/js/network-filters.js"></script>
+  <script type="module" src="assets/js/graph-legend.js"></script>
+  <script type="module" src="assets/js/admin-analytics.js"></script>
+
   <!-- Load modular dashboard files in order -->
   <script type="module" src="auth.js"></script>
   <script type="module" src="profile.js"></script>
