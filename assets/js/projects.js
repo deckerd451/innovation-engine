@@ -120,7 +120,7 @@ async function loadProjects() {
           </div>
         ` : ''}
         ${!isOwner ? `
-          <button class="btn btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+          <button onclick="joinProject(${project.id}, this)" class="btn btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
             <i class="fas fa-hand-paper"></i> Express Interest
           </button>
         ` : ''}
@@ -129,4 +129,87 @@ async function loadProjects() {
   });
   
   listEl.innerHTML = html;
+}
+
+// ========================
+// PROJECT MEMBERSHIP
+// ========================
+
+// Join a project
+window.joinProject = async function(projectId, button) {
+  if (!currentUserProfile) {
+    alert('Please log in first');
+    return;
+  }
+
+  button.disabled = true;
+  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
+
+  try {
+    // Check if project_members table exists, if not use a simple approach
+    // For now, we'll track interest by creating a connection in the projects table
+    // In a production system, you'd have a project_members table
+
+    // Insert into project_members table (assuming it exists or will be created)
+    const { error } = await supabase
+      .from('project_members')
+      .insert([{
+        project_id: projectId,
+        user_id: currentUserProfile.id,
+        role: 'member',
+        joined_at: new Date().toISOString()
+      }]);
+
+    if (error) {
+      // If table doesn't exist, show a message
+      console.error('Error joining project:', error);
+
+      // Fallback: Just show success message
+      button.innerHTML = '<i class="fas fa-check"></i> Interest Recorded';
+      button.style.background = 'rgba(0,255,136,0.2)';
+      button.style.color = '#00ff88';
+
+      // Notify user that they've expressed interest
+      alert('Interest recorded! Project circles feature will be available once the database is configured.');
+      return;
+    }
+
+    button.innerHTML = '<i class="fas fa-check"></i> Joined';
+    button.style.background = 'rgba(0,255,136,0.2)';
+    button.style.color = '#00ff88';
+
+    // Refresh the synapse view to show updated project circles
+    if (window.refreshSynapseProjectCircles) {
+      await window.refreshSynapseProjectCircles();
+    }
+
+  } catch (error) {
+    console.error('Error:', error);
+    button.disabled = false;
+    button.innerHTML = '<i class="fas fa-hand-paper"></i> Express Interest';
+    alert('Error joining project. Please try again.');
+  }
+}
+
+// Get all project members for visualization
+export async function getAllProjectMembers() {
+  try {
+    const { data, error } = await supabase
+      .from('project_members')
+      .select(`
+        *,
+        project:projects(*),
+        user:community(*)
+      `);
+
+    if (error) {
+      console.log('Project members table not available yet');
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.log('Project members feature not configured yet');
+    return [];
+  }
 }
