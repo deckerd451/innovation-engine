@@ -76,27 +76,87 @@ export async function createProject(event) {
 
 async function loadProjects() {
   const listEl = document.getElementById('projects-list');
-  
-  const { data: projects } = await supabase
-    .from('projects')
-    .select(`
-      *,
-      creator:community!projects_creator_id_fkey(name)
-    `)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false });
-  
-  if (!projects || projects.length === 0) {
+
+  console.log('📂 Loading projects...');
+
+  let projects;
+
+  try {
+    // Try with the foreign key join first
+    let { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        creator:community!projects_creator_id_fkey(name)
+      `)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+
+    projects = data;
+
+    // If foreign key join fails, try without it
+    if (error) {
+      console.warn('Foreign key join failed, trying simple query:', error);
+      const simpleQuery = await supabase
+        .from('projects')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      projects = simpleQuery.data;
+      error = simpleQuery.error;
+
+      if (error) {
+        throw error;
+      }
+
+      // Manually fetch creator names if needed
+      if (projects && projects.length > 0) {
+        const creatorIds = [...new Set(projects.map(p => p.creator_id).filter(Boolean))];
+        if (creatorIds.length > 0) {
+          const { data: creators } = await supabase
+            .from('community')
+            .select('id, name')
+            .in('id', creatorIds);
+
+          const creatorMap = {};
+          (creators || []).forEach(c => creatorMap[c.id] = c);
+
+          projects = projects.map(p => ({
+            ...p,
+            creator: creatorMap[p.creator_id] || null
+          }));
+        }
+      }
+    }
+
+    console.log('✅ Projects loaded:', projects?.length || 0);
+
+    if (!projects || projects.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align: center; color: #aaa; padding: 2rem;">
+          <i class="fas fa-folder-open" style="font-size: 3rem; opacity: 0.3;"></i>
+          <p style="margin-top: 1rem;">No projects yet</p>
+          <p style="font-size: 0.85rem;">Create your first project above!</p>
+        </div>
+      `;
+      return;
+    }
+  } catch (err) {
+    console.error('❌ Error loading projects:', err);
     listEl.innerHTML = `
-      <div style="text-align: center; color: #aaa; padding: 2rem;">
-        <i class="fas fa-folder-open" style="font-size: 3rem; opacity: 0.3;"></i>
-        <p style="margin-top: 1rem;">No projects yet</p>
-        <p style="font-size: 0.85rem;">Create your first project above!</p>
+      <div style="text-align: center; color: #f44; padding: 2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; opacity: 0.5;"></i>
+        <p style="margin-top: 1rem; color: #f44;">Error loading projects</p>
+        <p style="font-size: 0.85rem; color: #aaa;">${err.message}</p>
+        <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 1rem;">
+          Reload Page
+        </button>
       </div>
     `;
     return;
   }
-  
+
   let html = '';
   projects.forEach(project => {
     const isOwner = project.creator_id === currentUserProfile.id;

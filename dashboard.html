@@ -540,15 +540,22 @@
         
         // Import my new projects module
         const projectsModule = await import('./assets/js/projects.js');
-        const { 
-          initProjects, 
-          openProjectsModal, 
-          closeProjectsModal, 
-          showCreateProjectForm, 
-          hideCreateProjectForm, 
-          createProject 
+        const {
+          initProjects,
+          openProjectsModal,
+          closeProjectsModal,
+          showCreateProjectForm,
+          hideCreateProjectForm,
+          createProject
         } = projectsModule;
         console.log('✅ projects.js loaded');
+
+        // Expose projects functions to window for onclick handlers
+        window.openProjectsModal = openProjectsModal;
+        window.closeProjectsModal = closeProjectsModal;
+        window.showCreateProjectForm = showCreateProjectForm;
+        window.hideCreateProjectForm = hideCreateProjectForm;
+        window.createProject = createProject;
         
         console.log('✅ All modules loaded successfully!');
     
@@ -996,13 +1003,8 @@
     // ========================
     // PROJECTS MODAL
     // ========================
-    
-    window.openProjectsModal = openProjectsModal;
-    window.closeProjectsModal = closeProjectsModal;
-    window.showCreateProjectForm = showCreateProjectForm;
-    window.hideCreateProjectForm = hideCreateProjectForm;
-    window.createProject = createProject;
-    
+    // (Functions already exposed to window in module loading section)
+
     // ========================
     // ENDORSEMENTS MODAL
     // ========================
