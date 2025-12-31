@@ -828,5 +828,210 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     }
   }
 
-  async f
+  async function loadProjects() {
+    const container = $("projects-list");
+    if (!container) return;
 
+    container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading projects…</p>
+    </div>`;
+
+    try {
+      const { data: projects, error } = await state.supabase
+        .from("projects")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (!projects || projects.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-folder-open" style="font-size:3rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No projects yet</p>
+        </div>`;
+        return;
+      }
+
+      container.innerHTML = projects.map((p) => {
+        const skills = (p.skills_needed || "").split(",").map(s => s.trim()).filter(Boolean);
+        const created = p.created_at ? new Date(p.created_at).toLocaleDateString() : "";
+        return `
+          <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
+            border-radius:12px; padding:1.25rem; margin-bottom:1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:start; gap:1rem;">
+              <div>
+                <h3 style="color:#00e0ff; margin:0 0 0.25rem 0;">
+                  <i class="fas fa-lightbulb"></i> ${escapeHtml(p.name)}
+                </h3>
+                <div style="color:#666; font-size:0.85rem;">${escapeHtml(created)}</div>
+              </div>
+              <span style="background:rgba(0,255,136,0.2); color:#0f8; padding:0.25rem 0.75rem; border-radius:12px; font-size:0.85rem;">
+                ${escapeHtml(p.status || "active")}
+              </span>
+            </div>
+
+            <p style="color:#ddd; margin:0.75rem 0 0.75rem 0; line-height:1.5;">
+              ${escapeHtml(p.description || "")}
+            </p>
+
+            ${skills.length ? `
+              <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">
+                ${skills.slice(0, 8).map(s => `
+                  <span style="background:rgba(0,224,255,0.1); color:#00e0ff; padding:0.25rem 0.75rem;
+                    border-radius:12px; font-size:0.85rem; border:1px solid rgba(0,224,255,0.2);">
+                    ${escapeHtml(s)}
+                  </span>
+                `).join("")}
+              </div>
+            ` : ""}
+          </div>
+        `;
+      }).join("");
+    } catch (e) {
+      console.error("loadProjects failed:", e);
+      container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Projects unavailable</p>
+      </div>`;
+    }
+  }
+
+  // -----------------------------
+  // Endorsements
+  // -----------------------------
+  async function showEndorsementsTab(tab) {
+    const btnR = $("endorsements-tab-received");
+    const btnG = $("endorsements-tab-given");
+    const boxR = $("endorsements-received");
+    const boxG = $("endorsements-given");
+
+    if (!btnR || !btnG || !boxR || !boxG) return;
+
+    const isReceived = tab === "received";
+    btnR.style.background = isReceived ? "linear-gradient(135deg,#00e0ff,#0080ff)" : "rgba(255,255,255,0.1)";
+    btnG.style.background = !isReceived ? "linear-gradient(135deg,#00e0ff,#0080ff)" : "rgba(255,255,255,0.1)";
+
+    boxR.style.display = isReceived ? "block" : "none";
+    boxG.style.display = !isReceived ? "block" : "none";
+
+    await loadEndorsements(tab);
+  }
+
+  async function loadEndorsements(type) {
+    const container = type === "received" ? $("endorsements-received") : $("endorsements-given");
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading endorsements…</p>
+    </div>`;
+
+    if (!state.communityProfile?.id) {
+      container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">No profile loaded.</div>`;
+      return;
+    }
+
+    try {
+      let query;
+      if (type === "received") {
+        query = state.supabase
+          .from("endorsements")
+          .select("*")
+          .eq("endorsed_community_id", state.communityProfile.id);
+      } else {
+        query = state.supabase
+          .from("endorsements")
+          .select("*")
+          .eq("endorser_community_id", state.communityProfile.id);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-star" style="font-size:3rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No endorsements ${type}</p>
+        </div>`;
+        return;
+      }
+
+      // Group by skill (if column exists)
+      const bySkill = {};
+      data.forEach((e) => {
+        const key = e.skill || "Endorsement";
+        bySkill[key] = bySkill[key] || [];
+        bySkill[key].push(e);
+      });
+
+      container.innerHTML = Object.entries(bySkill).map(([skill, list]) => `
+        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;
+          padding:1.25rem; margin-bottom:1rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+            <i class="fas fa-star" style="color:#ffd700;"></i>
+            <div style="color:#00e0ff; font-weight:800;">${escapeHtml(skill)}</div>
+            <span style="margin-left:auto; background:rgba(0,224,255,0.2); color:#00e0ff; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.85rem;">
+              ${list.length}
+            </span>
+          </div>
+          <div style="color:#ddd; font-size:0.9rem; line-height:1.5;">
+            ${list.map(x => escapeHtml(x.note || x.comment || "")).filter(Boolean).slice(0, 6).map(t => `• ${t}`).join("<br>") || "—"}
+          </div>
+        </div>
+      `).join("");
+    } catch (e) {
+      console.error("loadEndorsements failed:", e);
+      container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Endorsements unavailable</p>
+      </div>`;
+    }
+  }
+
+  // -----------------------------
+  // Filters / Legend
+  // -----------------------------
+  async function toggleFilters() {
+    try {
+      // If your network-filters module exposes a toggle, call it.
+      if (window.NetworkFilters?.toggle) return window.NetworkFilters.toggle();
+
+      const mod = await import("./network-filters.js");
+      if (typeof mod.toggleFilterPanel === "function") mod.toggleFilterPanel();
+    } catch (e) {
+      console.warn("Filters toggle skipped:", e?.message || e);
+    }
+  }
+
+  async function toggleLegend() {
+    try {
+      if (window.GraphLegend?.toggle) return window.GraphLegend.toggle();
+
+      const mod = await import("./graph-legend.js");
+      if (typeof mod.toggleLegend === "function") mod.toggleLegend();
+    } catch (e) {
+      console.warn("Legend toggle skipped:", e?.message || e);
+    }
+  }
+
+  // -----------------------------
+  // BBS
+  // -----------------------------
+  async function initBBS() {
+    try {
+      // Preferred: your existing module
+      const mod = await import("./bbs.js");
+      if (typeof mod.initBBS === "function") {
+        mod.initBBS();
+        return;
+      }
+      // Legacy fallback: click hidden trigger
+      $("fab-bbs-trigger")?.click();
+    } catch (e) {
+      console.warn("BBS init skipped:", e?.message || e);
+      $("fab-bbs-trigger")?.click();
+    }
+  }
+})();
