@@ -1,172 +1,85 @@
 // ================================================================
-// SUPABASE IMPORT
+// CharlestonHacks Innovation Engine — AUTH CONTROLLER (ROOT)
+// File: /auth.js
 // ================================================================
-// Supabase should already be available via supabaseClient.js
-// We'll access it via window.supabase
+// Uses window.supabase (loaded by assets/js/supabaseClient.js)
+//
+// Emits canonical events:
+//  - profile-loaded  { detail: { user, profile } }
+//  - profile-new     { detail: { user } }
+//  - user-logged-out { detail: {} }
+//  - app-ready       { detail: { user } }  (UI is shown + synapse likely present)
+//
+// Key: avoid race with onboarding listeners by dispatching events after a micro-delay.
+// ================================================================
 
-// ================================================================
-// NOTIFICATION SYSTEM
-// ================================================================
-function showNotification(message, type) {
+function showNotification(message, type = "info") {
   console.log(`[${type.toUpperCase()}] ${message}`);
-  // Visual notification could be added here
 }
 
-// ================================================================
-// LOGIN SYSTEM
-// ================================================================
-// CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FIXED 2025)
-// Uses:
-//   - GitHub / Google OAuth with redirect
-//   - Clean query-string callback (no hashes, no magic links)
-//   - Smart auto-login with profile loading
-
-// DOM refs
-let loginSection, profileSection, userBadge, logoutBtn;
+let loginSection, mainContent, mainHeader;
 let githubBtn, googleBtn;
 
-// ======================================================================
-// 1. SETUP LOGIN DOM
-// ======================================================================
+// Guard: ensure we only attach once
+const AUTH_GUARD = "__IE_AUTH_INIT__";
+if (window[AUTH_GUARD]) {
+  console.log("⚠️ auth.js already initialized — skipping duplicate init.");
+} else {
+  window[AUTH_GUARD] = true;
+}
+
 function setupLoginDOM() {
-  loginSection   = document.getElementById("login-section");
-  profileSection = document.getElementById("main-content");  // Changed from "profile-section"
-  userBadge      = document.getElementById("user-badge");
-  logoutBtn      = document.getElementById("logout-btn");
+  loginSection = document.getElementById("login-section");
+  mainContent  = document.getElementById("main-content");
+  mainHeader   = document.getElementById("main-header");
 
   githubBtn = document.getElementById("github-login");
   googleBtn = document.getElementById("google-login");
 
-  if (!loginSection || !profileSection) {
+  if (!loginSection || !mainContent) {
     console.error("❌ login-section or main-content not found in DOM");
     return;
   }
 
-  // Setup OAuth buttons
-  if (githubBtn) {
-    githubBtn.addEventListener("click", () => oauthLogin("github"));
-  }
-  if (googleBtn) {
-    googleBtn.addEventListener("click", () => oauthLogin("google"));
-  }
-
-  // Setup logout button
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", handleLogout);
-  }
+  githubBtn?.addEventListener("click", () => oauthLogin("github"));
+  googleBtn?.addEventListener("click", () => oauthLogin("google"));
 
   console.log("🎨 Login DOM setup complete (OAuth mode)");
 }
 
-// ======================================================================
-// 2. UI HELPERS
-// ======================================================================
 function showLoginUI() {
-  // Show login section
-  loginSection.classList.add("active-tab-pane");
-  loginSection.classList.remove("hidden");
-  
-  // Hide profile section
-  profileSection.classList.add("hidden");
-  profileSection.classList.remove("active-tab-pane");
-  
-  // Hide user badge and logout
-  if (userBadge) userBadge.classList.add("hidden");
-  if (logoutBtn) logoutBtn.classList.add("hidden");
-  
-  // Prevent scrolling on body when login is shown
-  document.body.style.overflow = 'hidden';
-  
-  // Hide header and main content (dashboard)
-  const mainHeader = document.getElementById("main-header");
-  const mainContent = document.getElementById("main-content");
-  if (mainHeader) mainHeader.classList.add("hidden");
-  if (mainContent) mainContent.classList.add("hidden");
-  
-  // Clear profile form
-  clearProfileForm();
-  
+  loginSection?.classList.remove("hidden");
+  loginSection?.classList.add("active-tab-pane");
+
+  mainHeader?.classList.add("hidden");
+  mainContent?.classList.add("hidden");
+
+  document.body.style.overflow = "hidden";
   console.log("🔒 Showing login UI");
 }
 
-// Helper function to clear all profile form fields
-function clearProfileForm() {
-  const form = document.getElementById("skills-form");
-  if (form) {
-    form.reset();
-  }
-  
-  // Clear preview image
-  const previewImg = document.getElementById("preview");
-  if (previewImg) {
-    previewImg.removeAttribute("src");
-    previewImg.classList.add("hidden");
-  }
-  
-  // Reset progress bar
-  const progressBar = document.querySelector(".profile-bar-inner");
-  const progressMsg = document.getElementById("profile-progress-msg");
-  if (progressBar) progressBar.style.width = "0%";
-  if (progressMsg) {
-    progressMsg.textContent = "Profile 0% complete";
-    progressMsg.style.color = "#00e0ff";
-  }
-  
-  // Reset title and button
-  const profileTitle = document.querySelector("#profile .section-title");
-  const submitButton = document.querySelector("#skills-form button[type='submit']");
-  if (profileTitle) profileTitle.textContent = "Your Profile";
-  if (submitButton) submitButton.textContent = "Save Profile";
-  
-  console.log("🧹 Profile form cleared");
+function showAppUI(user) {
+  loginSection?.classList.add("hidden");
+  loginSection?.classList.remove("active-tab-pane");
+
+  mainHeader?.classList.remove("hidden");
+  mainContent?.classList.remove("hidden");
+
+  document.body.style.overflow = "auto";
+
+  // Fire "app-ready" after UI is visible; onboarding can use this safely.
+  setTimeout(() => {
+    window.dispatchEvent(new CustomEvent("app-ready", { detail: { user } }));
+  }, 150);
+
+  console.log("✅ Showing app UI for:", user?.email);
 }
 
-function showProfileUI(user) {
-  // Hide login section
-  loginSection.classList.remove("active-tab-pane");
-  loginSection.classList.add("hidden");
-  
-  // Show profile section
-  profileSection.classList.remove("hidden");
-  
-  // Enable scrolling on body when logged in
-  document.body.style.overflow = 'auto';
-  
-  // Show header and main content (dashboard)
-  const mainHeader = document.getElementById("main-header");
-  const mainContent = document.getElementById("main-content");
-  if (mainHeader) mainHeader.classList.remove("hidden");
-  if (mainContent) mainContent.classList.remove("hidden");
-  
-  // Show the profile tab by default
-  const profileTab = document.getElementById("profile");
-  if (profileTab) {
-    document.querySelectorAll(".tab-content-pane").forEach(p =>
-      p.classList.remove("active-tab-pane")
-    );
-    profileTab.classList.add("active-tab-pane");
-  }
-  
-  // Show user badge and logout button
-  if (userBadge && user?.email) {
-    userBadge.textContent = user.email;
-    userBadge.classList.remove("hidden");
-  }
-  if (logoutBtn) {
-    logoutBtn.classList.remove("hidden");
-  }
-  
-  console.log("✅ Showing profile UI for:", user?.email);
-}
-
-// ======================================================================
-// 3. START OAUTH LOGIN (REDIRECT FLOW)
-// ======================================================================
 async function oauthLogin(provider) {
   console.log(`🔐 Starting OAuth login with ${provider}...`);
 
   if (!window.supabase) {
-    console.error('❌ Supabase not available! Cannot login.');
+    console.error("❌ Supabase not available! Cannot login.");
     showNotification("System error. Please refresh and try again.", "error");
     return;
   }
@@ -182,170 +95,121 @@ async function oauthLogin(provider) {
     console.error("❌ OAuth error:", error);
     showNotification("Login failed. Please try again.", "error");
   }
-
-  // NOTE: On success, browser will redirect to provider, then back to this page
 }
 
-// ======================================================================
-// 4. CLEAN OAUTH URL (Supabase handles the actual OAuth processing)
-// ======================================================================
 function cleanOAuthUrl() {
   const url = new URL(window.location.href);
-  
-  // If there's OAuth params in URL, clean them after Supabase processes
-  if (url.hash && (url.hash.includes('access_token') || url.hash.includes('error'))) {
+
+  // If there's OAuth params in URL hash, clean after Supabase processes
+  if (url.hash && (url.hash.includes("access_token") || url.hash.includes("error"))) {
     setTimeout(() => {
       console.log("🧹 Cleaning OAuth URL...");
       window.history.replaceState({}, document.title, url.pathname + url.search);
-    }, 1000);
+    }, 800);
   }
 }
 
-// ======================================================================
-// 5. HANDLE LOGOUT
-// ======================================================================
-window.handleLogout = async function() {
+// Canonical emitters (single payload format)
+function emitProfileLoaded(user, profile) {
+  window.dispatchEvent(new CustomEvent("profile-loaded", { detail: { user, profile } }));
+}
+
+function emitProfileNew(user) {
+  window.dispatchEvent(new CustomEvent("profile-new", { detail: { user } }));
+}
+
+window.handleLogout = async function handleLogout() {
   console.log("👋 Logging out...");
-  
+
   if (!window.supabase) {
-    console.error('❌ Supabase not available!');
+    console.error("❌ Supabase not available!");
     return;
   }
-  
+
   const { error } = await window.supabase.auth.signOut();
-  
+
   if (error) {
     console.error("❌ Logout error:", error);
     showNotification("Logout failed. Please try again.", "error");
-  } else {
-    console.log("✅ Logged out successfully");
-    
-    // Dispatch logout event for profile.js to clear its state
-    window.dispatchEvent(new CustomEvent('user-logged-out'));
-    
-    showNotification("Logged out successfully", "success");
-    showLoginUI();
+    return;
   }
-}
 
-// ======================================================================
-// 6. LOAD USER PROFILE DATA (AFTER LOGIN) - MATCHES MONOLITH EXACTLY
-// ======================================================================
+  console.log("✅ Logged out successfully");
+  window.dispatchEvent(new CustomEvent("user-logged-out"));
+  showNotification("Logged out successfully", "success");
+  showLoginUI();
+};
+
 async function loadUserProfile(user) {
-  console.log("👤 Loading profile for:", user.email);
-  console.log("🔍 User ID:", user.id);
-  
-  if (!window.supabase) {
-    console.error('❌ Supabase not available!');
-    return null;
-  }
-  
+  console.log("👤 Loading profile for:", user?.email);
+  if (!window.supabase) return null;
+
   try {
-    // Fetch from community table with ALL columns explicitly
     const { data: profiles, error } = await window.supabase
-      .from('community')
-      .select('*')
-      .eq('user_id', user.id);
-    
-    console.log("📊 Query result:", { profiles, error });
-    
+      .from("community")
+      .select("*")
+      .eq("user_id", user.id);
+
     if (error) {
-      console.error('❌ Error fetching profile:', error);
-      
-      // Still fire new user event if query fails
-      console.log('🆕 Treating as new user due to query error');
-      window.dispatchEvent(new CustomEvent('profile-new', { 
-        detail: { user } 
-      }));
+      console.error("❌ Error fetching profile:", error);
+      emitProfileNew(user);
       return null;
     }
-    
-    // Check if we got results
+
     if (profiles && profiles.length > 0) {
       const profile = profiles[0];
-      console.log('📋 Existing profile found:', profile);
-      console.log('📝 Profile details:', {
-        name: profile.name,
-        skills: profile.skills,
-        bio: profile.bio,
-        interests: profile.interests,
-        availability: profile.availability,
-        image_url: profile.image_url
-      });
-      
-      // Trigger profile form population
-      window.dispatchEvent(new CustomEvent('profile-loaded', { 
-        detail: { profile, user } 
-      }));
-      
+      console.log("📋 Existing profile found:", profile);
+
+      // Emit AFTER a tiny delay so listeners (onboarding/profile) are guaranteed attached.
+      setTimeout(() => emitProfileLoaded(user, profile), 50);
+
       return profile;
-    } else {
-      console.log('🆕 New user - no profile rows found');
-      
-      // Trigger new user flow
-      window.dispatchEvent(new CustomEvent('profile-new', { 
-        detail: { user } 
-      }));
-      
-      return null;
     }
+
+    console.log("🆕 New user - no profile row");
+    setTimeout(() => emitProfileNew(user), 50);
+    return null;
   } catch (err) {
-    console.error('❌ Exception loading profile:', err);
-    
-    // Fire new user event on exception
-    window.dispatchEvent(new CustomEvent('profile-new', { 
-      detail: { user } 
-    }));
-    
+    console.error("❌ Exception loading profile:", err);
+    setTimeout(() => emitProfileNew(user), 50);
     return null;
   }
 }
 
-// ======================================================================
-// 7. INIT LOGIN SYSTEM - MATCHES MONOLITH PATTERN EXACTLY
-// ======================================================================
 async function initLoginSystem() {
   console.log("🚀 Initializing login system (OAuth)…");
 
   if (!window.supabase) {
-    console.error('❌ CRITICAL: window.supabase is not available!');
-    console.error('Make sure supabaseClient.js loads BEFORE auth.js');
+    console.error("❌ CRITICAL: window.supabase is not available!");
+    console.error("Make sure assets/js/supabaseClient.js loads BEFORE auth.js");
     showLoginUI();
     return;
   }
 
   try {
-    // Clean OAuth URL (Supabase handles the exchange automatically)
     cleanOAuthUrl();
 
-    // Step B – Check current session
     const { data: { session } } = await window.supabase.auth.getSession();
 
     if (session?.user) {
       console.log("🟢 Already logged in as:", session.user.email);
-      showProfileUI(session.user);
-      
-      // IMPORTANT: Add a small delay to ensure profile.js listeners are ready
-      setTimeout(async () => {
-        await loadUserProfile(session.user);
-      }, 100);
+      showAppUI(session.user);
+
+      // Load profile after UI is visible
+      setTimeout(() => loadUserProfile(session.user), 120);
     } else {
       console.log("🟡 No active session");
       showLoginUI();
     }
 
-    // Step C – Listen for auth state changes (single listener)
-    window.supabase.auth.onAuthStateChange(async (event, session) => {
+    // Single listener
+    window.supabase.auth.onAuthStateChange(async (event, session2) => {
       console.log("⚡ Auth event:", event);
 
-      if (event === "SIGNED_IN" && session?.user) {
-        console.log("🟢 User authenticated:", session.user.email);
-        showProfileUI(session.user);
-        
-        // Add delay for event listeners
-        setTimeout(async () => {
-          await loadUserProfile(session.user);
-        }, 100);
+      if (event === "SIGNED_IN" && session2?.user) {
+        console.log("🟢 User authenticated:", session2.user.email);
+        showAppUI(session2.user);
+        setTimeout(() => loadUserProfile(session2.user), 120);
       }
 
       if (event === "SIGNED_OUT") {
@@ -357,15 +221,11 @@ async function initLoginSystem() {
     console.log("✅ Login system initialized (OAuth)");
   } catch (error) {
     console.error("❌ ERROR in initLoginSystem:", error);
-    console.error("Error message:", error.message);
-    console.error("Error stack:", error.stack);
     showLoginUI();
   }
 }
 
-// ======================================================================
-// MAKE FUNCTIONS AVAILABLE TO MAIN.JS
-// ======================================================================
+// Export to window for main.js
 window.setupLoginDOM = setupLoginDOM;
 window.initLoginSystem = initLoginSystem;
 
