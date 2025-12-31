@@ -333,7 +333,7 @@
   <!-- BBS Modal -->
   <div id="bbs-modal"></div>
 
-  <!-- External libs -->
+  <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
   <!-- Required base modules -->
@@ -342,20 +342,21 @@
   <script src="assets/js/cynq.js"></script>
   <script src="assets/js/neuralBackground.js"></script>
 
-  <!-- Optional feature modules (safe even if unused) -->
+  <!-- Feature modules -->
   <script type="module" src="assets/js/onboarding.js"></script>
   <script type="module" src="assets/js/node-panel.js"></script>
   <script type="module" src="assets/js/network-filters.js"></script>
   <script type="module" src="assets/js/graph-legend.js"></script>
   <script type="module" src="assets/js/admin-analytics.js"></script>
 
-  <!-- Keep your existing flow (unchanged) -->
+  <!-- Auth + profile are in ROOT -->
   <script type="module" src="auth.js"></script>
   <script type="module" src="profile.js"></script>
+
+  <!-- Main app boot -->
   <script type="module" src="main.js"></script>
 
-  <!-- NEW: single stable controller -->
+  <!-- Dashboard controller (LAST) -->
   <script type="module" src="assets/js/dashboardPane.js"></script>
 </body>
 </html>
-
