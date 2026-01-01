@@ -1,510 +1,830 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CharlestonHacks Innovation Engine</title>
-  <link rel="icon" href="favicon.ico"/>
+/* ==========================================================================
+ * CharlestonHacks Innovation Engine — Dashboard Pane Controller (2026 rewrite)
+ * File: assets/js/dashboardPane.js
+ *
+ * Goals:
+ * - Preserve all existing dashboard functionality (modals, loaders, counters)
+ * - Make bottom-bar buttons deterministic (no dead buttons)
+ * - Avoid double-loading feature modules (filters/legend/bbs already loaded elsewhere)
+ * - Keep global modal functions for HTML close buttons
+ * ========================================================================== */
 
-  <!-- Core CSS -->
-  <link rel="stylesheet" href="assets/css/base.css" />
-  <link rel="stylesheet" href="assets/css/engine.css" />
-  <link rel="stylesheet" href="assets/css/overlays.css" />
-  <link rel="stylesheet" href="assets/css/connections.css" />
-  <link rel="stylesheet" href="assets/css/cynq.css" />
-  <link rel="stylesheet" href="dashboard.css" />
+import { supabase as importedSupabase } from "./supabaseClient.js";
 
-  <!-- Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+(function () {
+  "use strict";
 
-  <style>
-    body { overflow: hidden; }
+  // -----------------------------
+  // State
+  // -----------------------------
+  const state = {
+    supabase: importedSupabase || null,
+    authUser: null,
+    communityProfile: null,
+    initialized: false,
+    synapseInitialized: false,
+    refreshTimer: null,
+    currentConversationId: null,
+    currentConversationData: null,
+  };
 
-    .stat-card-mini:hover {
-      transform: translateY(-3px);
-      background: rgba(0,224,255,0.15) !important;
-      border-color: rgba(0,224,255,0.5) !important;
-      box-shadow: 0 4px 12px rgba(0,224,255,0.3);
-    }
+  // -----------------------------
+  // DOM Helpers
+  // -----------------------------
+  const $ = (id) => document.getElementById(id);
+  const show = (el) => el && el.classList.remove("hidden");
+  const hide = (el) => el && el.classList.add("hidden");
+  const safeText = (id, txt) => {
+    const el = $(id);
+    if (el) el.textContent = String(txt ?? "");
+  };
 
-    @media (max-width: 768px) {
-      .bottom-stats-bar { gap: 0.25rem; padding: 0.5rem; }
-      .stat-card-mini { padding: 0.5rem !important; }
-      .stat-card-mini .label { font-size: 0.65rem !important; }
-      .stat-card-mini .value { font-size: 1.25rem !important; }
-    }
+  const log = (msg, ...args) =>
+    console.log(`%c${msg}`, "color:#00e0ff;font-weight:800;", ...args);
+  const warn = (msg, ...args) =>
+    console.warn(`%c${msg}`, "color:#ffcf33;font-weight:800;", ...args);
+  const err = (msg, ...args) =>
+    console.error(`%c${msg}`, "color:#ff5b5b;font-weight:800;", ...args);
 
-    .bottom-stats-bar::-webkit-scrollbar { height: 6px; }
-    .bottom-stats-bar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
-    .bottom-stats-bar::-webkit-scrollbar-thumb { background: rgba(0,224,255,0.3); border-radius: 3px; }
-    .bottom-stats-bar::-webkit-scrollbar-thumb:hover { background: rgba(0,224,255,0.5); }
+  // -----------------------------
+  // Modal Controls
+  // -----------------------------
+  function openModal(id) {
+    const modal = $(id);
+    if (!modal) return warn("[Modal] Missing:", id);
+    modal.classList.add("active");
+    modal.style.display = "block";
+  }
 
-    .bottom-stats-bar > div { flex: 0 0 auto; min-width: 150px; }
-  </style>
-</head>
+  function closeModal(id) {
+    const modal = $(id);
+    if (!modal) return;
+    modal.classList.remove("active");
+    modal.style.display = "none";
+  }
 
-<body>
-  <!-- Neural Background -->
-  <canvas id="neural-bg"
-    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-    background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"></canvas>
+  function ensureAnchor(id) {
+    if ($(id)) return;
+    const div = document.createElement("div");
+    div.id = id;
+    document.body.appendChild(div);
+  }
 
-  <!-- Login -->
-  <div id="login-section"
-    style="position: fixed; inset: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center;
-    z-index: 9999; overflow: hidden; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);">
-    <div class="login-container">
-      <img src="ieheader.webp"
-           alt="CharlestonHacks Innovation Engine"
-           style="max-width: 100%; height: auto; margin-bottom: 1rem;"
-           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-      <h1 style="display:none; color:#00e0ff; font-size:2rem; margin-bottom:1rem;">CharlestonHacks Innovation Engine</h1>
+  // -----------------------------
+  // Globals expected by HTML onclicks
+  // -----------------------------
+  function wireGlobalFunctions() {
+    window.openProfileModal = () => openModal("profile-modal");
+    window.closeProfileModal = () => closeModal("profile-modal");
 
-      <h2 style="color:#00e0ff; font-size:1.5rem; font-weight:bold; margin-bottom:0.75rem;">
-        Making Invisible Networks Visible
-      </h2>
+    window.openMessagesModal = async () => {
+      openModal("messages-modal");
+      await loadConversationsForModal();
+    };
+    window.closeMessagesModal = () => closeModal("messages-modal");
 
-      <p style="color:#ddd; font-size:1.1rem; line-height:1.6; margin-bottom:2rem; max-width:520px;">
-        Discover people, skills, and collaboration opportunities in your innovation ecosystem.
-        Connect with the right people, join projects, and build something amazing together.
-      </p>
-
-      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem; margin-bottom:2rem; max-width:620px;">
-        <div style="text-align:center;">
-          <i class="fas fa-network-wired" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
-          <div style="color:#ddd; font-size:0.9rem;">Visualize Your Network</div>
-        </div>
-        <div style="text-align:center;">
-          <i class="fas fa-search" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
-          <div style="color:#ddd; font-size:0.9rem;">Find Skills & People</div>
-        </div>
-        <div style="text-align:center;">
-          <i class="fas fa-users" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
-          <div style="color:#ddd; font-size:0.9rem;">Build Together</div>
-        </div>
-      </div>
-
-      <div class="oauth-buttons">
-        <button id="github-login" class="oauth-btn">
-          <i class="fab fa-github"></i> Continue with GitHub
-        </button>
-        <button id="google-login" class="oauth-btn">
-          <i class="fab fa-google"></i> Continue with Google
-        </button>
-      </div>
-
-      <div id="login-hint" style="margin-top: 1rem; color: #aaa; font-size: 0.9rem;"></div>
-    </div>
-  </div>
-
-  <!-- Header -->
-  <header class="unified-header hidden" id="main-header"
-    style="position: fixed; top:0; left:0; right:0; z-index:1000; background:rgba(10,14,39,0.95);
-    backdrop-filter: blur(10px); border-bottom:2px solid rgba(0,224,255,0.3);">
-    <div class="header-content">
-      <div class="header-logo">
-        <a href="https://charlestonhacks.com/" style="display:flex; align-items:center; text-decoration:none;">
-          <img src="charlestonhackslogo.svg" alt="CharlestonHacks"
-               style="height:40px; width:auto; cursor:pointer;"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-          <span style="display:none; color:#00e0ff; font-size:1.5rem; font-weight:bold;">CharlestonHacks</span>
-        </a>
-      </div>
-
-      <div class="header-search" style="position: relative;">
-        <i class="fas fa-search"
-           style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none;"></i>
-        <input type="text" id="global-search" placeholder="Search people, skills, projects..." style="padding-left:2.5rem; padding-right:4rem;">
-        <button id="search-button"
-          style="position:absolute; right:0.25rem; top:50%; transform:translateY(-50%);
-          background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.4rem 0.75rem; border-radius:6px;
-          color:white; cursor:pointer; font-weight:600; font-size:0.85rem;">
-          <i class="fas fa-search"></i>
-        </button>
-      </div>
-
-      <div class="header-actions">
-        <div class="header-notification" id="notifications-bell" style="cursor:pointer;" title="View pending requests">
-          <i class="fas fa-bell"></i>
-          <span class="notification-badge hidden" id="notif-count">0</span>
-        </div>
-
-        <div class="user-menu" id="user-menu" style="cursor:pointer;" title="View your profile">
-          <div class="user-avatar" id="user-avatar-header">
-            <span id="user-initials-header">?</span>
-          </div>
-          <span id="user-name-header">Loading...</span>
-          <i class="fas fa-user-circle"></i>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main -->
-  <div class="unified-main hidden" id="main-content" style="position: fixed; inset: 0; overflow: hidden;">
-    <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1;">
-      <svg id="synapse-svg" style="width:100%; height:100%;"></svg>
-    </div>
-
-    <!-- Bottom Bar -->
-    <div class="bottom-stats-bar"
-      style="position:absolute; bottom:0; left:0; right:0; background:rgba(10,14,39,0.95);
-      border-top:2px solid rgba(0,224,255,0.3); padding:0.75rem 1rem; display:flex; gap:0.75rem;
-      overflow-x:auto; overflow-y:hidden; backdrop-filter:blur(10px); z-index:100; -webkit-overflow-scrolling: touch;">
-
-      <div class="stat-card-mini" id="btn-messages"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-envelope"></i></div>
-        <div class="value" id="unread-messages" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
-        <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Messages</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-projects"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-lightbulb"></i></div>
-        <div class="value" id="active-projects" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
-        <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Projects</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-endorsements"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-star"></i></div>
-        <div class="value" id="total-endorsements" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
-        <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Endorsements</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-network"
-        style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px; padding:0.75rem; text-align:center;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-users"></i></div>
-        <div class="value" id="network-size" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
-        <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Network</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-bbs"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-terminal"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">BBS</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-profile"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-user-edit"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">Edit Profile</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-quickconnect"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-user-plus"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">Quick Connect</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-filters"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-filter"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">Filters</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-legend"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-info-circle"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">Legend</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Compatibility trigger for legacy BBS -->
-  <button id="fab-bbs-trigger" style="display:none;"></button>
-
-  <!-- Profile Modal -->
-  <div class="modal" id="profile-modal">
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button>
-      <div id="modal-profile-content"></div>
-    </div>
-  </div>
-
-  <!-- Messages Modal -->
-  <div class="modal" id="messages-modal">
-    <div class="modal-content" style="max-width: 900px;">
-      <button class="modal-close" onclick="closeMessagesModal()"><i class="fas fa-times"></i></button>
-      <h2 style="color: #00e0ff; margin-bottom: 1.5rem;"><i class="fas fa-envelope"></i> Messages</h2>
-
-      <div style="display:grid; grid-template-columns: 1fr 2fr; gap:1rem; height: 500px;">
-        <div style="background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1rem; overflow-y:auto;">
-          <h3 style="color:#00e0ff; font-size:0.9rem; margin-bottom:1rem; text-transform: uppercase;">Conversations</h3>
-          <div id="modal-conversations-list"></div>
-        </div>
-
-        <div style="background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius: 12px; padding:1rem; display:flex; flex-direction:column;">
-          <h3 id="modal-conversation-title" style="color:#00e0ff; font-size:0.9rem; margin-bottom:1rem; text-transform: uppercase;">Select a conversation</h3>
-          <div id="modal-conversation-messages" style="flex:1; overflow-y:auto; margin-bottom:1rem; padding:0.5rem;"></div>
-
-          <div id="modal-message-input" style="display:none;">
-            <form onsubmit="sendModalMessage(event)" style="display:flex; gap:0.5rem;">
-              <input type="text" id="modal-message-text" placeholder="Type a message..."
-                     style="flex:1; padding:0.75rem; background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
-                     border-radius:8px; color:white; font-family:inherit;" required>
-              <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Projects Modal -->
-  <div class="modal" id="projects-modal">
-    <div class="modal-content" style="max-width: 800px;">
-      <button class="modal-close" onclick="closeProjectsModal()"><i class="fas fa-times"></i></button>
-      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-lightbulb"></i> Projects</h2>
-
-      <div style="margin-bottom:1.5rem;">
-        <button onclick="showCreateProjectForm()" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
-      </div>
-
-      <div id="project-form" style="display:none; background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
-          border-radius:12px; padding:1.5rem; margin-bottom:1.5rem;">
-        <h3 style="color:#00e0ff; margin-bottom:1rem;">Create New Project</h3>
-        <form onsubmit="createProject(event)">
-          <div style="margin-bottom:1rem;">
-            <label style="display:block; color:#aaa; margin-bottom:0.5rem;">Project Name *</label>
-            <input type="text" id="project-name" required
-                   style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
-                   border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
-          </div>
-
-          <div style="margin-bottom:1rem;">
-            <label style="display:block; color:#aaa; margin-bottom:0.5rem;">Description *</label>
-            <textarea id="project-description" rows="3" required
-              style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
-              border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit; resize:vertical;"></textarea>
-          </div>
-
-          <div style="margin-bottom:1rem;">
-            <label style="display:block; color:#aaa; margin-bottom:0.5rem;">Required Skills (comma-separated)</label>
-            <input type="text" id="project-skills" placeholder="e.g., JavaScript, React, Design"
-                   style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
-                   border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
-          </div>
-
-          <div style="display:flex; gap:0.5rem;">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Create Project</button>
-            <button type="button" onclick="hideCreateProjectForm()" class="btn" style="background:rgba(255,255,255,0.1);">Cancel</button>
-          </div>
-        </form>
-      </div>
-
-      <div id="projects-list" style="max-height: 400px; overflow-y:auto;"></div>
-    </div>
-  </div>
-
-  <!-- Endorsements Modal -->
-  <div class="modal" id="endorsements-modal">
-    <div class="modal-content" style="max-width: 700px;">
-      <button class="modal-close" onclick="closeEndorsementsModal()"><i class="fas fa-times"></i></button>
-      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-star"></i> Endorsements</h2>
-
-      <div style="margin-bottom:2rem;">
-        <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-          <button onclick="showEndorsementsTab('received')" id="endorsements-tab-received"
-                  style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#00e0ff,#0080ff);
-                  border:none; border-radius:8px; color:white; cursor:pointer; font-weight:bold;">Received</button>
-          <button onclick="showEndorsementsTab('given')" id="endorsements-tab-given"
-                  style="flex:1; padding:0.75rem; background:rgba(255,255,255,0.1); border:1px solid rgba(0,224,255,0.2);
-                  border-radius:8px; color:white; cursor:pointer;">Given</button>
-        </div>
-
-        <div id="endorsements-received" style="max-height:400px; overflow-y:auto;"></div>
-        <div id="endorsements-given" style="display:none; max-height:400px; overflow-y:auto;"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Quick Connect Modal -->
-  <div class="modal" id="quick-connect-modal">
-    <div class="modal-content" style="max-width: 800px;">
-      <button class="modal-close" onclick="closeQuickConnectModal()"><i class="fas fa-times"></i></button>
-      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-user-plus"></i> Quick Connect</h2>
-      <p style="color:#aaa; margin-bottom:1.5rem;">Connect with people who share your interests and skills</p>
-      <div id="quick-connect-list" style="max-height: 500px; overflow-y:auto;"></div>
-    </div>
-  </div>
-
-  <!-- BBS Modal -->
-  <div id="bbs-modal"></div>
-
-  <!-- External libs (ONLY ONCE) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-
-  <!-- Required base modules -->
-  <script type="module" src="assets/js/supabaseClient.js"></script>
-  <script src="assets/js/ecosystem-connector.js"></script>
-  <script src="assets/js/cynq.js"></script>
-  <script src="assets/js/neuralBackground.js"></script>
-
-  <!-- Feature modules -->
-  <script type="module" src="assets/js/onboarding.js"></script>
-  <script type="module" src="assets/js/node-panel.js"></script>
-  <script type="module" src="assets/js/network-filters.js"></script>
-  <script type="module" src="assets/js/graph-legend.js"></script>
-  <script type="module" src="assets/js/admin-analytics.js"></script>
-
-  <!-- Auth + profile are in ROOT -->
-  <script type="module" src="auth.js"></script>
-  <script type="module" src="profile.js"></script>
-
-  <!-- Main app boot -->
-  <script type="module" src="main.js"></script>
-
-
-  <!-- Dashboard controller -->
-  <script type="module" src="assets/js/dashboardPane.js"></script>
-
-  <!-- Profile Editor Extension -->
-  <script>
-    // Close profile modal
-    window.closeProfileModal = function() {
-      document.getElementById('profile-modal').classList.remove('active');
+    window.openProjectsModal = async () => {
+      openModal("projects-modal");
+      await loadProjects();
+    };
+    window.closeProjectsModal = () => {
+      closeModal("projects-modal");
+      hideCreateProjectForm();
     };
 
-    // Open profile editor
-    window.openProfileEditor = async function() {
-      try {
-        const { data: { user } } = await window.supabase.auth.getUser();
-        if (!user) {
-          alert('Please log in first');
-          return;
-        }
+    window.openEndorsementsModal = async () => {
+      openModal("endorsements-modal");
+      await showEndorsementsTab("received");
+    };
+    window.closeEndorsementsModal = () => closeModal("endorsements-modal");
 
-        const { data: profile, error } = await window.supabase
-          .from('community')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+    window.openQuickConnectModal = async () => {
+      openModal("quick-connect-modal");
+      await loadSuggestedConnections();
+    };
+    window.closeQuickConnectModal = () => closeModal("quick-connect-modal");
 
-        if (error) {
-          console.error('Error loading profile:', error);
-          alert('Error loading profile: ' + error.message);
-          return;
-        }
+    // Endorsements tabs
+    window.showEndorsementsTab = showEndorsementsTab;
 
-        const modalContent = document.getElementById('modal-profile-content');
-        const interests = Array.isArray(profile.interests) ? profile.interests.join(', ') : '';
+    // Projects form controls
+    window.showCreateProjectForm = showCreateProjectForm;
+    window.hideCreateProjectForm = hideCreateProjectForm;
+    window.createProject = createProject;
 
-        modalContent.innerHTML = `
-          <h2 style="color: #00e0ff; margin-bottom: 1.5rem;">
-            <i class="fas fa-user-edit"></i> Edit Your Profile
-          </h2>
+    // Messaging
+    window.openConversationById = openConversationById;
+    window.sendModalMessage = sendModalMessage;
+  }
 
-          <form id="edit-profile-form" style="max-width: 600px;">
-            <div style="margin-bottom: 1.5rem; text-align: center;">
-              <div id="edit-profile-image-preview" style="margin-bottom: 1rem;">
-                ${profile.image_url ? `
-                  <img src="${profile.image_url}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff;">
-                ` : `
-                  <div style="width: 100px; height: 100px; border-radius: 50%; background: rgba(0,224,255,0.1); border: 3px dashed rgba(0,224,255,0.3); display: inline-flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-user" style="font-size: 2.5rem; color: rgba(0,224,255,0.3);"></i>
-                  </div>
-                `}
-              </div>
-              <div style="margin-bottom: 1rem;">
-                <input type="url" id="edit-image-url" value="${profile.image_url || ''}" placeholder="Profile image URL"
-                  style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit;">
-              </div>
-            </div>
+  // -----------------------------
+  // Auth / Profile hydration
+  // -----------------------------
+  async function hydrateAuthUser() {
+    try {
+      const { data, error } = await state.supabase.auth.getUser();
+      if (error) throw error;
+      state.authUser = data?.user || null;
+      return state.authUser;
+    } catch (e) {
+      warn("[Auth] getUser failed:", e?.message || e);
+      state.authUser = null;
+      return null;
+    }
+  }
 
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Name *</label>
-              <input type="text" id="edit-name" value="${profile.name || ''}" required placeholder="Your full name"
-                style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit;">
-            </div>
+  async function loadCommunityProfile() {
+    // Your profile system elsewhere already logs "Profile already exists..."
+    // Here we do a simple best-effort fetch by user_id for dashboard needs.
+    if (!state.authUser?.id) return null;
 
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Bio</label>
-              <textarea id="edit-bio" rows="3" placeholder="Tell us about yourself..."
-                style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit; resize: vertical;"
-              >${profile.bio || ''}</textarea>
-            </div>
+    try {
+      const { data, error } = await state.supabase
+        .from("community")
+        .select("*")
+        .eq("user_id", state.authUser.id)
+        .maybeSingle();
 
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Skills (comma-separated)</label>
-              <input type="text" id="edit-skills" value="${profile.skills || ''}" placeholder="e.g., JavaScript, React, Python, Design"
-                style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit;">
-            </div>
+      if (error) throw error;
+      state.communityProfile = data || null;
 
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Interests (comma-separated)</label>
-              <input type="text" id="edit-interests" value="${interests}" placeholder="e.g., AI, Web3, Sustainability"
-                style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit;">
-            </div>
-
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Availability</label>
-              <select id="edit-availability" style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; font-family: inherit;">
-                <option value="Available now" ${profile.availability === 'Available now' ? 'selected' : ''}>Available now</option>
-                <option value="Available for mentoring" ${profile.availability === 'Available for mentoring' ? 'selected' : ''}>Available for mentoring</option>
-                <option value="Looking for opportunities" ${profile.availability === 'Looking for opportunities' ? 'selected' : ''}>Looking for opportunities</option>
-                <option value="Busy" ${profile.availability === 'Busy' ? 'selected' : ''}>Busy</option>
-                <option value="Not available" ${profile.availability === 'Not available' ? 'selected' : ''}>Not available</option>
-              </select>
-            </div>
-
-            <div style="display: flex; gap: 1rem;">
-              <button type="submit" style="flex: 1; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; padding: 1rem; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
-                <i class="fas fa-save"></i> Save Changes
-              </button>
-              <button type="button" onclick="closeProfileModal()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 1rem 1.5rem; border-radius: 8px; color: white; cursor: pointer; font-size: 1rem;">
-                Cancel
-              </button>
-            </div>
-          </form>
-        `;
-
-        document.getElementById('edit-profile-form').addEventListener('submit', async (e) => {
-          e.preventDefault();
-
-          const updatedProfile = {
-            name: document.getElementById('edit-name').value.trim(),
-            bio: document.getElementById('edit-bio').value.trim(),
-            skills: document.getElementById('edit-skills').value.trim(),
-            interests: document.getElementById('edit-interests').value.trim().split(',').map(i => i.trim()).filter(Boolean),
-            availability: document.getElementById('edit-availability').value,
-            image_url: document.getElementById('edit-image-url').value.trim() || null
-          };
-
-          const { error: updateError } = await window.supabase
-            .from('community')
-            .update(updatedProfile)
-            .eq('id', profile.id);
-
-          if (updateError) {
-            console.error('Error updating profile:', updateError);
-            alert('Error updating profile: ' + updateError.message);
-            return;
-          }
-
-          const toast = document.createElement('div');
-          toast.style.cssText = `
-            position: fixed; top: 100px; right: 20px;
-            background: linear-gradient(135deg, #00ff88, #00cc70);
-            color: white; padding: 1rem 1.5rem; border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-weight: bold;
-          `;
-          toast.innerHTML = '<i class="fas fa-check-circle"></i> Profile updated successfully!';
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 3000);
-
-          closeProfileModal();
-          window.location.reload();
-        });
-
-        document.getElementById('profile-modal').classList.add('active');
-      } catch (err) {
-        console.error('Error in openProfileEditor:', err);
-        alert('Error opening profile editor');
+      // Broadcast for other modules (filters already listens for profile-loaded)
+      if (state.communityProfile) {
+        window.dispatchEvent(
+          new CustomEvent("profile-loaded", { detail: { profile: state.communityProfile } })
+        );
       }
-    };
-  </script>
 
-</body>
-</html>
+      return state.communityProfile;
+    } catch (e) {
+      warn("[Profile] load failed:", e?.message || e);
+      state.communityProfile = null;
+      return null;
+    }
+  }
+
+  // -----------------------------
+  // Counters (best-effort)
+  // -----------------------------
+  async function refreshCounters() {
+    await Promise.allSettled([
+      countUnreadMessages(),
+      countActiveProjects(),
+      countEndorsementsReceived(),
+      countNetworkSize(),
+    ]);
+  }
+
+  async function countUnreadMessages() {
+    if (!state.communityProfile?.id) return safeText("unread-messages", 0);
+    try {
+      const { count, error } = await state.supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("read", false)
+        .neq("sender_id", state.communityProfile.id);
+
+      if (error) throw error;
+      safeText("unread-messages", count ?? 0);
+    } catch {
+      safeText("unread-messages", 0);
+    }
+  }
+
+  async function countActiveProjects() {
+    try {
+      const { count, error } = await state.supabase
+        .from("projects")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active");
+
+      if (error) throw error;
+      safeText("active-projects", count ?? 0);
+    } catch {
+      safeText("active-projects", 0);
+    }
+  }
+
+  async function countEndorsementsReceived() {
+    if (!state.communityProfile?.id) return safeText("total-endorsements", 0);
+    try {
+      const { count, error } = await state.supabase
+        .from("endorsements")
+        .select("id", { count: "exact", head: true })
+        .eq("endorsed_community_id", state.communityProfile.id);
+
+      if (error) throw error;
+      safeText("total-endorsements", count ?? 0);
+    } catch {
+      safeText("total-endorsements", 0);
+    }
+  }
+
+  async function countNetworkSize() {
+    try {
+      const { count, error } = await state.supabase
+        .from("community")
+        .select("id", { count: "exact", head: true });
+
+      if (error) throw error;
+      safeText("network-size", count ?? 0);
+    } catch {
+      safeText("network-size", 0);
+    }
+  }
+
+  // -----------------------------
+  // Search / Quick Connect
+  // -----------------------------
+  async function handleSearch() {
+    const q = $("global-search")?.value?.trim();
+    if (!q) return;
+    openModal("quick-connect-modal");
+    await renderSearchResults(q);
+  }
+
+  async function renderSearchResults(query) {
+    const list = $("quick-connect-list");
+    if (!list) return;
+
+    list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Searching…</p>
+    </div>`;
+
+    try {
+      const q = query.toLowerCase();
+      const { data: people, error } = await state.supabase
+        .from("community")
+        .select("*")
+        .or(`name.ilike.%${q}%,skills.ilike.%${q}%,bio.ilike.%${q}%`)
+        .limit(25);
+
+      if (error) throw error;
+
+      if (!people?.length) {
+        list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-user-slash" style="font-size:2rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No matches</p>
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = people
+        .map(
+          (p) => `
+        <div style="display:flex; gap:12px; align-items:center; padding:12px; margin-bottom:10px;
+          border:1px solid rgba(0,224,255,0.2); border-radius:12px; background:rgba(0,224,255,0.05);">
+          <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1);
+            display:flex; align-items:center; justify-content:center; overflow:hidden;">
+            ${
+              p.image_url
+                ? `<img src="${p.image_url}" style="width:100%; height:100%; object-fit:cover;" />`
+                : `<i class="fas fa-user" style="color:#00e0ff;"></i>`
+            }
+          </div>
+          <div style="flex:1;">
+            <div style="color:#fff; font-weight:800;">${escapeHtml(p.name || "Unknown")}</div>
+            <div style="color:#aaa; font-size:0.85rem;">${escapeHtml(p.role || "")}</div>
+          </div>
+          <button class="btn btn-primary" style="white-space:nowrap;"
+            onclick="sendConnectionRequest('${p.id}')">
+            <i class="fas fa-link"></i> Connect
+          </button>
+        </div>
+      `
+        )
+        .join("");
+    } catch (e) {
+      err("[Search] failed:", e);
+      list.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Search failed</p>
+      </div>`;
+    }
+  }
+
+  async function loadSuggestedConnections() {
+    const list = $("quick-connect-list");
+    if (!list) return;
+
+    list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading…</p>
+    </div>`;
+
+    try {
+      const { data, error } = await state.supabase
+        .from("community")
+        .select("*")
+        .limit(20);
+
+      if (error) throw error;
+
+      list.innerHTML = (data || [])
+        .map(
+          (p) => `
+        <div style="display:flex; gap:12px; align-items:center; padding:12px; margin-bottom:10px;
+          border:1px solid rgba(0,224,255,0.2); border-radius:12px; background:rgba(0,224,255,0.05);">
+          <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1);
+            display:flex; align-items:center; justify-content:center; overflow:hidden;">
+            ${
+              p.image_url
+                ? `<img src="${p.image_url}" style="width:100%; height:100%; object-fit:cover;" />`
+                : `<i class="fas fa-user" style="color:#00e0ff;"></i>`
+            }
+          </div>
+          <div style="flex:1;">
+            <div style="color:#fff; font-weight:800;">${escapeHtml(p.name || "Unknown")}</div>
+            <div style="color:#aaa; font-size:0.85rem;">${escapeHtml(p.role || "")}</div>
+          </div>
+          <button class="btn btn-primary" style="white-space:nowrap;"
+            onclick="sendConnectionRequest('${p.id}')">
+            <i class="fas fa-link"></i> Connect
+          </button>
+        </div>
+      `
+        )
+        .join("");
+    } catch (e) {
+      err("[QuickConnect] failed:", e);
+      list.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Could not load suggestions</p>
+      </div>`;
+    }
+  }
+
+  window.sendConnectionRequest = async function (targetCommunityId) {
+    try {
+      await hydrateAuthUser();
+      await loadCommunityProfile();
+      if (!state.communityProfile?.id) throw new Error("No community profile.");
+
+      const { error } = await state.supabase.from("connections").insert({
+        requester_id: state.communityProfile.id,
+        target_id: targetCommunityId,
+        status: "pending",
+      });
+
+      if (error) throw error;
+      alert("Connection request sent!");
+      await refreshCounters();
+    } catch (e) {
+      err("sendConnectionRequest failed:", e);
+      alert(`Could not send request: ${e.message || e}`);
+    }
+  };
+
+  // -----------------------------
+  // Messaging (best-effort)
+  // -----------------------------
+  async function loadConversationsForModal() {
+    const listEl = $("modal-conversations-list");
+    const messagesEl = $("modal-conversation-messages");
+    const titleEl = $("modal-conversation-title");
+    if (!listEl || !messagesEl || !titleEl) return;
+
+    listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading conversations…</p>
+    </div>`;
+
+    messagesEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-comment-dots" style="font-size:2rem; opacity:0.3;"></i>
+      <p style="margin-top:1rem;">Select a conversation</p>
+    </div>`;
+
+    try {
+      await hydrateAuthUser();
+      if (!state.authUser) return;
+
+      const { data: conversations, error } = await state.supabase
+        .from("conversations")
+        .select("*")
+        .or(
+          `participant_1_id.eq.${state.authUser.id},participant_2_id.eq.${state.authUser.id}`
+        )
+        .order("last_message_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (!conversations?.length) {
+        listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-comments" style="font-size:2rem; opacity:0.3;"></i>
+          <p style="margin-top:0.75rem;">No conversations yet</p>
+          <button class="btn btn-primary" style="margin-top:1rem;" onclick="closeMessagesModal(); openQuickConnectModal();">
+            <i class="fas fa-user-plus"></i> Find people
+          </button>
+        </div>`;
+        return;
+      }
+
+      // Map other participants
+      const ids = new Set();
+      conversations.forEach((c) => {
+        if (c.participant_1_id !== state.authUser.id) ids.add(c.participant_1_id);
+        if (c.participant_2_id !== state.authUser.id) ids.add(c.participant_2_id);
+      });
+
+      const { data: profiles } = await state.supabase
+        .from("community")
+        .select("id, user_id, name, image_url")
+        .in("user_id", Array.from(ids));
+
+      const profileMap = {};
+      (profiles || []).forEach((p) => (profileMap[p.user_id] = p));
+
+      listEl.innerHTML = conversations
+        .map((c) => {
+          const otherId =
+            c.participant_1_id === state.authUser.id ? c.participant_2_id : c.participant_1_id;
+          const other = profileMap[otherId];
+          const label = other?.name || "Conversation";
+          return `
+            <button onclick="openConversationById('${c.id}')" style="width:100%; text-align:left; padding:0.75rem; margin-bottom:0.5rem;
+              border-radius:10px; border:1px solid rgba(0,224,255,0.2); background:rgba(0,224,255,0.05); color:#fff; cursor:pointer;">
+              <div style="font-weight:800; color:#00e0ff;">${escapeHtml(label)}</div>
+              <div style="font-size:0.85rem; color:#aaa;">${escapeHtml(c.last_message_preview || "")}</div>
+            </button>`;
+        })
+        .join("");
+    } catch (e) {
+      err("[Messages] load failed:", e);
+      listEl.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Messages unavailable</p>
+      </div>`;
+    }
+  }
+
+  async function openConversationById(conversationId) {
+    state.currentConversationId = conversationId;
+
+    const messagesEl = $("modal-conversation-messages");
+    const titleEl = $("modal-conversation-title");
+    if (!messagesEl || !titleEl) return;
+
+    messagesEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading…</p>
+    </div>`;
+
+    try {
+      const { data: conv, error: e1 } = await state.supabase
+        .from("conversations")
+        .select("*")
+        .eq("id", conversationId)
+        .maybeSingle();
+      if (e1) throw e1;
+
+      state.currentConversationData = conv || null;
+      titleEl.textContent = "Conversation";
+
+      const { data: msgs, error: e2 } = await state.supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+      if (e2) throw e2;
+
+      messagesEl.innerHTML = (msgs || [])
+        .map(
+          (m) => `
+        <div style="margin-bottom:0.75rem; padding:0.75rem; border-radius:12px; background:rgba(255,255,255,0.06);
+          border:1px solid rgba(0,224,255,0.15); color:#fff;">
+          <div style="opacity:0.7; font-size:0.8rem; margin-bottom:0.25rem;">
+            ${escapeHtml(m.created_at || "")}
+          </div>
+          <div>${escapeHtml(m.body || "")}</div>
+        </div>`
+        )
+        .join("");
+    } catch (e) {
+      err("[Messages] openConversation failed:", e);
+      messagesEl.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Could not load conversation</p>
+      </div>`;
+    }
+  }
+
+  async function sendModalMessage() {
+    const input = $("modal-message-input");
+    if (!input || !state.currentConversationId) return;
+
+    const body = input.value.trim();
+    if (!body) return;
+
+    try {
+      await hydrateAuthUser();
+      if (!state.authUser) throw new Error("Not logged in.");
+
+      const { error } = await state.supabase.from("messages").insert({
+        conversation_id: state.currentConversationId,
+        sender_id: state.authUser.id,
+        body,
+        read: false,
+      });
+
+      if (error) throw error;
+      input.value = "";
+      await openConversationById(state.currentConversationId);
+      await refreshCounters();
+    } catch (e) {
+      err("[Messages] send failed:", e);
+      alert(`Send failed: ${e.message || e}`);
+    }
+  }
+
+  // -----------------------------
+  // Projects (best-effort)
+  // -----------------------------
+  async function loadProjects() {
+    const list = $("projects-list");
+    if (!list) return;
+
+    list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading projects…</p>
+    </div>`;
+
+    try {
+      const { data, error } = await state.supabase
+        .from("projects")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (!data?.length) {
+        list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-lightbulb" style="font-size:2rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No projects yet</p>
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = data
+        .map(
+          (p) => `
+        <div style="padding:1rem; border-radius:12px; border:1px solid rgba(0,224,255,0.2); background:rgba(0,224,255,0.05); margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:900; color:#00e0ff;">
+              <i class="fas fa-lightbulb"></i> ${escapeHtml(p.title || "Project")}
+            </div>
+            <span style="padding:0.25rem 0.65rem; border-radius:999px; font-size:0.85rem;
+              background:rgba(0,255,160,0.15); color:#00ffa0;">
+              ${escapeHtml(p.status || "active")}
+            </span>
+          </div>
+          <div style="color:#ddd; margin-top:0.6rem;">${escapeHtml(p.description || "")}</div>
+        </div>`
+        )
+        .join("");
+
+      await refreshCounters();
+    } catch (e) {
+      err("[Projects] load failed:", e);
+      list.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Projects unavailable</p>
+      </div>`;
+    }
+  }
+
+  function showCreateProjectForm() {
+    show($("create-project-form"));
+  }
+  function hideCreateProjectForm() {
+    hide($("create-project-form"));
+  }
+
+  async function createProject() {
+    const title = $("project-title")?.value?.trim();
+    const description = $("project-description")?.value?.trim();
+
+    if (!title) return alert("Project title required.");
+
+    try {
+      const { error } = await state.supabase.from("projects").insert({
+        title,
+        description,
+        status: "active",
+      });
+      if (error) throw error;
+
+      $("project-title").value = "";
+      $("project-description").value = "";
+      hideCreateProjectForm();
+      await loadProjects();
+    } catch (e) {
+      err("[Projects] create failed:", e);
+      alert(`Create failed: ${e.message || e}`);
+    }
+  }
+
+  // -----------------------------
+  // Endorsements (best-effort)
+  // -----------------------------
+  async function showEndorsementsTab(type) {
+    const container = $("endorsements-list");
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading…</p>
+    </div>`;
+
+    try {
+      await loadCommunityProfile();
+      if (!state.communityProfile?.id) throw new Error("No profile.");
+
+      let query;
+      if (type === "received") {
+        query = state.supabase
+          .from("endorsements")
+          .select("*")
+          .eq("endorsed_community_id", state.communityProfile.id);
+      } else {
+        query = state.supabase
+          .from("endorsements")
+          .select("*")
+          .eq("endorser_community_id", state.communityProfile.id);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
+      if (error) throw error;
+
+      if (!data?.length) {
+        container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-star" style="font-size:3rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No endorsements ${escapeHtml(type)}</p>
+        </div>`;
+        return;
+      }
+
+      const bySkill = {};
+      data.forEach((e) => {
+        const key = e.skill || "Endorsement";
+        bySkill[key] = bySkill[key] || [];
+        bySkill[key].push(e);
+      });
+
+      container.innerHTML = Object.entries(bySkill)
+        .map(
+          ([skill, list]) => `
+        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;
+          padding:1.25rem; margin-bottom:1rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+            <i class="fas fa-star" style="color:#ffd700;"></i>
+            <div style="color:#00e0ff; font-weight:800;">${escapeHtml(skill)}</div>
+            <span style="margin-left:auto; background:rgba(0,224,255,0.2); color:#00e0ff; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.85rem;">
+              ${list.length}
+            </span>
+          </div>
+          <div style="color:#ddd; font-size:0.9rem; line-height:1.5;">
+            ${
+              list
+                .map((x) => escapeHtml(x.note || x.comment || ""))
+                .filter(Boolean)
+                .slice(0, 6)
+                .map((t) => `• ${t}`)
+                .join("<br>") || "—"
+            }
+          </div>
+        </div>`
+        )
+        .join("");
+
+      await refreshCounters();
+    } catch (e) {
+      err("[Endorsements] load failed:", e);
+      container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Endorsements unavailable</p>
+      </div>`;
+    }
+  }
+
+  // -----------------------------
+  // Filters / Legend / BBS (deterministic)
+  // -----------------------------
+  function toggleFilters() {
+    // network-filters.js exports toggleFilterPanel and also attaches window.toggleFilterPanel
+    if (typeof window.toggleFilterPanel === "function") return window.toggleFilterPanel();
+    warn("[Filters] toggleFilterPanel not found on window.");
+  }
+
+  function toggleLegend() {
+    // graph-legend.js exports toggleLegend and also attaches window.toggleLegend
+    if (typeof window.toggleLegend === "function") return window.toggleLegend();
+    warn("[Legend] toggleLegend not found on window.");
+  }
+
+  async function openBBS() {
+    ensureAnchor("bbs-modal");
+
+    // bbs.js exports initBBS; some builds also attach it to window
+    if (typeof window.initBBS === "function") return window.initBBS();
+
+    // Fallback to hidden trigger (legacy)
+    $("fab-bbs-trigger")?.click();
+  }
+
+  async function openProfileEditorDeterministic() {
+    // Your real editor UI injector
+    if (typeof window.openProfileEditor === "function") return window.openProfileEditor();
+
+    // Fallback: show shell modal with message (prevents "empty bar confusion")
+    openModal("profile-modal");
+    const content = $("modal-profile-content");
+    if (content) {
+      content.innerHTML = `
+        <div style="padding:1.25rem; color:#fff;">
+          <h3 style="margin:0 0 .5rem 0; color:#00e0ff;">Edit Profile</h3>
+          <p style="opacity:.85; margin:.25rem 0 0 0;">
+            Profile editor module wasn’t available on window.openProfileEditor().
+          </p>
+          <p style="opacity:.75; margin:.5rem 0 0 0; font-size:.9rem;">
+            Next step: we’ll move the inline profile editor script into a module and import it cleanly.
+          </p>
+        </div>
+      `;
+    }
+  }
+
+  // -----------------------------
+  // Wiring
+  // -----------------------------
+  function wireButtons() {
+    // Search
+    $("search-button")?.addEventListener("click", () => handleSearch());
+    $("global-search")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleSearch();
+    });
+
+    // Bottom bar buttons (IDs match your dashboard.html)
+    $("btn-messages")?.addEventListener("click", () => window.openMessagesModal());
+    $("btn-projects")?.addEventListener("click", () => window.openProjectsModal());
+    $("btn-endorsements")?.addEventListener("click", () => window.openEndorsementsModal());
+
+    // Network card should do something useful: open Filters panel
+    $("btn-network")?.addEventListener("click", () => toggleFilters());
+
+    $("btn-bbs")?.addEventListener("click", () => openBBS());
+    $("btn-profile")?.addEventListener("click", () => openProfileEditorDeterministic());
+    $("btn-quickconnect")?.addEventListener("click", () => window.openQuickConnectModal());
+    $("btn-filters")?.addEventListener("click", () => toggleFilters());
+    $("btn-legend")?.addEventListener("click", () => toggleLegend());
+
+    log("[UI] Bottom bar wired");
+  }
+
+  // -----------------------------
+  // Utilities
+  // -----------------------------
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // -----------------------------
+  // Boot
+  // -----------------------------
+  async function init() {
+    if (state.initialized) return;
+    state.initialized = true;
+
+    if (!state.supabase) {
+      err("[Boot] Supabase client missing.");
+      return;
+    }
+
+    // Bridge for modules that read window.supabase
+    if (!window.supabase) window.supabase = state.supabase;
+
+    wireGlobalFunctions();
+    wireButtons();
+    ensureAnchor("bbs-modal");
+
+    await hydrateAuthUser();
+    await loadCommunityProfile();
+    await refreshCounters();
+
+    // refresh counters periodically
+    state.refreshTimer = setInterval(refreshCounters, 30_000);
+
+    log("✅ Dashboard controller ready");
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
