@@ -38,7 +38,7 @@ export async function signInWithGitHub() {
   return await supabase.auth.signInWithOAuth({
     provider: "github",
     options: {
-      redirectTo: window.location.origin + "/2card.html",
+      redirectTo: window.location.origin + "/dashboard.html",
     },
   });
 }
@@ -47,7 +47,7 @@ export async function signInWithGoogle() {
   return await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: window.location.origin + "/2card.html",
+      redirectTo: window.location.origin + "/dashboard.html",
     },
   });
 }
