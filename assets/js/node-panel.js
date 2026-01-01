@@ -899,6 +899,376 @@ window.viewProjectDetails = function(projectId) {
   window.openProjectsModal();
 };
 
+
+// ========================
+// EDIT PROFILE (Modal)
+// ========================
+// The panel HTML calls window.openProfileEditor?.() for your own node.
+// This function was missing, so the "Edit Profile" button did nothing.
+// We create a lightweight modal editor and persist changes to the `community` table.
+window.openProfileEditor = async function () {
+  try {
+    if (!supabase) supabase = window.supabase;
+    if (!supabase) throw new Error("Supabase client not available on window.supabase");
+
+    // Ensure we have the latest current user profile
+    if (!currentUserProfile?.id) {
+      // Try to hydrate from auth user_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Please log in to edit your profile.");
+        return;
+      }
+      const { data: profileRow, error } = await supabase
+        .from("community")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+      if (error) throw error;
+      currentUserProfile = profileRow;
+    }
+
+    const modal = ensureProfileEditorModal();
+    hydrateProfileEditorFields(modal, currentUserProfile);
+    modal.classList.add("active");
+    document.body.style.overflow = "hidden";
+  } catch (e) {
+    console.error("openProfileEditor failed:", e);
+    alert("Could not open profile editor: " + (e?.message || e));
+  }
+};
+
+function ensureProfileEditorModal() {
+  let modal = document.getElementById("profile-editor-modal");
+  if (modal) return modal;
+
+  modal = document.createElement("div");
+  modal.id = "profile-editor-modal";
+  modal.style.cssText = `
+    position: fixed; inset: 0;
+    z-index: 10050;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s ease;
+  `;
+
+  // Active-state CSS (so opacity/pointer-events work reliably)
+  if (!document.getElementById("profile-editor-modal-style")) {
+    const s = document.createElement("style");
+    s.id = "profile-editor-modal-style";
+    s.textContent = `
+      #profile-editor-modal.active { opacity: 1 !important; pointer-events: auto !important; }
+      #profile-editor-modal input:focus, #profile-editor-modal textarea:focus { border-color: rgba(0,224,255,.65); box-shadow: 0 0 0 3px rgba(0,224,255,.18); }
+    `;
+    document.head.appendChild(s);
+  }
+
+  modal.innerHTML = `
+    <div id="profile-editor-card" style="
+      width: min(720px, 92vw);
+      max-height: 90vh;
+      overflow: auto;
+      background: linear-gradient(135deg, rgba(10,14,39,.98), rgba(26,26,46,.98));
+      border: 2px solid rgba(0,224,255,.55);
+      border-radius: 16px;
+      box-shadow: 0 24px 80px rgba(0,224,255,.22);
+      padding: 1.5rem 1.5rem 1.25rem;
+    ">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <div style="color:#00e0ff; font-weight: 800; letter-spacing: 0.02em; font-size: 1.1rem;">
+            Edit Profile
+          </div>
+          <div style="color:#a9b2c7; font-size: .9rem; margin-top: .15rem;">
+            Update how you appear across the Synapse network.
+          </div>
+        </div>
+        <button id="profile-editor-close" title="Close" aria-label="Close" style="
+          width: 40px; height: 40px;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.18);
+          background: rgba(255,255,255,0.08);
+          color: white;
+          cursor: pointer;
+        ">
+          ✕
+        </button>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div style="grid-column: 1 / -1;">
+          <label style="display:block; color:#fff; font-weight:700; margin-bottom:.35rem;">Name</label>
+          <input id="pe-name" type="text" placeholder="Your name" style="${inputStyle()}">
+        </div>
+
+        <div>
+          <label style="display:block; color:#fff; font-weight:700; margin-bottom:.35rem;">Avatar Image URL</label>
+          <input id="pe-image-url" type="url" placeholder="https://…" style="${inputStyle()}">
+          <div style="color:#7e89a6; font-size:.8rem; margin-top:.35rem;">Optional. Leave blank to use initials.</div>
+        </div>
+
+        <div>
+          <label style="display:block; color:#fff; font-weight:700; margin-bottom:.35rem;">Availability</label>
+          <input id="pe-availability" type="text" placeholder="e.g., Evenings / Weekends" style="${inputStyle()}">
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <label style="display:block; color:#fff; font-weight:700; margin-bottom:.35rem;">Skills</label>
+          <input id="pe-skills" type="text" placeholder="Comma-separated (e.g., AI, Design, Radiology)" style="${inputStyle()}">
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <label style="display:block; color:#fff; font-weight:700; margin-bottom:.35rem;">Interests</label>
+          <input id="pe-interests" type="text" placeholder="Comma-separated (optional)" style="${inputStyle()}">
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <label style="display:block; color:#fff; font-weight:700; margin-bottom:.35rem;">Bio</label>
+          <textarea id="pe-bio" rows="4" placeholder="A short bio…" style="${textareaStyle()}"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top: 1.25rem;">
+        <button id="profile-editor-cancel" style="${secondaryBtnStyle()}">Cancel</button>
+        <button id="profile-editor-save" style="${primaryBtnStyle()}">
+          <span class="label">Save Changes</span>
+        </button>
+      </div>
+
+      <div id="profile-editor-status" style="margin-top:.9rem; color:#7e89a6; font-size:.85rem; min-height: 1.1rem;"></div>
+    </div>
+  `;
+
+  // Close when clicking backdrop (but not the card)
+  modal.addEventListener("click", (e) => {
+    const card = modal.querySelector("#profile-editor-card");
+    if (card && !card.contains(e.target)) closeProfileEditorModal();
+  });
+
+  document.body.appendChild(modal);
+
+  // Wire buttons
+  modal.querySelector("#profile-editor-close")?.addEventListener("click", closeProfileEditorModal);
+  modal.querySelector("#profile-editor-cancel")?.addEventListener("click", closeProfileEditorModal);
+  modal.querySelector("#profile-editor-save")?.addEventListener("click", saveProfileEditor);
+
+  // Escape key closes
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("active")) closeProfileEditorModal();
+  });
+
+  // Activate animation on next frame
+  requestAnimationFrame(() => {
+    if (modal.classList.contains("active")) modal.style.opacity = "1";
+  });
+
+  return modal;
+}
+
+function closeProfileEditorModal() {
+  const modal = document.getElementById("profile-editor-modal");
+  if (!modal) return;
+  modal.classList.remove("active");
+  modal.style.opacity = "0";
+  modal.style.pointerEvents = "none";
+  document.body.style.overflow = "";
+}
+
+function openProfileEditorModal() {
+  const modal = ensureProfileEditorModal();
+  modal.classList.add("active");
+  modal.style.opacity = "1";
+  modal.style.pointerEvents = "auto";
+  document.body.style.overflow = "hidden";
+}
+
+function inputStyle() {
+  return `
+    width: 100%;
+    padding: 0.8rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: white;
+    outline: none;
+  `;
+}
+
+function textareaStyle() {
+  return `
+    width: 100%;
+    padding: 0.8rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: white;
+    outline: none;
+    resize: vertical;
+  `;
+}
+
+function primaryBtnStyle() {
+  return `
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-weight: 800;
+    color: #061018;
+    background: linear-gradient(135deg, #00e0ff, #0080ff);
+  `;
+}
+
+function secondaryBtnStyle() {
+  return `
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.18);
+    cursor: pointer;
+    font-weight: 700;
+    color: white;
+    background: rgba(255,255,255,0.08);
+  `;
+}
+
+function hydrateProfileEditorFields(modal, profile) {
+  // Ensure active/open styles
+  openProfileEditorModal();
+
+  const name = profile?.name ?? "";
+  const bio = profile?.bio ?? "";
+  const skills = normalizeCommaList(profile?.skills);
+  const availability = profile?.availability ?? "";
+  const imageUrl = profile?.image_url ?? "";
+  const interests = normalizeCommaList(profile?.interests);
+
+  modal.querySelector("#pe-name").value = name;
+  modal.querySelector("#pe-bio").value = bio;
+  modal.querySelector("#pe-skills").value = skills;
+  modal.querySelector("#pe-availability").value = availability;
+  modal.querySelector("#pe-image-url").value = imageUrl;
+  modal.querySelector("#pe-interests").value = interests;
+
+  setEditorStatus("");
+}
+
+function normalizeCommaList(value) {
+  if (!value) return "";
+  // interests might be an array in some schemas; skills is usually text
+  if (Array.isArray(value)) return value.filter(Boolean).join(", ");
+  if (typeof value === "string") return value;
+  try { return String(value); } catch { return ""; }
+}
+
+function parseCommaList(text) {
+  const raw = (text || "").split(",").map(s => s.trim()).filter(Boolean);
+  return raw;
+}
+
+function setEditorStatus(msg, isError = false) {
+  const el = document.getElementById("profile-editor-status");
+  if (!el) return;
+  el.style.color = isError ? "#ff7b7b" : "#7e89a6";
+  el.textContent = msg || "";
+}
+
+async function saveProfileEditor() {
+  const modal = document.getElementById("profile-editor-modal");
+  if (!modal) return;
+
+  const saveBtn = modal.querySelector("#profile-editor-save");
+  const label = saveBtn?.querySelector(".label");
+  if (saveBtn) saveBtn.disabled = true;
+  if (label) label.textContent = "Saving…";
+  setEditorStatus("Saving changes…");
+
+  try {
+    if (!currentUserProfile?.id) throw new Error("No current profile loaded.");
+
+    const name = modal.querySelector("#pe-name").value.trim();
+    const bio = modal.querySelector("#pe-bio").value.trim();
+    const skillsText = modal.querySelector("#pe-skills").value.trim();
+    const availability = modal.querySelector("#pe-availability").value.trim();
+    const image_url = modal.querySelector("#pe-image-url").value.trim();
+    const interestsText = modal.querySelector("#pe-interests").value.trim();
+
+    if (!name) throw new Error("Name is required.");
+
+    // Keep schema-flexible:
+    // - skills: stored as text (comma separated) in your table
+    // - interests: stored as ARRAY in some versions; we will send an array if non-empty, else null
+    const interestsArray = parseCommaList(interestsText);
+
+    const payload = {
+      name,
+      bio,
+      skills: skillsText || null,
+      availability: availability || null,
+      image_url: image_url || null
+    };
+
+    // Only include interests if the column exists in your DB.
+    // Since we can't introspect columns here reliably, we include it but tolerate failure.
+    payload.interests = interestsArray.length ? interestsArray : null;
+
+    const { data, error } = await supabase
+      .from("community")
+      .update(payload)
+      .eq("id", currentUserProfile.id)
+      .select("*")
+      .single();
+
+    if (error) {
+      // If interests caused an error (schema mismatch), retry without interests.
+      if ((error.message || "").toLowerCase().includes("interests")) {
+        console.warn("Retrying profile update without interests due to schema mismatch.");
+        delete payload.interests;
+        const retry = await supabase
+          .from("community")
+          .update(payload)
+          .eq("id", currentUserProfile.id)
+          .select("*")
+          .single();
+        if (retry.error) throw retry.error;
+        currentUserProfile = retry.data;
+      } else {
+        throw error;
+      }
+    } else {
+      currentUserProfile = data;
+    }
+
+    setEditorStatus("✅ Saved! Updating UI…");
+
+    // Let the rest of the app re-hydrate the profile
+    try {
+      window.dispatchEvent(new CustomEvent("profile-loaded", { detail: { profile: currentUserProfile } }));
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { profile: currentUserProfile } }));
+    } catch {}
+
+    // If the panel is currently showing your own profile, refresh it
+    try {
+      if (currentNodeData?.id === currentUserProfile.id) {
+        await loadNodeDetails({ ...currentNodeData, id: currentUserProfile.id, type: "person" });
+      }
+    } catch {}
+
+    // Close after a beat
+    setTimeout(() => closeProfileEditorModal(), 250);
+
+  } catch (e) {
+    console.error("saveProfileEditor failed:", e);
+    setEditorStatus("❌ " + (e?.message || e), true);
+    alert("Failed to save profile: " + (e?.message || e));
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+    if (label) label.textContent = "Save Changes";
+  }
+}
+
+
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
   initNodePanel();
