@@ -332,7 +332,8 @@ async function renderProjectPanel(nodeData) {
       *,
       creator:community!projects_creator_id_fkey(name, image_url),
       project_members(
-        user:community(name, image_url)
+        user_id,
+        user:community(id, name, image_url)
       )
     `)
     .eq('id', nodeData.id)
@@ -342,8 +343,10 @@ async function renderProjectPanel(nodeData) {
     throw error;
   }
 
-  // Check if user is already a member
-  const isMember = project.project_members?.some(m => m.user.id === currentUserProfile?.id);
+  // Check if user is already a member (check both user.id and user_id for safety)
+  const isMember = project.project_members?.some(m =>
+    m.user?.id === currentUserProfile?.id || m.user_id === currentUserProfile?.id
+  );
 
   let html = `
     <div style="padding: 2rem; padding-bottom: 100px;">
@@ -873,18 +876,41 @@ window.joinProjectFromPanel = async function(projectId) {
       return;
     }
 
+    // Check if already a member first
+    const { data: existingMember } = await supabase
+      .from('project_members')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', currentUserProfile.id)
+      .single();
+
+    if (existingMember) {
+      showToastNotification('You are already a member of this project!', 'info');
+      await loadNodeDetails(currentNodeData);
+      return;
+    }
+
     // Add user to project_members
     const { error } = await supabase
       .from('project_members')
       .insert({
         project_id: projectId,
-        user_id: currentUserProfile.id
+        user_id: currentUserProfile.id,
+        role: 'member'
       });
 
-    if (error) throw error;
+    if (error) {
+      // Handle duplicate key error gracefully
+      if (error.code === '23505') {
+        showToastNotification('You are already a member of this project!', 'info');
+        await loadNodeDetails(currentNodeData);
+        return;
+      }
+      throw error;
+    }
 
-    alert('Successfully joined project!');
-    // Reload panel
+    showToastNotification('Successfully joined project!', 'success');
+    // Reload panel to update UI
     await loadNodeDetails(currentNodeData);
 
   } catch (error) {
