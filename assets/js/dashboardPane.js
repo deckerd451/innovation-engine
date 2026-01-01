@@ -1,60 +1,57 @@
 /* ==========================================================================
- * CharlestonHacks Innovation Engine — Dashboard Controller (2026 rewrite)
+ * CharlestonHacks Innovation Engine — Dashboard Pane Controller (2026 rewrite)
  * File: assets/js/dashboardPane.js
  *
- * What this controller guarantees:
- * - Bottom bar buttons always do something deterministic
- * - Filters / Legend / BBS work consistently (no dead buttons)
- * - Profile button opens the real editor (openProfileEditor) when available
- * - Global open/close modal functions remain for HTML onclick close buttons
- * - Safe, one-time initialization with helpful console diagnostics
+ * Goals:
+ * - Preserve all existing dashboard functionality (modals, loaders, counters)
+ * - Make bottom-bar buttons deterministic (no dead buttons)
+ * - Avoid double-loading feature modules (filters/legend/bbs already loaded elsewhere)
+ * - Keep global modal functions for HTML close buttons
  * ========================================================================== */
 
 import { supabase as importedSupabase } from "./supabaseClient.js";
 
-// Feature modules
-import { toggleLegend } from "./graph-legend.js";
-import { initNetworkFilters, toggleFilterPanel } from "./network-filters.js";
-import { initBBS } from "./bbs.js";
-
-(() => {
+(function () {
   "use strict";
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------
   // State
-  // ---------------------------------------------------------------------------
+  // -----------------------------
   const state = {
-    initialized: false,
     supabase: importedSupabase || null,
     authUser: null,
     communityProfile: null,
-    filtersInitialized: false,
+    initialized: false,
+    synapseInitialized: false,
+    refreshTimer: null,
+    currentConversationId: null,
+    currentConversationData: null,
   };
 
-  // ---------------------------------------------------------------------------
-  // DOM helpers
-  // ---------------------------------------------------------------------------
+  // -----------------------------
+  // DOM Helpers
+  // -----------------------------
   const $ = (id) => document.getElementById(id);
+  const show = (el) => el && el.classList.remove("hidden");
+  const hide = (el) => el && el.classList.add("hidden");
+  const safeText = (id, txt) => {
+    const el = $(id);
+    if (el) el.textContent = String(txt ?? "");
+  };
 
-  function log(tag, ...args) {
-    console.log(`%c${tag}`, "color:#0ff;font-weight:bold;", ...args);
-  }
-  function warn(tag, ...args) {
-    console.warn(`%c${tag}`, "color:#ffb000;font-weight:bold;", ...args);
-  }
-  function err(tag, ...args) {
-    console.error(`%c${tag}`, "color:#ff4d4d;font-weight:bold;", ...args);
-  }
+  const log = (msg, ...args) =>
+    console.log(`%c${msg}`, "color:#00e0ff;font-weight:800;", ...args);
+  const warn = (msg, ...args) =>
+    console.warn(`%c${msg}`, "color:#ffcf33;font-weight:800;", ...args);
+  const err = (msg, ...args) =>
+    console.error(`%c${msg}`, "color:#ff5b5b;font-weight:800;", ...args);
 
-  // ---------------------------------------------------------------------------
-  // Modal helpers (generic)
-  // ---------------------------------------------------------------------------
+  // -----------------------------
+  // Modal Controls
+  // -----------------------------
   function openModal(id) {
     const modal = $(id);
-    if (!modal) {
-      warn("[Modal] Missing modal:", id);
-      return;
-    }
+    if (!modal) return warn("[Modal] Missing:", id);
     modal.classList.add("active");
     modal.style.display = "block";
   }
@@ -63,204 +60,762 @@ import { initBBS } from "./bbs.js";
     const modal = $(id);
     if (!modal) return;
     modal.classList.remove("active");
-    // keep display:none for older CSS setups
     modal.style.display = "none";
   }
 
-  // Keep these globals for HTML close buttons (existing markup expects them)
-  function wireGlobalModalAPI() {
-    window.openMessagesModal = () => openModal("messages-modal");
-    window.closeMessagesModal = () => closeModal("messages-modal");
-
-    window.openProjectsModal = () => openModal("projects-modal");
-    window.closeProjectsModal = () => closeModal("projects-modal");
-
-    window.openEndorsementsModal = () => openModal("endorsements-modal");
-    window.closeEndorsementsModal = () => closeModal("endorsements-modal");
-
-    // Profile modal (container modal) — but the real editor is openProfileEditor()
-    window.openProfileModal = () => openModal("profile-modal");
-    window.closeProfileModal = () => closeModal("profile-modal");
-
-    // Optional: Quick Connect if present
-    window.openQuickConnectModal = () => openModal("quick-connect-modal");
-    window.closeQuickConnectModal = () => closeModal("quick-connect-modal");
-  }
-
-  // ---------------------------------------------------------------------------
-  // Ensure required anchors exist (BBS modal, etc.)
-  // ---------------------------------------------------------------------------
-  function ensureModalAnchor(id) {
+  function ensureAnchor(id) {
     if ($(id)) return;
     const div = document.createElement("div");
     div.id = id;
     document.body.appendChild(div);
-    log("[UI] Created missing anchor:", `#${id}`);
   }
 
-  // ---------------------------------------------------------------------------
-  // Feature initialization
-  // ---------------------------------------------------------------------------
-  function initFiltersIfNeeded() {
-    if (state.filtersInitialized) return;
+  // -----------------------------
+  // Globals expected by HTML onclicks
+  // -----------------------------
+  function wireGlobalFunctions() {
+    window.openProfileModal = () => openModal("profile-modal");
+    window.closeProfileModal = () => closeModal("profile-modal");
 
-    // Network filters expects window.supabase in your current implementation.
-    // We maintain it here as a stable bridge.
-    if (!window.supabase && state.supabase) window.supabase = state.supabase;
+    window.openMessagesModal = async () => {
+      openModal("messages-modal");
+      await loadConversationsForModal();
+    };
+    window.closeMessagesModal = () => closeModal("messages-modal");
 
-    // Provide a callback hook for your graph/synapse.
-    // If you have a function like window.applyNetworkFilters(filters), we call it.
-    initNetworkFilters((filters) => {
-      try {
-        // 1) Call optional graph hook
-        if (typeof window.applyNetworkFilters === "function") {
-          window.applyNetworkFilters(filters);
-        }
+    window.openProjectsModal = async () => {
+      openModal("projects-modal");
+      await loadProjects();
+    };
+    window.closeProjectsModal = () => {
+      closeModal("projects-modal");
+      hideCreateProjectForm();
+    };
 
-        // 2) Broadcast event for listeners (synapse, search, etc.)
-        window.dispatchEvent(
-          new CustomEvent("network-filters-changed", { detail: { filters } })
-        );
-      } catch (e) {
-        warn("[Filters] onChange handler error:", e?.message || e);
-      }
-    });
+    window.openEndorsementsModal = async () => {
+      openModal("endorsements-modal");
+      await showEndorsementsTab("received");
+    };
+    window.closeEndorsementsModal = () => closeModal("endorsements-modal");
 
-    state.filtersInitialized = true;
-    log("[Filters] Initialized");
+    window.openQuickConnectModal = async () => {
+      openModal("quick-connect-modal");
+      await loadSuggestedConnections();
+    };
+    window.closeQuickConnectModal = () => closeModal("quick-connect-modal");
+
+    // Endorsements tabs
+    window.showEndorsementsTab = showEndorsementsTab;
+
+    // Projects form controls
+    window.showCreateProjectForm = showCreateProjectForm;
+    window.hideCreateProjectForm = hideCreateProjectForm;
+    window.createProject = createProject;
+
+    // Messaging
+    window.openConversationById = openConversationById;
+    window.sendModalMessage = sendModalMessage;
   }
 
-  // ---------------------------------------------------------------------------
-  // Deterministic button actions
-  // ---------------------------------------------------------------------------
-  async function handleOpenProfile() {
-    // Your profile editor UI is injected by openProfileEditor() (defined elsewhere).
-    // If it exists, it should be the primary experience.
-    if (typeof window.openProfileEditor === "function") {
-      window.openProfileEditor();
-      return;
+  // -----------------------------
+  // Auth / Profile hydration
+  // -----------------------------
+  async function hydrateAuthUser() {
+    try {
+      const { data, error } = await state.supabase.auth.getUser();
+      if (error) throw error;
+      state.authUser = data?.user || null;
+      return state.authUser;
+    } catch (e) {
+      warn("[Auth] getUser failed:", e?.message || e);
+      state.authUser = null;
+      return null;
     }
+  }
 
-    // Fallback: open the modal shell with a helpful message
+  async function loadCommunityProfile() {
+    if (!state.authUser?.id) return null;
+
+    try {
+      const { data, error } = await state.supabase
+        .from("community")
+        .select("*")
+        .eq("user_id", state.authUser.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      state.communityProfile = data || null;
+
+      if (state.communityProfile) {
+        window.dispatchEvent(
+          new CustomEvent("profile-loaded", {
+            detail: { profile: state.communityProfile },
+          })
+        );
+      }
+
+      return state.communityProfile;
+    } catch (e) {
+      warn("[Profile] load failed:", e?.message || e);
+      state.communityProfile = null;
+      return null;
+    }
+  }
+
+  // -----------------------------
+  // Counters (best-effort)
+  // -----------------------------
+  async function refreshCounters() {
+    await Promise.allSettled([
+      countUnreadMessages(),
+      countActiveProjects(),
+      countEndorsementsReceived(),
+      countNetworkSize(),
+    ]);
+  }
+
+  async function countUnreadMessages() {
+    if (!state.communityProfile?.id) return safeText("unread-messages", 0);
+    try {
+      const { count, error } = await state.supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("read", false)
+        .neq("sender_id", state.communityProfile.id);
+
+      if (error) throw error;
+      safeText("unread-messages", count ?? 0);
+    } catch {
+      safeText("unread-messages", 0);
+    }
+  }
+
+  async function countActiveProjects() {
+    try {
+      const { count, error } = await state.supabase
+        .from("projects")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active");
+
+      if (error) throw error;
+      safeText("active-projects", count ?? 0);
+    } catch {
+      safeText("active-projects", 0);
+    }
+  }
+
+  async function countEndorsementsReceived() {
+    if (!state.communityProfile?.id) return safeText("total-endorsements", 0);
+    try {
+      const { count, error } = await state.supabase
+        .from("endorsements")
+        .select("id", { count: "exact", head: true })
+        .eq("endorsed_community_id", state.communityProfile.id);
+
+      if (error) throw error;
+      safeText("total-endorsements", count ?? 0);
+    } catch {
+      safeText("total-endorsements", 0);
+    }
+  }
+
+  async function countNetworkSize() {
+    try {
+      const { count, error } = await state.supabase
+        .from("community")
+        .select("id", { count: "exact", head: true });
+
+      if (error) throw error;
+      safeText("network-size", count ?? 0);
+    } catch {
+      safeText("network-size", 0);
+    }
+  }
+
+  // -----------------------------
+  // Search / Quick Connect
+  // -----------------------------
+  async function handleSearch() {
+    const q = $("global-search")?.value?.trim();
+    if (!q) return;
+    openModal("quick-connect-modal");
+    await renderSearchResults(q);
+  }
+
+  async function renderSearchResults(query) {
+    const list = $("quick-connect-list");
+    if (!list) return;
+
+    list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Searching…</p>
+    </div>`;
+
+    try {
+      const q = query.toLowerCase();
+      const { data: people, error } = await state.supabase
+        .from("community")
+        .select("*")
+        .or(`name.ilike.%${q}%,skills.ilike.%${q}%,bio.ilike.%${q}%`)
+        .limit(25);
+
+      if (error) throw error;
+
+      if (!people?.length) {
+        list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-user-slash" style="font-size:2rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No matches</p>
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = people
+        .map(
+          (p) => `
+        <div style="display:flex; gap:12px; align-items:center; padding:12px; margin-bottom:10px;
+          border:1px solid rgba(0,224,255,0.2); border-radius:12px; background:rgba(0,224,255,0.05);">
+          <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1);
+            display:flex; align-items:center; justify-content:center; overflow:hidden;">
+            ${
+              p.image_url
+                ? `<img src="${p.image_url}" style="width:100%; height:100%; object-fit:cover;" />`
+                : `<i class="fas fa-user" style="color:#00e0ff;"></i>`
+            }
+          </div>
+          <div style="flex:1;">
+            <div style="color:#fff; font-weight:800;">${escapeHtml(p.name || "Unknown")}</div>
+            <div style="color:#aaa; font-size:0.85rem;">${escapeHtml(p.role || "")}</div>
+          </div>
+          <button class="btn btn-primary" style="white-space:nowrap;"
+            onclick="sendConnectionRequest('${p.id}')">
+            <i class="fas fa-link"></i> Connect
+          </button>
+        </div>
+      `
+        )
+        .join("");
+    } catch (e) {
+      err("[Search] failed:", e);
+      list.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Search failed</p>
+      </div>`;
+    }
+  }
+
+  async function loadSuggestedConnections() {
+    const list = $("quick-connect-list");
+    if (!list) return;
+
+    list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading…</p>
+    </div>`;
+
+    try {
+      const { data, error } = await state.supabase
+        .from("community")
+        .select("*")
+        .limit(20);
+
+      if (error) throw error;
+
+      list.innerHTML = (data || [])
+        .map(
+          (p) => `
+        <div style="display:flex; gap:12px; align-items:center; padding:12px; margin-bottom:10px;
+          border:1px solid rgba(0,224,255,0.2); border-radius:12px; background:rgba(0,224,255,0.05);">
+          <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1);
+            display:flex; align-items:center; justify-content:center; overflow:hidden;">
+            ${
+              p.image_url
+                ? `<img src="${p.image_url}" style="width:100%; height:100%; object-fit:cover;" />`
+                : `<i class="fas fa-user" style="color:#00e0ff;"></i>`
+            }
+          </div>
+          <div style="flex:1;">
+            <div style="color:#fff; font-weight:800;">${escapeHtml(p.name || "Unknown")}</div>
+            <div style="color:#aaa; font-size:0.85rem;">${escapeHtml(p.role || "")}</div>
+          </div>
+          <button class="btn btn-primary" style="white-space:nowrap;"
+            onclick="sendConnectionRequest('${p.id}')">
+            <i class="fas fa-link"></i> Connect
+          </button>
+        </div>
+      `
+        )
+        .join("");
+    } catch (e) {
+      err("[QuickConnect] failed:", e);
+      list.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Could not load suggestions</p>
+      </div>`;
+    }
+  }
+
+  window.sendConnectionRequest = async function (targetCommunityId) {
+    try {
+      await hydrateAuthUser();
+      await loadCommunityProfile();
+      if (!state.communityProfile?.id) throw new Error("No community profile.");
+
+      const { error } = await state.supabase.from("connections").insert({
+        requester_id: state.communityProfile.id,
+        target_id: targetCommunityId,
+        status: "pending",
+      });
+
+      if (error) throw error;
+      alert("Connection request sent!");
+      await refreshCounters();
+    } catch (e) {
+      err("sendConnectionRequest failed:", e);
+      alert(`Could not send request: ${e.message || e}`);
+    }
+  };
+
+  // -----------------------------
+  // Messaging (best-effort)
+  // -----------------------------
+  async function loadConversationsForModal() {
+    const listEl = $("modal-conversations-list");
+    const messagesEl = $("modal-conversation-messages");
+    const titleEl = $("modal-conversation-title");
+    if (!listEl || !messagesEl || !titleEl) return;
+
+    listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading conversations…</p>
+    </div>`;
+
+    messagesEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-comment-dots" style="font-size:2rem; opacity:0.3;"></i>
+      <p style="margin-top:1rem;">Select a conversation</p>
+    </div>`;
+
+    try {
+      await hydrateAuthUser();
+      if (!state.authUser) return;
+
+      const { data: conversations, error } = await state.supabase
+        .from("conversations")
+        .select("*")
+        .or(
+          `participant_1_id.eq.${state.authUser.id},participant_2_id.eq.${state.authUser.id}`
+        )
+        .order("last_message_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (!conversations?.length) {
+        listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-comments" style="font-size:2rem; opacity:0.3;"></i>
+          <p style="margin-top:0.75rem;">No conversations yet</p>
+          <button class="btn btn-primary" style="margin-top:1rem;" onclick="closeMessagesModal(); openQuickConnectModal();">
+            <i class="fas fa-user-plus"></i> Find people
+          </button>
+        </div>`;
+        return;
+      }
+
+      const ids = new Set();
+      conversations.forEach((c) => {
+        if (c.participant_1_id !== state.authUser.id) ids.add(c.participant_1_id);
+        if (c.participant_2_id !== state.authUser.id) ids.add(c.participant_2_id);
+      });
+
+      const { data: profiles } = await state.supabase
+        .from("community")
+        .select("id, user_id, name, image_url")
+        .in("user_id", Array.from(ids));
+
+      const profileMap = {};
+      (profiles || []).forEach((p) => (profileMap[p.user_id] = p));
+
+      listEl.innerHTML = conversations
+        .map((c) => {
+          const otherId =
+            c.participant_1_id === state.authUser.id
+              ? c.participant_2_id
+              : c.participant_1_id;
+          const other = profileMap[otherId];
+          const label = other?.name || "Conversation";
+          return `
+            <button onclick="openConversationById('${c.id}')" style="width:100%; text-align:left; padding:0.75rem; margin-bottom:0.5rem;
+              border-radius:10px; border:1px solid rgba(0,224,255,0.2); background:rgba(0,224,255,0.05); color:#fff; cursor:pointer;">
+              <div style="font-weight:800; color:#00e0ff;">${escapeHtml(label)}</div>
+              <div style="font-size:0.85rem; color:#aaa;">${escapeHtml(
+                c.last_message_preview || ""
+              )}</div>
+            </button>`;
+        })
+        .join("");
+    } catch (e) {
+      err("[Messages] load failed:", e);
+      listEl.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Messages unavailable</p>
+      </div>`;
+    }
+  }
+
+  async function openConversationById(conversationId) {
+    state.currentConversationId = conversationId;
+
+    const messagesEl = $("modal-conversation-messages");
+    const titleEl = $("modal-conversation-title");
+    if (!messagesEl || !titleEl) return;
+
+    messagesEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading…</p>
+    </div>`;
+
+    try {
+      const { data: conv, error: e1 } = await state.supabase
+        .from("conversations")
+        .select("*")
+        .eq("id", conversationId)
+        .maybeSingle();
+      if (e1) throw e1;
+
+      state.currentConversationData = conv || null;
+      titleEl.textContent = "Conversation";
+
+      const { data: msgs, error: e2 } = await state.supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+      if (e2) throw e2;
+
+      messagesEl.innerHTML = (msgs || [])
+        .map(
+          (m) => `
+        <div style="margin-bottom:0.75rem; padding:0.75rem; border-radius:12px; background:rgba(255,255,255,0.06);
+          border:1px solid rgba(0,224,255,0.15); color:#fff;">
+          <div style="opacity:0.7; font-size:0.8rem; margin-bottom:0.25rem;">
+            ${escapeHtml(m.created_at || "")}
+          </div>
+          <div>${escapeHtml(m.body || "")}</div>
+        </div>`
+        )
+        .join("");
+    } catch (e) {
+      err("[Messages] openConversation failed:", e);
+      messagesEl.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Could not load conversation</p>
+      </div>`;
+    }
+  }
+
+  async function sendModalMessage() {
+    const input = $("modal-message-input");
+    if (!input || !state.currentConversationId) return;
+
+    const body = input.value.trim();
+    if (!body) return;
+
+    try {
+      await hydrateAuthUser();
+      if (!state.authUser) throw new Error("Not logged in.");
+
+      const { error } = await state.supabase.from("messages").insert({
+        conversation_id: state.currentConversationId,
+        sender_id: state.authUser.id,
+        body,
+        read: false,
+      });
+
+      if (error) throw error;
+      input.value = "";
+      await openConversationById(state.currentConversationId);
+      await refreshCounters();
+    } catch (e) {
+      err("[Messages] send failed:", e);
+      alert(`Send failed: ${e.message || e}`);
+    }
+  }
+
+  // -----------------------------
+  // Projects (best-effort)
+  // -----------------------------
+  async function loadProjects() {
+    const list = $("projects-list");
+    if (!list) return;
+
+    list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading projects…</p>
+    </div>`;
+
+    try {
+      const { data, error } = await state.supabase
+        .from("projects")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (!data?.length) {
+        list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-lightbulb" style="font-size:2rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No projects yet</p>
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = data
+        .map(
+          (p) => `
+        <div style="padding:1rem; border-radius:12px; border:1px solid rgba(0,224,255,0.2); background:rgba(0,224,255,0.05); margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:900; color:#00e0ff;">
+              <i class="fas fa-lightbulb"></i> ${escapeHtml(p.title || "Project")}
+            </div>
+            <span style="padding:0.25rem 0.65rem; border-radius:999px; font-size:0.85rem;
+              background:rgba(0,255,160,0.15); color:#00ffa0;">
+              ${escapeHtml(p.status || "active")}
+            </span>
+          </div>
+          <div style="color:#ddd; margin-top:0.6rem;">${escapeHtml(
+            p.description || ""
+          )}</div>
+        </div>`
+        )
+        .join("");
+
+      await refreshCounters();
+    } catch (e) {
+      err("[Projects] load failed:", e);
+      list.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Projects unavailable</p>
+      </div>`;
+    }
+  }
+
+  function showCreateProjectForm() {
+    show($("create-project-form"));
+  }
+  function hideCreateProjectForm() {
+    hide($("create-project-form"));
+  }
+
+  async function createProject() {
+    const title = $("project-title")?.value?.trim();
+    const description = $("project-description")?.value?.trim();
+
+    if (!title) return alert("Project title required.");
+
+    try {
+      const { error } = await state.supabase.from("projects").insert({
+        title,
+        description,
+        status: "active",
+      });
+      if (error) throw error;
+
+      $("project-title").value = "";
+      $("project-description").value = "";
+      hideCreateProjectForm();
+      await loadProjects();
+    } catch (e) {
+      err("[Projects] create failed:", e);
+      alert(`Create failed: ${e.message || e}`);
+    }
+  }
+
+  // -----------------------------
+  // Endorsements (best-effort)
+  // -----------------------------
+  async function showEndorsementsTab(type) {
+    const container = $("endorsements-list");
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading…</p>
+    </div>`;
+
+    try {
+      await loadCommunityProfile();
+      if (!state.communityProfile?.id) throw new Error("No profile.");
+
+      let query;
+      if (type === "received") {
+        query = state.supabase
+          .from("endorsements")
+          .select("*")
+          .eq("endorsed_community_id", state.communityProfile.id);
+      } else {
+        query = state.supabase
+          .from("endorsements")
+          .select("*")
+          .eq("endorser_community_id", state.communityProfile.id);
+      }
+
+      const { data, error } = await query.order("created_at", {
+        ascending: false,
+      });
+      if (error) throw error;
+
+      if (!data?.length) {
+        container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-star" style="font-size:3rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No endorsements ${escapeHtml(type)}</p>
+        </div>`;
+        return;
+      }
+
+      const bySkill = {};
+      data.forEach((e) => {
+        const key = e.skill || "Endorsement";
+        bySkill[key] = bySkill[key] || [];
+        bySkill[key].push(e);
+      });
+
+      container.innerHTML = Object.entries(bySkill)
+        .map(
+          ([skill, list]) => `
+        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;
+          padding:1.25rem; margin-bottom:1rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+            <i class="fas fa-star" style="color:#ffd700;"></i>
+            <div style="color:#00e0ff; font-weight:800;">${escapeHtml(
+              skill
+            )}</div>
+            <span style="margin-left:auto; background:rgba(0,224,255,0.2); color:#00e0ff; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.85rem;">
+              ${list.length}
+            </span>
+          </div>
+          <div style="color:#ddd; font-size:0.9rem; line-height:1.5;">
+            ${
+              list
+                .map((x) => escapeHtml(x.note || x.comment || ""))
+                .filter(Boolean)
+                .slice(0, 6)
+                .map((t) => `• ${t}`)
+                .join("<br>") || "—"
+            }
+          </div>
+        </div>`
+        )
+        .join("");
+
+      await refreshCounters();
+    } catch (e) {
+      err("[Endorsements] load failed:", e);
+      container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Endorsements unavailable</p>
+      </div>`;
+    }
+  }
+
+  // -----------------------------
+  // Filters / Legend / BBS (deterministic)
+  // -----------------------------
+  function toggleFilters() {
+    if (typeof window.toggleFilterPanel === "function") return window.toggleFilterPanel();
+    warn("[Filters] toggleFilterPanel not found on window.");
+  }
+
+  function toggleLegend() {
+    if (typeof window.toggleLegend === "function") return window.toggleLegend();
+    warn("[Legend] toggleLegend not found on window.");
+  }
+
+  async function openBBS() {
+    ensureAnchor("bbs-modal");
+    if (typeof window.initBBS === "function") return window.initBBS();
+    $("fab-bbs-trigger")?.click();
+  }
+
+  async function openProfileEditorDeterministic() {
+    if (typeof window.openProfileEditor === "function") return window.openProfileEditor();
+
     openModal("profile-modal");
-
     const content = $("modal-profile-content");
     if (content) {
       content.innerHTML = `
         <div style="padding:1.25rem; color:#fff;">
-          <h3 style="margin:0 0 .5rem 0; color:#00e0ff;">Profile</h3>
+          <h3 style="margin:0 0 .5rem 0; color:#00e0ff;">Edit Profile</h3>
           <p style="opacity:.85; margin:.25rem 0 0 0;">
-            Profile editor wasn’t loaded on this page.
+            Profile editor module wasn’t available on window.openProfileEditor().
           </p>
           <p style="opacity:.75; margin:.5rem 0 0 0; font-size:.9rem;">
-            Tip: ensure the profile editor module is included before dashboardPane.js,
-            or move the editor into a dedicated module and import it here.
+            Next step: we’ll move the inline profile editor script into a module and import it cleanly.
           </p>
         </div>
       `;
     }
   }
 
-  async function handleOpenMessages() {
-    window.openMessagesModal?.();
-  }
-
-  async function handleOpenProjects() {
-    window.openProjectsModal?.();
-  }
-
-  async function handleOpenEndorsements() {
-    window.openEndorsementsModal?.();
-  }
-
-  async function handleToggleFilters() {
-    initFiltersIfNeeded();
-    toggleFilterPanel();
-  }
-
-  async function handleToggleLegend() {
-    toggleLegend();
-  }
-
-  async function handleOpenBBS() {
-    // Guarantee anchor exists
-    ensureModalAnchor("bbs-modal");
-
-    // Your BBS init injects UI into #bbs-modal and shows it.
-    try {
-      await initBBS();
-    } catch (e) {
-      err("[BBS] Failed to open:", e);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
+  // -----------------------------
   // Wiring
-  // ---------------------------------------------------------------------------
-  function bindClick(id, fn) {
-    const el = $(id);
-    if (!el) {
-      warn("[UI] Missing button:", `#${id}`);
-      return;
-    }
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      fn();
+  // -----------------------------
+  function wireButtons() {
+    $("search-button")?.addEventListener("click", () => handleSearch());
+    $("global-search")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleSearch();
     });
-  }
 
-  function wireBottomBarButtons() {
-    bindClick("btn-messages", handleOpenMessages);
-    bindClick("btn-projects", handleOpenProjects);
-    bindClick("btn-endorsements", handleOpenEndorsements);
-    bindClick("btn-bbs", handleOpenBBS);
-    bindClick("btn-profile", handleOpenProfile);
+    $("btn-messages")?.addEventListener("click", () => window.openMessagesModal());
+    $("btn-projects")?.addEventListener("click", () => window.openProjectsModal());
+    $("btn-endorsements")?.addEventListener("click", () => window.openEndorsementsModal());
 
-    // Filters / Legend
-    bindClick("btn-filters", handleToggleFilters);
-    bindClick("btn-legend", handleToggleLegend);
+    $("btn-network")?.addEventListener("click", () => toggleFilters());
+
+    $("btn-bbs")?.addEventListener("click", () => openBBS());
+    $("btn-profile")?.addEventListener("click", () => openProfileEditorDeterministic());
+
+    $("btn-quickconnect")?.addEventListener("click", () => window.openQuickConnectModal());
+    $("btn-filters")?.addEventListener("click", () => toggleFilters());
+    $("btn-legend")?.addEventListener("click", () => toggleLegend());
 
     log("[UI] Bottom bar wired");
   }
 
-  // Optional: overlay-click outside to close (only if your markup supports it)
-  function wireOverlayDismiss(modalId, innerSelector) {
-    const modal = $(modalId);
-    if (!modal) return;
-
-    modal.addEventListener("click", (e) => {
-      const inner = modal.querySelector(innerSelector);
-      if (!inner) return;
-      if (!inner.contains(e.target)) closeModal(modalId);
-    });
+  // -----------------------------
+  // Utilities
+  // -----------------------------
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
-  function wireModalDismissals() {
-    wireOverlayDismiss("messages-modal", ".messages-modal, .modal, .panel");
-    wireOverlayDismiss("projects-modal", ".projects-modal, .modal, .panel");
-    wireOverlayDismiss("endorsements-modal", ".endorsements-modal, .modal, .panel");
-    wireOverlayDismiss("profile-modal", ".profile-modal, .modal, .panel");
-  }
-
-  // ---------------------------------------------------------------------------
+  // -----------------------------
   // Boot
-  // ---------------------------------------------------------------------------
-  function init() {
+  // -----------------------------
+  async function init() {
     if (state.initialized) return;
     state.initialized = true;
 
-    // Bridge supabase to window for modules expecting it
-    if (!window.supabase && state.supabase) window.supabase = state.supabase;
+    if (!state.supabase) {
+      err("[Boot] Supabase client missing.");
+      return;
+    }
 
-    wireGlobalModalAPI();
-    wireBottomBarButtons();
-    wireModalDismissals();
+    if (!window.supabase) window.supabase = state.supabase;
 
-    // Create anchors that feature modules assume exist
-    ensureModalAnchor("bbs-modal");
+    wireGlobalFunctions();
+    wireButtons();
+    ensureAnchor("bbs-modal");
 
-    log("🚀 Dashboard controller ready");
+    await hydrateAuthUser();
+    await loadCommunityProfile();
+    await refreshCounters();
+
+    state.refreshTimer = setInterval(refreshCounters, 30_000);
+
+    log("✅ Dashboard controller ready");
   }
 
   if (document.readyState === "loading") {
