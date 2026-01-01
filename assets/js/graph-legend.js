@@ -62,10 +62,10 @@ export function createGraphLegend() {
       </div>
 
       <div style="display: flex; align-items: center; gap: 1rem;">
-        <div style="width: 20px; height: 20px; border-radius: 6px; background: #ff6b6b; border: 2px solid #ff6b6b;"></div>
+        <div style="width: 20px; height: 20px; transform: rotate(45deg); background: rgba(255,107,107,0.3); border: 2px solid #ff6b6b;"></div>
         <div>
           <div style="color: white; font-weight: bold; font-size: 0.9rem;">Project</div>
-          <div style="color: #aaa; font-size: 0.75rem;">Active project</div>
+          <div style="color: #aaa; font-size: 0.75rem;">Collaborative project</div>
         </div>
       </div>
     </div>
@@ -114,6 +114,14 @@ export function createGraphLegend() {
           <div>
             <div style="color: white; font-weight: bold; font-size: 0.9rem;">Suggested</div>
             <div style="color: #aaa; font-size: 0.75rem;">Potential connection</div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+          <div style="width: 40px; height: 2px; background: #ff6b6b;"></div>
+          <div>
+            <div style="color: white; font-weight: bold; font-size: 0.9rem;">Project Member</div>
+            <div style="color: #aaa; font-size: 0.75rem;">Team membership</div>
           </div>
         </div>
       </div>

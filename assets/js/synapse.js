@@ -152,6 +152,17 @@ async function loadSynapseData() {
     // Load project members for circle visualization
     projectMembersData = await getAllProjectMembers();
 
+    // Load projects for graph nodes
+    const { data: projects, error: projectsError } = await supabase
+      .from('projects')
+      .select('id, title, description, status, creator_id, required_skills, tags, upvote_count, created_at')
+      .in('status', ['open', 'active', 'in-progress'])
+      .order('created_at', { ascending: false });
+
+    if (projectsError) {
+      console.error('Error loading projects:', projectsError);
+    }
+
     // Create nodes
     nodes = (members || []).map((member, index) => {
       const isCurrentUser = member.id === currentUserCommunityId;
@@ -188,6 +199,36 @@ async function loadSynapseData() {
       };
     });
 
+    // Add project nodes
+    if (projects && projects.length > 0) {
+      const projectNodes = projects.map(project => {
+        // Count team members
+        const teamMembers = projectMembersData.filter(pm => pm.project_id === project.id);
+        const teamSize = teamMembers.length;
+
+        return {
+          id: project.id,
+          name: project.title,
+          type: 'project',
+          title: project.title,
+          description: project.description,
+          status: project.status,
+          creator_id: project.creator_id,
+          required_skills: project.required_skills || [],
+          tags: project.tags || [],
+          upvote_count: project.upvote_count || 0,
+          team_size: teamSize,
+          team_members: teamMembers,
+          // Position projects randomly (they'll settle via force simulation)
+          x: Math.random() * window.innerWidth,
+          y: Math.random() * window.innerHeight
+        };
+      });
+
+      nodes = [...nodes, ...projectNodes];
+      console.log(`Added ${projectNodes.length} project nodes`);
+    }
+
     // Create links from connections
     links = connectionsData.map(conn => ({
       id: conn.id,
@@ -201,6 +242,26 @@ async function loadSynapseData() {
       const targetExists = nodes.some(n => n.id === link.target);
       return sourceExists && targetExists;
     });
+
+    // Add links from projects to team members
+    if (projects && projects.length > 0) {
+      projectMembersData.forEach(pm => {
+        // Check if both project and user nodes exist
+        const projectExists = nodes.some(n => n.id === pm.project_id);
+        const userExists = nodes.some(n => n.id === pm.user_id);
+
+        if (projectExists && userExists) {
+          links.push({
+            id: `project-member-${pm.project_id}-${pm.user_id}`,
+            source: pm.project_id,
+            target: pm.user_id,
+            status: 'project-member',
+            type: 'project'
+          });
+        }
+      });
+      console.log(`Added ${projectMembersData.length} project-member links`);
+    }
 
     // Add suggested links based on shared skills (light connections)
     addSuggestedLinks();
@@ -430,49 +491,73 @@ function startSimulation() {
       openNodePanel({
         id: d.id,
         name: d.name,
-        type: 'person',
+        type: d.type || 'person',
         ...d
       });
       // Keep old profile card as fallback
       // showProfileCard(d, event);
     });
 
-  // Add node circles with dynamic sizing
-  nodeElements.append('circle')
-    .attr('r', d => {
-      if (d.isCurrentUser) {
-        return 35; // Current user - largest
-      }
-      
-      // PRIORITY: Check if connected first (has shouldShowImage flag means they have a connection)
-      // Connected users should ALWAYS be full size, regardless of suggestion status
-      if (d.shouldShowImage) {
-        return 28; // Connected users - ALWAYS full size with photo
-      }
-      
-      // For non-connected users, check if they're suggested
-      if (d.isSuggested) {
-        return 21; // Suggested but not connected - 25% smaller (28 * 0.75 = 21)
-      }
-      
-      // Everyone else - small dots
-      return 14; // Non-suggested, non-connected - 50% smaller (28 * 0.5 = 14)
-    })
-    .attr('fill', d => {
-      if (d.isCurrentUser) return COLORS.nodeCurrentUser;
-      // All nodes use blue color scheme now
-      return d.shouldShowImage ? COLORS.nodeDefault : 'rgba(0, 224, 255, 0.3)';
-    })
-    .attr('stroke', d => {
-      if (d.isCurrentUser) return '#fff';
-      return COLORS.nodeDefault;
-    })
-    .attr('stroke-width', d => d.isCurrentUser ? 3 : 1.5)
-    .attr('filter', 'url(#glow)')
-    .attr('class', 'node-circle');
-
-  // Add profile images (ONLY for current user and connections)
+  // Add node shapes - circles for people, diamonds for projects
   nodeElements.each(function(d) {
+    const node = d3.select(this);
+
+    if (d.type === 'project') {
+      // Projects are diamonds (rotated squares)
+      const size = Math.max(30, Math.min(50, 25 + (d.team_size * 3))); // Size based on team
+
+      node.append('rect')
+        .attr('width', size)
+        .attr('height', size)
+        .attr('x', -size / 2)
+        .attr('y', -size / 2)
+        .attr('transform', 'rotate(45)')  // Rotate to make diamond
+        .attr('fill', d.status === 'open' ? 'rgba(255, 107, 107, 0.2)' : 'rgba(255, 107, 107, 0.3)')
+        .attr('stroke', '#ff6b6b')
+        .attr('stroke-width', 2)
+        .attr('filter', 'url(#glow)')
+        .attr('class', 'node-project');
+
+      // Add project icon
+      node.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.35em')
+        .attr('fill', '#ff6b6b')
+        .attr('font-size', '16px')
+        .attr('pointer-events', 'none')
+        .attr('font-weight', 'bold')
+        .text('💡');
+
+    } else {
+      // People are circles
+      const radius = (() => {
+        if (d.isCurrentUser) return 35; // Current user - largest
+        if (d.shouldShowImage) return 28; // Connected users
+        if (d.isSuggested) return 21; // Suggested
+        return 14; // Others
+      })();
+
+      node.append('circle')
+        .attr('r', radius)
+        .attr('fill', d => {
+          if (d.isCurrentUser) return COLORS.nodeCurrentUser;
+          return d.shouldShowImage ? COLORS.nodeDefault : 'rgba(0, 224, 255, 0.3)';
+        })
+        .attr('stroke', d => {
+          if (d.isCurrentUser) return '#fff';
+          return COLORS.nodeDefault;
+        })
+        .attr('stroke-width', d.isCurrentUser ? 3 : 1.5)
+        .attr('filter', 'url(#glow)')
+        .attr('class', 'node-circle');
+    }
+  });
+
+  // Add profile images (ONLY for current user and connections, NOT for projects)
+  nodeElements.each(function(d) {
+    // Skip projects - they already have icons
+    if (d.type === 'project') return;
+
     // Only show images for current user and connected users
     if (d.image_url && d.shouldShowImage) {
       const node = d3.select(this);
@@ -515,11 +600,15 @@ function startSimulation() {
 
   // Add labels
   nodeElements.append('text')
-    .attr('dy', d => d.isCurrentUser ? 40 : 35)
+    .attr('dy', d => {
+      if (d.type === 'project') return 40; // Below diamond
+      return d.isCurrentUser ? 40 : 35;
+    })
     .attr('text-anchor', 'middle')
-    .attr('fill', '#fff')
-    .attr('font-size', '11px')
+    .attr('fill', d => d.type === 'project' ? '#ff6b6b' : '#fff')
+    .attr('font-size', d => d.type === 'project' ? '12px' : '11px')
     .attr('font-family', 'system-ui, sans-serif')
+    .attr('font-weight', d => d.type === 'project' ? 'bold' : 'normal')
     .attr('pointer-events', 'none')
     .text(d => truncateName(d.name));
 
@@ -558,6 +647,7 @@ function getLinkColor(link) {
     case 'accepted': return COLORS.edgeAccepted;
     case 'pending': return COLORS.edgePending;
     case 'suggested': return COLORS.edgeSuggested;
+    case 'project-member': return '#ff6b6b'; // Project links are red/pink
     default: return COLORS.edgeDefault;
   }
 }
