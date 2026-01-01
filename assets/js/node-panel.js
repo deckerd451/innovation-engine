@@ -332,7 +332,8 @@ async function renderProjectPanel(nodeData) {
       *,
       creator:community!projects_creator_id_fkey(name, image_url),
       project_members(
-        user:community(name, image_url)
+        user_id,
+        user:community(id, name, image_url)
       )
     `)
     .eq('id', nodeData.id)
@@ -342,8 +343,13 @@ async function renderProjectPanel(nodeData) {
     throw error;
   }
 
-  // Check if user is already a member
-  const isMember = project.project_members?.some(m => m.user.id === currentUserProfile?.id);
+  // Check if user is already a member (check both user.id and user_id for safety)
+  const isMember = project.project_members?.some(m =>
+    m.user?.id === currentUserProfile?.id || m.user_id === currentUserProfile?.id
+  );
+
+  // Check if current user is the creator
+  const isCreator = project.creator_id === currentUserProfile?.id;
 
   let html = `
     <div style="padding: 2rem; padding-bottom: 100px;">
@@ -446,11 +452,18 @@ async function renderProjectPanel(nodeData) {
 
     <!-- Action Bar -->
     <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border-top: 2px solid rgba(255, 107, 107, 0.5); padding: 1.5rem; backdrop-filter: blur(10px);">
-      ${isMember ? `
+      ${isCreator ? `
+        <!-- Creator Actions -->
+        <button onclick="editProjectFromPanel('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
+          <i class="fas fa-edit"></i> Edit Project
+        </button>
+      ` : isMember ? `
+        <!-- Member Status -->
         <div style="text-align: center; color: #00ff88; font-weight: bold; margin-bottom: 0.75rem;">
           <i class="fas fa-check-circle"></i> You're a member of this project
         </div>
       ` : `
+        <!-- Join Button -->
         <button onclick="joinProjectFromPanel('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
           <i class="fas fa-plus-circle"></i> Join Project
         </button>
@@ -873,18 +886,41 @@ window.joinProjectFromPanel = async function(projectId) {
       return;
     }
 
+    // Check if already a member first
+    const { data: existingMember } = await supabase
+      .from('project_members')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', currentUserProfile.id)
+      .single();
+
+    if (existingMember) {
+      showToastNotification('You are already a member of this project!', 'info');
+      await loadNodeDetails(currentNodeData);
+      return;
+    }
+
     // Add user to project_members
     const { error } = await supabase
       .from('project_members')
       .insert({
         project_id: projectId,
-        user_id: currentUserProfile.id
+        user_id: currentUserProfile.id,
+        role: 'member'
       });
 
-    if (error) throw error;
+    if (error) {
+      // Handle duplicate key error gracefully
+      if (error.code === '23505') {
+        showToastNotification('You are already a member of this project!', 'info');
+        await loadNodeDetails(currentNodeData);
+        return;
+      }
+      throw error;
+    }
 
-    alert('Successfully joined project!');
-    // Reload panel
+    showToastNotification('Successfully joined project!', 'success');
+    // Reload panel to update UI
     await loadNodeDetails(currentNodeData);
 
   } catch (error) {
@@ -897,6 +933,167 @@ window.viewProjectDetails = function(projectId) {
   closeNodePanel();
   // Open project details in projects modal
   window.openProjectsModal();
+};
+
+window.editProjectFromPanel = async function(projectId) {
+  try {
+    // Fetch current project data
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    if (error || !project) {
+      console.error('Error loading project:', error);
+      alert('Failed to load project');
+      return;
+    }
+
+    // Create edit modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    `;
+
+    modal.innerHTML = `
+      <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <h2 style="color: #ff6b6b; margin-bottom: 1.5rem;">
+          <i class="fas fa-edit"></i> Edit Project
+        </h2>
+
+        <form id="edit-project-form">
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Project Name *</label>
+            <input
+              type="text"
+              id="edit-project-name"
+              value="${project.name || project.title || ''}"
+              required
+              placeholder="Project name"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; color: white; font-family: inherit;"
+            >
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Description *</label>
+            <textarea
+              id="edit-project-description"
+              rows="4"
+              required
+              placeholder="Describe your project..."
+              style="width: 100%; padding: 0.75rem; background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; color: white; font-family: inherit; resize: vertical;"
+            >${project.description || ''}</textarea>
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Required Skills</label>
+            <input
+              type="text"
+              id="edit-project-skills"
+              value="${project.required_skills || project.skills_needed || ''}"
+              placeholder="e.g., JavaScript, React, Design"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; color: white; font-family: inherit;"
+            >
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Tags (comma-separated)</label>
+            <input
+              type="text"
+              id="edit-project-tags"
+              value="${Array.isArray(project.tags) ? project.tags.join(', ') : (project.tags || '')}"
+              placeholder="e.g., AI, Web3, Social Impact"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; color: white; font-family: inherit;"
+            >
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; color: #aaa; margin-bottom: 0.5rem; font-weight: bold;">Status</label>
+            <select
+              id="edit-project-status"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; color: white; font-family: inherit;"
+            >
+              <option value="open" ${project.status === 'open' ? 'selected' : ''}>Open (Recruiting)</option>
+              <option value="active" ${project.status === 'active' ? 'selected' : ''}>Active (In Progress)</option>
+              <option value="in-progress" ${project.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+              <option value="completed" ${project.status === 'completed' ? 'selected' : ''}>Completed</option>
+              <option value="on-hold" ${project.status === 'on-hold' ? 'selected' : ''}>On Hold</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: 1rem;">
+            <button
+              type="submit"
+              style="flex: 1; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; padding: 1rem; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;"
+            >
+              <i class="fas fa-save"></i> Save Changes
+            </button>
+            <button
+              type="button"
+              onclick="this.closest('[style*=\\'position: fixed\\']').remove()"
+              style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 1rem 1.5rem; border-radius: 8px; color: white; cursor: pointer; font-size: 1rem; font-weight: bold;"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Add form submit handler
+    document.getElementById('edit-project-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const updatedProject = {
+        name: document.getElementById('edit-project-name').value.trim(),
+        title: document.getElementById('edit-project-name').value.trim(), // For compatibility
+        description: document.getElementById('edit-project-description').value.trim(),
+        required_skills: document.getElementById('edit-project-skills').value.trim(),
+        skills_needed: document.getElementById('edit-project-skills').value.trim(), // For compatibility
+        tags: document.getElementById('edit-project-tags').value.trim().split(',').map(t => t.trim()).filter(Boolean),
+        status: document.getElementById('edit-project-status').value
+      };
+
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update(updatedProject)
+        .eq('id', projectId);
+
+      if (updateError) {
+        console.error('Error updating project:', updateError);
+        alert('Error updating project: ' + updateError.message);
+        return;
+      }
+
+      // Close modal
+      modal.remove();
+
+      // Show success
+      showToastNotification('Project updated successfully!', 'success');
+
+      // Reload panel to show updated info
+      if (currentNodeData) {
+        await loadNodeDetails(currentNodeData);
+      }
+    });
+
+  } catch (error) {
+    console.error('Error opening project editor:', error);
+    alert('Failed to open project editor');
+  }
 };
 
 

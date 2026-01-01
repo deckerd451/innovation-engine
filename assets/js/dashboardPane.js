@@ -875,15 +875,45 @@ function bindEditProfileDelegation() {
       await hydrateAuthUser();
       if (!state.authUser) throw new Error("Please log in.");
 
-      const { error } = await state.supabase.from("projects").insert({
-        name,
-        description,
-        skills_needed: skills,
-        owner_id: state.authUser.id,
-        status: "active",
-      });
+      // Get creator's community profile ID
+      const { data: creatorProfile, error: profileError } = await state.supabase
+        .from("community")
+        .select("id")
+        .eq("user_id", state.authUser.id)
+        .single();
+
+      if (profileError || !creatorProfile) {
+        throw new Error("Profile not found. Please complete your profile first.");
+      }
+
+      // Insert the project with creator_id as the community profile ID
+      const { data: newProject, error } = await state.supabase
+        .from("projects")
+        .insert({
+          name,
+          description,
+          skills_needed: skills,
+          creator_id: creatorProfile.id,
+          status: "open",
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Automatically add creator as first team member
+      const { error: memberError } = await state.supabase
+        .from("project_members")
+        .insert({
+          project_id: newProject.id,
+          user_id: creatorProfile.id,
+          role: "creator"
+        });
+
+      if (memberError) {
+        console.error("Failed to add creator as member:", memberError);
+        // Don't fail the whole operation, just log it
+      }
 
       $("project-name").value = "";
       $("project-description").value = "";
@@ -891,6 +921,19 @@ function bindEditProfileDelegation() {
       hideCreateProjectForm();
       await loadProjects();
       await refreshCounters();
+
+      // Show success message
+      const toast = document.createElement("div");
+      toast.style.cssText = `
+        position: fixed; top: 100px; right: 20px;
+        background: linear-gradient(135deg, #00ff88, #00cc70);
+        color: white; padding: 1rem 1.5rem; border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-weight: bold;
+      `;
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> Project created successfully!';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+
     } catch (e) {
       console.error("createProject failed:", e);
       alert(`Project create failed: ${e.message || e}`);
