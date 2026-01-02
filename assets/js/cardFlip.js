@@ -1,659 +1,384 @@
-// ===============================================
-// CharlestonHacks Card Flip Logic (Portal Enhanced)
-// ===============================================
-// ✅ Portal flip animation with function names on button clicks
-// ✅ Random video clips play automatically (only once per portal per session)
-// ✅ Shows BTC tracker when Descartes.png appears
-// ✅ Triggers chat bubble when Medusa.png appears
-// ✅ Fixed: Button 8 (center) portal mapping
-// ✅ Fixed: Video autoplay blocked by browser (requires user interaction)
-// ===============================================
+/**
+ * CharlestonHacks — Portal Card System Controller
+ * - Portal hover tooltip
+ * - Portal click behavior (sound + navigate)
+ * - Center portal delegates to Matrix BTC modal (via callback)
+ * - Discovery tracker + progress bar (localStorage)
+ * - Splash + tutorial gating (localStorage)
+ * - Random video animations (preserved conceptually, simplified)
+ */
 
-import { setupChatBubble } from './chatBubble.js';
-
-// Portal routing map - links each clickable area to its function
-const PORTAL_MAP = {
-  'top-left': {
-    functionName: 'openPoster()',
-    destination: 'Poster.html',
-    description: 'Event Poster Portal',
-    color: '#c9a35e'
-  },
-  'top-center': {
-    functionName: 'openDocs()',
-    destination: 'docs.html',
-    description: 'Documentation Portal',
-    color: '#00e0ff'
-  },
-  'top-right': {
-    functionName: 'openInnovationEngine()',
-    destination: '2card.html',
-    description: 'Innovation Engine Portal',
-    color: '#c9a35e'
-  },
-  'middle-left': {
-    functionName: 'openExperimental()',
-    destination: 'experimental.html',
-    description: 'Experimental Sandbox',
-    color: '#00e0ff'
-  },
-  'middle-right': {
-    functionName: 'openSwag()',
-    destination: 'swag.html',
-    description: 'Swag Store Portal',
-    color: '#c9a35e'
-  },
-  'bottom-left': {
-    functionName: 'openNews()',
-    destination: 'news.html',
-    description: 'News Feed Portal',
-    color: '#00e0ff'
-  },
-  'bottom-center': {
-    functionName: 'openDonations()',
-    destination: 'donations.html',
-    description: 'Sponsorship Portal',
-    color: '#c9a35e'
-  },
-  'bottom-right': {
-    functionName: 'openCardMatchGame()',
-    destination: 'cardmatchgame.html',
-    description: 'Card Match Game',
-    color: '#00e0ff'
-  },
-  // FIX: Added center portal mapping
-  'center': {
-    functionName: 'openBitcoinTracker()',
-    destination: '#',
-    description: 'Bitcoin Tracker Portal',
-    color: '#00ff00',
-    isModal: true // Special flag for modal-based portals
-  }
+const STORAGE = {
+  splashSeen: "chs_splash_seen_once",
+  tutorialDone: "chs_tutorial_completed",
+  discovered: "chs_discovered_portals",
 };
 
-let isFlipping = false;
-let videoPlaying = false;
-let userHasInteracted = false; // Track if user has interacted with the page
-let visitedPortals = new Set(); // Track which portals have been clicked this session
-let randomAnimationTimer = null;
+function $(id) {
+  return document.getElementById(id);
+}
 
-export function initCardFlip(CONFIG) {
-  const missionImage = document.getElementById('missionImage');
-  const missionVideo = document.getElementById('missionVideo');
-  const cardFrame    = document.getElementById('cardFrame');
-  const btcElement   = document.getElementById('btcPrice');
+function onDOMReady(fn) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fn, { once: true });
+  } else {
+    fn();
+  }
+}
 
+function playAudio(el) {
+  if (!el) return;
+  try {
+    el.currentTime = 0;
+    el.play().catch(() => {});
+  } catch {}
+}
+
+// ------------------------------------
+// Splash + Tutorial
+// ------------------------------------
+export function initSplashTutorial({
+  splashId = "splash-overlay",
+  tutorialId = "tutorial-overlay",
+  communityBtnId = "community-site-btn",
+  publicBtnId = "public-site-btn",
+  skipBtnId = "skip-tutorial",
+  dontShowAgainId = "dont-show-again",
+  onAfterTutorial = () => {},
+  publicSiteUrl = "https://charlestonhacks.mailchimpsites.com/",
+} = {}) {
+  const splash = $(splashId);
+  const tutorial = $(tutorialId);
+
+  const cBtn = $(communityBtnId);
+  const pBtn = $(publicBtnId);
+  const skipBtn = $(skipBtnId);
+  const box = $(dontShowAgainId);
+
+  if (!splash || !tutorial) {
+    console.warn("⚠️ Splash/tutorial DOM not found, skipping initSplashTutorial()");
+    // still run discovery start if asked
+    onAfterTutorial();
+    return;
+  }
+
+  function startDiscovery() {
+    onAfterTutorial();
+  }
+
+  function hideSplash(immediate = false) {
+    splash.classList.add("fade-out");
+    document.body.classList.remove("splash-active");
+    setTimeout(() => {
+      splash.style.display = "none";
+      checkTutorial();
+    }, immediate ? 0 : 600);
+  }
+
+  function checkTutorial() {
+    if (localStorage.getItem(STORAGE.tutorialDone) !== "true") {
+      setTimeout(() => tutorial.classList.add("active"), 300);
+    } else {
+      startDiscovery();
+    }
+  }
+
+  function dismissSplash() {
+    if (box?.checked) localStorage.setItem(STORAGE.splashSeen, "true");
+    hideSplash();
+  }
+
+  function closeTutorial() {
+    tutorial.classList.remove("active");
+    localStorage.setItem(STORAGE.tutorialDone, "true");
+    startDiscovery();
+  }
+
+  onDOMReady(() => {
+    // skip tutorial button
+    skipBtn?.addEventListener("click", closeTutorial);
+
+    // if already seen splash once, skip it
+    if (localStorage.getItem(STORAGE.splashSeen) === "true") {
+      hideSplash(true);
+      return;
+    }
+
+    splash.style.display = "flex";
+    document.body.classList.add("splash-active");
+
+    cBtn && (cBtn.onclick = (e) => (e.preventDefault(), dismissSplash()));
+    pBtn &&
+      (pBtn.onclick = (e) => {
+        e.preventDefault();
+        dismissSplash();
+        window.location.href = publicSiteUrl;
+      });
+  });
+
+  // ESC closes tutorial if open
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && tutorial?.classList.contains("active")) {
+      closeTutorial();
+    }
+  });
+}
+
+// ------------------------------------
+// Discovery tracker
+// ------------------------------------
+export function initDiscoveryTracker({
+  portalSelector = ".clickable-area",
+  trackerId = "discovery-tracker",
+  countId = "portals-count",
+  fillId = "progress-fill",
+  totalPortals = 9,
+  chimeSoundId = "chimeSound",
+} = {}) {
+  const tracker = $(trackerId);
+  const countEl = $(countId);
+  const fillEl = $(fillId);
+
+  const areas = Array.from(document.querySelectorAll(portalSelector));
+  if (!areas.length || !countEl || !fillEl) {
+    console.warn("⚠️ Discovery tracker DOM not ready/missing, skipping initDiscoveryTracker()");
+    return { markDiscovered: () => {}, getProgress: () => 0 };
+  }
+
+  const discovered = new Set(JSON.parse(localStorage.getItem(STORAGE.discovered) || "[]"));
+
+  function updateProgress() {
+    const count = discovered.size;
+    const pct = Math.min(100, (count / totalPortals) * 100);
+
+    countEl.textContent = String(count);
+    fillEl.style.width = pct + "%";
+
+    if (tracker && count === totalPortals) {
+      // quick celebration glow
+      tracker.style.borderColor = "var(--gold)";
+      tracker.style.boxShadow = "0 0 30px var(--gold-glow)";
+      setTimeout(() => {
+        tracker.style.borderColor = "";
+        tracker.style.boxShadow = "";
+      }, 2000);
+    }
+  }
+
+  function markDiscovered(portalId) {
+    if (!portalId) return;
+    if (discovered.has(portalId)) return;
+
+    discovered.add(portalId);
+    localStorage.setItem(STORAGE.discovered, JSON.stringify([...discovered]));
+    updateProgress();
+
+    // chime
+    playAudio($(chimeSoundId));
+  }
+
+  // apply already-discovered
+  for (const area of areas) {
+    const id = area.dataset.portal;
+    if (discovered.has(id)) area.classList.add("discovered");
+  }
+
+  // click -> discover (does not handle navigation; that’s elsewhere)
+  for (const area of areas) {
+    area.addEventListener("click", () => {
+      const id = area.dataset.portal;
+      markDiscovered(id);
+      area.classList.add("discovered");
+    });
+  }
+
+  updateProgress();
+
+  // optional visibility kickoff like your old code
+  setTimeout(() => {
+    $(trackerId)?.classList.add("visible");
+    document.querySelector(".media-container")?.classList.add("idle");
+  }, 500);
+
+  // expose for debugging
+  window.charlestonHacks = window.charlestonHacks || {};
+  window.charlestonHacks.markDiscovered = markDiscovered;
+  window.charlestonHacks.getProgress = () => discovered.size;
+
+  return { markDiscovered, getProgress: () => discovered.size };
+}
+
+// ------------------------------------
+// Portal hover tooltip + click routing
+// ------------------------------------
+export function initPortalInteractions({
+  portalSelector = ".clickable-area",
+  infoLineId = "infoLine",
+  infoTextId = "infoText",
+  // sounds are referenced in HTML as data-sound="cardflip" etc.
+  soundMap = {
+    cardflip: "cardflipSound",
+    chime: "chimeSound",
+    keys: "keysSound",
+  },
+  onOpenCenterPortal = null, // function called when data-portal="center"
+  navigateDelayMs = 200,
+} = {}) {
+  const infoLine = $(infoLineId);
+  const infoText = $(infoTextId);
+  const areas = Array.from(document.querySelectorAll(portalSelector));
+
+  if (!areas.length) {
+    console.warn("⚠️ No clickable areas found for portal interactions.");
+    return;
+  }
+
+  function showInfo(area) {
+    if (!infoLine || !infoText) return;
+    infoText.textContent = area.dataset.info || "";
+    infoLine.classList.add("visible");
+  }
+
+  function hideInfo() {
+    infoLine?.classList.remove("visible");
+  }
+
+  for (const area of areas) {
+    area.addEventListener("mouseenter", () => showInfo(area));
+    area.addEventListener("mouseleave", hideInfo);
+
+    // accessibility
+    area.setAttribute("tabindex", "0");
+    area.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        area.click();
+      }
+    });
+
+    area.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      const portalId = area.dataset.portal;
+
+      // sound
+      const soundKey = area.dataset.sound; // e.g. "cardflip"
+      const soundId = soundMap[soundKey] || (soundKey ? soundKey + "Sound" : null);
+      if (soundId) playAudio($(soundId));
+
+      // center portal = BTC Matrix modal
+      if (portalId === "center") {
+        if (typeof onOpenCenterPortal === "function") onOpenCenterPortal();
+        return;
+      }
+
+      // normal navigation
+      const url = area.dataset.url;
+      if (url && url !== "#") {
+        setTimeout(() => {
+          window.location.href = url;
+        }, navigateDelayMs);
+      }
+    });
+  }
+}
+
+// ------------------------------------
+// Random card/video animations (kept lightweight)
+// ------------------------------------
+function setupRandomVideoAnimations(CONFIG) {
+  const missionImage = $("missionImage");
+  const missionVideo = $("missionVideo");
+  const cardFrame = $("cardFrame");
   if (!missionImage || !missionVideo || !cardFrame) return;
 
-  // Inject portal animation styles
-  injectPortalStyles();
-  
-  // Create portal overlay element
-  createPortalOverlay();
+  let userHasInteracted = false;
+  let videoPlaying = false;
+  let timer = null;
 
-  // FIX: Set up user interaction tracking for video autoplay
-  setupUserInteractionTracking();
+  const cardImages = Array.isArray(CONFIG?.cardImages) ? CONFIG.cardImages : [];
+  const videos = Array.isArray(CONFIG?.videos) ? CONFIG.videos : [];
 
-  // ===== Helper Functions =====
-  const getRandomCardImage = () => {
-    const arr = CONFIG.cardImages;
+  const markInteraction = () => {
+    userHasInteracted = true;
+    document.removeEventListener("click", markInteraction);
+    document.removeEventListener("keydown", markInteraction);
+    document.removeEventListener("touchstart", markInteraction);
+  };
+
+  document.addEventListener("click", markInteraction, { once: true });
+  document.addEventListener("keydown", markInteraction, { once: true });
+  document.addEventListener("touchstart", markInteraction, { once: true });
+
+  function getRandom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
-  };
-
-  const getRandomFlipClass = () =>
-    Math.random() > 0.5 ? 'flip-image-x' : 'flip-image-y';
-
-  const getRandomVideo = () => {
-    const arr = CONFIG.videos;
-    return arr[Math.floor(Math.random() * arr.length)];
-  };
-
-  const playSound = (soundKey) => {
-    const audio = CONFIG.sounds[soundKey];
-    if (audio) {
-      audio.currentTime = 0;
-      audio.volume = soundKey === 'cardflip' ? 0.45 : 0.7;
-      audio.play().catch(() => {});
-    }
-  };
-
-  // ===== BTC Visibility Helper =====
-  function updateBTCVisibility(currentCardSrc) {
-    if (!btcElement) return;
-    if (typeof currentCardSrc === 'string' && currentCardSrc.includes('Descartes.png')) {
-      btcElement.classList.add('visible');
-    } else {
-      btcElement.classList.remove('visible');
-    }
   }
 
-  // ===== Play Random Video Animation (FIXED) =====
-  async function playRandomVideoAnimation() {
-    if (videoPlaying || isFlipping) return;
+  function scheduleNext() {
+    if (timer) clearTimeout(timer);
+    const interval = 8000 + Math.random() * 7000;
+    timer = setTimeout(playRandom, interval);
+  }
 
-    // FIX: Check if user has interacted before playing video
-    if (!userHasInteracted) {
-      console.log('⏸️ Video autoplay waiting for user interaction');
-      return;
-    }
+  async function playRandom() {
+    if (!userHasInteracted) return scheduleNext();
+    if (videoPlaying) return scheduleNext();
+    if (!videos.length) return scheduleNext();
 
-    console.log('🎬 Playing random video animation');
+    videoPlaying = true;
 
-    // Select next random card + animation
-    const flipClass = getRandomFlipClass();
-    const newImage = getRandomCardImage();
-    missionImage.src = newImage;
-    missionImage.classList.add(flipClass);
-    playSound('cardflip');
+    const src = getRandom(videos);
+    missionVideo.src = src;
+    missionVideo.style.display = "block";
+    missionImage.style.display = "none";
 
-    // 💬 Trigger chat bubble when Medusa appears
-    if (typeof newImage === 'string' && newImage.includes('Medusa.png')) {
-      setupChatBubble();
-    }
-
-    // 💰 Show BTC only for Descartes.png
-    updateBTCVisibility(newImage);
-
-    // Clean up flip animation class
-    setTimeout(() => missionImage.classList.remove(flipClass), 1200);
-
-    // 🎬 Select a random video to accompany the card
-    const videoSrc = getRandomVideo();
-    missionVideo.src = videoSrc;
-    missionVideo.style.display = 'block';
-    cardFrame.style.display    = 'block';
-    setTimeout(() => (missionVideo.style.opacity = 1), 100);
-    
-    // FIX: Always mute and set playsInline for autoplay compatibility
-    missionVideo.muted = true;
-    missionVideo.playsInline = true;
-
-    // 🖥 Responsive controls
-    if (window.matchMedia('(max-width: 600px)').matches) {
-      missionVideo.removeAttribute('controls');
-    } else {
-      missionVideo.setAttribute('controls', '');
-    }
-
-    missionVideo.load();
-    
-    // FIX: Properly handle video play promise
     try {
       await missionVideo.play();
-      videoPlaying = true;
-      console.log('✓ Video playing');
-    } catch (error) {
-      console.log('🔇 Video autoplay prevented:', error.message);
-      // Hide video if autoplay fails
-      missionVideo.style.display = 'none';
-      missionVideo.style.opacity = 0;
-      cardFrame.style.display = 'none';
-      return;
-    }
-
-    // 🔄 Restore state when video ends
-    missionVideo.onended = () => {
+    } catch {
+      // autoplay blocked — just bail gracefully
       missionVideo.pause();
-      missionVideo.style.display = 'none';
-      missionVideo.style.opacity = 0;
-      cardFrame.style.display = 'none';
-      videoPlaying = false;
-    };
-  }
+    }
 
-  // ===== Random Video Animations for Unvisited Portals =====
-  function startRandomAnimations() {
-    // Wait 3 seconds before starting random animations
+    // stop video after a short burst, revert to image
     setTimeout(() => {
-      triggerRandomAnimation();
-    }, 3000);
+      missionVideo.pause();
+      missionVideo.currentTime = 0;
+      missionVideo.style.display = "none";
+      missionImage.style.display = "block";
+
+      // rotate image
+      if (cardImages.length) {
+        missionImage.src = getRandom(cardImages);
+      }
+
+      videoPlaying = false;
+      scheduleNext();
+    }, 2200);
   }
 
-  function triggerRandomAnimation() {
-    // Don't animate if user is actively using the card
-    if (isFlipping || videoPlaying) {
-      scheduleNextRandomAnimation();
-      return;
-    }
-
-    // Don't start animations until user has interacted
-    if (!userHasInteracted) {
-      scheduleNextRandomAnimation();
-      return;
-    }
-
-    // Get all portal keys that haven't been visited (exclude center/modal portals)
-    const allPortalKeys = Object.keys(PORTAL_MAP).filter(key => !PORTAL_MAP[key].isModal);
-    const unvisitedPortals = allPortalKeys.filter(key => !visitedPortals.has(key));
-
-    // If all portals have been visited, stop random animations
-    if (unvisitedPortals.length === 0) {
-      console.log('🎉 All portals visited - stopping random video animations');
-      return;
-    }
-
-    // Play a random video animation
-    playRandomVideoAnimation();
-
-    // Schedule next random animation
-    scheduleNextRandomAnimation();
-  }
-
-  function scheduleNextRandomAnimation() {
-    // Clear any existing timer
-    if (randomAnimationTimer) {
-      clearTimeout(randomAnimationTimer);
-    }
-
-    // Random interval between 8-15 seconds
-    const interval = 8000 + Math.random() * 7000;
-    randomAnimationTimer = setTimeout(() => {
-      triggerRandomAnimation();
-    }, interval);
-  }
-
-  // ===== Portal Button Click Handlers =====
-  setupPortalClickHandlers(CONFIG);
-
-  // ===== Original Card Click Handler (preserved for manual clicks) =====
-  missionImage.addEventListener('click', () => {
-    if (videoPlaying || isFlipping) return;
-    playRandomVideoAnimation();
+  // allow manual click
+  missionImage.addEventListener("click", () => {
+    if (videoPlaying) return;
+    playRandom();
   });
 
-  // ===== Keyboard Accessibility =====
-  missionImage.setAttribute('tabindex', '0');
-  missionImage.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') missionImage.click();
+  scheduleNext();
+}
+
+// ------------------------------------
+// Main initializer used by index.html
+// ------------------------------------
+export function initCardFlip(CONFIG, { openBitcoinTracker } = {}) {
+  // 1) random animations
+  setupRandomVideoAnimations(CONFIG);
+
+  // 2) discovery tracker
+  initDiscoveryTracker();
+
+  // 3) portal hover/click interactions
+  initPortalInteractions({
+    onOpenCenterPortal: openBitcoinTracker || null,
   });
 
-  // Start random animations
-  startRandomAnimations();
-
-  console.log('✅ Portal Card System with Video Animations Ready');
-}
-
-/**
- * FIX: Set up user interaction tracking for video autoplay
- * Modern browsers block video autoplay until user interacts with the page
- */
-function setupUserInteractionTracking() {
-  const markUserInteraction = () => {
-    if (!userHasInteracted) {
-      userHasInteracted = true;
-      console.log('✓ User interaction detected - video autoplay enabled');
-    }
-  };
-
-  // Listen for any user interaction
-  document.addEventListener('click', markUserInteraction, { once: true });
-  document.addEventListener('touchstart', markUserInteraction, { once: true });
-  document.addEventListener('keydown', markUserInteraction, { once: true });
-}
-
-/**
- * Create the portal overlay element for displaying function names
- */
-function createPortalOverlay() {
-  if (document.getElementById('portal-overlay')) {
-    console.log('Portal overlay already exists');
-    return;
-  }
-
-  const overlay = document.createElement('div');
-  overlay.id = 'portal-overlay';
-  overlay.style.cssText = `
-    position: absolute;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at center, rgba(0,224,255,0.15) 0%, rgba(0,0,0,0.85) 70%);
-    backdrop-filter: blur(8px);
-    z-index: 150;
-    pointer-events: none;
-  `;
-
-  const mediaContainer = document.querySelector('.media-container');
-  if (mediaContainer) {
-    mediaContainer.appendChild(overlay);
-    console.log('✓ Portal overlay created');
-  }
-}
-
-/**
- * Set up portal click handlers for all clickable areas
- * FIX: Added support for center portal (button 8)
- */
-function setupPortalClickHandlers(CONFIG) {
-  const buttons = document.querySelectorAll('.clickable-area');
-  console.log(`Found ${buttons.length} clickable areas`);
-
-  buttons.forEach((btn, index) => {
-    const portalKey = findPortalKey(btn);
-    
-    // FIX: Better logging for center portal
-    if (portalKey === 'center') {
-      console.log(`✓ Button ${index}: ${portalKey} (Bitcoin Tracker Modal)`);
-    } else if (portalKey) {
-      console.log(`✓ Button ${index}: ${portalKey}`);
-    } else {
-      console.warn(`⚠️ No portal mapping found for button ${index}`, btn.classList);
-      return;
-    }
-
-    // Add click handler
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      console.log(`🎯 Portal clicked: ${portalKey}`);
-
-      // FIX: Center portal is handled by existing HTML logic, skip our handler
-      const portal = PORTAL_MAP[portalKey];
-      if (portal?.isModal) {
-        console.log('✓ Modal portal - handled by existing code');
-        visitedPortals.add(portalKey);
-        return;
-      }
-
-      // Don't trigger if already flipping or video playing
-      if (isFlipping || videoPlaying) {
-        console.log('Card busy, ignoring click');
-        return;
-      }
-
-      // Mark this portal as visited
-      visitedPortals.add(portalKey);
-      console.log(`✓ Portal ${portalKey} marked as visited`);
-
-      // Play sound
-      const soundName = btn.dataset.sound;
-      if (soundName && CONFIG.sounds && CONFIG.sounds[soundName]) {
-        console.log(`♪ Playing sound: ${soundName}`);
-        CONFIG.sounds[soundName].play().catch(err => {
-          console.log('Sound play failed:', err);
-        });
-      }
-
-      // Trigger portal flip sequence
-      triggerPortalSequence(portal);
-    });
-
-    // Preserve hover info behavior
-    btn.addEventListener('mouseover', () => {
-      const infoLine = document.getElementById('infoLine');
-      const infoText = document.getElementById('infoText');
-      if (infoLine && infoText) {
-        infoLine.style.opacity = '1';
-        infoText.textContent = btn.dataset.info || '';
-      }
-    });
-
-    btn.addEventListener('mouseout', () => {
-      const infoLine = document.getElementById('infoLine');
-      const infoText = document.getElementById('infoText');
-      if (infoLine && infoText) {
-        infoLine.style.opacity = '0';
-        infoText.textContent = '';
-      }
-    });
-  });
-}
-
-/**
- * Find the portal key from button classes
- * FIX: Added support for 'center' class
- */
-function findPortalKey(btn) {
-  const classList = Array.from(btn.classList);
-  
-  // Check for each portal key in the class list
-  for (const key of Object.keys(PORTAL_MAP)) {
-    if (classList.includes(key)) {
-      return key;
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Trigger the complete portal flip sequence
- */
-function triggerPortalSequence(portal) {
-  console.log(`🌀 Starting portal sequence: ${portal.functionName}`);
-  isFlipping = true;
-
-  // Cancel any pending random animations
-  if (randomAnimationTimer) {
-    clearTimeout(randomAnimationTimer);
-  }
-
-  // Step 1: Show portal overlay with function name
-  showPortalText(portal);
-
-  // Step 2: Start flip animation
-  startCardFlip();
-
-  // Step 3: Execute portal function after flip completes
-  setTimeout(() => {
-    executePortalFunction(portal);
-  }, 800); // Flip animation duration
-}
-
-/**
- * Display the portal function name with sci-fi styling
- */
-function showPortalText(portal) {
-  const overlay = document.getElementById('portal-overlay');
-  if (!overlay) {
-    console.error('Portal overlay not found!');
-    return;
-  }
-
-  console.log(`Displaying portal text: ${portal.functionName}`);
-
-  // Create portal rings animation
-  const ringsHTML = `
-    <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;">
-      <div class="portal-ring portal-ring-1"></div>
-      <div class="portal-ring portal-ring-2"></div>
-      <div class="portal-ring portal-ring-3"></div>
-    </div>
-  `;
-
-  // Create function name display
-  overlay.innerHTML = `
-    ${ringsHTML}
-    <div style="position: relative; z-index: 10; text-align: center; padding: 2rem;">
-      <div style="
-        font-size: clamp(2rem, 5vw, 3.5rem);
-        font-weight: bold;
-        color: ${portal.color};
-        font-family: 'Orbitron', 'Courier New', monospace;
-        text-shadow: 
-          0 0 20px ${portal.color},
-          0 0 40px ${portal.color},
-          0 0 60px ${portal.color};
-        animation: portalPulse 0.8s ease-in-out;
-        margin-bottom: 1rem;
-      ">
-        ${portal.functionName}
-      </div>
-      <div style="
-        font-size: 1rem;
-        color: rgba(255, 255, 255, 0.7);
-        font-family: 'Orbitron', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-      ">
-        ${portal.description}
-      </div>
-      <div style="
-        display: flex;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-top: 1.5rem;
-      ">
-        <div class="loading-dot" style="animation-delay: 0s;"></div>
-        <div class="loading-dot" style="animation-delay: 0.2s;"></div>
-        <div class="loading-dot" style="animation-delay: 0.4s;"></div>
-      </div>
-    </div>
-  `;
-
-  overlay.style.display = 'flex';
-}
-
-/**
- * Start the card flip animation
- */
-function startCardFlip() {
-  const card = document.getElementById('missionImage');
-  const frame = document.getElementById('cardFrame');
-
-  console.log('🔄 Starting card flip animation');
-
-  if (card) {
-    card.style.transition = 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)';
-    card.style.transformStyle = 'preserve-3d';
-    card.style.transform = 'rotateY(180deg)';
-  }
-
-  if (frame) {
-    frame.style.transition = 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)';
-    frame.style.transformStyle = 'preserve-3d';
-    frame.style.transform = 'rotateY(180deg)';
-  }
-}
-
-/**
- * Execute the portal function (navigate to destination)
- */
-function executePortalFunction(portal) {
-  console.log(`🚀 Executing: ${portal.functionName}`);
-  console.log(`📍 Navigating to: ${portal.destination}`);
-
-  // Navigate to the destination
-  window.location.href = portal.destination;
-}
-
-/**
- * Inject CSS styles for portal animations
- */
-function injectPortalStyles() {
-  if (document.getElementById('portal-styles')) {
-    console.log('Portal styles already injected');
-    return;
-  }
-
-  const style = document.createElement('style');
-  style.id = 'portal-styles';
-  style.textContent = `
-    @keyframes portalPulse {
-      0%, 100% { 
-        opacity: 1; 
-        transform: scale(1);
-      }
-      50% { 
-        opacity: 0.7; 
-        transform: scale(1.05);
-      }
-    }
-    
-    @keyframes portalRing {
-      0% {
-        transform: scale(0.8);
-        opacity: 0;
-      }
-      50% {
-        opacity: 0.4;
-      }
-      100% {
-        transform: scale(1.5);
-        opacity: 0;
-      }
-    }
-    
-    @keyframes portalSpin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    
-    @keyframes loadingDot {
-      0%, 100% { 
-        opacity: 0.3; 
-        transform: scale(1);
-      }
-      50% { 
-        opacity: 1; 
-        transform: scale(1.3);
-      }
-    }
-    
-    .portal-ring {
-      position: absolute;
-      border-radius: 50%;
-      border: 2px solid;
-    }
-    
-    .portal-ring-1 {
-      width: 300px;
-      height: 300px;
-      border-color: rgba(0, 224, 255, 0.3);
-      animation: portalRing 2s ease-out infinite;
-    }
-    
-    .portal-ring-2 {
-      width: 200px;
-      height: 200px;
-      border-color: rgba(201, 163, 94, 0.3);
-      animation: portalRing 2s ease-out infinite 0.4s;
-    }
-    
-    .portal-ring-3 {
-      width: 100px;
-      height: 100px;
-      border-color: rgba(0, 224, 255, 0.5);
-      animation: portalSpin 3s linear infinite;
-    }
-    
-    .loading-dot {
-      width: 8px;
-      height: 8px;
-      background: #00e0ff;
-      border-radius: 50%;
-      animation: loadingDot 1.4s ease-in-out infinite;
-    }
-  `;
-
-  document.head.appendChild(style);
-  console.log('✓ Portal styles injected');
-}
-
-/**
- * Public function to manually trigger a portal
- */
-export function openPortal(portalKey) {
-  const portal = PORTAL_MAP[portalKey];
-  if (portal && !isFlipping && !portal.isModal) {
-    visitedPortals.add(portalKey);
-    triggerPortalSequence(portal);
-  }
-}
-
-/**
- * Get all available portals
- */
-export function getPortals() {
-  return { ...PORTAL_MAP };
-}
-
-/**
- * Reset visited portals (useful for testing)
- */
-export function resetVisitedPortals() {
-  visitedPortals.clear();
-  console.log('🔄 Visited portals reset');
+  console.log("✅ Portal system initialized (modular)");
 }
