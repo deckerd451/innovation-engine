@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
-  <!-- Neuron redirect -->
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("source") === "neuron") {
-      window.location.href = "/neural.html?" + params.toString();
-    }
-  </script>
+ <!-- Neuron redirect -->
+<script>
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("source") === "neuron") {
+    params.delete("source");
+    const qs = params.toString();
+    window.location.replace("/neural.html" + (qs ? "?" + qs : ""));
+  }
+</script>
+
 
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
