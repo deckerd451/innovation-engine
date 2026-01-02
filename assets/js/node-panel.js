@@ -1058,11 +1058,9 @@ window.editProjectFromPanel = async function(projectId) {
       e.preventDefault();
 
       const updatedProject = {
-        name: document.getElementById('edit-project-name').value.trim(),
-        title: document.getElementById('edit-project-name').value.trim(), // For compatibility
+        title: document.getElementById('edit-project-name').value.trim(),
         description: document.getElementById('edit-project-description').value.trim(),
         required_skills: document.getElementById('edit-project-skills').value.trim(),
-        skills_needed: document.getElementById('edit-project-skills').value.trim(), // For compatibility
         tags: document.getElementById('edit-project-tags').value.trim().split(',').map(t => t.trim()).filter(Boolean),
         status: document.getElementById('edit-project-status').value
       };

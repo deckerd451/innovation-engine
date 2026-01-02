@@ -238,6 +238,13 @@ function bindEditProfileDelegation() {
     };
     window.closeQuickConnectModal = () => closeModal("quick-connect-modal");
 
+    // Network Stats Modal
+    window.openNetworkStatsModal = async () => {
+      openModal("network-stats-modal");
+      await loadNetworkStats();
+    };
+    window.closeNetworkStatsModal = () => closeModal("network-stats-modal");
+
     // Endorsements tabs
     window.showEndorsementsTab = showEndorsementsTab;
 
@@ -524,6 +531,98 @@ function bindEditProfileDelegation() {
         <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
         <p style="margin-top:1rem;">Search failed</p>
         <p style="opacity:0.85;">${escapeHtml(e.message || String(e))}</p>
+      </div>`;
+    }
+  }
+
+  async function loadNetworkStats() {
+    const container = $("network-stats-content");
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem; grid-column: 1 / -1;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading network stats…</p>
+    </div>`;
+
+    try {
+      const me = state.communityProfile;
+      if (!me?.id) throw new Error("Profile not loaded");
+
+      // Fetch connections
+      const { data: connections, error: connError } = await state.supabase
+        .from("connections")
+        .select("*")
+        .or(`from_user_id.eq.${me.id},to_user_id.eq.${me.id}`);
+
+      if (connError) throw connError;
+
+      const accepted = connections?.filter(c => c.status === 'accepted') || [];
+      const pending = connections?.filter(c => c.status === 'pending') || [];
+      const sentPending = pending.filter(c => c.from_user_id === me.id);
+      const receivedPending = pending.filter(c => c.to_user_id === me.id);
+
+      // Get all community members for network size
+      const { data: allMembers } = await state.supabase
+        .from("community")
+        .select("id");
+
+      const totalCommunity = allMembers?.length || 0;
+      const networkCoverage = totalCommunity > 0 ? Math.round((accepted.length / totalCommunity) * 100) : 0;
+
+      container.innerHTML = `
+        <div style="background: rgba(0,224,255,0.1); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
+          <div style="font-size: 2.5rem; font-weight: bold; color: #00e0ff; margin-bottom: 0.5rem;">${accepted.length}</div>
+          <div style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Total Connections</div>
+        </div>
+
+        <div style="background: rgba(255,170,0,0.1); border: 2px solid rgba(255,170,0,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
+          <div style="font-size: 2.5rem; font-weight: bold; color: #ffaa00; margin-bottom: 0.5rem;">${receivedPending.length}</div>
+          <div style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Pending Requests</div>
+        </div>
+
+        <div style="background: rgba(0,255,136,0.1); border: 2px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
+          <div style="font-size: 2.5rem; font-weight: bold; color: #00ff88; margin-bottom: 0.5rem;">${sentPending.length}</div>
+          <div style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Sent Requests</div>
+        </div>
+
+        <div style="background: rgba(138,43,226,0.1); border: 2px solid rgba(138,43,226,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
+          <div style="font-size: 2.5rem; font-weight: bold; color: #8a2be2; margin-bottom: 0.5rem;">${networkCoverage}%</div>
+          <div style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Network Coverage</div>
+        </div>
+
+        <div style="grid-column: 1 / -1; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1.5rem; margin-top: 1rem;">
+          <h3 style="color: #00e0ff; margin-bottom: 1rem; font-size: 1.1rem;">
+            <i class="fas fa-chart-line"></i> Network Insights
+          </h3>
+          <div style="color: #ddd; line-height: 1.8;">
+            <div style="margin-bottom: 0.5rem;">
+              <i class="fas fa-users" style="color: #00e0ff; margin-right: 0.5rem;"></i>
+              You're connected to <strong style="color: #00e0ff;">${accepted.length}</strong> people in the community
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+              <i class="fas fa-globe" style="color: #00e0ff; margin-right: 0.5rem;"></i>
+              Total community size: <strong style="color: #00e0ff;">${totalCommunity}</strong> members
+            </div>
+            ${receivedPending.length > 0 ? `
+              <div style="margin-bottom: 0.5rem;">
+                <i class="fas fa-bell" style="color: #ffaa00; margin-right: 0.5rem;"></i>
+                <strong style="color: #ffaa00;">${receivedPending.length}</strong> people want to connect with you!
+              </div>
+            ` : ''}
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,224,255,0.2);">
+              <button onclick="scrollToSection('network')" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; width: 100%;">
+                <i class="fas fa-user-friends"></i> View Pending Requests
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+    } catch (e) {
+      console.error("Network stats failed:", e);
+      container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem; grid-column: 1 / -1;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Failed to load network stats</p>
       </div>`;
     }
   }
