@@ -159,6 +159,16 @@ async function renderPersonPanel(nodeData) {
   // Get shared projects
   const sharedProjects = await getSharedProjects(profile.id);
 
+  // Track profile view for engagement system
+  if (window.DailyEngagement && profile.id !== currentUserProfile?.id) {
+    try {
+      await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.VIEW_PROFILE, `Viewed ${profile.name}'s profile`);
+      await window.DailyEngagement.updateQuestProgress('view_profiles', 1);
+    } catch (err) {
+      console.warn('Failed to track profile view:', err);
+    }
+  }
+
   // Build panel HTML
   const initials = profile.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
@@ -586,6 +596,17 @@ window.closeNodePanel = closeNodePanel;
 window.sendConnectionFromPanel = async function(userId) {
   try {
     await window.sendConnectionRequest(userId);
+
+    // Track connection request for engagement system
+    if (window.DailyEngagement) {
+      try {
+        await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.SEND_CONNECTION, 'Sent connection request');
+        await window.DailyEngagement.updateQuestProgress('send_connection', 1);
+      } catch (err) {
+        console.warn('Failed to track connection request:', err);
+      }
+    }
+
     // Reload panel to update connection status
     await loadNodeDetails(currentNodeData);
   } catch (error) {
@@ -764,6 +785,16 @@ window.confirmEndorsement = async function(userId, skill, userName, button) {
       });
 
     if (error) throw error;
+
+    // Track endorsement for engagement system
+    if (window.DailyEngagement) {
+      try {
+        await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.ENDORSE_SKILL, `Endorsed ${skill}`);
+        await window.DailyEngagement.updateQuestProgress('endorse_skill', 1);
+      } catch (err) {
+        console.warn('Failed to track endorsement:', err);
+      }
+    }
 
     // Close modal
     button.closest('[style*="position: fixed"]').remove();
