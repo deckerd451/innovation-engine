@@ -74,17 +74,22 @@ const DailyEngagement = (function() {
   // ============================================================
 
   async function init() {
-    if (state.initialized) return;
+    if (state.initialized) {
+      console.log('🎯 Daily Engagement: Already initialized, skipping');
+      return;
+    }
 
     try {
       state.supabase = window.supabase;
       if (!state.supabase) throw new Error('Supabase not available');
 
       // Get current user
-      const { data: { user } } = await state.supabase.auth.getUser();
+      const { data: { user }, error: userError } = await state.supabase.auth.getUser();
+      if (userError) throw userError;
       if (!user) throw new Error('No user logged in');
 
       state.currentUser = user;
+      console.log('🎯 Daily Engagement: Loading stats for user:', user.email);
 
       // Load user stats
       await loadUserStats();
@@ -100,7 +105,9 @@ const DailyEngagement = (function() {
       console.log('✅ Daily engagement initialized');
 
     } catch (error) {
-      console.error('Failed to initialize daily engagement:', error);
+      console.error('❌ Failed to initialize daily engagement:', error);
+      // Reset initialized flag so it can retry
+      state.initialized = false;
     }
   }
 
@@ -109,33 +116,48 @@ const DailyEngagement = (function() {
   // ============================================================
 
   async function loadUserStats() {
-    const { data: profile } = await state.supabase
-      .from('community')
-      .select('*')
-      .eq('user_id', state.currentUser.id)
-      .single();
+    try {
+      const { data: profile, error } = await state.supabase
+        .from('community')
+        .select('*')
+        .eq('user_id', state.currentUser.id)
+        .single();
 
-    if (!profile) return;
+      if (error) {
+        console.error('❌ Error loading user stats:', error);
+        throw error;
+      }
 
-    // Initialize stats if they don't exist
-    state.userStats = {
-      xp: profile.xp || 0,
-      level: profile.level || 1,
-      streak: profile.login_streak || 0,
-      last_login: profile.last_login || null,
-      daily_quests_completed: profile.daily_quests_completed || [],
-      total_connections: profile.connection_count || 0,
-      total_endorsements_given: profile.endorsements_given || 0,
-      total_endorsements_received: profile.endorsements_received || 0
-    };
+      if (!profile) {
+        console.warn('⚠️ No profile found for user:', state.currentUser.id);
+        return;
+      }
 
-    state.xp = state.userStats.xp;
-    state.level = state.userStats.level;
-    state.streak = state.userStats.streak;
+      console.log('✅ Loaded profile:', profile.name);
 
-    // Calculate XP needed for next level
-    const nextLevelData = LEVEL_THRESHOLDS.find(l => l.level === state.level + 1);
-    state.xpToNextLevel = nextLevelData ? nextLevelData.xp : state.xp;
+      // Initialize stats if they don't exist
+      state.userStats = {
+        xp: profile.xp || 0,
+        level: profile.level || 1,
+        streak: profile.login_streak || 0,
+        last_login: profile.last_login || null,
+        daily_quests_completed: profile.daily_quests_completed || [],
+        total_connections: profile.connection_count || 0,
+        total_endorsements_given: profile.endorsements_given || 0,
+        total_endorsements_received: profile.endorsements_received || 0
+      };
+
+      state.xp = state.userStats.xp;
+      state.level = state.userStats.level;
+      state.streak = state.userStats.streak;
+
+      // Calculate XP needed for next level
+      const nextLevelData = LEVEL_THRESHOLDS.find(l => l.level === state.level + 1);
+      state.xpToNextLevel = nextLevelData ? nextLevelData.xp : state.xp;
+    } catch (error) {
+      console.error('❌ Failed to load user stats:', error);
+      throw error;
+    }
   }
 
   async function awardXP(amount, reason) {
@@ -630,6 +652,15 @@ document.addEventListener('DOMContentLoaded', () => {
           DailyEngagement.init();
         }
       });
+
+      // Also initialize if profile-loaded event fires (fallback)
+      window.addEventListener('profile-loaded', () => {
+        const currentState = DailyEngagement.getState();
+        if (!currentState.initialized && window.supabase) {
+          console.log('🎯 Daily Engagement: Profile loaded, initializing');
+          DailyEngagement.init();
+        }
+      });
     } else {
       // Retry after a short delay
       setTimeout(waitForSupabase, 100);
@@ -637,14 +668,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   waitForSupabase();
-});
-
-// Also initialize if profile-loaded event fires (fallback)
-window.addEventListener('profile-loaded', () => {
-  if (!state.initialized && window.supabase) {
-    console.log('🎯 Daily Engagement: Profile loaded, initializing');
-    DailyEngagement.init();
-  }
 });
 
 console.log('✅ Daily engagement ready');
