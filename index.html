@@ -3,11 +3,15 @@
 <head>
   <!-- Neuron redirect -->
   <script>
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("source") === "neuron") {
-      window.location.href = "/neural.html?" + params.toString();
-    }
-  </script>
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("source") === "neuron") {
+    params.delete("source");
+    const qs = params.toString();
+    window.location.replace("/neural.html" + (qs ? "?" + qs : ""));
+  }
+</script>
+
+
 
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NDKG07DY6"></script>
@@ -30,6 +34,10 @@
   <link rel="manifest" href="/manifest.json"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="styles.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 
   <style>
 /* ============================
@@ -537,6 +545,10 @@ body {
   margin: 0 0.2rem;
   text-shadow: 0 0 10px var(--gold-glow);
 }
+    #btcPrice {
+  top: 80px;
+  left: 20px;
+}
 
 /* ============================
    ENHANCED ICON BAR
@@ -621,7 +633,7 @@ body {
   display: none;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: 2200;
   overflow: hidden;
 }
 
@@ -1212,6 +1224,9 @@ button:focus {
         <!-- Countdown Timer -->
         <div id="countdown" role="timer"></div>
 
+        <!-- BTC Tracker -->
+        <div id="btcPrice" aria-live="polite"></div>
+
         <!-- Main Card -->
         <img id="missionImage" src="icons/card.png" alt="Interactive Portal Card - Discover 9 different features"/>
         <img id="cardFrame" src="images/cardframe2.svg" style="display:none;" alt="Portal Frame"/>
@@ -1318,7 +1333,8 @@ button:focus {
                        border: none;
                        cursor: pointer;
                        z-index: 5;">
-          <span style="display: none;">Bitcoin Tracker</span>
+         <span class="sr-only">Bitcoin Tracker</span>
+
         </button>
 
         <!-- Enhanced Info Line -->
@@ -1444,48 +1460,53 @@ button:focus {
     </div>
   </div>
 
-  <!-- MAIN JS BOOTSTRAP (single entrypoint) -->
-  <script type="module">
-    import { CONFIG } from "./assets/js/config.js";
-    import { initCardFlip, initSplashTutorial } from "./assets/js/cardFlip.js";
-    import { startBTCPriceTracker, initMatrixBTCOverlay } from "./assets/js/btc.js";
-    import { initEventsModal } from "./assets/js/eventsFeed.js";
+ <script type="module">
+  import { CONFIG } from "./assets/js/config.js";
+  import { initCardFlip, initSplashTutorial } from "./assets/js/cardFlip.js";
+  import { startBTCPriceTracker, initMatrixBTCOverlay } from "./assets/js/btc.js";
+  import { initEventsModal } from "./assets/js/eventsFeed.js";
 
-    // Side modules you already load
-    import "/assets/js/neuralBackground.js";
-    import "/assets/js/supabaseClient.js";
+  // Safer relative imports for GitHub Pages + local dev
+  import "./assets/js/neuralBackground.js";
+  import "./assets/js/supabaseClient.js";
 
-    // Sounds (kept same IDs you already have in HTML)
-    CONFIG.sounds = {
-      cardflip: document.getElementById("cardflipSound"),
-      chime: document.getElementById("chimeSound"),
-      keys: document.getElementById("keysSound")
-    };
 
-    // Init Events modal wiring (+ fetch on open)
-    initEventsModal();
+  // Sounds
+  CONFIG.sounds = {
+    cardflip: document.getElementById("cardflipSound"),
+    chime: document.getElementById("chimeSound"),
+    keys: document.getElementById("keysSound"),
+  };
 
-    // Init Matrix BTC modal (open/close handled inside btc.js)
-    const btcModal = initMatrixBTCOverlay();
+  // Events modal
+  initEventsModal();
 
-    // Init Splash/Tutorial; after tutorial completes, discovery UI becomes visible (same behavior)
-    initSplashTutorial({
-      onAfterTutorial: () => {
-        // cardFlip module also calls discovery tracker visibility,
-        // but keeping this hook lets you insert future effects.
-      }
-    });
+  // BTC modal
+  const btcModal = initMatrixBTCOverlay();
 
-    // Init portals + discovery + hover + center portal -> BTC modal
-    initCardFlip(CONFIG, {
-      openBitcoinTracker: () => btcModal.open()
-    });
+  // Mystery modal: at least wire close (opening logic should live in cardFlip later)
+  const mysteryOverlay = document.getElementById("mystery-overlay");
+  const closeMystery = document.getElementById("close-mystery");
+  const closeMysteryFn = () => mysteryOverlay?.classList.remove("active");
+  closeMystery?.addEventListener("click", closeMysteryFn);
+  mysteryOverlay?.addEventListener("click", (e) => {
+    if (e.target === mysteryOverlay) closeMysteryFn();
+  });
 
-    // Header BTC mini-tracker
-    startBTCPriceTracker("btcPrice");
+  // Start BTC mini tracker
+  startBTCPriceTracker("btcPrice");
 
-    console.log("🌀 CharlestonHacks homepage initialized (single bootstrap).");
-  </script>
+  // Splash/Tutorial gates the “real” portal init (cleaner)
+  initSplashTutorial({
+    onAfterTutorial: () => {
+      initCardFlip(CONFIG, {
+        openBitcoinTracker: () => btcModal.open(),
+      });
+
+      console.log("🌀 CharlestonHacks portal system initialized (post-tutorial).");
+    },
+  });
+</script>
   </body>
 </html>
 
