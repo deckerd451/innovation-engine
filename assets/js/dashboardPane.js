@@ -759,7 +759,7 @@ function bindEditProfileDelegation() {
 
     listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
       <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
-      <p style="margin-top:1rem;">Loading conversations…</p>
+      <p style="margin-top:1rem;">Loading…</p>
     </div>`;
 
     messagesEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
@@ -769,74 +769,139 @@ function bindEditProfileDelegation() {
 
     try {
       await hydrateAuthUser();
-      if (!state.authUser) {
+      if (!state.authUser || !state.communityProfile) {
         listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">Please log in.</div>`;
         return;
       }
 
-      const { data: conversations, error } = await state.supabase
-        .from("conversations")
-        .select("*")
-        .or(`participant_1_id.eq.${state.authUser.id},participant_2_id.eq.${state.authUser.id}`)
-        .order("last_message_at", { ascending: false });
+      // Fetch both conversations and connections
+      const [conversationsResult, connectionsResult] = await Promise.all([
+        state.supabase
+          .from("conversations")
+          .select("*")
+          .or(`participant_1_id.eq.${state.authUser.id},participant_2_id.eq.${state.authUser.id}`)
+          .order("last_message_at", { ascending: false }),
 
-      if (error) throw error;
+        state.supabase
+          .from("connections")
+          .select(`
+            *,
+            from_user:community!connections_from_user_id_fkey(id, user_id, name, image_url),
+            to_user:community!connections_to_user_id_fkey(id, user_id, name, image_url)
+          `)
+          .or(`from_user_id.eq.${state.communityProfile.id},to_user_id.eq.${state.communityProfile.id}`)
+          .eq("status", "accepted")
+      ]);
 
-      if (!conversations || conversations.length === 0) {
-        listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
-          <i class="fas fa-comments" style="font-size:2rem; opacity:0.3;"></i>
-          <p style="margin-top:0.75rem;">No conversations yet</p>
-          <button class="btn btn-primary" style="margin-top:1rem;" onclick="closeMessagesModal(); openQuickConnectModal();">
-            <i class="fas fa-user-plus"></i> Find people
-          </button>
-        </div>`;
-        return;
-      }
+      const conversations = conversationsResult.data || [];
+      const connections = connectionsResult.data || [];
 
-      // Build participant map
-      const ids = new Set();
+      // Build participant map for conversations
+      const conversationUserIds = new Set();
       conversations.forEach((c) => {
-        if (c.participant_1_id !== state.authUser.id) ids.add(c.participant_1_id);
-        if (c.participant_2_id !== state.authUser.id) ids.add(c.participant_2_id);
+        if (c.participant_1_id !== state.authUser.id) conversationUserIds.add(c.participant_1_id);
+        if (c.participant_2_id !== state.authUser.id) conversationUserIds.add(c.participant_2_id);
       });
 
       const { data: profiles } = await state.supabase
         .from("community")
         .select("id, user_id, name, image_url")
-        .in("user_id", Array.from(ids));
+        .in("user_id", Array.from(conversationUserIds));
 
       const profileMap = {};
       (profiles || []).forEach((p) => (profileMap[p.user_id] = p));
 
-      listEl.innerHTML = conversations
-        .map((conv) => {
-          const otherId = conv.participant_1_id === state.authUser.id ? conv.participant_2_id : conv.participant_1_id;
-          const other = profileMap[otherId];
-          const otherName = other?.name || "Unknown";
-          const initials = otherName.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-          const timeAgo = conv.last_message_at ? formatTimeAgo(conv.last_message_at) : "";
+      // Build connections list (people you can message)
+      const connectionsList = connections.map(conn => {
+        const isFromUser = conn.from_user_id === state.communityProfile.id;
+        const otherUser = isFromUser ? conn.to_user : conn.from_user;
+        return otherUser;
+      }).filter(Boolean);
 
-          return `
-            <div onclick="openConversationById('${conv.id}', '${escapeHtml(otherName)}')"
-              style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem;
-              background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.1);
-              border-radius:8px; cursor:pointer; margin-bottom:0.5rem; transition:all 0.2s;">
-              ${
-                other?.image_url
-                  ? `<img src="${escapeHtml(other.image_url)}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
-                  : `<div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white;">${initials}</div>`
-              }
-              <div style="flex:1; min-width:0;">
-                <div style="color:white; font-weight:700; font-size:0.9rem;">${escapeHtml(otherName)}</div>
-                <div style="color:#aaa; font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                  ${escapeHtml(conv.last_message_preview || "No messages yet")}
-                </div>
-              </div>
-              <div style="color:#666; font-size:0.7rem;">${escapeHtml(timeAgo)}</div>
+      // Render the list with sections
+      let html = '';
+
+      // Connections section
+      if (connectionsList.length > 0) {
+        html += `
+          <div style="margin-bottom: 1rem;">
+            <div style="color: #00e0ff; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fas fa-users"></i> Your Connections
             </div>
-          `;
-        })
-        .join("");
+            ${connectionsList.map(conn => {
+              const name = conn.name || "Unknown";
+              const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+              return `
+                <div onclick="startConversationWithUser('${conn.user_id}', '${escapeHtml(name)}')"
+                  style="display:flex; align-items:center; gap:0.75rem; padding:0.65rem;
+                  background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.1);
+                  border-radius:8px; cursor:pointer; margin-bottom:0.4rem; transition:all 0.2s;">
+                  ${
+                    conn.image_url
+                      ? `<img src="${escapeHtml(conn.image_url)}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
+                      : `<div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.85rem;">${initials}</div>`
+                  }
+                  <div style="flex:1; min-width:0;">
+                    <div style="color:white; font-weight:700; font-size:0.85rem;">${escapeHtml(name)}</div>
+                    <div style="color:#00e0ff; font-size:0.7rem;">
+                      <i class="fas fa-comment-dots"></i> Message
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      // Existing conversations section
+      if (conversations.length > 0) {
+        html += `
+          <div>
+            <div style="color: #00e0ff; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fas fa-comments"></i> Recent Conversations
+            </div>
+            ${conversations.map((conv) => {
+              const otherId = conv.participant_1_id === state.authUser.id ? conv.participant_2_id : conv.participant_1_id;
+              const other = profileMap[otherId];
+              const otherName = other?.name || "Unknown";
+              const initials = otherName.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+              const timeAgo = conv.last_message_at ? formatTimeAgo(conv.last_message_at) : "";
+
+              return `
+                <div onclick="openConversationById('${conv.id}', '${escapeHtml(otherName)}')"
+                  style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem;
+                  background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.1);
+                  border-radius:8px; cursor:pointer; margin-bottom:0.5rem; transition:all 0.2s;">
+                  ${
+                    other?.image_url
+                      ? `<img src="${escapeHtml(other.image_url)}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
+                      : `<div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white;">${initials}</div>`
+                  }
+                  <div style="flex:1; min-width:0;">
+                    <div style="color:white; font-weight:700; font-size:0.9rem;">${escapeHtml(otherName)}</div>
+                    <div style="color:#aaa; font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                      ${escapeHtml(conv.last_message_preview || "No messages yet")}
+                    </div>
+                  </div>
+                  <div style="color:#666; font-size:0.7rem;">${escapeHtml(timeAgo)}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      if (!html) {
+        html = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-user-friends" style="font-size:2rem; opacity:0.3;"></i>
+          <p style="margin-top:0.75rem;">No connections yet</p>
+          <p style="font-size:0.85rem; color:#666; margin-top:0.5rem;">Connect with people to start messaging</p>
+        </div>`;
+      }
+
+      listEl.innerHTML = html;
+
     } catch (e) {
       console.error("loadConversationsForModal failed:", e);
       $("modal-conversations-list").innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
@@ -845,6 +910,45 @@ function bindEditProfileDelegation() {
       </div>`;
     }
   }
+
+  async function startConversationWithUser(otherUserId, otherUserName) {
+    try {
+      // Check if conversation already exists
+      const { data: existingConv } = await state.supabase
+        .from("conversations")
+        .select("id")
+        .or(`and(participant_1_id.eq.${state.authUser.id},participant_2_id.eq.${otherUserId}),and(participant_1_id.eq.${otherUserId},participant_2_id.eq.${state.authUser.id})`)
+        .single();
+
+      if (existingConv) {
+        // Open existing conversation
+        await openConversationById(existingConv.id, otherUserName);
+        return;
+      }
+
+      // Create new conversation
+      const { data: newConv, error } = await state.supabase
+        .from("conversations")
+        .insert({
+          participant_1_id: state.authUser.id,
+          participant_2_id: otherUserId,
+          last_message_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Open the new conversation
+      await openConversationById(newConv.id, otherUserName);
+
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      alert('Failed to start conversation: ' + error.message);
+    }
+  }
+
+  window.startConversationWithUser = startConversationWithUser;
 
   async function openConversationById(conversationId, name) {
     state.currentConversationId = conversationId;
