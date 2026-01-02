@@ -1147,14 +1147,22 @@ function bindEditProfileDelegation() {
     try {
       let query;
       if (type === "received") {
+        // Fetch endorsements received with endorser details
         query = state.supabase
           .from("endorsements")
-          .select("*")
+          .select(`
+            *,
+            endorser:community!endorsements_endorser_community_id_fkey(id, name, image_url, bio)
+          `)
           .eq("endorsed_community_id", state.communityProfile.id);
       } else {
+        // Fetch endorsements given with endorsed person details
         query = state.supabase
           .from("endorsements")
-          .select("*")
+          .select(`
+            *,
+            endorsed:community!endorsements_endorsed_community_id_fkey(id, name, image_url, bio)
+          `)
           .eq("endorser_community_id", state.communityProfile.id);
       }
 
@@ -1169,29 +1177,60 @@ function bindEditProfileDelegation() {
         return;
       }
 
-      // Group by skill (if column exists)
-      const bySkill = {};
-      data.forEach((e) => {
-        const key = e.skill || "Endorsement";
-        bySkill[key] = bySkill[key] || [];
-        bySkill[key].push(e);
-      });
+      // Render individual endorsement cards with user info
+      container.innerHTML = data.map((endorsement) => {
+        const user = type === "received" ? endorsement.endorser : endorsement.endorsed;
+        const userName = user?.name || "Unknown User";
+        const userImage = user?.image_url || "https://via.placeholder.com/50";
+        const skill = endorsement.skill || "General";
+        const note = endorsement.note || endorsement.comment || "";
+        const createdDate = endorsement.created_at
+          ? new Date(endorsement.created_at).toLocaleDateString()
+          : "";
 
-      container.innerHTML = Object.entries(bySkill).map(([skill, list]) => `
-        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;
-          padding:1.25rem; margin-bottom:1rem;">
-          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
-            <i class="fas fa-star" style="color:#ffd700;"></i>
-            <div style="color:#00e0ff; font-weight:800;">${escapeHtml(skill)}</div>
-            <span style="margin-left:auto; background:rgba(0,224,255,0.2); color:#00e0ff; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.85rem;">
-              ${list.length}
-            </span>
+        return `
+          <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;
+            padding:1.25rem; margin-bottom:1rem; display:flex; gap:1rem; align-items:start;">
+
+            <!-- User Avatar -->
+            <img src="${escapeHtml(userImage)}"
+              style="width:50px; height:50px; border-radius:50%; object-fit:cover; flex-shrink:0;
+                border:2px solid rgba(0,224,255,0.3);"
+              onerror="this.src='https://via.placeholder.com/50'"
+              alt="${escapeHtml(userName)}">
+
+            <!-- Endorsement Details -->
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; flex-wrap:wrap;">
+                <div style="color:#00e0ff; font-weight:800; font-size:1rem;">
+                  ${escapeHtml(userName)}
+                </div>
+                <div style="color:#888; font-size:0.85rem;">
+                  ${type === "received" ? "endorsed you for" : "was endorsed for"}
+                </div>
+                <span style="background:rgba(255,215,0,0.2); color:#ffd700; padding:0.25rem 0.75rem;
+                  border-radius:12px; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.25rem;">
+                  <i class="fas fa-star"></i>
+                  ${escapeHtml(skill)}
+                </span>
+              </div>
+
+              ${note ? `
+                <div style="color:#ddd; font-size:0.95rem; line-height:1.5; margin-top:0.5rem;
+                  padding-left:0.5rem; border-left:2px solid rgba(0,224,255,0.3);">
+                  "${escapeHtml(note)}"
+                </div>
+              ` : ""}
+
+              ${createdDate ? `
+                <div style="color:#666; font-size:0.8rem; margin-top:0.5rem;">
+                  <i class="far fa-clock"></i> ${createdDate}
+                </div>
+              ` : ""}
+            </div>
           </div>
-          <div style="color:#ddd; font-size:0.9rem; line-height:1.5;">
-            ${list.map(x => escapeHtml(x.note || x.comment || "")).filter(Boolean).slice(0, 6).map(t => `• ${t}`).join("<br>") || "—"}
-          </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     } catch (e) {
       console.error("loadEndorsements failed:", e);
       container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
