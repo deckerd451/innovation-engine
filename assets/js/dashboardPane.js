@@ -208,7 +208,20 @@ function bindEditProfileDelegation() {
 
   function wireGlobalFunctions() {
     // Modals
-    window.openProfileModal = () => openModal("profile-modal");
+    window.openProfileModal = async () => {
+      // Open node panel with current user's profile instead of modal
+      if (state.communityProfile) {
+        const { openNodePanel } = await import('./node-panel.js');
+        openNodePanel({
+          id: state.communityProfile.id,
+          name: state.communityProfile.name,
+          type: 'person'
+        });
+      } else {
+        // Fallback to modal if no profile loaded yet
+        openModal("profile-modal");
+      }
+    };
     window.closeProfileModal = () => closeModal("profile-modal");
 
     window.openMessagesModal = async () => {

@@ -18,6 +18,7 @@ let activeFilters = {
   connectionStatus: 'all',
   degreeOfSeparation: 'all',
   hasProjects: false,
+  nodeType: 'all',
   searchQuery: ''
 };
 
@@ -164,6 +165,31 @@ function createFilterPanel() {
         </label>
         <div id="roles-filter" style="display: flex; flex-direction: column; gap: 0.5rem;">
           <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Node Type Filter -->
+      <div style="margin-bottom: 2rem;">
+        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
+          <i class="fas fa-layer-group"></i> Show Type
+        </label>
+        <div id="node-type-filter" style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
+            <input type="radio" name="node-type" value="all" checked onchange="updateNodeTypeFilter(this.value)" style="width: 18px; height: 18px; cursor: pointer;">
+            <span style="color: white;"><i class="fas fa-globe"></i> All (Community)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
+            <input type="radio" name="node-type" value="connections" onchange="updateNodeTypeFilter(this.value)" style="width: 18px; height: 18px; cursor: pointer;">
+            <span style="color: white;"><i class="fas fa-users"></i> My Connections</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
+            <input type="radio" name="node-type" value="suggested" onchange="updateNodeTypeFilter(this.value)" style="width: 18px; height: 18px; cursor: pointer;">
+            <span style="color: white;"><i class="fas fa-star"></i> Suggested</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
+            <input type="radio" name="node-type" value="projects" onchange="updateNodeTypeFilter(this.value)" style="width: 18px; height: 18px; cursor: pointer;">
+            <span style="color: white;"><i class="fas fa-lightbulb"></i> Projects Only</span>
+          </label>
         </div>
       </div>
 
@@ -493,6 +519,11 @@ window.toggleRoleFilter = function(value, checked) {
   }
 };
 
+window.updateNodeTypeFilter = function(value) {
+  activeFilters.nodeType = value;
+  console.log('Node type filter updated:', value);
+};
+
 window.updateConnectionStatusFilter = function(value) {
   activeFilters.connectionStatus = value;
 };
@@ -513,12 +544,16 @@ window.clearAllFilters = function() {
     connectionStatus: 'all',
     degreeOfSeparation: 'all',
     hasProjects: false,
+    nodeType: 'all',
     searchQuery: ''
   };
 
   // Reset UI
   document.querySelectorAll('#availability-filter input, #roles-filter input').forEach(cb => {
     cb.checked = false;
+  });
+  document.querySelectorAll('input[name="node-type"]').forEach(radio => {
+    radio.checked = (radio.value === 'all');
   });
   document.getElementById('connection-status-filter').value = 'all';
   document.getElementById('degree-filter').value = 'all';

@@ -436,11 +436,15 @@ function startSimulation() {
     .force('link', d3.forceLink(links)
       .id(d => d.id)
       .distance(d => {
+        // Project-member links should be very close to group them together
+        if (d.status === 'project-member' || d.type === 'project') return 80;
         if (d.status === 'accepted') return 100;
         if (d.status === 'pending') return 150;
         return 200;
       })
       .strength(d => {
+        // Stronger force for project-member links to keep them together
+        if (d.status === 'project-member' || d.type === 'project') return 0.7;
         if (d.status === 'accepted') return 0.5;
         if (d.status === 'pending') return 0.3;
         return 0.05;
