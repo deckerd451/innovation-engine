@@ -41,7 +41,7 @@ const COLORS = {
   background: 'rgba(0, 0, 0, 0.92)'
 };
 
-// NEW: connection candidate colors (yellow note requirements)
+// Yellow-note styling colors
 const CANDIDATE = {
   orange: '#ff9a1f',
   orangeFill: 'rgba(255, 154, 31, 0.25)',
@@ -117,7 +117,7 @@ function setupSVG() {
   // Add gradient definitions
   const defs = svg.append('defs');
 
-  // Existing glow filter (default)
+  // Glow filter (default)
   const filter = defs.append('filter')
     .attr('id', 'glow')
     .attr('x', '-50%')
@@ -133,7 +133,7 @@ function setupSVG() {
   feMerge.append('feMergeNode').attr('in', 'coloredBlur');
   feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-  // NEW: Orange glow filter for (suggested/non-suggested) connection candidate rings
+  // NEW: Orange glow for connection candidate rings (yellow notes)
   const orangeGlow = defs.append('filter')
     .attr('id', 'glow-orange')
     .attr('x', '-50%')
@@ -149,7 +149,7 @@ function setupSVG() {
   orangeMerge.append('feMergeNode').attr('in', 'coloredBlur');
   orangeMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-  // NEW: Blue glow filter for selected node
+  // NEW: Blue glow for selected node (yellow notes)
   const blueGlow = defs.append('filter')
     .attr('id', 'glow-blue')
     .attr('x', '-60%')
@@ -202,7 +202,7 @@ async function loadSynapseData() {
     }
 
     // Create nodes
-    nodes = (members || []).map((member) => {
+    nodes = (members || []).map((member, index) => {
       const isCurrentUser = member.id === currentUserCommunityId;
 
       // Check if this user is connected to current user
@@ -231,10 +231,11 @@ async function loadSynapseData() {
         isCurrentUser: isCurrentUser,
         // NEW: Only show image if current user OR has connection
         shouldShowImage: isCurrentUser || hasConnection,
-        // Project membership for circle visualization
+        // NEW: Project membership for circle visualization
         projects: projectIds,
         projectDetails: userProjects,
-        // NEW: candidate flags (may be set later)
+
+        // Flags used for yellow-note styling (set later where appropriate)
         isSuggested: false,
         isConnectionCandidate: false
       };
@@ -346,8 +347,8 @@ function addSuggestedLinks() {
     if (existingPairs.has(pairKey)) continue;
 
     // Check for shared skills between current user and this person
-    const sharedSkills = (currentUserNode.skills || []).filter(s =>
-      (otherNode.skills || []).map(sk => sk.toLowerCase()).includes(String(s).toLowerCase())
+    const sharedSkills = currentUserNode.skills.filter(s =>
+      otherNode.skills.map(sk => sk.toLowerCase()).includes(s.toLowerCase())
     );
 
     // If they share 2+ skills, suggest connection
@@ -361,7 +362,7 @@ function addSuggestedLinks() {
         sharedSkills
       });
 
-      // Mark the other node as suggested + a connection candidate (yellow notes)
+      // Mark the other node as suggested + connection candidate (yellow notes)
       otherNode.isSuggested = true;
       otherNode.isConnectionCandidate = true;
     }
@@ -437,7 +438,8 @@ function updateProjectCircles() {
     let maxDistance = 0;
     projectNodes.forEach(node => {
       const distance = Math.sqrt(
-        Math.pow(node.x - centerX, 2) + Math.pow(node.y - centerY, 2)
+        Math.pow(node.x - centerX, 2) +
+        Math.pow(node.y - centerY, 2)
       );
       maxDistance = Math.max(maxDistance, distance);
     });
@@ -529,7 +531,6 @@ function startSimulation() {
     .enter()
     .append('g')
     .attr('class', d => {
-      // Add semantic classes for styling (yellow notes)
       let cls = 'synapse-node';
       if (d.isConnectionCandidate) cls += ' is-conn-candidate';
       if (d.isSuggested) cls += ' is-suggested';
@@ -549,6 +550,8 @@ function startSimulation() {
         type: d.type || 'person',
         ...d
       });
+      // Keep old profile card as fallback
+      // showProfileCard(d, event);
     });
 
   // Add node shapes - circles for people, diamonds for projects
@@ -594,10 +597,10 @@ function startSimulation() {
         .attr('r', radius)
         .attr('fill', d => {
           // Yellow-note behavior:
-          // - Suggested connection node circles: orange semi-transparent fill + orange stroke
+          // Suggested node circle: orange semi-transparent fill + orange stroke
           if (d.isSuggested) return CANDIDATE.orangeFill;
 
-          // - Non-suggested connection candidate circles: no fill + orange stroke
+          // Connection node circle (non-suggested candidate): NO fill + orange stroke
           if (d.isConnectionCandidate) return 'none';
 
           // Default behavior
@@ -672,8 +675,7 @@ function startSimulation() {
     .attr('font-family', 'system-ui, sans-serif')
     .attr('font-weight', d => d.type === 'project' ? 'bold' : 'normal')
     .attr('pointer-events', 'none')
-    // Yellow-note behavior:
-    // - Non-suggested connection candidate circles should have NO label underneath
+    // Yellow-note behavior: connection node circles (non-suggested candidates) show NO label underneath
     .style('display', d => (d.isConnectionCandidate && !d.isSuggested) ? 'none' : null)
     .text(d => truncateName(d.name));
 
@@ -811,25 +813,25 @@ async function showProfileCard(nodeData, event) {
   const canEndorse = currentUserCommunityId && nodeData.id !== currentUserCommunityId;
   const skillsHtml = nodeData.skills.length > 0
     ? nodeData.skills.map(skill => {
-        const endorseCount = skillEndorsements[skill]?.length || 0;
-        const hasEndorsed = userEndorsedSkills.includes(skill);
+      const endorseCount = skillEndorsements[skill]?.length || 0;
+      const hasEndorsed = userEndorsedSkills.includes(skill);
 
-        let endorseBadge = '';
-        if (endorseCount > 0) {
-          endorseBadge = `<span style="background: rgba(255,215,0,0.2); color: #ffd700; padding: 0.15rem 0.4rem; border-radius: 10px; font-size: 0.7rem; margin-left: 0.3rem;"><i class="fas fa-star"></i> ${endorseCount}</span>`;
+      let endorseBadge = '';
+      if (endorseCount > 0) {
+        endorseBadge = `<span style="background: rgba(255,215,0,0.2); color: #ffd700; padding: 0.15rem 0.4rem; border-radius: 10px; font-size: 0.7rem; margin-left: 0.3rem;"><i class="fas fa-star"></i> ${endorseCount}</span>`;
+      }
+
+      let endorseBtn = '';
+      if (canEndorse) {
+        if (hasEndorsed) {
+          endorseBtn = `<button class="synapse-endorse-btn endorsed" data-user-id="${nodeData.id}" data-skill="${skill}" style="background: rgba(255,215,0,0.3); border: 1px solid rgba(255,215,0,0.5); color: #ffd700; padding: 0.15rem 0.4rem; border-radius: 8px; font-size: 0.7rem; margin-left: 0.3rem; cursor: pointer; border: none;"><i class="fas fa-thumbs-up"></i></button>`;
+        } else {
+          endorseBtn = `<button class="synapse-endorse-btn" data-user-id="${nodeData.id}" data-skill="${skill}" style="background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: #ffd700; padding: 0.15rem 0.4rem; border-radius: 8px; font-size: 0.7rem; margin-left: 0.3rem; cursor: pointer; border: none;"><i class="far fa-thumbs-up"></i></button>`;
         }
+      }
 
-        let endorseBtn = '';
-        if (canEndorse) {
-          if (hasEndorsed) {
-            endorseBtn = `<button class="synapse-endorse-btn endorsed" data-user-id="${nodeData.id}" data-skill="${skill}" style="background: rgba(255,215,0,0.3); border: 1px solid rgba(255,215,0,0.5); color: #ffd700; padding: 0.15rem 0.4rem; border-radius: 8px; font-size: 0.7rem; margin-left: 0.3rem; cursor: pointer; border: none;"><i class="fas fa-thumbs-up"></i></button>`;
-          } else {
-            endorseBtn = `<button class="synapse-endorse-btn" data-user-id="${nodeData.id}" data-skill="${skill}" style="background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: #ffd700; padding: 0.15rem 0.4rem; border-radius: 8px; font-size: 0.7rem; margin-left: 0.3rem; cursor: pointer; border: none;"><i class="far fa-thumbs-up"></i></button>`;
-          }
-        }
-
-        return `<span class="synapse-skill-tag">${skill}${endorseBadge}${endorseBtn}</span>`;
-      }).join('')
+      return `<span class="synapse-skill-tag">${skill}${endorseBadge}${endorseBtn}</span>`;
+    }).join('')
     : '<span class="synapse-no-skills">No skills listed</span>';
 
   // Email (privacy controlled)
@@ -1024,7 +1026,6 @@ window.closeSynapseProfileCard = function() {
 };
 
 // Highlight selected node
-// Yellow-note behavior: selected node should have solid blue glowing stroke
 function highlightNode(nodeId) {
   nodeElements.selectAll('.node-circle')
     .attr('stroke-width', d =>
@@ -1079,8 +1080,8 @@ async function refreshSynapseConnections() {
         // Remove any suggested link between these nodes
         links = links.filter(l =>
           !(l.status === 'suggested' &&
-            (((l.source.id || l.source) === conn.from_user_id && (l.target.id || l.target) === conn.to_user_id) ||
-             ((l.source.id || l.source) === conn.to_user_id && (l.target.id || l.target) === conn.from_user_id)))
+            ((l.source.id || l.source) === conn.from_user_id && (l.target.id || l.target) === conn.to_user_id) ||
+            ((l.source.id || l.source) === conn.to_user_id && (l.target.id || l.target) === conn.from_user_id))
         );
 
         links.push({
@@ -1190,10 +1191,10 @@ async function addSkillEndorsement(userId, skill) {
     const { error } = await supabase
       .from('endorsements')
       .insert({
-        endorser_id: endorserUser.user_id,            // Auth user UUID
-        endorser_community_id: currentUserCommunityId, // Community UUID
-        endorsed_id: endorsedUser.user_id,             // Auth user UUID
-        endorsed_community_id: userId,                 // Community UUID
+        endorser_id: endorserUser.user_id,              // Auth user UUID
+        endorser_community_id: currentUserCommunityId,  // Community UUID
+        endorsed_id: endorsedUser.user_id,              // Auth user UUID
+        endorsed_community_id: userId,                  // Community UUID
         skill: skill
       });
 
@@ -1238,7 +1239,7 @@ async function removeSkillEndorsement(userId, skill) {
 // EXPORTS
 // ========================
 
-// Note: initSynapseView is already exported inline above
+// Note: initSynapseView is already exported inline above (line 38)
 // Only export functions that weren't exported inline
 export {
   refreshSynapseConnections,
