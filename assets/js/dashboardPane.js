@@ -87,7 +87,7 @@ async function initSynapseWhenReady(reason = "unknown") {
   // 2) Try dynamic import of the module (your current synapse.js exports initSynapseView)
   try {
     console.log(`🧠 Synapse init (${reason}) attempting dynamic import: assets/js/synapse.js`);
-    const mod = await import("assets/js/synapse.js");
+    const mod = await import("/assets/js/synapse.js");
     if (mod && typeof mod.initSynapseView === "function") {
       await mod.initSynapseView(maybeProfile);
       state.synapseInitialized = true;
