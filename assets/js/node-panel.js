@@ -297,8 +297,8 @@ async function renderPersonPanel(nodeData) {
               <i class="fas fa-comment"></i> Message
             </button>
           ` : connectionStatus === 'pending' ? `
-            <button disabled style="padding: 0.75rem; background: rgba(255,170,0,0.2); border: 1px solid rgba(255,170,0,0.5); border-radius: 8px; color: #ffaa00; font-weight: bold; cursor: not-allowed;">
-              <i class="fas fa-clock"></i> Pending
+            <button onclick="withdrawConnectionFromPanel('${profile.id}')" style="padding: 0.75rem; background: rgba(255,170,0,0.2); border: 1px solid rgba(255,170,0,0.5); border-radius: 8px; color: #ffaa00; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,170,0,0.3)'" onmouseout="this.style.background='rgba(255,170,0,0.2)'">
+              <i class="fas fa-times-circle"></i> Withdraw
             </button>
           ` : `
             <button onclick="sendConnectionFromPanel('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
@@ -591,6 +591,61 @@ window.sendConnectionFromPanel = async function(userId) {
   } catch (error) {
     console.error('Error sending connection:', error);
     alert('Failed to send connection request');
+  }
+};
+
+window.withdrawConnectionFromPanel = async function(userId) {
+  try {
+    if (!currentUserProfile) {
+      alert('Please log in to withdraw connection requests');
+      return;
+    }
+
+    // Find the connection where current user is the requester
+    const { data: connection, error: findError } = await supabase
+      .from('connections')
+      .select('id, from_user_id')
+      .or(`and(from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${userId}),and(from_user_id.eq.${userId},to_user_id.eq.${currentUserProfile.id})`)
+      .eq('status', 'pending')
+      .single();
+
+    if (findError) {
+      console.error('Error finding connection:', findError);
+      alert('Failed to find connection request');
+      return;
+    }
+
+    if (!connection) {
+      alert('No pending connection request found');
+      return;
+    }
+
+    // Only allow withdrawal if current user is the one who sent the request
+    if (connection.from_user_id !== currentUserProfile.id) {
+      alert('You can only withdraw requests that you sent');
+      return;
+    }
+
+    // Delete the connection request
+    const { error: deleteError } = await supabase
+      .from('connections')
+      .delete()
+      .eq('id', connection.id);
+
+    if (deleteError) {
+      console.error('Error withdrawing connection:', deleteError);
+      alert('Failed to withdraw connection request');
+      return;
+    }
+
+    showToastNotification('Connection request withdrawn', 'info');
+
+    // Reload panel to update connection status
+    await loadNodeDetails(currentNodeData);
+
+  } catch (error) {
+    console.error('Error withdrawing connection:', error);
+    alert('Failed to withdraw connection request: ' + error.message);
   }
 };
 
