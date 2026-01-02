@@ -297,8 +297,8 @@ async function renderPersonPanel(nodeData) {
               <i class="fas fa-comment"></i> Message
             </button>
           ` : connectionStatus === 'pending' ? `
-            <button disabled style="padding: 0.75rem; background: rgba(255,170,0,0.2); border: 1px solid rgba(255,170,0,0.5); border-radius: 8px; color: #ffaa00; font-weight: bold; cursor: not-allowed;">
-              <i class="fas fa-clock"></i> Pending
+            <button onclick="withdrawConnectionFromPanel('${profile.id}')" style="padding: 0.75rem; background: rgba(255,170,0,0.2); border: 1px solid rgba(255,170,0,0.5); border-radius: 8px; color: #ffaa00; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,170,0,0.3)'" onmouseout="this.style.background='rgba(255,170,0,0.2)'">
+              <i class="fas fa-times-circle"></i> Withdraw
             </button>
           ` : `
             <button onclick="sendConnectionFromPanel('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
@@ -333,6 +333,7 @@ async function renderProjectPanel(nodeData) {
       creator:community!projects_creator_id_fkey(name, image_url),
       project_members(
         user_id,
+        role,
         user:community(id, name, image_url)
       )
     `)
@@ -343,8 +344,17 @@ async function renderProjectPanel(nodeData) {
     throw error;
   }
 
-  // Check if user is already a member (check both user.id and user_id for safety)
-  const isMember = project.project_members?.some(m =>
+  // Separate active members from pending requests
+  const activeMembers = project.project_members?.filter(m => m.role !== 'pending') || [];
+  const pendingRequests = project.project_members?.filter(m => m.role === 'pending') || [];
+
+  // Check if user is an active member (exclude pending)
+  const isMember = activeMembers.some(m =>
+    m.user?.id === currentUserProfile?.id || m.user_id === currentUserProfile?.id
+  );
+
+  // Check if user has a pending request
+  const hasPendingRequest = pendingRequests.some(m =>
     m.user?.id === currentUserProfile?.id || m.user_id === currentUserProfile?.id
   );
 
@@ -374,8 +384,13 @@ async function renderProjectPanel(nodeData) {
 
         <div style="display: flex; gap: 1rem; justify-content: center; font-size: 0.9rem; color: #aaa;">
           <div>
-            <i class="fas fa-users"></i> ${project.project_members?.length || 0} members
+            <i class="fas fa-users"></i> ${activeMembers.length} member${activeMembers.length !== 1 ? 's' : ''}
           </div>
+          ${pendingRequests.length > 0 && isCreator ? `
+            <div style="color: #ffa500;">
+              <i class="fas fa-clock"></i> ${pendingRequests.length} pending
+            </div>
+          ` : ''}
           <div>
             <i class="fas fa-eye"></i> ${project.view_count || 0} views
           </div>
@@ -407,22 +422,23 @@ async function renderProjectPanel(nodeData) {
       ` : ''}
 
       <!-- Team Members -->
-      ${project.project_members && project.project_members.length > 0 ? `
+      ${activeMembers.length > 0 ? `
         <div style="margin-bottom: 2rem;">
           <h3 style="color: #ff6b6b; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
             <i class="fas fa-users"></i> Team Members
           </h3>
           <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
-            ${project.project_members.map(member => {
+            ${activeMembers.map(member => {
               const user = member.user;
               const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+              const roleLabel = member.role === 'creator' ? '(Creator)' : '';
               return `
                 <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,107,107,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,107,107,0.2);">
                   ${user.image_url ?
                     `<img src="${user.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
                     `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${initials}</div>`
                   }
-                  <span style="color: white; font-size: 0.85rem;">${user.name}</span>
+                  <span style="color: white; font-size: 0.85rem;">${user.name} ${roleLabel}</span>
                 </div>
               `;
             }).join('')}
@@ -457,15 +473,25 @@ async function renderProjectPanel(nodeData) {
         <button onclick="editProjectFromPanel('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
           <i class="fas fa-edit"></i> Edit Project
         </button>
+        ${pendingRequests.length > 0 ? `
+          <button onclick="manageProjectRequests('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ffa500, #ff8c00); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
+            <i class="fas fa-user-clock"></i> Manage Requests (${pendingRequests.length})
+          </button>
+        ` : ''}
       ` : isMember ? `
         <!-- Member Status -->
         <div style="text-align: center; color: #00ff88; font-weight: bold; margin-bottom: 0.75rem;">
           <i class="fas fa-check-circle"></i> You're a member of this project
         </div>
+      ` : hasPendingRequest ? `
+        <!-- Pending Request Status -->
+        <div style="text-align: center; color: #ffa500; font-weight: bold; margin-bottom: 0.75rem; padding: 0.75rem; background: rgba(255,165,0,0.1); border-radius: 8px; border: 1px solid rgba(255,165,0,0.3);">
+          <i class="fas fa-clock"></i> Join request pending approval
+        </div>
       ` : `
         <!-- Join Button -->
         <button onclick="joinProjectFromPanel('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
-          <i class="fas fa-plus-circle"></i> Join Project
+          <i class="fas fa-plus-circle"></i> Request to Join
         </button>
       `}
 
@@ -565,6 +591,61 @@ window.sendConnectionFromPanel = async function(userId) {
   } catch (error) {
     console.error('Error sending connection:', error);
     alert('Failed to send connection request');
+  }
+};
+
+window.withdrawConnectionFromPanel = async function(userId) {
+  try {
+    if (!currentUserProfile) {
+      alert('Please log in to withdraw connection requests');
+      return;
+    }
+
+    // Find the connection where current user is the requester
+    const { data: connection, error: findError } = await supabase
+      .from('connections')
+      .select('id, from_user_id')
+      .or(`and(from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${userId}),and(from_user_id.eq.${userId},to_user_id.eq.${currentUserProfile.id})`)
+      .eq('status', 'pending')
+      .single();
+
+    if (findError) {
+      console.error('Error finding connection:', findError);
+      alert('Failed to find connection request');
+      return;
+    }
+
+    if (!connection) {
+      alert('No pending connection request found');
+      return;
+    }
+
+    // Only allow withdrawal if current user is the one who sent the request
+    if (connection.from_user_id !== currentUserProfile.id) {
+      alert('You can only withdraw requests that you sent');
+      return;
+    }
+
+    // Delete the connection request
+    const { error: deleteError } = await supabase
+      .from('connections')
+      .delete()
+      .eq('id', connection.id);
+
+    if (deleteError) {
+      console.error('Error withdrawing connection:', deleteError);
+      alert('Failed to withdraw connection request');
+      return;
+    }
+
+    showToastNotification('Connection request withdrawn', 'info');
+
+    // Reload panel to update connection status
+    await loadNodeDetails(currentNodeData);
+
+  } catch (error) {
+    console.error('Error withdrawing connection:', error);
+    alert('Failed to withdraw connection request: ' + error.message);
   }
 };
 
@@ -886,46 +967,50 @@ window.joinProjectFromPanel = async function(projectId) {
       return;
     }
 
-    // Check if already a member first
+    // Check if already a member or has pending request
     const { data: existingMember } = await supabase
       .from('project_members')
-      .select('id')
+      .select('id, role')
       .eq('project_id', projectId)
       .eq('user_id', currentUserProfile.id)
       .single();
 
     if (existingMember) {
-      showToastNotification('You are already a member of this project!', 'info');
+      if (existingMember.role === 'pending') {
+        showToastNotification('Your join request is pending approval', 'info');
+      } else {
+        showToastNotification('You are already a member of this project!', 'info');
+      }
       await loadNodeDetails(currentNodeData);
       return;
     }
 
-    // Add user to project_members
+    // Send join request with role='pending'
     const { error } = await supabase
       .from('project_members')
       .insert({
         project_id: projectId,
         user_id: currentUserProfile.id,
-        role: 'member'
+        role: 'pending'
       });
 
     if (error) {
       // Handle duplicate key error gracefully
       if (error.code === '23505') {
-        showToastNotification('You are already a member of this project!', 'info');
+        showToastNotification('You already have a pending request!', 'info');
         await loadNodeDetails(currentNodeData);
         return;
       }
       throw error;
     }
 
-    showToastNotification('Successfully joined project!', 'success');
+    showToastNotification('Join request sent! Awaiting approval.', 'success');
     // Reload panel to update UI
     await loadNodeDetails(currentNodeData);
 
   } catch (error) {
-    console.error('Error joining project:', error);
-    alert('Failed to join project: ' + error.message);
+    console.error('Error sending join request:', error);
+    alert('Failed to send join request: ' + error.message);
   }
 };
 
@@ -1058,11 +1143,9 @@ window.editProjectFromPanel = async function(projectId) {
       e.preventDefault();
 
       const updatedProject = {
-        name: document.getElementById('edit-project-name').value.trim(),
-        title: document.getElementById('edit-project-name').value.trim(), // For compatibility
+        title: document.getElementById('edit-project-name').value.trim(),
         description: document.getElementById('edit-project-description').value.trim(),
         required_skills: document.getElementById('edit-project-skills').value.trim(),
-        skills_needed: document.getElementById('edit-project-skills').value.trim(), // For compatibility
         tags: document.getElementById('edit-project-tags').value.trim().split(',').map(t => t.trim()).filter(Boolean),
         status: document.getElementById('edit-project-status').value
       };
@@ -1093,6 +1176,183 @@ window.editProjectFromPanel = async function(projectId) {
   } catch (error) {
     console.error('Error opening project editor:', error);
     alert('Failed to open project editor');
+  }
+};
+
+window.manageProjectRequests = async function(projectId) {
+  try {
+    // Fetch pending requests for this project
+    const { data: pendingRequests, error } = await supabase
+      .from('project_members')
+      .select(`
+        *,
+        user:community(id, name, image_url, bio, skills)
+      `)
+      .eq('project_id', projectId)
+      .eq('role', 'pending')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    // Create modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+    `;
+
+    modal.innerHTML = `
+      <div style="width: min(700px, 92vw); max-height: 80vh; overflow-y: auto;
+        background: linear-gradient(135deg, rgba(10,14,39,.98), rgba(26,26,46,.98));
+        border: 2px solid rgba(255,107,107,0.5); border-radius: 16px; padding: 2rem;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2 style="color: #ff6b6b; margin: 0;">
+            <i class="fas fa-user-clock"></i> Join Requests
+          </h2>
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.1rem;">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div id="requests-container">
+          ${pendingRequests.length === 0 ? `
+            <div style="text-align: center; color: #aaa; padding: 3rem;">
+              <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+              <p style="margin-top: 1rem;">No pending requests</p>
+            </div>
+          ` : pendingRequests.map(request => {
+            const user = request.user;
+            const skills = user.skills || [];
+            return `
+              <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;" data-request-id="${request.id}">
+                <div style="display: flex; gap: 1rem; align-items: start;">
+                  <!-- User Avatar -->
+                  <img src="${user.image_url || 'https://via.placeholder.com/60'}"
+                    style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid rgba(255,107,107,0.3);"
+                    onerror="this.src='https://via.placeholder.com/60'">
+
+                  <!-- User Info -->
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="color: #ff6b6b; font-weight: 800; font-size: 1.1rem; margin-bottom: 0.25rem;">
+                      ${user.name}
+                    </div>
+                    ${user.bio ? `
+                      <div style="color: #ddd; font-size: 0.9rem; margin-bottom: 0.5rem; line-height: 1.4;">
+                        ${user.bio.substring(0, 120)}${user.bio.length > 120 ? '...' : ''}
+                      </div>
+                    ` : ''}
+                    ${skills.length > 0 ? `
+                      <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;">
+                        ${skills.slice(0, 5).map(skill => `
+                          <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.8rem; border: 1px solid rgba(0,224,255,0.2);">
+                            ${skill}
+                          </span>
+                        `).join('')}
+                        ${skills.length > 5 ? `<span style="color: #888; font-size: 0.8rem;">+${skills.length - 5} more</span>` : ''}
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                  <button onclick="approveJoinRequest('${projectId}', '${request.id}', '${user.id}')" style="flex: 1; padding: 0.65rem; background: linear-gradient(135deg, #00ff88, #00cc70); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                    <i class="fas fa-check"></i> Approve
+                  </button>
+                  <button onclick="declineJoinRequest('${projectId}', '${request.id}')" style="flex: 1; padding: 0.65rem; background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer;">
+                    <i class="fas fa-times"></i> Decline
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+  } catch (error) {
+    console.error('Error loading join requests:', error);
+    alert('Failed to load join requests: ' + error.message);
+  }
+};
+
+window.approveJoinRequest = async function(projectId, requestId, userId) {
+  try {
+    // Update role from 'pending' to 'member'
+    const { error } = await supabase
+      .from('project_members')
+      .update({ role: 'member' })
+      .eq('id', requestId);
+
+    if (error) throw error;
+
+    showToastNotification('Request approved!', 'success');
+
+    // Remove the request card from UI
+    const card = document.querySelector(`[data-request-id="${requestId}"]`);
+    if (card) card.remove();
+
+    // Check if container is now empty
+    const container = document.getElementById('requests-container');
+    if (container && container.children.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; color: #aaa; padding: 3rem;">
+          <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+          <p style="margin-top: 1rem;">No pending requests</p>
+        </div>
+      `;
+    }
+
+    // Reload panel if it's currently showing this project
+    if (currentNodeData?.id === projectId) {
+      await loadNodeDetails(currentNodeData);
+    }
+
+  } catch (error) {
+    console.error('Error approving request:', error);
+    alert('Failed to approve request: ' + error.message);
+  }
+};
+
+window.declineJoinRequest = async function(projectId, requestId) {
+  try {
+    // Delete the pending request
+    const { error } = await supabase
+      .from('project_members')
+      .delete()
+      .eq('id', requestId);
+
+    if (error) throw error;
+
+    showToastNotification('Request declined', 'info');
+
+    // Remove the request card from UI
+    const card = document.querySelector(`[data-request-id="${requestId}"]`);
+    if (card) card.remove();
+
+    // Check if container is now empty
+    const container = document.getElementById('requests-container');
+    if (container && container.children.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; color: #aaa; padding: 3rem;">
+          <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+          <p style="margin-top: 1rem;">No pending requests</p>
+        </div>
+      `;
+    }
+
+    // Reload panel if it's currently showing this project
+    if (currentNodeData?.id === projectId) {
+      await loadNodeDetails(currentNodeData);
+    }
+
+  } catch (error) {
+    console.error('Error declining request:', error);
+    alert('Failed to decline request: ' + error.message);
   }
 };
 

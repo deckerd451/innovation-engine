@@ -19,7 +19,9 @@ export async function initBBS() {
 
   const modal = document.getElementById("bbs-modal");
   modal.innerHTML = BBS_HTML;
-  modal.style.display = "block";
+  modal.style.display = "flex";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
 
   const screen = modal.querySelector("#bbs-screen");
   const form = modal.querySelector("#bbs-form");
@@ -95,7 +97,7 @@ export async function initBBS() {
       return;
     }
 
-    if (text === "zork" || text === "play zork") {
+    if (text === "zork" || text === "play zork" || text === "/zork") {
       write(screen, "Initializing ZORK… Type /exit to leave.\n");
       mode = "zork";
       currentMode = "zork";
@@ -120,38 +122,46 @@ export async function initBBS() {
 const BBS_HTML = `
   <div id="bbs-wrapper"
        style="background:black; border:3px solid #0f0; padding:20px;
-              width:80%; max-width:600px; border-radius:12px;
-              box-shadow:0 0 20px #0f0; position:relative;">
+              width:min(90vw, 600px); max-height:90vh;
+              border-radius:12px; box-shadow:0 0 20px #0f0;
+              position:relative; margin:auto; display:flex;
+              flex-direction:column;">
 
     <button id="bbs-close"
             style="position:absolute; top:8px; right:10px;
                    background:black; color:#0f0; border:1px solid #0f0;
-                   font-family:monospace; cursor:pointer;">
+                   font-family:monospace; cursor:pointer; padding:4px 8px;
+                   font-size:1rem; line-height:1;">
       ✕
     </button>
 
-    <h2 style="color:#0f0; text-align:center; margin-bottom:12px;">
+    <h2 style="color:#0f0; text-align:center; margin-bottom:12px;
+               font-family:monospace; font-size:clamp(1.2rem, 3vw, 1.5rem);">
       CharlestonHacks BBS
     </h2>
 
     <div id="bbs-screen"
-         style="background:#000; color:#0f0; height:300px; overflow-y:auto;
+         style="background:#000; color:#0f0;
+                height:min(300px, 40vh); overflow-y:auto;
                 padding:10px; border:2px solid #0f0; margin-bottom:10px;
-                font-family:monospace;"></div>
+                font-family:monospace; font-size:clamp(0.85rem, 2vw, 1rem);
+                line-height:1.4;"></div>
 
-    <form id="bbs-form" style="display:flex; gap:10px;">
+    <form id="bbs-form" style="display:flex; gap:10px; flex-wrap:wrap;">
       <input id="bbs-input"
              placeholder="type message..."
-             style="flex:1; background:black; color:#0f0;
-                    border:2px solid #0f0; padding:6px;
-                    font-family:monospace;" />
-      <button style="padding:6px 12px; background:#0f0;
-                     color:black; border:none;">
+             style="flex:1; min-width:200px; background:black; color:#0f0;
+                    border:2px solid #0f0; padding:8px;
+                    font-family:monospace; font-size:0.95rem;" />
+      <button style="padding:8px 16px; background:#0f0;
+                     color:black; border:none; font-family:monospace;
+                     font-weight:bold; cursor:pointer;">
         Send
       </button>
     </form>
 
-    <div style="margin-top:12px; color:#0f0; font-family:monospace;">
+    <div style="margin-top:12px; color:#0f0; font-family:monospace;
+                font-size:0.9rem;">
       Online: <span id="bbs-online">loading…</span>
     </div>
   </div>

@@ -86,10 +86,16 @@
 
       <div class="oauth-buttons">
         <button id="github-login" class="oauth-btn">
-          <i class="fab fa-github"></i> Continue with GitHub
+          <span class="oauth-icon-circle">
+            <i class="fab fa-github"></i>
+          </span>
+          Continue with GitHub
         </button>
         <button id="google-login" class="oauth-btn">
-          <i class="fab fa-google"></i> Continue with Google
+          <span class="oauth-icon-circle">
+            <i class="fab fa-google"></i>
+          </span>
+          Continue with Google
         </button>
       </div>
 
@@ -173,8 +179,8 @@
         <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Endorsements</div>
       </div>
 
-      <div class="stat-card-mini" id="btn-network"
-        style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px; padding:0.75rem; text-align:center;">
+      <div class="stat-card-mini" id="btn-network" onclick="openNetworkStatsModal()"
+        style="cursor:pointer; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
         <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-users"></i></div>
         <div class="value" id="network-size" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
         <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Network</div>
@@ -316,6 +322,25 @@
 
         <div id="endorsements-received" style="max-height:400px; overflow-y:auto;"></div>
         <div id="endorsements-given" style="display:none; max-height:400px; overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Network Stats Modal -->
+  <div class="modal" id="network-stats-modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <button class="modal-close" onclick="closeNetworkStatsModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 style="color: #00e0ff; margin-bottom: 1.5rem;">
+        <i class="fas fa-users"></i> Your Network Stats
+      </h2>
+
+      <div id="network-stats-content" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div style="text-align: center; color: #aaa; padding: 3rem;">
+          <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #00e0ff;"></i>
+          <p style="margin-top: 1rem;">Loading network stats...</p>
+        </div>
       </div>
     </div>
   </div>

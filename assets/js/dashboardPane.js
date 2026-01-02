@@ -208,7 +208,20 @@ function bindEditProfileDelegation() {
 
   function wireGlobalFunctions() {
     // Modals
-    window.openProfileModal = () => openModal("profile-modal");
+    window.openProfileModal = async () => {
+      // Open node panel with current user's profile instead of modal
+      if (state.communityProfile) {
+        const { openNodePanel } = await import('./node-panel.js');
+        openNodePanel({
+          id: state.communityProfile.id,
+          name: state.communityProfile.name,
+          type: 'person'
+        });
+      } else {
+        // Fallback to modal if no profile loaded yet
+        openModal("profile-modal");
+      }
+    };
     window.closeProfileModal = () => closeModal("profile-modal");
 
     window.openMessagesModal = async () => {
@@ -237,6 +250,13 @@ function bindEditProfileDelegation() {
       await loadSuggestedConnections();
     };
     window.closeQuickConnectModal = () => closeModal("quick-connect-modal");
+
+    // Network Stats Modal
+    window.openNetworkStatsModal = async () => {
+      openModal("network-stats-modal");
+      await loadNetworkStats();
+    };
+    window.closeNetworkStatsModal = () => closeModal("network-stats-modal");
 
     // Endorsements tabs
     window.showEndorsementsTab = showEndorsementsTab;
@@ -528,6 +548,98 @@ function bindEditProfileDelegation() {
     }
   }
 
+  async function loadNetworkStats() {
+    const container = $("network-stats-content");
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem; grid-column: 1 / -1;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading network stats…</p>
+    </div>`;
+
+    try {
+      const me = state.communityProfile;
+      if (!me?.id) throw new Error("Profile not loaded");
+
+      // Fetch connections
+      const { data: connections, error: connError } = await state.supabase
+        .from("connections")
+        .select("*")
+        .or(`from_user_id.eq.${me.id},to_user_id.eq.${me.id}`);
+
+      if (connError) throw connError;
+
+      const accepted = connections?.filter(c => c.status === 'accepted') || [];
+      const pending = connections?.filter(c => c.status === 'pending') || [];
+      const sentPending = pending.filter(c => c.from_user_id === me.id);
+      const receivedPending = pending.filter(c => c.to_user_id === me.id);
+
+      // Get all community members for network size
+      const { data: allMembers } = await state.supabase
+        .from("community")
+        .select("id");
+
+      const totalCommunity = allMembers?.length || 0;
+      const networkCoverage = totalCommunity > 0 ? Math.round((accepted.length / totalCommunity) * 100) : 0;
+
+      container.innerHTML = `
+        <div style="background: rgba(0,224,255,0.1); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
+          <div style="font-size: 2.5rem; font-weight: bold; color: #00e0ff; margin-bottom: 0.5rem;">${accepted.length}</div>
+          <div style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Total Connections</div>
+        </div>
+
+        <div style="background: rgba(255,170,0,0.1); border: 2px solid rgba(255,170,0,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
+          <div style="font-size: 2.5rem; font-weight: bold; color: #ffaa00; margin-bottom: 0.5rem;">${receivedPending.length}</div>
+          <div style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Pending Requests</div>
+        </div>
+
+        <div style="background: rgba(0,255,136,0.1); border: 2px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
+          <div style="font-size: 2.5rem; font-weight: bold; color: #00ff88; margin-bottom: 0.5rem;">${sentPending.length}</div>
+          <div style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Sent Requests</div>
+        </div>
+
+        <div style="background: rgba(138,43,226,0.1); border: 2px solid rgba(138,43,226,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
+          <div style="font-size: 2.5rem; font-weight: bold; color: #8a2be2; margin-bottom: 0.5rem;">${networkCoverage}%</div>
+          <div style="color: #aaa; font-size: 0.9rem; text-transform: uppercase;">Network Coverage</div>
+        </div>
+
+        <div style="grid-column: 1 / -1; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1.5rem; margin-top: 1rem;">
+          <h3 style="color: #00e0ff; margin-bottom: 1rem; font-size: 1.1rem;">
+            <i class="fas fa-chart-line"></i> Network Insights
+          </h3>
+          <div style="color: #ddd; line-height: 1.8;">
+            <div style="margin-bottom: 0.5rem;">
+              <i class="fas fa-users" style="color: #00e0ff; margin-right: 0.5rem;"></i>
+              You're connected to <strong style="color: #00e0ff;">${accepted.length}</strong> people in the community
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+              <i class="fas fa-globe" style="color: #00e0ff; margin-right: 0.5rem;"></i>
+              Total community size: <strong style="color: #00e0ff;">${totalCommunity}</strong> members
+            </div>
+            ${receivedPending.length > 0 ? `
+              <div style="margin-bottom: 0.5rem;">
+                <i class="fas fa-bell" style="color: #ffaa00; margin-right: 0.5rem;"></i>
+                <strong style="color: #ffaa00;">${receivedPending.length}</strong> people want to connect with you!
+              </div>
+            ` : ''}
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,224,255,0.2);">
+              <button onclick="scrollToSection('network')" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; width: 100%;">
+                <i class="fas fa-user-friends"></i> View Pending Requests
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+    } catch (e) {
+      console.error("Network stats failed:", e);
+      container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem; grid-column: 1 / -1;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Failed to load network stats</p>
+      </div>`;
+    }
+  }
+
   async function loadSuggestedConnections() {
     const list = $("quick-connect-list");
     if (!list) return;
@@ -660,7 +772,7 @@ function bindEditProfileDelegation() {
 
     listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
       <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
-      <p style="margin-top:1rem;">Loading conversations…</p>
+      <p style="margin-top:1rem;">Loading…</p>
     </div>`;
 
     messagesEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
@@ -670,74 +782,139 @@ function bindEditProfileDelegation() {
 
     try {
       await hydrateAuthUser();
-      if (!state.authUser) {
+      if (!state.authUser || !state.communityProfile) {
         listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">Please log in.</div>`;
         return;
       }
 
-      const { data: conversations, error } = await state.supabase
-        .from("conversations")
-        .select("*")
-        .or(`participant_1_id.eq.${state.authUser.id},participant_2_id.eq.${state.authUser.id}`)
-        .order("last_message_at", { ascending: false });
+      // Fetch both conversations and connections
+      const [conversationsResult, connectionsResult] = await Promise.all([
+        state.supabase
+          .from("conversations")
+          .select("*")
+          .or(`participant_1_id.eq.${state.authUser.id},participant_2_id.eq.${state.authUser.id}`)
+          .order("last_message_at", { ascending: false }),
 
-      if (error) throw error;
+        state.supabase
+          .from("connections")
+          .select(`
+            *,
+            from_user:community!connections_from_user_id_fkey(id, user_id, name, image_url),
+            to_user:community!connections_to_user_id_fkey(id, user_id, name, image_url)
+          `)
+          .or(`from_user_id.eq.${state.communityProfile.id},to_user_id.eq.${state.communityProfile.id}`)
+          .eq("status", "accepted")
+      ]);
 
-      if (!conversations || conversations.length === 0) {
-        listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
-          <i class="fas fa-comments" style="font-size:2rem; opacity:0.3;"></i>
-          <p style="margin-top:0.75rem;">No conversations yet</p>
-          <button class="btn btn-primary" style="margin-top:1rem;" onclick="closeMessagesModal(); openQuickConnectModal();">
-            <i class="fas fa-user-plus"></i> Find people
-          </button>
-        </div>`;
-        return;
-      }
+      const conversations = conversationsResult.data || [];
+      const connections = connectionsResult.data || [];
 
-      // Build participant map
-      const ids = new Set();
+      // Build participant map for conversations
+      const conversationUserIds = new Set();
       conversations.forEach((c) => {
-        if (c.participant_1_id !== state.authUser.id) ids.add(c.participant_1_id);
-        if (c.participant_2_id !== state.authUser.id) ids.add(c.participant_2_id);
+        if (c.participant_1_id !== state.authUser.id) conversationUserIds.add(c.participant_1_id);
+        if (c.participant_2_id !== state.authUser.id) conversationUserIds.add(c.participant_2_id);
       });
 
       const { data: profiles } = await state.supabase
         .from("community")
         .select("id, user_id, name, image_url")
-        .in("user_id", Array.from(ids));
+        .in("user_id", Array.from(conversationUserIds));
 
       const profileMap = {};
       (profiles || []).forEach((p) => (profileMap[p.user_id] = p));
 
-      listEl.innerHTML = conversations
-        .map((conv) => {
-          const otherId = conv.participant_1_id === state.authUser.id ? conv.participant_2_id : conv.participant_1_id;
-          const other = profileMap[otherId];
-          const otherName = other?.name || "Unknown";
-          const initials = otherName.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-          const timeAgo = conv.last_message_at ? formatTimeAgo(conv.last_message_at) : "";
+      // Build connections list (people you can message)
+      const connectionsList = connections.map(conn => {
+        const isFromUser = conn.from_user_id === state.communityProfile.id;
+        const otherUser = isFromUser ? conn.to_user : conn.from_user;
+        return otherUser;
+      }).filter(Boolean);
 
-          return `
-            <div onclick="openConversationById('${conv.id}', '${escapeHtml(otherName)}')"
-              style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem;
-              background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.1);
-              border-radius:8px; cursor:pointer; margin-bottom:0.5rem; transition:all 0.2s;">
-              ${
-                other?.image_url
-                  ? `<img src="${escapeHtml(other.image_url)}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
-                  : `<div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white;">${initials}</div>`
-              }
-              <div style="flex:1; min-width:0;">
-                <div style="color:white; font-weight:700; font-size:0.9rem;">${escapeHtml(otherName)}</div>
-                <div style="color:#aaa; font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                  ${escapeHtml(conv.last_message_preview || "No messages yet")}
-                </div>
-              </div>
-              <div style="color:#666; font-size:0.7rem;">${escapeHtml(timeAgo)}</div>
+      // Render the list with sections
+      let html = '';
+
+      // Connections section
+      if (connectionsList.length > 0) {
+        html += `
+          <div style="margin-bottom: 1rem;">
+            <div style="color: #00e0ff; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fas fa-users"></i> Your Connections
             </div>
-          `;
-        })
-        .join("");
+            ${connectionsList.map(conn => {
+              const name = conn.name || "Unknown";
+              const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+              return `
+                <div onclick="startConversationWithUser('${conn.user_id}', '${escapeHtml(name)}')"
+                  style="display:flex; align-items:center; gap:0.75rem; padding:0.65rem;
+                  background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.1);
+                  border-radius:8px; cursor:pointer; margin-bottom:0.4rem; transition:all 0.2s;">
+                  ${
+                    conn.image_url
+                      ? `<img src="${escapeHtml(conn.image_url)}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
+                      : `<div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.85rem;">${initials}</div>`
+                  }
+                  <div style="flex:1; min-width:0;">
+                    <div style="color:white; font-weight:700; font-size:0.85rem;">${escapeHtml(name)}</div>
+                    <div style="color:#00e0ff; font-size:0.7rem;">
+                      <i class="fas fa-comment-dots"></i> Message
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      // Existing conversations section
+      if (conversations.length > 0) {
+        html += `
+          <div>
+            <div style="color: #00e0ff; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fas fa-comments"></i> Recent Conversations
+            </div>
+            ${conversations.map((conv) => {
+              const otherId = conv.participant_1_id === state.authUser.id ? conv.participant_2_id : conv.participant_1_id;
+              const other = profileMap[otherId];
+              const otherName = other?.name || "Unknown";
+              const initials = otherName.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+              const timeAgo = conv.last_message_at ? formatTimeAgo(conv.last_message_at) : "";
+
+              return `
+                <div onclick="openConversationById('${conv.id}', '${escapeHtml(otherName)}')"
+                  style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem;
+                  background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.1);
+                  border-radius:8px; cursor:pointer; margin-bottom:0.5rem; transition:all 0.2s;">
+                  ${
+                    other?.image_url
+                      ? `<img src="${escapeHtml(other.image_url)}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
+                      : `<div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white;">${initials}</div>`
+                  }
+                  <div style="flex:1; min-width:0;">
+                    <div style="color:white; font-weight:700; font-size:0.9rem;">${escapeHtml(otherName)}</div>
+                    <div style="color:#aaa; font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                      ${escapeHtml(conv.last_message_preview || "No messages yet")}
+                    </div>
+                  </div>
+                  <div style="color:#666; font-size:0.7rem;">${escapeHtml(timeAgo)}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      if (!html) {
+        html = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-user-friends" style="font-size:2rem; opacity:0.3;"></i>
+          <p style="margin-top:0.75rem;">No connections yet</p>
+          <p style="font-size:0.85rem; color:#666; margin-top:0.5rem;">Connect with people to start messaging</p>
+        </div>`;
+      }
+
+      listEl.innerHTML = html;
+
     } catch (e) {
       console.error("loadConversationsForModal failed:", e);
       $("modal-conversations-list").innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
@@ -746,6 +923,45 @@ function bindEditProfileDelegation() {
       </div>`;
     }
   }
+
+  async function startConversationWithUser(otherUserId, otherUserName) {
+    try {
+      // Check if conversation already exists
+      const { data: existingConv } = await state.supabase
+        .from("conversations")
+        .select("id")
+        .or(`and(participant_1_id.eq.${state.authUser.id},participant_2_id.eq.${otherUserId}),and(participant_1_id.eq.${otherUserId},participant_2_id.eq.${state.authUser.id})`)
+        .single();
+
+      if (existingConv) {
+        // Open existing conversation
+        await openConversationById(existingConv.id, otherUserName);
+        return;
+      }
+
+      // Create new conversation
+      const { data: newConv, error } = await state.supabase
+        .from("conversations")
+        .insert({
+          participant_1_id: state.authUser.id,
+          participant_2_id: otherUserId,
+          last_message_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Open the new conversation
+      await openConversationById(newConv.id, otherUserName);
+
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      alert('Failed to start conversation: ' + error.message);
+    }
+  }
+
+  window.startConversationWithUser = startConversationWithUser;
 
   async function openConversationById(conversationId, name) {
     state.currentConversationId = conversationId;
@@ -1048,14 +1264,22 @@ function bindEditProfileDelegation() {
     try {
       let query;
       if (type === "received") {
+        // Fetch endorsements received with endorser details
         query = state.supabase
           .from("endorsements")
-          .select("*")
+          .select(`
+            *,
+            endorser:community!endorsements_endorser_community_id_fkey(id, name, image_url, bio)
+          `)
           .eq("endorsed_community_id", state.communityProfile.id);
       } else {
+        // Fetch endorsements given with endorsed person details
         query = state.supabase
           .from("endorsements")
-          .select("*")
+          .select(`
+            *,
+            endorsed:community!endorsements_endorsed_community_id_fkey(id, name, image_url, bio)
+          `)
           .eq("endorser_community_id", state.communityProfile.id);
       }
 
@@ -1070,29 +1294,60 @@ function bindEditProfileDelegation() {
         return;
       }
 
-      // Group by skill (if column exists)
-      const bySkill = {};
-      data.forEach((e) => {
-        const key = e.skill || "Endorsement";
-        bySkill[key] = bySkill[key] || [];
-        bySkill[key].push(e);
-      });
+      // Render individual endorsement cards with user info
+      container.innerHTML = data.map((endorsement) => {
+        const user = type === "received" ? endorsement.endorser : endorsement.endorsed;
+        const userName = user?.name || "Unknown User";
+        const userImage = user?.image_url || "https://via.placeholder.com/50";
+        const skill = endorsement.skill || "General";
+        const note = endorsement.note || endorsement.comment || "";
+        const createdDate = endorsement.created_at
+          ? new Date(endorsement.created_at).toLocaleDateString()
+          : "";
 
-      container.innerHTML = Object.entries(bySkill).map(([skill, list]) => `
-        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;
-          padding:1.25rem; margin-bottom:1rem;">
-          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
-            <i class="fas fa-star" style="color:#ffd700;"></i>
-            <div style="color:#00e0ff; font-weight:800;">${escapeHtml(skill)}</div>
-            <span style="margin-left:auto; background:rgba(0,224,255,0.2); color:#00e0ff; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.85rem;">
-              ${list.length}
-            </span>
+        return `
+          <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;
+            padding:1.25rem; margin-bottom:1rem; display:flex; gap:1rem; align-items:start;">
+
+            <!-- User Avatar -->
+            <img src="${escapeHtml(userImage)}"
+              style="width:50px; height:50px; border-radius:50%; object-fit:cover; flex-shrink:0;
+                border:2px solid rgba(0,224,255,0.3);"
+              onerror="this.src='https://via.placeholder.com/50'"
+              alt="${escapeHtml(userName)}">
+
+            <!-- Endorsement Details -->
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; flex-wrap:wrap;">
+                <div style="color:#00e0ff; font-weight:800; font-size:1rem;">
+                  ${escapeHtml(userName)}
+                </div>
+                <div style="color:#888; font-size:0.85rem;">
+                  ${type === "received" ? "endorsed you for" : "was endorsed for"}
+                </div>
+                <span style="background:rgba(255,215,0,0.2); color:#ffd700; padding:0.25rem 0.75rem;
+                  border-radius:12px; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.25rem;">
+                  <i class="fas fa-star"></i>
+                  ${escapeHtml(skill)}
+                </span>
+              </div>
+
+              ${note ? `
+                <div style="color:#ddd; font-size:0.95rem; line-height:1.5; margin-top:0.5rem;
+                  padding-left:0.5rem; border-left:2px solid rgba(0,224,255,0.3);">
+                  "${escapeHtml(note)}"
+                </div>
+              ` : ""}
+
+              ${createdDate ? `
+                <div style="color:#666; font-size:0.8rem; margin-top:0.5rem;">
+                  <i class="far fa-clock"></i> ${createdDate}
+                </div>
+              ` : ""}
+            </div>
           </div>
-          <div style="color:#ddd; font-size:0.9rem; line-height:1.5;">
-            ${list.map(x => escapeHtml(x.note || x.comment || "")).filter(Boolean).slice(0, 6).map(t => `• ${t}`).join("<br>") || "—"}
-          </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     } catch (e) {
       console.error("loadEndorsements failed:", e);
       container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
