@@ -297,9 +297,12 @@ const DailyEngagement = (function() {
   // ============================================================
 
   function initXPDisplay() {
-    // Add XP counter to header
-    const header = document.querySelector('.dashboard-header') || document.querySelector('header');
-    if (!header) return;
+    // Add XP counter to engagement displays container
+    const container = document.getElementById('engagement-displays');
+    if (!container) {
+      console.warn('Engagement displays container not found');
+      return;
+    }
 
     const xpDisplay = document.createElement('div');
     xpDisplay.id = 'xp-display';
@@ -333,13 +336,16 @@ const DailyEngagement = (function() {
       </div>
     `;
 
-    header.appendChild(xpDisplay);
+    container.appendChild(xpDisplay);
   }
 
   function initStreakDisplay() {
-    // Add streak counter to header
-    const header = document.querySelector('.dashboard-header') || document.querySelector('header');
-    if (!header) return;
+    // Add streak counter to engagement displays container
+    const container = document.getElementById('engagement-displays');
+    if (!container) {
+      console.warn('Engagement displays container not found');
+      return;
+    }
 
     const streakDisplay = document.createElement('div');
     streakDisplay.id = 'streak-display';
@@ -364,7 +370,7 @@ const DailyEngagement = (function() {
 
     streakDisplay.onclick = showStreakDetails;
 
-    header.appendChild(streakDisplay);
+    container.appendChild(streakDisplay);
   }
 
   function updateXPDisplay() {
@@ -604,16 +610,41 @@ window.DailyEngagement = DailyEngagement;
 
 // Auto-initialize when user logs in
 document.addEventListener('DOMContentLoaded', () => {
-  // Wait for auth to be ready
-  setTimeout(() => {
+  // Wait for Supabase to be ready
+  const waitForSupabase = () => {
     if (window.supabase) {
+      console.log('🎯 Daily Engagement: Supabase ready, setting up auth listener');
+
+      // Check if already logged in
+      window.supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          console.log('🎯 Daily Engagement: User already logged in, initializing');
+          DailyEngagement.init();
+        }
+      });
+
+      // Listen for auth state changes
       window.supabase.auth.onAuthStateChange((event, session) => {
+        console.log('🎯 Daily Engagement: Auth state changed:', event);
         if (event === 'SIGNED_IN' && session) {
           DailyEngagement.init();
         }
       });
+    } else {
+      // Retry after a short delay
+      setTimeout(waitForSupabase, 100);
     }
-  }, 1000);
+  };
+
+  waitForSupabase();
+});
+
+// Also initialize if profile-loaded event fires (fallback)
+window.addEventListener('profile-loaded', () => {
+  if (!state.initialized && window.supabase) {
+    console.log('🎯 Daily Engagement: Profile loaded, initializing');
+    DailyEngagement.init();
+  }
 });
 
 console.log('✅ Daily engagement ready');
