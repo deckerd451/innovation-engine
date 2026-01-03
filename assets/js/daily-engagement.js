@@ -347,7 +347,14 @@ const DailyEngagement = (function() {
       return;
     }
 
-    const xpDisplay = document.createElement('div');
+    // Check if XP display already exists - if so, just update it
+    let xpDisplay = document.getElementById('xp-display');
+    if (xpDisplay) {
+      updateXPDisplay();
+      return;
+    }
+
+    xpDisplay = document.createElement('div');
     xpDisplay.id = 'xp-display';
     xpDisplay.style.cssText = `
       display: flex;
@@ -390,7 +397,14 @@ const DailyEngagement = (function() {
       return;
     }
 
-    const streakDisplay = document.createElement('div');
+    // Check if streak display already exists - if so, just update it
+    let streakDisplay = document.getElementById('streak-display');
+    if (streakDisplay) {
+      updateStreakDisplay();
+      return;
+    }
+
+    streakDisplay = document.createElement('div');
     streakDisplay.id = 'streak-display';
     streakDisplay.style.cssText = `
       display: flex;
@@ -414,6 +428,16 @@ const DailyEngagement = (function() {
     streakDisplay.onclick = showStreakDetails;
 
     container.appendChild(streakDisplay);
+  }
+
+  function updateStreakDisplay() {
+    const streakDisplay = document.getElementById('streak-display');
+    if (!streakDisplay) return;
+
+    const streakText = streakDisplay.querySelector('div > div');
+    if (streakText) {
+      streakText.textContent = `${state.streak} Day Streak`;
+    }
   }
 
   function updateXPDisplay() {
