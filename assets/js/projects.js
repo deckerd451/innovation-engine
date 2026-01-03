@@ -52,7 +52,7 @@ export async function createProject(event) {
   const { data, error } = await supabase
     .from('projects')
     .insert([{
-      name,
+      title: name,
       description,
       required_skills: skills,
       creator_id: currentUserProfile.id,
