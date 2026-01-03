@@ -161,6 +161,11 @@ const DailyEngagement = (function() {
   }
 
   async function awardXP(amount, reason) {
+    if (!state.userStats) {
+      console.warn('⚠️ Cannot award XP: user stats not loaded');
+      return { didLevelUp: false, newLevel: state.level, totalXP: state.xp };
+    }
+
     state.xp += amount;
 
     // Check for level up
@@ -172,15 +177,23 @@ const DailyEngagement = (function() {
       showLevelUpNotification(newLevel);
     }
 
-    // Update database
-    await state.supabase
-      .from('community')
-      .update({
-        xp: state.xp,
-        level: state.level,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', state.currentUser.id);
+    // Update database using the community profile id, not auth user_id
+    try {
+      const { error } = await state.supabase
+        .from('community')
+        .update({
+          xp: state.xp,
+          level: state.level,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', state.currentUser.id);
+
+      if (error) {
+        console.error('❌ Error updating XP in database:', error);
+      }
+    } catch (err) {
+      console.error('❌ Failed to update XP:', err);
+    }
 
     // Update UI
     updateXPDisplay();
@@ -243,13 +256,21 @@ const DailyEngagement = (function() {
     await awardXP(XP_REWARDS.DAILY_LOGIN, 'Daily login');
 
     // Update last login and streak in database
-    await state.supabase
-      .from('community')
-      .update({
-        last_login: new Date().toISOString(),
-        login_streak: newStreak
-      })
-      .eq('user_id', state.currentUser.id);
+    try {
+      const { error } = await state.supabase
+        .from('community')
+        .update({
+          last_login: new Date().toISOString(),
+          login_streak: newStreak
+        })
+        .eq('user_id', state.currentUser.id);
+
+      if (error) {
+        console.error('❌ Error updating streak in database:', error);
+      }
+    } catch (err) {
+      console.error('❌ Failed to update streak:', err);
+    }
 
     // Reset daily quests
     await resetDailyQuests();
