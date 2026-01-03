@@ -134,15 +134,16 @@ async function renderPersonPanel(nodeData) {
   let connectionId = null;
 
   if (currentUserProfile && profile.id !== currentUserProfile.id) {
-    const { data: connection } = await supabase
+    const { data: connections } = await supabase
       .from('connections')
       .select('id, status')
       .or(`and(from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${profile.id}),and(from_user_id.eq.${profile.id},to_user_id.eq.${currentUserProfile.id})`)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    if (connection) {
-      connectionStatus = connection.status;
-      connectionId = connection.id;
+    if (connections && connections.length > 0) {
+      connectionStatus = connections[0].status;
+      connectionId = connections[0].id;
     }
   }
 
