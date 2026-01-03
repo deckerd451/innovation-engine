@@ -939,12 +939,34 @@ function bindEditProfileDelegation() {
         return;
       }
 
-      // Create new conversation
+      // Get community IDs for both users
+      const { data: myCommunity } = await state.supabase
+        .from("community")
+        .select("id")
+        .eq("user_id", state.authUser.id)
+        .single();
+
+      const { data: otherCommunity } = await state.supabase
+        .from("community")
+        .select("id")
+        .eq("user_id", otherUserId)
+        .single();
+
+      if (!myCommunity?.id || !otherCommunity?.id) {
+        throw new Error("Could not find community profiles");
+      }
+
+      // Sort participant IDs to match unique constraint
+      const [p1, p2] = myCommunity.id < otherCommunity.id
+        ? [myCommunity.id, otherCommunity.id]
+        : [otherCommunity.id, myCommunity.id];
+
+      // Create new conversation with community IDs
       const { data: newConv, error } = await state.supabase
         .from("conversations")
         .insert({
-          participant_1_id: state.authUser.id,
-          participant_2_id: otherUserId,
+          participant_1_id: p1,
+          participant_2_id: p2,
           last_message_at: new Date().toISOString()
         })
         .select()
@@ -988,7 +1010,7 @@ function bindEditProfileDelegation() {
 
       if (error) throw error;
 
-      const myCommunityId = state.communityProfile?.id;
+      const myAuthId = state.authUser?.id;
 
       if (!messages || messages.length === 0) {
         messagesEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
@@ -1000,7 +1022,7 @@ function bindEditProfileDelegation() {
 
       messagesEl.innerHTML = messages
         .map((m) => {
-          const isMine = myCommunityId && m.sender_id === myCommunityId;
+          const isMine = myAuthId && m.sender_id === myAuthId;
           const time = new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
           return `
             <div style="margin-bottom:1rem; text-align:${isMine ? "right" : "left"};">
@@ -1038,11 +1060,11 @@ function bindEditProfileDelegation() {
     }
 
     try {
-      if (!state.communityProfile?.id) throw new Error("No community profile loaded.");
+      if (!state.authUser?.id) throw new Error("Not authenticated.");
 
       const { error } = await state.supabase.from("messages").insert({
         conversation_id: state.currentConversationId,
-        sender_id: state.communityProfile.id,
+        sender_id: state.authUser.id,
         content: text,
         read: false,
       });
