@@ -1,13 +1,12 @@
-/* 
+/*
  * Direct Messaging System — Fixed + Fully Functional Module (RLS-safe)
  * File: assets/js/messaging.js
  *
  * ✅ Fixes:
- * - Uses COMMUNITY IDs everywhere required by your schema + RLS
+ * - Uses correct IDs for schema + RLS:
  *   - conversations.participant_1_id / participant_2_id are community.id
- *   - messages.sender_id is community.id
+ *   - messages.sender_id is auth.users(id) - the auth user ID
  * - Correctly filters conversations by communityId (not auth uid)
- * - Correctly looks up sender by community.id (not user_id)
  * - Avoids 406 errors by using maybeSingle()-style logic
  * - Avoids duplicate conversations by sorting participants (matches unique_participants index)
  * - Works even if callers pass auth user_id OR community.id (auto-resolves to community.id)
@@ -16,7 +15,7 @@
  * - window.supabase must exist (from supabaseClient.js)
  * - Tables:
  *   - conversations(participant_1_id uuid, participant_2_id uuid, context_type, context_id, context_title, last_message_at, last_message_preview)
- *   - messages(conversation_id uuid, sender_id uuid, content text, read bool, private bool, ...)
+ *   - messages(conversation_id uuid, sender_id uuid REFERENCES auth.users(id), content text, read bool, ...)
  * - RLS policies already present (yours are)
  */
 
@@ -214,12 +213,10 @@ const MessagingModule = (function () {
   async function loadMessages(conversationId) {
     requireReady();
 
+    // Fetch messages
     const { data, error } = await window.supabase
       .from("messages")
-      .select(`
-        *,
-        sender:community!messages_sender_id_fkey(id, name, image_url)
-      `)
+      .select("*")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true });
 
@@ -228,7 +225,26 @@ const MessagingModule = (function () {
       return;
     }
 
-    state.messages = data || [];
+    // Get unique sender IDs (auth user IDs)
+    const senderIds = [...new Set((data || []).map(m => m.sender_id))];
+
+    // Fetch sender info from community table
+    const { data: senders } = await window.supabase
+      .from("community")
+      .select("id, user_id, name, image_url")
+      .in("user_id", senderIds);
+
+    // Create a map of user_id -> community profile
+    const senderMap = {};
+    (senders || []).forEach(s => {
+      senderMap[s.user_id] = { id: s.id, name: s.name, image_url: s.image_url };
+    });
+
+    // Attach sender info to messages
+    state.messages = (data || []).map(msg => ({
+      ...msg,
+      sender: senderMap[msg.sender_id] || null
+    }));
 
     // Mark as read (only messages not sent by me)
     await markMessagesAsRead(conversationId);
@@ -373,12 +389,12 @@ const MessagingModule = (function () {
     try {
       const messageText = content.trim();
 
-      // ✅ IMPORTANT: sender_id must be community.id
+      // ✅ IMPORTANT: sender_id must be auth user ID (not community.id)
       const { data, error } = await window.supabase
         .from("messages")
         .insert({
           conversation_id: state.activeConversation.id,
-          sender_id: state.currentUser.communityId,
+          sender_id: state.currentUser.authId,
           content: messageText,
           read: false,
           private: false
@@ -416,7 +432,7 @@ const MessagingModule = (function () {
       .from("messages")
       .update({ read: true })
       .eq("conversation_id", conversationId)
-      .neq("sender_id", state.currentUser.communityId)
+      .neq("sender_id", state.currentUser.authId)
       .eq("read", false);
   }
 
@@ -446,11 +462,11 @@ const MessagingModule = (function () {
           let isActive = state.activeConversation && newMessage.conversation_id === state.activeConversation.id;
 
           if (isActive) {
-            // Fetch sender by community.id (NOT by user_id)
+            // Fetch sender by auth user_id (sender_id is auth.users.id)
             const { data: sender } = await window.supabase
               .from("community")
               .select("id, name, image_url")
-              .eq("id", newMessage.sender_id)
+              .eq("user_id", newMessage.sender_id)
               .single()
               .catch(() => ({ data: null }));
 
@@ -465,7 +481,7 @@ const MessagingModule = (function () {
             if (area) area.scrollTop = area.scrollHeight;
 
             // Mark as read if it's not mine
-            if (newMessage.sender_id !== state.currentUser.communityId) {
+            if (newMessage.sender_id !== state.currentUser.authId) {
               await markMessagesAsRead(state.activeConversation.id);
             }
           }
@@ -650,7 +666,7 @@ const MessagingModule = (function () {
 
     container.innerHTML = state.messages
       .map((msg) => {
-        const isSent = msg.sender_id === state.currentUser.communityId;
+        const isSent = msg.sender_id === state.currentUser.authId;
         const senderName = isSent ? "You" : (msg.sender?.name || "Unknown");
         const initials = senderName.substring(0, 2).toUpperCase();
         const timestamp = formatTime(msg.created_at);
