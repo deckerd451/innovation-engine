@@ -622,13 +622,24 @@ window.withdrawConnectionFromPanel = async function(userId) {
       return;
     }
 
-    // Find the connection where current user is the requester
-    const { data: connection, error: findError } = await supabase
+    // Show confirmation dialog
+    const confirmed = confirm(
+      '⚠️ Are you sure you want to withdraw this connection request?\n\n' +
+      'If you proceed, you will need to send a new connection request to connect with this person again.'
+    );
+
+    if (!confirmed) {
+      return; // User cancelled
+    }
+
+    // Find the connection where current user is the requester (handle duplicates)
+    const { data: connections, error: findError } = await supabase
       .from('connections')
       .select('id, from_user_id')
       .or(`and(from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${userId}),and(from_user_id.eq.${userId},to_user_id.eq.${currentUserProfile.id})`)
       .eq('status', 'pending')
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1);
 
     if (findError) {
       console.error('Error finding connection:', findError);
@@ -636,10 +647,12 @@ window.withdrawConnectionFromPanel = async function(userId) {
       return;
     }
 
-    if (!connection) {
+    if (!connections || connections.length === 0) {
       alert('No pending connection request found');
       return;
     }
+
+    const connection = connections[0];
 
     // Only allow withdrawal if current user is the one who sent the request
     if (connection.from_user_id !== currentUserProfile.id) {
@@ -659,7 +672,7 @@ window.withdrawConnectionFromPanel = async function(userId) {
       return;
     }
 
-    showToastNotification('Connection request withdrawn', 'info');
+    showToastNotification('✓ Connection request withdrawn', 'info');
 
     // Reload panel to update connection status
     await loadNodeDetails(currentNodeData);

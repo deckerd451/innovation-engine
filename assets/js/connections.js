@@ -124,22 +124,27 @@ export async function declineConnectionRequest(id) {
 }
 
 /**
- * FIXED: Correct logical string for PostgREST
- * Removed unnecessary parentheses and validated spacing
+ * Get connection between two users - handles duplicates gracefully
+ * Returns the most recent connection if duplicates exist
  */
 export async function getConnectionBetween(id1, id2) {
   if (!id1 || !id2) return null;
-  
+
   const filter = `and(from_user_id.eq.${id1},to_user_id.eq.${id2}),and(from_user_id.eq.${id2},to_user_id.eq.${id1})`;
-  
+
   const { data, error } = await supabase
     .from('connections')
     .select('*')
     .or(filter)
-    .maybeSingle();
-    
-  if (error) console.error('Supabase Query Error:', error);
-  return data;
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error('Supabase Query Error:', error);
+    return null;
+  }
+
+  return data && data.length > 0 ? data[0] : null;
 }
 
 export async function getConnectionStatus(targetId) {
