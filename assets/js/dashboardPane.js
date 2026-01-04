@@ -1423,4 +1423,7 @@ function bindEditProfileDelegation() {
       $("fab-bbs-trigger")?.click();
     }
   }
+
+  // Legacy global helpers (if HTML close buttons still call these)
+  window.toggleFilters = toggleFilters;
 })();

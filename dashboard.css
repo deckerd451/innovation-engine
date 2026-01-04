@@ -1425,3 +1425,119 @@
     #logout-btn {
       display: none !important;
     }
+
+
+/* ================================================================
+   Network Filters Modal (FIXED)
+   ================================================================ */
+.ch-modal-open { overflow: hidden; }
+
+.ch-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+}
+
+.ch-modal-overlay.hidden { display: none; }
+
+.ch-modal-panel {
+  width: min(720px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(0,224,255,0.35);
+  background: radial-gradient(circle at 20% 0%, rgba(0,224,255,0.08), rgba(0,0,0,0.92) 55%);
+  box-shadow: 0 0 40px rgba(0,224,255,0.20);
+  color: #fff;
+}
+
+.ch-modal-header, .ch-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  position: sticky;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(10px);
+  z-index: 1;
+}
+
+.ch-modal-header { top: 0; border-bottom: 1px solid rgba(0,224,255,0.18); }
+.ch-modal-footer { bottom: 0; border-top: 1px solid rgba(0,224,255,0.18); gap: 10px; }
+
+.ch-modal-title { display: flex; align-items: center; gap: 10px; font-weight: 700; color: #00e0ff; }
+.ch-modal-close {
+  width: 40px; height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,224,255,0.35);
+  background: rgba(0,0,0,0.35);
+  color: #00e0ff;
+  font-size: 22px;
+  cursor: pointer;
+}
+.ch-modal-close:hover { background: rgba(0,224,255,0.12); }
+
+.ch-modal-body { padding: 16px; display: grid; gap: 16px; }
+
+.ch-field { display: grid; gap: 8px; }
+.ch-label { color: rgba(255,255,255,0.86); font-weight: 600; font-size: 0.95rem; }
+.ch-help { color: rgba(255,255,255,0.55); font-size: 0.85rem; }
+
+.ch-input {
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,224,255,0.25);
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  outline: none;
+}
+.ch-input:focus { border-color: rgba(0,224,255,0.55); box-shadow: 0 0 0 3px rgba(0,224,255,0.10); }
+
+.ch-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+
+.ch-btn {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,224,255,0.25);
+  background: rgba(0,0,0,0.35);
+  color: #00e0ff;
+  cursor: pointer;
+  font-weight: 700;
+}
+.ch-btn:hover { background: rgba(0,224,255,0.12); }
+
+.ch-btn-primary {
+  border-color: rgba(201,163,94,0.55);
+  background: linear-gradient(135deg, rgba(201,163,94,0.95), rgba(0,224,255,0.35));
+  color: #000;
+}
+.ch-btn-primary:hover { filter: brightness(1.05); }
+
+.ch-btn-ghost {
+  border-color: rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.85);
+}
+
+.ch-chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.ch-chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,224,255,0.25);
+  background: rgba(0,0,0,0.25);
+  color: rgba(255,255,255,0.88);
+  cursor: pointer;
+  font-weight: 600;
+}
+.ch-chip-on {
+  border-color: rgba(0,224,255,0.55);
+  box-shadow: 0 0 18px rgba(0,224,255,0.18);
+  color: #00e0ff;
+}
+.ch-chip-off:hover { background: rgba(0,224,255,0.10); }
