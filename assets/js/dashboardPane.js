@@ -1,5 +1,5 @@
 /* ==========================================================================
- * CharlestonHacks Innovation Engine — Dashboard Pane Controller (Messaging-fixed)
+ * CharlestonHacks Innovation Engine — Dashboard Pane Controller (Messaging-fixed v2)
  * File: assets/js/dashboardPane.js
  *
  * KEY RULE (based on your Supabase):
@@ -8,6 +8,13 @@
  * - connections.*_user_id = community.id
  * - conversations.participant_*_id = community.id
  * - messages.sender_id = community.id
+ *
+ * Primary fix in this version:
+ * - Bulletproof messaging UI wiring:
+ *   - Enter-to-send
+ *   - paper-plane click even without IDs
+ *   - form submit wiring
+ *   - rebind when modal DOM changes (MutationObserver)
  * ========================================================================== */
 
 import { supabase as importedSupabase } from "./supabaseClient.js";
@@ -76,6 +83,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     wireUI();
     wireGlobalFunctions();
     bindEditProfileDelegation();
+
+    // Messaging UI wiring needs sendModalMessage to exist first (wireGlobalFunctions sets it)
+    wireMessagingUI();
 
     // Listen for other modules providing profile
     window.addEventListener("profile-loaded", async (e) => {
@@ -162,11 +172,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     window.openMessagesModal = async () => {
       openModal("messages-modal");
+      // ensure messaging UI bindings exist even if modal DOM is injected late
+      wireMessagingUI();
       await loadConversationsForModal();
     };
     window.closeMessagesModal = () => {
       closeModal("messages-modal");
-      // stop realtime when modal closes
       cleanupMessageChannel();
     };
 
@@ -210,6 +221,85 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     window.openConversationById = openConversationById;
     window.sendModalMessage = sendModalMessage;
     window.startConversationWithUser = startConversationWithUser;
+  }
+
+  // -----------------------------
+  // Messaging UI Wiring (bulletproof)
+  // -----------------------------
+  function wireMessagingUI() {
+    // run once per page load
+    if (window.__IE_MSG_WIRED__) return;
+    window.__IE_MSG_WIRED__ = true;
+
+    const tryFindInput = () =>
+      document.getElementById("modal-message-text") ||
+      document.querySelector("#messages-modal input[type='text']") ||
+      document.querySelector("#messages-modal textarea") ||
+      document.querySelector(".messages-modal input[type='text']") ||
+      document.querySelector(".messages-modal textarea");
+
+    const tryFindForm = () =>
+      document.getElementById("modal-message-form") ||
+      tryFindInput()?.closest("form") ||
+      document.querySelector("#messages-modal form") ||
+      document.querySelector(".messages-modal form");
+
+    const bindOnce = () => {
+      const input = tryFindInput();
+      const form = tryFindForm();
+
+      // Enter-to-send (no shift)
+      if (input && !input.__ieBoundEnter) {
+        input.__ieBoundEnter = true;
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            window.sendModalMessage?.(e);
+          }
+        });
+      }
+
+      // Submit-to-send
+      if (form && !form.__ieBoundSubmit) {
+        form.__ieBoundSubmit = true;
+        form.addEventListener("submit", (e) => window.sendModalMessage?.(e));
+      }
+    };
+
+    // Bind now (in case modal is already in DOM)
+    bindOnce();
+
+    // Paper-plane click (works even if button has no id)
+    if (!document.__ieBoundSendClick) {
+      document.__ieBoundSendClick = true;
+      document.addEventListener("click", (e) => {
+        const btn =
+          e.target?.closest?.("#modal-send-message") ||
+          e.target?.closest?.(".modal-send-message") ||
+          e.target?.closest?.("[data-action='send-message']") ||
+          e.target?.closest?.("#messages-modal button[type='submit']") ||
+          e.target?.closest?.(".messages-modal button[type='submit']");
+
+        if (!btn) return;
+
+        const inModal = btn.closest("#messages-modal") || btn.closest(".messages-modal");
+        if (!inModal) return;
+
+        e.preventDefault();
+        window.sendModalMessage?.(e);
+      });
+    }
+
+    // Rebind when modal DOM changes (covers late-rendered inputs)
+    const modal =
+      document.getElementById("messages-modal") ||
+      document.querySelector(".messages-modal");
+
+    if (modal && !modal.__ieBoundObserver) {
+      modal.__ieBoundObserver = true;
+      const obs = new MutationObserver(() => bindOnce());
+      obs.observe(modal, { childList: true, subtree: true });
+    }
   }
 
   // -----------------------------
@@ -420,12 +510,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   }
 
   async function countUnreadMessages() {
-    // Unread = messages.read = false AND sender != me AND message is in a conversation I’m in.
-    // Your schema doesn’t store recipient id, so “unread messages for me” is an approximation.
+    // Approximation: unread messages from others (no per-recipient column in schema)
     if (!state.communityProfile?.id) return;
 
     try {
-      // Best-effort: count unread where sender != me.
       const { count, error } = await state.supabase
         .from("messages")
         .select("id", { count: "exact", head: true })
@@ -648,7 +736,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   };
 
   // -----------------------------
-  // Messaging (WORKING with community.id)
+  // Messaging (community.id everywhere)
   // -----------------------------
   async function loadConversationsForModal() {
     const listEl = $("modal-conversations-list");
@@ -676,7 +764,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       const myCommunityId = state.communityProfile.id;
 
-      // Fetch conversations + accepted connections (both keyed by community.id)
       const [conversationsResult, connectionsResult] = await Promise.all([
         state.supabase
           .from("conversations")
@@ -700,7 +787,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       const conversations = conversationsResult.data || [];
       const connections = connectionsResult.data || [];
 
-      // Collect "other participant" community ids from conversations, then fetch profiles by community.id
+      // map other participant profiles
       const otherCommunityIds = new Set();
       conversations.forEach((c) => {
         if (c.participant_1_id && c.participant_1_id !== myCommunityId) otherCommunityIds.add(c.participant_1_id);
@@ -719,7 +806,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         }
       }
 
-      // Build list of “people you can message” from accepted connections
       const connectionsList = connections
         .map((conn) => {
           const isFromMe = conn.from_user_id === myCommunityId;
@@ -727,7 +813,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         })
         .filter(Boolean);
 
-      // Render
       let html = "";
 
       if (connectionsList.length > 0) {
@@ -747,7 +832,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
                   .join("")
                   .toUpperCase();
 
-                // IMPORTANT: conn.id is community.id
                 return `
                   <div onclick="startConversationWithUser('${conn.id}', '${escapeHtml(name)}')"
                     style="display:flex; align-items:center; gap:0.75rem; padding:0.65rem;
@@ -843,7 +927,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (!state.communityProfile?.id) throw new Error("No community profile loaded.");
       const myId = state.communityProfile.id;
 
-      // 1) Try find existing conversation (ORDER-INDEPENDENT), but allow “not found”
       const { data: existingConv, error: existingErr } = await state.supabase
         .from("conversations")
         .select("id")
@@ -859,7 +942,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         return;
       }
 
-      // 2) Create canonical ordered pair (community ids)
       const [p1, p2] = String(myId) < String(otherCommunityId) ? [myId, otherCommunityId] : [otherCommunityId, myId];
 
       const { data: newConv, error: createErr } = await state.supabase
@@ -890,6 +972,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     const inputWrap = $("modal-message-input");
     if (inputWrap) inputWrap.style.display = "block";
+
+    // ensure send wiring exists for newly rendered input/buttons
+    wireMessagingUI();
 
     await loadMessagesForConversation(conversationId);
     subscribeToConversationMessages(conversationId);
@@ -968,14 +1053,14 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       const { error } = await state.supabase.from("messages").insert({
         conversation_id: state.currentConversationId,
-        sender_id: state.communityProfile.id, // COMMUNITY ID (matches your DB)
+        sender_id: state.communityProfile.id, // community.id
         content: text,
         read: false,
       });
 
       if (error) throw error;
 
-      // Update conversation preview (best-effort)
+      // best-effort: update conversation preview
       await state.supabase
         .from("conversations")
         .update({
@@ -986,7 +1071,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       if (input) input.value = "";
 
-      // Realtime will also refresh, but do it once here for instant UX
+      // fast UX
       await loadMessagesForConversation(state.currentConversationId);
       await refreshCounters();
     } catch (e) {
@@ -1030,7 +1115,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   }
 
   // -----------------------------
-  // Projects (unchanged behavior)
+  // Projects
   // -----------------------------
   function showCreateProjectForm() {
     $("project-form") && ($("project-form").style.display = "block");
@@ -1053,7 +1138,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       await hydrateAuthUser();
       if (!state.authUser) throw new Error("Please log in.");
 
-      // creator_id is community.id in your schema patterns
       if (!state.communityProfile?.id) await ensureCommunityProfile();
       if (!state.communityProfile?.id) throw new Error("Profile not found.");
 
@@ -1170,7 +1254,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   }
 
   // -----------------------------
-  // Endorsements (kept as-is calls; uses community ids already)
+  // Endorsements
   // -----------------------------
   async function showEndorsementsTab(tab) {
     const btnR = $("endorsements-tab-received");
@@ -1298,7 +1382,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   }
 
   // -----------------------------
-  // Network stats (kept from your existing behavior)
+  // Network stats
   // -----------------------------
   async function loadNetworkStats() {
     const container = $("network-stats-content");
