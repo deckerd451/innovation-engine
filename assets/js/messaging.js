@@ -299,17 +299,18 @@ const MessagingModule = (function () {
       const [p1, p2] = sortedPair(myCid, otherCid);
 
       // 1) Try to find existing (use unique index order)
-      const findQuery = window.supabase
+      const { data: existing, error: findError } = await window.supabase
         .from("conversations")
         .select("*")
         .eq("participant_1_id", p1)
-        .eq("participant_2_id", p2);
+        .eq("participant_2_id", p2)
+        .limit(1)
+        .single();
 
-      const findRes = findQuery.maybeSingle
-        ? await findQuery.maybeSingle()
-        : await findQuery.limit(1);
-
-      const existing = Array.isArray(findRes.data) ? findRes.data[0] : findRes.data;
+      // Ignore PGRST116 error (no rows returned), but throw other errors
+      if (findError && findError.code !== 'PGRST116') {
+        console.error("Error finding conversation:", findError);
+      }
 
       let convo = existing;
 
@@ -335,18 +336,20 @@ const MessagingModule = (function () {
 
         if (createErr) {
           // If we hit duplicate due to race, re-fetch
-          if (String(createErr.code || "").includes("23505")) {
-            const refetch = window.supabase
+          if (String(createErr.code || "").includes("23505") || createErr.message?.includes("unique_participants")) {
+            const { data: refetched, error: refetchErr } = await window.supabase
               .from("conversations")
               .select("*")
               .eq("participant_1_id", p1)
-              .eq("participant_2_id", p2);
+              .eq("participant_2_id", p2)
+              .limit(1)
+              .single();
 
-            const refRes = refetch.maybeSingle
-              ? await refetch.maybeSingle()
-              : await refetch.limit(1);
+            if (refetchErr && refetchErr.code !== 'PGRST116') {
+              console.error("Error refetching conversation:", refetchErr);
+            }
 
-            convo = Array.isArray(refRes.data) ? refRes.data[0] : refRes.data;
+            convo = refetched;
           } else {
             throw createErr;
           }

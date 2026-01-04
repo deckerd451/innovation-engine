@@ -385,9 +385,9 @@ const EndorsementsModule = (function() {
       }
       
       const endorsements = skills.map(skill => ({
-        endorser_id: endorserProfile?.user_id,        // Auth user UUID
+        endorser_id: endorserProfile?.id,             // Community UUID (fixed FK constraint)
         endorser_community_id: endorserProfile?.id,   // Community UUID
-        endorsed_id: endorsedProfile?.user_id,        // Auth user UUID
+        endorsed_id: endorsedProfile?.id,             // Community UUID (fixed FK constraint)
         endorsed_community_id: endorsedProfile?.id,   // Community UUID
         skill: skill
       }));
