@@ -7,7 +7,7 @@
 -- 0. ENSURE COMMUNITY TABLE HAS REQUIRED COLUMNS
 -- ============================================================================
 
--- Add user_id column if missing (links to auth.users)
+-- Step 1: Add user_id column if missing (without constraints first)
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -16,29 +16,48 @@ BEGIN
     AND table_name = 'community'
     AND column_name = 'user_id'
   ) THEN
-    ALTER TABLE public.community
-    ADD COLUMN user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
-
+    ALTER TABLE public.community ADD COLUMN user_id UUID;
     RAISE NOTICE '✓ Added user_id column to community table';
   ELSE
     RAISE NOTICE '✓ user_id column already exists in community table';
   END IF;
 END $$;
 
--- Create index on user_id for better performance
+-- Step 2: Add foreign key constraint if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'community_user_id_fkey'
+    AND conrelid = 'public.community'::regclass
+  ) THEN
+    ALTER TABLE public.community
+    ADD CONSTRAINT community_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+    RAISE NOTICE '✓ Added foreign key constraint on community.user_id';
+  ELSE
+    RAISE NOTICE '✓ Foreign key constraint already exists on community.user_id';
+  END IF;
+END $$;
+
+-- Step 3: Create index on user_id for better performance
 CREATE INDEX IF NOT EXISTS idx_community_user_id ON public.community(user_id);
 
--- Add UNIQUE constraint if not exists
+-- Step 4: Add UNIQUE constraint if not exists
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'community_user_id_key'
+    AND conrelid = 'public.community'::regclass
   ) THEN
     ALTER TABLE public.community
     ADD CONSTRAINT community_user_id_key UNIQUE (user_id);
 
     RAISE NOTICE '✓ Added unique constraint on community.user_id';
+  ELSE
+    RAISE NOTICE '✓ Unique constraint already exists on community.user_id';
   END IF;
 END $$;
 
