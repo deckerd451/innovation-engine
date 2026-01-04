@@ -106,6 +106,13 @@ export async function sendConnectionRequest(recipientId, targetName = 'User', ty
 
     showToast(`✓ Request sent to ${targetName}!`, 'success');
     updateConnectionUI(recipientId);
+
+    // Award XP and update quest progress
+    if (window.DailyEngagement) {
+      await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.SEND_CONNECTION, `Sent connection to ${targetName}`);
+      await window.DailyEngagement.updateQuestProgress('send_connection', 1);
+    }
+
     return { success: true };
   } catch (err) {
     return { success: false };
@@ -114,7 +121,16 @@ export async function sendConnectionRequest(recipientId, targetName = 'User', ty
 
 export async function acceptConnectionRequest(id) {
   const { error } = await supabase.from('connections').update({ status: 'accepted' }).eq('id', id);
-  if (!error) showToast('Accepted!', 'success');
+
+  if (!error) {
+    showToast('Accepted!', 'success');
+
+    // Award XP for accepting connection
+    if (window.DailyEngagement) {
+      await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.ACCEPT_CONNECTION, 'Accepted connection request');
+    }
+  }
+
   return { success: !error };
 }
 

@@ -65,7 +65,12 @@ export async function createProject(event) {
     alert('Error creating project. Please try again.');
     return;
   }
-  
+
+  // Award XP for creating project
+  if (window.DailyEngagement) {
+    await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.CREATE_PROJECT, `Created project: ${name}`);
+  }
+
   hideCreateProjectForm();
   await loadProjects();
 }
@@ -164,7 +169,7 @@ async function loadProjects() {
     html += `
       <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-          <h3 style="color: #00e0ff; margin: 0; font-size: 1.1rem;">${project.name}</h3>
+          <h3 style="color: #00e0ff; margin: 0; font-size: 1.1rem;">${project.title}</h3>
           ${isOwner ? '<span style="background: rgba(0,224,255,0.2); color: #00e0ff; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem;">Your Project</span>' : ''}
         </div>
         <p style="color: #aaa; font-size: 0.85rem; margin-bottom: 0.5rem;">by ${project.creator?.name || 'Unknown'}</p>
