@@ -1264,8 +1264,7 @@ window.manageProjectRequests = async function(projectId) {
         user:community(id, name, image_url, bio, skills)
       `)
       .eq('project_id', projectId)
-      .eq('role', 'pending')
-      .order('created_at', { ascending: true });
+      .eq('role', 'pending');
 
     if (error) throw error;
 
