@@ -396,8 +396,7 @@ const MessagingModule = (function () {
           conversation_id: state.activeConversation.id,
           sender_id: state.currentUser.authId,
           content: messageText,
-          read: false,
-          private: false
+          read: false
         })
         .select()
         .single();

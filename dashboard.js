@@ -101,7 +101,7 @@ async function loadCommunityStats() {
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .in('conversation_id', convIds)
-        .neq('sender_id', currentUserProfile.id)
+        .neq('sender_id', currentUser.id)
         .eq('read', false);
       
       unreadCount = count || 0;

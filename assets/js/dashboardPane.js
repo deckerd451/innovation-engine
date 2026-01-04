@@ -439,13 +439,13 @@ function bindEditProfileDelegation() {
   }
 
   async function countUnreadMessages() {
-    if (!state.communityProfile?.id) return;
+    if (!state.authUser?.id) return;
     try {
       const { count, error } = await state.supabase
         .from("messages")
         .select("id", { count: "exact", head: true })
         .eq("read", false)
-        .neq("sender_id", state.communityProfile.id);
+        .neq("sender_id", state.authUser.id);
 
       if (error) throw error;
       safeText("unread-messages", count ?? 0);
