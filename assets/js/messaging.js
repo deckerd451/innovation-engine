@@ -417,6 +417,11 @@ const MessagingModule = (function () {
         })
         .eq("id", state.activeConversation.id);
 
+      // Award XP for sending message
+      if (window.DailyEngagement) {
+        await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.SEND_MESSAGE, 'Sent message');
+      }
+
     } catch (error) {
       console.error("Error sending message:", error);
       showToast(error?.message || "Failed to send message", "error");

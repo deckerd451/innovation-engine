@@ -65,7 +65,12 @@ export async function createProject(event) {
     alert('Error creating project. Please try again.');
     return;
   }
-  
+
+  // Award XP for creating project
+  if (window.DailyEngagement) {
+    await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.CREATE_PROJECT, `Created project: ${name}`);
+  }
+
   hideCreateProjectForm();
   await loadProjects();
 }
