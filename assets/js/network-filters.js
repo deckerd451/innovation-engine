@@ -1,648 +1,598 @@
-// ================================================================
-// NETWORK FILTERS & SEMANTIC SEARCH
-// ================================================================
-// Advanced filtering and intelligent search for network exploration
+// ============================================================================
+// CharlestonHacks Innovation Engine — Network Filters (robust + self-healing)
+// File: assets/js/network-filters.js
+//
+// Goals:
+// - Filters button always works (no null.style errors)
+// - Panel exists even if dashboardPane.js expects a different ID
+// - Filters actively hide/show nodes + links in #synapse-svg
+// - Uses D3 if present; falls back to vanilla DOM
+// ============================================================================
 
-console.log("%c🔍 Network Filters Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
+(function () {
+  "use strict";
 
-let filterPanel = null;
-let supabase = null;
-let currentUserProfile = null;
-let onFilterChange = null;
-
-// Filter state
-let activeFilters = {
-  skills: [],
-  availability: [],
-  roles: [],
-  connectionStatus: 'all',
-  degreeOfSeparation: 'all',
-  hasProjects: false,
-  nodeType: 'all',
-  searchQuery: ''
-};
-
-// Preset views
-const PRESET_VIEWS = {
-  mentors: {
-    name: 'Mentors Available',
-    icon: 'fa-chalkboard-teacher',
-    description: 'People who can provide guidance',
-    filters: { availability: ['Available for mentoring'] }
-  },
-  hiddenConnectors: {
-    name: 'Hidden Connectors',
-    icon: 'fa-network-wired',
-    description: 'Highly connected individuals you haven\'t met',
-    filters: { connectionStatus: 'not-connected', sortBy: 'connection_count' }
-  },
-  newMembers: {
-    name: 'New Members',
-    icon: 'fa-user-plus',
-    description: 'Recently joined the network',
-    filters: { sortBy: 'created_at', sortOrder: 'desc' }
-  },
-  projectCreators: {
-    name: 'Project Creators',
-    icon: 'fa-lightbulb',
-    description: 'Active project leads',
-    filters: { hasProjects: true }
-  },
-  suggested: {
-    name: 'Suggested for You',
-    icon: 'fa-star',
-    description: 'Based on shared interests',
-    filters: { connectionStatus: 'not-connected', matchScore: 'high' }
-  }
-};
-
-// Initialize filters
-export function initNetworkFilters(filterChangeCallback) {
-  supabase = window.supabase;
-  onFilterChange = filterChangeCallback;
-
-  window.addEventListener('profile-loaded', (e) => {
-    currentUserProfile = e.detail.profile;
-  });
-
-  createFilterPanel();
-
-  console.log('✅ Network filters initialized');
-}
-
-// Create filter panel UI
-function createFilterPanel() {
-  filterPanel = document.createElement('div');
-  filterPanel.id = 'network-filter-panel';
-  filterPanel.style.cssText = `
-    position: fixed;
-    top: 70px;
-    left: -400px;
-    width: 380px;
-    height: calc(100vh - 70px);
-    background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
-    border-right: 2px solid rgba(0, 224, 255, 0.5);
-    backdrop-filter: blur(10px);
-    z-index: 1500;
-    overflow-y: auto;
-    transition: left 0.3s ease-out;
-    box-shadow: 5px 0 30px rgba(0, 0, 0, 0.5);
-  `;
-
-  filterPanel.innerHTML = `
-    <div style="padding: 2rem; padding-bottom: 100px;">
-      <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h2 style="color: #00e0ff; font-size: 1.5rem; margin: 0;">
-          <i class="fas fa-filter"></i> Filters & Search
-        </h2>
-        <button onclick="closeFilterPanel()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 35px; height: 35px; border-radius: 50%; cursor: pointer;">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-
-      <!-- Semantic Search -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
-          <i class="fas fa-search"></i> Semantic Search
-        </label>
-        <input
-          type="text"
-          id="semantic-search-input"
-          placeholder="e.g., 'AI + healthcare connectors'"
-          style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;"
-        />
-        <div style="color: #aaa; font-size: 0.85rem; margin-top: 0.5rem;">
-          Try: "people connected to X within 2 hops", "designers with React skills", "available mentors in AI"
-        </div>
-      </div>
-
-      <!-- Preset Views -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
-          <i class="fas fa-eye"></i> Quick Views
-        </label>
-        <div id="preset-views-container" style="display: grid; gap: 0.75rem;">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-
-      <!-- Skills Filter -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
-          <i class="fas fa-code"></i> Skills
-        </label>
-        <div id="skills-filter-container">
-          <input
-            type="text"
-            id="skill-input"
-            placeholder="Add skill..."
-            style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; margin-bottom: 0.75rem;"
-          />
-          <div id="selected-skills" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
-            <!-- Selected skills -->
-          </div>
-          <div id="suggested-skills" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-            <!-- Common skills -->
-          </div>
-        </div>
-      </div>
-
-      <!-- Availability Filter -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
-          <i class="fas fa-calendar-check"></i> Availability
-        </label>
-        <div id="availability-filter" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-
-      <!-- Roles Filter -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
-          <i class="fas fa-user-tag"></i> Roles
-        </label>
-        <div id="roles-filter" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-
-      <!-- Node Type Filter -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
-          <i class="fas fa-layer-group"></i> Show Type
-        </label>
-        <div id="node-type-filter" style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
-            <input type="radio" name="node-type" value="all" checked onchange="updateNodeTypeFilter(this.value)" style="width: 18px; height: 18px; cursor: pointer;">
-            <span style="color: white;"><i class="fas fa-globe"></i> All (Community)</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
-            <input type="radio" name="node-type" value="connections" onchange="updateNodeTypeFilter(this.value)" style="width: 18px; height: 18px; cursor: pointer;">
-            <span style="color: white;"><i class="fas fa-users"></i> My Connections</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
-            <input type="radio" name="node-type" value="suggested" onchange="updateNodeTypeFilter(this.value)" style="width: 18px; height: 18px; cursor: pointer;">
-            <span style="color: white;"><i class="fas fa-star"></i> Suggested</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
-            <input type="radio" name="node-type" value="projects" onchange="updateNodeTypeFilter(this.value)" style="width: 18px; height: 18px; cursor: pointer;">
-            <span style="color: white;"><i class="fas fa-lightbulb"></i> Projects Only</span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Connection Status -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
-          <i class="fas fa-link"></i> Connection Status
-        </label>
-        <select id="connection-status-filter" onchange="updateConnectionStatusFilter(this.value)" style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
-          <option value="all">All People</option>
-          <option value="connected">Connected</option>
-          <option value="pending">Pending Requests</option>
-          <option value="not-connected">Not Connected</option>
-        </select>
-      </div>
-
-      <!-- Degree of Separation -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: block; color: #00e0ff; font-weight: bold; margin-bottom: 0.75rem;">
-          <i class="fas fa-project-diagram"></i> Degrees of Separation
-        </label>
-        <select id="degree-filter" onchange="updateDegreeFilter(this.value)" style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
-          <option value="all">Show All</option>
-          <option value="1">1st Degree (Direct)</option>
-          <option value="2">Up to 2nd Degree</option>
-          <option value="3">Up to 3rd Degree</option>
-        </select>
-      </div>
-
-      <!-- Has Projects -->
-      <div style="margin-bottom: 2rem;">
-        <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
-          <input
-            type="checkbox"
-            id="has-projects-filter"
-            onchange="updateProjectsFilter(this.checked)"
-            style="width: 20px; height: 20px; cursor: pointer;"
-          />
-          <span style="color: white; font-size: 1rem;">
-            <i class="fas fa-lightbulb"></i> Only show project creators
-          </span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Action Bar -->
-    <div style="position: fixed; bottom: 0; left: 0; width: 380px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1rem; backdrop-filter: blur(10px);">
-      <button onclick="clearAllFilters()" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 0.75rem;">
-        <i class="fas fa-undo"></i> Clear All Filters
-      </button>
-      <button onclick="applyFilters()" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
-        <i class="fas fa-check"></i> Apply Filters
-      </button>
-    </div>
-  `;
-
-  document.body.appendChild(filterPanel);
-
-  // Initialize components
-  loadPresetViews();
-  loadSuggestedSkills();
-  loadAvailabilityOptions();
-  loadRoleOptions();
-  setupSemanticSearch();
-}
-
-// Load preset views
-function loadPresetViews() {
-  const container = document.getElementById('preset-views-container');
-  if (!container) return;
-
-  let html = '';
-  Object.entries(PRESET_VIEWS).forEach(([key, preset]) => {
-    html += `
-      <button onclick="applyPresetView('${key}')" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'; this.style.borderColor='rgba(0,224,255,0.5)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'; this.style.borderColor='rgba(0,224,255,0.2)'">
-        <i class="fas ${preset.icon}" style="font-size: 1.5rem; color: #00e0ff;"></i>
-        <div style="flex: 1;">
-          <div style="font-weight: bold; margin-bottom: 0.25rem;">${preset.name}</div>
-          <div style="color: #aaa; font-size: 0.85rem;">${preset.description}</div>
-        </div>
-      </button>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-// Load suggested skills
-async function loadSuggestedSkills() {
-  const container = document.getElementById('suggested-skills');
-  if (!container) return;
-
-  try {
-    // Get top skills from community
-    const { data: community } = await supabase
-      .from('community')
-      .select('skills')
-      .not('skills', 'is', null);
-
-    // Count skill frequency
-    const skillCounts = {};
-    community?.forEach(person => {
-      if (person.skills) {
-        const skills = person.skills.split(',').map(s => s.trim());
-        skills.forEach(skill => {
-          skillCounts[skill] = (skillCounts[skill] || 0) + 1;
-        });
-      }
-    });
-
-    // Get top 10 skills
-    const topSkills = Object.entries(skillCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([skill]) => skill);
-
-    let html = '';
-    topSkills.forEach(skill => {
-      html += `
-        <button onclick="addSkillFilter('${skill}')" style="padding: 0.5rem 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
-          ${skill}
-        </button>
-      `;
-    });
-
-    container.innerHTML = html;
-
-  } catch (error) {
-    console.error('Error loading suggested skills:', error);
-  }
-}
-
-// Load availability options
-async function loadAvailabilityOptions() {
-  const container = document.getElementById('availability-filter');
-  if (!container) return;
-
-  const availabilityOptions = [
-    'Available now',
-    'Available soon',
-    'Available for mentoring',
-    'Looking for opportunities',
-    'Open to collaborations'
+  const PANEL_IDS = [
+    "filters-panel",
+    "network-filters-panel",
+    "filters-modal",
+    "filtersDrawer",
   ];
 
-  let html = '';
-  availabilityOptions.forEach(option => {
-    html += `
-      <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
-        <input type="checkbox" value="${option}" onchange="toggleAvailabilityFilter(this.value, this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
-        <span style="color: white;">${option}</span>
-      </label>
-    `;
-  });
+  const STORAGE_KEY = "ch:networkFilters:v1";
 
-  container.innerHTML = html;
-}
+  const DEFAULT_FILTERS = {
+    types: {
+      person: true,
+      you: true,
+      project: true,
+    },
+    availability: "any", // any | available | mentoring | opportunities | busy | not_available
+    query: "", // name/skills/interests free text
+    showSuggested: true, // if you draw "suggested" links
+    showPending: true,   // if you draw "pending" links
+    showConnected: true, // if you draw "connected" links
+  };
 
-// Load role options
-async function loadRoleOptions() {
-  const container = document.getElementById('roles-filter');
-  if (!container) return;
+  let state = loadState();
 
-  try {
-    // Get unique roles from community
-    const { data: community } = await supabase
-      .from('community')
-      .select('user_role')
-      .not('user_role', 'is', null);
+  // ---------------------------
+  // Public API
+  // ---------------------------
+  window.NetworkFilters = {
+    open: () => setOpen(true),
+    close: () => setOpen(false),
+    toggle: () => setOpen(!isOpen()),
+    get: () => ({ ...state }),
+    set: (next) => {
+      state = { ...DEFAULT_FILTERS, ...state, ...next };
+      persistState();
+      renderUIFromState();
+      applyFiltersToGraph();
+      emitChange();
+    },
+    applyNow: () => applyFiltersToGraph(),
+  };
 
-    const uniqueRoles = [...new Set(community?.map(p => p.user_role).filter(Boolean))];
+  // Also provide a global toggle hook (in case dashboardPane.js calls it)
+  window.toggleFilters = function toggleFilters(forceOpen = null) {
+    if (forceOpen === null) window.NetworkFilters.toggle();
+    else setOpen(!!forceOpen);
+  };
 
-    let html = '';
-    uniqueRoles.forEach(role => {
-      html += `
-        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.15)'" onmouseout="this.style.background='rgba(0,224,255,0.05)'">
-          <input type="checkbox" value="${role}" onchange="toggleRoleFilter(this.value, this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
-          <span style="color: white;">${role}</span>
-        </label>
-      `;
+  // ---------------------------
+  // Init
+  // ---------------------------
+  document.addEventListener("DOMContentLoaded", init);
+
+  function init() {
+    // Make sure panel exists (with multiple IDs to satisfy other scripts)
+    const panel = ensurePanelExists();
+
+    // Wire the Filters bottom-bar button (exists in your dashboard HTML)
+    const btn = document.getElementById("btn-filters");
+    if (btn) {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        window.NetworkFilters.toggle();
+      });
+    }
+
+    // Close on ESC
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && isOpen()) setOpen(false);
     });
 
-    container.innerHTML = html;
+    // Apply once after a short delay so synapse has time to render
+    setTimeout(() => {
+      renderUIFromState();
+      applyFiltersToGraph();
+      emitReady(panel);
+    }, 350);
 
-  } catch (error) {
-    console.error('Error loading roles:', error);
-  }
-}
-
-// Setup semantic search
-function setupSemanticSearch() {
-  const input = document.getElementById('semantic-search-input');
-  if (!input) return;
-
-  let debounceTimer;
-  input.addEventListener('input', (e) => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      activeFilters.searchQuery = e.target.value;
-      parseSemanticQuery(e.target.value);
-    }, 500);
-  });
-}
-
-// Parse semantic search queries
-function parseSemanticQuery(query) {
-  if (!query) return;
-
-  const lowerQuery = query.toLowerCase();
-
-  // Extract skills (common tech keywords)
-  const skillKeywords = ['javascript', 'python', 'react', 'ai', 'ml', 'design', 'ux', 'backend', 'frontend', 'data', 'healthcare', 'blockchain'];
-  const foundSkills = skillKeywords.filter(skill => lowerQuery.includes(skill));
-
-  // Extract availability hints
-  if (lowerQuery.includes('available') || lowerQuery.includes('mentor')) {
-    activeFilters.availability = ['Available now', 'Available for mentoring'];
+    console.log("✅ Network filters ready");
   }
 
-  // Extract connection hints
-  if (lowerQuery.includes('connected to') || lowerQuery.includes('hops') || lowerQuery.includes('degree')) {
-    const degreeMatch = lowerQuery.match(/(\d+)\s*(hop|degree)/);
-    if (degreeMatch) {
-      activeFilters.degreeOfSeparation = degreeMatch[1];
+  // ---------------------------
+  // Panel / UI
+  // ---------------------------
+  function ensurePanelExists() {
+    // If any of the expected IDs already exists, use the first one found.
+    for (const id of PANEL_IDS) {
+      const existing = document.getElementById(id);
+      if (existing) return existing;
     }
-  }
 
-  // Extract role hints
-  if (lowerQuery.includes('designer')) {
-    activeFilters.roles.push('Designer');
-  }
-  if (lowerQuery.includes('developer') || lowerQuery.includes('engineer')) {
-    activeFilters.roles.push('Developer');
-  }
+    // Otherwise, inject a single panel and clone alias nodes for other IDs.
+    const panel = document.createElement("div");
+    panel.id = PANEL_IDS[0];
+    panel.setAttribute("data-ch-filters", "true");
+    panel.style.cssText = [
+      "position:fixed",
+      "top:0",
+      "right:0",
+      "height:100vh",
+      "width:min(420px, 92vw)",
+      "background:rgba(10,14,39,0.97)",
+      "backdrop-filter: blur(14px)",
+      "border-left:2px solid rgba(0,224,255,0.35)",
+      "box-shadow:-12px 0 40px rgba(0,0,0,0.45)",
+      "z-index:2000",
+      "transform:translateX(110%)",
+      "transition:transform 220ms ease",
+      "padding:16px",
+      "display:block",
+    ].join(";");
 
-  // Add found skills
-  foundSkills.forEach(skill => {
-    if (!activeFilters.skills.includes(skill)) {
-      activeFilters.skills.push(skill);
+    panel.innerHTML = panelMarkup();
+    document.body.appendChild(panel);
+
+    // Create “alias” elements with the other IDs that point to the same panel
+    // (so older code that does getElementById('filters-modal') won’t return null).
+    for (let i = 1; i < PANEL_IDS.length; i++) {
+      const alias = document.createElement("div");
+      alias.id = PANEL_IDS[i];
+      alias.style.display = "none"; // just exists to prevent null lookups
+      alias.setAttribute("data-ch-filters-alias", PANEL_IDS[0]);
+      document.body.appendChild(alias);
     }
-  });
 
-  // Visual feedback
-  if (foundSkills.length > 0 || activeFilters.availability.length > 0 || activeFilters.roles.length > 0) {
-    showSemanticHint(`Searching for: ${[...foundSkills, ...activeFilters.availability, ...activeFilters.roles].join(', ')}`);
-  }
-}
-
-function showSemanticHint(text) {
-  const input = document.getElementById('semantic-search-input');
-  if (!input) return;
-
-  // Create hint element
-  let hint = document.getElementById('semantic-hint');
-  if (!hint) {
-    hint = document.createElement('div');
-    hint.id = 'semantic-hint';
-    hint.style.cssText = `
-      margin-top: 0.5rem;
-      padding: 0.5rem 0.75rem;
-      background: rgba(0,224,255,0.1);
-      border: 1px solid rgba(0,224,255,0.3);
-      border-radius: 8px;
-      color: #00e0ff;
-      font-size: 0.85rem;
-    `;
-    input.parentNode.appendChild(hint);
+    wirePanel(panel);
+    return panel;
   }
 
-  hint.textContent = text;
-}
+  function panelMarkup() {
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+                      background:rgba(0,224,255,0.10); border:1px solid rgba(0,224,255,0.25); color:#00e0ff;">
+            <span style="font-weight:900;">⎇</span>
+          </div>
+          <div>
+            <div style="color:#00e0ff; font-weight:900; letter-spacing:0.4px;">Network Filters</div>
+            <div style="color:#9bb0c8; font-size:12px;">Filter nodes + connections in your Synapse view</div>
+          </div>
+        </div>
 
-// Filter management functions
-window.addSkillFilter = function(skill) {
-  if (!activeFilters.skills.includes(skill)) {
-    activeFilters.skills.push(skill);
-    renderSelectedSkills();
-  }
-};
-
-window.removeSkillFilter = function(skill) {
-  activeFilters.skills = activeFilters.skills.filter(s => s !== skill);
-  renderSelectedSkills();
-};
-
-function renderSelectedSkills() {
-  const container = document.getElementById('selected-skills');
-  if (!container) return;
-
-  if (activeFilters.skills.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
-
-  let html = '';
-  activeFilters.skills.forEach(skill => {
-    html += `
-      <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border-radius: 8px; color: white; font-size: 0.9rem;">
-        <span>${skill}</span>
-        <button onclick="removeSkillFilter('${skill}')" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 1rem;">
-          <i class="fas fa-times"></i>
+        <button id="ch-filters-close"
+          style="width:38px; height:38px; border-radius:12px; cursor:pointer;
+                 background:rgba(255,255,255,0.06);
+                 border:1px solid rgba(255,255,255,0.12);
+                 color:white; font-size:18px;">
+          ✕
         </button>
       </div>
+
+      <div style="display:grid; gap:12px;">
+        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.16); border-radius:14px; padding:12px;">
+          <div style="color:#00e0ff; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
+            Node Types
+          </div>
+
+          <label style="display:flex; align-items:center; gap:10px; color:#e7efff; padding:6px 0;">
+            <input id="ch-type-person" type="checkbox" />
+            People
+          </label>
+
+          <label style="display:flex; align-items:center; gap:10px; color:#e7efff; padding:6px 0;">
+            <input id="ch-type-you" type="checkbox" />
+            You
+          </label>
+
+          <label style="display:flex; align-items:center; gap:10px; color:#e7efff; padding:6px 0;">
+            <input id="ch-type-project" type="checkbox" />
+            Projects
+          </label>
+        </div>
+
+        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.16); border-radius:14px; padding:12px;">
+          <div style="color:#00e0ff; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
+            Search
+          </div>
+
+          <input id="ch-filter-query" type="text" placeholder="Search name, skills, interests..."
+            style="width:100%; padding:10px 12px; border-radius:12px;
+                   background:rgba(0,224,255,0.05);
+                   border:1px solid rgba(0,224,255,0.18);
+                   color:white; outline:none;" />
+        </div>
+
+        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.16); border-radius:14px; padding:12px;">
+          <div style="color:#00e0ff; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
+            Availability
+          </div>
+
+          <select id="ch-filter-availability"
+            style="width:100%; padding:10px 12px; border-radius:12px;
+                   background:rgba(0,224,255,0.05);
+                   border:1px solid rgba(0,224,255,0.18);
+                   color:white; outline:none;">
+            <option value="any">Any</option>
+            <option value="available">Available now</option>
+            <option value="mentoring">Available for mentoring</option>
+            <option value="opportunities">Looking for opportunities</option>
+            <option value="busy">Busy</option>
+            <option value="not_available">Not available</option>
+          </select>
+        </div>
+
+        <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.16); border-radius:14px; padding:12px;">
+          <div style="color:#00e0ff; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
+            Connections
+          </div>
+
+          <label style="display:flex; align-items:center; gap:10px; color:#e7efff; padding:6px 0;">
+            <input id="ch-link-connected" type="checkbox" />
+            Connected
+          </label>
+
+          <label style="display:flex; align-items:center; gap:10px; color:#e7efff; padding:6px 0;">
+            <input id="ch-link-pending" type="checkbox" />
+            Pending
+          </label>
+
+          <label style="display:flex; align-items:center; gap:10px; color:#e7efff; padding:6px 0;">
+            <input id="ch-link-suggested" type="checkbox" />
+            Suggested
+          </label>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button id="ch-filters-reset"
+            style="flex:1; padding:12px 14px; border-radius:14px; cursor:pointer;
+                   background:rgba(255,255,255,0.06);
+                   border:1px solid rgba(255,255,255,0.12);
+                   color:white; font-weight:800;">
+            Reset
+          </button>
+
+          <button id="ch-filters-apply"
+            style="flex:1; padding:12px 14px; border-radius:14px; cursor:pointer;
+                   background:linear-gradient(135deg,#00e0ff,#0080ff);
+                   border:none; color:white; font-weight:900;">
+            Apply
+          </button>
+        </div>
+
+        <div id="ch-filters-status" style="color:#9bb0c8; font-size:12px; margin-top:4px;"></div>
+      </div>
     `;
-  });
+  }
 
-  container.innerHTML = html;
-}
+  function wirePanel(panel) {
+    panel.querySelector("#ch-filters-close")?.addEventListener("click", () => setOpen(false));
+    panel.querySelector("#ch-filters-reset")?.addEventListener("click", () => {
+      state = { ...DEFAULT_FILTERS };
+      persistState();
+      renderUIFromState();
+      applyFiltersToGraph();
+      emitChange();
+    });
+    panel.querySelector("#ch-filters-apply")?.addEventListener("click", () => {
+      readStateFromUI();
+      persistState();
+      applyFiltersToGraph();
+      emitChange();
+    });
 
-window.toggleAvailabilityFilter = function(value, checked) {
-  if (checked) {
-    if (!activeFilters.availability.includes(value)) {
-      activeFilters.availability.push(value);
+    // Live update for query (nice UX)
+    panel.querySelector("#ch-filter-query")?.addEventListener("input", () => {
+      readStateFromUI();
+      persistState();
+      applyFiltersToGraph();
+      emitChange();
+    });
+
+    // Change handlers for rest
+    [
+      "#ch-type-person",
+      "#ch-type-you",
+      "#ch-type-project",
+      "#ch-filter-availability",
+      "#ch-link-connected",
+      "#ch-link-pending",
+      "#ch-link-suggested",
+    ].forEach((sel) => {
+      panel.querySelector(sel)?.addEventListener("change", () => {
+        readStateFromUI();
+        persistState();
+        applyFiltersToGraph();
+        emitChange();
+      });
+    });
+  }
+
+  function renderUIFromState() {
+    const panel = getPanel();
+    if (!panel) return;
+
+    setChecked(panel, "#ch-type-person", !!state.types.person);
+    setChecked(panel, "#ch-type-you", !!state.types.you);
+    setChecked(panel, "#ch-type-project", !!state.types.project);
+
+    setValue(panel, "#ch-filter-query", state.query || "");
+    setValue(panel, "#ch-filter-availability", state.availability || "any");
+
+    setChecked(panel, "#ch-link-connected", !!state.showConnected);
+    setChecked(panel, "#ch-link-pending", !!state.showPending);
+    setChecked(panel, "#ch-link-suggested", !!state.showSuggested);
+
+    updateStatus();
+  }
+
+  function readStateFromUI() {
+    const panel = getPanel();
+    if (!panel) return;
+
+    state.types.person = !!panel.querySelector("#ch-type-person")?.checked;
+    state.types.you = !!panel.querySelector("#ch-type-you")?.checked;
+    state.types.project = !!panel.querySelector("#ch-type-project")?.checked;
+
+    state.query = (panel.querySelector("#ch-filter-query")?.value || "").trim();
+    state.availability = panel.querySelector("#ch-filter-availability")?.value || "any";
+
+    state.showConnected = !!panel.querySelector("#ch-link-connected")?.checked;
+    state.showPending = !!panel.querySelector("#ch-link-pending")?.checked;
+    state.showSuggested = !!panel.querySelector("#ch-link-suggested")?.checked;
+
+    updateStatus();
+  }
+
+  function updateStatus() {
+    const panel = getPanel();
+    const el = panel?.querySelector("#ch-filters-status");
+    if (!el) return;
+
+    const parts = [];
+    parts.push(`Types: ${enabledTypesLabel()}`);
+    if (state.query) parts.push(`Search: "${state.query}"`);
+    if (state.availability !== "any") parts.push(`Availability: ${state.availability}`);
+    el.textContent = parts.join(" • ");
+  }
+
+  function enabledTypesLabel() {
+    const arr = [];
+    if (state.types.person) arr.push("People");
+    if (state.types.you) arr.push("You");
+    if (state.types.project) arr.push("Projects");
+    return arr.length ? arr.join(", ") : "None";
+  }
+
+  // ---------------------------
+  // Open / Close
+  // ---------------------------
+  function getPanel() {
+    return document.getElementById(PANEL_IDS[0]) || document.querySelector('[data-ch-filters="true"]');
+  }
+
+  function isOpen() {
+    const panel = getPanel();
+    if (!panel) return false;
+    return panel.getAttribute("data-open") === "true";
+  }
+
+  function setOpen(open) {
+    const panel = getPanel();
+    if (!panel) return;
+
+    panel.setAttribute("data-open", open ? "true" : "false");
+    panel.style.transform = open ? "translateX(0)" : "translateX(110%)";
+
+    // When opening, sync UI
+    if (open) renderUIFromState();
+  }
+
+  // ---------------------------
+  // Apply filters to graph
+  // ---------------------------
+  function applyFiltersToGraph() {
+    // Prefer: if synapse exposes an API, use it (optional future)
+    if (window.Synapse && typeof window.Synapse.applyFilters === "function") {
+      window.Synapse.applyFilters({ ...state });
+      return;
     }
-  } else {
-    activeFilters.availability = activeFilters.availability.filter(a => a !== value);
-  }
-};
 
-window.toggleRoleFilter = function(value, checked) {
-  if (checked) {
-    if (!activeFilters.roles.includes(value)) {
-      activeFilters.roles.push(value);
+    // Otherwise: filter DOM
+    const svg = document.getElementById("synapse-svg");
+    if (!svg) return;
+
+    const d3ok = typeof window.d3 !== "undefined" && typeof window.d3.selectAll === "function";
+    if (d3ok) applyWithD3(svg);
+    else applyWithDOM(svg);
+  }
+
+  function applyWithD3(svg) {
+    const nodeSel = window.d3.select(svg).selectAll(
+      ".node, g.node, .synapse-node, g.synapse-node, .person-node, .project-node"
+    );
+
+    const linkSel = window.d3.select(svg).selectAll(
+      ".link, line.link, path.link, .synapse-link, line.synapse-link, path.synapse-link"
+    );
+
+    // Build visibility map
+    const visibleById = new Map();
+
+    nodeSel.each(function (d) {
+      const datum = d || this.__data__ || {};
+      const id = pickId(datum);
+      const visible = nodePasses(datum);
+      if (id != null) visibleById.set(String(id), visible);
+    });
+
+    // Apply node visibility
+    nodeSel.style("display", function (d) {
+      const datum = d || this.__data__ || {};
+      const id = pickId(datum);
+      const visible = id != null ? visibleById.get(String(id)) : nodePasses(datum);
+      return visible ? null : "none";
+    });
+
+    // Apply link visibility (hide if either endpoint hidden OR link-type filtered out)
+    linkSel.style("display", function (d) {
+      const datum = d || this.__data__ || {};
+      const linkOk = linkPasses(datum);
+      if (!linkOk) return "none";
+
+      const s = pickEndpointId(datum.source);
+      const t = pickEndpointId(datum.target);
+
+      if (s && visibleById.has(s) && !visibleById.get(s)) return "none";
+      if (t && visibleById.has(t) && !visibleById.get(t)) return "none";
+      return null;
+    });
+  }
+
+  function applyWithDOM(svg) {
+    const nodes = svg.querySelectorAll(".node, g.node, .synapse-node, g.synapse-node");
+    const links = svg.querySelectorAll(".link, line.link, path.link, .synapse-link, line.synapse-link, path.synapse-link");
+
+    const visibleById = new Map();
+
+    nodes.forEach((el) => {
+      const datum = el.__data__ || {};
+      const id = pickId(datum);
+      const visible = nodePasses(datum);
+      if (id != null) visibleById.set(String(id), visible);
+      el.style.display = visible ? "" : "none";
+    });
+
+    links.forEach((el) => {
+      const datum = el.__data__ || {};
+      const linkOk = linkPasses(datum);
+      if (!linkOk) {
+        el.style.display = "none";
+        return;
+      }
+      const s = pickEndpointId(datum.source);
+      const t = pickEndpointId(datum.target);
+      if (s && visibleById.has(s) && !visibleById.get(s)) el.style.display = "none";
+      else if (t && visibleById.has(t) && !visibleById.get(t)) el.style.display = "none";
+      else el.style.display = "";
+    });
+  }
+
+  function nodePasses(d) {
+    const type = normalizeType(d);
+    if (type === "person" && !state.types.person) return false;
+    if (type === "you" && !state.types.you) return false;
+    if (type === "project" && !state.types.project) return false;
+
+    // Availability filter (only meaningful on people/you)
+    if (state.availability !== "any" && (type === "person" || type === "you")) {
+      const av = String(d.availability || "").toLowerCase();
+      if (!availabilityMatches(av, state.availability)) return false;
     }
-  } else {
-    activeFilters.roles = activeFilters.roles.filter(r => r !== value);
-  }
-};
 
-window.updateNodeTypeFilter = function(value) {
-  activeFilters.nodeType = value;
-  console.log('Node type filter updated:', value);
-};
+    // Query filter (name, skills, interests)
+    if (state.query) {
+      const q = state.query.toLowerCase();
+      const name = String(d.name || d.title || "").toLowerCase();
+      const skills = normalizeTextArray(d.skills);
+      const interests = normalizeTextArray(d.interests);
 
-window.updateConnectionStatusFilter = function(value) {
-  activeFilters.connectionStatus = value;
-};
+      const hay = [name, skills, interests].join(" ");
+      if (!hay.includes(q)) return false;
+    }
 
-window.updateDegreeFilter = function(value) {
-  activeFilters.degreeOfSeparation = value;
-};
-
-window.updateProjectsFilter = function(checked) {
-  activeFilters.hasProjects = checked;
-};
-
-window.clearAllFilters = function() {
-  activeFilters = {
-    skills: [],
-    availability: [],
-    roles: [],
-    connectionStatus: 'all',
-    degreeOfSeparation: 'all',
-    hasProjects: false,
-    nodeType: 'all',
-    searchQuery: ''
-  };
-
-  // Reset UI
-  document.querySelectorAll('#availability-filter input, #roles-filter input').forEach(cb => {
-    cb.checked = false;
-  });
-  document.querySelectorAll('input[name="node-type"]').forEach(radio => {
-    radio.checked = (radio.value === 'all');
-  });
-  document.getElementById('connection-status-filter').value = 'all';
-  document.getElementById('degree-filter').value = 'all';
-  document.getElementById('has-projects-filter').checked = false;
-  document.getElementById('semantic-search-input').value = '';
-
-  renderSelectedSkills();
-
-  // Apply cleared filters
-  applyFilters();
-};
-
-window.applyPresetView = function(presetKey) {
-  const preset = PRESET_VIEWS[presetKey];
-  if (!preset) return;
-
-  // Apply preset filters
-  activeFilters = {
-    skills: [],
-    availability: [],
-    roles: [],
-    connectionStatus: 'all',
-    degreeOfSeparation: 'all',
-    hasProjects: false,
-    searchQuery: '',
-    ...preset.filters
-  };
-
-  applyFilters();
-};
-
-window.applyFilters = function() {
-  console.log('Applying filters:', activeFilters);
-
-  if (onFilterChange) {
-    onFilterChange(activeFilters);
+    return true;
   }
 
-  // Show notification
-  showFilterNotification(`Filters applied`);
-};
+  function linkPasses(d) {
+    // If your link datum has something like status/type: connected/pending/suggested
+    const raw = String(d.status || d.type || d.kind || "").toLowerCase();
 
-function showFilterNotification(message) {
-  const toast = document.createElement('div');
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #00e0ff, #0080ff);
-    color: white;
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 10001;
-    font-weight: bold;
-    animation: slideUp 0.3s ease-out;
-  `;
-  toast.textContent = message;
+    // If it doesn't exist, we let it pass (so we don't accidentally hide everything)
+    if (!raw) return true;
 
-  document.body.appendChild(toast);
+    if (raw.includes("connected") || raw.includes("accepted")) return !!state.showConnected;
+    if (raw.includes("pending") || raw.includes("request")) return !!state.showPending;
+    if (raw.includes("suggested") || raw.includes("recommend")) return !!state.showSuggested;
 
-  setTimeout(() => {
-    toast.style.animation = 'slideDown 0.3s ease-in';
-    setTimeout(() => toast.remove(), 300);
-  }, 2000);
-}
-
-// Panel controls
-export function openFilterPanel() {
-  filterPanel.style.left = '0';
-}
-
-export function closeFilterPanel() {
-  filterPanel.style.left = '-400px';
-}
-
-window.openFilterPanel = openFilterPanel;
-window.closeFilterPanel = closeFilterPanel;
-
-// Toggle filter panel
-export function toggleFilterPanel() {
-  if (filterPanel.style.left === '0px') {
-    closeFilterPanel();
-  } else {
-    openFilterPanel();
+    return true;
   }
-}
 
-window.toggleFilterPanel = toggleFilterPanel;
+  function availabilityMatches(av, filter) {
+    if (filter === "available") return av.includes("available now") || av === "available" || av.includes("available");
+    if (filter === "mentoring") return av.includes("mentoring");
+    if (filter === "opportunities") return av.includes("opportun");
+    if (filter === "busy") return av.includes("busy");
+    if (filter === "not_available") return av.includes("not available") || av.includes("unavailable");
+    return true;
+  }
 
-console.log('✅ Network filters ready');
+  function normalizeType(d) {
+    const t = String(d.type || d.node_type || d.kind || d.category || "").toLowerCase();
+
+    // Common patterns seen in your UI/legend
+    if (t.includes("project")) return "project";
+    if (t.includes("you") || t.includes("self") || t.includes("me")) return "you";
+    if (t.includes("person") || t.includes("user") || t.includes("community")) return "person";
+
+    // Fallback: if it has "project" shape data
+    if (d.members || d.project_name) return "project";
+
+    // Default: treat as person (safer)
+    return "person";
+  }
+
+  function normalizeTextArray(v) {
+    if (!v) return "";
+    if (Array.isArray(v)) return v.map((x) => String(x || "").toLowerCase()).join(" ");
+    return String(v).toLowerCase();
+  }
+
+  function pickId(d) {
+    return d.id ?? d.node_id ?? d.user_id ?? d.uuid ?? d.key ?? d.email ?? null;
+  }
+
+  function pickEndpointId(ep) {
+    if (!ep) return null;
+    if (typeof ep === "string" || typeof ep === "number") return String(ep);
+    const d = ep.__data__ || ep;
+    const id = pickId(d);
+    return id != null ? String(id) : null;
+  }
+
+  // ---------------------------
+  // Events + state
+  // ---------------------------
+  function emitChange() {
+    window.dispatchEvent(new CustomEvent("network-filters-changed", { detail: { ...state } }));
+  }
+
+  function emitReady(panel) {
+    window.dispatchEvent(new CustomEvent("network-filters-ready", { detail: { panelId: panel?.id || PANEL_IDS[0] } }));
+  }
+
+  function persistState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {}
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { ...DEFAULT_FILTERS };
+      const parsed = JSON.parse(raw);
+      return { ...DEFAULT_FILTERS, ...parsed, types: { ...DEFAULT_FILTERS.types, ...(parsed.types || {}) } };
+    } catch {
+      return { ...DEFAULT_FILTERS };
+    }
+  }
+
+  // ---------------------------
+  // Tiny helpers
+  // ---------------------------
+  function setChecked(root, sel, val) {
+    const el = root.querySelector(sel);
+    if (el) el.checked = !!val;
+  }
+
+  function setValue(root, sel, val) {
+    const el = root.querySelector(sel);
+    if (el) el.value = val;
+  }
+})();
