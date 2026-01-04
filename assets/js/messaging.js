@@ -299,20 +299,20 @@ const MessagingModule = (function () {
       const [p1, p2] = sortedPair(myCid, otherCid);
 
       // 1) Try to find existing (use unique index order)
-      const { data: existing, error: findError } = await window.supabase
+      const { data: existingData, error: findError } = await window.supabase
         .from("conversations")
         .select("*")
         .eq("participant_1_id", p1)
         .eq("participant_2_id", p2)
-        .limit(1)
-        .single();
+        .limit(1);
 
-      // Ignore PGRST116 error (no rows returned), but throw other errors
-      if (findError && findError.code !== 'PGRST116') {
+      // Only throw on real errors (ignore empty results)
+      if (findError) {
         console.error("Error finding conversation:", findError);
       }
 
-      let convo = existing;
+      // Extract first result if it exists
+      let convo = Array.isArray(existingData) && existingData.length > 0 ? existingData[0] : null;
 
       // 2) Create if missing
       if (!convo) {
@@ -337,19 +337,18 @@ const MessagingModule = (function () {
         if (createErr) {
           // If we hit duplicate due to race, re-fetch
           if (String(createErr.code || "").includes("23505") || createErr.message?.includes("unique_participants")) {
-            const { data: refetched, error: refetchErr } = await window.supabase
+            const { data: refetchedData, error: refetchErr } = await window.supabase
               .from("conversations")
               .select("*")
               .eq("participant_1_id", p1)
               .eq("participant_2_id", p2)
-              .limit(1)
-              .single();
+              .limit(1);
 
-            if (refetchErr && refetchErr.code !== 'PGRST116') {
+            if (refetchErr) {
               console.error("Error refetching conversation:", refetchErr);
             }
 
-            convo = refetched;
+            convo = Array.isArray(refetchedData) && refetchedData.length > 0 ? refetchedData[0] : null;
           } else {
             throw createErr;
           }
