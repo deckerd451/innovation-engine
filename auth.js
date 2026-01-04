@@ -225,8 +225,34 @@ async function initLoginSystem() {
   }
 }
 
-// Export to window for main.js
+// Export to window for other modules
 window.setupLoginDOM = setupLoginDOM;
 window.initLoginSystem = initLoginSystem;
 
 console.log("✅ auth.js loaded and functions exported to window");
+
+// ================================================================
+// AUTO-BOOT (fixes refresh → login overlay race)
+// ================================================================
+(async function autoBootAuth() {
+  // If some other file calls these, fine — but we guarantee it happens once.
+  if (window.__IE_AUTH_BOOTED__) return;
+  window.__IE_AUTH_BOOTED__ = true;
+
+  // Wait a microtick so supabaseClient.js has time to attach window.supabase
+  // (handles module loading order quirks on GH Pages)
+  await new Promise((r) => setTimeout(r, 0));
+
+  // Ensure DOM exists
+  if (document.readyState === "loading") {
+    await new Promise((r) => document.addEventListener("DOMContentLoaded", r, { once: true }));
+  }
+
+  try {
+    setupLoginDOM();
+    await initLoginSystem();
+  } catch (e) {
+    console.error("❌ auth.js autoBootAuth failed:", e);
+    showLoginUI();
+  }
+})();
