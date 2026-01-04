@@ -139,17 +139,18 @@ GRANT SELECT, INSERT, UPDATE ON public.projects TO authenticated;
 CREATE TABLE IF NOT EXISTS public.project_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
-  community_id UUID NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
   role TEXT DEFAULT 'member',
+  joined_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   -- Prevent duplicate memberships
-  CONSTRAINT unique_project_member UNIQUE (project_id, community_id)
+  CONSTRAINT unique_project_member UNIQUE (project_id, user_id)
 );
 
 -- Indexes for project_members
 CREATE INDEX IF NOT EXISTS idx_project_members_project ON public.project_members(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_members_community ON public.project_members(community_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_user ON public.project_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_project_members_role ON public.project_members(role);
 
 -- Enable RLS for project_members
@@ -167,7 +168,7 @@ CREATE POLICY "Users can join projects"
   ON public.project_members FOR INSERT
   TO authenticated
   WITH CHECK (
-    community_id IN (
+    user_id IN (
       SELECT id FROM public.community WHERE user_id = auth.uid()
     )
   );
@@ -189,7 +190,7 @@ CREATE POLICY "Users can leave projects"
   ON public.project_members FOR DELETE
   TO authenticated
   USING (
-    community_id IN (
+    user_id IN (
       SELECT id FROM public.community WHERE user_id = auth.uid()
     )
     OR
@@ -318,26 +319,36 @@ CREATE OR REPLACE FUNCTION public.update_connection_count()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  user1_id UUID;
+  user2_id UUID;
 BEGIN
+  user1_id := COALESCE(NEW.user_id, OLD.user_id);
+  user2_id := COALESCE(NEW.connected_user_id, OLD.connected_user_id);
+
   -- Update count for user_id
-  UPDATE public.community
-  SET connection_count = (
-    SELECT COUNT(*) FROM public.connections
-    WHERE (user_id = NEW.user_id OR connected_user_id = NEW.user_id)
-    AND status = 'accepted'
-  )
-  WHERE id = NEW.user_id;
+  IF user1_id IS NOT NULL THEN
+    UPDATE public.community
+    SET connection_count = (
+      SELECT COUNT(*) FROM public.connections
+      WHERE (user_id = user1_id OR connected_user_id = user1_id)
+      AND status = 'accepted'
+    )
+    WHERE id = user1_id;
+  END IF;
 
   -- Update count for connected_user_id
-  UPDATE public.community
-  SET connection_count = (
-    SELECT COUNT(*) FROM public.connections
-    WHERE (user_id = NEW.connected_user_id OR connected_user_id = NEW.connected_user_id)
-    AND status = 'accepted'
-  )
-  WHERE id = NEW.connected_user_id;
+  IF user2_id IS NOT NULL THEN
+    UPDATE public.community
+    SET connection_count = (
+      SELECT COUNT(*) FROM public.connections
+      WHERE (user_id = user2_id OR connected_user_id = user2_id)
+      AND status = 'accepted'
+    )
+    WHERE id = user2_id;
+  END IF;
 
-  RETURN NEW;
+  RETURN COALESCE(NEW, OLD);
 END;
 $$;
 
@@ -345,7 +356,7 @@ $$;
 DROP TRIGGER IF EXISTS trigger_update_connection_count ON public.connections;
 
 CREATE TRIGGER trigger_update_connection_count
-  AFTER INSERT OR UPDATE ON public.connections
+  AFTER INSERT OR UPDATE OR DELETE ON public.connections
   FOR EACH ROW
   EXECUTE FUNCTION public.update_connection_count();
 
