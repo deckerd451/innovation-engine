@@ -188,7 +188,7 @@ export async function generateRecommendations() {
  * Find shortest path between two nodes using Dijkstra's algorithm
  * Returns array of node IDs representing the path
  */
-export function findShortestPath(sourceId, targetId) {
+export function findShortestPath(sourceId, targetId, includeSuggested = true) {
   if (sourceId === targetId) return [sourceId];
 
   // Build adjacency list
@@ -201,10 +201,14 @@ export function findShortestPath(sourceId, targetId) {
     const srcId = link.source?.id || link.source;
     const tgtId = link.target?.id || link.target;
 
-    // Only traverse accepted connections
+    // Traverse accepted connections, and optionally suggested ones
     if (link.status === 'accepted' || link.status === 'connected') {
       graph.get(srcId)?.push(tgtId);
       graph.get(tgtId)?.push(srcId); // Bidirectional
+    } else if (includeSuggested && link.status === 'suggested') {
+      // Include suggested connections for potential pathways
+      graph.get(srcId)?.push(tgtId);
+      graph.get(tgtId)?.push(srcId);
     }
   }
 
@@ -287,10 +291,22 @@ export function animatePathway(sourceId, targetId, options = {}) {
   } = options;
 
   // Find path
-  const path = findShortestPath(sourceId, targetId);
+  let path = findShortestPath(sourceId, targetId);
+
+  // If no path through existing connections, create a direct path (for new recommendations)
   if (!path || path.length < 2) {
-    console.warn(`No path found from ${sourceId} to ${targetId}`);
-    return null;
+    // Check if both nodes exist
+    const sourceNode = nodes.find(n => n.id === sourceId);
+    const targetNode = nodes.find(n => n.id === targetId);
+
+    if (sourceNode && targetNode) {
+      // Create direct path for new recommendations
+      path = [sourceId, targetId];
+      console.log(`Creating direct pathway from ${sourceId} to ${targetId} (new recommendation)`);
+    } else {
+      console.warn(`Nodes not found for pathway: ${sourceId} -> ${targetId}`);
+      return null;
+    }
   }
 
   // Get node positions
