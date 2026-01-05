@@ -1294,11 +1294,9 @@ export async function getRecommendations() {
 // ========================
 
 // Note: initSynapseView is already exported inline above (line 38)
+// showConnectPathways, clearConnectPathways, getRecommendations are also exported inline
 // Only export functions that weren't exported inline
 export {
   refreshSynapseConnections,
-  showSynapseNotification,
-  showConnectPathways,
-  clearConnectPathways,
-  getRecommendations
+  showSynapseNotification
 };
