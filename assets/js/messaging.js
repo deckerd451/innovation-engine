@@ -408,9 +408,19 @@ const MessagingModule = (function () {
 
       if (error) throw error;
 
-      // Clear input (realtime will append)
+      // Clear input
       const input = document.querySelector(".message-input");
       if (input) input.value = "";
+
+      // Immediately reload messages to show the new message
+      await loadMessages(state.activeConversation.id);
+      renderMessages();
+
+      // Scroll to bottom
+      setTimeout(() => {
+        const area = document.querySelector(".messages-area");
+        if (area) area.scrollTop = area.scrollHeight;
+      }, 50);
 
       // Optionally bump conversation preview client-side (optional; DB trigger is better)
       // This will also help the sidebar feel instant even before a realtime refresh
