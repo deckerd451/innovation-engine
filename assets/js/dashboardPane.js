@@ -711,13 +711,14 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     `;
   }
 
-  window.sendConnectionRequest = async function (toCommunityId) {
+  window.sendConnectionRequest = async function (toCommunityId, targetName = "User", type = "recommendation") {
     try {
       if (!state.communityProfile?.id) throw new Error("No profile loaded.");
 
-      if (window.ConnectionsModule?.sendConnectionRequest) {
-        await window.ConnectionsModule.sendConnectionRequest(toCommunityId);
-        alert("Connection request sent!");
+      // Import connections module
+      const connectionsModule = await import("./connections.js");
+      if (connectionsModule?.sendConnectionRequest) {
+        await connectionsModule.sendConnectionRequest(toCommunityId, targetName, type);
         return;
       }
 
@@ -725,6 +726,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         from_user_id: state.communityProfile.id,
         to_user_id: toCommunityId,
         status: "pending",
+        type: type || "generic"
       });
 
       if (error) throw error;
@@ -732,6 +734,46 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     } catch (e) {
       console.error("sendConnectionRequest failed:", e);
       alert(`Could not send request: ${e.message || e}`);
+    }
+  };
+
+  window.joinProject = async function (projectId, projectName = "Project") {
+    try {
+      if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+      // Check if already a member
+      const { data: existing, error: checkError } = await state.supabase
+        .from("project_members")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("user_id", state.communityProfile.id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existing) {
+        alert(`You're already a member of ${projectName}!`);
+        return;
+      }
+
+      // Join the project
+      const { error } = await state.supabase.from("project_members").insert({
+        project_id: projectId,
+        user_id: state.communityProfile.id,
+        role: "member"
+      });
+
+      if (error) throw error;
+
+      alert(`✓ Successfully joined ${projectName}!`);
+
+      // Refresh the visualization to show new project connection
+      if (window.refreshSynapseProjectCircles) {
+        await window.refreshSynapseProjectCircles();
+      }
+    } catch (e) {
+      console.error("joinProject failed:", e);
+      alert(`Could not join project: ${e.message || e}`);
     }
   };
 
@@ -1716,7 +1758,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
             ${matchBadges ? `<div style="margin-top: 0.5rem;">${matchBadges}</div>` : ""}
           </div>
 
-          <button class="btn btn-primary" style="white-space:nowrap;" onclick="sendConnectionRequest('${rec.userId}')">
+          <button class="btn btn-primary" style="white-space:nowrap;"
+            onclick="${isProject ? `joinProject('${rec.userId}', '${escapeHtml(name).replace(/'/g, "\\'")}')` : `sendConnectionRequest('${rec.userId}', '${escapeHtml(name).replace(/'/g, "\\'")}', 'recommendation')`}">
             <i class="fas fa-${isProject ? "lightbulb" : "user-plus"}"></i> ${isProject ? "Join" : "Connect"}
           </button>
         </div>
