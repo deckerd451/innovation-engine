@@ -18,7 +18,8 @@
  * ========================================================================== */
 
 import { supabase as importedSupabase } from "./supabaseClient.js";
-import { setupSynapseRealtime } from "./assets/js/synapse.js";
+import { setupSynapseRealtime } from "./synapse.js";
+
 
 
 
@@ -484,21 +485,27 @@ import { setupSynapseRealtime } from "./assets/js/synapse.js";
   // -----------------------------
   // Synapse
   // -----------------------------
-  async function initSynapseOnce() {
-    if (state.synapseInitialized) return;
-    state.synapseInitialized = true;
+ async function initSynapseOnce() {
+  if (state.synapseInitialized) return;
+  state.synapseInitialized = true;
 
-    try {
-      const mod = await import("./synapse.js");
-      if (typeof mod.initSynapseView === "function") {
-        await mod.initSynapseView();
-      } else {
-        console.warn("synapse.js loaded but initSynapseView not found");
-      }
-    } catch (e) {
-      console.warn("Synapse init skipped:", e?.message || e);
+  try {
+    const mod = await import("./synapse.js");
+    if (typeof mod.initSynapseView === "function") {
+      await mod.initSynapseView();
+    } else {
+      console.warn("synapse.js loaded but initSynapseView not found");
     }
+
+    // ✅ Realtime hookup (safe)
+    if (typeof setupSynapseRealtime === "function") {
+      setupSynapseRealtime(state.supabase || importedSupabase);
+    }
+  } catch (e) {
+    console.warn("Synapse init skipped:", e?.message || e);
   }
+}
+
 
   // -----------------------------
   // Counters
