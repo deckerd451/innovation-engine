@@ -54,6 +54,9 @@ const MessagingModule = (function () {
   async function init() {
     if (state.initialized) {
       console.log("Messaging already initialized");
+      // Re-render UI when modal reopens
+      renderMessagesTab();
+      renderConversationsList();
       return;
     }
 
