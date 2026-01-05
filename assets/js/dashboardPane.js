@@ -478,10 +478,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     safeText("user-initials-header", initials || "?");
   }
 
-  // -----------------------------
-  // Synapse
-  // -----------------------------
- async function initSynapseOnce() {
+ // -----------------------------
+// Synapse
+// -----------------------------
+async function initSynapseOnce() {
   if (state.synapseInitialized) return;
   state.synapseInitialized = true;
 
@@ -492,15 +492,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     } else {
       console.warn("synapse.js loaded but initSynapseView not found");
     }
-
-    // ✅ Realtime hookup (safe)
-    if (typeof setupSynapseRealtime === "function") {
-      setupSynapseRealtime(state.supabase || importedSupabase);
-    }
   } catch (e) {
     console.warn("Synapse init skipped:", e?.message || e);
   }
 }
+
 
 
   // -----------------------------
