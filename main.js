@@ -11,21 +11,16 @@ console.log('🚀 CharlestonHacks Innovation Engine starting...');
 // ================================================================
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🎨 DOM ready, initializing systems...');
-  
-  // Wait for all modules to load
+
+  // Wait for auth.js to attach globals (it auto-boots itself)
   await waitForModules();
-  
-  // 1. Setup login DOM elements
-  window.setupLoginDOM();
-  
-  // 2. Initialize login system (handles auth, fires events)
-  await window.initLoginSystem();
-  
-  // 3. Profile and dashboard modules are already listening for events
-  // They will respond to: 'profile-loaded', 'profile-new', 'user-logged-out'
-  
+
+  // DO NOT call setupLoginDOM/initLoginSystem here.
+  // auth.js already did.
+
   console.log('✅ System ready!');
 });
+
 
 // Helper to wait for modules to be available
 function waitForModules() {
