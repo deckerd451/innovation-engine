@@ -15,11 +15,16 @@ document.getElementById('btn-quickconnect')?.addEventListener('click', () => {
 
 // Wire up Messages button (already wired in dashboardPane.js, but ensure it works)
 document.getElementById('btn-messages')?.addEventListener('click', () => {
-  const messagesTab = document.querySelector('[data-tab="messages"]');
-  if (messagesTab) {
-    messagesTab.click();
+  // Open messages modal
+  const messagesModal = document.getElementById('messages-modal');
+  if (messagesModal) {
+    messagesModal.classList.add('active');
+    // Initialize messaging if needed
+    if (window.MessagingModule && typeof window.MessagingModule.init === 'function') {
+      window.MessagingModule.init();
+    }
   } else {
-    console.warn('Messages tab not found');
+    console.warn('Messages modal not found');
   }
 });
 
@@ -121,31 +126,43 @@ function toggleViewControls() {
 // Make sendMessage available globally for profile cards
 window.sendMessage = async function(userId) {
   try {
+    console.log('📨 Opening message for user:', userId);
+
     // Close the node panel
     if (typeof closeNodePanel === 'function') {
       closeNodePanel();
     }
 
-    // Switch to messages tab
-    const messagesTab = document.querySelector('[data-tab="messages"]');
-    if (messagesTab) {
-      messagesTab.click();
+    // Open messages modal
+    const messagesModal = document.getElementById('messages-modal');
+    if (messagesModal) {
+      messagesModal.classList.add('active');
     }
 
     // Wait for messaging module to initialize
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Start conversation with this user
-    if (window.MessagingModule && typeof window.MessagingModule.startConversation === 'function') {
-      await window.MessagingModule.startConversation(userId);
-      console.log('Started conversation with user:', userId);
+    // Initialize messaging module if not already
+    if (window.MessagingModule) {
+      if (typeof window.MessagingModule.init === 'function') {
+        await window.MessagingModule.init();
+      }
+
+      // Start conversation with this user
+      if (typeof window.MessagingModule.startConversation === 'function') {
+        await window.MessagingModule.startConversation(userId);
+        console.log('✅ Started conversation with user:', userId);
+      } else {
+        console.error('MessagingModule.startConversation not found');
+        alert('Messaging feature is initializing. Please try again in a moment.');
+      }
     } else {
-      console.error('Messaging module not available');
+      console.error('MessagingModule not available');
       alert('Messaging feature is loading. Please try again in a moment.');
     }
   } catch (error) {
     console.error('Error starting conversation:', error);
-    alert('Failed to start conversation. Please try again.');
+    alert('Failed to start conversation: ' + error.message);
   }
 };
 

@@ -303,23 +303,25 @@ async function renderPersonPanel(nodeData) {
       ` : `
         <!-- Other User Actions -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+          <!-- Message button - always available -->
+          <button onclick="sendMessage('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+            <i class="fas fa-comment"></i> Message
+          </button>
+
+          <!-- Connection status button -->
           ${connectionStatus === 'accepted' ? `
-            <button onclick="sendMessage('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
-              <i class="fas fa-comment"></i> Message
+            <button onclick="endorseSkill('${profile.id}')" style="padding: 0.75rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff; font-weight: bold; cursor: pointer;">
+              <i class="fas fa-star"></i> Endorse
             </button>
           ` : connectionStatus === 'pending' ? `
             <button onclick="withdrawConnectionFromPanel('${profile.id}')" style="padding: 0.75rem; background: rgba(255,170,0,0.2); border: 1px solid rgba(255,170,0,0.5); border-radius: 8px; color: #ffaa00; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,170,0,0.3)'" onmouseout="this.style.background='rgba(255,170,0,0.2)'">
               <i class="fas fa-times-circle"></i> Withdraw
             </button>
           ` : `
-            <button onclick="sendConnectionFromPanel('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+            <button onclick="sendConnectionFromPanel('${profile.id}')" style="padding: 0.75rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff; font-weight: bold; cursor: pointer;">
               <i class="fas fa-user-plus"></i> Connect
             </button>
           `}
-
-          <button onclick="endorseSkill('${profile.id}')" style="padding: 0.75rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff; font-weight: bold; cursor: pointer;">
-            <i class="fas fa-star"></i> Endorse
-          </button>
         </div>
 
         ${connectionStatus === 'accepted' ? `
