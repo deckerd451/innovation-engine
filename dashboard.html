@@ -178,68 +178,36 @@
       <svg id="synapse-svg" style="width:100%; height:100%;"></svg>
     </div>
 
-    <!-- Bottom Bar -->
+    <!-- Bottom Bar - Consolidated to 3 Core Actions -->
     <div class="bottom-stats-bar"
       style="position:absolute; bottom:0; left:0; right:0; background:rgba(10,14,39,0.95);
-      border-top:2px solid rgba(0,224,255,0.3); padding:0.75rem 1rem; display:flex; gap:0.75rem;
-      overflow-x:auto; overflow-y:hidden; backdrop-filter:blur(10px); z-index:100; -webkit-overflow-scrolling: touch;">
+      border-top:2px solid rgba(0,224,255,0.3); padding:1rem 2rem; display:flex; justify-content:center; gap:2rem;
+      backdrop-filter:blur(10px); z-index:100;">
 
-      <div class="stat-card-mini" id="btn-messages"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-envelope"></i></div>
-        <div class="value" id="unread-messages" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
-        <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Messages</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-projects"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-lightbulb"></i></div>
-        <div class="value" id="active-projects" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
-        <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Projects</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-endorsements"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-star"></i></div>
-        <div class="value" id="total-endorsements" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
-        <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Endorsements</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-network" onclick="openNetworkStatsModal()"
-        style="cursor:pointer; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-users"></i></div>
-        <div class="value" id="network-size" style="font-size:1.5rem; font-weight:bold; color:white;">0</div>
-        <div class="label" style="font-size:0.75rem; color:#aaa; text-transform:uppercase;">Network</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-bbs"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-terminal"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">BBS</div>
-      </div>
-
-      <div class="stat-card-mini" id="btn-profile"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-user-edit"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">Edit Profile</div>
-      </div>
-
+      <!-- Primary Action: Quick Connect -->
       <div class="stat-card-mini" id="btn-quickconnect"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-user-plus"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">Quick Connect</div>
+        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,128,255,0.1));
+        border:2px solid rgba(0,224,255,0.4); border-radius:12px; padding:1.25rem 2rem; text-align:center;
+        transition:all 0.2s; flex:1; max-width:280px;">
+        <div class="icon" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"><i class="fas fa-user-plus"></i></div>
+        <div class="label" style="font-size:0.95rem; color:#00e0ff; text-transform:uppercase; font-weight:700;">Connect</div>
       </div>
 
-      <div class="stat-card-mini" id="btn-filters"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-filter"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">Filters</div>
+      <!-- Secondary Action: Messages -->
+      <div class="stat-card-mini" id="btn-messages"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:12px; padding:1.25rem 2rem; text-align:center; transition:all 0.2s; flex:1; max-width:280px;">
+        <div class="icon" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"><i class="fas fa-envelope"></i></div>
+        <div class="value" id="unread-messages" style="font-size:1.75rem; font-weight:bold; color:white; margin-bottom:0.25rem;">0</div>
+        <div class="label" style="font-size:0.85rem; color:#aaa; text-transform:uppercase;">Messages</div>
       </div>
 
-      <div class="stat-card-mini" id="btn-legend"
-        style="cursor:pointer; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; padding:0.75rem; text-align:center; transition:all 0.2s;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff; margin-bottom:0.25rem;"><i class="fas fa-info-circle"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; margin-top:0.5rem;">Legend</div>
+      <!-- Tertiary Action: View Controls -->
+      <div class="stat-card-mini" id="btn-view-controls"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:12px; padding:1.25rem 2rem; text-align:center; transition:all 0.2s; flex:1; max-width:280px;">
+        <div class="icon" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"><i class="fas fa-sliders-h"></i></div>
+        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; font-weight:600;">View</div>
       </div>
     </div>
   </div>
@@ -413,6 +381,7 @@
 
   <!-- Dashboard controller -->
   <script type="module" src="assets/js/dashboardPane.js?v=2"></script>
+  <script src="assets/js/dashboard-actions.js"></script>
 
   <!-- Profile Editor Extension -->
   </body>
