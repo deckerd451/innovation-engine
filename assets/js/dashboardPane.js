@@ -18,7 +18,8 @@
  * ========================================================================== */
 
 import { supabase as importedSupabase } from "./supabaseClient.js";
-import { setupSynapseRealtime } from "./synapse.js";
+import { setupSynapseRealtime } from "./assets/js/synapse.js";
+
 
 
 (function () {
