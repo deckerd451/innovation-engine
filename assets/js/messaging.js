@@ -391,12 +391,12 @@ const MessagingModule = (function () {
     try {
       const messageText = content.trim();
 
-      // ✅ IMPORTANT: sender_id must be auth user ID (not community.id)
+      // ✅ IMPORTANT: sender_id must be community.id (not auth.uid())
       const { data, error } = await window.supabase
         .from("messages")
         .insert({
           conversation_id: state.activeConversation.id,
-          sender_id: state.currentUser.authId,
+          sender_id: state.currentUser.communityId,
           content: messageText,
           read: false
         })
@@ -438,7 +438,7 @@ const MessagingModule = (function () {
       .from("messages")
       .update({ read: true })
       .eq("conversation_id", conversationId)
-      .neq("sender_id", state.currentUser.authId)
+      .neq("sender_id", state.currentUser.communityId)
       .eq("read", false);
   }
 
@@ -487,7 +487,7 @@ const MessagingModule = (function () {
             if (area) area.scrollTop = area.scrollHeight;
 
             // Mark as read if it's not mine
-            if (newMessage.sender_id !== state.currentUser.authId) {
+            if (newMessage.sender_id !== state.currentUser.communityId) {
               await markMessagesAsRead(state.activeConversation.id);
             }
           }
@@ -672,7 +672,7 @@ const MessagingModule = (function () {
 
     container.innerHTML = state.messages
       .map((msg) => {
-        const isSent = msg.sender_id === state.currentUser.authId;
+        const isSent = msg.sender_id === state.currentUser.communityId;
         const senderName = isSent ? "You" : (msg.sender?.name || "Unknown");
         const initials = senderName.substring(0, 2).toUpperCase();
         const timestamp = formatTime(msg.created_at);
