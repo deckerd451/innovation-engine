@@ -29,6 +29,32 @@ let projectCircles = null;
 let zoomBehavior = null;
 let container = null;
 let isInitialized = false;  // Guard to prevent duplicate initialization
+let synapseRealtimeChannel = null;
+let synapseRealtimeDebounce = null;
+
+export function setupSynapseRealtime(sb) {
+  if (!sb?.channel) return null;
+  if (synapseRealtimeChannel) return synapseRealtimeChannel;
+
+  const scheduleRefresh = () => {
+    clearTimeout(synapseRealtimeDebounce);
+    synapseRealtimeDebounce = setTimeout(() => {
+      if (typeof refreshSynapseConnections === "function") {
+        refreshSynapseConnections();
+      }
+    }, 250);
+  };
+
+  synapseRealtimeChannel = sb
+    .channel("synapse-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "connections" }, scheduleRefresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "project_members" }, scheduleRefresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, scheduleRefresh)
+    .subscribe();
+
+  return synapseRealtimeChannel;
+}
+
 
 
 // -----------------------------
