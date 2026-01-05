@@ -686,11 +686,36 @@ window.withdrawConnectionFromPanel = async function(userId) {
   }
 };
 
-window.sendMessage = function(userId) {
-  // Open messages modal with this user
-  closeNodePanel();
-  window.startNewConversation(userId, currentNodeData.name, userId);
-  window.openMessagesModal();
+window.sendMessage = async function(userId) {
+  try {
+    console.log('📨 Opening message for user:', userId);
+    closeNodePanel();
+
+    // Open messages modal
+    const messagesModal = document.getElementById('messages-modal');
+    if (messagesModal) {
+      messagesModal.classList.add('active');
+    }
+
+    // Wait for messaging module to initialize
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Initialize and start conversation
+    if (window.MessagingModule) {
+      if (typeof window.MessagingModule.init === 'function') {
+        await window.MessagingModule.init();
+      }
+      if (typeof window.MessagingModule.startConversation === 'function') {
+        await window.MessagingModule.startConversation(userId);
+        console.log('✅ Started conversation with user:', userId);
+      }
+    } else {
+      console.error('MessagingModule not available');
+    }
+  } catch (error) {
+    console.error('Error starting conversation:', error);
+    alert('Failed to start conversation: ' + error.message);
+  }
 };
 
 window.endorseSkill = async function(userId) {
