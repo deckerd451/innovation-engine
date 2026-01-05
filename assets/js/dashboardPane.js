@@ -1485,6 +1485,105 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // -----------------------------
   async function showAnimatedPathways() {
     try {
+      // Show the intro overlay with Connect button
+      showPathwayIntroOverlay();
+    } catch (e) {
+      console.error("Animated pathways failed:", e);
+      // Fallback to regular quick connect
+      await openQuickConnectModal();
+    }
+  }
+
+  function showPathwayIntroOverlay() {
+    // Remove any existing overlay
+    const existing = document.getElementById("pathway-intro-overlay");
+    if (existing) existing.remove();
+
+    // Create overlay
+    const overlay = document.createElement("div");
+    overlay.id = "pathway-intro-overlay";
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s ease;
+    `;
+
+    overlay.innerHTML = `
+      <div style="max-width: 600px; padding: 3rem; background: linear-gradient(135deg, rgba(0,30,60,0.95), rgba(0,20,40,0.95));
+        border: 2px solid rgba(0,224,255,0.4); border-radius: 20px; text-align: center;
+        box-shadow: 0 20px 60px rgba(0,224,255,0.3); position: relative;">
+
+        <button onclick="document.getElementById('pathway-intro-overlay').remove()"
+          style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none;
+          color: rgba(255,255,255,0.5); font-size: 1.5rem; cursor: pointer; transition: all 0.2s;"
+          onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">
+          <i class="fas fa-times"></i>
+        </button>
+
+        <div style="margin-bottom: 2rem;">
+          <i class="fas fa-magic" style="font-size: 3rem; color: #00e0ff; margin-bottom: 1rem;
+            filter: drop-shadow(0 0 20px rgba(0,224,255,0.6)); animation: pulse 2s ease-in-out infinite;"></i>
+        </div>
+
+        <h2 style="color: #00e0ff; font-size: 2rem; font-weight: 800; margin-bottom: 1rem;
+          text-shadow: 0 0 20px rgba(0,224,255,0.5);">
+          Discover Your Perfect Connections
+        </h2>
+
+        <p style="color: rgba(255,255,255,0.9); font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;">
+          Our AI will analyze your <strong style="color: #00e0ff;">skills</strong>,
+          <strong style="color: #00e0ff;">interests</strong>, and
+          <strong style="color: #00e0ff;">network</strong> to illuminate personalized pathways
+          to people and projects <em>tailored just for you</em>.
+        </p>
+
+        <div style="background: rgba(0,224,255,0.1); border-left: 4px solid #00e0ff; padding: 1rem 1.5rem;
+          margin-bottom: 2rem; text-align: left; border-radius: 8px;">
+          <div style="color: #fff; font-size: 0.95rem; margin-bottom: 0.5rem;">
+            <i class="fas fa-lightbulb" style="color: #00e0ff; margin-right: 0.5rem;"></i>
+            <strong>What you'll see:</strong>
+          </div>
+          <ul style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0; padding-left: 1.5rem;">
+            <li style="margin-bottom: 0.5rem;">Animated pathways flowing across your network graph</li>
+            <li style="margin-bottom: 0.5rem;">Highlighted recommendations with match scores</li>
+            <li>Direct connection routes to expand your network</li>
+          </ul>
+        </div>
+
+        <button id="pathway-connect-btn"
+          style="background: linear-gradient(135deg, #00e0ff, #0080ff); color: white; border: none;
+          padding: 1.25rem 3rem; font-size: 1.25rem; font-weight: 700; border-radius: 50px;
+          cursor: pointer; box-shadow: 0 8px 24px rgba(0,224,255,0.4);
+          transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 0.75rem;
+          text-transform: uppercase; letter-spacing: 1px;"
+          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 32px rgba(0,224,255,0.6)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 24px rgba(0,224,255,0.4)'">
+          <i class="fas fa-route"></i>
+          Illuminate Pathways
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Add click handler to Connect button
+    document.getElementById("pathway-connect-btn").addEventListener("click", async () => {
+      overlay.remove();
+      await triggerPathwayAnimation();
+    });
+  }
+
+  async function triggerPathwayAnimation() {
+    try {
       // Show loading state
       const loadingToast = showPathwayLoadingToast();
 
@@ -1497,7 +1596,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         // Remove loading toast
         if (loadingToast) loadingToast.remove();
 
-        // Also show modal with recommendations list
+        // Wait a moment to let pathways animate
+        await new Promise(resolve => setTimeout(resolve, 2500));
+
+        // Show modal with recommendations list
         if (recommendations && recommendations.length > 0) {
           await openQuickConnectModal();
           await renderRecommendationsList(recommendations);
@@ -1512,7 +1614,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         await openQuickConnectModal();
       }
     } catch (e) {
-      console.error("Animated pathways failed:", e);
+      console.error("Pathway animation failed:", e);
       // Fallback to regular quick connect
       await openQuickConnectModal();
     }

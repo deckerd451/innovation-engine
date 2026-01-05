@@ -572,3 +572,46 @@ svg defs .pathway-gradient stop:last-child {
 .pathway-loading-toast {
   animation: slideInRight 0.3s ease;
 }
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Pulse animation for icons */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+/* Responsive pathway intro overlay */
+@media (max-width: 640px) {
+  #pathway-intro-overlay > div {
+    max-width: 90% !important;
+    padding: 2rem 1.5rem !important;
+  }
+
+  #pathway-intro-overlay h2 {
+    font-size: 1.5rem !important;
+  }
+
+  #pathway-intro-overlay p {
+    font-size: 1rem !important;
+  }
+
+  #pathway-connect-btn {
+    padding: 1rem 2rem !important;
+    font-size: 1rem !important;
+  }
+}
