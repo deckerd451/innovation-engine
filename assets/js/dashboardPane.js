@@ -145,7 +145,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     $("btn-endorsements")?.addEventListener("click", () => window.openEndorsementsModal());
     $("btn-bbs")?.addEventListener("click", () => initBBS());
     $("btn-profile")?.addEventListener("click", () => window.openProfileModal());
-    $("btn-quickconnect")?.addEventListener("click", () => window.openQuickConnectModal());
+    $("btn-quickconnect")?.addEventListener("click", () => showAnimatedPathways());
     $("btn-filters")?.addEventListener("click", () => toggleFilters());
     $("btn-legend")?.addEventListener("click", () => toggleLegend());
   }
@@ -1479,6 +1479,160 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       $("fab-bbs-trigger")?.click();
     }
   }
+
+  // -----------------------------
+  // Animated Pathways
+  // -----------------------------
+  async function showAnimatedPathways() {
+    try {
+      // Show loading state
+      const loadingToast = showPathwayLoadingToast();
+
+      // Import synapse module dynamically
+      const synapse = await import("./synapse.js");
+
+      if (typeof synapse.showConnectPathways === "function") {
+        const recommendations = await synapse.showConnectPathways();
+
+        // Remove loading toast
+        if (loadingToast) loadingToast.remove();
+
+        // Also show modal with recommendations list
+        if (recommendations && recommendations.length > 0) {
+          await openQuickConnectModal();
+          await renderRecommendationsList(recommendations);
+        } else {
+          // No recommendations found
+          await openQuickConnectModal();
+          await loadSuggestedConnections();
+        }
+      } else {
+        console.warn("showConnectPathways not available, falling back to modal");
+        if (loadingToast) loadingToast.remove();
+        await openQuickConnectModal();
+      }
+    } catch (e) {
+      console.error("Animated pathways failed:", e);
+      // Fallback to regular quick connect
+      await openQuickConnectModal();
+    }
+  }
+
+  function showPathwayLoadingToast() {
+    const toast = document.createElement("div");
+    toast.className = "pathway-loading-toast";
+    toast.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem;
+        background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,128,255,0.2));
+        border: 2px solid rgba(0,224,255,0.4); border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,224,255,0.3); backdrop-filter: blur(10px);
+        position: fixed; bottom: 2rem; right: 2rem; z-index: 10000;
+        animation: slideInRight 0.3s ease;">
+        <div style="width: 24px; height: 24px; border: 3px solid rgba(0,224,255,0.3);
+          border-top-color: #00e0ff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <div style="color: white; font-weight: 600; font-size: 0.95rem;">
+          <i class="fas fa-magic"></i> Finding your perfect connections...
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(toast);
+    return toast;
+  }
+
+  async function renderRecommendationsList(recommendations) {
+    const list = $("quick-connect-list");
+    if (!list) return;
+
+    list.innerHTML = `
+      <div style="margin-bottom: 1.5rem;">
+        <div style="color: #00e0ff; font-size: 1rem; font-weight: 800; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-magic"></i> AI-Powered Recommendations
+        </div>
+        <div style="color: #aaa; font-size: 0.85rem; margin-bottom: 1rem;">
+          Based on your skills, interests, and network connections
+        </div>
+      </div>
+    `;
+
+    for (const rec of recommendations) {
+      const name = rec.name || "Unknown";
+      const initials = name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0].toUpperCase())
+        .join("");
+
+      const isProject = rec.type === "project";
+      const icon = isProject ? "💡" : "";
+
+      const matchBadges = rec.matchedSkills
+        .slice(0, 3)
+        .map(
+          (skill) => `
+        <span style="background: rgba(0,224,255,0.2); color: #00e0ff; padding: 0.2rem 0.5rem;
+          border-radius: 8px; font-size: 0.75rem; margin-right: 0.25rem;">
+          ${escapeHtml(skill)}
+        </span>
+      `
+        )
+        .join("");
+
+      list.innerHTML += `
+        <div style="display:flex; align-items:center; gap:1rem; padding:1rem;
+          background:${isProject ? "rgba(255,107,107,0.05)" : "rgba(0,224,255,0.05)"};
+          border:2px solid ${isProject ? "rgba(255,107,107,0.3)" : "rgba(0,224,255,0.3)"};
+          border-radius:12px; margin-bottom:0.75rem; position: relative;">
+
+          <div style="position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,215,0,0.2);
+            color: #ffd700; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.7rem; font-weight: 700;">
+            ${Math.round(rec.score)} pts
+          </div>
+
+          ${
+            isProject
+              ? `<div style="width:52px; height:52px; border-radius:8px;
+                   background:linear-gradient(135deg,#ff6b6b,#ff4757); display:flex; align-items:center; justify-content:center;
+                   font-size:1.8rem;">${icon}</div>`
+              : rec.node?.image_url
+              ? `<img src="${escapeHtml(rec.node.image_url)}" style="width:52px; height:52px; border-radius:50%;
+                   object-fit:cover; border:2px solid #00e0ff;">`
+              : `<div style="width:52px; height:52px; border-radius:50%;
+                   background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center;
+                   font-weight:bold; color:white; font-size:1.1rem;">${initials}</div>`
+          }
+
+          <div style="flex:1; min-width:0;">
+            <div style="color:white; font-weight:700; font-size:1rem; margin-bottom: 0.25rem;">
+              ${escapeHtml(name)}
+              ${isProject ? '<span style="color: #ff6b6b; margin-left: 0.5rem; font-size: 0.85rem;">(Project)</span>' : ""}
+            </div>
+            <div style="color:#aaa; font-size:0.85rem; margin-bottom: 0.5rem;">
+              ${escapeHtml(rec.reason)}
+            </div>
+            ${matchBadges ? `<div style="margin-top: 0.5rem;">${matchBadges}</div>` : ""}
+          </div>
+
+          <button class="btn btn-primary" style="white-space:nowrap;" onclick="sendConnectionRequest('${rec.userId}')">
+            <i class="fas fa-${isProject ? "lightbulb" : "user-plus"}"></i> ${isProject ? "Join" : "Connect"}
+          </button>
+        </div>
+      `;
+    }
+
+    if (recommendations.length === 0) {
+      list.innerHTML += `
+        <div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-check-circle" style="font-size:3rem; opacity:0.3;"></i>
+          <p style="margin-top:1rem;">You're well connected!</p>
+          <p style="font-size:0.85rem; color:#666; margin-top:0.5rem;">No new recommendations at this time</p>
+        </div>
+      `;
+    }
+  }
+
+  window.showAnimatedPathways = showAnimatedPathways;
 
   // Legacy helpers
   window.toggleFilters = toggleFilters;

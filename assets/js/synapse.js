@@ -13,6 +13,7 @@ import {
 
 import { getAllProjectMembers } from './projects.js';
 import { openNodePanel } from './node-panel.js';
+import * as PathwayAnimations from './pathway-animations.js';
 
 let supabase = null;
 let svg = null;
@@ -707,6 +708,14 @@ function startSimulation() {
 
   // Click on background to close card
   svg.on('click', () => closeSynapseProfileCard());
+
+  // Initialize pathway animations system
+  try {
+    PathwayAnimations.initPathwayAnimations(supabase, svg, container, nodes, links);
+    console.log('%c✨ Pathway animations ready', 'color: #0ff');
+  } catch (err) {
+    console.warn('Pathway animations init failed:', err);
+  }
 }
 
 // Link color based on status
@@ -1225,6 +1234,62 @@ async function removeSkillEndorsement(userId, skill) {
 }
 
 // ========================
+// PATHWAY ANIMATIONS
+// ========================
+
+/**
+ * Trigger animated pathway visualization
+ * Shows glowing paths to recommended people and projects
+ */
+export async function showConnectPathways() {
+  try {
+    // Update pathway system with latest graph data
+    PathwayAnimations.updateGraphData(nodes, links);
+
+    // Show recommendation pathways
+    const recommendations = await PathwayAnimations.showRecommendationPathways(5);
+
+    // Show toast notification
+    showSynapseNotification(
+      `✨ Found ${recommendations.length} recommendations for you!`,
+      'success'
+    );
+
+    return recommendations;
+  } catch (err) {
+    console.error('Error showing pathways:', err);
+    showSynapseNotification('Failed to show pathways', 'error');
+    return [];
+  }
+}
+
+/**
+ * Clear all pathway animations
+ */
+export function clearConnectPathways() {
+  try {
+    PathwayAnimations.clearAllPathways();
+    PathwayAnimations.clearHighlights();
+    showSynapseNotification('Pathways cleared', 'info');
+  } catch (err) {
+    console.error('Error clearing pathways:', err);
+  }
+}
+
+/**
+ * Get current recommendations without showing pathways
+ */
+export async function getRecommendations() {
+  try {
+    PathwayAnimations.updateGraphData(nodes, links);
+    return await PathwayAnimations.generateRecommendations();
+  } catch (err) {
+    console.error('Error generating recommendations:', err);
+    return [];
+  }
+}
+
+// ========================
 // EXPORTS
 // ========================
 
@@ -1232,5 +1297,8 @@ async function removeSkillEndorsement(userId, skill) {
 // Only export functions that weren't exported inline
 export {
   refreshSynapseConnections,
-  showSynapseNotification
+  showSynapseNotification,
+  showConnectPathways,
+  clearConnectPathways,
+  getRecommendations
 };

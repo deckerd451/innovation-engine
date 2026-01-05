@@ -395,3 +395,180 @@
     max-width: calc(100vw - 2rem);
   }
 }
+
+/* ===== PATHWAY ANIMATIONS ===== */
+
+/* Animated pathway segments */
+.animated-pathway {
+  pointer-events: none; /* Don't interfere with graph interactions */
+}
+
+.pathway-segment {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: pathwayPulse 2s ease-in-out infinite;
+}
+
+@keyframes pathwayPulse {
+  0%, 100% {
+    opacity: 0.8;
+    stroke-width: 4;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 5;
+  }
+}
+
+/* Flowing particles along pathways */
+.pathway-particle {
+  pointer-events: none;
+  animation: particleGlow 1s ease-in-out infinite;
+}
+
+@keyframes particleGlow {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Recommendation glow on nodes */
+.recommendation-glow {
+  pointer-events: none;
+  animation: recommendationPulse 2s ease-in-out infinite;
+}
+
+@keyframes recommendationPulse {
+  0%, 100% {
+    opacity: 0.6;
+    stroke-width: 3;
+  }
+  50% {
+    opacity: 0.3;
+    stroke-width: 4;
+  }
+}
+
+/* Glowing gradient for pathways */
+svg defs .pathway-gradient stop:first-child {
+  stop-color: #00e0ff;
+  stop-opacity: 0;
+}
+
+svg defs .pathway-gradient stop:last-child {
+  stop-color: #00e0ff;
+  stop-opacity: 1;
+}
+
+/* Enhanced node highlighting for recommendations */
+.synapse-node.recommended circle {
+  filter: drop-shadow(0 0 12px #00e0ff);
+  animation: nodeHighlight 1.5s ease-in-out infinite;
+}
+
+@keyframes nodeHighlight {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px #00e0ff);
+  }
+  50% {
+    filter: drop-shadow(0 0 16px #00e0ff);
+  }
+}
+
+/* Project recommendation highlight (red/pink) */
+.synapse-node.recommended-project rect {
+  filter: drop-shadow(0 0 12px #ff6b6b);
+  animation: projectHighlight 1.5s ease-in-out infinite;
+}
+
+@keyframes projectHighlight {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px #ff6b6b);
+  }
+  50% {
+    filter: drop-shadow(0 0 16px #ff6b6b);
+  }
+}
+
+/* Shimmer effect for pathway segments */
+@keyframes pathwayShimmer {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 100;
+  }
+}
+
+.pathway-segment.animated {
+  stroke-dasharray: 10 5;
+  animation: pathwayShimmer 2s linear infinite, pathwayPulse 2s ease-in-out infinite;
+}
+
+/* Fade in animation for pathways */
+@keyframes pathwayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+
+.animated-pathway .pathway-segment {
+  animation: pathwayFadeIn 0.6s ease-out;
+}
+
+/* Recommendation badge styles (in modal) */
+.recommendation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: #ffd700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.5);
+  }
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Slide in from right animation */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Pathway loading toast styles */
+.pathway-loading-toast {
+  animation: slideInRight 0.3s ease;
+}
