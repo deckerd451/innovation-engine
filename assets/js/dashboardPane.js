@@ -18,6 +18,8 @@
  * ========================================================================== */
 
 import { supabase as importedSupabase } from "./supabaseClient.js";
+import { setupSynapseRealtime } from "./synapse.js";
+
 
 (function () {
   "use strict";
