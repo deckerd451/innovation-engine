@@ -243,47 +243,107 @@
   }
 
   async function initLoginSystem() {
-    log("🚀 Initializing login system (OAuth)…");
-    setHint("Checking session…");
+  log("🚀 Initializing login system (OAuth)…");
+  setHint("Checking session…");
 
-    const ok = await waitForSupabase(3000);
-    if (!ok) {
-      err("❌ CRITICAL: window.supabase is not available!");
-      showLoginUI();
-      return;
+  const ok = await waitForSupabase(3000);
+  if (!ok) {
+    err("❌ CRITICAL: window.supabase is not available!");
+    showLoginUI();
+    return;
+  }
+
+  cleanOAuthUrlSoon();
+
+  // ---- shared guard state (prevents timeout from overriding real auth) ----
+  let authed = false;
+  let sessionTimeoutId = null;
+  let profileLoadedFor = null;
+
+  const cancelTimeout = () => {
+    if (sessionTimeoutId) {
+      clearTimeout(sessionTimeoutId);
+      sessionTimeoutId = null;
     }
+  };
 
-    cleanOAuthUrlSoon();
+  const handleAuthedUser = (user) => {
+    if (!user) return;
+    authed = true;
+    cancelTimeout();
+    showAppUI(user);
 
-    // Hard timeout guard: never hang on spinner.
-    const SESSION_TIMEOUT_MS = 3500;
-    let timedOut = false;
-    const t = setTimeout(() => {
-      timedOut = true;
-      warn("⏱️ Session check timed out — showing login UI fallback.");
-      showLoginUI();
-    }, SESSION_TIMEOUT_MS);
+    // avoid loading profile multiple times for same user
+    if (profileLoadedFor !== user.id) {
+      profileLoadedFor = user.id;
+      setTimeout(() => loadUserProfile(user), 100);
+    }
+  };
 
-    try {
-      const { data: { session } } = await window.supabase.auth.getSession();
-      clearTimeout(t);
+  // ---- subscribe FIRST (so we don't miss INITIAL_SESSION) ----
+  if (!window.__CH_IE_AUTH_UNSUB__ && window.supabase?.auth?.onAuthStateChange) {
+    const { data: sub } = window.supabase.auth.onAuthStateChange((event, session2) => {
+      log("⚡ Auth event:", event);
 
-      if (timedOut) return;
+      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session2?.user) {
+        log("🟢 Auth confirmed:", session2.user.email);
+        handleAuthedUser(session2.user);
+        return;
+      }
 
-      if (session?.user) {
-        log("🟢 Already logged in as:", session.user.email);
-        showAppUI(session.user);
-        // Load profile after UI is visible
-        setTimeout(() => loadUserProfile(session.user), 100);
-      } else {
+      if (event === "SIGNED_OUT") {
+        authed = false;
+        cancelTimeout();
+        log("🟡 User signed out");
+        showLoginUI();
+        return;
+      }
+
+      // If tokens refreshed etc. and user exists, treat as authed
+      if (session2?.user) {
+        handleAuthedUser(session2.user);
+      }
+    });
+
+    window.__CH_IE_AUTH_UNSUB__ = sub?.subscription?.unsubscribe
+      ? () => sub.subscription.unsubscribe()
+      : null;
+  }
+
+  // ---- timeout fallback (but only if we never got authed) ----
+  const SESSION_TIMEOUT_MS = 3500;
+  sessionTimeoutId = setTimeout(() => {
+    if (authed) return; // <-- critical: never override real auth
+    warn("⏱️ Session check timed out — showing login UI fallback.");
+    showLoginUI();
+  }, SESSION_TIMEOUT_MS);
+
+  // ---- best-effort session check (does NOT control the timeout anymore) ----
+  try {
+    const { data, error } = await window.supabase.auth.getSession();
+    if (error) warn("⚠️ getSession error:", error);
+
+    const session = data?.session;
+    if (session?.user) {
+      log("🟢 Session found:", session.user.email);
+      handleAuthedUser(session.user);
+    } else {
+      // Only show login if we haven't been authed by events
+      if (!authed) {
         log("🟡 No active session");
+        cancelTimeout();
         showLoginUI();
       }
-    } catch (e) {
-      clearTimeout(t);
-      err("❌ ERROR in initLoginSystem:", e);
+    }
+  } catch (e) {
+    warn("⚠️ getSession threw:", e);
+    if (!authed) {
+      cancelTimeout();
       showLoginUI();
     }
+  }
+}
+
 
     // Subscribe once
     if (!window.__CH_IE_AUTH_UNSUB__ && window.supabase?.auth?.onAuthStateChange) {
