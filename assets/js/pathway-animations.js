@@ -317,7 +317,7 @@ export function animatePathway(sourceId, targetId, options = {}) {
   }
 
   // Create pathway group
-  const pathwayGroup = container.append('g')
+  const pathwayGroup = container.insert('g', '.nodes')
     .attr('class', 'animated-pathway')
     .attr('data-source', sourceId)
     .attr('data-target', targetId);
@@ -340,6 +340,32 @@ export function animatePathway(sourceId, targetId, options = {}) {
     segments.push({ path, source, target });
   }
 
+  // Function to update pathway positions
+  const updatePathwayPositions = () => {
+    segments.forEach(({ path, source, target }) => {
+      // Calculate control point for curve (add slight bend)
+      const midX = (source.x + target.x) / 2;
+      const midY = (source.y + target.y) / 2;
+      const dx = target.x - source.x;
+      const dy = target.y - source.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const curvature = Math.min(30, dist * 0.2);
+
+      // Perpendicular offset
+      const offsetX = -dy / dist * curvature;
+      const offsetY = dx / dist * curvature;
+      const controlX = midX + offsetX;
+      const controlY = midY + offsetY;
+
+      // Quadratic Bezier curve
+      const pathData = `M ${source.x},${source.y} Q ${controlX},${controlY} ${target.x},${target.y}`;
+      path.attr('d', pathData);
+    });
+  };
+
+  // Initial position update
+  updatePathwayPositions();
+
   // Animate each segment sequentially
   let currentSegment = 0;
   const animateSegment = () => {
@@ -352,25 +378,7 @@ export function animatePathway(sourceId, targetId, options = {}) {
       return;
     }
 
-    const { path, source, target } = segments[currentSegment];
-
-    // Calculate control point for curve (add slight bend)
-    const midX = (source.x + target.x) / 2;
-    const midY = (source.y + target.y) / 2;
-    const dx = target.x - source.x;
-    const dy = target.y - source.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const curvature = Math.min(30, dist * 0.2);
-
-    // Perpendicular offset
-    const offsetX = -dy / dist * curvature;
-    const offsetY = dx / dist * curvature;
-    const controlX = midX + offsetX;
-    const controlY = midY + offsetY;
-
-    // Quadratic Bezier curve
-    const pathData = `M ${source.x},${source.y} Q ${controlX},${controlY} ${target.x},${target.y}`;
-    path.attr('d', pathData);
+    const { path } = segments[currentSegment];
 
     // Fade in
     path.transition()
@@ -384,12 +392,13 @@ export function animatePathway(sourceId, targetId, options = {}) {
 
   animateSegment();
 
-  // Store pathway for cleanup
+  // Store pathway for cleanup and updates
   const pathwayData = {
     id: `${sourceId}-${targetId}`,
     group: pathwayGroup,
     segments,
-    path
+    pathNodes,
+    updatePositions: updatePathwayPositions
   };
 
   activePathways.push(pathwayData);
@@ -495,6 +504,17 @@ export function highlightRecommendedNodes(recommendations) {
 export function clearHighlights() {
   if (!container) return;
   container.selectAll('.recommendation-glow').remove();
+}
+
+/**
+ * Update all active pathway positions (call on simulation tick)
+ */
+export function updateAllPathwayPositions() {
+  for (const pathway of activePathways) {
+    if (pathway.updatePositions) {
+      pathway.updatePositions();
+    }
+  }
 }
 
 /**

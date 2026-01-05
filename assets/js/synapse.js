@@ -699,6 +699,13 @@ function startSimulation() {
 
     // Update project circles
     updateProjectCircles();
+
+    // Update pathway positions
+    try {
+      PathwayAnimations.updateAllPathwayPositions();
+    } catch (err) {
+      // Silently fail if pathways not initialized yet
+    }
   });
 
   // Auto-stop simulation after settling to save CPU
