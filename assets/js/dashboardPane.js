@@ -130,7 +130,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     // Header actions
     $("user-menu")?.addEventListener("click", () => window.openProfileModal());
     $("notifications-bell")?.addEventListener("click", async () => {
-      window.openQuickConnectModal();
+      if (typeof window.toggleConnectionsPanel === 'function') {
+        window.toggleConnectionsPanel();
+      } else {
+        console.warn('Connection requests panel not available');
+      }
     });
 
     // Search

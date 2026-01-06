@@ -774,3 +774,70 @@
 .connections-fab .fab-badge.hidden {
   display: none;
 }
+
+/* ======================== */
+/* MOBILE RESPONSIVE */
+/* ======================== */
+@media (max-width: 768px) {
+  .connection-requests-panel {
+    top: 70px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: calc(100vh - 150px);
+  }
+
+  .crp-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .crp-header h3 {
+    font-size: 0.9rem;
+  }
+
+  .crp-tab {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .crp-item {
+    gap: 0.5rem;
+    padding: 0.6rem;
+  }
+
+  .crp-item-avatar img,
+  .crp-avatar-fallback {
+    width: 38px;
+    height: 38px;
+  }
+
+  .crp-item-name {
+    font-size: 0.85rem;
+  }
+
+  .crp-item-meta,
+  .crp-item-email {
+    font-size: 0.7rem;
+  }
+
+  .crp-accept,
+  .crp-decline,
+  .crp-remove {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+
+  .crp-cancel {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.7rem;
+  }
+
+  .connections-fab {
+    bottom: 20px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    font-size: 1.3rem;
+  }
+}
