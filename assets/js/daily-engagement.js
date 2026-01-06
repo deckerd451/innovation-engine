@@ -1,15 +1,19 @@
 /**
  * ================================================================
- * DAILY ENGAGEMENT SYSTEM
+ * DAILY ENGAGEMENT SYSTEM (2026 — idempotent + auth-v4 safe)
  * ================================================================
- * Creates sticky user engagement through daily check-ins, quests,
- * XP tracking, streaks, and activity feeds.
+ * Sticky engagement: daily check-ins, quests, XP, streaks.
+ *
+ * Guarantees (updated):
+ * - init() is single-flight (concurrent calls reuse same promise)
+ * - Listeners are bound once
+ * - No duplicate init from getUser + auth events + profile-loaded
  */
 
 console.log("%c🎯 Daily Engagement Loading...", "color:#0f0; font-weight: bold; font-size: 16px");
 
-const DailyEngagement = (function() {
-  'use strict';
+const DailyEngagement = (function () {
+  "use strict";
 
   // ============================================================
   // STATE
@@ -17,23 +21,32 @@ const DailyEngagement = (function() {
 
   const state = {
     initialized: false,
+    initializing: false,
+    initError: null,
+
     supabase: null,
     currentUser: null,
     userStats: null,
+
     dailyQuests: [],
     activityFeed: [],
     streak: 0,
     level: 1,
     xp: 0,
-    xpToNextLevel: 100
+    xpToNextLevel: 100,
   };
+
+  // Single-flight promise for init
+  let initPromise = null;
+
+  // Listener binding guard
+  let listenersBound = false;
 
   // ============================================================
   // XP REWARDS TABLE
   // ============================================================
 
   const XP_REWARDS = {
-    // Daily actions
     DAILY_LOGIN: 10,
     VIEW_PROFILE: 2,
     SEND_CONNECTION: 10,
@@ -41,21 +54,14 @@ const DailyEngagement = (function() {
     ENDORSE_SKILL: 5,
     RECEIVE_ENDORSEMENT: 10,
     SEND_MESSAGE: 3,
-
-    // Project actions
     JOIN_PROJECT: 30,
     CREATE_PROJECT: 50,
-
-    // Quest completion
     DAILY_QUEST: 25,
     WEEKLY_QUEST: 100,
-
-    // Profile actions
     COMPLETE_PROFILE: 50,
-    ADD_PHOTO: 25
+    ADD_PHOTO: 25,
   };
 
-  // Level thresholds
   const LEVEL_THRESHOLDS = [
     { level: 1, xp: 0, title: "Newcomer" },
     { level: 2, xp: 100, title: "Explorer" },
@@ -66,49 +72,77 @@ const DailyEngagement = (function() {
     { level: 7, xp: 5000, title: "Visionary" },
     { level: 8, xp: 10000, title: "Pioneer" },
     { level: 9, xp: 25000, title: "Legend" },
-    { level: 10, xp: 50000, title: "Founder" }
+    { level: 10, xp: 50000, title: "Founder" },
   ];
 
   // ============================================================
-  // INITIALIZATION
+  // INIT / BOOTSTRAP
   // ============================================================
 
-  async function init() {
+  async function ensureSupabase(maxTries = 30, delayMs = 100) {
+    for (let i = 0; i < maxTries; i++) {
+      if (window.supabase) return window.supabase;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+    return null;
+  }
+
+  async function init(options = {}) {
+    // Hard idempotency: if already initialized, return quickly.
     if (state.initialized) {
-      console.log('🎯 Daily Engagement: Already initialized, skipping');
-      return;
+      console.log("🎯 Daily Engagement: Already initialized, skipping");
+      return state;
     }
 
-    try {
-      state.supabase = window.supabase;
-      if (!state.supabase) throw new Error('Supabase not available');
+    // Single-flight: if init is already running, return same promise.
+    if (initPromise) return initPromise;
 
-      // Get current user
-      const { data: { user }, error: userError } = await state.supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error('No user logged in');
+    initPromise = (async () => {
+      state.initializing = true;
+      state.initError = null;
 
-      state.currentUser = user;
-      console.log('🎯 Daily Engagement: Loading stats for user:', user.email);
-
-      // Load user stats
-      await loadUserStats();
-
-      // Check for daily check-in
-      await checkDailyCheckIn();
-
-      // Initialize UI components
-      initXPDisplay();
-      initStreakDisplay();
-
+      // IMPORTANT: mark initialized early to prevent races
+      // (If we fail, we’ll reset.)
       state.initialized = true;
-      console.log('✅ Daily engagement initialized');
 
-    } catch (error) {
-      console.error('❌ Failed to initialize daily engagement:', error);
-      // Reset initialized flag so it can retry
-      state.initialized = false;
-    }
+      try {
+        state.supabase = state.supabase || window.supabase;
+        if (!state.supabase) {
+          state.supabase = await ensureSupabase();
+        }
+        if (!state.supabase) throw new Error("Supabase not available");
+
+        // Get current user (fast + accurate)
+        const { data: { user }, error: userError } = await state.supabase.auth.getUser();
+        if (userError) throw userError;
+        if (!user) throw new Error("No user logged in");
+
+        state.currentUser = user;
+        console.log("🎯 Daily Engagement: Loading stats for user:", user.email);
+
+        await loadUserStats();
+        await checkDailyCheckIn();
+
+        initXPDisplay();
+        initStreakDisplay();
+
+        console.log("✅ Daily engagement initialized");
+        return state;
+      } catch (error) {
+        console.error("❌ Failed to initialize daily engagement:", error);
+
+        // Reset so it can retry later
+        state.initialized = false;
+        state.initError = error?.message || String(error);
+
+        throw error;
+      } finally {
+        state.initializing = false;
+        initPromise = null; // allow retries if initialization failed
+      }
+    })();
+
+    return initPromise;
   }
 
   // ============================================================
@@ -116,59 +150,50 @@ const DailyEngagement = (function() {
   // ============================================================
 
   async function loadUserStats() {
-    try {
-      const { data: profile, error } = await state.supabase
-        .from('community')
-        .select('*')
-        .eq('user_id', state.currentUser.id)
-        .single();
+    const { data: profile, error } = await state.supabase
+      .from("community")
+      .select("*")
+      .eq("user_id", state.currentUser.id)
+      .single();
 
-      if (error) {
-        console.error('❌ Error loading user stats:', error);
-        throw error;
-      }
-
-      if (!profile) {
-        console.warn('⚠️ No profile found for user:', state.currentUser.id);
-        return;
-      }
-
-      console.log('✅ Loaded profile:', profile.name);
-
-      // Initialize stats if they don't exist
-      state.userStats = {
-        xp: profile.xp || 0,
-        level: profile.level || 1,
-        streak: profile.login_streak || 0,
-        last_login: profile.last_login || null,
-        daily_quests_completed: profile.daily_quests_completed || [],
-        total_connections: profile.connection_count || 0,
-        total_endorsements_given: profile.endorsements_given || 0,
-        total_endorsements_received: profile.endorsements_received || 0
-      };
-
-      state.xp = state.userStats.xp;
-      state.level = state.userStats.level;
-      state.streak = state.userStats.streak;
-
-      // Calculate XP needed for next level
-      const nextLevelData = LEVEL_THRESHOLDS.find(l => l.level === state.level + 1);
-      state.xpToNextLevel = nextLevelData ? nextLevelData.xp : state.xp;
-    } catch (error) {
-      console.error('❌ Failed to load user stats:', error);
+    if (error) {
+      console.error("❌ Error loading user stats:", error);
       throw error;
     }
+    if (!profile) {
+      console.warn("⚠️ No profile found for user:", state.currentUser.id);
+      return;
+    }
+
+    console.log("✅ Loaded profile:", profile.name);
+
+    state.userStats = {
+      xp: profile.xp || 0,
+      level: profile.level || 1,
+      streak: profile.login_streak || 0,
+      last_login: profile.last_login || null,
+      daily_quests_completed: profile.daily_quests_completed || [],
+      total_connections: profile.connection_count || 0,
+      total_endorsements_given: profile.endorsements_given || 0,
+      total_endorsements_received: profile.endorsements_received || 0,
+    };
+
+    state.xp = state.userStats.xp;
+    state.level = state.userStats.level;
+    state.streak = state.userStats.streak;
+
+    const nextLevelData = LEVEL_THRESHOLDS.find((l) => l.level === state.level + 1);
+    state.xpToNextLevel = nextLevelData ? nextLevelData.xp : state.xp;
   }
 
   async function awardXP(amount, reason) {
     if (!state.userStats) {
-      console.warn('⚠️ Cannot award XP: user stats not loaded');
+      console.warn("⚠️ Cannot award XP: user stats not loaded");
       return { didLevelUp: false, newLevel: state.level, totalXP: state.xp };
     }
 
     state.xp += amount;
 
-    // Check for level up
     const newLevel = calculateLevel(state.xp);
     const didLevelUp = newLevel > state.level;
 
@@ -177,44 +202,36 @@ const DailyEngagement = (function() {
       showLevelUpNotification(newLevel);
     }
 
-    // Update database using the community profile id, not auth user_id
     try {
       const { error } = await state.supabase
-        .from('community')
+        .from("community")
         .update({
           xp: state.xp,
           level: state.level,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('user_id', state.currentUser.id);
+        .eq("user_id", state.currentUser.id);
 
-      if (error) {
-        console.error('❌ Error updating XP in database:', error);
-      }
-    } catch (err) {
-      console.error('❌ Failed to update XP:', err);
+      if (error) console.error("❌ Error updating XP in database:", error);
+    } catch (e) {
+      console.error("❌ Failed to update XP:", e);
     }
 
-    // Update UI
     updateXPDisplay();
-
-    // Show XP gain notification
     showXPNotification(amount, reason);
 
-    return { didLevelUp, newLevel, totalXP: state.xp };
+    return { didLevelUp, newLevel: state.level, totalXP: state.xp };
   }
 
   function calculateLevel(xp) {
     for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
-      if (xp >= LEVEL_THRESHOLDS[i].xp) {
-        return LEVEL_THRESHOLDS[i].level;
-      }
+      if (xp >= LEVEL_THRESHOLDS[i].xp) return LEVEL_THRESHOLDS[i].level;
     }
     return 1;
   }
 
   function getLevelTitle(level) {
-    const data = LEVEL_THRESHOLDS.find(l => l.level === level);
+    const data = LEVEL_THRESHOLDS.find((l) => l.level === level);
     return data ? data.title : "Newcomer";
   }
 
@@ -226,13 +243,11 @@ const DailyEngagement = (function() {
     const lastLogin = state.userStats?.last_login;
     const today = new Date().toDateString();
 
-    // If last login was today, skip check-in
     if (lastLogin && new Date(lastLogin).toDateString() === today) {
-      console.log('✅ Already checked in today');
+      console.log("✅ Already checked in today");
       return;
     }
 
-    // Calculate streak
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toDateString();
@@ -240,42 +255,29 @@ const DailyEngagement = (function() {
     let newStreak = 1;
     if (lastLogin) {
       const lastLoginDate = new Date(lastLogin).toDateString();
-      if (lastLoginDate === yesterdayStr) {
-        // Continued streak
-        newStreak = state.streak + 1;
-      } else if (lastLoginDate === today) {
-        // Already logged in today
-        newStreak = state.streak;
-      }
-      // else: streak broken, reset to 1
+      if (lastLoginDate === yesterdayStr) newStreak = state.streak + 1;
+      else if (lastLoginDate === today) newStreak = state.streak;
     }
 
     state.streak = newStreak;
 
-    // Award daily login XP
-    await awardXP(XP_REWARDS.DAILY_LOGIN, 'Daily login');
+    await awardXP(XP_REWARDS.DAILY_LOGIN, "Daily login");
 
-    // Update last login and streak in database
     try {
       const { error } = await state.supabase
-        .from('community')
+        .from("community")
         .update({
           last_login: new Date().toISOString(),
-          login_streak: newStreak
+          login_streak: newStreak,
         })
-        .eq('user_id', state.currentUser.id);
+        .eq("user_id", state.currentUser.id);
 
-      if (error) {
-        console.error('❌ Error updating streak in database:', error);
-      }
-    } catch (err) {
-      console.error('❌ Failed to update streak:', err);
+      if (error) console.error("❌ Error updating streak in database:", error);
+    } catch (e) {
+      console.error("❌ Failed to update streak:", e);
     }
 
-    // Reset daily quests
     await resetDailyQuests();
-
-    // Show daily check-in modal
     showDailyCheckInModal();
   }
 
@@ -286,52 +288,50 @@ const DailyEngagement = (function() {
   async function resetDailyQuests() {
     state.dailyQuests = [
       {
-        id: 'view_profiles',
-        title: 'View 3 new profiles',
-        description: 'Explore the network and discover new connections',
-        icon: '👀',
+        id: "view_profiles",
+        title: "View 3 new profiles",
+        description: "Explore the network and discover new connections",
+        icon: "👀",
         progress: 0,
         target: 3,
         xp: XP_REWARDS.DAILY_QUEST,
-        completed: false
+        completed: false,
       },
       {
-        id: 'send_connection',
-        title: 'Send 1 connection request',
-        description: 'Expand your professional network',
-        icon: '🤝',
+        id: "send_connection",
+        title: "Send 1 connection request",
+        description: "Expand your professional network",
+        icon: "🤝",
         progress: 0,
         target: 1,
         xp: XP_REWARDS.DAILY_QUEST,
-        completed: false
+        completed: false,
       },
       {
-        id: 'endorse_skill',
-        title: 'Endorse 1 skill',
-        description: 'Support your network by endorsing skills',
-        icon: '⭐',
+        id: "endorse_skill",
+        title: "Endorse 1 skill",
+        description: "Support your network by endorsing skills",
+        icon: "⭐",
         progress: 0,
         target: 1,
         xp: XP_REWARDS.DAILY_QUEST,
-        completed: false
-      }
+        completed: false,
+      },
     ];
   }
 
   async function updateQuestProgress(questId, increment = 1) {
-    const quest = state.dailyQuests.find(q => q.id === questId);
+    const quest = state.dailyQuests.find((q) => q.id === questId);
     if (!quest || quest.completed) return;
 
     quest.progress += increment;
 
-    // Check if quest completed
     if (quest.progress >= quest.target) {
       quest.completed = true;
       await awardXP(quest.xp, `Quest: ${quest.title}`);
       showQuestCompleteNotification(quest);
     }
 
-    // Update quest tracker UI
     updateQuestTrackerUI();
   }
 
@@ -340,22 +340,20 @@ const DailyEngagement = (function() {
   // ============================================================
 
   function initXPDisplay() {
-    // Add XP counter to engagement displays container
-    const container = document.getElementById('engagement-displays');
+    const container = document.getElementById("engagement-displays");
     if (!container) {
-      console.warn('Engagement displays container not found');
+      console.warn("Engagement displays container not found");
       return;
     }
 
-    // Check if XP display already exists - if so, just update it
-    let xpDisplay = document.getElementById('xp-display');
+    let xpDisplay = document.getElementById("xp-display");
     if (xpDisplay) {
       updateXPDisplay();
       return;
     }
 
-    xpDisplay = document.createElement('div');
-    xpDisplay.id = 'xp-display';
+    xpDisplay = document.createElement("div");
+    xpDisplay.id = "xp-display";
     xpDisplay.style.cssText = `
       display: flex;
       align-items: center;
@@ -367,9 +365,12 @@ const DailyEngagement = (function() {
     `;
 
     const levelTitle = getLevelTitle(state.level);
-    const nextLevelXP = LEVEL_THRESHOLDS.find(l => l.level === state.level + 1)?.xp || state.xp;
-    const currentLevelXP = LEVEL_THRESHOLDS.find(l => l.level === state.level)?.xp || 0;
-    const progressPercent = ((state.xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
+    const nextLevelXP = LEVEL_THRESHOLDS.find((l) => l.level === state.level + 1)?.xp || state.xp;
+    const currentLevelXP = LEVEL_THRESHOLDS.find((l) => l.level === state.level)?.xp || 0;
+    const progressPercent =
+      nextLevelXP === currentLevelXP
+        ? 100
+        : ((state.xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
 
     xpDisplay.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 0.25rem;">
@@ -378,7 +379,7 @@ const DailyEngagement = (function() {
           <span style="color: #aaa; font-size: 0.85rem;">${levelTitle}</span>
         </div>
         <div style="width: 150px; height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; overflow: hidden;">
-          <div id="xp-progress-bar" style="width: ${progressPercent}%; height: 100%; background: linear-gradient(90deg, #00e0ff, #0080ff); transition: width 0.3s ease;"></div>
+          <div id="xp-progress-bar" style="width: ${Math.max(0, Math.min(100, progressPercent))}%; height: 100%; background: linear-gradient(90deg, #00e0ff, #0080ff); transition: width 0.3s ease;"></div>
         </div>
         <div style="font-size: 0.75rem; color: #888;">
           <span id="xp-current">${state.xp}</span> / <span id="xp-next">${nextLevelXP}</span> XP
@@ -390,22 +391,20 @@ const DailyEngagement = (function() {
   }
 
   function initStreakDisplay() {
-    // Add streak counter to engagement displays container
-    const container = document.getElementById('engagement-displays');
+    const container = document.getElementById("engagement-displays");
     if (!container) {
-      console.warn('Engagement displays container not found');
+      console.warn("Engagement displays container not found");
       return;
     }
 
-    // Check if streak display already exists - if so, just update it
-    let streakDisplay = document.getElementById('streak-display');
+    let streakDisplay = document.getElementById("streak-display");
     if (streakDisplay) {
       updateStreakDisplay();
       return;
     }
 
-    streakDisplay = document.createElement('div');
-    streakDisplay.id = 'streak-display';
+    streakDisplay = document.createElement("div");
+    streakDisplay.id = "streak-display";
     streakDisplay.style.cssText = `
       display: flex;
       align-items: center;
@@ -431,47 +430,62 @@ const DailyEngagement = (function() {
   }
 
   function updateStreakDisplay() {
-    const streakDisplay = document.getElementById('streak-display');
+    const streakDisplay = document.getElementById("streak-display");
     if (!streakDisplay) return;
 
-    const streakText = streakDisplay.querySelector('div > div');
-    if (streakText) {
-      streakText.textContent = `${state.streak} Day Streak`;
-    }
+    const streakText = streakDisplay.querySelector("div > div");
+    if (streakText) streakText.textContent = `${state.streak} Day Streak`;
   }
 
   function updateXPDisplay() {
-    const currentXPEl = document.getElementById('xp-current');
-    const progressBar = document.getElementById('xp-progress-bar');
+    const currentXPEl = document.getElementById("xp-current");
+    const progressBar = document.getElementById("xp-progress-bar");
+    const nextXPEl = document.getElementById("xp-next");
 
     if (currentXPEl) currentXPEl.textContent = state.xp;
 
-    if (progressBar) {
-      const nextLevelXP = LEVEL_THRESHOLDS.find(l => l.level === state.level + 1)?.xp || state.xp;
-      const currentLevelXP = LEVEL_THRESHOLDS.find(l => l.level === state.level)?.xp || 0;
-      const progressPercent = ((state.xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
-      progressBar.style.width = `${progressPercent}%`;
-    }
+    const nextLevelXP = LEVEL_THRESHOLDS.find((l) => l.level === state.level + 1)?.xp || state.xp;
+    const currentLevelXP = LEVEL_THRESHOLDS.find((l) => l.level === state.level)?.xp || 0;
+    const progressPercent =
+      nextLevelXP === currentLevelXP
+        ? 100
+        : ((state.xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
+
+    if (nextXPEl) nextXPEl.textContent = nextLevelXP;
+    if (progressBar) progressBar.style.width = `${Math.max(0, Math.min(100, progressPercent))}%`;
   }
 
   function updateQuestTrackerUI() {
-    const tracker = document.getElementById('quest-tracker');
+    const tracker = document.getElementById("quest-tracker");
     if (!tracker) return;
 
-    tracker.innerHTML = state.dailyQuests.map(quest => `
-      <div style="background: ${quest.completed ? 'rgba(0,255,136,0.1)' : 'rgba(0,224,255,0.05)'}; border: 1px solid ${quest.completed ? 'rgba(0,255,136,0.3)' : 'rgba(0,224,255,0.2)'}; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
+    tracker.innerHTML = state.dailyQuests
+      .map(
+        (quest) => `
+      <div style="background: ${
+        quest.completed ? "rgba(0,255,136,0.1)" : "rgba(0,224,255,0.05)"
+      }; border: 1px solid ${
+          quest.completed ? "rgba(0,255,136,0.3)" : "rgba(0,224,255,0.2)"
+        }; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
         <div style="display: flex; align-items: center; gap: 1rem;">
           <span style="font-size: 2rem;">${quest.icon}</span>
           <div style="flex: 1;">
-            <div style="font-weight: bold; color: ${quest.completed ? '#00ff88' : 'white'}; margin-bottom: 0.25rem;">
-              ${quest.completed ? '✓' : ''} ${quest.title}
+            <div style="font-weight: bold; color: ${
+              quest.completed ? "#00ff88" : "white"
+            }; margin-bottom: 0.25rem;">
+              ${quest.completed ? "✓" : ""} ${quest.title}
             </div>
             <div style="font-size: 0.85rem; color: #aaa; margin-bottom: 0.5rem;">
               ${quest.description}
             </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
               <div style="flex: 1; height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; overflow: hidden;">
-                <div style="width: ${(quest.progress / quest.target) * 100}%; height: 100%; background: ${quest.completed ? '#00ff88' : '#00e0ff'}; transition: width 0.3s ease;"></div>
+                <div style="width: ${Math.max(
+                  0,
+                  Math.min(100, (quest.progress / quest.target) * 100)
+                )}%; height: 100%; background: ${
+          quest.completed ? "#00ff88" : "#00e0ff"
+        }; transition: width 0.3s ease;"></div>
               </div>
               <span style="font-size: 0.85rem; color: #888;">${quest.progress}/${quest.target}</span>
             </div>
@@ -482,16 +496,18 @@ const DailyEngagement = (function() {
           </div>
         </div>
       </div>
-    `).join('');
+    `
+      )
+      .join("");
   }
 
   // ============================================================
-  // MODALS & NOTIFICATIONS
+  // MODALS & NOTIFICATIONS (unchanged)
   // ============================================================
 
   function showDailyCheckInModal() {
-    const modal = document.createElement('div');
-    modal.id = 'daily-checkin-modal';
+    const modal = document.createElement("div");
+    modal.id = "daily-checkin-modal";
     modal.style.cssText = `
       position: fixed;
       inset: 0;
@@ -504,7 +520,7 @@ const DailyEngagement = (function() {
       animation: fadeIn 0.3s ease;
     `;
 
-    const content = document.createElement('div');
+    const content = document.createElement("div");
     content.style.cssText = `
       background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
       border: 2px solid rgba(0,224,255,0.5);
@@ -555,18 +571,16 @@ const DailyEngagement = (function() {
 
     modal.appendChild(content);
     document.body.appendChild(modal);
-
-    // Initialize quest tracker
     updateQuestTrackerUI();
   }
 
   function closeDailyCheckIn() {
-    const modal = document.getElementById('daily-checkin-modal');
+    const modal = document.getElementById("daily-checkin-modal");
     if (modal) modal.remove();
   }
 
   function showXPNotification(amount, reason) {
-    const notification = document.createElement('div');
+    const notification = document.createElement("div");
     notification.style.cssText = `
       position: fixed;
       bottom: 2rem;
@@ -598,7 +612,7 @@ const DailyEngagement = (function() {
   function showLevelUpNotification(newLevel) {
     const levelTitle = getLevelTitle(newLevel);
 
-    const notification = document.createElement('div');
+    const notification = document.createElement("div");
     notification.style.cssText = `
       position: fixed;
       inset: 0;
@@ -625,7 +639,7 @@ const DailyEngagement = (function() {
   }
 
   function showQuestCompleteNotification(quest) {
-    const notification = document.createElement('div');
+    const notification = document.createElement("div");
     notification.style.cssText = `
       position: fixed;
       bottom: 2rem;
@@ -655,7 +669,9 @@ const DailyEngagement = (function() {
   }
 
   function showStreakDetails() {
-    alert(`🔥 ${state.streak} Day Streak!\n\nKeep logging in daily to maintain your streak.\n\nStreak Milestones:\n• 7 days: +50 XP bonus\n• 30 days: +200 XP bonus + Special Badge\n• 100 days: +1000 XP bonus + Premium Badge`);
+    alert(
+      `🔥 ${state.streak} Day Streak!\n\nKeep logging in daily to maintain your streak.\n\nStreak Milestones:\n• 7 days: +50 XP bonus\n• 30 days: +200 XP bonus + Special Badge\n• 100 days: +1000 XP bonus + Premium Badge`
+    );
   }
 
   // ============================================================
@@ -668,51 +684,62 @@ const DailyEngagement = (function() {
     updateQuestProgress,
     closeDailyCheckIn,
     XP_REWARDS,
-    getState: () => ({ ...state })
+    getState: () => ({ ...state }),
   };
 })();
 
 // Expose globally
 window.DailyEngagement = DailyEngagement;
 
-// Auto-initialize when user logs in
-document.addEventListener('DOMContentLoaded', () => {
-  // Wait for Supabase to be ready
-  const waitForSupabase = () => {
-    if (window.supabase) {
-      console.log('🎯 Daily Engagement: Supabase ready, setting up auth listener');
+// ============================================================
+// BOOTSTRAP (auth-v4 safe; bind once; no triple triggers)
+// ============================================================
 
-      // Check if already logged in
-      window.supabase.auth.getUser().then(({ data }) => {
-        if (data?.user) {
-          console.log('🎯 Daily Engagement: User already logged in, initializing');
-          DailyEngagement.init();
-        }
-      });
+(function bindDailyEngagementOnce() {
+  if (window.__CH_DAILY_ENGAGEMENT_BOUND__) return;
+  window.__CH_DAILY_ENGAGEMENT_BOUND__ = true;
 
-      // Listen for auth state changes
-      window.supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🎯 Daily Engagement: Auth state changed:', event);
-        if (event === 'SIGNED_IN' && session) {
-          DailyEngagement.init();
-        }
-      });
-
-      // Also initialize if profile-loaded event fires (fallback)
-      window.addEventListener('profile-loaded', () => {
-        const currentState = DailyEngagement.getState();
-        if (!currentState.initialized && window.supabase) {
-          console.log('🎯 Daily Engagement: Profile loaded, initializing');
-          DailyEngagement.init();
-        }
-      });
-    } else {
-      // Retry after a short delay
-      setTimeout(waitForSupabase, 100);
+  const tryInit = async (why) => {
+    const s = DailyEngagement.getState();
+    if (s.initialized || s.initializing) {
+      console.log("🎯 Daily Engagement: Already initialized, skipping");
+      return;
+    }
+    console.log(`🎯 Daily Engagement: Initializing (${why})`);
+    try {
+      await DailyEngagement.init();
+    } catch (_) {
+      // errors already logged inside init()
     }
   };
 
-  waitForSupabase();
-});
+  document.addEventListener(
+    "DOMContentLoaded",
+    async () => {
+      // Prefer the canonical signal: profile-loaded (from auth.js)
+      window.addEventListener("profile-loaded", () => tryInit("profile-loaded"), {
+        once: true,
+      });
 
-console.log('✅ Daily engagement ready');
+      // Fallback: if profile-loaded never fires but session exists, init anyway
+      const sb = await (async () => {
+        for (let i = 0; i < 30; i++) {
+          if (window.supabase) return window.supabase;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        return null;
+      })();
+
+      if (!sb) return;
+
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        // Let profile-loaded win if it arrives quickly; otherwise init after a short delay
+        setTimeout(() => tryInit("getUser-fallback"), 400);
+      }
+    },
+    { once: true }
+  );
+})();
+
+console.log("✅ Daily engagement ready");
