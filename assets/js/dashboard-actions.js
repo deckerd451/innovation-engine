@@ -15,11 +15,9 @@ document.getElementById('btn-quickconnect')?.addEventListener('click', () => {
 
 // Wire up Messages button (already wired in dashboardPane.js, but ensure it works)
 document.getElementById('btn-messages')?.addEventListener('click', () => {
-  // Open messages modal
   const messagesModal = document.getElementById('messages-modal');
   if (messagesModal) {
     messagesModal.classList.add('active');
-    // Initialize messaging if needed
     if (window.MessagingModule && typeof window.MessagingModule.init === 'function') {
       window.MessagingModule.init();
     }
@@ -32,6 +30,108 @@ document.getElementById('btn-messages')?.addEventListener('click', () => {
 document.getElementById('btn-view-controls')?.addEventListener('click', () => {
   toggleViewControls();
 });
+
+// -----------------------------
+// Admin detection (best-effort)
+// -----------------------------
+function isAdminUser() {
+  // Try common places your app might store role
+  const role =
+    window?.appState?.communityProfile?.role ||
+    window?.appState?.profile?.role ||
+    window?.currentUserProfile?.role ||
+    window?.communityProfile?.role ||
+    window?.userRole;
+
+  if (typeof role === "string") {
+    const r = role.toLowerCase();
+    return r === "admin" || r === "superadmin" || r === "owner";
+  }
+
+  // If you have a boolean somewhere
+  if (window?.appState?.isAdmin === true) return true;
+
+  return false;
+}
+
+// -----------------------------
+// Theme circle creation (MVP)
+// -----------------------------
+async function createThemeCirclePromptFlow() {
+  const supabase = window.supabase;
+  if (!supabase) {
+    alert("Supabase not available on window");
+    return;
+  }
+
+  if (!isAdminUser()) {
+    alert("Admin only");
+    return;
+  }
+
+  const title = (prompt("Theme title (e.g., AI in Radiology)") || "").trim();
+  if (!title) return;
+
+  const tagsRaw = (prompt("Tags (comma-separated), optional", "ai, radiology") || "").trim();
+  const tags = tagsRaw
+    ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean)
+    : [];
+
+  const daysRaw = (prompt("Expire in how many days?", "7") || "").trim();
+  const days = Math.max(1, Math.min(90, parseInt(daysRaw, 10) || 7));
+  const expires_at = new Date(Date.now() + days * 86400000).toISOString();
+
+  const payload = {
+    title,
+    tags,
+    expires_at,
+    origin_type: "admin"
+  };
+
+  const { error } = await supabase.from("theme_circles").insert([payload]);
+  if (error) {
+    console.error("theme_circles insert failed:", error);
+    alert(error.message || "Failed to create theme circle");
+    return;
+  }
+
+  // Close panel (nice UX)
+  document.getElementById("view-controls-panel")?.remove();
+
+  // Refresh Synapse
+  await refreshSynapseThemesSafely();
+
+  // Optional toast if you have one
+  if (typeof window.showNotification === "function") {
+    window.showNotification(`Theme created: ${title}`, "success");
+  } else {
+    console.log("✅ Theme created:", title);
+  }
+}
+
+async function refreshSynapseThemesSafely() {
+  // If you expose it globally later, this will work immediately
+  if (typeof window.refreshThemeCircles === "function") {
+    await window.refreshThemeCircles();
+    return;
+  }
+
+  // If synapse.js is an ES module, try dynamic import
+  try {
+    const mod = await import("./synapse.js");
+    if (typeof mod.refreshThemeCircles === "function") {
+      await mod.refreshThemeCircles();
+      return;
+    }
+  } catch (e) {
+    console.warn("Could not import ./synapse.js for refreshThemeCircles()", e);
+  }
+
+  // Fall back: if you still have legacy refreshSynapseConnections around
+  if (typeof window.refreshSynapseConnections === "function") {
+    await window.refreshSynapseConnections();
+  }
+}
 
 // Toggle view controls panel
 function toggleViewControls() {
@@ -57,6 +157,23 @@ function toggleViewControls() {
     z-index: 9999;
     backdrop-filter: blur(10px);
   `;
+
+  // Admin section: only render if admin
+  const adminHtml = isAdminUser() ? `
+    <div style="margin-bottom: 1.5rem;">
+      <h4 style="color: #ffd700; font-size: 1rem; margin-bottom: 0.75rem;">
+        <i class="fas fa-shield-alt"></i> Admin
+      </h4>
+      <div style="display: grid; gap: 0.5rem;">
+        <button id="btn-create-theme"
+          style="width: 100%; padding: 0.75rem; background: rgba(255,215,0,0.10);
+          border: 1px solid rgba(255,215,0,0.35); border-radius: 8px; color: #ffd700;
+          cursor: pointer; font-weight: 700; text-align: left;">
+          <i class="fas fa-bullseye"></i> Create Theme Circle
+        </button>
+      </div>
+    </div>
+  ` : "";
 
   panel.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -96,6 +213,8 @@ function toggleViewControls() {
         </button>
       </div>
     </div>
+
+    ${adminHtml}
 
     <!-- View Options Section -->
     <div style="margin-bottom: 1.5rem;">
@@ -138,6 +257,11 @@ function toggleViewControls() {
   `;
 
   document.body.appendChild(panel);
+
+  // Wire up admin button after insert into DOM
+  panel.querySelector("#btn-create-theme")?.addEventListener("click", () => {
+    createThemeCirclePromptFlow();
+  });
 
   // Close on click outside
   setTimeout(() => {
