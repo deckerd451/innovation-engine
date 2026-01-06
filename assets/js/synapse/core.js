@@ -416,6 +416,29 @@ function dragEnded(event, d) {
   d.fx = null;
   d.fy = null;
 }
+
+/* ==========================================================================
+ Animations Wrapper
+   ========================================================================== */
+export function showConnectPathways(fromId, toId, opts = {}) {
+  try {
+    // If your pathway module exposes a function like this, call it:
+    if (typeof PathwayAnimations.showConnectPathways === "function") {
+      return PathwayAnimations.showConnectPathways(fromId, toId, opts);
+    }
+
+    // Otherwise, fall back to a common naming pattern:
+    if (typeof PathwayAnimations.showPathway === "function") {
+      return PathwayAnimations.showPathway(fromId, toId, opts);
+    }
+
+    console.warn("⚠️ showConnectPathways not available in pathway-animations.js");
+    return null;
+  } catch (e) {
+    console.warn("⚠️ showConnectPathways failed:", e);
+    return null;
+  }
+}
 export { setupSynapseRealtime };
 
 
