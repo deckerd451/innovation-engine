@@ -4,32 +4,53 @@
 // This file coordinates auth.js, profile.js, and dashboard.js
 // All modules are loaded as scripts and communicate via window object and events
 
-console.log('🚀 CharlestonHacks Innovation Engine starting...');
+console.log("🚀 CharlestonHacks Innovation Engine starting...");
 
 // ================================================================
 // INITIALIZE ON DOM READY
 // ================================================================
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🎨 DOM ready, initializing systems...');
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("🎨 DOM ready, initializing systems...");
 
-  // Wait for auth.js to attach globals (it auto-boots itself)
-  await waitForModules();
+  // Wait for required globals from other scripts
+  await waitForGlobals();
 
-  // DO NOT call setupLoginDOM/initLoginSystem here.
-  // auth.js already did.
+  // 1) Setup login DOM elements (safe to call more than once)
+  window.setupLoginDOM?.();
 
-  console.log('✅ System ready!');
+  // 2) Initialize login system (idempotent in rewritten auth.js)
+  await window.initLoginSystem?.();
+
+  // 3) Profile + dashboard modules listen for:
+  //    - 'profile-loaded'
+  //    - 'profile-new'
+  //    - 'user-logged-out'
+  //    - 'app-ready'
+  console.log("✅ System ready!");
 });
 
-
-// Helper to wait for modules to be available
-function waitForModules() {
+// Helper to wait for required globals to exist
+function waitForGlobals() {
   return new Promise((resolve) => {
-    const checkInterval = setInterval(() => {
-      if (window.setupLoginDOM && window.initLoginSystem) {
-        clearInterval(checkInterval);
-        resolve();
+    const start = Date.now();
+    const TIMEOUT_MS = 5000;
+
+    const check = () => {
+      const ok =
+        !!window.supabase &&
+        typeof window.setupLoginDOM === "function" &&
+        typeof window.initLoginSystem === "function";
+
+      if (ok) return resolve();
+
+      if (Date.now() - start > TIMEOUT_MS) {
+        console.warn("⏱️ waitForGlobals timed out — continuing best-effort.");
+        return resolve();
       }
-    }, 50);
+
+      setTimeout(check, 50);
+    };
+
+    check();
   });
 }
