@@ -354,6 +354,98 @@ export async function declineConnectionRequest(connectionId) {
 
   return { success: !error };
 }
+/**
+ * Cancel/withdraw a pending connection request.
+ * Accepts either:
+ *  - connectionId (preferred), OR
+ *  - targetCommunityId (fallback)
+ *
+ * Behavior:
+ *  - If current user is the sender and status is pending -> set status='withdrawn'
+ *  - If not sender -> set status='canceled' (or decline-ish)
+ */
+export async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
+  if (!supabase) return { success: false, error: "Supabase not initialized" };
+  if (!currentUserCommunityId) return { success: false, error: "Profile not found" };
+  if (!connectionIdOrTargetCommunityId) return { success: false, error: "Missing id" };
+
+  let connectionId = null;
+
+  // If it looks like a UUID, it could be a connection row id OR a community id.
+  // We'll try as connection row id first, then fall back to "between users".
+  const candidate = String(connectionIdOrTargetCommunityId);
+
+  // 1) Try treating it as a connection row id
+  try {
+    const { data: row, error } = await supabase
+      .from("connections")
+      .select("id, from_user_id, to_user_id, status")
+      .eq("id", candidate)
+      .maybeSingle();
+
+    if (!error && row?.id) {
+      connectionId = row.id;
+
+      const status = String(row.status || "").toLowerCase();
+      const isSender = row.from_user_id === currentUserCommunityId;
+
+      // Only withdraw if pending
+      if (status !== "pending") {
+        showToast("Nothing to cancel (not pending)", "info");
+        return { success: true, noOp: true };
+      }
+
+      const nextStatus = isSender ? "withdrawn" : "canceled";
+
+      const { error: uErr } = await supabase
+        .from("connections")
+        .update({ status: nextStatus })
+        .eq("id", connectionId);
+
+      if (uErr) {
+        showToast(uErr.message || "Failed to cancel request", "error");
+        return { success: false, error: uErr.message };
+      }
+
+      showToast("Request canceled.", "info");
+      return { success: true, status: nextStatus, id: connectionId };
+    }
+  } catch (_) {
+    // ignore and fall back
+  }
+
+  // 2) Fall back: treat candidate as target community id and find the row between users
+  const targetCommunityId = candidate;
+  const conn = await getConnectionBetween(currentUserCommunityId, targetCommunityId);
+
+  if (!conn?.id) {
+    showToast("No request found to cancel", "info");
+    return { success: true, noOp: true };
+  }
+
+  const status = String(conn.status || "").toLowerCase();
+  if (status !== "pending") {
+    showToast("Nothing to cancel (not pending)", "info");
+    return { success: true, noOp: true };
+  }
+
+  const isSender = conn.from_user_id === currentUserCommunityId;
+  const nextStatus = isSender ? "withdrawn" : "canceled";
+
+  const { error: uErr } = await supabase
+    .from("connections")
+    .update({ status: nextStatus })
+    .eq("id", conn.id);
+
+  if (uErr) {
+    showToast(uErr.message || "Failed to cancel request", "error");
+    return { success: false, error: uErr.message };
+  }
+
+  showToast("Request canceled.", "info");
+  return { success: true, status: nextStatus, id: conn.id };
+}
+
 
 // ========================
 // UI HOOKS (lightweight)
