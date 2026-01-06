@@ -66,6 +66,16 @@ function pulseUserNode(userId) {
         0%, 100% { transform: scale(1); opacity: 1; }
         50% { transform: scale(1.15); opacity: 0.85; }
       }
+      @keyframes buttonPulse {
+        0%, 100% {
+          transform: scale(1);
+          box-shadow: 0 4px 12px rgba(0,224,255,0.3);
+        }
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 8px 24px rgba(0,224,255,0.6);
+        }
+      }
     `;
     document.head.appendChild(style);
   }
@@ -78,6 +88,33 @@ function pulseUserNode(userId) {
 
   userNode.addEventListener("click", removePulse, { once: true });
   setTimeout(removePulse, 10000);
+}
+
+// Pulse the Connect button to guide users
+export function pulseConnectButton(duration = 15000) {
+  const connectBtn = document.getElementById("btn-quickconnect");
+  if (!connectBtn) {
+    console.log("Connect button not found, waiting...");
+    setTimeout(() => pulseConnectButton(duration), 500);
+    return;
+  }
+
+  // Add pulsing animation
+  connectBtn.style.animation = "buttonPulse 2s ease-in-out infinite";
+
+  // Add glow effect
+  connectBtn.style.boxShadow = "0 8px 24px rgba(0,224,255,0.6)";
+
+  // Remove pulse after duration or on click
+  const removePulse = () => {
+    connectBtn.style.animation = "";
+    connectBtn.style.boxShadow = "";
+  };
+
+  connectBtn.addEventListener("click", removePulse, { once: true });
+  setTimeout(removePulse, duration);
+
+  console.log("✨ Connect button pulsing to guide discovery");
 }
 
 // Detect meaningful interactions that show understanding
@@ -126,12 +163,14 @@ function init() {
   if (state.isFirstVisit) {
     console.log("🌐 First visit detected - spatial cues active");
 
-    // Wait for profile to load, then pulse user's node
+    // Wait for profile to load, then pulse user's node AND connect button
     window.addEventListener("profile-loaded", (e) => {
       const userId = e.detail?.userId || e.detail?.id;
       if (userId) {
         setTimeout(() => pulseUserNode(userId), 1000);
       }
+      // Also pulse the Connect button to start the discovery journey
+      setTimeout(() => pulseConnectButton(15000), 2000);
     });
 
     // Track natural discovery
@@ -161,7 +200,7 @@ export function resetOnboarding() {
 
 // Auto-initialize
 if (typeof window !== "undefined") {
-  window.SpatialDiscovery = { init, reset: resetDiscovery };
+  window.SpatialDiscovery = { init, reset: resetDiscovery, pulseConnectButton };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
