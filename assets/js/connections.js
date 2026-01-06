@@ -445,6 +445,25 @@ export async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
   showToast("Request canceled.", "info");
   return { success: true, status: nextStatus, id: conn.id };
 }
+export async function getAcceptedConnections() {
+  if (!supabase || !currentUserCommunityId) return [];
+
+  const { data, error } = await supabase
+    .from("connections")
+    .select("*")
+    .or(
+      `and(from_user_id.eq.${currentUserCommunityId},status.eq.accepted),and(to_user_id.eq.${currentUserCommunityId},status.eq.accepted)`
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("getAcceptedConnections error:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
 
 
 // ========================
@@ -478,6 +497,8 @@ export default {
   sendConnectionRequest,
   acceptConnectionRequest,
   declineConnectionRequest,
+  cancelConnectionRequest,
+  getAcceptedConnections,
   getConnectionBetween,
   getConnectionStatus,
   getAllConnectionsForSynapse,
