@@ -2,11 +2,12 @@
 // CharlestonHacks Innovation Engine — AUTH CONTROLLER (ROOT)
 // File: /auth.js
 // ================================================================
-// Opinionated, race-safe auth flow for GitHub Pages + Supabase OAuth.
+// Race-safe auth flow for GitHub Pages + Supabase OAuth.
 //
 // Guarantees:
 // - Only ONE auth controller instance (global guard).
-// - Only ONE onAuthStateChange subscription.
+// - Only ONE onAuthStateChange subscription (ever).
+// - Timeout fallback NEVER overrides a confirmed SIGNED_IN.
 // - UI never hangs on "Checking session..." (timeout fallback).
 //
 // Emits canonical events:
@@ -18,12 +19,10 @@
 // Requires (loaded earlier):
 //  - window.supabase from /assets/js/supabaseClient.js
 //
-// NOTE (important):
-// - This file NO LONGER auto-boots by default.
+// NOTE:
+// - This file does NOT auto-boot by default.
 // - Call window.setupLoginDOM() then window.initLoginSystem() from main.js.
 // ================================================================
-
-/* global window, document */
 
 (() => {
   "use strict";
@@ -51,7 +50,6 @@
   }
 
   function showNotification(message, type = "info") {
-    // You can later swap this with your globals.js toast system.
     log(`[${String(type).toUpperCase()}] ${message}`);
   }
 
@@ -62,14 +60,20 @@
   let githubBtn, googleBtn;
 
   // -----------------------------
-  // Internal state (prevents races)
+  // Internal state (race prevention)
   // -----------------------------
-  let domReady = false;
   let loginDOMReady = false;
-  let initPromise = null; // makes initLoginSystem idempotent
+  let initPromise = null;
 
+  let authSubReady = false;
+  let hasConfirmedSignedIn = false;
+  let hasRenderedAppUI = false;
+  let activeSessionCheckTimer = null;
+
+  // -----------------------------
+  // DOM Setup (idempotent)
+  // -----------------------------
   function setupLoginDOM() {
-    // Safe to call repeatedly
     loginSection = $("login-section");
     mainContent = $("main-content");
     mainHeader = $("main-header");
@@ -82,7 +86,6 @@
       return;
     }
 
-    // Bind only once
     if (!githubBtn?.dataset.bound) {
       githubBtn?.addEventListener("click", () => oauthLogin("github"));
       if (githubBtn) githubBtn.dataset.bound = "1";
@@ -98,6 +101,9 @@
   }
 
   function showLoginUI() {
+    // IMPORTANT: never override a confirmed SIGNED_IN state
+    if (hasConfirmedSignedIn || hasRenderedAppUI) return;
+
     loginSection?.classList.remove("hidden");
     loginSection?.classList.add("active-tab-pane");
 
@@ -110,6 +116,8 @@
   }
 
   function showAppUI(user) {
+    hasRenderedAppUI = true;
+
     loginSection?.classList.add("hidden");
     loginSection?.classList.remove("active-tab-pane");
 
@@ -118,7 +126,6 @@
 
     document.body.style.overflow = "auto";
 
-    // Fire "app-ready" after UI is visible; onboarding can use this safely.
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent("app-ready", { detail: { user } }));
     }, 50);
@@ -127,7 +134,6 @@
   }
 
   function cleanOAuthUrlSoon() {
-    // Supabase OAuth returns tokens in hash; clean it after it processes.
     const url = new URL(window.location.href);
     const hasOAuthHash =
       !!url.hash &&
@@ -200,6 +206,9 @@
     }
 
     log("✅ Logged out successfully");
+    hasConfirmedSignedIn = false;
+    hasRenderedAppUI = false;
+
     window.dispatchEvent(new CustomEvent("user-logged-out"));
     showNotification("Logged out successfully", "success");
     showLoginUI();
@@ -246,7 +255,7 @@
   // -----------------------------
   // Core init (race-safe)
   // -----------------------------
-  async function waitForSupabase(maxMs = 2500) {
+  async function waitForSupabase(maxMs = 3000) {
     const start = Date.now();
     while (!window.supabase) {
       if (Date.now() - start > maxMs) return false;
@@ -255,15 +264,52 @@
     return true;
   }
 
+  function clearSessionTimer() {
+    if (activeSessionCheckTimer) {
+      clearTimeout(activeSessionCheckTimer);
+      activeSessionCheckTimer = null;
+    }
+  }
+
+  function ensureAuthSubscription() {
+    if (authSubReady) return;
+    if (!window.supabase?.auth?.onAuthStateChange) return;
+
+    // Subscribe ONCE and as early as possible
+    const { data: sub } = window.supabase.auth.onAuthStateChange(async (event, session) => {
+      log("⚡ Auth event:", event);
+
+      if (event === "SIGNED_IN" && session?.user) {
+        hasConfirmedSignedIn = true;
+        clearSessionTimer();
+
+        // Always force app UI if signed in (even if fallback login UI was shown)
+        showAppUI(session.user);
+        setTimeout(() => loadUserProfile(session.user), 100);
+      }
+
+      if (event === "SIGNED_OUT") {
+        clearSessionTimer();
+        hasConfirmedSignedIn = false;
+        hasRenderedAppUI = false;
+        showLoginUI();
+      }
+    });
+
+    window.__CH_IE_AUTH_UNSUB__ = sub?.subscription?.unsubscribe
+      ? () => sub.subscription.unsubscribe()
+      : null;
+
+    authSubReady = true;
+  }
+
   async function initLoginSystem() {
-    // Idempotent: if called twice, return the same promise and do nothing extra.
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
       log("🚀 Initializing login system (OAuth)…");
       setHint("Checking session…");
 
-      // If someone forgot to call setupLoginDOM, try once, safely.
       if (!loginDOMReady) {
         try { setupLoginDOM(); } catch (_) {}
       }
@@ -277,86 +323,51 @@
 
       cleanOAuthUrlSoon();
 
-      // Hard timeout guard: never hang on spinner.
-      const SESSION_TIMEOUT_MS = 3500;
-      let timedOut = false;
-      const t = setTimeout(() => {
-        timedOut = true;
-        warn("⏱️ Session check timed out — showing login UI fallback.");
-        showLoginUI();
+      // SUBSCRIBE FIRST (this is the key fix)
+      ensureAuthSubscription();
+
+      // Timeout fallback: only show login if we still have NOT confirmed SIGNED_IN
+      const SESSION_TIMEOUT_MS = 6000; // slightly more forgiving; still finite
+      clearSessionTimer();
+      activeSessionCheckTimer = setTimeout(() => {
+        activeSessionCheckTimer = null;
+        if (!hasConfirmedSignedIn && !hasRenderedAppUI) {
+          warn("⏱️ Session check timed out — showing login UI fallback.");
+          showLoginUI();
+        }
       }, SESSION_TIMEOUT_MS);
 
       try {
+        // If getSession is slow, the SIGNED_IN event can still win now.
         const { data: { session } } = await window.supabase.auth.getSession();
-        clearTimeout(t);
 
-        if (timedOut) return;
+        // Don’t let this override a confirmed SIGNED_IN that already rendered UI
+        if (hasConfirmedSignedIn || hasRenderedAppUI) return;
+
+        clearSessionTimer();
 
         if (session?.user) {
+          hasConfirmedSignedIn = true;
           log("🟢 Already logged in as:", session.user.email);
           showAppUI(session.user);
-          // Load profile after UI is visible
           setTimeout(() => loadUserProfile(session.user), 100);
         } else {
           log("🟡 No active session");
           showLoginUI();
         }
       } catch (e) {
-        clearTimeout(t);
+        clearSessionTimer();
         err("❌ ERROR in initLoginSystem:", e);
         showLoginUI();
-      }
-
-      // Subscribe once (ever)
-      if (!window.__CH_IE_AUTH_UNSUB__ && window.supabase?.auth?.onAuthStateChange) {
-        const { data: sub } = window.supabase.auth.onAuthStateChange(async (event, session2) => {
-          log("⚡ Auth event:", event);
-
-          if (event === "SIGNED_IN" && session2?.user) {
-            log("🟢 User authenticated:", session2.user.email);
-            showAppUI(session2.user);
-            setTimeout(() => loadUserProfile(session2.user), 100);
-          }
-
-          if (event === "SIGNED_OUT") {
-            log("🟡 User signed out");
-            showLoginUI();
-          }
-        });
-
-        // store unsubscribe
-        window.__CH_IE_AUTH_UNSUB__ = sub?.subscription?.unsubscribe
-          ? () => sub.subscription.unsubscribe()
-          : null;
       }
     })();
 
     return initPromise;
   }
 
-  // Export to window (legacy callers)
+  // Export to window
   window.setupLoginDOM = setupLoginDOM;
   window.initLoginSystem = initLoginSystem;
-
-  // Optional: if you ever want to re-enable auto-boot, set:
-  // window.__CH_IE_AUTH_AUTOBOOT__ = true; BEFORE this script runs.
-  // (Main.js should be the coordinator, so default is false.)
-  const autostart = !!window.__CH_IE_AUTH_AUTOBOOT__;
-
-  const boot = async () => {
-    const run = () => {
-      setupLoginDOM();
-      initLoginSystem();
-    };
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", run, { once: true });
-    } else {
-      run();
-    }
-  };
-
-  if (autostart) boot();
 
   log("✅ auth.js loaded (v3) — awaiting main.js to boot");
 })();
