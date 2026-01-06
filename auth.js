@@ -4,9 +4,12 @@
 // ================================================================
 // Opinionated, race-safe auth flow for GitHub Pages + Supabase OAuth.
 //
-// Guarantees:
+// Guarantees (updated):
 // - Only ONE auth controller instance (global guard).
 // - Only ONE onAuthStateChange subscription.
+// - Auth events INITIAL_SESSION / SIGNED_IN can fire multiple times;
+//   we bootstrap the UI + profile EXACTLY ONCE per user id.
+// - Profile load is deduped (single in-flight promise).
 // - UI never hangs on "Checking session..." (timeout fallback).
 //
 // Emits canonical events:
@@ -28,7 +31,7 @@
 (() => {
   "use strict";
 
-  const GUARD = "__CH_IE_AUTH_V3__";
+  const GUARD = "__CH_IE_AUTH_V4__";
   if (window[GUARD]) {
     console.log("⚠️ auth.js already initialized — skipping duplicate init.");
     return;
@@ -64,9 +67,15 @@
   // -----------------------------
   // Internal state (prevents races)
   // -----------------------------
-  let domReady = false;
   let loginDOMReady = false;
   let initPromise = null; // makes initLoginSystem idempotent
+
+  // NEW: de-dupe boot & profile loads across duplicate auth events
+  let bootUserId = null;            // "booted" user id for this page load
+  let profileLoadPromise = null;    // in-flight profile request (single flight)
+
+  // Optional: track last event for debugging
+  let lastAuthEvent = null;
 
   function setupLoginDOM() {
     // Safe to call repeatedly
@@ -126,6 +135,18 @@
     log("✅ Showing app UI for:", user?.email);
   }
 
+  // OPTIONAL: hook these to your overlay element if you have one
+  function showProfileLoading(user) {
+    // Keep this lightweight: do NOT block the whole app forever.
+    // If you have a dedicated overlay element, toggle it here.
+    log("👤 Loading profile for:", user?.email);
+  }
+
+  function hideProfileLoading() {
+    // Hide overlay here if you have one.
+    // No-op by default.
+  }
+
   function cleanOAuthUrlSoon() {
     // Supabase OAuth returns tokens in hash; clean it after it processes.
     const url = new URL(window.location.href);
@@ -149,7 +170,9 @@
   // Events
   // -----------------------------
   function emitProfileLoaded(user, profile) {
-    window.dispatchEvent(new CustomEvent("profile-loaded", { detail: { user, profile } }));
+    window.dispatchEvent(
+      new CustomEvent("profile-loaded", { detail: { user, profile } })
+    );
   }
   function emitProfileNew(user) {
     window.dispatchEvent(new CustomEvent("profile-new", { detail: { user } }));
@@ -199,6 +222,10 @@
       return;
     }
 
+    // reset boot state so a future login on same tab works
+    bootUserId = null;
+    profileLoadPromise = null;
+
     log("✅ Logged out successfully");
     window.dispatchEvent(new CustomEvent("user-logged-out"));
     showNotification("Logged out successfully", "success");
@@ -206,41 +233,75 @@
   };
 
   // -----------------------------
-  // Profile loader
+  // Profile loader (single-flight)
   // -----------------------------
-  async function loadUserProfile(user) {
-    log("👤 Loading profile for:", user?.email);
+  async function fetchUserProfile(user) {
+    // NOTE: you may prefer .maybeSingle() but keeping your existing pattern.
+    const { data, error } = await window.supabase
+      .from("community")
+      .select("*")
+      .eq("user_id", user.id)
+      .limit(1);
+
+    if (error) throw error;
+
+    const profile = Array.isArray(data) && data.length ? data[0] : null;
+    return profile;
+  }
+
+  async function loadUserProfileOnce(user) {
     if (!window.supabase || !user?.id) return null;
 
-    try {
-      const { data, error } = await window.supabase
-        .from("community")
-        .select("*")
-        .eq("user_id", user.id)
-        .limit(1);
+    // Dedup: if a profile load is already running, reuse it.
+    if (profileLoadPromise) return profileLoadPromise;
 
-      if (error) {
-        err("❌ Error fetching profile:", error);
+    profileLoadPromise = (async () => {
+      showProfileLoading(user);
+      try {
+        const profile = await fetchUserProfile(user);
+
+        if (profile) {
+          log("📋 Existing profile found:", profile);
+          setTimeout(() => emitProfileLoaded(user, profile), 10);
+          return profile;
+        }
+
+        log("🆕 New user — no profile row");
         setTimeout(() => emitProfileNew(user), 10);
         return null;
+      } catch (e) {
+        err("❌ Exception loading profile:", e);
+        setTimeout(() => emitProfileNew(user), 10);
+        return null;
+      } finally {
+        hideProfileLoading();
       }
+    })();
 
-      const profile = Array.isArray(data) && data.length ? data[0] : null;
+    return profileLoadPromise;
+  }
 
-      if (profile) {
-        log("📋 Existing profile found:", profile);
-        setTimeout(() => emitProfileLoaded(user, profile), 10);
-        return profile;
-      }
+  // -----------------------------
+  // Boot logic (dedupe INITIAL_SESSION + SIGNED_IN)
+  // -----------------------------
+  async function bootstrapForUser(user, sourceEvent = "unknown") {
+    if (!user?.id) return;
 
-      log("🆕 New user — no profile row");
-      setTimeout(() => emitProfileNew(user), 10);
-      return null;
-    } catch (e) {
-      err("❌ Exception loading profile:", e);
-      setTimeout(() => emitProfileNew(user), 10);
-      return null;
+    // If we've already bootstrapped for this user in this page load, ignore.
+    if (bootUserId === user.id) {
+      log(`🟡 Ignoring duplicate auth bootstrap (${sourceEvent}) for:`, user.email);
+      return;
     }
+
+    bootUserId = user.id;
+    log(`🟢 Bootstrapping app for user (${sourceEvent}):`, user.email);
+
+    showAppUI(user);
+
+    // Load profile after UI is visible (and deduped)
+    setTimeout(() => {
+      loadUserProfileOnce(user);
+    }, 100);
   }
 
   // -----------------------------
@@ -265,7 +326,9 @@
 
       // If someone forgot to call setupLoginDOM, try once, safely.
       if (!loginDOMReady) {
-        try { setupLoginDOM(); } catch (_) {}
+        try {
+          setupLoginDOM();
+        } catch (_) {}
       }
 
       const ok = await waitForSupabase(3000);
@@ -287,16 +350,16 @@
       }, SESSION_TIMEOUT_MS);
 
       try {
-        const { data: { session } } = await window.supabase.auth.getSession();
-        clearTimeout(t);
+        const {
+          data: { session },
+        } = await window.supabase.auth.getSession();
 
+        clearTimeout(t);
         if (timedOut) return;
 
         if (session?.user) {
           log("🟢 Already logged in as:", session.user.email);
-          showAppUI(session.user);
-          // Load profile after UI is visible
-          setTimeout(() => loadUserProfile(session.user), 100);
+          await bootstrapForUser(session.user, "getSession");
         } else {
           log("🟡 No active session");
           showLoginUI();
@@ -309,20 +372,32 @@
 
       // Subscribe once (ever)
       if (!window.__CH_IE_AUTH_UNSUB__ && window.supabase?.auth?.onAuthStateChange) {
-        const { data: sub } = window.supabase.auth.onAuthStateChange(async (event, session2) => {
-          log("⚡ Auth event:", event);
+        const { data: sub } = window.supabase.auth.onAuthStateChange(
+          async (event, session2) => {
+            lastAuthEvent = event;
+            log("⚡ Auth event:", event);
 
-          if (event === "SIGNED_IN" && session2?.user) {
-            log("🟢 User authenticated:", session2.user.email);
-            showAppUI(session2.user);
-            setTimeout(() => loadUserProfile(session2.user), 100);
-          }
+            // Treat both as candidates to bootstrap, but dedupe by user id.
+            if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session2?.user) {
+              await bootstrapForUser(session2.user, event);
+              return;
+            }
 
-          if (event === "SIGNED_OUT") {
-            log("🟡 User signed out");
-            showLoginUI();
+            if (event === "SIGNED_OUT") {
+              log("🟡 User signed out");
+              bootUserId = null;
+              profileLoadPromise = null;
+              showLoginUI();
+              return;
+            }
+
+            // Optional: handle token refresh without re-booting
+            if (event === "TOKEN_REFRESHED") {
+              log("🔄 Token refreshed");
+              return;
+            }
           }
-        });
+        );
 
         // store unsubscribe
         window.__CH_IE_AUTH_UNSUB__ = sub?.subscription?.unsubscribe
@@ -358,5 +433,5 @@
 
   if (autostart) boot();
 
-  log("✅ auth.js loaded (v3) — awaiting main.js to boot");
+  log("✅ auth.js loaded (v4) — awaiting main.js to boot");
 })();
