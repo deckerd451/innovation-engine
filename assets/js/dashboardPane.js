@@ -1577,12 +1577,7 @@ async function initSynapseOnce() {
           <i class="fas fa-times"></i>
         </button>
 
-        <div style="margin-bottom: 2rem;">
-          <i class="fas fa-magic" style="font-size: 3rem; color: #00e0ff; margin-bottom: 1rem;
-            filter: drop-shadow(0 0 20px rgba(0,224,255,0.6)); animation: pulse 2s ease-in-out infinite;"></i>
-        </div>
-
-        <h2 style="color: #00e0ff; font-size: 2rem; font-weight: 800; margin-bottom: 1rem;
+        <h2 style="color: #00e0ff; font-size: 2rem; font-weight: 800; margin-bottom: 1.5rem; margin-top: 1rem;
           text-shadow: 0 0 20px rgba(0,224,255,0.5);">
           Discover Your Perfect Connections
         </h2>
@@ -1644,8 +1639,16 @@ async function initSynapseOnce() {
         // Remove loading toast
         if (loadingToast) loadingToast.remove();
 
+        // Auto-collapse bottom bar after animation
+        collapseBottomBar();
+
         // Wait a moment to let pathways animate
         await new Promise(resolve => setTimeout(resolve, 2500));
+
+        // Pulse the Connect button to guide users to click it
+        if (window.SpatialDiscovery?.pulseConnectButton) {
+          window.SpatialDiscovery.pulseConnectButton(10000);
+        }
 
         // Show modal with recommendations list
         if (recommendations && recommendations.length > 0) {
@@ -1783,7 +1786,36 @@ async function initSynapseOnce() {
     }
   }
 
+  // -----------------------------
+  // Bottom Bar Collapse/Expand
+  // -----------------------------
+  function collapseBottomBar() {
+    const bottomBar = document.querySelector(".bottom-stats-bar");
+    if (!bottomBar) return;
+
+    // Smooth collapse animation
+    bottomBar.style.transition = "transform 0.3s ease, opacity 0.3s ease";
+    bottomBar.style.transform = "translateY(100%)";
+    bottomBar.style.opacity = "0";
+
+    console.log("📉 Bottom bar collapsed for pathway viewing");
+  }
+
+  function expandBottomBar() {
+    const bottomBar = document.querySelector(".bottom-stats-bar");
+    if (!bottomBar) return;
+
+    // Smooth expand animation
+    bottomBar.style.transition = "transform 0.3s ease, opacity 0.3s ease";
+    bottomBar.style.transform = "translateY(0)";
+    bottomBar.style.opacity = "1";
+
+    console.log("📈 Bottom bar expanded");
+  }
+
   window.showAnimatedPathways = showAnimatedPathways;
+  window.collapseBottomBar = collapseBottomBar;
+  window.expandBottomBar = expandBottomBar;
 
   // Legacy helpers
   window.toggleFilters = toggleFilters;
