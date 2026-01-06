@@ -416,3 +416,6 @@ function dragEnded(event, d) {
   d.fx = null;
   d.fy = null;
 }
+export { setupSynapseRealtime };
+
+
