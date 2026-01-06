@@ -61,7 +61,7 @@ function toggleViewControls() {
   panel.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h3 style="color: #00e0ff; margin: 0; font-size: 1.25rem;">
-        <i class="fas fa-sliders-h"></i> View Controls
+        <i class="fas fa-sliders-h"></i> Menu
       </h3>
       <button onclick="document.getElementById('view-controls-panel').remove()"
         style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
@@ -70,16 +70,43 @@ function toggleViewControls() {
       </button>
     </div>
 
-    <!-- Filters Section -->
+    <!-- Actions Section -->
     <div style="margin-bottom: 1.5rem;">
       <h4 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem;">
-        <i class="fas fa-filter"></i> Filters
+        <i class="fas fa-bolt"></i> Quick Actions
+      </h4>
+      <div style="display: grid; gap: 0.5rem;">
+        <button onclick="if(typeof openProjectsModal === 'function') openProjectsModal(); document.getElementById('view-controls-panel').remove();"
+          style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.1);
+          border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff;
+          cursor: pointer; font-weight: 600; text-align: left;">
+          <i class="fas fa-lightbulb"></i> Projects
+        </button>
+        <button onclick="if(typeof initBBS === 'function') initBBS(); document.getElementById('view-controls-panel').remove();"
+          style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.1);
+          border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff;
+          cursor: pointer; font-weight: 600; text-align: left;">
+          <i class="fas fa-comments"></i> Community Chat (BBS)
+        </button>
+        <button onclick="if(typeof openEndorsementsModal === 'function') openEndorsementsModal(); document.getElementById('view-controls-panel').remove();"
+          style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.1);
+          border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff;
+          cursor: pointer; font-weight: 600; text-align: left;">
+          <i class="fas fa-star"></i> Endorsements
+        </button>
+      </div>
+    </div>
+
+    <!-- View Options Section -->
+    <div style="margin-bottom: 1.5rem;">
+      <h4 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem;">
+        <i class="fas fa-eye"></i> View Options
       </h4>
       <button onclick="document.getElementById('btn-filters')?.click(); document.getElementById('view-controls-panel').remove();"
         style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.1);
         border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff;
-        cursor: pointer; font-weight: 600;">
-        <i class="fas fa-filter"></i> Open Filters
+        cursor: pointer; font-weight: 600; text-align: left;">
+        <i class="fas fa-filter"></i> Filters
       </button>
     </div>
 

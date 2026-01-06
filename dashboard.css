@@ -1301,8 +1301,52 @@
         padding: 0.5rem 1rem;
       }
 
+      .header-content {
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .header-logo img {
+        height: 30px;
+      }
+
       .header-search {
+        order: 3;
+        flex-basis: 100%;
+        max-width: 100%;
+        margin-top: 0.5rem;
+      }
+
+      .header-search input {
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem 0.5rem 2.5rem;
+      }
+
+      .header-actions {
+        gap: 0.5rem;
+      }
+
+      .header-notification {
+        width: 36px;
+        height: 36px;
+      }
+
+      .user-menu {
+        padding: 0.3rem 0.75rem;
+        gap: 0.5rem;
+      }
+
+      .user-menu span {
         display: none;
+      }
+
+      .user-avatar {
+        width: 28px;
+        height: 28px;
+      }
+
+      #engagement-displays {
+        display: none !important;
       }
 
       .unified-main {
@@ -1324,6 +1368,48 @@
       .floating-actions {
         bottom: 1rem;
         right: 1rem;
+      }
+
+      .bottom-stats-bar {
+        padding: 0.75rem 0.5rem;
+        gap: 0.5rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .stat-card-mini {
+        min-width: 120px;
+        padding: 0.75rem 1rem !important;
+      }
+
+      .stat-card-mini .icon {
+        font-size: 1.5rem !important;
+      }
+
+      .stat-card-mini .label {
+        font-size: 0.7rem !important;
+      }
+
+      .stat-card-mini .value {
+        font-size: 1.25rem !important;
+      }
+
+      /* View Controls Panel on Mobile */
+      #view-controls-panel {
+        right: 10px !important;
+        left: 10px !important;
+        bottom: 120px !important;
+        width: auto !important;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+
+      /* Modal responsiveness */
+      .modal-content {
+        margin: 1rem;
+        max-width: calc(100% - 2rem) !important;
+        max-height: 90vh;
+        overflow-y: auto;
       }
 
       .fab {

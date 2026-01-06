@@ -353,3 +353,10 @@ export default {
   refreshPendingCount,
   toggleConnectionsPanel: window.toggleConnectionsPanel
 };
+
+// Auto-initialize on profile load
+window.addEventListener('profile-loaded', async () => {
+  if (!supabase && window.supabase) {
+    await initConnectionRequests(window.supabase);
+  }
+}, { once: true });
