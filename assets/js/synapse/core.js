@@ -439,6 +439,32 @@ export function showConnectPathways(fromId, toId, opts = {}) {
     return null;
   }
 }
+/* ==========================================================================
+Clear Connect Pathways
+   ========================================================================== */
+export function clearConnectPathways(opts = {}) {
+  try {
+    if (typeof PathwayAnimations.clearConnectPathways === "function") {
+      return PathwayAnimations.clearConnectPathways(opts);
+    }
+
+    // Fallback common naming patterns
+    if (typeof PathwayAnimations.clearPathways === "function") {
+      return PathwayAnimations.clearPathways(opts);
+    }
+    if (typeof PathwayAnimations.clearAllPathways === "function") {
+      return PathwayAnimations.clearAllPathways(opts);
+    }
+
+    console.warn("⚠️ clearConnectPathways not available in pathway-animations.js");
+    return null;
+  } catch (e) {
+    console.warn("⚠️ clearConnectPathways failed:", e);
+    return null;
+  }
+}
+
+
 export { setupSynapseRealtime };
 
 
