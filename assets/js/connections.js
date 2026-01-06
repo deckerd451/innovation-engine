@@ -484,6 +484,28 @@ export async function getPendingRequestsReceived() {
 
   return data || [];
 }
+/**
+ * Pending requests SENT by the current user (they are the sender).
+ * i.e. you -> someone else, status = 'pending'
+ */
+export async function getPendingRequestsSent() {
+  if (!supabase || !currentUserCommunityId) return [];
+
+  const { data, error } = await supabase
+    .from("connections")
+    .select("*")
+    .eq("from_user_id", currentUserCommunityId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("getPendingRequestsSent error:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
 
 
 
