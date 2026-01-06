@@ -463,7 +463,21 @@ export function clearConnectPathways(opts = {}) {
     return null;
   }
 }
-
+/**
+ * Minimal compatibility export for synapse.js
+ * Returns a list of recommendation objects (empty for now).
+ * Later: implement based on interests/skills/project overlap.
+ */
+export async function getRecommendations({ limit = 12 } = {}) {
+  try {
+    // If you already have a recommendation module later, wire it here.
+    // For now: keep Synapse from crashing.
+    return [];
+  } catch (e) {
+    console.warn("⚠️ getRecommendations failed:", e);
+    return [];
+  }
+}
 
 export { setupSynapseRealtime };
 
