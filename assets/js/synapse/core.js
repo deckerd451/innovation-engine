@@ -1,5 +1,6 @@
 // assets/js/synapse/core.js
 // Synapse Core — init, svg, simulation wiring (modularized)
+// 2026 rewrite: fixes pathway integration + exports expected by synapse.js
 
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
@@ -55,13 +56,11 @@ export async function initSynapseView() {
     return;
   }
 
-  // D3 must be global in this build
   if (!window.d3) {
     console.error("❌ Synapse: D3 not found on window. Load D3 before synapse.");
     return;
   }
 
-  // Basic container checks
   if (!document.getElementById("synapse-svg")) {
     console.error("❌ Synapse: #synapse-svg not found in DOM");
     return;
@@ -77,8 +76,17 @@ export async function initSynapseView() {
   currentUserCommunityId = userInfo?.currentUserCommunityId || null;
 
   setupSVG();
+
   await reloadAllData();
+
   buildGraph();
+
+  // Initialize Pathway Animations AFTER graph exists, but before realtime tick updates
+  try {
+    PathwayAnimations.initPathwayAnimations(supabase, svg, container, nodes, links);
+  } catch (e) {
+    console.warn("⚠️ Pathway animations init failed:", e);
+  }
 
   // Realtime refresh (connections/projects/themes)
   setupSynapseRealtime(supabase, async () => {
@@ -86,19 +94,15 @@ export async function initSynapseView() {
     rebuildGraph();
   });
 
-  // Pathway animation system (safe)
-  try {
-    PathwayAnimations.initPathwayAnimations(supabase, svg, container, nodes, links);
-  } catch (e) {
-    console.warn("⚠️ Pathway animations init failed:", e);
-  }
-
   initialized = true;
 
-  // Optional: expose for non-module callers / debugging
+  // Expose for debugging / console helpers
   window.initSynapseView = initSynapseView;
   window.refreshThemeCircles = refreshThemeCircles;
   window.refreshSynapseConnections = refreshSynapseConnections;
+
+  // Useful for console snippets (your tests were looking for this)
+  window.__synapseStats = getSynapseStats();
 
   console.log("%c✅ Synapse ready", "color:#0f0; font-weight:bold;");
 }
@@ -109,7 +113,6 @@ export async function refreshSynapseConnections() {
 }
 
 export async function refreshThemeCircles() {
-  // same as refreshSynapseConnections for now (themes are part of nodes[])
   await reloadAllData();
   rebuildGraph();
 }
@@ -154,6 +157,8 @@ function setupSVG() {
 
   svg = window.d3.select(svgEl).attr("viewBox", [0, 0, width, height]);
 
+  container = svg.append("g").attr("class", "synapse-container");
+
   zoomBehavior = window.d3
     .zoom()
     .scaleExtent([0.2, 4])
@@ -162,8 +167,6 @@ function setupSVG() {
     });
 
   svg.call(zoomBehavior);
-
-  container = svg.append("g").attr("class", "synapse-container");
 
   setupDefs(svg);
 
@@ -184,18 +187,29 @@ async function reloadAllData() {
   if (!supabase) return;
 
   const loaded = await loadSynapseData({ supabase, currentUserCommunityId });
-  nodes = loaded.nodes;
-  links = loaded.links;
+
+  nodes = loaded.nodes || [];
+  links = loaded.links || [];
   connectionsData = loaded.connectionsData || [];
   projectMembersData = loaded.projectMembersData || [];
 
   // Theme nodes (MVP)
   try {
     const themeNodes = await fetchActiveThemes(supabase);
-    nodes = [...nodes, ...themeNodes];
+    if (Array.isArray(themeNodes) && themeNodes.length) {
+      nodes = [...nodes, ...themeNodes];
+    }
   } catch (e) {
     console.warn("⚠️ Theme load skipped:", e);
   }
+
+  // keep debug helper updated
+  window.__synapseStats = getSynapseStats();
+
+  // IMPORTANT: keep pathway module in sync with latest data
+  try {
+    PathwayAnimations.updateGraphData?.(nodes, links);
+  } catch (_) {}
 }
 
 /* ==========================================================================
@@ -203,7 +217,6 @@ async function reloadAllData() {
    ========================================================================== */
 
 function rebuildGraph() {
-  // Simple + safe rebuild: clear container and restart sim
   try {
     container?.selectAll("*")?.remove();
   } catch (_) {}
@@ -213,6 +226,16 @@ function rebuildGraph() {
   } catch (_) {}
 
   buildGraph();
+
+  // IMPORTANT: update pathway module with new container/nodes/links (rebuild replaces DOM)
+  try {
+    PathwayAnimations.initPathwayAnimations?.(supabase, svg, container, nodes, links);
+  } catch (e) {
+    console.warn("⚠️ Pathway animations re-init failed:", e);
+  }
+
+  // refresh debug helper
+  window.__synapseStats = getSynapseStats();
 }
 
 function buildGraph() {
@@ -220,7 +243,6 @@ function buildGraph() {
   const width = window.innerWidth;
   const height = window.innerHeight;
 
-  // Create simulation
   simulation = d3
     .forceSimulation(nodes)
     .force(
@@ -251,21 +273,19 @@ function buildGraph() {
     .alphaDecay(0.05)
     .alphaMin(0.001);
 
-  // Draw project circles (behind)
+  // Project circles (behind)
   projectCircles = drawProjectCircles(container, nodes.filter((n) => n.type === "person"));
 
-  // Render links
+  // Links
   linkEls = renderLinks(container, links);
 
-  // Render nodes (people/projects) + basic click handler
-  nodeEls = renderNodes(container, nodes, {
-    onNodeClick: onNodeClick,
-  });
+  // Nodes + click routing
+  nodeEls = renderNodes(container, nodes, { onNodeClick });
 
-  // Make theme nodes visible + clickable (renderNodes doesn't know themes)
+  // Theme nodes styling
   styleThemeNodes();
 
-  // Drag behavior
+  // Drag
   nodeEls.call(
     d3
       .drag()
@@ -290,8 +310,9 @@ function buildGraph() {
 
     projectCircles?.update?.();
 
+    // Keep pathway segments tracking node motion
     try {
-      PathwayAnimations.updateAllPathwayPositions();
+      PathwayAnimations.updateAllPathwayPositions?.();
     } catch (_) {}
   });
 }
@@ -301,8 +322,6 @@ function buildGraph() {
    ========================================================================== */
 
 function styleThemeNodes() {
-  // renderNodes created <g> for all nodes; for theme nodes,
-  // overwrite their contents with a large dashed circle + label.
   nodeEls.each(function (d) {
     if (d.type !== "theme") return;
 
@@ -353,7 +372,6 @@ async function openThemeCard(themeNode) {
 
         const newCount = await getThemeInterestCount(supabase, themeNode.theme_id);
 
-        // Re-render card with updated count; prevent spam inserts for MVP
         document.getElementById("synapse-theme-card")?.remove();
         renderThemeOverlayCard({
           themeNode,
@@ -361,10 +379,7 @@ async function openThemeCard(themeNode) {
           onInterested: async () => {},
         });
 
-        // Gentle nudge: if enough momentum, give the sim a tiny kick
-        if (newCount >= 3) {
-          simulation?.alpha?.(0.18)?.restart?.();
-        }
+        if (newCount >= 3) simulation?.alpha?.(0.18)?.restart?.();
       } catch (e) {
         console.error(e);
         showSynapseNotification(e?.message || "Failed to mark interested", "error");
@@ -383,7 +398,6 @@ function onNodeClick(event, d) {
     return;
   }
 
-  // Normal nodes go to your node panel
   try {
     openNodePanel({
       id: d.id,
@@ -418,18 +432,31 @@ function dragEnded(event, d) {
 }
 
 /* ==========================================================================
- Animations Wrapper
+   PATHWAY WRAPPERS (exports expected by synapse.js/dashboard)
    ========================================================================== */
+
 export function showConnectPathways(fromId, toId, opts = {}) {
+  const resolvedFrom = fromId || currentUserCommunityId || window.__synapseStats?.currentUserCommunityId;
+  const resolvedTo = toId;
+
+  if (!resolvedFrom || !resolvedTo) {
+    console.warn("⚠️ showConnectPathways missing ids", {
+      fromId,
+      toId,
+      resolvedFrom,
+      currentUserCommunityId,
+    });
+    return null;
+  }
+
   try {
-    // If your pathway module exposes a function like this, call it:
     if (typeof PathwayAnimations.showConnectPathways === "function") {
-      return PathwayAnimations.showConnectPathways(fromId, toId, opts);
+      return PathwayAnimations.showConnectPathways(resolvedFrom, resolvedTo, opts);
     }
 
-    // Otherwise, fall back to a common naming pattern:
-    if (typeof PathwayAnimations.showPathway === "function") {
-      return PathwayAnimations.showPathway(fromId, toId, opts);
+    // If your module uses animatePathway directly:
+    if (typeof PathwayAnimations.animatePathway === "function") {
+      return PathwayAnimations.animatePathway(resolvedFrom, resolvedTo, opts);
     }
 
     console.warn("⚠️ showConnectPathways not available in pathway-animations.js");
@@ -439,23 +466,15 @@ export function showConnectPathways(fromId, toId, opts = {}) {
     return null;
   }
 }
-/* ==========================================================================
-Clear Connect Pathways
-   ========================================================================== */
+
 export function clearConnectPathways(opts = {}) {
   try {
     if (typeof PathwayAnimations.clearConnectPathways === "function") {
       return PathwayAnimations.clearConnectPathways(opts);
     }
-
-    // Fallback common naming patterns
-    if (typeof PathwayAnimations.clearPathways === "function") {
-      return PathwayAnimations.clearPathways(opts);
-    }
     if (typeof PathwayAnimations.clearAllPathways === "function") {
       return PathwayAnimations.clearAllPathways(opts);
     }
-
     console.warn("⚠️ clearConnectPathways not available in pathway-animations.js");
     return null;
   } catch (e) {
@@ -463,15 +482,14 @@ export function clearConnectPathways(opts = {}) {
     return null;
   }
 }
-/**
- * Minimal compatibility export for synapse.js
- * Returns a list of recommendation objects (empty for now).
- * Later: implement based on interests/skills/project overlap.
- */
+
 export async function getRecommendations({ limit = 12 } = {}) {
   try {
-    // If you already have a recommendation module later, wire it here.
-    // For now: keep Synapse from crashing.
+    if (typeof PathwayAnimations.generateRecommendations === "function") {
+      const recs = await PathwayAnimations.generateRecommendations();
+      return Array.isArray(recs) ? recs.slice(0, limit) : [];
+    }
+    console.warn("⚠️ generateRecommendations not available in pathway-animations.js");
     return [];
   } catch (e) {
     console.warn("⚠️ getRecommendations failed:", e);
@@ -479,6 +497,5 @@ export async function getRecommendations({ limit = 12 } = {}) {
   }
 }
 
+// Keep this export available for the top-level synapse.js import expectation
 export { setupSynapseRealtime };
-
-
