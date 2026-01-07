@@ -1,581 +1,549 @@
-// pathway-animations.js - Animated connection pathway system
-// Provides intelligent recommendations and animated SVG pathways
+// assets/js/pathway-animations.js
+// Animated connection pathway system for Synapse
+//
+// Synapse/Core expectations (based on your current modular wiring):
+// - initPathwayAnimations(supabase, svgSelection, containerSelection, nodes, links)
+// - updateAllPathwayPositions() called on simulation tick
+// - showConnectPathways(fromId, toId, opts) (used by synapse/core.js wrapper)
+// - clearConnectPathways() (used by synapse/core.js / synapse.js barrel)
+// - generateRecommendations() (used by getRecommendations wrapper in core)
+//
+// Notes:
+// - D3 is global in your build (window.d3).
+// - svg and container passed from synapse/core.js are typically D3 selections.
+// - This module is "safe": if D3 or container isn't available, it no-ops instead of crashing.
 
-import { getCurrentUserCommunityId } from './connections.js';
+import { getCurrentUserCommunityId } from "./connections.js";
 
-// ========================
-// STATE
-// ========================
+/* ==========================================================================
+   STATE
+   ========================================================================== */
+
 let supabase = null;
-let svg = null;
-let container = null;
+
+// These may be D3 selections OR DOM nodes depending on caller.
+// We normalize them with getD3Selection().
+let svgSel = null;
+let containerSel = null;
+
+// Graph data snapshots (Synapse passes nodes/links arrays)
 let nodes = [];
 let links = [];
-let activePathways = [];
-let animationFrameId = null;
-let isAnimating = false;
 
-// ========================
-// INITIALIZATION
-// ========================
+// Rendered overlays
+let activePathways = []; // [{ id, group, segments, pathNodes, updatePositions }]
+let activeHighlights = false;
+
+/* ==========================================================================
+   D3 + SELECTION HELPERS
+   ========================================================================== */
+
+function getD3() {
+  return window?.d3 || null;
+}
+
+function isD3Selection(obj) {
+  return !!obj && typeof obj === "object" && typeof obj.node === "function" && typeof obj.select === "function";
+}
+
+function getD3Selection(maybeSelOrNode) {
+  const d3 = getD3();
+  if (!d3 || !maybeSelOrNode) return null;
+  if (isD3Selection(maybeSelOrNode)) return maybeSelOrNode;
+  try {
+    return d3.select(maybeSelOrNode);
+  } catch (_) {
+    return null;
+  }
+}
+
+function getNodeId(n) {
+  return n?.id ?? n?.community_id ?? n?.userId ?? null;
+}
+
+function getLinkIds(link) {
+  const src = link?.source?.id ?? link?.source ?? null;
+  const tgt = link?.target?.id ?? link?.target ?? null;
+  return { src, tgt };
+}
+
+function isAcceptedStatus(status) {
+  const s = String(status || "").toLowerCase();
+  return s === "accepted" || s === "connected" || s === "active" || s === "approved";
+}
+
+/* ==========================================================================
+   INITIALIZATION / UPDATES
+   ========================================================================== */
+
 export function initPathwayAnimations(supabaseClient, svgElement, containerElement, graphNodes, graphLinks) {
-  supabase = supabaseClient;
-  svg = svgElement;
-  container = containerElement;
-  nodes = graphNodes;
-  links = graphLinks;
+  supabase = supabaseClient || null;
 
-  console.log('%c✨ Pathway Animations initialized', 'color: #0ff; font-weight: bold');
+  svgSel = getD3Selection(svgElement);
+  containerSel = getD3Selection(containerElement);
+
+  nodes = Array.isArray(graphNodes) ? graphNodes : [];
+  links = Array.isArray(graphLinks) ? graphLinks : [];
+
+  // Clean any stale overlays
+  clearConnectPathways();
+  clearHighlights();
+
+  console.log("%c✨ Pathway Animations initialized", "color:#0ff; font-weight:bold");
   return true;
 }
 
-// Update nodes/links when graph changes
 export function updateGraphData(graphNodes, graphLinks) {
-  nodes = graphNodes;
-  links = graphLinks;
+  nodes = Array.isArray(graphNodes) ? graphNodes : [];
+  links = Array.isArray(graphLinks) ? graphLinks : [];
+
+  // Keep existing pathways in sync with new node references
+  // (positions update function uses node objects in pathNodes)
+  // We do NOT auto-clear; just let updateAllPathwayPositions() handle it.
 }
 
-// ========================
-// RECOMMENDATION ENGINE
-// ========================
+/* ==========================================================================
+   RECOMMENDATION ENGINE
+   ========================================================================== */
 
 /**
- * Generate intelligent recommendations for the current user
- * Returns array of {userId, score, reason, matchedSkills, pathDistance}
+ * Generate recommendations for the current user from the already-loaded Synapse nodes/links.
+ * Returns: [{ userId, type, name, score, reason, matchedSkills, pathDistance, node }]
  */
 export async function generateRecommendations() {
   const currentUserId = getCurrentUserCommunityId();
   if (!currentUserId) return [];
 
-  const currentUserNode = nodes.find(n => n.id === currentUserId);
+  const currentUserNode = nodes.find((n) => getNodeId(n) === currentUserId);
   if (!currentUserNode) return [];
 
   const recommendations = [];
 
-  // Score each person and project
   for (const node of nodes) {
-    // Skip self
-    if (node.id === currentUserId) continue;
+    const nodeId = getNodeId(node);
+    if (!nodeId) continue;
 
-    // Check if already connected
-    const existingConnection = links.find(l =>
-      (l.source?.id === currentUserId && l.target?.id === node.id) ||
-      (l.target?.id === currentUserId && l.source?.id === node.id) ||
-      (l.source === currentUserId && l.target === node.id) ||
-      (l.target === currentUserId && l.source === node.id)
-    );
+    // Skip self + non-people/project types if you want (keep themes out of recs)
+    if (nodeId === currentUserId) continue;
+    if (node.type === "theme") continue;
 
-    if (existingConnection && existingConnection.status === 'accepted') continue;
+    // Skip if already accepted-connected
+    const existing = links.find((l) => {
+      const { src, tgt } = getLinkIds(l);
+      return (
+        (src === currentUserId && tgt === nodeId) ||
+        (tgt === currentUserId && src === nodeId)
+      );
+    });
+
+    if (existing && isAcceptedStatus(existing.status)) continue;
 
     let score = 0;
-    let reasons = [];
+    const reasons = [];
     let matchedSkills = [];
 
-    if (node.type === 'project') {
-      // PROJECT MATCHING
-      const projectSkills = node.required_skills || [];
-      const userSkills = currentUserNode.skills || [];
+    // Normalize skills/interests to arrays
+    const userSkills = Array.isArray(currentUserNode.skills)
+      ? currentUserNode.skills
+      : typeof currentUserNode.skills === "string"
+      ? currentUserNode.skills.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
 
-      // Match user skills to project needs
-      const skillMatches = projectSkills.filter(ps =>
-        userSkills.some(us => us.toLowerCase().includes(ps.toLowerCase()) || ps.toLowerCase().includes(us.toLowerCase()))
+    const userInterests = Array.isArray(currentUserNode.interests)
+      ? currentUserNode.interests
+      : typeof currentUserNode.interests === "string"
+      ? currentUserNode.interests.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    if (node.type === "project") {
+      const projectSkills = Array.isArray(node.required_skills)
+        ? node.required_skills
+        : typeof node.required_skills === "string"
+        ? node.required_skills.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+
+      const skillMatches = projectSkills.filter((ps) =>
+        userSkills.some((us) => {
+          const a = String(us).toLowerCase();
+          const b = String(ps).toLowerCase();
+          return a.includes(b) || b.includes(a);
+        })
       );
 
-      if (skillMatches.length > 0) {
-        score += skillMatches.length * 15; // High value for skill matches
+      if (skillMatches.length) {
+        score += skillMatches.length * 15;
         matchedSkills = skillMatches;
-        reasons.push(`${skillMatches.length} needed skill${skillMatches.length > 1 ? 's' : ''} match`);
+        reasons.push(
+          `${skillMatches.length} needed skill${skillMatches.length > 1 ? "s" : ""} match`
+        );
       }
 
-      // Bonus for open projects
-      if (node.status === 'open') {
+      if (String(node.status || "").toLowerCase() === "open") {
         score += 10;
-        reasons.push('Open for new members');
+        reasons.push("Open for new members");
       }
 
-      // Bonus for small teams (easier to join)
-      if (node.team_size < 3) {
+      const teamSize = Number(node.team_size);
+      if (!Number.isNaN(teamSize) && teamSize > 0 && teamSize < 3) {
         score += 5;
-        reasons.push('Small team (easy to join)');
+        reasons.push("Small team (easy to join)");
       }
-
     } else {
-      // PERSON MATCHING
-      const nodeSkills = node.skills || [];
-      const userSkills = currentUserNode.skills || [];
-      const nodeInterests = node.interests || [];
-      const userInterests = currentUserNode.interests || [];
+      const nodeSkills = Array.isArray(node.skills)
+        ? node.skills
+        : typeof node.skills === "string"
+        ? node.skills.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
 
-      // Skill overlap
-      const sharedSkills = userSkills.filter(s =>
-        nodeSkills.some(ns => ns.toLowerCase() === s.toLowerCase())
+      const nodeInterests = Array.isArray(node.interests)
+        ? node.interests
+        : typeof node.interests === "string"
+        ? node.interests.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+
+      const sharedSkills = userSkills.filter((s) =>
+        nodeSkills.some((ns) => String(ns).toLowerCase() === String(s).toLowerCase())
       );
 
-      if (sharedSkills.length > 0) {
+      if (sharedSkills.length) {
         score += sharedSkills.length * 10;
         matchedSkills = sharedSkills;
-        reasons.push(`${sharedSkills.length} shared skill${sharedSkills.length > 1 ? 's' : ''}`);
+        reasons.push(`${sharedSkills.length} shared skill${sharedSkills.length > 1 ? "s" : ""}`);
       }
 
-      // Interest overlap
-      const sharedInterests = userInterests.filter(i =>
-        nodeInterests.some(ni => ni.toLowerCase() === i.toLowerCase())
+      const sharedInterests = userInterests.filter((i) =>
+        nodeInterests.some((ni) => String(ni).toLowerCase() === String(i).toLowerCase())
       );
 
-      if (sharedInterests.length > 0) {
+      if (sharedInterests.length) {
         score += sharedInterests.length * 8;
-        reasons.push(`${sharedInterests.length} shared interest${sharedInterests.length > 1 ? 's' : ''}`);
+        reasons.push(
+          `${sharedInterests.length} shared interest${sharedInterests.length > 1 ? "s" : ""}`
+        );
       }
 
-      // Complementary skills (they have skills you don't)
-      const complementarySkills = nodeSkills.filter(s =>
-        !userSkills.some(us => us.toLowerCase() === s.toLowerCase())
+      const complementarySkills = nodeSkills.filter(
+        (s) => !userSkills.some((us) => String(us).toLowerCase() === String(s).toLowerCase())
       );
-
       if (complementarySkills.length >= 2) {
         score += 5;
-        reasons.push('Complementary skills');
+        reasons.push("Complementary skills");
       }
 
-      // Availability match
       if (node.availability && currentUserNode.availability) {
-        if (node.availability === currentUserNode.availability) {
+        if (String(node.availability) === String(currentUserNode.availability)) {
           score += 3;
-          reasons.push('Similar availability');
+          reasons.push("Similar availability");
         }
       }
     }
 
-    // Calculate network distance (how many hops away)
-    const pathDistance = findShortestPathDistance(currentUserId, node.id);
+    const pathDistance = findShortestPathDistance(currentUserId, nodeId);
 
-    // Bonus for 2nd-degree connections (friend-of-friend)
     if (pathDistance === 2) {
       score += 8;
-      reasons.push('Friend of a friend');
+      reasons.push("Friend of a friend");
     } else if (pathDistance === 3) {
       score += 3;
-      reasons.push('Extended network');
+      reasons.push("Extended network");
     }
 
-    // Only recommend if there's a meaningful score
     if (score > 10) {
       recommendations.push({
-        userId: node.id,
-        type: node.type || 'person',
-        name: node.name || node.title,
+        userId: nodeId,
+        type: node.type || "person",
+        name: node.name || node.title || "Unknown",
         score,
-        reason: reasons.join(' · '),
+        reason: reasons.join(" · "),
         matchedSkills,
         pathDistance,
-        node
+        node,
       });
     }
   }
 
-  // Sort by score descending
   recommendations.sort((a, b) => b.score - a.score);
 
   console.log(`💡 Generated ${recommendations.length} recommendations`);
-  return recommendations.slice(0, 10); // Top 10
+  return recommendations.slice(0, 10);
 }
 
-// ========================
-// PATHFINDING ALGORITHM
-// ========================
+/* ==========================================================================
+   PATHFINDING
+   ========================================================================== */
 
 /**
- * Find shortest path between two nodes using Dijkstra's algorithm
- * Returns array of node IDs representing the path
+ * Shortest path using BFS (all edges weight=1).
+ * Returns array of nodeIds representing the path, or null if none.
  */
 export function findShortestPath(sourceId, targetId, includeSuggested = true) {
+  if (!sourceId || !targetId) return null;
   if (sourceId === targetId) return [sourceId];
 
-  // Build adjacency list
+  // adjacency list
   const graph = new Map();
-  for (const node of nodes) {
-    graph.set(node.id, []);
+  for (const n of nodes) {
+    const id = getNodeId(n);
+    if (id) graph.set(id, []);
   }
 
-  for (const link of links) {
-    const srcId = link.source?.id || link.source;
-    const tgtId = link.target?.id || link.target;
+  for (const l of links) {
+    const { src, tgt } = getLinkIds(l);
+    if (!src || !tgt) continue;
 
-    // Traverse accepted connections, and optionally suggested ones
-    if (link.status === 'accepted' || link.status === 'connected') {
-      graph.get(srcId)?.push(tgtId);
-      graph.get(tgtId)?.push(srcId); // Bidirectional
-    } else if (includeSuggested && link.status === 'suggested') {
-      // Include suggested connections for potential pathways
-      graph.get(srcId)?.push(tgtId);
-      graph.get(tgtId)?.push(srcId);
+    const status = String(l.status || "").toLowerCase();
+    const traversable =
+      isAcceptedStatus(status) || (includeSuggested && status === "suggested");
+
+    if (!traversable) continue;
+
+    if (graph.has(src)) graph.get(src).push(tgt);
+    if (graph.has(tgt)) graph.get(tgt).push(src);
+  }
+
+  // BFS
+  const queue = [sourceId];
+  const visited = new Set([sourceId]);
+  const prev = new Map();
+
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === targetId) break;
+
+    const neighbors = graph.get(cur) || [];
+    for (const nb of neighbors) {
+      if (visited.has(nb)) continue;
+      visited.add(nb);
+      prev.set(nb, cur);
+      queue.push(nb);
     }
   }
 
-  // Dijkstra's algorithm
-  const distances = new Map();
-  const previous = new Map();
-  const unvisited = new Set(graph.keys());
+  if (!prev.has(targetId)) return null;
 
-  for (const nodeId of graph.keys()) {
-    distances.set(nodeId, Infinity);
-  }
-  distances.set(sourceId, 0);
-
-  while (unvisited.size > 0) {
-    // Find unvisited node with smallest distance
-    let current = null;
-    let minDist = Infinity;
-    for (const nodeId of unvisited) {
-      const dist = distances.get(nodeId);
-      if (dist < minDist) {
-        minDist = dist;
-        current = nodeId;
-      }
-    }
-
-    if (current === null || minDist === Infinity) break;
-    if (current === targetId) break; // Found target
-
-    unvisited.delete(current);
-
-    const neighbors = graph.get(current) || [];
-    for (const neighbor of neighbors) {
-      if (!unvisited.has(neighbor)) continue;
-
-      const altDist = distances.get(current) + 1;
-      if (altDist < distances.get(neighbor)) {
-        distances.set(neighbor, altDist);
-        previous.set(neighbor, current);
-      }
-    }
-  }
-
-  // Reconstruct path
-  if (!previous.has(targetId)) {
-    return null; // No path found
-  }
-
+  // reconstruct
   const path = [];
-  let current = targetId;
-  while (current !== undefined) {
-    path.unshift(current);
-    current = previous.get(current);
+  let cur = targetId;
+  while (cur) {
+    path.unshift(cur);
+    cur = prev.get(cur);
+    if (cur === sourceId) {
+      path.unshift(sourceId);
+      break;
+    }
   }
-
-  return path;
+  return path[0] === sourceId ? path : null;
 }
 
-/**
- * Get shortest path distance (number of hops)
- */
 export function findShortestPathDistance(sourceId, targetId) {
   const path = findShortestPath(sourceId, targetId);
-  return path ? path.length - 1 : Infinity;
+  return path ? Math.max(0, path.length - 1) : Infinity;
 }
 
-// ========================
-// PATH VISUALIZATION
-// ========================
+/* ==========================================================================
+   PATH VISUALIZATION
+   ========================================================================== */
+
+function ensureOverlayLayer() {
+  const d3 = getD3();
+  if (!d3 || !containerSel) return null;
+
+  // Use a stable overlay group so clearing is easy.
+  let layer = containerSel.select("g.connect-pathways-layer");
+  if (!layer.empty()) return layer;
+
+  // Insert early so it doesn't block clicks on nodes
+  layer = containerSel
+    .insert("g", ":first-child")
+    .attr("class", "connect-pathways-layer")
+    .style("pointer-events", "none");
+
+  return layer;
+}
+
+function buildCurvedPathData(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+  const midX = (a.x + b.x) / 2;
+  const midY = (a.y + b.y) / 2;
+
+  // gentle curve, scaled by distance
+  const curvature = Math.min(45, dist * 0.18);
+
+  const offsetX = (-dy / dist) * curvature;
+  const offsetY = (dx / dist) * curvature;
+
+  const cx = midX + offsetX;
+  const cy = midY + offsetY;
+
+  return `M ${a.x},${a.y} Q ${cx},${cy} ${b.x},${b.y}`;
+}
 
 /**
- * Animate a glowing pathway from source to target
+ * Animate a pathway between two ids.
+ * Returns pathwayData or null.
  */
 export function animatePathway(sourceId, targetId, options = {}) {
+  const d3 = getD3();
+  if (!d3) return null;
+  if (!containerSel) return null;
+
   const {
-    color = '#00e0ff',
-    duration = 2000,
-    particleCount = 3,
+    color = "#00e0ff",
+    duration = 1800,
+    particleCount = 2,
     glowIntensity = 10,
-    onComplete = null
+    onComplete = null,
+    forceDirect = false, // if true, even if no graph path, draw direct
   } = options;
 
-  // Find path
-  let path = findShortestPath(sourceId, targetId);
-
-  // If no path through existing connections, create a direct path (for new recommendations)
-  if (!path || path.length < 2) {
-    // Check if both nodes exist
-    const sourceNode = nodes.find(n => n.id === sourceId);
-    const targetNode = nodes.find(n => n.id === targetId);
-
-    if (sourceNode && targetNode) {
-      // Create direct path for new recommendations
-      path = [sourceId, targetId];
-      console.log(`Creating direct pathway from ${sourceId} to ${targetId} (new recommendation)`);
+  // Try to find a multi-hop path; else fallback to direct if allowed.
+  let pathIds = findShortestPath(sourceId, targetId);
+  if (!pathIds || pathIds.length < 2) {
+    if (!forceDirect) {
+      // allow direct if both nodes exist
+      const aOk = nodes.some((n) => getNodeId(n) === sourceId);
+      const bOk = nodes.some((n) => getNodeId(n) === targetId);
+      if (aOk && bOk) pathIds = [sourceId, targetId];
+      else return null;
     } else {
-      console.warn(`Nodes not found for pathway: ${sourceId} -> ${targetId}`);
-      return null;
+      pathIds = [sourceId, targetId];
     }
   }
 
-  // Get node positions
-  const pathNodes = path.map(id => nodes.find(n => n.id === id)).filter(Boolean);
-  if (pathNodes.length !== path.length) {
-    console.warn('Some nodes in path not found in graph');
-    return null;
-  }
+  const pathNodes = pathIds
+    .map((id) => nodes.find((n) => getNodeId(n) === id))
+    .filter(Boolean);
 
-  // Create pathway group
-  const pathwayGroup = container.insert('g', '.nodes')
-    .attr('class', 'animated-pathway')
-    .attr('data-source', sourceId)
-    .attr('data-target', targetId);
+  if (pathNodes.length < 2) return null;
 
-  // Draw pathway segments
+  const layer = ensureOverlayLayer();
+  if (!layer) return null;
+
+  const group = layer
+    .append("g")
+    .attr("class", "animated-pathway")
+    .attr("data-source", sourceId)
+    .attr("data-target", targetId);
+
   const segments = [];
   for (let i = 0; i < pathNodes.length - 1; i++) {
-    const source = pathNodes[i];
-    const target = pathNodes[i + 1];
+    const a = pathNodes[i];
+    const b = pathNodes[i + 1];
 
-    // Create curved path (Bezier)
-    const path = pathwayGroup.append('path')
-      .attr('class', 'pathway-segment')
-      .attr('fill', 'none')
-      .attr('stroke', color)
-      .attr('stroke-width', 4)
-      .attr('opacity', 0)
-      .attr('filter', `drop-shadow(0 0 ${glowIntensity}px ${color})`);
+    const seg = group
+      .append("path")
+      .attr("class", "pathway-segment")
+      .attr("fill", "none")
+      .attr("stroke", color)
+      .attr("stroke-width", 4)
+      .attr("opacity", 0)
+      .attr("stroke-linecap", "round")
+      .attr("stroke-linejoin", "round")
+      .attr("filter", `drop-shadow(0 0 ${glowIntensity}px ${color})`);
 
-    segments.push({ path, source, target });
+    segments.push({ path: seg, source: a, target: b });
   }
 
-  // Function to update pathway positions
-  const updatePathwayPositions = () => {
-    segments.forEach(({ path, source, target }) => {
-      // Calculate control point for curve (add slight bend)
-      const midX = (source.x + target.x) / 2;
-      const midY = (source.y + target.y) / 2;
-      const dx = target.x - source.x;
-      const dy = target.y - source.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const curvature = Math.min(30, dist * 0.2);
-
-      // Perpendicular offset
-      const offsetX = -dy / dist * curvature;
-      const offsetY = dx / dist * curvature;
-      const controlX = midX + offsetX;
-      const controlY = midY + offsetY;
-
-      // Quadratic Bezier curve
-      const pathData = `M ${source.x},${source.y} Q ${controlX},${controlY} ${target.x},${target.y}`;
-      path.attr('d', pathData);
-    });
+  const updatePositions = () => {
+    for (const seg of segments) {
+      const a = seg.source;
+      const b = seg.target;
+      if (typeof a.x !== "number" || typeof a.y !== "number") continue;
+      if (typeof b.x !== "number" || typeof b.y !== "number") continue;
+      seg.path.attr("d", buildCurvedPathData(a, b));
+    }
   };
 
-  // Initial position update
-  updatePathwayPositions();
+  updatePositions();
 
-  // Animate each segment sequentially
-  let currentSegment = 0;
-  const animateSegment = () => {
-    if (currentSegment >= segments.length) {
-      // All segments complete, add particles
-      if (particleCount > 0) {
-        animateParticles(pathwayGroup, pathNodes, color, particleCount);
-      }
-      if (onComplete) onComplete();
+  // sequential fade-in
+  let idx = 0;
+  const perSeg = Math.max(200, Math.floor(duration / Math.max(1, segments.length)));
+
+  const animateNext = () => {
+    if (idx >= segments.length) {
+      if (particleCount > 0) spawnParticles(group, pathNodes, color, particleCount);
+      if (typeof onComplete === "function") onComplete();
       return;
     }
 
-    const { path } = segments[currentSegment];
-
-    // Fade in
-    path.transition()
-      .duration(duration / segments.length)
-      .attr('opacity', 0.8)
-      .on('end', () => {
-        currentSegment++;
-        animateSegment();
+    segments[idx].path
+      .transition()
+      .duration(perSeg)
+      .attr("opacity", 0.85)
+      .on("end", () => {
+        idx++;
+        animateNext();
       });
   };
 
-  animateSegment();
+  animateNext();
 
-  // Store pathway for cleanup and updates
   const pathwayData = {
-    id: `${sourceId}-${targetId}`,
-    group: pathwayGroup,
+    id: `${sourceId}__${targetId}__${Date.now()}`,
+    group,
     segments,
     pathNodes,
-    updatePositions: updatePathwayPositions
+    updatePositions,
   };
 
   activePathways.push(pathwayData);
   return pathwayData;
 }
 
-/**
- * Animate particles flowing along the pathway
- */
-function animateParticles(pathwayGroup, pathNodes, color, count) {
-  for (let i = 0; i < count; i++) {
-    setTimeout(() => {
-      const particle = pathwayGroup.append('circle')
-        .attr('class', 'pathway-particle')
-        .attr('r', 4)
-        .attr('fill', color)
-        .attr('filter', `drop-shadow(0 0 6px ${color})`)
-        .attr('cx', pathNodes[0].x)
-        .attr('cy', pathNodes[0].y);
+function spawnParticles(group, pathNodes, color, count) {
+  const d3 = getD3();
+  if (!d3) return;
 
-      animateParticleAlongPath(particle, pathNodes, 3000);
-    }, i * 200);
+  for (let i = 0; i < count; i++) {
+    window.setTimeout(() => {
+      const particle = group
+        .append("circle")
+        .attr("class", "pathway-particle")
+        .attr("r", 4)
+        .attr("fill", color)
+        .attr("opacity", 0.9)
+        .attr("filter", `drop-shadow(0 0 6px ${color})`)
+        .attr("cx", pathNodes[0].x)
+        .attr("cy", pathNodes[0].y);
+
+      animateParticle(particle, pathNodes, 2400);
+    }, i * 180);
   }
 }
 
-function animateParticleAlongPath(particle, pathNodes, duration) {
-  let currentIndex = 0;
+function animateParticle(particle, pathNodes, duration) {
+  const d3 = getD3();
+  if (!d3) return;
 
-  const moveToNext = () => {
-    if (currentIndex >= pathNodes.length - 1) {
-      particle.transition().duration(300).attr('opacity', 0).remove();
+  let i = 0;
+  const step = () => {
+    if (i >= pathNodes.length - 1) {
+      particle.transition().duration(250).attr("opacity", 0).remove();
       return;
     }
-
-    const target = pathNodes[currentIndex + 1];
-    particle.transition()
-      .duration(duration / pathNodes.length)
+    const next = pathNodes[i + 1];
+    particle
+      .transition()
+      .duration(Math.max(180, Math.floor(duration / Math.max(1, pathNodes.length - 1))))
       .ease(d3.easeLinear)
-      .attr('cx', target.x)
-      .attr('cy', target.y)
-      .on('end', () => {
-        currentIndex++;
-        moveToNext();
+      .attr("cx", next.x)
+      .attr("cy", next.y)
+      .on("end", () => {
+        i++;
+        step();
       });
   };
-
-  moveToNext();
+  step();
 }
 
-/**
- * Highlight recommended nodes with pulsing glow
- */
+/* ==========================================================================
+   HIGHLIGHTS
+   ========================================================================== */
+
 export function highlightRecommendedNodes(recommendations) {
-  // Remove existing highlights
-  clearHighlights();
-
-  if (!svg || !container) return;
-
-  // Add highlights to each recommended node
-  for (const rec of recommendations) {
-    const nodeElement = container.selectAll('.synapse-node')
-      .filter(d => d.id === rec.userId);
-
-    if (nodeElement.empty()) continue;
-
-    // Add pulsing glow circle
-    nodeElement.each(function(d) {
-      const node = d3.select(this);
-
-      // Determine radius based on node type
-      const radius = d.type === 'project' ? 50 : (d.isCurrentUser ? 35 : 28);
-
-      const glow = node.insert('circle', ':first-child')
-        .attr('class', 'recommendation-glow')
-        .attr('r', radius + 10)
-        .attr('fill', 'none')
-        .attr('stroke', rec.type === 'project' ? '#ff6b6b' : '#00e0ff')
-        .attr('stroke-width', 3)
-        .attr('opacity', 0.6);
-
-      // Pulsing animation
-      function pulse() {
-        glow.transition()
-          .duration(1000)
-          .attr('r', radius + 15)
-          .attr('opacity', 0.3)
-          .transition()
-          .duration(1000)
-          .attr('r', radius + 10)
-          .attr('opacity', 0.6)
-          .on('end', pulse);
-      }
-      pulse();
-    });
-  }
-
-  console.log(`✨ Highlighted ${recommendations.length} recommended nodes`);
-}
-
-/**
- * Clear all pathway highlights
- */
-export function clearHighlights() {
-  if (!container) return;
-  container.selectAll('.recommendation-glow').remove();
-}
-
-/**
- * Update all active pathway positions (call on simulation tick)
- */
-export function updateAllPathwayPositions() {
-  for (const pathway of activePathways) {
-    if (pathway.updatePositions) {
-      pathway.updatePositions();
-    }
-  }
-}
-
-/**
- * Clear all animated pathways
- */
-export function clearAllPathways() {
-  if (!container) return;
-  container.selectAll('.animated-pathway').remove();
-  activePathways = [];
-  console.log('🧹 Cleared all pathways');
-}
-
-/**
- * Show pathways to top N recommendations
- */
-export async function showRecommendationPathways(limit = 5) {
-  clearAllPathways();
-
-  const recommendations = await generateRecommendations();
-  const currentUserId = getCurrentUserCommunityId();
-
-  if (!currentUserId) {
-    console.warn('No current user ID');
-    return;
-  }
-
-  // Highlight all recommended nodes
-  highlightRecommendedNodes(recommendations);
-
-  // Show pathways to top recommendations
-  const topRecs = recommendations.slice(0, limit);
-
-  for (let i = 0; i < topRecs.length; i++) {
-    const rec = topRecs[i];
-
-    setTimeout(() => {
-      animatePathway(currentUserId, rec.userId, {
-        color: rec.type === 'project' ? '#ff6b6b' : '#00e0ff',
-        duration: 2000,
-        particleCount: 2,
-        glowIntensity: 12
-      });
-    }, i * 400); // Stagger animations
-  }
-
-  console.log(`🌟 Showing pathways to top ${topRecs.length} recommendations`);
-  return recommendations;
-}
-
-// ========================
-// EXPORTS
-// ========================
-export default {
-  initPathwayAnimations,
-  updateGraphData,
-  generateRecommendations,
-  findShortestPath,
-  findShortestPathDistance,
-  animatePathway,
-  highlightRecommendedNodes,
-  clearHighlights,
-  clearAllPathways,
-  showRecommendationPathways
-};
+  const d3 = getD3();
+ 
