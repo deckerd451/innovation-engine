@@ -546,4 +546,174 @@ function animateParticle(particle, pathNodes, duration) {
 
 export function highlightRecommendedNodes(recommendations) {
   const d3 = getD3();
- 
+  if (!d3 || !containerSel) return;
+
+  clearHighlights();
+  if (!Array.isArray(recommendations) || recommendations.length === 0) return;
+
+  // We expect Synapse nodes to be rendered as `.synapse-node` <g> elements (your render layer).
+  // If your actual class differs, change it here.
+  for (const rec of recommendations) {
+    const id = rec?.userId;
+    if (!id) continue;
+
+    const sel = containerSel
+      .selectAll(".synapse-node")
+      .filter((d) => (d?.id ?? d) === id);
+
+    if (sel.empty()) continue;
+
+    sel.each(function (d) {
+      const g = d3.select(this);
+      const nodeType = d?.type || rec?.type || "person";
+      const radius = nodeType === "project" ? 50 : 30;
+
+      const glow = g
+        .insert("circle", ":first-child")
+        .attr("class", "recommendation-glow")
+        .attr("r", radius + 10)
+        .attr("fill", "none")
+        .attr("stroke", nodeType === "project" ? "#ff6b6b" : "#00e0ff")
+        .attr("stroke-width", 3)
+        .attr("opacity", 0.55);
+
+      const pulse = () => {
+        glow
+          .transition()
+          .duration(900)
+          .attr("r", radius + 16)
+          .attr("opacity", 0.28)
+          .transition()
+          .duration(900)
+          .attr("r", radius + 10)
+          .attr("opacity", 0.55)
+          .on("end", pulse);
+      };
+      pulse();
+    });
+  }
+
+  activeHighlights = true;
+  console.log(`✨ Highlighted ${recommendations.length} recommended nodes`);
+}
+
+export function clearHighlights() {
+  if (!containerSel) return;
+  try {
+    containerSel.selectAll(".recommendation-glow").remove();
+  } catch (_) {}
+  activeHighlights = false;
+}
+
+/* ==========================================================================
+   SYNC WITH SIMULATION TICKS
+   ========================================================================== */
+
+export function updateAllPathwayPositions() {
+  // Called from synapse/core.js tick loop
+  for (const pw of activePathways) {
+    try {
+      pw?.updatePositions?.();
+    } catch (_) {}
+  }
+}
+
+/* ==========================================================================
+   COMPATIBILITY API (WHAT SYNAPSE IMPORTS/EXPECTS)
+   ========================================================================== */
+
+/**
+ * Synapse calls this via core.js wrapper.
+ * This should CREATE/SHOW a pathway between two node IDs.
+ */
+export function showConnectPathways(fromId, toId, opts = {}) {
+  // Default behavior: animate and keep it on-screen until cleared.
+  // Use forceDirect so you still get a pretty path even when not connected.
+  return animatePathway(fromId, toId, { forceDirect: true, ...opts });
+}
+
+/**
+ * Synapse calls this to clear overlays.
+ */
+export function clearConnectPathways() {
+  clearAllPathways();
+  if (activeHighlights) clearHighlights();
+}
+
+/**
+ * Remove all active pathway overlays
+ */
+export function clearAllPathways() {
+  if (!containerSel) {
+    activePathways = [];
+    return;
+  }
+
+  try {
+    containerSel.selectAll("g.connect-pathways-layer").remove();
+  } catch (_) {}
+
+  activePathways = [];
+  console.log("🧹 Cleared all pathways");
+}
+
+/**
+ * Convenience: show pathways to top N recommendations for current user.
+ */
+export async function showRecommendationPathways(limit = 5) {
+  clearAllPathways();
+
+  const currentUserId = getCurrentUserCommunityId();
+  if (!currentUserId) {
+    console.warn("No current user ID");
+    return [];
+  }
+
+  const recs = await generateRecommendations();
+  highlightRecommendedNodes(recs);
+
+  const top = recs.slice(0, Math.max(0, Number(limit) || 5));
+  top.forEach((rec, i) => {
+    window.setTimeout(() => {
+      showConnectPathways(currentUserId, rec.userId, {
+        color: rec.type === "project" ? "#ff6b6b" : "#00e0ff",
+        duration: 1600,
+        particleCount: 2,
+        glowIntensity: 12,
+      });
+    }, i * 320);
+  });
+
+  console.log(`🌟 Showing pathways to top ${top.length} recommendations`);
+  return recs;
+}
+
+/* ==========================================================================
+   DEFAULT EXPORT (OPTIONAL)
+   ========================================================================== */
+
+export default {
+  initPathwayAnimations,
+  updateGraphData,
+
+  // Recommendations
+  generateRecommendations,
+
+  // Pathfinding
+  findShortestPath,
+  findShortestPathDistance,
+
+  // Pathway visuals
+  animatePathway,
+  updateAllPathwayPositions,
+
+  // Synapse-expected API
+  showConnectPathways,
+  clearConnectPathways,
+
+  // Helpers
+  highlightRecommendedNodes,
+  clearHighlights,
+  clearAllPathways,
+  showRecommendationPathways,
+};
