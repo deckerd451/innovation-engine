@@ -1,6 +1,5 @@
 // assets/js/synapse/core.js
 // Synapse Core — init, svg, simulation wiring (modularized)
-// 2026 rewrite: fixes pathway integration + exports expected by synapse.js
 
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
@@ -56,11 +55,13 @@ export async function initSynapseView() {
     return;
   }
 
+  // D3 must be global in this build
   if (!window.d3) {
     console.error("❌ Synapse: D3 not found on window. Load D3 before synapse.");
     return;
   }
 
+  // Basic container checks
   if (!document.getElementById("synapse-svg")) {
     console.error("❌ Synapse: #synapse-svg not found in DOM");
     return;
@@ -76,17 +77,8 @@ export async function initSynapseView() {
   currentUserCommunityId = userInfo?.currentUserCommunityId || null;
 
   setupSVG();
-
   await reloadAllData();
-
   buildGraph();
-
-  // Initialize Pathway Animations AFTER graph exists, but before realtime tick updates
-  try {
-    PathwayAnimations.initPathwayAnimations(supabase, svg, container, nodes, links);
-  } catch (e) {
-    console.warn("⚠️ Pathway animations init failed:", e);
-  }
 
   // Realtime refresh (connections/projects/themes)
   setupSynapseRealtime(supabase, async () => {
@@ -94,15 +86,24 @@ export async function initSynapseView() {
     rebuildGraph();
   });
 
+  // Pathway animation system (safe)
+  try {
+    PathwayAnimations.initPathwayAnimations(supabase, svg, container, nodes, links);
+  } catch (e) {
+    console.warn("⚠️ Pathway animations init failed:", e);
+  }
+
   initialized = true;
 
-  // Expose for debugging / console helpers
+  // Optional: expose for non-module callers / debugging
   window.initSynapseView = initSynapseView;
   window.refreshThemeCircles = refreshThemeCircles;
   window.refreshSynapseConnections = refreshSynapseConnections;
 
-  // Useful for console snippets (your tests were looking for this)
-  window.__synapseStats = getSynapseStats();
+  // Handy for console debugging
+  try {
+    window.__synapseStats = getSynapseStats();
+  } catch (_) {}
 
   console.log("%c✅ Synapse ready", "color:#0f0; font-weight:bold;");
 }
@@ -157,8 +158,6 @@ function setupSVG() {
 
   svg = window.d3.select(svgEl).attr("viewBox", [0, 0, width, height]);
 
-  container = svg.append("g").attr("class", "synapse-container");
-
   zoomBehavior = window.d3
     .zoom()
     .scaleExtent([0.2, 4])
@@ -167,6 +166,8 @@ function setupSVG() {
     });
 
   svg.call(zoomBehavior);
+
+  container = svg.append("g").attr("class", "synapse-container");
 
   setupDefs(svg);
 
@@ -196,17 +197,12 @@ async function reloadAllData() {
   // Theme nodes (MVP)
   try {
     const themeNodes = await fetchActiveThemes(supabase);
-    if (Array.isArray(themeNodes) && themeNodes.length) {
-      nodes = [...nodes, ...themeNodes];
-    }
+    nodes = [...nodes, ...(themeNodes || [])];
   } catch (e) {
     console.warn("⚠️ Theme load skipped:", e);
   }
 
-  // keep debug helper updated
-  window.__synapseStats = getSynapseStats();
-
-  // IMPORTANT: keep pathway module in sync with latest data
+  // Keep pathway module in sync with the latest arrays
   try {
     PathwayAnimations.updateGraphData?.(nodes, links);
   } catch (_) {}
@@ -227,15 +223,10 @@ function rebuildGraph() {
 
   buildGraph();
 
-  // IMPORTANT: update pathway module with new container/nodes/links (rebuild replaces DOM)
+  // Ensure pathway module sees the rebuilt graph arrays
   try {
-    PathwayAnimations.initPathwayAnimations?.(supabase, svg, container, nodes, links);
-  } catch (e) {
-    console.warn("⚠️ Pathway animations re-init failed:", e);
-  }
-
-  // refresh debug helper
-  window.__synapseStats = getSynapseStats();
+    PathwayAnimations.updateGraphData?.(nodes, links);
+  } catch (_) {}
 }
 
 function buildGraph() {
@@ -279,10 +270,10 @@ function buildGraph() {
   // Links
   linkEls = renderLinks(container, links);
 
-  // Nodes + click routing
+  // Nodes
   nodeEls = renderNodes(container, nodes, { onNodeClick });
 
-  // Theme nodes styling
+  // Theme node styling
   styleThemeNodes();
 
   // Drag
@@ -310,7 +301,6 @@ function buildGraph() {
 
     projectCircles?.update?.();
 
-    // Keep pathway segments tracking node motion
     try {
       PathwayAnimations.updateAllPathwayPositions?.();
     } catch (_) {}
@@ -379,7 +369,9 @@ async function openThemeCard(themeNode) {
           onInterested: async () => {},
         });
 
-        if (newCount >= 3) simulation?.alpha?.(0.18)?.restart?.();
+        if (newCount >= 3) {
+          simulation?.alpha?.(0.18)?.restart?.();
+        }
       } catch (e) {
         console.error(e);
         showSynapseNotification(e?.message || "Failed to mark interested", "error");
@@ -432,48 +424,19 @@ function dragEnded(event, d) {
 }
 
 /* ==========================================================================
-   PATHWAY WRAPPERS (exports expected by synapse.js/dashboard)
+   PATHWAY COMPAT EXPORTS (synapse.js expects these)
    ========================================================================== */
 
-export function showConnectPathways(fromId, toId, opts = {}) {
-  const resolvedFrom = fromId || currentUserCommunityId || window.__synapseStats?.currentUserCommunityId;
-  const resolvedTo = toId;
-
-  if (!resolvedFrom || !resolvedTo) {
-    console.warn("⚠️ showConnectPathways missing ids", {
-      fromId,
-      toId,
-      resolvedFrom,
-      currentUserCommunityId,
-    });
-    return null;
-  }
-
-  try {
-    if (typeof PathwayAnimations.showConnectPathways === "function") {
-      return PathwayAnimations.showConnectPathways(resolvedFrom, resolvedTo, opts);
-    }
-
-    // If your module uses animatePathway directly:
-    if (typeof PathwayAnimations.animatePathway === "function") {
-      return PathwayAnimations.animatePathway(resolvedFrom, resolvedTo, opts);
-    }
-
-    console.warn("⚠️ showConnectPathways not available in pathway-animations.js");
-    return null;
-  } catch (e) {
-    console.warn("⚠️ showConnectPathways failed:", e);
-    return null;
-  }
-}
-
+/**
+ * Clear any currently drawn pathways (compat for synapse.js / dashboard).
+ */
 export function clearConnectPathways(opts = {}) {
   try {
-    if (typeof PathwayAnimations.clearConnectPathways === "function") {
-      return PathwayAnimations.clearConnectPathways(opts);
-    }
     if (typeof PathwayAnimations.clearAllPathways === "function") {
       return PathwayAnimations.clearAllPathways(opts);
+    }
+    if (typeof PathwayAnimations.clearConnectPathways === "function") {
+      return PathwayAnimations.clearConnectPathways(opts);
     }
     console.warn("⚠️ clearConnectPathways not available in pathway-animations.js");
     return null;
@@ -483,6 +446,9 @@ export function clearConnectPathways(opts = {}) {
   }
 }
 
+/**
+ * Return top recommendations using pathway-animations.js engine.
+ */
 export async function getRecommendations({ limit = 12 } = {}) {
   try {
     if (typeof PathwayAnimations.generateRecommendations === "function") {
@@ -497,5 +463,74 @@ export async function getRecommendations({ limit = 12 } = {}) {
   }
 }
 
-// Keep this export available for the top-level synapse.js import expectation
+/**
+ * Draw a pathway from -> to.
+ * If `toId` is missing (your Illuminate button case), auto-pick the top recommendation.
+ */
+export async function showConnectPathways(fromId, toId, opts = {}) {
+  try {
+    const resolvedFrom = fromId || currentUserCommunityId || null;
+
+    // If no toId provided, auto-select a top recommendation
+    let resolvedTo = toId || null;
+    if (!resolvedTo) {
+      const recs = await getRecommendations({ limit: 1 });
+      resolvedTo = recs?.[0]?.userId || null;
+    }
+
+    if (!resolvedFrom || !resolvedTo) {
+      console.warn("⚠️ showConnectPathways missing ids", {
+        fromId,
+        toId,
+        resolvedFrom,
+        resolvedTo,
+        currentUserCommunityId,
+      });
+      return null;
+    }
+
+    // If pathway module has a direct API, use it
+    if (typeof PathwayAnimations.showConnectPathways === "function") {
+      return PathwayAnimations.showConnectPathways(resolvedFrom, resolvedTo, opts);
+    }
+
+    // Otherwise fall back to animatePathway
+    if (typeof PathwayAnimations.animatePathway === "function") {
+      return PathwayAnimations.animatePathway(resolvedFrom, resolvedTo, opts);
+    }
+
+    console.warn("⚠️ showConnectPathways not available in pathway-animations.js");
+    return null;
+  } catch (e) {
+    console.warn("⚠️ showConnectPathways failed:", e);
+    return null;
+  }
+}
+
+/**
+ * Convenience: illuminate top N pathways at once.
+ * (Optional for your UI, but useful.)
+ */
+export async function illuminatePathways({ limit = 5, clearFirst = true, opts = {} } = {}) {
+  const me = currentUserCommunityId || null;
+  if (!me) return [];
+
+  const recs = await getRecommendations({ limit });
+  if (!recs.length) return [];
+
+  if (clearFirst) clearConnectPathways();
+
+  // If pathway module supports a batch helper, prefer it
+  if (typeof PathwayAnimations.showRecommendationPathways === "function") {
+    await PathwayAnimations.showRecommendationPathways(limit);
+    return recs;
+  }
+
+  // Otherwise draw sequentially
+  for (const rec of recs) {
+    await showConnectPathways(me, rec.userId, opts);
+  }
+  return recs;
+}
+
 export { setupSynapseRealtime };
