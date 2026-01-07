@@ -16,6 +16,14 @@
  *   - form submit wiring
  *   - rebind when modal DOM changes (MutationObserver)
  * ========================================================================== */
+/**
+ * Illuminate Pathways Contract
+ * - showAnimatedPathways(): entry point
+ * - Sequential reveal only (no bulk lists)
+ * - One recommendation visible at a time
+ * - Connect CTA per step
+ */
+
 
 import { supabase as importedSupabase } from "./supabaseClient.js";
 
