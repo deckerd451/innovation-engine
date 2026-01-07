@@ -1,0 +1,268 @@
+// illuminatePathways.js
+// CharlestonHacks Innovation Engine — Illuminated Pathways (sequential recommendations)
+// File: assets/js/illuminatePathways.js
+//
+// Purpose:
+// - Owns the UX for "Illuminate Pathways" / Quick Connect
+// - Shows recommended connections one-at-a-time with explanation + CTA
+// - Draws the animated pathway via synapse/core.js + pathway-animations.js
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function safeText(v) {
+  return (v === null || v === undefined) ? "" : String(v);
+}
+
+function tryClickNodeElement(targetId) {
+  if (!targetId) return false;
+
+  const selectors = [
+    `.synapse-node[data-id="${CSS.escape(targetId)}"]`,
+    `.synapse-node[data-node-id="${CSS.escape(targetId)}"]`,
+    `#node-${CSS.escape(targetId)}`,
+    `[data-node="${CSS.escape(targetId)}"]`,
+    `[data-id="${CSS.escape(targetId)}"]`,
+  ];
+
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    return true;
+  }
+
+  // Fallback: emit an event that the graph or node-panel can optionally listen to
+  window.dispatchEvent(new CustomEvent("synapse:open-node", { detail: { id: targetId } }));
+  return false;
+}
+
+function ensureModal() {
+  let modal = $("illuminated-pathways-modal");
+  if (modal) return modal;
+
+  modal = document.createElement("div");
+  modal.id = "illuminated-pathways-modal";
+  modal.style.cssText = `
+    position: fixed;
+    left: 16px;
+    bottom: 76px;
+    width: min(520px, calc(100vw - 32px));
+    background: rgba(10, 12, 20, 0.92);
+    border: 1px solid rgba(0, 224, 255, 0.25);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+    border-radius: 16px;
+    z-index: 9999;
+    backdrop-filter: blur(10px);
+    color: #e9f7ff;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  `;
+
+  modal.innerHTML = `
+    <div style="padding: 14px 14px 10px 14px; display:flex; gap:12px; align-items:flex-start;">
+      <div style="flex:1; min-width:0;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div>
+            <div style="font-size: 12px; opacity:0.75; letter-spacing:0.12em; text-transform: uppercase;">Illuminated Pathways</div>
+            <div id="ip-title" style="font-size: 18px; font-weight: 750; margin-top:4px; line-height:1.15;">—</div>
+          </div>
+          <button id="ip-close" title="Close" style="
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            border-radius: 10px;
+            padding: 6px 10px;
+            cursor: pointer;
+          ">✕</button>
+        </div>
+
+        <div id="ip-meta" style="margin-top:10px; font-size: 13px; opacity:0.9; line-height:1.35;"></div>
+
+        <div id="ip-reason" style="margin-top:10px; font-size: 13px; opacity:0.85; line-height:1.35;"></div>
+
+        <div style="margin-top: 12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button id="ip-connect" style="
+            border: 1px solid rgba(0,224,255,0.45);
+            background: rgba(0,224,255,0.14);
+            color: #e9ffff;
+            border-radius: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-weight: 700;
+          ">Connect</button>
+
+          <button id="ip-prev" style="
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            border-radius: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+          ">◀ Prev</button>
+
+          <button id="ip-next" style="
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            border-radius: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+          ">Next ▶</button>
+
+          <div id="ip-progress" style="margin-left:auto; font-size: 12px; opacity:0.75;"></div>
+        </div>
+
+        <div style="margin-top: 10px; font-size: 12px; opacity:0.65;">
+          Tip: Use <b>Connect</b> to open the node panel for this recommendation.
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  return modal;
+}
+
+async function loadCore() {
+  // Keep this dynamic so dashboardPane can load without hard dependency ordering
+  return import("./synapse/core.js");
+}
+
+async function loadFallbackRecommendations(limit) {
+  // Fallback to pathway-animations.js recommendation engine
+  const m = await import("./pathway-animations.js");
+  const recs = await m.generateRecommendations();
+  return (Array.isArray(recs) ? recs : []).slice(0, limit);
+}
+
+export function initIlluminatedPathways(opts = {}) {
+  const collapseBottomBar = typeof opts.collapseBottomBar === "function" ? opts.collapseBottomBar : null;
+  const expandBottomBar = typeof opts.expandBottomBar === "function" ? opts.expandBottomBar : null;
+  const getCurrentUserCommunityId = typeof opts.getCurrentUserCommunityId === "function" ? opts.getCurrentUserCommunityId : () => null;
+
+  let active = false;
+  let index = 0;
+  let currentUserId = null;
+  let recommendations = [];
+
+  function close() {
+    active = false;
+    const modal = $("illuminated-pathways-modal");
+    if (modal) modal.remove();
+
+    // Clear any remaining overlays
+    loadCore()
+      .then((core) => core.clearConnectPathways?.())
+      .catch(() => {});
+    if (expandBottomBar) expandBottomBar();
+  }
+
+  async function renderStep() {
+    const modal = ensureModal();
+
+    const titleEl = $("ip-title");
+    const metaEl = $("ip-meta");
+    const reasonEl = $("ip-reason");
+    const progEl = $("ip-progress");
+
+    const rec = recommendations[index];
+    const name = safeText(rec?.name || rec?.node?.name || rec?.node?.title || "Recommended connection");
+    const type = safeText(rec?.type || rec?.node?.type || "person");
+    const score = rec?.score;
+    const distance = rec?.pathDistance;
+
+    titleEl.textContent = name;
+
+    const metaParts = [];
+    metaParts.push(type === "project" ? "Project" : "Person");
+    if (typeof score === "number") metaParts.push(`Score: ${score}`);
+    if (typeof distance === "number" && isFinite(distance)) metaParts.push(`Hops: ${distance}`);
+    metaEl.innerHTML = metaParts.map((p) => `<span style="margin-right:10px; opacity:0.9;">${p}</span>`).join("");
+
+    reasonEl.textContent = safeText(rec?.reason || "Suggested based on your profile and network proximity.");
+
+    progEl.textContent = `${index + 1} / ${recommendations.length}`;
+
+    // Buttons
+    $("ip-close").onclick = close;
+    $("ip-prev").onclick = () => {
+      index = (index - 1 + recommendations.length) % recommendations.length;
+      showPathForCurrent();
+      renderStep();
+    };
+    $("ip-next").onclick = () => {
+      index = (index + 1) % recommendations.length;
+      showPathForCurrent();
+      renderStep();
+    };
+    $("ip-connect").onclick = () => {
+      const targetId = rec?.userId || rec?.id || rec?.node?.id;
+      if (!targetId) return;
+      tryClickNodeElement(targetId);
+    };
+
+    // Auto draw path
+    showPathForCurrent();
+  }
+
+  function showPathForCurrent() {
+    const rec = recommendations[index];
+    const targetId = rec?.userId || rec?.id || rec?.node?.id;
+    if (!currentUserId || !targetId) return;
+
+    loadCore()
+      .then((core) => {
+        core.clearConnectPathways?.();
+        core.showConnectPathways?.(currentUserId, targetId, { duration: 1800 });
+      })
+      .catch(() => {});
+  }
+
+  async function showAnimatedPathways({ limit = 5 } = {}) {
+    if (active) return;
+    active = true;
+
+    if (collapseBottomBar) collapseBottomBar();
+
+    // determine current user
+    const fromState = getCurrentUserCommunityId();
+    currentUserId = fromState || null;
+
+    // Fetch recommendations (prefer core.getRecommendations when available)
+    try {
+      const core = await loadCore();
+      const stats = core.getSynapseStats?.() || {};
+      if (!currentUserId) currentUserId = stats.currentUserCommunityId || null;
+
+      if (typeof core.getRecommendations === "function") {
+        recommendations = await core.getRecommendations({ limit });
+      } else {
+        recommendations = await loadFallbackRecommendations(limit);
+      }
+    } catch (e) {
+      recommendations = await loadFallbackRecommendations(limit);
+    }
+
+    recommendations = Array.isArray(recommendations) ? recommendations.filter(Boolean) : [];
+
+    if (!recommendations.length) {
+      active = false;
+      if (expandBottomBar) expandBottomBar();
+      // Simple notification
+      if (window.showNotification) window.showNotification("No recommendations yet—try adding skills/interests to your profile.", "info");
+      else alert("No recommendations yet—try adding skills/interests to your profile.");
+      return;
+    }
+
+    index = 0;
+    await renderStep();
+  }
+
+  function openQuickConnectModal() {
+    // Alias: Quick Connect now == illuminated pathways
+    return showAnimatedPathways({ limit: 5 });
+  }
+
+  return { showAnimatedPathways, openQuickConnectModal, close };
+}
