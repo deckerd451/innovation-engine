@@ -31,6 +31,11 @@ document.getElementById('btn-view-controls')?.addEventListener('click', () => {
   toggleViewControls();
 });
 
+// Wire up Bottom Bar Toggle
+document.getElementById('bottom-bar-toggle')?.addEventListener('click', () => {
+  toggleBottomBar();
+});
+
 // -----------------------------
 // Admin detection (best-effort)
 // -----------------------------
@@ -215,45 +220,6 @@ function toggleViewControls() {
     </div>
 
     ${adminHtml}
-
-    <!-- View Options Section -->
-    <div style="margin-bottom: 1.5rem;">
-      <h4 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem;">
-        <i class="fas fa-eye"></i> View Options
-      </h4>
-      <button onclick="document.getElementById('btn-filters')?.click(); document.getElementById('view-controls-panel').remove();"
-        style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.1);
-        border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff;
-        cursor: pointer; font-weight: 600; text-align: left;">
-        <i class="fas fa-filter"></i> Filters
-      </button>
-    </div>
-
-    <!-- Legend Section -->
-    <div>
-      <h4 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem;">
-        <i class="fas fa-info-circle"></i> Legend
-      </h4>
-      <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);
-        border-radius: 8px; padding: 1rem;">
-        <div style="margin-bottom: 0.75rem;">
-          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-            <div style="width: 30px; height: 30px; border-radius: 50%; background: rgba(0,224,255,0.3);
-              border: 2px solid #00e0ff;"></div>
-            <span style="color: #ddd; font-size: 0.9rem;">People</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-            <div style="width: 30px; height: 30px; transform: rotate(45deg); background: rgba(255,107,107,0.3);
-              border: 2px solid #ff6b6b;"></div>
-            <span style="color: #ddd; font-size: 0.9rem; margin-left: 0.25rem;">Projects</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <div style="width: 40px; height: 2px; background: #00e0ff;"></div>
-            <span style="color: #ddd; font-size: 0.9rem;">Connections</span>
-          </div>
-        </div>
-      </div>
-    </div>
   `;
 
   document.body.appendChild(panel);
@@ -273,5 +239,166 @@ function toggleViewControls() {
     });
   }, 100);
 }
+
+// -----------------------------
+// Legend on Synapse Screen
+// -----------------------------
+function createSynapseLegend() {
+  // Remove existing legend if present
+  const existingLegend = document.getElementById('synapse-legend-overlay');
+  if (existingLegend) return; // Already exists
+
+  const legend = document.createElement('div');
+  legend.id = 'synapse-legend-overlay';
+  legend.style.cssText = `
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    background: linear-gradient(135deg, rgba(10,14,39,0.95), rgba(26,26,46,0.95));
+    border: 2px solid rgba(0,224,255,0.3);
+    border-radius: 12px;
+    padding: 1rem;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    min-width: 200px;
+  `;
+
+  legend.innerHTML = `
+    <div style="margin-bottom: 0.75rem;">
+      <h4 style="color: #00e0ff; font-size: 0.9rem; margin: 0 0 0.75rem 0; font-weight: 700;">
+        <i class="fas fa-filter"></i> Filter View
+      </h4>
+    </div>
+    <div id="legend-people" data-filter="people" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3);">
+      <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(0,224,255,0.3); border: 2px solid #00e0ff; flex-shrink: 0;"></div>
+      <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">People</span>
+      <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+    </div>
+    <div id="legend-projects" data-filter="projects" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3);">
+      <div style="width: 24px; height: 24px; transform: rotate(45deg); background: rgba(255,107,107,0.3); border: 2px solid #ff6b6b; flex-shrink: 0;"></div>
+      <span style="color: #fff; font-size: 0.85rem; font-weight: 600; margin-left: 0.25rem;">Projects</span>
+      <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+    </div>
+    <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
+      <div style="width: 30px; height: 2px; background: #00e0ff; flex-shrink: 0;"></div>
+      <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Connections</span>
+      <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+    </div>
+  `;
+
+  document.body.appendChild(legend);
+
+  // Track filter state
+  const filterState = {
+    people: true,
+    projects: true,
+    connections: true
+  };
+
+  // Add click handlers for each filter
+  ['people', 'projects', 'connections'].forEach(filterType => {
+    const element = document.getElementById(`legend-${filterType}`);
+    if (!element) return;
+
+    element.addEventListener('click', () => {
+      filterState[filterType] = !filterState[filterType];
+
+      // Update visual state
+      const checkIcon = element.querySelector('.fa-check');
+      if (filterState[filterType]) {
+        checkIcon.style.display = 'block';
+        element.style.opacity = '1';
+      } else {
+        checkIcon.style.display = 'none';
+        element.style.opacity = '0.4';
+      }
+
+      // Apply filter to synapse visualization
+      applyVisualizationFilters(filterState);
+    });
+  });
+}
+
+// Apply filters to the synapse visualization
+function applyVisualizationFilters(filterState) {
+  // Try to call the synapse filtering function if it exists
+  if (typeof window.filterSynapseNodes === 'function') {
+    window.filterSynapseNodes(filterState);
+    return;
+  }
+
+  // Fallback: manual D3 filtering
+  const svg = document.getElementById('synapse-svg');
+  if (!svg) return;
+
+  // Filter people nodes
+  const peopleNodes = svg.querySelectorAll('[data-type="person"], .node-person');
+  peopleNodes.forEach(node => {
+    node.style.display = filterState.people ? 'block' : 'none';
+  });
+
+  // Filter project nodes
+  const projectNodes = svg.querySelectorAll('[data-type="project"], .node-project');
+  projectNodes.forEach(node => {
+    node.style.display = filterState.projects ? 'block' : 'none';
+  });
+
+  // Filter connection lines
+  const connections = svg.querySelectorAll('.link, .connection, line');
+  connections.forEach(conn => {
+    conn.style.display = filterState.connections ? 'block' : 'none';
+  });
+
+  console.log('🔍 Filters applied:', filterState);
+}
+
+// Initialize legend when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  // Wait a bit for synapse to load
+  setTimeout(createSynapseLegend, 1000);
+});
+
+// Also create legend when profile is loaded
+window.addEventListener('profile-loaded', () => {
+  setTimeout(createSynapseLegend, 500);
+});
+
+// -----------------------------
+// Bottom Bar Collapse/Expand
+// -----------------------------
+let bottomBarCollapsed = false;
+
+function toggleBottomBar() {
+  const bottomBar = document.getElementById('bottom-stats-bar');
+  const toggleBtn = document.getElementById('bottom-bar-toggle');
+  const toggleIcon = toggleBtn?.querySelector('i');
+
+  if (!bottomBar || !toggleBtn) return;
+
+  bottomBarCollapsed = !bottomBarCollapsed;
+
+  if (bottomBarCollapsed) {
+    // Collapse the bar
+    bottomBar.style.transform = 'translateY(100%)';
+    bottomBar.style.opacity = '0';
+    toggleBtn.style.bottom = '0';
+    if (toggleIcon) {
+      toggleIcon.className = 'fas fa-chevron-up';
+    }
+    console.log('📉 Bottom bar collapsed');
+  } else {
+    // Expand the bar
+    bottomBar.style.transform = 'translateY(0)';
+    bottomBar.style.opacity = '1';
+    toggleBtn.style.bottom = '100%';
+    if (toggleIcon) {
+      toggleIcon.className = 'fas fa-chevron-down';
+    }
+    console.log('📈 Bottom bar expanded');
+  }
+}
+
+// Make toggleBottomBar available globally
+window.toggleBottomBar = toggleBottomBar;
 
 console.log("✅ Dashboard Actions ready");

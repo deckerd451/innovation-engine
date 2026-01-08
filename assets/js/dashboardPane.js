@@ -1232,13 +1232,26 @@ async function initSynapseOnce() {
     </div>`;
 
     try {
+      // Load ALL projects
       const { data: projects, error } = await state.supabase
         .from("projects")
         .select("*")
-        .eq("status", "active")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+
+      // Load user's project memberships
+      let userProjectIds = new Set();
+      if (state.communityProfile?.id) {
+        const { data: memberships } = await state.supabase
+          .from("project_members")
+          .select("project_id")
+          .eq("user_id", state.communityProfile.id);
+
+        if (memberships) {
+          userProjectIds = new Set(memberships.map(m => m.project_id));
+        }
+      }
 
       if (!projects || projects.length === 0) {
         container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
@@ -1256,19 +1269,31 @@ async function initSynapseOnce() {
             .filter(Boolean);
 
           const created = p.created_at ? new Date(p.created_at).toLocaleDateString() : "";
+          const isMember = userProjectIds.has(p.id);
+
           return `
-            <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
+            <div style="background:rgba(0,224,255,0.05); border:${isMember ? '2px solid rgba(0,255,136,0.5)' : '1px solid rgba(0,224,255,0.2)'};
               border-radius:12px; padding:1.25rem; margin-bottom:1rem;">
               <div style="display:flex; justify-content:space-between; align-items:start; gap:1rem;">
-                <div>
-                  <h3 style="color:#00e0ff; margin:0 0 0.25rem 0;">
+                <div style="flex: 1;">
+                  <h3 style="color:#00e0ff; margin:0 0 0.25rem 0; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="fas fa-lightbulb"></i> ${escapeHtml(p.name)}
+                    ${isMember ? '<span style="background:rgba(0,255,136,0.2); color:#0f8; padding:0.15rem 0.5rem; border-radius:8px; font-size:0.7rem; font-weight:600;">MEMBER</span>' : ''}
                   </h3>
                   <div style="color:#666; font-size:0.85rem;">${escapeHtml(created)}</div>
                 </div>
-                <span style="background:rgba(0,255,136,0.2); color:#0f8; padding:0.25rem 0.75rem; border-radius:12px; font-size:0.85rem;">
-                  ${escapeHtml(p.status || "active")}
-                </span>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+                  <span style="background:${p.status === 'active' ? 'rgba(0,255,136,0.2)' : 'rgba(255,170,0,0.2)'}; color:${p.status === 'active' ? '#0f8' : '#fa0'}; padding:0.25rem 0.75rem; border-radius:12px; font-size:0.85rem; white-space: nowrap;">
+                    ${escapeHtml(p.status || "active")}
+                  </span>
+                  ${!isMember ? `
+                    <button onclick="joinProject('${p.id}', '${escapeHtml(p.name).replace(/'/g, "\\'")}'); event.stopPropagation();"
+                      style="background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; color: white;
+                      padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">
+                      <i class="fas fa-plus-circle"></i> Join
+                    </button>
+                  ` : ''}
+                </div>
               </div>
 
               <p style="color:#ddd; margin:0.75rem 0 0.75rem 0; line-height:1.5;">
@@ -1674,21 +1699,14 @@ const pathways = initIlluminatedPathways({
 // Globals expected by dashboard-actions.js / HTML onclick hooks
 window.showAnimatedPathways = pathways.showAnimatedPathways;
 
-// Wrap openQuickConnectModal so it ALSO starts the pathway sequence
+// Directly trigger animated pathways when clicking Connect button
+// (removed Quick Connect modal to go straight to pathway discovery)
 window.openQuickConnectModal = async function openQuickConnectModal() {
-  // open the UI panel/modal first
-  try {
-    await pathways.openQuickConnectModal?.();
-  } catch (e) {
-    console.warn("openQuickConnectModal failed (continuing):", e);
-  }
-
-  // allow synapse/core to finish wiring globals
-  await new Promise((r) => setTimeout(r, 50));
-
-  // start narrated sequential reveal (tune options as you like)
+  // Start narrated sequential reveal directly
   return pathways.showAnimatedPathways({
-    autoplay: true, // set true if you want it to immediately start playing
+    autoplay: true, // immediately start playing
     limit: 10,       // how many steps in the sequence
   });
 };
+
+})();
