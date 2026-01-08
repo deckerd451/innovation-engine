@@ -1673,11 +1673,22 @@ const pathways = initIlluminatedPathways({
 
 // Globals expected by dashboard-actions.js / HTML onclick hooks
 window.showAnimatedPathways = pathways.showAnimatedPathways;
-window.openQuickConnectModal = pathways.openQuickConnectModal;
 
-  window.collapseBottomBar = collapseBottomBar;
-  window.expandBottomBar = expandBottomBar;
+// Wrap openQuickConnectModal so it ALSO starts the pathway sequence
+window.openQuickConnectModal = async function openQuickConnectModal() {
+  // open the UI panel/modal first
+  try {
+    await pathways.openQuickConnectModal?.();
+  } catch (e) {
+    console.warn("openQuickConnectModal failed (continuing):", e);
+  }
 
-  // Legacy helpers
-  window.toggleFilters = toggleFilters;
-})();
+  // allow synapse/core to finish wiring globals
+  await new Promise((r) => setTimeout(r, 50));
+
+  // start narrated sequential reveal (tune options as you like)
+  return pathways.showAnimatedPathways({
+    autoplay: false, // set true if you want it to immediately start playing
+    limit: 10,       // how many steps in the sequence
+  });
+};
