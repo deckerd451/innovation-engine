@@ -1,179 +1,368 @@
 /* ==========================================================================
- * illuminatePathways.js
- * Step 2 — Narrated Sequential Pathway Illumination
+ * illuminatePathways.js — Narrated, Sequential "Illuminate Pathways" UI
  * CharlestonHacks Innovation Engine
+ *
+ * Purpose:
+ * - Show recommended connections ONE AT A TIME with narration
+ * - Draw a pathway to the currently narrated recommendation
+ * - Provide a focused "Connect" CTA for the current recommendation
+ *
+ * Exports:
+ * - initIlluminatedPathways()
+ * - showAnimatedPathways()
+ * - stopAnimatedPathways()
+ * - isIlluminating()
  * ========================================================================== */
 
-import {
-  generateRecommendations,
-  animatePathway,
-  clearAllPathways,
-} from "./pathway-animations.js";
+let state = {
+  initialized: false,
+  playing: false,
+  timer: null,
 
-import { getSynapseStats } from "./synapse/core.js";
+  // data
+  meId: null,
+  recommendations: [],
+  index: 0,
 
-/* --------------------------------------------------------------------------
- * STATE
- * -------------------------------------------------------------------------- */
+  // ui
+  root: null,
+  els: {},
 
-let recommendations = [];
-let currentIndex = 0;
-let active = false;
+  // deps (pulled from window by default)
+  deps: {
+    getSynapseStats: null,
+    getRecommendations: null,
+    showConnectPathways: null,
+    clearConnectPathways: null,
+  },
+};
 
-/* --------------------------------------------------------------------------
- * DOM HELPERS
- * -------------------------------------------------------------------------- */
+function log(...args) {
+  console.log("%c💡 Illuminate", "color:#0ff;font-weight:700", ...args);
+}
 
-function ensurePanel() {
-  let panel = document.getElementById("illuminate-panel");
+function warn(...args) {
+  console.warn("%c💡 Illuminate", "color:#ff0;font-weight:700", ...args);
+}
 
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "illuminate-panel";
-    panel.innerHTML = `
-      <div class="ip-card">
-        <div class="ip-step"></div>
-        <div class="ip-title"></div>
-        <div class="ip-reason"></div>
-        <div class="ip-actions">
-          <button id="ip-connect" class="primary">Connect</button>
-          <button id="ip-next" class="secondary">Next</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(panel);
+function clearTimer() {
+  if (state.timer) {
+    clearTimeout(state.timer);
+    state.timer = null;
   }
-
-  return panel;
 }
 
-function qs(id) {
-  return document.getElementById(id);
+/* -------------------------
+   UI CREATION
+-------------------------- */
+
+function ensureUI() {
+  if (state.root && document.body.contains(state.root)) return;
+
+  const root = document.createElement("div");
+  root.id = "illuminate-pathways-ui";
+  root.style.cssText = `
+    position: fixed;
+    right: 18px;
+    bottom: 92px;
+    width: 340px;
+    z-index: 9999;
+    background: rgba(0,0,0,0.72);
+    border: 1px solid rgba(0,224,255,0.25);
+    backdrop-filter: blur(10px);
+    border-radius: 14px;
+    padding: 12px 12px 10px;
+    color: #eaffff;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  `;
+
+  root.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="font-weight:800;letter-spacing:0.2px;">Illuminate Pathways</div>
+      <button id="illuminateClose" title="Close" style="
+        border:0; background:transparent; color:#9ff; cursor:pointer;
+        font-size:18px; line-height:1; padding:4px 6px;">✕</button>
+    </div>
+
+    <div id="illuminateSub" style="margin-top:6px; opacity:0.9; font-size:12.5px;">
+      Showing one suggested connection at a time.
+    </div>
+
+    <div style="margin-top:10px; padding:10px; border-radius:12px; background: rgba(0,224,255,0.06); border:1px solid rgba(0,224,255,0.18);">
+      <div id="illuminateStep" style="font-size:12px; opacity:0.85;"></div>
+      <div id="illuminateName" style="margin-top:6px; font-size:16px; font-weight:800;"></div>
+      <div id="illuminateReason" style="margin-top:6px; font-size:12.5px; opacity:0.9; line-height:1.35;"></div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button id="illuminatePrev" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.25); background: rgba(0,0,0,0.2); color:#cfffff; cursor:pointer;">Prev</button>
+      <button id="illuminateNext" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.25); background: rgba(0,0,0,0.2); color:#cfffff; cursor:pointer;">Next</button>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button id="illuminatePlayPause" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.35); background: rgba(0,224,255,0.14); color:#eaffff; cursor:pointer; font-weight:800;">Play</button>
+      <button id="illuminateConnect" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.55); background: rgba(0,224,255,0.22); color:#ffffff; cursor:pointer; font-weight:900;">Connect</button>
+    </div>
+  `;
+
+  document.body.appendChild(root);
+
+  state.root = root;
+  state.els = {
+    close: root.querySelector("#illuminateClose"),
+    step: root.querySelector("#illuminateStep"),
+    name: root.querySelector("#illuminateName"),
+    reason: root.querySelector("#illuminateReason"),
+    prev: root.querySelector("#illuminatePrev"),
+    next: root.querySelector("#illuminateNext"),
+    playPause: root.querySelector("#illuminatePlayPause"),
+    connect: root.querySelector("#illuminateConnect"),
+  };
+
+  // Safe wiring
+  state.els.close.onclick = () => stopAnimatedPathways(true);
+  state.els.prev.onclick = () => stepRelative(-1);
+  state.els.next.onclick = () => stepRelative(+1);
+  state.els.playPause.onclick = () => togglePlayPause();
+  state.els.connect.onclick = () => connectToCurrent();
 }
 
-/* --------------------------------------------------------------------------
- * RENDER STEP
- * -------------------------------------------------------------------------- */
+function updatePlayLabel() {
+  if (!state.els.playPause) return;
+  state.els.playPause.textContent = state.playing ? "Pause" : "Play";
+}
+
+function setText(el, text) {
+  if (!el) return;
+  el.textContent = text || "";
+}
+
+/* -------------------------
+   SEQUENCE CONTROL
+-------------------------- */
+
+function stepRelative(delta) {
+  if (!state.recommendations?.length) return;
+  clearTimer();
+  state.playing = false;
+  updatePlayLabel();
+
+  state.index = (state.index + delta + state.recommendations.length) % state.recommendations.length;
+  renderStep();
+}
+
+function togglePlayPause() {
+  if (!state.recommendations?.length) return;
+
+  state.playing = !state.playing;
+  updatePlayLabel();
+
+  clearTimer();
+  if (state.playing) {
+    scheduleNextAdvance();
+  }
+}
+
+function scheduleNextAdvance() {
+  clearTimer();
+  if (!state.playing) return;
+
+  state.timer = setTimeout(() => {
+    state.index = (state.index + 1) % state.recommendations.length;
+    renderStep();
+    scheduleNextAdvance();
+  }, 2600);
+}
+
+/* -------------------------
+   RENDERING + PATH DRAWING
+-------------------------- */
 
 function renderStep() {
-  if (!active) return;
-  if (!recommendations.length) return;
+  ensureUI();
 
-  const rec = recommendations[currentIndex];
-  if (!rec) return;
-
-  const panel = ensurePanel();
-
-  const stepEl = panel.querySelector(".ip-step");
-  const titleEl = panel.querySelector(".ip-title");
-  const reasonEl = panel.querySelector(".ip-reason");
-
-  if (stepEl) {
-    stepEl.textContent = `Connection ${currentIndex + 1} of ${recommendations.length}`;
-  }
-
-  if (titleEl) {
-    titleEl.textContent = rec.name || "Suggested Connection";
-  }
-
-  if (reasonEl) {
-    reasonEl.textContent =
-      rec.reason ||
-      "This connection is recommended based on shared skills and interests.";
-  }
-
-  const connectBtn = qs("ip-connect");
-  const nextBtn = qs("ip-next");
-
-  if (connectBtn) {
-    connectBtn.onclick = () => {
-      if (window.openNodePanel && rec.userId) {
-        window.openNodePanel(rec.userId);
-      }
-    };
-  }
-
-  if (nextBtn) {
-    nextBtn.onclick = () => advance();
-  }
-}
-
-/* --------------------------------------------------------------------------
- * ADVANCE
- * -------------------------------------------------------------------------- */
-
-function advance() {
-  if (!active) return;
-
-  currentIndex++;
-
-  if (currentIndex >= recommendations.length) {
-    shutdown();
+  const recs = state.recommendations || [];
+  if (!recs.length) {
+    setText(state.els.step, "No recommendations found.");
+    setText(state.els.name, "");
+    setText(state.els.reason, "");
     return;
   }
 
-  const stats = getSynapseStats();
-  const me = stats?.currentUserCommunityId;
-  const rec = recommendations[currentIndex];
+  const rec = recs[state.index];
+  const total = recs.length;
 
-  if (me && rec?.userId) {
-    clearAllPathways();
-    animatePathway(me, rec.userId, { duration: 1500 });
+  setText(state.els.step, `Suggestion ${state.index + 1} of ${total}`);
+  setText(state.els.name, rec?.name || rec?.node?.name || rec?.node?.title || "Suggested connection");
+  setText(state.els.reason, rec?.reason || "Recommended based on shared interests, skills, and network proximity.");
+
+  // draw the single active pathway
+  const fromId = state.meId;
+  const toId = rec?.userId || rec?.node?.id;
+
+  if (!fromId || !toId) {
+    warn("Missing ids for pathway draw", { fromId, toId, rec });
+    return;
   }
+
+  try {
+    state.deps.clearConnectPathways?.();
+  } catch (e) {
+    // safe
+  }
+
+  try {
+    state.deps.showConnectPathways?.(fromId, toId, { duration: 2000 });
+  } catch (e) {
+    console.error("Illuminate: showConnectPathways failed", e);
+  }
+}
+
+/* -------------------------
+   CONNECT ACTION
+-------------------------- */
+
+async function connectToCurrent() {
+  const recs = state.recommendations || [];
+  const rec = recs[state.index];
+  const targetId = rec?.userId || rec?.node?.id;
+  if (!targetId) return;
+
+  log("Connect clicked", { targetId, rec });
+
+  // Try common connection request hooks (safe fallbacks)
+  const candidates = [
+    window.sendConnectionRequest,
+    window.requestConnection,
+    window.createConnectionRequest,
+    window.connectToUser,
+  ].filter(Boolean);
+
+  for (const fn of candidates) {
+    try {
+      const result = fn(targetId, rec);
+      // allow promise or sync
+      if (result?.then) await result;
+      return;
+    } catch (e) {
+      // try next
+    }
+  }
+
+  // Fallback: open node panel if available
+  if (typeof window.openNodePanel === "function") {
+    try {
+      window.openNodePanel(rec.node || { id: targetId });
+      return;
+    } catch (e) {}
+  }
+
+  // Last fallback: dispatch an event
+  window.dispatchEvent(
+    new CustomEvent("illuminate-connect", {
+      detail: { targetId, rec },
+    })
+  );
+
+  warn("No connect handler found. Dispatched 'illuminate-connect' event.");
+}
+
+/* -------------------------
+   PUBLIC API
+-------------------------- */
+
+export function initIlluminatedPathways(options = {}) {
+  // wire deps (prefer explicit, else window)
+  state.deps.getSynapseStats =
+    options.getSynapseStats || window.getSynapseStats || null;
+  state.deps.getRecommendations =
+    options.getRecommendations || window.getRecommendations || null;
+  state.deps.showConnectPathways =
+    options.showConnectPathways || window.showConnectPathways || null;
+  state.deps.clearConnectPathways =
+    options.clearConnectPathways || window.clearConnectPathways || null;
+
+  ensureUI();
+
+  // expose legacy global expected by dashboard/actions
+  window.showAnimatedPathways = showAnimatedPathways;
+
+  state.initialized = true;
+  log("Initialized");
+  return true;
+}
+
+export async function showAnimatedPathways(opts = {}) {
+  if (!state.initialized) initIlluminatedPathways();
+
+  ensureUI();
+  clearTimer();
+
+  const limit = Number.isFinite(opts.limit) ? opts.limit : 10;
+
+  // pull meId from synapse stats if available
+  try {
+    const stats = state.deps.getSynapseStats?.();
+    state.meId = stats?.currentUserCommunityId || stats?.meId || state.meId;
+  } catch (e) {}
+
+  if (!state.meId) {
+    warn("No current user community id available (meId).");
+  }
+
+  // get recs
+  let recs = [];
+  try {
+    const maybe = await state.deps.getRecommendations?.({ limit });
+    if (Array.isArray(maybe)) recs = maybe;
+  } catch (e) {
+    console.error("Illuminate: getRecommendations failed", e);
+  }
+
+  state.recommendations = recs || [];
+  state.index = 0;
+
+  if (!state.recommendations.length) {
+    warn("No recommendations returned.");
+    renderStep();
+    return [];
+  }
+
+  state.playing = Boolean(opts.autoplay ?? true);
+  updatePlayLabel();
 
   renderStep();
+  if (state.playing) scheduleNextAdvance();
+
+  return state.recommendations;
 }
 
-/* --------------------------------------------------------------------------
- * PUBLIC API
- * -------------------------------------------------------------------------- */
+export function stopAnimatedPathways(hideUI = false) {
+  clearTimer();
+  state.playing = false;
+  updatePlayLabel();
 
-export async function showAnimatedPathways(options = {}) {
-  if (active) return;
+  try {
+    state.deps.clearConnectPathways?.();
+  } catch (e) {}
 
-  active = true;
-  currentIndex = 0;
-
-  const limit = options.limit || 5;
-
-  recommendations = await generateRecommendations();
-
-  if (!recommendations?.length) {
-    console.warn("No recommendations available");
-    active = false;
-    return;
+  if (hideUI && state.root) {
+    state.root.remove();
+    state.root = null;
+    state.els = {};
   }
 
-  recommendations = recommendations.slice(0, limit);
-
-  const stats = getSynapseStats();
-  const me = stats?.currentUserCommunityId;
-
-  if (!me) {
-    console.warn("No current user community ID");
-    active = false;
-    return;
-  }
-
-  clearAllPathways();
-
-  animatePathway(me, recommendations[0].userId, { duration: 1500 });
-
-  renderStep();
+  log("Stopped");
 }
 
-export function shutdown() {
-  active = false;
-  recommendations = [];
-  currentIndex = 0;
-  clearAllPathways();
-
-  const panel = document.getElementById("illuminate-panel");
-  if (panel) panel.remove();
+export function isIlluminating() {
+  return Boolean(state.playing);
 }
 
-/* --------------------------------------------------------------------------
- * GLOBAL HOOK (used by dashboardPane)
- * -------------------------------------------------------------------------- */
-
-window.showAnimatedPathways = showAnimatedPathways;
+export default {
+  initIlluminatedPathways,
+  showAnimatedPathways,
+  stopAnimatedPathways,
+  isIlluminating,
+};
