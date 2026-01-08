@@ -31,9 +31,9 @@ export function getInitials(name) {
   return parts[0][0].toUpperCase();
 }
 
-export function truncateName(name) {
+export function truncateName(name, maxLength = 12) {
   if (!name) return "?";
   const parts = name.split(" ");
   if (parts.length > 1) return `${parts[0]} ${parts[1].charAt(0)}.`;
-  return name.length > 12 ? name.substring(0, 10) + "..." : name;
+  return name.length > maxLength ? name.substring(0, maxLength - 2) + "..." : name;
 }

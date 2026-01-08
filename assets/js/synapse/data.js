@@ -33,6 +33,17 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
     console.warn("⚠️ Error loading projects:", projectsError);
   }
 
+  // Load theme circles (active only, not expired)
+  const { data: themes, error: themesError } = await supabase
+    .from('theme_circles')
+    .select('*')
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString());
+
+  if (themesError) {
+    console.warn('⚠️ Error loading themes:', themesError);
+  }
+
   let nodes = (members || []).map((member) => {
     const isCurrentUser = member.id === currentUserCommunityId;
 
@@ -87,6 +98,29 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
     nodes = [...nodes, ...projectNodes];
   }
 
+  // Create theme nodes
+  if (themes?.length) {
+    const themeNodes = themes.map(theme => ({
+      id: `theme:${theme.id}`,
+      theme_id: theme.id,
+      type: 'theme',
+      name: theme.title,
+      title: theme.title,
+      description: theme.description,
+      tags: theme.tags || [],
+      created_at: theme.created_at,
+      expires_at: theme.expires_at,
+      activity_score: theme.activity_score || 0,
+      origin_type: theme.origin_type,
+      last_activity_at: theme.last_activity_at,
+      cta_text: theme.cta_text,
+      cta_link: theme.cta_link,
+      x: theme.x || (window.innerWidth * 0.5 + (Math.random() * 120 - 60)),
+      y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
+    }));
+    nodes = [...nodes, ...themeNodes];
+  }
+
   // Links
   let links = connectionsData.map(conn => ({
     id: conn.id,
@@ -112,7 +146,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
   // Suggested links (current-user only)
   ({ links, nodes } = addSuggestedLinks({ links, nodes, currentUserCommunityId }));
 
-  return { nodes, links, connectionsData, projectMembersData, projects: projects || [] };
+  return { nodes, links, connectionsData, projectMembersData, projects: projects || [], themes: themes || [] };
 }
 
 function addSuggestedLinks({ links, nodes, currentUserCommunityId }) {

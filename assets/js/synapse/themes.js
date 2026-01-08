@@ -58,15 +58,35 @@ export async function markInterested(supabase, { themeId, communityId, days = 7 
   if (error) throw error;
 }
 
-export function renderThemeOverlayCard({ themeNode, interestCount, onInterested }) {
-  // Lightweight card so we don’t depend on node-panel changes yet
+export async function renderThemeOverlayCard({ themeNode, interestCount, onInterested, participants = [] }) {
+  // Lightweight card so we don't depend on node-panel changes yet
   const existing = document.getElementById("synapse-theme-card");
   if (existing) existing.remove();
 
   const card = document.createElement("div");
   card.id = "synapse-theme-card";
   card.className = "synapse-profile-card"; // reuse your existing styling class
-  card.style.maxWidth = "360px";
+  card.style.maxWidth = "400px";
+
+  // Calculate time remaining
+  const now = Date.now();
+  const expires = new Date(themeNode.expires_at).getTime();
+  const remaining = expires - now;
+  const hoursRemaining = Math.floor(remaining / (1000 * 60 * 60));
+  const daysRemaining = Math.floor(hoursRemaining / 24);
+  const timeText = daysRemaining > 1 ? `${daysRemaining} days left` : `${hoursRemaining} hours left`;
+
+  // Render participant avatars (first 5)
+  const participantHTML = participants.slice(0, 5).map(p => {
+    if (p.image_url) {
+      return `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="participant-avatar" style="width:32px; height:32px; border-radius:50%; border:2px solid rgba(0,224,255,0.4); margin-right:4px;" title="${escapeHtml(p.name)}">`;
+    } else {
+      const initials = p.name ? p.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
+      return `<div class="participant-avatar" style="width:32px; height:32px; border-radius:50%; border:2px solid rgba(0,224,255,0.4); background:rgba(0,224,255,0.2); display:inline-flex; align-items:center; justify-content:center; margin-right:4px; font-size:12px; font-weight:bold; color:#00e0ff;" title="${escapeHtml(p.name)}">${initials}</div>`;
+    }
+  }).join('');
+
+  const moreParticipants = participants.length > 5 ? `<span style="color:rgba(255,255,255,0.6); font-size:12px;">+${participants.length - 5} more</span>` : '';
 
   card.innerHTML = `
     <button class="synapse-card-close" aria-label="Close">
@@ -74,24 +94,60 @@ export function renderThemeOverlayCard({ themeNode, interestCount, onInterested 
     </button>
 
     <div class="synapse-card-header">
-      <div class="synapse-card-avatar-fallback" style="background: rgba(0,224,255,0.12); border: 1px solid rgba(0,224,255,0.35);">
+      <div class="synapse-card-avatar-fallback" style="background: rgba(0,224,255,0.12); border: 1px solid rgba(0,224,255,0.35); font-size:32px;">
         ✨
       </div>
       <div class="synapse-card-info">
         <h3>${escapeHtml(themeNode.title)}</h3>
-        <span class="synapse-availability">Theme Circle</span>
+        <span class="synapse-availability">Theme Circle • ${timeText}</span>
       </div>
     </div>
 
+    ${themeNode.description ? `
+    <div class="synapse-card-bio" style="margin-bottom:1rem;">
+      ${escapeHtml(themeNode.description)}
+    </div>
+    ` : ''}
+
     <div class="synapse-card-bio">
-      <strong>${interestCount}</strong> interested
-      ${themeNode.tags?.length ? `<div style="margin-top:8px; opacity:.9;">Tags: ${escapeHtml(themeNode.tags.join(", "))}</div>` : ""}
+      <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+        <strong style="color:#00e0ff;">${interestCount}</strong>
+        <span style="opacity:0.9;">interested</span>
+      </div>
+
+      ${participants.length > 0 ? `
+        <div style="margin-bottom:1rem;">
+          <div style="font-size:11px; opacity:0.7; margin-bottom:0.5rem; text-transform:uppercase;">Participants</div>
+          <div style="display:flex; align-items:center; flex-wrap:wrap;">
+            ${participantHTML}
+            ${moreParticipants}
+          </div>
+        </div>
+      ` : ''}
+
+      ${themeNode.tags?.length ? `
+        <div style="margin-top:0.75rem;">
+          <div style="font-size:11px; opacity:0.7; margin-bottom:0.5rem; text-transform:uppercase;">Tags</div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            ${themeNode.tags.map(tag => `
+              <span style="background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3); padding:0.25rem 0.5rem; border-radius:4px; font-size:11px; color:#00e0ff;">
+                ${escapeHtml(tag)}
+              </span>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
     </div>
 
     <div class="synapse-card-actions">
       <button class="synapse-connect-btn" id="theme-interested-btn">
-        <i class="fas fa-star"></i> Interested
+        <i class="fas fa-star"></i> Signal Interest
       </button>
+      ${themeNode.cta_text && themeNode.cta_link ? `
+        <button class="synapse-connect-btn" style="background:rgba(255,107,107,0.2); border-color:rgba(255,107,107,0.5);" onclick="window.open('${escapeHtml(themeNode.cta_link)}', '_blank')">
+          <i class="fas fa-external-link-alt"></i> ${escapeHtml(themeNode.cta_text)}
+        </button>
+      ` : ''}
     </div>
   `;
 

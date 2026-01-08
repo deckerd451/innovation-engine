@@ -191,6 +191,110 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
   return nodeEls;
 }
 
+export function renderThemeCircles(container, themeNodes, { onThemeHover, onThemeClick } = {}) {
+  const themeEls = container
+    .append("g")
+    .attr("class", "theme-circles")
+    .selectAll("g")
+    .data(themeNodes)
+    .enter()
+    .append("g")
+    .attr("class", "theme-circle")
+    .on("mouseenter", (event, d) => onThemeHover?.(event, d, true))
+    .on("mouseleave", (event, d) => onThemeHover?.(event, d, false))
+    .on("click", (event, d) => {
+      event.stopPropagation();
+      onThemeClick?.(event, d);
+    });
+
+  themeEls.each(function (d) {
+    const theme = d3.select(this);
+
+    // Calculate lifecycle progress (0 = new, 1 = expired)
+    const now = Date.now();
+    const expires = new Date(d.expires_at).getTime();
+    const created = new Date(d.created_at).getTime();
+    const lifetime = expires - created;
+    const remaining = expires - now;
+    const progress = Math.max(0, Math.min(1, 1 - (remaining / lifetime)));
+
+    // Calculate visual properties based on lifecycle
+    const radius = Math.max(60, 80 - (progress * 20)); // 80px to 60px
+    const glowIntensity = Math.max(0.3, 1 - progress);
+    const opacity = Math.max(0.4, 1 - (progress * 0.6));
+
+    // Determine if emerging (new) or established
+    const isEmerging = d.activity_score < 5;
+
+    // Outer glow circle
+    theme
+      .append("circle")
+      .attr("r", radius + 15)
+      .attr("fill", `rgba(0, 224, 255, ${0.05 * glowIntensity})`)
+      .attr("stroke", "none")
+      .attr("class", "theme-glow");
+
+    // Main circle with gradient
+    theme
+      .append("circle")
+      .attr("r", radius)
+      .attr("fill", `rgba(10, 14, 39, ${0.3})`)
+      .attr("stroke", "#00e0ff")
+      .attr("stroke-width", 3)
+      .attr("stroke-dasharray", isEmerging ? "10,5" : "none")
+      .attr("opacity", opacity)
+      .attr("filter", "url(#glow)")
+      .attr("class", "theme-main-circle");
+
+    // Icon/emoji at top
+    theme
+      .append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", -radius / 3)
+      .attr("fill", "#00e0ff")
+      .attr("font-size", "28px")
+      .attr("pointer-events", "none")
+      .text("✨");
+
+    // Title text
+    theme
+      .append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", 5)
+      .attr("fill", "#fff")
+      .attr("font-size", "14px")
+      .attr("font-weight", "bold")
+      .attr("pointer-events", "none")
+      .text(truncateName(d.title, 20));
+
+    // Activity indicator (participant count)
+    theme
+      .append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", 25)
+      .attr("fill", "rgba(0, 224, 255, 0.7)")
+      .attr("font-size", "11px")
+      .attr("pointer-events", "none")
+      .text(`${d.activity_score || 0} engaged`);
+
+    // Time remaining indicator
+    const hoursRemaining = Math.floor(remaining / (1000 * 60 * 60));
+    const daysRemaining = Math.floor(hoursRemaining / 24);
+    const timeText = daysRemaining > 1 ? `${daysRemaining}d left` : `${hoursRemaining}h left`;
+
+    theme
+      .append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", radius + 20)
+      .attr("fill", "rgba(255, 255, 255, 0.5)")
+      .attr("font-size", "10px")
+      .attr("pointer-events", "none")
+      .text(timeText);
+  });
+
+  return themeEls;
+}
+
 export function drawProjectCircles(container, peopleNodes) {
   // Group people by project id
   const projectGroups = {};
