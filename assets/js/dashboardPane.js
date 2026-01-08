@@ -746,24 +746,28 @@ async function initSynapseOnce() {
       alert(`Could not send request: ${e.message || e}`);
     }
   };
-  window.acceptConnectionRequest = async function (connectionId) {
+window.acceptConnectionRequest = async function (connectionId) {
   try {
     const { data, error } = await state.supabase
       .from("connections")
       .update({ status: "accepted" })
       .eq("id", connectionId)
       .eq("status", "pending")
-      .select("id, status")
-      .maybeSingle();
+      .select("id, status"); // returns array
 
     if (error) throw error;
-    if (!data) return;
 
-    console.log("✅ Connection accepted:", data.id);
+    if (!data || data.length === 0) {
+      console.warn("Accept skipped: not pending, not authorized, or no matching row");
+      return;
+    }
+
+    console.log("✅ Connection accepted:", data[0].id);
   } catch (e) {
     console.error("acceptConnectionRequest failed:", e);
   }
 };
+
 
 window.__acceptTest = (id) => window.acceptConnectionRequest(id);
 
