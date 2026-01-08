@@ -721,51 +721,107 @@ async function initSynapseOnce() {
     `;
   }
 
-  window.sendConnectionRequest = async function (toCommunityId, targetName = "User", type = "recommendation") {
-    try {
-      if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+ // ================================================================
+// CONNECTION ACTIONS (community.id based)
+// - send request
+// - accept request (TO me only)
+// - decline request (TO me only)
+// - withdraw request (FROM me only)
+// Notes:
+// - Avoids maybeSingle() on UPDATE (prevents 406 when 0 rows match)
+// - Explicitly checks direction/ownership to prevent “silent no-op”
+// ================================================================
 
-      // Import connections module
-      const connectionsModule = await import("./connections.js");
-      if (connectionsModule?.sendConnectionRequest) {
-        await connectionsModule.sendConnectionRequest(toCommunityId, targetName, type);
+window.sendConnectionRequest = async function (toCommunityId, targetName = "User", type = "recommendation") {
+  try {
+    if (!state.supabase) throw new Error("Supabase not initialized.");
+    if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+    const fromId = state.communityProfile.id;
+    const toId = toCommunityId;
+
+    if (!toId) throw new Error("Missing target user id.");
+    if (String(fromId) === String(toId)) throw new Error("You can’t connect to yourself.");
+
+    // Prefer central module if present
+    try {
+      const mod = await import("./connections.js");
+      if (typeof mod?.sendConnectionRequest === "function") {
+        await mod.sendConnectionRequest(toId, targetName, type);
+        try { await refreshCounters?.(); } catch {}
+        try { await window.refreshSynapse?.(); } catch {}
         return;
       }
-
-      const { error } = await state.supabase.from("connections").insert({
-        from_user_id: state.communityProfile.id,
-        to_user_id: toCommunityId,
-        status: "pending",
-        type: type || "generic"
-      });
-
-      if (error) throw error;
-      alert("Connection request sent!");
-    } catch (e) {
-      console.error("sendConnectionRequest failed:", e);
-      alert(`Could not send request: ${e.message || e}`);
+    } catch (_) {
+      // fall through to inline insert
     }
-  };
-// ✅ FIX: Accept connection without maybeSingle() (prevents 406 when 0 rows match)
+
+    const { error } = await state.supabase.from("connections").insert({
+      from_user_id: fromId,
+      to_user_id: toId,
+      status: "pending",
+      type: type || "generic",
+    });
+
+    if (error) throw error;
+
+    console.log("✅ Connection request sent:", { from_user_id: fromId, to_user_id: toId });
+    try { await refreshCounters?.(); } catch {}
+    try { await window.refreshSynapse?.(); } catch {}
+  } catch (e) {
+    console.error("sendConnectionRequest failed:", e);
+    alert(`Could not send request: ${e?.message || e}`);
+  }
+};
+
 window.acceptConnectionRequest = async function (connectionId) {
   try {
-    const { data, error } = await state.supabase
+    if (!state.supabase) throw new Error("Supabase not initialized.");
+    if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+    const myId = state.communityProfile.id;
+
+    // Step 1: read the row (direction + status)
+    const { data: row, error: readErr } = await state.supabase
+      .from("connections")
+      .select("id,status,from_user_id,to_user_id")
+      .eq("id", connectionId)
+      .maybeSingle();
+
+    if (readErr) throw readErr;
+    if (!row) {
+      console.warn("Accept skipped: connection not found:", connectionId);
+      return;
+    }
+
+    if (row.status !== "pending") {
+      console.warn("Accept skipped: not pending:", row);
+      return;
+    }
+
+    // Must be addressed TO me
+    if (String(row.to_user_id) !== String(myId)) {
+      console.warn("Accept skipped: not addressed to current user:", { myId, row });
+      return;
+    }
+
+    // Step 2: update (NO maybeSingle; select returns array safely)
+    const { data, error: upErr } = await state.supabase
       .from("connections")
       .update({ status: "accepted" })
       .eq("id", connectionId)
       .eq("status", "pending")
-      .select("id, status"); // returns array (safe even when 0 rows)
+      .select("id,status");
 
-    if (error) throw error;
+    if (upErr) throw upErr;
 
     if (!data || data.length === 0) {
-      console.warn("Accept skipped: not pending, not authorized, or no matching row");
+      console.warn("Accept skipped: update matched 0 rows (RLS or race):", connectionId);
       return;
     }
 
     console.log("✅ Connection accepted:", data[0].id);
 
-    // Optional: refresh UI if you have these hooks
     try { await refreshCounters?.(); } catch {}
     try { await window.refreshSynapse?.(); } catch {}
   } catch (e) {
@@ -773,7 +829,114 @@ window.acceptConnectionRequest = async function (connectionId) {
   }
 };
 
+window.declineConnectionRequest = async function (connectionId) {
+  try {
+    if (!state.supabase) throw new Error("Supabase not initialized.");
+    if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+    const myId = state.communityProfile.id;
+
+    const { data: row, error: readErr } = await state.supabase
+      .from("connections")
+      .select("id,status,from_user_id,to_user_id")
+      .eq("id", connectionId)
+      .maybeSingle();
+
+    if (readErr) throw readErr;
+    if (!row) {
+      console.warn("Decline skipped: connection not found:", connectionId);
+      return;
+    }
+
+    if (row.status !== "pending") {
+      console.warn("Decline skipped: not pending:", row);
+      return;
+    }
+
+    if (String(row.to_user_id) !== String(myId)) {
+      console.warn("Decline skipped: not addressed to current user:", { myId, row });
+      return;
+    }
+
+    const { data, error: delErr } = await state.supabase
+      .from("connections")
+      .delete()
+      .eq("id", connectionId)
+      .eq("status", "pending")
+      .select("id");
+
+    if (delErr) throw delErr;
+
+    if (!data || data.length === 0) {
+      console.warn("Decline skipped: delete matched 0 rows (RLS or race):", connectionId);
+      return;
+    }
+
+    console.log("🗑️ Connection declined:", data[0].id);
+
+    try { await refreshCounters?.(); } catch {}
+    try { await window.refreshSynapse?.(); } catch {}
+  } catch (e) {
+    console.error("declineConnectionRequest failed:", e);
+  }
+};
+
+window.withdrawConnectionRequest = async function (connectionId) {
+  try {
+    if (!state.supabase) throw new Error("Supabase not initialized.");
+    if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+    const myId = state.communityProfile.id;
+
+    const { data: row, error: readErr } = await state.supabase
+      .from("connections")
+      .select("id,status,from_user_id,to_user_id")
+      .eq("id", connectionId)
+      .maybeSingle();
+
+    if (readErr) throw readErr;
+    if (!row) {
+      console.warn("Withdraw skipped: connection not found:", connectionId);
+      return;
+    }
+
+    if (row.status !== "pending") {
+      console.warn("Withdraw skipped: not pending:", row);
+      return;
+    }
+
+    // Must be FROM me
+    if (String(row.from_user_id) !== String(myId)) {
+      console.warn("Withdraw skipped: not sent by current user:", { myId, row });
+      return;
+    }
+
+    const { data, error: delErr } = await state.supabase
+      .from("connections")
+      .delete()
+      .eq("id", connectionId)
+      .eq("status", "pending")
+      .select("id");
+
+    if (delErr) throw delErr;
+
+    if (!data || data.length === 0) {
+      console.warn("Withdraw skipped: delete matched 0 rows (RLS or race):", connectionId);
+      return;
+    }
+
+    console.log("↩️ Connection request withdrawn:", data[0].id);
+
+    try { await refreshCounters?.(); } catch {}
+    try { await window.refreshSynapse?.(); } catch {}
+  } catch (e) {
+    console.error("withdrawConnectionRequest failed:", e);
+  }
+};
+
+// Handy console helper
 window.__acceptTest = (id) => window.acceptConnectionRequest(id);
+
 
 
 
