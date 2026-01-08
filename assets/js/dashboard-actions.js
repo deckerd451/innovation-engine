@@ -37,9 +37,31 @@ document.getElementById('bottom-bar-toggle')?.addEventListener('click', () => {
 });
 
 // -----------------------------
-// Admin detection (best-effort)
+// Admin detection (enhanced)
 // -----------------------------
 function isAdminUser() {
+  // Known admin emails (add more as needed)
+  const adminEmails = ['dmhamilton1@live.com'];
+
+  // Try to get current user email from Supabase auth
+  try {
+    // Check session storage for auth data (synchronous)
+    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase.auth'));
+    for (const key of authKeys) {
+      const data = localStorage.getItem(key);
+      if (data) {
+        const parsed = JSON.parse(data);
+        const email = parsed?.currentSession?.user?.email || parsed?.user?.email;
+        if (email && adminEmails.includes(email.toLowerCase())) {
+          console.log('✅ Admin access granted for:', email);
+          return true;
+        }
+      }
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+
   // Try common places your app might store role
   const role =
     window?.appState?.communityProfile?.role ||
@@ -50,12 +72,29 @@ function isAdminUser() {
 
   if (typeof role === "string") {
     const r = role.toLowerCase();
-    return r === "admin" || r === "superadmin" || r === "owner";
+    if (r === "admin" || r === "superadmin" || r === "owner") {
+      console.log('✅ Admin access granted via role:', r);
+      return true;
+    }
   }
 
   // If you have a boolean somewhere
-  if (window?.appState?.isAdmin === true) return true;
+  if (window?.appState?.isAdmin === true) {
+    console.log('✅ Admin access granted via appState.isAdmin');
+    return true;
+  }
 
+  // For development: always allow if dmhamilton1@live.com is in any storage
+  const storageCheck =
+    document.cookie.toLowerCase().includes('dmhamilton1@live.com') ||
+    JSON.stringify(localStorage).toLowerCase().includes('dmhamilton1@live.com');
+
+  if (storageCheck) {
+    console.log('✅ Admin access granted via storage check');
+    return true;
+  }
+
+  console.log('⚠️ Admin check failed - no admin credentials found');
   return false;
 }
 
