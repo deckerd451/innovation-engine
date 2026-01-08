@@ -746,6 +746,7 @@ async function initSynapseOnce() {
       alert(`Could not send request: ${e.message || e}`);
     }
   };
+// ✅ FIX: Accept connection without maybeSingle() (prevents 406 when 0 rows match)
 window.acceptConnectionRequest = async function (connectionId) {
   try {
     const { data, error } = await state.supabase
@@ -753,7 +754,7 @@ window.acceptConnectionRequest = async function (connectionId) {
       .update({ status: "accepted" })
       .eq("id", connectionId)
       .eq("status", "pending")
-      .select("id, status"); // returns array
+      .select("id, status"); // returns array (safe even when 0 rows)
 
     if (error) throw error;
 
@@ -763,11 +764,14 @@ window.acceptConnectionRequest = async function (connectionId) {
     }
 
     console.log("✅ Connection accepted:", data[0].id);
+
+    // Optional: refresh UI if you have these hooks
+    try { await refreshCounters?.(); } catch {}
+    try { await window.refreshSynapse?.(); } catch {}
   } catch (e) {
     console.error("acceptConnectionRequest failed:", e);
   }
 };
-
 
 window.__acceptTest = (id) => window.acceptConnectionRequest(id);
 
