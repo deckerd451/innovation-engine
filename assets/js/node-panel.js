@@ -1369,9 +1369,18 @@ function showToast(message, type = "info") {
 // -----------------------------
 // Utilities
 // -----------------------------
-function $(id) {
-  return panelElement?.querySelector(`#${id}`) || document.getElementById(id);
+function $(sel) {
+  if (!sel) return null;
+
+  // If caller passed "#id" or ".class" or "div > span", treat it as a selector
+  if (sel.startsWith("#") || sel.startsWith(".") || sel.includes(" ") || sel.includes(">") || sel.includes("[")) {
+    return panelElement?.querySelector(sel) || document.querySelector(sel);
+  }
+
+  // Otherwise treat it as an id
+  return panelElement?.querySelector(`#${sel}`) || document.getElementById(sel);
 }
+
 
 function escapeHtml(str) {
   return String(str ?? "")
