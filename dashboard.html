@@ -179,11 +179,20 @@
       <svg id="synapse-svg" style="width:100%; height:100%;"></svg>
     </div>
 
+    <!-- Collapse/Expand Arrow Button -->
+    <button id="bottom-bar-toggle"
+      style="position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+      background:rgba(10,14,39,0.95); border:2px solid rgba(0,224,255,0.3); border-bottom:none;
+      border-radius:12px 12px 0 0; padding:0.5rem 1.5rem; cursor:pointer; z-index:101;
+      backdrop-filter:blur(10px); color:#00e0ff; font-size:1.25rem; transition:all 0.3s;">
+      <i class="fas fa-chevron-down"></i>
+    </button>
+
     <!-- Bottom Bar - Consolidated to 3 Core Actions -->
-    <div class="bottom-stats-bar"
+    <div class="bottom-stats-bar" id="bottom-stats-bar"
       style="position:absolute; bottom:0; left:0; right:0; background:rgba(10,14,39,0.95);
       border-top:2px solid rgba(0,224,255,0.3); padding:1rem 2rem; display:flex; justify-content:center; gap:2rem;
-      backdrop-filter:blur(10px); z-index:100;">
+      backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
 
       <!-- Primary Action: Quick Connect -->
       <div class="stat-card-mini" id="btn-quickconnect"
@@ -203,12 +212,12 @@
         <div class="label" style="font-size:0.85rem; color:#aaa; text-transform:uppercase;">Messages</div>
       </div>
 
-      <!-- Tertiary Action: View Controls -->
+      <!-- Tertiary Action: Menu Controls -->
       <div class="stat-card-mini" id="btn-view-controls"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
         border-radius:12px; padding:1.25rem 2rem; text-align:center; transition:all 0.2s; flex:1; max-width:280px;">
-        <div class="icon" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"><i class="fas fa-sliders-h"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; font-weight:600;">View</div>
+        <div class="icon" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"><i class="fas fa-bars"></i></div>
+        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; font-weight:600;">Menu</div>
       </div>
     </div>
   </div>
