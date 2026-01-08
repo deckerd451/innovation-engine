@@ -100,6 +100,12 @@ export async function initSynapseView() {
   window.refreshThemeCircles = refreshThemeCircles;
   window.refreshSynapseConnections = refreshSynapseConnections;
 
+  // Expose functions needed by Illuminate Pathways
+  window.getSynapseStats = getSynapseStats;
+  window.getRecommendations = getRecommendations;
+  window.showConnectPathways = showConnectPathways;
+  window.clearConnectPathways = clearConnectPathways;
+
   // Handy for console debugging
   try {
     window.__synapseStats = getSynapseStats();

@@ -226,6 +226,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     window.openConversationById = openConversationById;
     window.sendModalMessage = sendModalMessage;
     window.startConversationWithUser = startConversationWithUser;
+
+    // BBS
+    window.initBBS = initBBS;
   }
 
   // -----------------------------
