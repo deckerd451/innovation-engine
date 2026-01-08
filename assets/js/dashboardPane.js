@@ -746,6 +746,35 @@ async function initSynapseOnce() {
       alert(`Could not send request: ${e.message || e}`);
     }
   };
+  window.acceptConnectionRequest = async function (connectionId) {
+  try {
+    const { data, error } = await state.supabase
+      .from("connections")
+      .update({ status: "accepted" })
+      .eq("id", connectionId)
+      .eq("status", "pending") // idempotent
+      .select("id, status")
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      console.warn("Accept skipped: not pending or not authorized");
+      return;
+    }
+
+    console.log("✅ Connection accepted:", data.id);
+
+    // optional refresh hooks (safe even if undefined)
+    window.refreshCounters?.();
+    window.refreshSynapse?.();
+
+  } catch (e) {
+    console.error("acceptConnectionRequest failed:", e);
+    alert("Failed to accept connection request.");
+  }
+};
+
 
   window.joinProject = async function (projectId, projectName = "Project") {
     try {
