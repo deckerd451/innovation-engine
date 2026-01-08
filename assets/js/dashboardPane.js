@@ -150,7 +150,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     $("btn-endorsements")?.addEventListener("click", () => window.openEndorsementsModal());
     $("btn-bbs")?.addEventListener("click", () => initBBS());
     $("btn-profile")?.addEventListener("click", () => window.openProfileModal());
-    $("btn-quickconnect")?.addEventListener("click", () => showAnimatedPathways());
+    $("btn-quickconnect")?.addEventListener("click", () => window.openQuickConnectModal());
     $("btn-filters")?.addEventListener("click", () => toggleFilters());
     $("btn-legend")?.addEventListener("click", () => toggleLegend());
   }
