@@ -732,7 +732,18 @@ async function initSynapseOnce() {
 // - Explicitly checks direction/ownership to prevent “silent no-op”
 // ================================================================
 
-window.sendConnectionRequest = async function (toCommunityId, targetName = "User", type = "recommendation") {
+// =====================================================================
+// Connection Requests (Send / Accept / Decline / Withdraw) — SAFE VERSION
+// - No maybeSingle() anywhere (avoids 406 edge cases)
+// - Accept/Decline require "addressed to me" (to_user_id === myId)
+// - Withdraw requires "sent by me" (from_user_id === myId)
+// =====================================================================
+
+window.sendConnectionRequest = async function (
+  toCommunityId,
+  targetName = "User",
+  type = "recommendation"
+) {
   try {
     if (!state.supabase) throw new Error("Supabase not initialized.");
     if (!state.communityProfile?.id) throw new Error("No profile loaded.");
@@ -781,14 +792,16 @@ window.acceptConnectionRequest = async function (connectionId) {
 
     const myId = state.communityProfile.id;
 
-    // Step 1: read the row (direction + status)
-    const { data: row, error: readErr } = await state.supabase
+    // Step 1: read the row (array-safe)
+    const { data: rows, error: readErr } = await state.supabase
       .from("connections")
       .select("id,status,from_user_id,to_user_id")
       .eq("id", connectionId)
-      .maybeSingle();
+      .limit(1);
 
     if (readErr) throw readErr;
+
+    const row = rows?.[0] || null;
     if (!row) {
       console.warn("Accept skipped: connection not found:", connectionId);
       return;
@@ -805,7 +818,7 @@ window.acceptConnectionRequest = async function (connectionId) {
       return;
     }
 
-    // Step 2: update (NO maybeSingle; select returns array safely)
+    // Step 2: update (select returns array safely)
     const { data, error: upErr } = await state.supabase
       .from("connections")
       .update({ status: "accepted" })
@@ -836,13 +849,16 @@ window.declineConnectionRequest = async function (connectionId) {
 
     const myId = state.communityProfile.id;
 
-    const { data: row, error: readErr } = await state.supabase
+    // Read (array-safe)
+    const { data: rows, error: readErr } = await state.supabase
       .from("connections")
       .select("id,status,from_user_id,to_user_id")
       .eq("id", connectionId)
-      .maybeSingle();
+      .limit(1);
 
     if (readErr) throw readErr;
+
+    const row = rows?.[0] || null;
     if (!row) {
       console.warn("Decline skipped: connection not found:", connectionId);
       return;
@@ -853,11 +869,13 @@ window.declineConnectionRequest = async function (connectionId) {
       return;
     }
 
+    // Must be addressed TO me
     if (String(row.to_user_id) !== String(myId)) {
       console.warn("Decline skipped: not addressed to current user:", { myId, row });
       return;
     }
 
+    // Delete pending request
     const { data, error: delErr } = await state.supabase
       .from("connections")
       .delete()
@@ -888,13 +906,16 @@ window.withdrawConnectionRequest = async function (connectionId) {
 
     const myId = state.communityProfile.id;
 
-    const { data: row, error: readErr } = await state.supabase
+    // Read (array-safe)
+    const { data: rows, error: readErr } = await state.supabase
       .from("connections")
       .select("id,status,from_user_id,to_user_id")
       .eq("id", connectionId)
-      .maybeSingle();
+      .limit(1);
 
     if (readErr) throw readErr;
+
+    const row = rows?.[0] || null;
     if (!row) {
       console.warn("Withdraw skipped: connection not found:", connectionId);
       return;
@@ -911,6 +932,7 @@ window.withdrawConnectionRequest = async function (connectionId) {
       return;
     }
 
+    // Delete pending request
     const { data, error: delErr } = await state.supabase
       .from("connections")
       .delete()
@@ -934,8 +956,10 @@ window.withdrawConnectionRequest = async function (connectionId) {
   }
 };
 
-// Handy console helper
+// Handy console helpers
 window.__acceptTest = (id) => window.acceptConnectionRequest(id);
+window.__declineTest = (id) => window.declineConnectionRequest(id);
+window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
 
 
 
