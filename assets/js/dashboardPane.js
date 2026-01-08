@@ -1688,7 +1688,7 @@ window.openQuickConnectModal = async function openQuickConnectModal() {
 
   // start narrated sequential reveal (tune options as you like)
   return pathways.showAnimatedPathways({
-    autoplay: false, // set true if you want it to immediately start playing
+    autoplay: true, // set true if you want it to immediately start playing
     limit: 10,       // how many steps in the sequence
   });
 };
