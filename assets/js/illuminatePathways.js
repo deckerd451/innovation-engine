@@ -321,14 +321,21 @@ export function initIlluminatedPathways(options = {}) {
   state.deps.clearConnectPathways =
     options.clearConnectPathways || window.clearConnectPathways || null;
 
-  ensureUI();
+  // Don't create UI on init - only create it when showAnimatedPathways() is called
+  // ensureUI();
 
-  // expose legacy global expected by dashboard/actions
-  window.showAnimatedPathways = showAnimatedPathways;
+  // Don't set global - let dashboardPane.js handle it to avoid conflicts
+  // window.showAnimatedPathways = showAnimatedPathways;
 
   state.initialized = true;
   log("Initialized");
-  return true;
+
+  // Return the API functions for use by dashboardPane.js
+  return {
+    showAnimatedPathways,
+    stopAnimatedPathways,
+    isIlluminating,
+  };
 }
 
 export async function showAnimatedPathways(opts = {}) {
