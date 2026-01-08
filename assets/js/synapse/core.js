@@ -6,12 +6,11 @@ import { openNodePanel } from "../node-panel.js";
 import * as PathwayAnimations from "../pathway-animations.js";
 
 import { loadSynapseData } from "./data.js";
-import { setupDefs, renderLinks, renderNodes, drawProjectCircles } from "./render.js";
+import { setupDefs, renderLinks, renderNodes, renderThemeCircles, drawProjectCircles } from "./render.js";
 import { showSynapseNotification } from "./ui.js";
 import { setupSynapseRealtime } from "./realtime.js";
 
 import {
-  fetchActiveThemes,
   getThemeInterestCount,
   markInterested,
   renderThemeOverlayCard,
@@ -31,6 +30,7 @@ let nodes = [];
 let links = [];
 let nodeEls = null;
 let linkEls = null;
+let themeEls = null;
 
 let connectionsData = [];
 let projectMembersData = [];
@@ -200,18 +200,81 @@ async function reloadAllData() {
   connectionsData = loaded.connectionsData || [];
   projectMembersData = loaded.projectMembersData || [];
 
-  // Theme nodes (MVP)
-  try {
-    const themeNodes = await fetchActiveThemes(supabase);
-    nodes = [...nodes, ...(themeNodes || [])];
-  } catch (e) {
-    console.warn("⚠️ Theme load skipped:", e);
-  }
+  // Themes are now loaded directly in loadSynapseData()
 
   // Keep pathway module in sync with the latest arrays
   try {
     PathwayAnimations.updateGraphData?.(nodes, links);
   } catch (_) {}
+}
+
+/* ==========================================================================
+   THEME GRAVITY PHYSICS
+   ========================================================================== */
+
+function createThemeGravityForce(allNodes) {
+  // Custom force that creates gentle gravitational pull toward relevant themes
+  return function themeGravity(alpha) {
+    const themes = allNodes.filter(n => n.type === 'theme');
+    const people = allNodes.filter(n => n.type === 'person');
+
+    for (const person of people) {
+      if (!person.x || !person.y) continue;
+
+      for (const theme of themes) {
+        if (!theme.x || !theme.y) continue;
+
+        // Calculate distance from person to theme center
+        const dx = theme.x - person.x;
+        const dy = theme.y - person.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Only apply gravity within 200px range
+        if (distance > 200 || distance < 1) continue;
+
+        // Calculate relevance based on shared tags/skills/interests
+        const relevance = calculateRelevance(person, theme);
+        if (relevance < 0.3) continue; // Need at least 30% relevance
+
+        // Apply gentle force (2-6% based on relevance)
+        const strength = 0.02 + (relevance * 0.04); // 2% to 6%
+        const force = (strength * alpha) / distance;
+
+        person.vx += dx * force;
+        person.vy += dy * force;
+      }
+    }
+  };
+}
+
+function calculateRelevance(person, theme) {
+  // Calculate how relevant this theme is to this person
+  let relevanceScore = 0;
+  let totalChecks = 0;
+
+  // Check skills overlap
+  const personSkills = (person.skills || []).map(s => String(s).toLowerCase());
+  const themeTagsLower = (theme.tags || []).map(t => String(t).toLowerCase());
+
+  if (personSkills.length > 0 && themeTagsLower.length > 0) {
+    const sharedSkills = personSkills.filter(skill =>
+      themeTagsLower.some(tag => tag.includes(skill) || skill.includes(tag))
+    );
+    relevanceScore += sharedSkills.length / Math.max(personSkills.length, themeTagsLower.length);
+    totalChecks++;
+  }
+
+  // Check interests overlap
+  const personInterests = (person.interests || []).map(i => String(i).toLowerCase());
+  if (personInterests.length > 0 && themeTagsLower.length > 0) {
+    const sharedInterests = personInterests.filter(interest =>
+      themeTagsLower.some(tag => tag.includes(interest) || interest.includes(tag))
+    );
+    relevanceScore += sharedInterests.length / Math.max(personInterests.length, themeTagsLower.length);
+    totalChecks++;
+  }
+
+  return totalChecks > 0 ? relevanceScore / totalChecks : 0;
 }
 
 /* ==========================================================================
@@ -266,6 +329,7 @@ function buildGraph() {
       "collision",
       d3.forceCollide().radius((d) => (d.type === "theme" ? 140 : d.type === "project" ? 55 : 40))
     )
+    .force("themeGravity", createThemeGravityForce(nodes))
     .velocityDecay(0.6)
     .alphaDecay(0.05)
     .alphaMin(0.001);
@@ -276,13 +340,20 @@ function buildGraph() {
   // Links
   linkEls = renderLinks(container, links);
 
-  // Nodes
-  nodeEls = renderNodes(container, nodes, { onNodeClick });
+  // Nodes (people and projects)
+  const nonThemeNodes = nodes.filter(n => n.type !== 'theme');
+  nodeEls = renderNodes(container, nonThemeNodes, { onNodeClick });
 
-  // Theme node styling
-  styleThemeNodes();
+  // Theme circles (separate rendering)
+  const themeNodes = nodes.filter(n => n.type === 'theme');
+  if (themeNodes.length > 0) {
+    themeEls = renderThemeCircles(container, themeNodes, {
+      onThemeHover: handleThemeHover,
+      onThemeClick: (event, d) => openThemeCard(d)
+    });
+  }
 
-  // Drag
+  // Drag for nodes
   nodeEls.call(
     d3
       .drag()
@@ -291,19 +362,60 @@ function buildGraph() {
       .on("end", dragEnded)
   );
 
+  // Drag for theme circles
+  if (themeEls) {
+    themeEls.call(
+      d3
+        .drag()
+        .on("start", dragStarted)
+        .on("drag", dragged)
+        .on("end", dragEnded)
+    );
+  }
+
   // Tick
   let tickCount = 0;
   simulation.on("tick", () => {
     tickCount++;
     if (tickCount % 2 !== 0) return;
 
+    // Update link positions
     linkEls
       .attr("x1", (d) => d.source.x)
       .attr("y1", (d) => d.source.y)
       .attr("x2", (d) => d.target.x)
       .attr("y2", (d) => d.target.y);
 
+    // Update connection highlighting based on theme proximity
+    if (themeNodes.length > 0) {
+      linkEls.each(function(link) {
+        if (link.source.type !== 'person' || link.target.type !== 'person') return;
+
+        // Check if both endpoints are inside any theme circle
+        let insideTheme = false;
+        for (const theme of themeNodes) {
+          const themeRadius = 80; // Match render.js radius
+          const sourceDist = Math.hypot(link.source.x - theme.x, link.source.y - theme.y);
+          const targetDist = Math.hypot(link.target.x - theme.x, link.target.y - theme.y);
+
+          if (sourceDist < themeRadius && targetDist < themeRadius) {
+            insideTheme = true;
+            break;
+          }
+        }
+
+        // Adjust opacity based on theme membership
+        const currentOpacity = parseFloat(window.d3.select(this).attr('opacity')) || 0.8;
+        const targetOpacity = insideTheme ? Math.min(1.0, currentOpacity * 1.2) : 0.8;
+        window.d3.select(this).attr('opacity', targetOpacity);
+      });
+    }
+
     nodeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
+
+    if (themeEls) {
+      themeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
+    }
 
     projectCircles?.update?.();
 
@@ -314,43 +426,45 @@ function buildGraph() {
 }
 
 /* ==========================================================================
-   THEME NODE STYLING + CLICK
+   THEME INTERACTIONS
    ========================================================================== */
 
-function styleThemeNodes() {
-  nodeEls.each(function (d) {
-    if (d.type !== "theme") return;
-
-    const g = window.d3.select(this);
-    g.selectAll("*").remove();
-
-    g.append("circle")
-      .attr("r", 120)
-      .attr("fill", "rgba(0,224,255,0.06)")
-      .attr("stroke", "rgba(0,224,255,0.25)")
-      .attr("stroke-width", 2)
-      .attr("stroke-dasharray", "8,6");
-
-    g.append("text")
-      .attr("text-anchor", "middle")
-      .attr("dy", "0.35em")
-      .attr("fill", "rgba(255,255,255,0.9)")
-      .attr("font-size", "14px")
-      .attr("font-family", "system-ui, sans-serif")
-      .attr("font-weight", 650)
-      .attr("pointer-events", "none")
-      .text(d.title || d.name || "Theme");
-
-    g.style("cursor", "pointer");
-  });
+function handleThemeHover(event, themeNode, isEntering) {
+  // Future: Add hover effects, tooltips, or visual feedback
+  // For now, just change cursor
+  if (isEntering) {
+    event.currentTarget.style.cursor = 'pointer';
+  }
 }
 
 async function openThemeCard(themeNode) {
   const interestCount = await getThemeInterestCount(supabase, themeNode.theme_id);
 
-  renderThemeOverlayCard({
+  // Load participants
+  const { data: participantData } = await supabase
+    .from('theme_participants')
+    .select(`
+      community_id,
+      engagement_level,
+      community:community_id (
+        id,
+        name,
+        image_url
+      )
+    `)
+    .eq('theme_id', themeNode.theme_id);
+
+  const participants = (participantData || []).map(p => ({
+    id: p.community_id,
+    name: p.community?.name || 'Anonymous',
+    image_url: p.community?.image_url,
+    engagement_level: p.engagement_level
+  }));
+
+  await renderThemeOverlayCard({
     themeNode,
     interestCount,
+    participants,
     onInterested: async () => {
       try {
         if (!currentUserCommunityId) {
@@ -368,10 +482,32 @@ async function openThemeCard(themeNode) {
 
         const newCount = await getThemeInterestCount(supabase, themeNode.theme_id);
 
+        // Reload participants
+        const { data: newParticipantData } = await supabase
+          .from('theme_participants')
+          .select(`
+            community_id,
+            engagement_level,
+            community:community_id (
+              id,
+              name,
+              image_url
+            )
+          `)
+          .eq('theme_id', themeNode.theme_id);
+
+        const newParticipants = (newParticipantData || []).map(p => ({
+          id: p.community_id,
+          name: p.community?.name || 'Anonymous',
+          image_url: p.community?.image_url,
+          engagement_level: p.engagement_level
+        }));
+
         document.getElementById("synapse-theme-card")?.remove();
-        renderThemeOverlayCard({
+        await renderThemeOverlayCard({
           themeNode,
           interestCount: newCount,
+          participants: newParticipants,
           onInterested: async () => {},
         });
 
