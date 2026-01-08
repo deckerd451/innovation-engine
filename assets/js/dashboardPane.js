@@ -752,28 +752,21 @@ async function initSynapseOnce() {
       .from("connections")
       .update({ status: "accepted" })
       .eq("id", connectionId)
-      .eq("status", "pending") // idempotent
+      .eq("status", "pending")
       .select("id, status")
       .maybeSingle();
 
     if (error) throw error;
-
-    if (!data) {
-      console.warn("Accept skipped: not pending or not authorized");
-      return;
-    }
+    if (!data) return;
 
     console.log("✅ Connection accepted:", data.id);
-
-    // optional refresh hooks (safe even if undefined)
-    window.refreshCounters?.();
-    window.refreshSynapse?.();
-
   } catch (e) {
     console.error("acceptConnectionRequest failed:", e);
-    alert("Failed to accept connection request.");
   }
 };
+
+window.__acceptTest = (id) => window.acceptConnectionRequest(id);
+
 
 
   window.joinProject = async function (projectId, projectName = "Project") {
