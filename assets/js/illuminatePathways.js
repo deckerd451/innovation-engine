@@ -66,7 +66,13 @@ function ensureUI() {
     right: 18px;
     bottom: 92px;
     width: 340px;
+    max-height: calc(100vh - 24px);
     z-index: 9999;
+
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
     background: rgba(0,0,0,0.72);
     border: 1px solid rgba(0,224,255,0.25);
     backdrop-filter: blur(10px);
@@ -77,32 +83,44 @@ function ensureUI() {
     box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   `;
 
+  // Header (always visible), Body (scrolls if needed), Footer (always visible)
   root.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+    <div id="illuminateHeader" style="
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding-bottom:8px;
+    ">
       <div style="font-weight:800;letter-spacing:0.2px;">Illuminate Pathways</div>
       <button id="illuminateClose" title="Close" style="
         border:0; background:transparent; color:#9ff; cursor:pointer;
         font-size:18px; line-height:1; padding:4px 6px;">✕</button>
     </div>
 
-    <div id="illuminateSub" style="margin-top:6px; opacity:0.9; font-size:12.5px;">
-      Showing one suggested connection at a time.
+    <div id="illuminateBody" style="
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      padding-right: 2px;
+    ">
+      <div id="illuminateSub" style="margin-top:0; opacity:0.9; font-size:12.5px;">
+        Showing one suggested connection at a time.
+      </div>
+
+      <div style="margin-top:10px; padding:10px; border-radius:12px; background: rgba(0,224,255,0.06); border:1px solid rgba(0,224,255,0.18);">
+        <div id="illuminateStep" style="font-size:12px; opacity:0.85;"></div>
+        <div id="illuminateName" style="margin-top:6px; font-size:16px; font-weight:800;"></div>
+        <div id="illuminateReason" style="margin-top:6px; font-size:12.5px; opacity:0.9; line-height:1.35;"></div>
+      </div>
     </div>
 
-    <div style="margin-top:10px; padding:10px; border-radius:12px; background: rgba(0,224,255,0.06); border:1px solid rgba(0,224,255,0.18);">
-      <div id="illuminateStep" style="font-size:12px; opacity:0.85;"></div>
-      <div id="illuminateName" style="margin-top:6px; font-size:16px; font-weight:800;"></div>
-      <div id="illuminateReason" style="margin-top:6px; font-size:12.5px; opacity:0.9; line-height:1.35;"></div>
-    </div>
+    <div id="illuminateFooter" style="margin-top:10px;">
+      <div style="display:flex; gap:8px;">
+        <button id="illuminatePrev" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.25); background: rgba(0,0,0,0.2); color:#cfffff; cursor:pointer;">Prev</button>
+        <button id="illuminateNext" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.25); background: rgba(0,0,0,0.2); color:#cfffff; cursor:pointer;">Next</button>
+      </div>
 
-    <div style="display:flex; gap:8px; margin-top:10px;">
-      <button id="illuminatePrev" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.25); background: rgba(0,0,0,0.2); color:#cfffff; cursor:pointer;">Prev</button>
-      <button id="illuminateNext" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.25); background: rgba(0,0,0,0.2); color:#cfffff; cursor:pointer;">Next</button>
-    </div>
-
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <button id="illuminatePlayPause" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.35); background: rgba(0,224,255,0.14); color:#eaffff; cursor:pointer; font-weight:800;">Play</button>
-      <button id="illuminateConnect" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.55); background: rgba(0,224,255,0.22); color:#ffffff; cursor:pointer; font-weight:900;">Connect</button>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button id="illuminatePlayPause" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.35); background: rgba(0,224,255,0.14); color:#eaffff; cursor:pointer; font-weight:800;">Play</button>
+        <button id="illuminateConnect" style="flex:1; padding:9px 10px; border-radius:12px; border:1px solid rgba(0,224,255,0.55); background: rgba(0,224,255,0.22); color:#ffffff; cursor:pointer; font-weight:900;">Connect</button>
+      </div>
     </div>
   `;
 
@@ -120,6 +138,25 @@ function ensureUI() {
     connect: root.querySelector("#illuminateConnect"),
   };
 
+  // Responsive positioning (keep size, but stay on-screen)
+  const applyResponsive = () => {
+    const pad = 12;
+    const short = window.innerHeight < 700;
+
+    root.style.right = `${pad}px`;
+    root.style.bottom = `${short ? pad : 92}px`;
+
+    const maxW = Math.max(260, window.innerWidth - pad * 2);
+    root.style.width = `${Math.min(340, maxW)}px`;
+    root.style.maxHeight = `calc(100vh - ${pad * 2}px)`;
+  };
+
+  applyResponsive();
+  if (!state._resizeBound) {
+    state._resizeBound = true;
+    window.addEventListener("resize", applyResponsive, { passive: true });
+  }
+
   // Safe wiring
   state.els.close.onclick = () => stopAnimatedPathways(true);
   state.els.prev.onclick = () => stepRelative(-1);
@@ -127,6 +164,7 @@ function ensureUI() {
   state.els.playPause.onclick = () => togglePlayPause();
   state.els.connect.onclick = () => connectToCurrent();
 }
+
 
 function updatePlayLabel() {
   if (!state.els.playPause) return;
