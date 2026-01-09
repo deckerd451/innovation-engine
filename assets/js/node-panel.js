@@ -91,11 +91,17 @@ async function loadNodeDetails(nodeData) {
   panelElement.innerHTML = `
     <div style="padding: 2rem; text-align: center; color: #00e0ff;">
       <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
-      <p style="margin-top: 1rem;">Loading profile...</p>
+      <p style="margin-top: 1rem;">Loading...</p>
     </div>
   `;
 
   try {
+    // Check if this is a theme lens view
+    if (nodeData.isThemeLens) {
+      await renderThemeLensPanel(nodeData);
+      return;
+    }
+
     // Determine if this is a person or project
     const isProject = nodeData.type === 'project';
 
@@ -110,10 +116,129 @@ async function loadNodeDetails(nodeData) {
     panelElement.innerHTML = `
       <div style="padding: 2rem; text-align: center; color: #ff6666;">
         <i class="fas fa-exclamation-circle" style="font-size: 2rem;"></i>
-        <p style="margin-top: 1rem;">Error loading profile</p>
+        <p style="margin-top: 1rem;">Error loading details</p>
       </div>
     `;
   }
+}
+
+// Render theme lens panel (shows projects within theme)
+async function renderThemeLensPanel(themeData) {
+  const { name, description, tags, expires_at, relatedProjects, onClearFocus } = themeData;
+
+  // Calculate time remaining
+  const now = Date.now();
+  const expires = new Date(expires_at).getTime();
+  const remaining = expires - now;
+  const daysRemaining = Math.floor(remaining / (1000 * 60 * 60 * 24));
+  const timeText = daysRemaining > 1 ? `${daysRemaining} days left` : `${Math.floor(remaining / (1000 * 60 * 60))} hours left`;
+
+  panelElement.innerHTML = `
+    <div class="node-panel-header" style="background: linear-gradient(135deg, rgba(0,224,255,0.15), rgba(0,224,255,0.05)); padding: 1.5rem; border-bottom: 1px solid rgba(0,224,255,0.3);">
+      <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div>
+          <h2 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.5rem;">
+            ✨ ${escapeHtml(name)}
+          </h2>
+          <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
+            Theme Circle • ${timeText}
+          </div>
+        </div>
+        <button onclick="window.closeNodePanel?.()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      ${description ? `
+        <p style="margin-top: 1rem; color: rgba(255,255,255,0.8); line-height: 1.5;">
+          ${escapeHtml(description)}
+        </p>
+      ` : ''}
+
+      ${tags && tags.length > 0 ? `
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem;">
+          ${tags.map(tag => `
+            <span style="padding: 0.25rem 0.75rem; background: rgba(0,224,255,0.2); border: 1px solid rgba(0,224,255,0.4); border-radius: 12px; font-size: 0.8rem; color: #00e0ff;">
+              ${escapeHtml(tag)}
+            </span>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="theme-lens-content" style="padding: 1.5rem;">
+      ${relatedProjects && relatedProjects.length > 0 ? `
+        <div>
+          <h3 style="color: #00e0ff; font-size: 1.1rem; margin: 0 0 1rem 0;">
+            <i class="fas fa-lightbulb"></i> Projects in this theme (${relatedProjects.length})
+          </h3>
+          <div style="display: grid; gap: 1rem;">
+            ${relatedProjects.map(project => renderThemeProjectCard(project)).join('')}
+          </div>
+        </div>
+      ` : `
+        <div style="text-align: center; padding: 3rem 1rem; color: rgba(255,255,255,0.5);">
+          <i class="fas fa-lightbulb" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+          <p>No projects in this theme yet</p>
+          <p style="font-size: 0.9rem; margin-top: 0.5rem;">Be the first to create one!</p>
+        </div>
+      `}
+
+      <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">
+        <button onclick="if(typeof window.openProjectsModal === 'function') window.openProjectsModal();"
+          style="width: 100%; padding: 0.875rem; background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1)); border: 1px solid rgba(0,224,255,0.4); border-radius: 8px; color: #00e0ff; cursor: pointer; font-weight: 700; font-size: 1rem;">
+          <i class="fas fa-plus-circle"></i> Create Project in ${escapeHtml(name)}
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Override close button to also clear theme focus
+  const closeBtn = panelElement.querySelector('button[onclick*="closeNodePanel"]');
+  if (closeBtn && onClearFocus) {
+    closeBtn.onclick = () => {
+      closeNodePanel();
+      onClearFocus();
+    };
+  }
+}
+
+function renderThemeProjectCard(project) {
+  return `
+    <div class="theme-project-card" style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s;" onclick="window.openProjectDetails?.('${project.id}')">
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+        <h4 style="color: #00e0ff; margin: 0; font-size: 1rem;">
+          ${escapeHtml(project.name || project.title)}
+        </h4>
+        <span style="padding: 0.25rem 0.5rem; background: rgba(0,224,255,0.2); border: 1px solid rgba(0,224,255,0.4); border-radius: 4px; font-size: 0.75rem; color: #00e0ff;">
+          ${escapeHtml(project.status || 'active')}
+        </span>
+      </div>
+
+      ${project.description ? `
+        <p style="color: rgba(255,255,255,0.7); margin: 0.5rem 0; font-size: 0.9rem; line-height: 1.4;">
+          ${escapeHtml(project.description).substring(0, 120)}${project.description.length > 120 ? '...' : ''}
+        </p>
+      ` : ''}
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem;">
+        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6);">
+          <i class="fas fa-users"></i> ${project.team_size || 0} members
+        </div>
+        <button onclick="event.stopPropagation(); window.joinProject?.('${project.id}');"
+          style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #00e0ff, #00a8cc); border: none; border-radius: 6px; color: #000; cursor: pointer; font-weight: 700; font-size: 0.85rem;">
+          <i class="fas fa-plus"></i> Join
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // Render person profile panel

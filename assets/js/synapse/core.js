@@ -438,88 +438,97 @@ function handleThemeHover(event, themeNode, isEntering) {
 }
 
 async function openThemeCard(themeNode) {
-  const interestCount = await getThemeInterestCount(supabase, themeNode.theme_id);
+  // ============================================================================
+  // NEW PARADIGM: Themes are contextual lenses, not joinable destinations
+  // ============================================================================
+  // When user clicks a theme:
+  // 1. Recenter graph on theme
+  // 2. Dim everything except related projects
+  // 3. Open side panel showing those projects
+  // 4. Projects become the action point (not the theme)
+  // ============================================================================
 
-  // Load participants
-  const { data: participantData } = await supabase
-    .from('theme_participants')
-    .select(`
-      community_id,
-      engagement_level,
-      community:community_id (
-        id,
-        name,
-        image_url
-      )
-    `)
-    .eq('theme_id', themeNode.theme_id);
+  // 1. Recenter and zoom to theme
+  const svg = d3.select("#synapse-svg");
+  const scale = 1.2; // Zoom in slightly
 
-  const participants = (participantData || []).map(p => ({
-    id: p.community_id,
-    name: p.community?.name || 'Anonymous',
-    image_url: p.community?.image_url,
-    engagement_level: p.engagement_level
-  }));
+  svg.transition()
+    .duration(750)
+    .call(
+      zoom.transform,
+      d3.zoomIdentity
+        .translate(window.innerWidth / 2, window.innerHeight / 2)
+        .scale(scale)
+        .translate(-themeNode.x, -themeNode.y)
+    );
 
-  await renderThemeOverlayCard({
-    themeNode,
-    interestCount,
-    participants,
-    onInterested: async () => {
-      try {
-        if (!currentUserCommunityId) {
-          showSynapseNotification("Create your profile first", "error");
-          return;
-        }
+  // 2. Find projects related to this theme
+  const themeTags = themeNode.tags || [];
 
-        await markInterested(supabase, {
-          themeId: themeNode.theme_id,
-          communityId: currentUserCommunityId,
-          days: 7,
-        });
-
-        showSynapseNotification("Marked interested ✨", "success");
-
-        const newCount = await getThemeInterestCount(supabase, themeNode.theme_id);
-
-        // Reload participants
-        const { data: newParticipantData } = await supabase
-          .from('theme_participants')
-          .select(`
-            community_id,
-            engagement_level,
-            community:community_id (
-              id,
-              name,
-              image_url
-            )
-          `)
-          .eq('theme_id', themeNode.theme_id);
-
-        const newParticipants = (newParticipantData || []).map(p => ({
-          id: p.community_id,
-          name: p.community?.name || 'Anonymous',
-          image_url: p.community?.image_url,
-          engagement_level: p.engagement_level
-        }));
-
-        document.getElementById("synapse-theme-card")?.remove();
-        await renderThemeOverlayCard({
-          themeNode,
-          interestCount: newCount,
-          participants: newParticipants,
-          onInterested: async () => {},
-        });
-
-        if (newCount >= 3) {
-          simulation?.alpha?.(0.18)?.restart?.();
-        }
-      } catch (e) {
-        console.error(e);
-        showSynapseNotification(e?.message || "Failed to mark interested", "error");
-      }
-    },
+  // Projects are related if they share tags with this theme
+  const relatedProjects = nodes.filter(n => {
+    if (n.type !== 'project') return false;
+    const projectTags = n.tags || [];
+    return projectTags.some(tag => themeTags.includes(tag));
   });
+
+  // 3. Dim everything except related projects
+  nodeEls?.style('opacity', d => {
+    if (d.type === 'project' && relatedProjects.some(p => p.id === d.id)) {
+      return 1; // Full brightness for related projects
+    }
+    return 0.2; // Dim everything else
+  });
+
+  linkEls?.style('opacity', d => {
+    // Only show links to/from related projects
+    const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+    const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+
+    const isRelatedLink = relatedProjects.some(p =>
+      (sourceId === p.id || targetId === p.id)
+    );
+    return isRelatedLink ? 0.6 : 0.1;
+  });
+
+  themeEls?.style('opacity', d => {
+    return d.id === themeNode.id ? 1 : 0.3;
+  });
+
+  // 4. Open side panel with project list (not join UI)
+  await openThemeProjectsPanel(themeNode, relatedProjects);
+}
+
+async function openThemeProjectsPanel(themeNode, relatedProjects) {
+  // Open node panel in "theme lens" mode
+  // Shows theme context + list of projects (not join buttons)
+
+  try {
+    openNodePanel({
+      id: themeNode.id,
+      name: themeNode.title,
+      type: "theme",
+      description: themeNode.description,
+      tags: themeNode.tags,
+      expires_at: themeNode.expires_at,
+      relatedProjects: relatedProjects,
+      isThemeLens: true, // Flag for panel to show project list
+      onClearFocus: clearThemeFocus // Function to reset graph
+    });
+  } catch (error) {
+    console.error("Failed to open theme panel:", error);
+    showSynapseNotification("Could not open theme details", "error");
+  }
+}
+
+function clearThemeFocus() {
+  // Reset all opacities when closing theme panel
+  nodeEls?.style('opacity', 1);
+  linkEls?.style('opacity', d => {
+    if (d.status === "suggested") return 0.5;
+    return 0.8;
+  });
+  themeEls?.style('opacity', 1);
 }
 
 /* ==========================================================================
@@ -675,4 +684,4 @@ export async function illuminatePathways({ limit = 5, clearFirst = true, opts = 
   return recs;
 }
 
-export { setupSynapseRealtime };
+export { setupSynapseRealtime, clearThemeFocus };
