@@ -74,8 +74,7 @@ async function loadUserParticipations() {
     const { data, error } = await supabase
       .from('theme_participants')
       .select('theme_id, signals, engagement_level')
-      .eq('community_id', currentUser.id)
-      .gt('expires_at', new Date().toISOString());
+      .eq('community_id', currentUser.id);
 
     if (error) throw error;
 
@@ -544,8 +543,7 @@ async function handleThemeClick(themeId) {
           image_url
         )
       `)
-      .eq('theme_id', theme.id)
-      .gt('expires_at', new Date().toISOString());
+      .eq('theme_id', theme.id);
 
     const participants = (participantData || []).map(p => ({
       id: p.community?.id,
