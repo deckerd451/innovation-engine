@@ -52,13 +52,33 @@ export async function markInterested(supabase, { themeId, communityId, days = 7 
       theme_id: themeId,
       community_id: communityId,
       signal: "interested",
+      engagement_level: "observer",
       expires_at: expires
     }]);
 
   if (error) throw error;
 }
 
-export async function renderThemeOverlayCard({ themeNode, interestCount, onInterested, participants = [] }) {
+export async function upgradeEngagement(supabase, { themeId, communityId, newLevel }) {
+  // Validate engagement levels
+  const validLevels = ["observer", "interested", "active", "leading"];
+  if (!validLevels.includes(newLevel)) {
+    throw new Error("Invalid engagement level");
+  }
+
+  const { error } = await supabase
+    .from("theme_participants")
+    .update({
+      engagement_level: newLevel,
+      signal: newLevel === "observer" ? "interested" : "active"
+    })
+    .eq("theme_id", themeId)
+    .eq("community_id", communityId);
+
+  if (error) throw error;
+}
+
+export async function renderThemeOverlayCard({ themeNode, interestCount, onInterested, participants = [], currentUserEngagement = null }) {
   // Lightweight card so we don't depend on node-panel changes yet
   const existing = document.getElementById("synapse-theme-card");
   if (existing) existing.remove();
@@ -66,7 +86,7 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
   const card = document.createElement("div");
   card.id = "synapse-theme-card";
   card.className = "synapse-profile-card"; // reuse your existing styling class
-  card.style.maxWidth = "400px";
+  card.style.maxWidth = "420px";
 
   // Calculate time remaining
   const now = Date.now();
@@ -75,6 +95,16 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
   const hoursRemaining = Math.floor(remaining / (1000 * 60 * 60));
   const daysRemaining = Math.floor(hoursRemaining / 24);
   const timeText = daysRemaining > 1 ? `${daysRemaining} days left` : `${hoursRemaining} hours left`;
+
+  // Engagement level info
+  const engagementLevels = {
+    observer: { icon: "👀", label: "Observer", color: "rgba(255,255,255,0.5)", next: "interested" },
+    interested: { icon: "⭐", label: "Interested", color: "rgba(0,224,255,0.7)", next: "active" },
+    active: { icon: "⚡", label: "Active", color: "rgba(0,255,136,0.8)", next: "leading" },
+    leading: { icon: "👑", label: "Leading", color: "rgba(255,215,0,0.9)", next: null }
+  };
+
+  const currentLevel = currentUserEngagement ? engagementLevels[currentUserEngagement] : null;
 
   // Render participant avatars (first 5)
   const participantHTML = participants.slice(0, 5).map(p => {
@@ -139,10 +169,43 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
       ` : ''}
     </div>
 
+    ${currentLevel ? `
+      <div class="synapse-card-bio" style="margin-top:1rem; padding:1rem; background:rgba(${currentLevel.color},0.1); border-left:3px solid ${currentLevel.color}; border-radius:4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+          <div>
+            <div style="font-size:11px; opacity:0.7; text-transform:uppercase; margin-bottom:0.25rem;">Your Engagement</div>
+            <div style="font-size:1rem; font-weight:bold; color:${currentLevel.color};">
+              ${currentLevel.icon} ${currentLevel.label}
+            </div>
+          </div>
+          ${currentLevel.next ? `
+            <button id="btn-upgrade-engagement" data-next-level="${currentLevel.next}"
+              style="padding:0.5rem 1rem; background:linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,255,136,0.2));
+                     border:1px solid rgba(0,255,136,0.5); border-radius:6px; color:#00ff88;
+                     cursor:pointer; font-weight:700; font-size:0.85rem;">
+              <i class="fas fa-arrow-up"></i> Upgrade
+            </button>
+          ` : `
+            <span style="padding:0.5rem 1rem; background:rgba(255,215,0,0.2); border:1px solid rgba(255,215,0,0.5);
+                         border-radius:6px; color:#ffd700; font-weight:700; font-size:0.85rem;">
+              <i class="fas fa-crown"></i> Max Level
+            </span>
+          `}
+        </div>
+        ${currentLevel.next ? `
+          <div style="font-size:0.75rem; opacity:0.7;">
+            Upgrade to ${engagementLevels[currentLevel.next].icon} ${engagementLevels[currentLevel.next].label} to show deeper commitment
+          </div>
+        ` : ''}
+      </div>
+    ` : ''}
+
     <div class="synapse-card-actions">
-      <button class="synapse-connect-btn" id="theme-interested-btn">
-        <i class="fas fa-star"></i> Signal Interest
-      </button>
+      ${!currentLevel ? `
+        <button class="synapse-connect-btn" id="theme-interested-btn">
+          <i class="fas fa-star"></i> Signal Interest
+        </button>
+      ` : ''}
       ${themeNode.cta_text && themeNode.cta_link ? `
         <button class="synapse-connect-btn" style="background:rgba(255,107,107,0.2); border-color:rgba(255,107,107,0.5);" onclick="window.open('${escapeHtml(themeNode.cta_link)}', '_blank')">
           <i class="fas fa-external-link-alt"></i> ${escapeHtml(themeNode.cta_text)}
@@ -153,6 +216,54 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
 
   card.querySelector(".synapse-card-close")?.addEventListener("click", () => card.remove());
   card.querySelector("#theme-interested-btn")?.addEventListener("click", onInterested);
+
+  // Engagement upgrade button
+  const upgradeBtn = card.querySelector("#btn-upgrade-engagement");
+  if (upgradeBtn) {
+    upgradeBtn.addEventListener("click", async () => {
+      const nextLevel = upgradeBtn.dataset.nextLevel;
+      if (!nextLevel) return;
+
+      try {
+        const supabase = window.supabase;
+        if (!supabase) throw new Error("Supabase not available");
+
+        // Get current user's community ID
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not logged in");
+
+        const { data: profile } = await supabase
+          .from("community")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+
+        if (!profile) throw new Error("Profile not found");
+
+        await upgradeEngagement(supabase, {
+          themeId: themeNode.theme_id,
+          communityId: profile.id,
+          newLevel: nextLevel
+        });
+
+        showSynapseNotification(`Upgraded to ${nextLevel}! 🎉`, "success");
+
+        // Re-render card with new engagement level
+        card.remove();
+        await renderThemeOverlayCard({
+          themeNode,
+          interestCount,
+          participants,
+          onInterested,
+          currentUserEngagement: nextLevel
+        });
+
+      } catch (error) {
+        console.error("Failed to upgrade engagement:", error);
+        showSynapseNotification(error.message || "Failed to upgrade", "error");
+      }
+    });
+  }
 
   document.getElementById("synapse-main-view")?.appendChild(card);
 }
