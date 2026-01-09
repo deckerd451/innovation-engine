@@ -47,7 +47,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
   // Load theme participants (active only, not expired)
   const { data: themeParticipants, error: themeParticipantsError } = await supabase
     .from('theme_participants')
-    .select('theme_id, community_id, signal, engagement_level, expires_at')
+    .select('theme_id, community_id, signals, engagement_level, expires_at')
     .gt('expires_at', new Date().toISOString());
 
   if (themeParticipantsError) {
@@ -166,7 +166,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
         target: tp.community_id,
         status: "theme-participant",
         type: "theme",
-        signal: tp.signal || "interested",
+        signals: tp.signals || "interested",
         engagement_level: tp.engagement_level || "observer"
       });
     }

@@ -73,7 +73,7 @@ async function loadUserParticipations() {
   try {
     const { data, error } = await supabase
       .from('theme_participants')
-      .select('theme_id, signal, engagement_level')
+      .select('theme_id, signals, engagement_level')
       .eq('community_id', currentUser.id)
       .gt('expires_at', new Date().toISOString());
 
