@@ -1782,3 +1782,101 @@ button,
 .ch-btn {
   will-change: transform;
 }
+
+/* ========================================================================
+ * THEME ADMIN MODAL STYLES
+ * ======================================================================== */
+
+/* Theme admin tabs */
+.theme-admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid rgba(0, 224, 255, 0.2);
+  padding-bottom: 0.5rem;
+}
+
+.theme-admin-tabs .tab-btn {
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 224, 255, 0.2);
+  border-radius: 8px 8px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+
+.theme-admin-tabs .tab-btn:hover {
+  background: rgba(0, 224, 255, 0.1);
+  color: #00e0ff;
+  border-color: rgba(0, 224, 255, 0.4);
+}
+
+.theme-admin-tabs .tab-btn.active {
+  background: rgba(0, 224, 255, 0.15);
+  border-color: rgba(0, 224, 255, 0.5);
+  color: #00e0ff;
+  box-shadow: 0 4px 12px rgba(0, 224, 255, 0.2);
+}
+
+/* Theme tab content */
+.theme-tab-content {
+  padding: 1.5rem 0;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Theme cards grid */
+.themes-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.theme-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 224, 255, 0.15);
+  transition: all 0.2s;
+}
+
+/* Form elements enhancement */
+#theme-admin-modal input:focus,
+#theme-admin-modal textarea:focus {
+  outline: none;
+  border-color: rgba(0, 224, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 224, 255, 0.1);
+}
+
+#theme-admin-modal button:hover {
+  transform: translateY(-1px);
+  transition: all 0.2s;
+}
+
+#theme-admin-modal button:active {
+  transform: translateY(0);
+}
+
+/* Responsive adjustments for theme admin */
+@media (max-width: 768px) {
+  .theme-admin-tabs {
+    flex-direction: column;
+  }
+
+  .theme-admin-tabs .tab-btn {
+    border-radius: 8px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr !important;
+  }
+}

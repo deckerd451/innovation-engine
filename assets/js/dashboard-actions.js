@@ -209,11 +209,11 @@ function toggleViewControls() {
         <i class="fas fa-shield-alt"></i> Admin
       </h4>
       <div style="display: grid; gap: 0.5rem;">
-        <button id="btn-create-theme"
+        <button id="btn-theme-admin"
           style="width: 100%; padding: 0.75rem; background: rgba(255,215,0,0.10);
           border: 1px solid rgba(255,215,0,0.35); border-radius: 8px; color: #ffd700;
           cursor: pointer; font-weight: 700; text-align: left;">
-          <i class="fas fa-bullseye"></i> Create Theme Circle
+          <i class="fas fa-bullseye"></i> Manage Theme Circles
         </button>
       </div>
     </div>
@@ -264,8 +264,12 @@ function toggleViewControls() {
   document.body.appendChild(panel);
 
   // Wire up admin button after insert into DOM
-  panel.querySelector("#btn-create-theme")?.addEventListener("click", () => {
-    createThemeCirclePromptFlow();
+  panel.querySelector("#btn-theme-admin")?.addEventListener("click", () => {
+    if (typeof window.openThemeAdminModal === 'function') {
+      window.openThemeAdminModal();
+    } else {
+      console.warn('Theme admin modal not available');
+    }
   });
 
   // Close on click outside
