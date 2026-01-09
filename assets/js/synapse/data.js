@@ -24,7 +24,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
 
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
-    .select("id, title, description, status, creator_id, required_skills, tags, upvote_count, created_at")
+    .select("id, title, description, status, creator_id, required_skills, tags, upvote_count, created_at, theme_id")
     .in("status", ["open", "active", "in-progress"])
     .order("created_at", { ascending: false });
 
@@ -98,6 +98,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
         required_skills: project.required_skills || [],
         tags: project.tags || [],
         upvote_count: project.upvote_count || 0,
+        theme_id: project.theme_id || null,  // Include theme assignment
         team_size: teamMembers.length,
         team_members: teamMembers,
         x: Math.random() * window.innerWidth,

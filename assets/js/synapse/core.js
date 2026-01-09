@@ -464,9 +464,18 @@ async function openThemeCard(themeNode) {
   // 2. Find projects related to this theme
   const themeTags = themeNode.tags || [];
 
-  // Projects are related if they share tags with this theme
+  // Projects are related if:
+  // 1. Explicitly assigned (theme_id matches) - PRIORITY
+  // 2. Share tags with this theme (tag matching)
   const relatedProjects = nodes.filter(n => {
     if (n.type !== 'project') return false;
+
+    // Check explicit assignment first
+    if (n.theme_id === themeNode.theme_id) {
+      return true;
+    }
+
+    // Fall back to tag matching
     const projectTags = n.tags || [];
     return projectTags.some(tag => themeTags.includes(tag));
   });
