@@ -52,6 +52,17 @@ const MessagingModule = (function () {
   // ============================================================
 
   async function init() {
+    // One-time init guard - prevents double-binding and ghost listeners
+    if (window.__IE_MESSAGING_INIT_DONE__) {
+      console.log("⚠️ Messaging already initialized globally, skipping...");
+      // Re-render UI when modal reopens
+      if (state.initialized) {
+        renderMessagesTab();
+        renderConversationsList();
+      }
+      return;
+    }
+
     if (state.initialized) {
       console.log("Messaging already initialized");
       // Re-render UI when modal reopens
@@ -59,6 +70,8 @@ const MessagingModule = (function () {
       renderConversationsList();
       return;
     }
+
+    window.__IE_MESSAGING_INIT_DONE__ = true;
 
     try {
       if (!window.supabase) throw new Error("Supabase not available");
@@ -462,6 +475,13 @@ const MessagingModule = (function () {
   function setupRealtimeSubscriptions() {
     requireReady();
 
+    // Realtime channel duplication guard + cleanup
+    if (window.__IE_MSG_RT_CHANNEL__) {
+      console.log("⚠️ Messaging realtime channel already exists globally, reusing...");
+      state.realtimeChannel = window.__IE_MSG_RT_CHANNEL__;
+      return;
+    }
+
     if (state.realtimeChannel) {
       window.supabase.removeChannel(state.realtimeChannel);
       state.realtimeChannel = null;
@@ -511,6 +531,24 @@ const MessagingModule = (function () {
         }
       )
       .subscribe();
+
+    // Store channel globally to prevent duplication
+    window.__IE_MSG_RT_CHANNEL__ = state.realtimeChannel;
+
+    // Cleanup on page unload
+    if (!window.__IE_MSG_RT_CLEANUP_REGISTERED__) {
+      window.__IE_MSG_RT_CLEANUP_REGISTERED__ = true;
+      window.addEventListener("beforeunload", () => {
+        try {
+          if (window.__IE_MSG_RT_CHANNEL__) {
+            window.supabase?.removeChannel(window.__IE_MSG_RT_CHANNEL__);
+            window.__IE_MSG_RT_CHANNEL__ = null;
+          }
+        } catch (e) {
+          console.warn("Failed to cleanup messaging channel:", e);
+        }
+      });
+    }
   }
 
   // ============================================================

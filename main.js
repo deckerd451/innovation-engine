@@ -10,6 +10,13 @@ console.log("🚀 CharlestonHacks Innovation Engine starting...");
 // INITIALIZE ON DOM READY
 // ================================================================
 document.addEventListener("DOMContentLoaded", async () => {
+  // One-time init guard - prevents double-binding and ghost listeners
+  if (window.__IE_MAIN_INIT_DONE__) {
+    console.log("⚠️ Main already initialized, skipping...");
+    return;
+  }
+  window.__IE_MAIN_INIT_DONE__ = true;
+
   console.log("🎨 DOM ready, initializing systems...");
 
   // Wait for required globals from other scripts

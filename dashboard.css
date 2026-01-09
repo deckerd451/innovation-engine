@@ -1184,6 +1184,7 @@
       width: 90%;
       max-height: 80vh;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
       position: relative;
     }
 
@@ -1627,3 +1628,157 @@
   color: #00e0ff;
 }
 .ch-chip-off:hover { background: rgba(0,224,255,0.10); }
+
+/* ========================================================================
+ * ROBUSTNESS IMPROVEMENTS - Scroll & Responsiveness Fixes
+ * ======================================================================== */
+
+/* Profile top section - prevent overflow on mobile */
+.profile-top,
+.profile-section-top,
+.profile-header-section {
+  max-height: min(42vh, 420px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Better modal scrolling on all devices */
+.modal {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-content,
+.modal-body,
+.messages-container,
+.projects-container,
+.endorsements-container {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Profile card improvements */
+.profile-card-content,
+.profile-details,
+.user-profile-content {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 700px) {
+  .profile-top,
+  .profile-section-top,
+  .profile-header-section {
+    max-height: 46vh;
+  }
+
+  /* Ensure modals don't overflow viewport */
+  .modal-content {
+    max-height: 85vh;
+    padding: 1.5rem;
+  }
+
+  /* Better button touch targets on mobile */
+  button,
+  .btn,
+  .ch-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent horizontal scroll on mobile */
+  body,
+  html {
+    overflow-x: hidden;
+  }
+
+  /* Better spacing for mobile forms */
+  .form-group,
+  .input-group {
+    margin-bottom: 1rem;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Tablet-specific improvements */
+@media (max-width: 1024px) and (min-width: 701px) {
+  .profile-top,
+  .profile-section-top,
+  .profile-header-section {
+    max-height: 44vh;
+  }
+
+  .modal-content {
+    max-height: 80vh;
+  }
+}
+
+/* Improved scrollbar styling for webkit browsers */
+.modal-content::-webkit-scrollbar,
+.messages-area::-webkit-scrollbar,
+.conversations-sidebar::-webkit-scrollbar,
+.profile-top::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track,
+.messages-area::-webkit-scrollbar-track,
+.conversations-sidebar::-webkit-scrollbar-track,
+.profile-top::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb,
+.messages-area::-webkit-scrollbar-thumb,
+.conversations-sidebar::-webkit-scrollbar-thumb,
+.profile-top::-webkit-scrollbar-thumb {
+  background: rgba(0, 224, 255, 0.3);
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover,
+.messages-area::-webkit-scrollbar-thumb:hover,
+.conversations-sidebar::-webkit-scrollbar-thumb:hover,
+.profile-top::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 224, 255, 0.5);
+}
+
+/* Prevent content from being pushed off screen */
+.bottom-stats-bar,
+.bottom-bar {
+  max-width: 100vw;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure notifications panel doesn't overflow */
+.notifications-panel,
+.connections-panel,
+#connections-panel {
+  max-height: min(80vh, 600px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Better focus states for accessibility */
+button:focus,
+input:focus,
+textarea:focus,
+select:focus,
+.ch-btn:focus {
+  outline: 2px solid rgba(0, 224, 255, 0.5);
+  outline-offset: 2px;
+}
+
+/* Prevent layout shift on button hover */
+button,
+.btn,
+.ch-btn {
+  will-change: transform;
+}

@@ -40,13 +40,23 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   };
 
   // -----------------------------
-  // DOM Helpers
+  // DOM Helpers (with safety checks)
   // -----------------------------
   const $ = (id) => document.getElementById(id);
+  const $$ = (selector) => document.querySelector(selector);
   const show = (el) => el && el.classList.remove("hidden");
   const hide = (el) => el && el.classList.add("hidden");
   const openModal = (id) => $(id)?.classList.add("active");
   const closeModal = (id) => $(id)?.classList.remove("active");
+
+  // Safe event binding - only binds if element exists
+  const on = (el, evt, fn, opts) => {
+    if (el && typeof el.addEventListener === 'function') {
+      el.addEventListener(evt, fn, opts);
+      return true;
+    }
+    return false;
+  };
 
   function safeText(id, value) {
     const el = $(id);
@@ -78,6 +88,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
+    // One-time init guard - prevents double-binding and ghost listeners
+    if (window.__IE_DASHBOARD_INIT_DONE__) {
+      console.log("⚠️ Dashboard already initialized, skipping...");
+      return;
+    }
+    window.__IE_DASHBOARD_INIT_DONE__ = true;
+
     state.supabase = window.supabase || importedSupabase;
     window.supabase = state.supabase;
 
@@ -125,12 +142,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // -----------------------------
   function wireUI() {
     // Login buttons (fallback if auth.js doesn't attach handlers)
-    $("github-login")?.addEventListener("click", () => oauthLogin("github"));
-    $("google-login")?.addEventListener("click", () => oauthLogin("google"));
+    on($("github-login"), "click", () => oauthLogin("github"));
+    on($("google-login"), "click", () => oauthLogin("google"));
 
     // Header actions
-    $("user-menu")?.addEventListener("click", () => window.openProfileModal());
-    $("notifications-bell")?.addEventListener("click", async () => {
+    on($("user-menu"), "click", () => window.openProfileModal());
+    on($("notifications-bell"), "click", async () => {
       if (typeof window.toggleConnectionsPanel === 'function') {
         window.toggleConnectionsPanel();
       } else {
@@ -139,20 +156,20 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     });
 
     // Search
-    $("search-button")?.addEventListener("click", () => handleSearch());
-    $("global-search")?.addEventListener("keydown", (e) => {
+    on($("search-button"), "click", () => handleSearch());
+    on($("global-search"), "keydown", (e) => {
       if (e.key === "Enter") handleSearch();
     });
 
     // Bottom bar buttons
-    $("btn-messages")?.addEventListener("click", () => window.openMessagesModal());
-    $("btn-projects")?.addEventListener("click", () => window.openProjectsModal());
-    $("btn-endorsements")?.addEventListener("click", () => window.openEndorsementsModal());
-    $("btn-bbs")?.addEventListener("click", () => initBBS());
-    $("btn-profile")?.addEventListener("click", () => window.openProfileModal());
-    $("btn-quickconnect")?.addEventListener("click", () => window.openQuickConnectModal());
-    $("btn-filters")?.addEventListener("click", () => toggleFilters());
-    $("btn-legend")?.addEventListener("click", () => toggleLegend());
+    on($("btn-messages"), "click", () => window.openMessagesModal());
+    on($("btn-projects"), "click", () => window.openProjectsModal());
+    on($("btn-endorsements"), "click", () => window.openEndorsementsModal());
+    on($("btn-bbs"), "click", () => initBBS());
+    on($("btn-profile"), "click", () => window.openProfileModal());
+    on($("btn-quickconnect"), "click", () => window.openQuickConnectModal());
+    on($("btn-filters"), "click", () => toggleFilters());
+    on($("btn-legend"), "click", () => toggleLegend());
   }
 
   function wireGlobalFunctions() {

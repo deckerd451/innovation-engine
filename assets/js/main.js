@@ -16,6 +16,13 @@ async function waitForSupabase() {
  * Main initialization function - loads all modules in correct order
  */
 async function initMain() {
+  // One-time init guard - prevents double-binding and ghost listeners
+  if (window.__IE_ASSETS_MAIN_INIT_DONE__) {
+    console.log("⚠️ Assets main already initialized, skipping...");
+    return;
+  }
+  window.__IE_ASSETS_MAIN_INIT_DONE__ = true;
+
   console.log("⏳ Waiting for Supabase...");
   const supabase = await waitForSupabase();
   console.log("✅ Supabase ready");
