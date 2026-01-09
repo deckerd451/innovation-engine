@@ -51,7 +51,7 @@ export async function markInterested(supabase, { themeId, communityId, days = 7 
     .insert([{
       theme_id: themeId,
       community_id: communityId,
-      signal: "interested",
+      signals: "interested",
       engagement_level: "observer",
       expires_at: expires
     }]);
@@ -70,7 +70,7 @@ export async function upgradeEngagement(supabase, { themeId, communityId, newLev
     .from("theme_participants")
     .update({
       engagement_level: newLevel,
-      signal: newLevel === "observer" ? "interested" : "active"
+      signals: newLevel === "observer" ? "interested" : "active"
     })
     .eq("theme_id", themeId)
     .eq("community_id", communityId);
