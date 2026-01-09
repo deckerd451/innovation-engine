@@ -40,6 +40,11 @@ export function getLinkColor(link) {
       return COLORS.edgeSuggested;
     case "project-member":
       return "#ff6b6b";
+    case "theme-participant":
+      // Color based on engagement level
+      if (link.engagement_level === "leading") return "rgba(255, 215, 0, 0.7)"; // Gold for leaders
+      if (link.engagement_level === "active") return "rgba(0, 224, 255, 0.7)"; // Cyan for active
+      return "rgba(0, 224, 255, 0.4)"; // Lighter cyan for interested/observer
     default:
       return COLORS.edgeDefault;
   }
@@ -53,6 +58,11 @@ export function getLinkWidth(link) {
       return 2;
     case "suggested":
       return 1;
+    case "theme-participant":
+      // Width based on engagement level
+      if (link.engagement_level === "leading") return 3;
+      if (link.engagement_level === "active") return 2;
+      return 1.5; // interested/observer
     default:
       return 1;
   }
@@ -69,8 +79,16 @@ export function renderLinks(container, links) {
     .attr("class", (d) => `synapse-link status-${d.status}`)
     .attr("stroke", (d) => getLinkColor(d))
     .attr("stroke-width", (d) => getLinkWidth(d))
-    .attr("stroke-dasharray", (d) => (d.status === "pending" ? "5,5" : "none"))
-    .attr("opacity", (d) => (d.status === "suggested" ? 0.5 : 0.8));
+    .attr("stroke-dasharray", (d) => {
+      if (d.status === "pending") return "5,5";
+      if (d.status === "theme-participant" && d.engagement_level === "observer") return "3,3";
+      return "none";
+    })
+    .attr("opacity", (d) => {
+      if (d.status === "suggested") return 0.5;
+      if (d.status === "theme-participant") return 0.6;
+      return 0.8;
+    });
 
   return linkEls;
 }
