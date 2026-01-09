@@ -31,8 +31,48 @@ export function closeProjectsModal() {
 // PROJECT FORM
 // ========================
 
-export function showCreateProjectForm() {
+export async function showCreateProjectForm() {
   document.getElementById('project-form').style.display = 'block';
+  await loadThemesIntoDropdown();
+}
+
+// Load active themes into the project form dropdown
+async function loadThemesIntoDropdown() {
+  const dropdown = document.getElementById('project-theme');
+  if (!dropdown) return;
+
+  try {
+    const { data: themes, error } = await supabase
+      .from('theme_circles')
+      .select('id, title, tags, expires_at')
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .order('title', { ascending: true });
+
+    if (error) {
+      console.error('Error loading themes:', error);
+      return;
+    }
+
+    // Clear existing options except the first one
+    dropdown.innerHTML = '<option value="">No theme (standalone project)</option>';
+
+    // Add theme options
+    if (themes && themes.length > 0) {
+      themes.forEach(theme => {
+        const option = document.createElement('option');
+        option.value = theme.id;
+        const tags = theme.tags && theme.tags.length > 0 ? ` [${theme.tags.join(', ')}]` : '';
+        option.textContent = `${theme.title}${tags}`;
+        dropdown.appendChild(option);
+      });
+      console.log(`✅ Loaded ${themes.length} themes into project form`);
+    } else {
+      console.log('ℹ️ No active themes available');
+    }
+  } catch (err) {
+    console.error('Error loading themes dropdown:', err);
+  }
 }
 
 export function hideCreateProjectForm() {
@@ -44,20 +84,31 @@ export function hideCreateProjectForm() {
 
 export async function createProject(event) {
   event.preventDefault();
-  
+
   const name = document.getElementById('project-name').value;
   const description = document.getElementById('project-description').value;
   const skills = document.getElementById('project-skills').value;
-  
+  const themeId = document.getElementById('project-theme')?.value || null;
+
+  // Convert skills to array
+  const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  const projectData = {
+    title: name,
+    description,
+    required_skills: skillsArray,
+    creator_id: currentUserProfile.id,
+    status: 'active'
+  };
+
+  // Only add theme_id if one was selected
+  if (themeId) {
+    projectData.theme_id = themeId;
+  }
+
   const { data, error } = await supabase
     .from('projects')
-    .insert([{
-      title: name,
-      description,
-      required_skills: skills,
-      creator_id: currentUserProfile.id,
-      status: 'active'
-    }])
+    .insert([projectData])
     .select();
   
   if (error) {

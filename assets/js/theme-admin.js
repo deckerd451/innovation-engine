@@ -349,6 +349,45 @@ function renderThemeCard(theme, isExpired = false) {
         </div>
       ` : ''}
 
+      <!-- Projects Section -->
+      <div style="
+        background: rgba(0,0,0,0.2);
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+            <i class="fas fa-lightbulb"></i> Projects: ${theme.assigned_projects?.length || 0}
+          </span>
+          <button
+            class="btn-manage-projects"
+            data-theme-id="${theme.id}"
+            style="
+              padding: 0.35rem 0.75rem;
+              background: rgba(0,224,255,0.1);
+              border: 1px solid rgba(0,224,255,0.3);
+              border-radius: 4px;
+              color: #00e0ff;
+              cursor: pointer;
+              font-size: 0.75rem;
+            "
+          >
+            <i class="fas fa-cog"></i> Manage
+          </button>
+        </div>
+        ${theme.assigned_projects && theme.assigned_projects.length > 0 ? `
+          <div style="color: rgba(255,255,255,0.6); font-size: 0.75rem;">
+            ${theme.assigned_projects.slice(0, 3).map(p => `• ${escapeHtml(p.title)}`).join('<br>')}
+            ${theme.assigned_projects.length > 3 ? `<br>• ...and ${theme.assigned_projects.length - 3} more` : ''}
+          </div>
+        ` : `
+          <div style="color: rgba(255,255,255,0.4); font-size: 0.75rem; font-style: italic;">
+            No projects assigned yet
+          </div>
+        `}
+      </div>
+
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
         <button
           class="btn-edit-theme"
@@ -435,6 +474,7 @@ function wireModalEvents() {
     const extendBtn = e.target.closest('.btn-extend-theme');
     const archiveBtn = e.target.closest('.btn-archive-theme');
     const deleteBtn = e.target.closest('.btn-delete-theme');
+    const manageProjectsBtn = e.target.closest('.btn-manage-projects');
 
     if (editBtn) {
       const themeId = editBtn.dataset.themeId;
@@ -448,6 +488,9 @@ function wireModalEvents() {
     } else if (deleteBtn) {
       const themeId = deleteBtn.dataset.themeId;
       await handleDeleteTheme(themeId);
+    } else if (manageProjectsBtn) {
+      const themeId = manageProjectsBtn.dataset.themeId;
+      await handleManageProjects(themeId);
     }
   });
 }
@@ -488,11 +531,27 @@ async function loadAllThemes() {
     const { data, error } = await supabase
       .from('theme_circles')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false});
 
     if (error) throw error;
 
     themesData = data || [];
+
+    // Load project counts for each theme
+    for (const theme of themesData) {
+      const { data: projects, error: projError } = await supabase
+        .from('projects')
+        .select('id, title, status')
+        .eq('theme_id', theme.id)
+        .in('status', ['active', 'in-progress', 'open']);
+
+      if (!projError) {
+        theme.assigned_projects = projects || [];
+      } else {
+        theme.assigned_projects = [];
+      }
+    }
+
   } catch (error) {
     console.error('Failed to load themes:', error);
     showSynapseNotification('Failed to load themes', 'error');
@@ -680,6 +739,126 @@ async function handleDeleteTheme(themeId) {
   } catch (error) {
     console.error('Failed to delete theme:', error);
     showSynapseNotification(error.message || 'Failed to delete theme', 'error');
+  }
+}
+
+async function handleManageProjects(themeId) {
+  const theme = themesData.find(t => t.id === themeId);
+  if (!theme) return;
+
+  try {
+    // Load all active projects
+    const { data: allProjects, error } = await supabase
+      .from('projects')
+      .select('id, title, status, theme_id')
+      .in('status', ['active', 'in-progress', 'open'])
+      .order('title', { ascending: true });
+
+    if (error) throw error;
+
+    // Separate assigned and unassigned projects
+    const assignedProjects = allProjects.filter(p => p.theme_id === themeId);
+    const availableProjects = allProjects.filter(p => !p.theme_id || p.theme_id !== themeId);
+
+    // Build project list text
+    let message = `Managing projects for: ${theme.title}\n\n`;
+    message += `ASSIGNED PROJECTS (${assignedProjects.length}):\n`;
+
+    if (assignedProjects.length > 0) {
+      assignedProjects.forEach((p, idx) => {
+        message += `${idx + 1}. ${p.title}\n`;
+      });
+    } else {
+      message += `(none)\n`;
+    }
+
+    message += `\nAVAILABLE PROJECTS (${availableProjects.length}):\n`;
+    if (availableProjects.length > 0) {
+      availableProjects.slice(0, 10).forEach((p, idx) => {
+        message += `${idx + 1}. ${p.title}\n`;
+      });
+      if (availableProjects.length > 10) {
+        message += `...and ${availableProjects.length - 10} more\n`;
+      }
+    } else {
+      message += `(all projects are assigned to themes)\n`;
+    }
+
+    message += `\nOptions:\n`;
+    message += `- Type "assign <number>" to assign an available project\n`;
+    message += `- Type "remove <number>" to unassign an assigned project\n`;
+    message += `- Click Cancel to close\n`;
+
+    const input = prompt(message);
+    if (!input) return;
+
+    const parts = input.trim().toLowerCase().split(' ');
+    const action = parts[0];
+    const num = parseInt(parts[1]);
+
+    if (action === 'assign' && num > 0 && num <= availableProjects.length) {
+      const project = availableProjects[num - 1];
+      await assignProjectToTheme(project.id, themeId, project.title);
+    } else if (action === 'remove' && num > 0 && num <= assignedProjects.length) {
+      const project = assignedProjects[num - 1];
+      await unassignProjectFromTheme(project.id, project.title);
+    } else {
+      alert('Invalid command. Please use "assign <number>" or "remove <number>"');
+    }
+
+  } catch (error) {
+    console.error('Failed to manage projects:', error);
+    showSynapseNotification('Failed to load projects', 'error');
+  }
+}
+
+async function assignProjectToTheme(projectId, themeId, projectTitle) {
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .update({ theme_id: themeId })
+      .eq('id', projectId);
+
+    if (error) throw error;
+
+    showSynapseNotification(`✓ Assigned: ${projectTitle}`, 'success');
+
+    // Reload and refresh UI
+    await loadAllThemes();
+    const manageTab = document.getElementById('theme-tab-manage');
+    if (manageTab) {
+      manageTab.innerHTML = renderThemesList();
+    }
+    wireModalEvents();
+
+  } catch (error) {
+    console.error('Failed to assign project:', error);
+    showSynapseNotification('Failed to assign project', 'error');
+  }
+}
+
+async function unassignProjectFromTheme(projectId, projectTitle) {
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .update({ theme_id: null })
+      .eq('id', projectId);
+
+    if (error) throw error;
+
+    showSynapseNotification(`✓ Removed: ${projectTitle}`, 'success');
+
+    // Reload and refresh UI
+    await loadAllThemes();
+    const manageTab = document.getElementById('theme-tab-manage');
+    if (manageTab) {
+      manageTab.innerHTML = renderThemesList();
+    }
+    wireModalEvents();
+
+  } catch (error) {
+    console.error('Failed to unassign project:', error);
+    showSynapseNotification('Failed to unassign project', 'error');
   }
 }
 

@@ -278,6 +278,20 @@
                    border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
           </div>
 
+          <div style="margin-bottom:1rem;">
+            <label style="display:block; color:#aaa; margin-bottom:0.5rem;">
+              <i class="fas fa-bullseye" style="color:#00e0ff;"></i> Associate with Theme Circle (optional)
+            </label>
+            <select id="project-theme"
+                    style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
+                    border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
+              <option value="">No theme (standalone project)</option>
+            </select>
+            <small style="color:#888; display:block; margin-top:0.3rem;">
+              Link this project to an active theme to help others find it
+            </small>
+          </div>
+
           <div style="display:flex; gap:0.5rem;">
             <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Create Project</button>
             <button type="button" onclick="hideCreateProjectForm()" class="btn" style="background:rgba(255,255,255,0.1);">Cancel</button>
