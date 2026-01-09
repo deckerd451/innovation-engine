@@ -449,13 +449,12 @@ async function openThemeCard(themeNode) {
   // ============================================================================
 
   // 1. Recenter and zoom to theme
-  const svg = d3.select("#synapse-svg");
   const scale = 1.2; // Zoom in slightly
 
   svg.transition()
     .duration(750)
     .call(
-      zoom.transform,
+      zoomBehavior.transform,
       d3.zoomIdentity
         .translate(window.innerWidth / 2, window.innerHeight / 2)
         .scale(scale)
