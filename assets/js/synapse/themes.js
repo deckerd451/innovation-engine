@@ -32,28 +32,23 @@ export async function fetchActiveThemes(supabase) {
 }
 
 export async function getThemeInterestCount(supabase, themeId) {
-  const nowIso = new Date().toISOString();
   const { count, error } = await supabase
     .from("theme_participants")
     .select("id", { count: "exact", head: true })
-    .eq("theme_id", themeId)
-    .gt("expires_at", nowIso);
+    .eq("theme_id", themeId);
 
   if (error) return 0;
   return count || 0;
 }
 
-export async function markInterested(supabase, { themeId, communityId, days = 7 }) {
-  const expires = new Date(Date.now() + days * 86400000).toISOString();
-
+export async function markInterested(supabase, { themeId, communityId }) {
   const { error } = await supabase
     .from("theme_participants")
     .insert([{
       theme_id: themeId,
       community_id: communityId,
       signals: "interested",
-      engagement_level: "observer",
-      expires_at: expires
+      engagement_level: "observer"
     }]);
 
   if (error) throw error;

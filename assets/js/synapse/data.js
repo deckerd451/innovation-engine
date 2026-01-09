@@ -44,11 +44,10 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
     console.warn('⚠️ Error loading themes:', themesError);
   }
 
-  // Load theme participants (active only, not expired)
+  // Load theme participants
   const { data: themeParticipants, error: themeParticipantsError } = await supabase
     .from('theme_participants')
-    .select('theme_id, community_id, signals, engagement_level, expires_at')
-    .gt('expires_at', new Date().toISOString());
+    .select('theme_id, community_id, signals, engagement_level');
 
   if (themeParticipantsError) {
     console.warn('⚠️ Error loading theme participants:', themeParticipantsError);
