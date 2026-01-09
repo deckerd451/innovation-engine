@@ -44,6 +44,16 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
     console.warn('⚠️ Error loading themes:', themesError);
   }
 
+  // Load theme participants (active only, not expired)
+  const { data: themeParticipants, error: themeParticipantsError } = await supabase
+    .from('theme_participants')
+    .select('theme_id, community_id, signal, engagement_level, expires_at')
+    .gt('expires_at', new Date().toISOString());
+
+  if (themeParticipantsError) {
+    console.warn('⚠️ Error loading theme participants:', themeParticipantsError);
+  }
+
   let nodes = (members || []).map((member) => {
     const isCurrentUser = member.id === currentUserCommunityId;
 
@@ -139,6 +149,25 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
         target: pm.user_id,
         status: "project-member",
         type: "project"
+      });
+    }
+  });
+
+  // Theme-participant links
+  (themeParticipants || []).forEach(tp => {
+    const themeNodeId = `theme:${tp.theme_id}`;
+    const userNodeExists = nodes.some(n => n.id === tp.community_id);
+    const themeNodeExists = nodes.some(n => n.id === themeNodeId);
+
+    if (userNodeExists && themeNodeExists) {
+      links.push({
+        id: `theme-participant-${tp.theme_id}-${tp.community_id}`,
+        source: themeNodeId,
+        target: tp.community_id,
+        status: "theme-participant",
+        type: "theme",
+        signal: tp.signal || "interested",
+        engagement_level: tp.engagement_level || "observer"
       });
     }
   });
