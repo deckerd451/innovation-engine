@@ -27,8 +27,15 @@ export function initAdminAnalytics() {
   console.log('✅ Admin analytics initialized');
 }
 
-// Create admin button
+// Create admin button - DISABLED: Now integrated into Filter View
 function createAdminButton() {
+  // Analytics button is now integrated into the Filter View UI
+  // See dashboard-actions.js createSynapseLegend() for the new location
+  console.log('📊 Analytics button integrated into Filter View');
+  return;
+
+  // Old standalone button code (kept for reference):
+  /*
   const button = document.createElement('button');
   button.id = 'admin-analytics-btn';
   button.style.cssText = `
@@ -61,6 +68,7 @@ function createAdminButton() {
   button.onclick = openAnalyticsModal;
 
   document.body.appendChild(button);
+  */
 }
 
 // Create analytics modal
