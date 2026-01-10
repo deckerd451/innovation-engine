@@ -284,8 +284,10 @@ function toggleViewControls() {
 }
 
 // -----------------------------
-// Legend on Synapse Screen
+// Legend on Synapse Screen (Collapsible)
 // -----------------------------
+let legendCollapsed = false;
+
 function createSynapseLegend() {
   // Remove existing legend if present
   const existingLegend = document.getElementById('synapse-legend-overlay');
@@ -304,32 +306,86 @@ function createSynapseLegend() {
     z-index: 100;
     backdrop-filter: blur(10px);
     min-width: 200px;
+    max-width: 250px;
+    transition: all 0.3s ease;
   `;
 
+  // Check if user is admin for analytics button
+  const showAnalytics = isAdminUser();
+
   legend.innerHTML = `
-    <div style="margin-bottom: 0.75rem;">
-      <h4 style="color: #00e0ff; font-size: 0.9rem; margin: 0 0 0.75rem 0; font-weight: 700;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; cursor: pointer;" id="legend-header">
+      <h4 style="color: #00e0ff; font-size: 0.9rem; margin: 0; font-weight: 700;">
         <i class="fas fa-filter"></i> Filter View
       </h4>
+      <i class="fas fa-chevron-up" id="legend-toggle-icon" style="color: #00e0ff; font-size: 0.8rem; transition: transform 0.3s;"></i>
     </div>
-    <div id="legend-people" data-filter="people" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3);">
-      <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(0,224,255,0.3); border: 2px solid #00e0ff; flex-shrink: 0;"></div>
-      <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">People</span>
-      <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
-    </div>
-    <div id="legend-projects" data-filter="projects" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3);">
-      <div style="width: 24px; height: 24px; transform: rotate(45deg); background: rgba(255,107,107,0.3); border: 2px solid #ff6b6b; flex-shrink: 0;"></div>
-      <span style="color: #fff; font-size: 0.85rem; font-weight: 600; margin-left: 0.25rem;">Projects</span>
-      <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
-    </div>
-    <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
-      <div style="width: 30px; height: 2px; background: #00e0ff; flex-shrink: 0;"></div>
-      <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Connections</span>
-      <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+
+    <div id="legend-content" style="transition: all 0.3s ease; overflow: hidden;">
+      ${showAnalytics ? `
+        <button id="legend-analytics-btn" style="width: 100%; padding: 0.65rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-bottom: 0.75rem; box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3); transition: all 0.2s; font-size: 0.85rem;">
+          <i class="fas fa-chart-line"></i> Analytics
+        </button>
+      ` : ''}
+
+      <div id="legend-people" data-filter="people" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3);">
+        <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(0,224,255,0.3); border: 2px solid #00e0ff; flex-shrink: 0;"></div>
+        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">People</span>
+        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+      </div>
+      <div id="legend-projects" data-filter="projects" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3);">
+        <div style="width: 24px; height: 24px; transform: rotate(45deg); background: rgba(255,107,107,0.3); border: 2px solid #ff6b6b; flex-shrink: 0;"></div>
+        <span style="color: #fff; font-size: 0.85rem; font-weight: 600; margin-left: 0.25rem;">Projects</span>
+        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+      </div>
+      <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
+        <div style="width: 30px; height: 2px; background: #00e0ff; flex-shrink: 0;"></div>
+        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Connections</span>
+        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+      </div>
     </div>
   `;
 
   document.body.appendChild(legend);
+
+  // Wire up collapse/expand
+  const header = document.getElementById('legend-header');
+  const content = document.getElementById('legend-content');
+  const toggleIcon = document.getElementById('legend-toggle-icon');
+
+  header.addEventListener('click', () => {
+    legendCollapsed = !legendCollapsed;
+
+    if (legendCollapsed) {
+      content.style.maxHeight = '0';
+      content.style.opacity = '0';
+      content.style.marginTop = '0';
+      toggleIcon.style.transform = 'rotate(180deg)';
+    } else {
+      content.style.maxHeight = '500px';
+      content.style.opacity = '1';
+      content.style.marginTop = '0';
+      toggleIcon.style.transform = 'rotate(0deg)';
+    }
+  });
+
+  // Wire up analytics button
+  const analyticsBtn = document.getElementById('legend-analytics-btn');
+  if (analyticsBtn) {
+    analyticsBtn.addEventListener('click', () => {
+      if (typeof window.openAnalyticsModal === 'function') {
+        window.openAnalyticsModal();
+      }
+    });
+    analyticsBtn.addEventListener('mouseenter', () => {
+      analyticsBtn.style.transform = 'translateY(-2px)';
+      analyticsBtn.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.5)';
+    });
+    analyticsBtn.addEventListener('mouseleave', () => {
+      analyticsBtn.style.transform = 'translateY(0)';
+      analyticsBtn.style.boxShadow = '0 2px 8px rgba(255, 107, 107, 0.3)';
+    });
+  }
 
   // Track filter state
   const filterState = {
@@ -370,29 +426,48 @@ function applyVisualizationFilters(filterState) {
     return;
   }
 
-  // Fallback: manual D3 filtering
-  const svg = document.getElementById('synapse-svg');
-  if (!svg) return;
+  // Use D3 to filter nodes and links properly
+  if (window.d3) {
+    const svg = window.d3.select('#synapse-canvas');
 
-  // Filter people nodes
-  const peopleNodes = svg.querySelectorAll('[data-type="person"], .node-person');
-  peopleNodes.forEach(node => {
-    node.style.display = filterState.people ? 'block' : 'none';
-  });
+    // Filter person nodes
+    svg.selectAll('.node-person, [data-type="person"]')
+      .style('opacity', filterState.people ? 1 : 0)
+      .style('pointer-events', filterState.people ? 'all' : 'none');
 
-  // Filter project nodes
-  const projectNodes = svg.querySelectorAll('[data-type="project"], .node-project');
-  projectNodes.forEach(node => {
-    node.style.display = filterState.projects ? 'block' : 'none';
-  });
+    // Filter project nodes
+    svg.selectAll('.node-project, [data-type="project"]')
+      .style('opacity', filterState.projects ? 1 : 0)
+      .style('pointer-events', filterState.projects ? 'all' : 'none');
 
-  // Filter connection lines
-  const connections = svg.querySelectorAll('.link, .connection, line');
-  connections.forEach(conn => {
-    conn.style.display = filterState.connections ? 'block' : 'none';
-  });
+    // Filter connections/links
+    svg.selectAll('.link, line[stroke]')
+      .style('opacity', filterState.connections ? 1 : 0);
 
-  console.log('🔍 Filters applied:', filterState);
+    console.log('🔍 D3 Filters applied:', filterState);
+  } else {
+    // Fallback: DOM-based filtering
+    const nodes = document.querySelectorAll('.node-person, .node-project');
+    nodes.forEach(node => {
+      const type = node.getAttribute('data-type') ||
+                   (node.classList.contains('node-person') ? 'person' : 'project');
+
+      if (type === 'person') {
+        node.style.opacity = filterState.people ? '1' : '0';
+        node.style.pointerEvents = filterState.people ? 'all' : 'none';
+      } else if (type === 'project') {
+        node.style.opacity = filterState.projects ? '1' : '0';
+        node.style.pointerEvents = filterState.projects ? 'all' : 'none';
+      }
+    });
+
+    const links = document.querySelectorAll('.link, line');
+    links.forEach(link => {
+      link.style.opacity = filterState.connections ? '1' : '0';
+    });
+
+    console.log('🔍 DOM Filters applied:', filterState);
+  }
 }
 
 // Initialize legend when DOM is ready

@@ -9,6 +9,7 @@ import { loadSynapseData } from "./data.js";
 import { setupDefs, renderLinks, renderNodes, renderThemeCircles, drawProjectCircles } from "./render.js";
 import { showSynapseNotification } from "./ui.js";
 import { setupSynapseRealtime } from "./realtime.js";
+import { setFocusOnNode, findCurrentUserNode, clearFocusEffects } from "./focus-system.js";
 
 import {
   getThemeInterestCount,
@@ -177,12 +178,15 @@ function setupSVG() {
 
   setupDefs(svg);
 
-  // Click background to close cards
+  // Click background to close cards and clear focus
   svg.on("click", () => {
     document.getElementById("synapse-theme-card")?.remove();
     try {
       window.closeSynapseProfileCard?.();
     } catch (_) {}
+
+    // Clear focus effects when clicking background
+    clearFocusEffects(nodeEls, linkEls);
   });
 }
 
@@ -375,9 +379,22 @@ function buildGraph() {
 
   // Tick
   let tickCount = 0;
+  let hasInitialCentered = false;
   simulation.on("tick", () => {
     tickCount++;
     if (tickCount % 2 !== 0) return;
+
+    // Center on user's node when simulation stabilizes (first time only)
+    if (!hasInitialCentered && simulation.alpha() < 0.1 && tickCount > 50) {
+      hasInitialCentered = true;
+      const userNode = findCurrentUserNode(nodes, currentUserCommunityId);
+      if (userNode) {
+        console.log('🎯 Initial centering on user node:', userNode.name);
+        setTimeout(() => {
+          setFocusOnNode(userNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
+        }, 500); // Small delay to ensure rendering is complete
+      }
+    }
 
     // Update link positions
     linkEls
@@ -544,6 +561,11 @@ function clearThemeFocus() {
    ========================================================================== */
 
 function onNodeClick(event, d) {
+  event.stopPropagation(); // Prevent background click
+
+  // Apply focus to the clicked node (center + distance-based dimming)
+  setFocusOnNode(d, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
+
   if (d.type === "theme") {
     openThemeCard(d);
     return;
