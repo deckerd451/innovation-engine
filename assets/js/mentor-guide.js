@@ -37,11 +37,29 @@ function initMentorGuide() {
   // Update button highlights based on state
   updateMentorButtonStates();
 
-  // Wait for profile to be loaded
-  window.addEventListener('profile-loaded', () => {
+  // Wait for profile to be loaded (with better data source detection)
+  window.addEventListener('profile-loaded', (e) => {
     console.log('🧭 Profile loaded, mentor guide ready');
-    mentorState.currentUserProfile = window.appState?.communityProfile || window.currentUserProfile;
+
+    // Get profile from event detail first, then fall back to global sources
+    mentorState.currentUserProfile = e?.detail?.profile ||
+                                      e?.detail ||
+                                      window.appState?.communityProfile ||
+                                      window.currentUserProfile ||
+                                      window.appState?.currentUser;
+
+    // Try multiple sources for supabase client
     mentorState.supabase = window.supabase;
+
+    console.log('🧭 Profile data available:', {
+      hasProfile: !!mentorState.currentUserProfile,
+      hasSupabase: !!mentorState.supabase,
+      profileId: mentorState.currentUserProfile?.id,
+      profileName: mentorState.currentUserProfile?.name,
+      fromEvent: !!(e?.detail?.profile || e?.detail),
+      appState: !!window.appState,
+      supabaseClient: !!window.supabase
+    });
 
     // Soft highlight the first unviewed panel
     highlightRecommendedPanel();
