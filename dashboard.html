@@ -181,43 +181,48 @@
 
     <!-- Collapse/Expand Arrow Button -->
     <button id="bottom-bar-toggle"
-      style="position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+      style="position:absolute; bottom:68px; left:50%; transform:translateX(-50%);
       background:rgba(10,14,39,0.95); border:2px solid rgba(0,224,255,0.3); border-bottom:none;
-      border-radius:12px 12px 0 0; padding:0.5rem 1.5rem; cursor:pointer; z-index:101;
-      backdrop-filter:blur(10px); color:#00e0ff; font-size:1.25rem; transition:all 0.3s;">
+      border-radius:8px 8px 0 0; padding:0.25rem 1rem; cursor:pointer; z-index:101;
+      backdrop-filter:blur(10px); color:#00e0ff; font-size:1rem; transition:all 0.3s;
+      box-shadow:0 -2px 10px rgba(0,224,255,0.2);">
       <i class="fas fa-chevron-down"></i>
     </button>
 
     <!-- Bottom Bar - Consolidated to 3 Core Actions -->
     <div class="bottom-stats-bar" id="bottom-stats-bar"
       style="position:absolute; bottom:0; left:0; right:0; background:rgba(10,14,39,0.95);
-      border-top:2px solid rgba(0,224,255,0.3); padding:1rem 2rem; display:flex; justify-content:center; gap:2rem;
-      backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
+      border-top:2px solid rgba(0,224,255,0.3); height:68px; display:flex; align-items:center; justify-content:center;
+      gap:1.5rem; padding:0 2rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
 
       <!-- Primary Action: Quick Connect -->
       <div class="stat-card-mini" id="btn-quickconnect"
         style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,128,255,0.1));
-        border:2px solid rgba(0,224,255,0.4); border-radius:12px; padding:1.25rem 2rem; text-align:center;
-        transition:all 0.2s; flex:1; max-width:280px;">
-        <div class="icon" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"><i class="fas fa-user-plus"></i></div>
-        <div class="label" style="font-size:0.95rem; color:#00e0ff; text-transform:uppercase; font-weight:700;">Connect</div>
+        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1.5rem; text-align:center;
+        transition:all 0.2s; display:flex; align-items:center; gap:0.75rem; height:44px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-user-plus"></i></div>
+        <div class="label" style="font-size:0.9rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Connect</div>
       </div>
 
       <!-- Secondary Action: Messages -->
       <div class="stat-card-mini" id="btn-messages"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:12px; padding:1.25rem 2rem; text-align:center; transition:all 0.2s; flex:1; max-width:280px;">
-        <div class="icon" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"><i class="fas fa-envelope"></i></div>
-        <div class="value" id="unread-messages" style="font-size:1.75rem; font-weight:bold; color:white; margin-bottom:0.25rem;">0</div>
-        <div class="label" style="font-size:0.85rem; color:#aaa; text-transform:uppercase;">Messages</div>
+        border-radius:8px; padding:0.5rem 1.5rem; text-align:center; transition:all 0.2s; display:flex; align-items:center;
+        gap:0.75rem; height:44px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-envelope"></i></div>
+        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+          <div class="value" id="unread-messages" style="font-size:1.1rem; font-weight:bold; color:white; line-height:1;">0</div>
+          <div class="label" style="font-size:0.7rem; color:#aaa; text-transform:uppercase; line-height:1;">Messages</div>
+        </div>
       </div>
 
       <!-- Tertiary Action: Menu Controls -->
       <div class="stat-card-mini" id="btn-view-controls"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:12px; padding:1.25rem 2rem; text-align:center; transition:all 0.2s; flex:1; max-width:280px;">
-        <div class="icon" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"><i class="fas fa-bars"></i></div>
-        <div class="label" style="font-size:0.85rem; color:#00e0ff; text-transform:uppercase; font-weight:600;">Menu</div>
+        border-radius:8px; padding:0.5rem 1.5rem; text-align:center; transition:all 0.2s; display:flex; align-items:center;
+        gap:0.75rem; height:44px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-bars"></i></div>
+        <div class="label" style="font-size:0.9rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Menu</div>
       </div>
     </div>
   </div>
