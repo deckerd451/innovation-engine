@@ -37,10 +37,16 @@ export async function initThemeAdmin() {
 // ============================================================================
 
 function isAdmin() {
+  // Debug override for testing
+  if (window.isAdminOverride) {
+    console.log('🔓 Admin access granted via override');
+    return true;
+  }
+
   // Check multiple sources for admin status
   const adminEmails = ['dmhamilton1@live.com'];
 
-  // Check auth email
+  // Check auth email from localStorage
   try {
     const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase.auth'));
     for (const key of authKeys) {
@@ -49,23 +55,41 @@ function isAdmin() {
         const parsed = JSON.parse(data);
         const email = parsed?.currentSession?.user?.email || parsed?.user?.email;
         if (email && adminEmails.includes(email.toLowerCase())) {
+          console.log('✅ Admin access granted via email:', email);
           return true;
         }
       }
     }
   } catch (e) {
-    // Ignore
+    console.warn('⚠️ Error checking localStorage auth:', e);
   }
 
-  // Check role
+  // Check role from various sources
   const role = currentUserProfile?.role ||
                window?.appState?.communityProfile?.role ||
-               window?.appState?.profile?.role;
+               window?.appState?.profile?.role ||
+               localStorage.getItem('userRole');
 
   if (role && ['admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
+    console.log('✅ Admin access granted via role:', role);
     return true;
   }
 
+  // Check Supabase session directly
+  if (window.supabase) {
+    try {
+      const session = window.supabase.auth?.session?.();
+      const email = session?.user?.email;
+      if (email && adminEmails.includes(email.toLowerCase())) {
+        console.log('✅ Admin access granted via Supabase session:', email);
+        return true;
+      }
+    } catch (e) {
+      console.warn('⚠️ Error checking Supabase session:', e);
+    }
+  }
+
+  console.warn('❌ Admin access denied. Email:', currentUserProfile?.email, 'Role:', role);
   return false;
 }
 
