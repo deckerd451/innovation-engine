@@ -21,6 +21,76 @@
   <style>
     body { overflow: hidden; }
 
+    /* Mentor Navigation Styling */
+    .mentor-nav-btn:hover {
+      background: rgba(0,224,255,0.12) !important;
+      border-color: rgba(0,224,255,0.3) !important;
+      color: rgba(255,255,255,0.95) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,224,255,0.2);
+    }
+
+    .mentor-nav-btn.active-mentor {
+      animation: softGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes softGlow {
+      0%, 100% {
+        box-shadow: 0 0 8px rgba(0,224,255,0.2), inset 0 0 8px rgba(0,224,255,0.05);
+      }
+      50% {
+        box-shadow: 0 0 16px rgba(0,224,255,0.3), inset 0 0 12px rgba(0,224,255,0.08);
+      }
+    }
+
+    .mentor-panel-close:hover {
+      background: rgba(255,255,255,0.15) !important;
+      border-color: rgba(255,255,255,0.3) !important;
+      color: rgba(255,255,255,1) !important;
+    }
+
+    .mentor-panel {
+      animation: mentorPanelSlide 0.3s ease-out;
+    }
+
+    @keyframes mentorPanelSlide {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -45%);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+      }
+    }
+
+    /* Responsive mentor nav */
+    @media (max-width: 768px) {
+      #mentor-nav {
+        bottom: 98px !important;
+        width: 95vw !important;
+        padding: 0.4rem !important;
+        gap: 0.3rem !important;
+      }
+
+      .mentor-nav-btn {
+        font-size: 0.75rem !important;
+        padding: 0 0.3rem !important;
+      }
+
+      .mentor-nav-btn i {
+        font-size: 0.9rem !important;
+      }
+
+      .mentor-nav-btn span {
+        display: none;
+      }
+
+      #mentor-nav.compact {
+        height: 40px !important;
+      }
+    }
+
     .stat-card-mini:hover {
       transform: translateY(-3px);
       background: rgba(0,224,255,0.15) !important;
@@ -177,6 +247,41 @@
   <div class="unified-main hidden" id="main-content" style="position: fixed; inset: 0; overflow: hidden;">
     <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1;">
       <svg id="synapse-svg" style="width:100%; height:100%;"></svg>
+    </div>
+
+    <!-- Mentor Navigation Row - Daily Briefing -->
+    <div id="mentor-nav" style="position:absolute; bottom:98px; left:50%; transform:translateX(-50%);
+      width:min(800px, 90vw); height:50px; background:rgba(10,14,39,0.85);
+      border:1px solid rgba(0,224,255,0.25); border-radius:12px; padding:0.5rem;
+      backdrop-filter:blur(15px); z-index:99; display:flex; gap:0.5rem; align-items:center; justify-content:center;
+      box-shadow:0 4px 20px rgba(0,0,0,0.3); transition:all 0.3s ease;">
+
+      <button id="mentor-btn-focus" class="mentor-nav-btn active-mentor"
+        style="flex:1; height:100%; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.2);
+        border-radius:8px; color:rgba(255,255,255,0.85); cursor:pointer; font-size:0.85rem; font-weight:500;
+        transition:all 0.3s ease; display:flex; align-items:center; justify-content:center; gap:0.5rem;
+        position:relative; overflow:hidden;">
+        <i class="fas fa-compass" style="font-size:1rem; color:#00e0ff;"></i>
+        <span>Start with this focus</span>
+      </button>
+
+      <button id="mentor-btn-projects" class="mentor-nav-btn"
+        style="flex:1; height:100%; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.15);
+        border-radius:8px; color:rgba(255,255,255,0.7); cursor:pointer; font-size:0.85rem; font-weight:500;
+        transition:all 0.3s ease; display:flex; align-items:center; justify-content:center; gap:0.5rem;
+        position:relative; overflow:hidden;">
+        <i class="fas fa-rocket" style="font-size:1rem; color:rgba(0,224,255,0.6);"></i>
+        <span>See active projects</span>
+      </button>
+
+      <button id="mentor-btn-people" class="mentor-nav-btn"
+        style="flex:1; height:100%; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.15);
+        border-radius:8px; color:rgba(255,255,255,0.7); cursor:pointer; font-size:0.85rem; font-weight:500;
+        transition:all 0.3s ease; display:flex; align-items:center; justify-content:center; gap:0.5rem;
+        position:relative; overflow:hidden;">
+        <i class="fas fa-users" style="font-size:1rem; color:rgba(0,224,255,0.6);"></i>
+        <span>Meet people nearby</span>
+      </button>
     </div>
 
     <!-- Collapse/Expand Arrow Button -->
@@ -388,6 +493,84 @@
   <!-- BBS Modal -->
   <div id="bbs-modal"></div>
 
+  <!-- Mentor Panels - Daily Briefing Contextual Overlays -->
+
+  <!-- Panel 1: Your Focus Today -->
+  <div id="mentor-panel-focus" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(650px, 92vw); max-height:85vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border:2px solid rgba(0,224,255,0.35); border-radius:16px; padding:2rem; z-index:10001; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(0,224,255,0.15); backdrop-filter:blur(20px);">
+
+    <button class="mentor-panel-close" onclick="closeMentorPanel('focus')"
+      style="position:absolute; top:1rem; right:1rem; width:36px; height:36px; background:rgba(255,255,255,0.1);
+      border:1px solid rgba(255,255,255,0.2); border-radius:50%; color:rgba(255,255,255,0.7); cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <h2 style="color:#00e0ff; margin-bottom:0.5rem; font-size:1.5rem; font-weight:600;">
+      <i class="fas fa-compass" style="margin-right:0.5rem;"></i>
+      Your focus today
+    </h2>
+    <p style="color:rgba(255,255,255,0.5); margin-bottom:2rem; font-size:0.9rem;">
+      Where your interests and activity currently overlap
+    </p>
+
+    <div id="mentor-focus-content"></div>
+  </div>
+
+  <!-- Panel 2: Projects Gaining Momentum -->
+  <div id="mentor-panel-projects" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(650px, 92vw); max-height:85vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border:2px solid rgba(0,224,255,0.35); border-radius:16px; padding:2rem; z-index:10001; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(0,224,255,0.15); backdrop-filter:blur(20px);">
+
+    <button class="mentor-panel-close" onclick="closeMentorPanel('projects')"
+      style="position:absolute; top:1rem; right:1rem; width:36px; height:36px; background:rgba(255,255,255,0.1);
+      border:1px solid rgba(255,255,255,0.2); border-radius:50%; color:rgba(255,255,255,0.7); cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <h2 style="color:#00e0ff; margin-bottom:0.5rem; font-size:1.5rem; font-weight:600;">
+      <i class="fas fa-rocket" style="margin-right:0.5rem;"></i>
+      Projects gaining momentum
+    </h2>
+    <p style="color:rgba(255,255,255,0.5); margin-bottom:2rem; font-size:0.9rem;">
+      Places where people are already building
+    </p>
+
+    <div id="mentor-projects-content"></div>
+  </div>
+
+  <!-- Panel 3: People Worth Knowing -->
+  <div id="mentor-panel-people" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(650px, 92vw); max-height:85vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border:2px solid rgba(0,224,255,0.35); border-radius:16px; padding:2rem; z-index:10001; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(0,224,255,0.15); backdrop-filter:blur(20px);">
+
+    <button class="mentor-panel-close" onclick="closeMentorPanel('people')"
+      style="position:absolute; top:1rem; right:1rem; width:36px; height:36px; background:rgba(255,255,255,0.1);
+      border:1px solid rgba(255,255,255,0.2); border-radius:50%; color:rgba(255,255,255,0.7); cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <h2 style="color:#00e0ff; margin-bottom:0.5rem; font-size:1.5rem; font-weight:600;">
+      <i class="fas fa-users" style="margin-right:0.5rem;"></i>
+      People worth knowing
+    </h2>
+    <p style="color:rgba(255,255,255,0.5); margin-bottom:2rem; font-size:0.9rem;">
+      Connected through your projects and themes
+    </p>
+
+    <div id="mentor-people-content"></div>
+  </div>
+
+  <!-- Mentor Panel Backdrop -->
+  <div id="mentor-panel-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
+    backdrop-filter:blur(4px); z-index:10000;" onclick="closeAllMentorPanels()"></div>
+
   <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
@@ -422,6 +605,9 @@
   <!-- Dashboard controller -->
   <script type="module" src="assets/js/dashboardPane.js?v=2"></script>
   <script src="assets/js/dashboard-actions.js"></script>
+
+  <!-- Mentor Guide System -->
+  <script src="assets/js/mentor-guide.js"></script>
 
   <!-- Profile Editor Extension -->
   </body>
