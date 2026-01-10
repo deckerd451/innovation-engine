@@ -53,6 +53,12 @@ function initMentorGuide() {
 // ================================================================
 
 function openMentorPanel(panelType) {
+  // Prevent opening if already opening
+  if (mentorState.currentPanel === panelType) {
+    console.log(`🧭 Panel ${panelType} already open, skipping`);
+    return;
+  }
+
   console.log(`🧭 Opening mentor panel: ${panelType}`);
 
   // Close any other open panels first
@@ -154,8 +160,28 @@ async function loadPanelContent(panelType) {
 
 async function loadFocusContent(contentDiv) {
   if (!mentorState.supabase || !mentorState.currentUserProfile) {
-    contentDiv.innerHTML = '<p style="color:rgba(255,255,255,0.5); text-align:center;">Please wait while we load your profile...</p>';
-    return;
+    contentDiv.innerHTML = `
+      <div style="text-align:center; padding:2rem; color:rgba(255,255,255,0.6);">
+        <p style="margin-bottom:1rem;">Getting your focus ready...</p>
+        <p style="font-size:0.85rem; color:rgba(255,255,255,0.4);">If this takes too long, try refreshing the page</p>
+      </div>
+    `;
+
+    // Try waiting a bit longer for profile to load
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    if (!mentorState.supabase || !mentorState.currentUserProfile) {
+      contentDiv.innerHTML = `
+        <div style="text-align:center; padding:2rem;">
+          <i class="fas fa-exclamation-triangle" style="font-size:2rem; color:rgba(255,170,0,0.6); margin-bottom:1rem;"></i>
+          <p style="color:rgba(255,255,255,0.7); margin-bottom:1rem;">Unable to load your profile data</p>
+          <button onclick="location.reload()" style="padding:0.75rem 1.5rem; background:rgba(0,224,255,0.2); border:1px solid rgba(0,224,255,0.4); border-radius:8px; color:#00e0ff; cursor:pointer; font-weight:600;">
+            Refresh Page
+          </button>
+        </div>
+      `;
+      return;
+    }
   }
 
   const userId = mentorState.currentUserProfile.id;
@@ -163,52 +189,91 @@ async function loadFocusContent(contentDiv) {
   const userInterests = mentorState.currentUserProfile.interests || [];
   const userTags = [...userSkills, ...userInterests].map(t => String(t).toLowerCase());
 
-  // Find user's most relevant theme
-  const { data: themes } = await mentorState.supabase
-    .from('theme_circles')
-    .select('*')
-    .eq('status', 'active')
-    .gt('expires_at', new Date().toISOString())
-    .order('activity_score', { ascending: false })
-    .limit(10);
+  let themes = [];
+  let projects = [];
+  let allPeople = [];
+
+  try {
+    // Find user's most relevant theme with timeout
+    const themesPromise = mentorState.supabase
+      .from('theme_circles')
+      .select('*')
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .order('activity_score', { ascending: false })
+      .limit(10);
+
+    const themesResult = await Promise.race([
+      themesPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+    ]);
+
+    themes = themesResult.data || [];
+  } catch (error) {
+    console.warn('Could not load themes:', error);
+    // Continue without themes
+  }
+
+  try {
+    // Find 2-3 active projects
+    const projectsPromise = mentorState.supabase
+      .from('projects')
+      .select('*')
+      .in('status', ['active', 'in-progress', 'open'])
+      .limit(10);
+
+    const projectsResult = await Promise.race([
+      projectsPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+    ]);
+
+    projects = projectsResult.data || [];
+  } catch (error) {
+    console.warn('Could not load projects:', error);
+    // Continue without projects
+  }
+
+  try {
+    // Find 3 relevant people
+    const peoplePromise = mentorState.supabase
+      .from('community_profiles')
+      .select('*')
+      .neq('id', userId)
+      .limit(30);
+
+    const peopleResult = await Promise.race([
+      peoplePromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+    ]);
+
+    allPeople = peopleResult.data || [];
+  } catch (error) {
+    console.warn('Could not load people:', error);
+    // Continue without people
+  }
 
   // Calculate relevance for each theme
-  const themesWithRelevance = themes?.map(theme => {
+  const themesWithRelevance = themes.map(theme => {
     const themeTags = (theme.tags || []).map(t => String(t).toLowerCase());
     const overlap = userTags.filter(tag => themeTags.some(tt => tt.includes(tag) || tag.includes(tt)));
     return { ...theme, relevance: overlap.length };
-  }) || [];
+  });
 
   const mostRelevantTheme = themesWithRelevance.sort((a, b) => b.relevance - a.relevance)[0];
 
-  // Find 2-3 active projects (prioritize those in the relevant theme)
-  let projectsQuery = mentorState.supabase
-    .from('projects')
-    .select('*')
-    .in('status', ['active', 'in-progress', 'open']);
-
-  const { data: projects } = await projectsQuery.limit(10);
-
-  const relevantProjects = projects?.filter(p => {
+  const relevantProjects = projects.filter(p => {
     if (mostRelevantTheme && p.theme_id === mostRelevantTheme.id) return true;
     const projectTags = (p.tags || []).map(t => String(t).toLowerCase());
     return userTags.some(tag => projectTags.some(pt => pt.includes(tag) || tag.includes(pt)));
-  }).slice(0, 3) || [];
+  }).slice(0, 3);
 
-  // Find 3 relevant people
-  const { data: allPeople } = await mentorState.supabase
-    .from('community_profiles')
-    .select('*')
-    .neq('id', userId)
-    .limit(30);
-
-  const peopleWithRelevance = allPeople?.map(person => {
+  const peopleWithRelevance = allPeople.map(person => {
     const personSkills = (person.skills || []).map(s => String(s).toLowerCase());
     const personInterests = (person.interests || []).map(i => String(i).toLowerCase());
     const personTags = [...personSkills, ...personInterests];
     const overlap = userTags.filter(tag => personTags.some(pt => pt.includes(tag) || tag.includes(pt)));
     return { ...person, relevance: overlap.length };
-  }) || [];
+  });
 
   const relevantPeople = peopleWithRelevance
     .sort((a, b) => b.relevance - a.relevance)
@@ -287,17 +352,45 @@ async function loadFocusContent(contentDiv) {
 
 async function loadProjectsContent(contentDiv) {
   if (!mentorState.supabase) {
-    contentDiv.innerHTML = '<p style="color:rgba(255,255,255,0.5); text-align:center;">Loading...</p>';
+    contentDiv.innerHTML = `
+      <div style="text-align:center; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem; color:rgba(255,170,0,0.6); margin-bottom:1rem;"></i>
+        <p style="color:rgba(255,255,255,0.7);">Unable to connect. Please try refreshing the page.</p>
+      </div>
+    `;
     return;
   }
 
-  // Get active projects with recent activity
-  const { data: projects } = await mentorState.supabase
-    .from('projects')
-    .select('*')
-    .in('status', ['active', 'in-progress', 'open'])
-    .order('created_at', { ascending: false })
-    .limit(5);
+  let projects = [];
+
+  try {
+    // Get active projects with recent activity with timeout
+    const projectsPromise = mentorState.supabase
+      .from('projects')
+      .select('*')
+      .in('status', ['active', 'in-progress', 'open'])
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const result = await Promise.race([
+      projectsPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+    ]);
+
+    projects = result.data || [];
+  } catch (error) {
+    console.warn('Could not load projects:', error);
+    contentDiv.innerHTML = `
+      <div style="text-align:center; padding:2rem;">
+        <i class="fas fa-exclamation-circle" style="font-size:2rem; color:rgba(255,107,107,0.6); margin-bottom:1rem;"></i>
+        <p style="color:rgba(255,255,255,0.7); margin-bottom:1rem;">Could not load projects right now</p>
+        <button onclick="location.reload()" style="padding:0.75rem 1.5rem; background:rgba(0,224,255,0.2); border:1px solid rgba(0,224,255,0.4); border-radius:8px; color:#00e0ff; cursor:pointer; font-weight:600;">
+          Refresh Page
+        </button>
+      </div>
+    `;
+    return;
+  }
 
   let html = '';
 
@@ -341,7 +434,12 @@ async function loadProjectsContent(contentDiv) {
 
 async function loadPeopleContent(contentDiv) {
   if (!mentorState.supabase || !mentorState.currentUserProfile) {
-    contentDiv.innerHTML = '<p style="color:rgba(255,255,255,0.5); text-align:center;">Loading...</p>';
+    contentDiv.innerHTML = `
+      <div style="text-align:center; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem; color:rgba(255,170,0,0.6); margin-bottom:1rem;"></i>
+        <p style="color:rgba(255,255,255,0.7);">Unable to connect. Please try refreshing the page.</p>
+      </div>
+    `;
     return;
   }
 
@@ -350,15 +448,38 @@ async function loadPeopleContent(contentDiv) {
   const userInterests = mentorState.currentUserProfile.interests || [];
   const userTags = [...userSkills, ...userInterests].map(t => String(t).toLowerCase());
 
-  // Get people with overlapping interests/skills
-  const { data: allPeople } = await mentorState.supabase
-    .from('community_profiles')
-    .select('*')
-    .neq('id', userId)
-    .limit(50);
+  let allPeople = [];
+
+  try {
+    // Get people with overlapping interests/skills with timeout
+    const peoplePromise = mentorState.supabase
+      .from('community_profiles')
+      .select('*')
+      .neq('id', userId)
+      .limit(50);
+
+    const result = await Promise.race([
+      peoplePromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+    ]);
+
+    allPeople = result.data || [];
+  } catch (error) {
+    console.warn('Could not load people:', error);
+    contentDiv.innerHTML = `
+      <div style="text-align:center; padding:2rem;">
+        <i class="fas fa-exclamation-circle" style="font-size:2rem; color:rgba(255,107,107,0.6); margin-bottom:1rem;"></i>
+        <p style="color:rgba(255,255,255,0.7); margin-bottom:1rem;">Could not load people right now</p>
+        <button onclick="location.reload()" style="padding:0.75rem 1.5rem; background:rgba(0,224,255,0.2); border:1px solid rgba(0,224,255,0.4); border-radius:8px; color:#00e0ff; cursor:pointer; font-weight:600;">
+          Refresh Page
+        </button>
+      </div>
+    `;
+    return;
+  }
 
   // Calculate relevance
-  const peopleWithContext = allPeople?.map(person => {
+  const peopleWithContext = allPeople.map(person => {
     const personSkills = (person.skills || []).map(s => String(s).toLowerCase());
     const personInterests = (person.interests || []).map(i => String(i).toLowerCase());
     const personTags = [...personSkills, ...personInterests];
