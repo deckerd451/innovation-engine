@@ -314,11 +314,16 @@ function createSynapseLegend() {
   const showAnalytics = isAdminUser();
 
   legend.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; cursor: pointer;" id="legend-header">
-      <h4 style="color: #00e0ff; font-size: 0.9rem; margin: 0; font-weight: 700;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;" id="legend-header">
+      <h4 style="color: #00e0ff; font-size: 0.9rem; margin: 0; font-weight: 700; cursor: pointer; flex: 1;" id="legend-title">
         <i class="fas fa-filter"></i> Filter View
       </h4>
-      <i class="fas fa-chevron-up" id="legend-toggle-icon" style="color: #00e0ff; font-size: 0.8rem; transition: transform 0.3s;"></i>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button id="legend-refresh-btn" style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: #00e0ff; cursor: pointer; padding: 0.35rem 0.5rem; font-size: 0.75rem; transition: all 0.2s;" title="Refresh Network">
+          <i class="fas fa-sync-alt" id="refresh-icon"></i>
+        </button>
+        <i class="fas fa-chevron-up" id="legend-toggle-icon" style="color: #00e0ff; font-size: 0.8rem; transition: transform 0.3s; cursor: pointer;"></i>
+      </div>
     </div>
 
     <div id="legend-content" style="transition: all 0.3s ease; overflow: hidden;">
@@ -349,11 +354,11 @@ function createSynapseLegend() {
   document.body.appendChild(legend);
 
   // Wire up collapse/expand
-  const header = document.getElementById('legend-header');
+  const legendTitle = document.getElementById('legend-title');
   const content = document.getElementById('legend-content');
   const toggleIcon = document.getElementById('legend-toggle-icon');
 
-  header.addEventListener('click', () => {
+  const toggleCollapse = () => {
     legendCollapsed = !legendCollapsed;
 
     if (legendCollapsed) {
@@ -367,7 +372,10 @@ function createSynapseLegend() {
       content.style.marginTop = '0';
       toggleIcon.style.transform = 'rotate(0deg)';
     }
-  });
+  };
+
+  legendTitle.addEventListener('click', toggleCollapse);
+  toggleIcon.addEventListener('click', toggleCollapse);
 
   // Wire up analytics button
   const analyticsBtn = document.getElementById('legend-analytics-btn');
@@ -385,6 +393,97 @@ function createSynapseLegend() {
       analyticsBtn.style.transform = 'translateY(0)';
       analyticsBtn.style.boxShadow = '0 2px 8px rgba(255, 107, 107, 0.3)';
     });
+  }
+
+  // Wire up refresh button
+  const refreshBtn = document.getElementById('legend-refresh-btn');
+  const refreshIcon = document.getElementById('refresh-icon');
+  if (refreshBtn && refreshIcon) {
+    let isRefreshing = false;
+
+    refreshBtn.addEventListener('click', async (e) => {
+      e.stopPropagation(); // Prevent collapse/expand
+
+      if (isRefreshing) return; // Prevent multiple clicks
+
+      isRefreshing = true;
+
+      // Start spinning animation
+      refreshIcon.style.animation = 'spin 1s linear infinite';
+      refreshBtn.style.opacity = '0.6';
+      refreshBtn.style.cursor = 'not-allowed';
+
+      try {
+        // Call the synapse refresh function
+        if (typeof window.refreshSynapseConnections === 'function') {
+          await window.refreshSynapseConnections();
+          console.log('✅ Network refreshed successfully');
+
+          // Success feedback
+          refreshBtn.style.background = 'rgba(0,255,136,0.2)';
+          refreshBtn.style.borderColor = 'rgba(0,255,136,0.5)';
+          refreshIcon.style.color = '#00ff88';
+
+          setTimeout(() => {
+            refreshBtn.style.background = 'rgba(0,224,255,0.1)';
+            refreshBtn.style.borderColor = 'rgba(0,224,255,0.3)';
+            refreshIcon.style.color = '#00e0ff';
+          }, 1500);
+
+        } else {
+          console.warn('⚠️ Refresh function not available');
+          // Fallback: reload the page
+          location.reload();
+        }
+      } catch (error) {
+        console.error('❌ Refresh failed:', error);
+
+        // Error feedback
+        refreshBtn.style.background = 'rgba(255,107,107,0.2)';
+        refreshBtn.style.borderColor = 'rgba(255,107,107,0.5)';
+        refreshIcon.style.color = '#ff6b6b';
+
+        setTimeout(() => {
+          refreshBtn.style.background = 'rgba(0,224,255,0.1)';
+          refreshBtn.style.borderColor = 'rgba(0,224,255,0.3)';
+          refreshIcon.style.color = '#00e0ff';
+        }, 1500);
+      } finally {
+        // Stop spinning
+        refreshIcon.style.animation = '';
+        refreshBtn.style.opacity = '1';
+        refreshBtn.style.cursor = 'pointer';
+        isRefreshing = false;
+      }
+    });
+
+    // Hover effects
+    refreshBtn.addEventListener('mouseenter', () => {
+      if (!isRefreshing) {
+        refreshBtn.style.background = 'rgba(0,224,255,0.2)';
+        refreshBtn.style.transform = 'scale(1.1)';
+      }
+    });
+
+    refreshBtn.addEventListener('mouseleave', () => {
+      if (!isRefreshing) {
+        refreshBtn.style.background = 'rgba(0,224,255,0.1)';
+        refreshBtn.style.transform = 'scale(1)';
+      }
+    });
+  }
+
+  // Add CSS keyframes for spin animation if not already present
+  if (!document.getElementById('refresh-spin-style')) {
+    const style = document.createElement('style');
+    style.id = 'refresh-spin-style';
+    style.textContent = `
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   // Track filter state
