@@ -254,7 +254,7 @@ async function loadFocusContent(contentDiv) {
   try {
     // Find 3 relevant people
     const peoplePromise = mentorState.supabase
-      .from('community_profiles')
+      .from('community')
       .select('*')
       .neq('id', userId)
       .limit(30);
@@ -471,7 +471,7 @@ async function loadPeopleContent(contentDiv) {
   try {
     // Get people with overlapping interests/skills with timeout
     const peoplePromise = mentorState.supabase
-      .from('community_profiles')
+      .from('community')
       .select('*')
       .neq('id', userId)
       .limit(50);
