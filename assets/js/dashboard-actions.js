@@ -527,45 +527,47 @@ function applyVisualizationFilters(filterState) {
 
   // Use D3 to filter nodes and links properly
   if (window.d3) {
-    const svg = window.d3.select('#synapse-canvas');
+    const svg = window.d3.select('#synapse-svg');
 
-    // Filter person nodes
-    svg.selectAll('.node-person, [data-type="person"]')
-      .style('opacity', filterState.people ? 1 : 0)
-      .style('pointer-events', filterState.people ? 'all' : 'none');
+    // Filter nodes based on their data type
+    // Nodes have class "synapse-node" and we filter by d.type
+    svg.selectAll('.synapse-node')
+      .style('opacity', d => {
+        if (d.type === 'person' && !filterState.people) return 0;
+        if (d.type === 'project' && !filterState.projects) return 0;
+        return 1;
+      })
+      .style('pointer-events', d => {
+        if (d.type === 'person' && !filterState.people) return 'none';
+        if (d.type === 'project' && !filterState.projects) return 'none';
+        return 'all';
+      });
 
-    // Filter project nodes
-    svg.selectAll('.node-project, [data-type="project"]')
-      .style('opacity', filterState.projects ? 1 : 0)
-      .style('pointer-events', filterState.projects ? 'all' : 'none');
+    // Filter theme circles separately
+    svg.selectAll('.theme-circle')
+      .style('opacity', 1)  // Always show themes
+      .style('pointer-events', 'all');
 
     // Filter connections/links
-    svg.selectAll('.link, line[stroke]')
-      .style('opacity', filterState.connections ? 1 : 0);
+    svg.selectAll('.links line')
+      .style('opacity', d => {
+        if (!filterState.connections) return 0;
+
+        // If filtering people/projects, also filter links involving them
+        const sourceType = typeof d.source === 'object' ? d.source.type : null;
+        const targetType = typeof d.target === 'object' ? d.target.type : null;
+
+        if (sourceType === 'person' && !filterState.people) return 0;
+        if (targetType === 'person' && !filterState.people) return 0;
+        if (sourceType === 'project' && !filterState.projects) return 0;
+        if (targetType === 'project' && !filterState.projects) return 0;
+
+        return d.status === 'suggested' ? 0.5 : 0.8;
+      });
 
     console.log('🔍 D3 Filters applied:', filterState);
   } else {
-    // Fallback: DOM-based filtering
-    const nodes = document.querySelectorAll('.node-person, .node-project');
-    nodes.forEach(node => {
-      const type = node.getAttribute('data-type') ||
-                   (node.classList.contains('node-person') ? 'person' : 'project');
-
-      if (type === 'person') {
-        node.style.opacity = filterState.people ? '1' : '0';
-        node.style.pointerEvents = filterState.people ? 'all' : 'none';
-      } else if (type === 'project') {
-        node.style.opacity = filterState.projects ? '1' : '0';
-        node.style.pointerEvents = filterState.projects ? 'all' : 'none';
-      }
-    });
-
-    const links = document.querySelectorAll('.link, line');
-    links.forEach(link => {
-      link.style.opacity = filterState.connections ? '1' : '0';
-    });
-
-    console.log('🔍 DOM Filters applied:', filterState);
+    console.warn('⚠️ D3 not available for filtering');
   }
 }
 
@@ -595,19 +597,21 @@ function toggleBottomBar() {
   bottomBarCollapsed = !bottomBarCollapsed;
 
   if (bottomBarCollapsed) {
-    // Collapse the bar
+    // Collapse the bar - slide down out of view
     bottomBar.style.transform = 'translateY(100%)';
     bottomBar.style.opacity = '0';
     toggleBtn.style.bottom = '0';
+    toggleBtn.style.borderRadius = '8px 8px 0 0';
     if (toggleIcon) {
       toggleIcon.className = 'fas fa-chevron-up';
     }
     console.log('📉 Bottom bar collapsed');
   } else {
-    // Expand the bar
+    // Expand the bar - slide up into view
     bottomBar.style.transform = 'translateY(0)';
     bottomBar.style.opacity = '1';
-    toggleBtn.style.bottom = '100%';
+    toggleBtn.style.bottom = '68px';
+    toggleBtn.style.borderRadius = '8px 8px 0 0';
     if (toggleIcon) {
       toggleIcon.className = 'fas fa-chevron-down';
     }
