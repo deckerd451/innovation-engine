@@ -20,6 +20,16 @@ const mentorState = {
   supabase: null
 };
 
+// Helper: Convert skills/interests to array (handles both string and array formats)
+function normalizeToArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    return value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  }
+  return [];
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', initMentorGuide);
 
@@ -203,8 +213,8 @@ async function loadFocusContent(contentDiv) {
   }
 
   const userId = mentorState.currentUserProfile.id;
-  const userSkills = mentorState.currentUserProfile.skills || [];
-  const userInterests = mentorState.currentUserProfile.interests || [];
+  const userSkills = normalizeToArray(mentorState.currentUserProfile.skills);
+  const userInterests = normalizeToArray(mentorState.currentUserProfile.interests);
   const userTags = [...userSkills, ...userInterests].map(t => String(t).toLowerCase());
 
   let themes = [];
@@ -286,8 +296,8 @@ async function loadFocusContent(contentDiv) {
   }).slice(0, 3);
 
   const peopleWithRelevance = allPeople.map(person => {
-    const personSkills = (person.skills || []).map(s => String(s).toLowerCase());
-    const personInterests = (person.interests || []).map(i => String(i).toLowerCase());
+    const personSkills = normalizeToArray(person.skills).map(s => String(s).toLowerCase());
+    const personInterests = normalizeToArray(person.interests).map(i => String(i).toLowerCase());
     const personTags = [...personSkills, ...personInterests];
     const overlap = userTags.filter(tag => personTags.some(pt => pt.includes(tag) || tag.includes(pt)));
     return { ...person, relevance: overlap.length };
@@ -462,8 +472,8 @@ async function loadPeopleContent(contentDiv) {
   }
 
   const userId = mentorState.currentUserProfile.id;
-  const userSkills = mentorState.currentUserProfile.skills || [];
-  const userInterests = mentorState.currentUserProfile.interests || [];
+  const userSkills = normalizeToArray(mentorState.currentUserProfile.skills);
+  const userInterests = normalizeToArray(mentorState.currentUserProfile.interests);
   const userTags = [...userSkills, ...userInterests].map(t => String(t).toLowerCase());
 
   let allPeople = [];
@@ -498,8 +508,8 @@ async function loadPeopleContent(contentDiv) {
 
   // Calculate relevance
   const peopleWithContext = allPeople.map(person => {
-    const personSkills = (person.skills || []).map(s => String(s).toLowerCase());
-    const personInterests = (person.interests || []).map(i => String(i).toLowerCase());
+    const personSkills = normalizeToArray(person.skills).map(s => String(s).toLowerCase());
+    const personInterests = normalizeToArray(person.interests).map(i => String(i).toLowerCase());
     const personTags = [...personSkills, ...personInterests];
     const sharedTags = userTags.filter(tag => personTags.some(pt => pt.includes(tag) || tag.includes(pt)));
 
