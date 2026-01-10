@@ -26,7 +26,43 @@ document.getElementById('btn-messages')?.addEventListener('click', () => {
   }
 });
 
-// Wire up View Controls button (combines Filters + Legend)
+// Wire up Projects button
+document.getElementById('btn-projects')?.addEventListener('click', () => {
+  if (typeof openProjectsModal === 'function') {
+    openProjectsModal();
+  } else {
+    console.warn('Projects modal not available');
+  }
+});
+
+// Wire up Endorsements button
+document.getElementById('btn-endorsements')?.addEventListener('click', () => {
+  if (typeof openEndorsementsModal === 'function') {
+    openEndorsementsModal();
+  } else {
+    console.warn('Endorsements modal not available');
+  }
+});
+
+// Wire up BBS button
+document.getElementById('btn-bbs')?.addEventListener('click', () => {
+  if (typeof initBBS === 'function') {
+    initBBS();
+  } else {
+    console.warn('BBS not available');
+  }
+});
+
+// Wire up Admin button
+document.getElementById('btn-admin')?.addEventListener('click', () => {
+  if (typeof openThemeAdminModal === 'function') {
+    openThemeAdminModal();
+  } else {
+    console.warn('Admin modal not available');
+  }
+});
+
+// Wire up View Controls button (backward compatibility if it exists)
 document.getElementById('btn-view-controls')?.addEventListener('click', () => {
   toggleViewControls();
 });
@@ -580,6 +616,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // Also create legend when profile is loaded
 window.addEventListener('profile-loaded', () => {
   setTimeout(createSynapseLegend, 500);
+
+  // Show admin button if user is admin
+  if (isAdminUser()) {
+    const adminBtn = document.getElementById('btn-admin');
+    if (adminBtn) {
+      adminBtn.style.display = 'flex';
+      console.log('👑 Admin button shown');
+    }
+  }
 });
 
 // -----------------------------
@@ -600,7 +645,7 @@ function toggleBottomBar() {
     // Collapse the bar - slide down out of view
     bottomBar.style.transform = 'translateY(100%)';
     bottomBar.style.opacity = '0';
-    toggleBtn.style.bottom = '0';
+    toggleBtn.style.bottom = '8px';
     toggleBtn.style.borderRadius = '8px 8px 0 0';
     if (toggleIcon) {
       toggleIcon.className = 'fas fa-chevron-up';
@@ -610,7 +655,7 @@ function toggleBottomBar() {
     // Expand the bar - slide up into view
     bottomBar.style.transform = 'translateY(0)';
     bottomBar.style.opacity = '1';
-    toggleBtn.style.bottom = '68px';
+    toggleBtn.style.bottom = '90px';
     toggleBtn.style.borderRadius = '8px 8px 0 0';
     if (toggleIcon) {
       toggleIcon.className = 'fas fa-chevron-down';

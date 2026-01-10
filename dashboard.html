@@ -181,7 +181,7 @@
 
     <!-- Collapse/Expand Arrow Button -->
     <button id="bottom-bar-toggle"
-      style="position:absolute; bottom:68px; left:50%; transform:translateX(-50%);
+      style="position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
       background:rgba(10,14,39,0.95); border:2px solid rgba(0,224,255,0.3); border-bottom:none;
       border-radius:8px 8px 0 0; padding:0.25rem 1rem; cursor:pointer; z-index:101;
       backdrop-filter:blur(10px); color:#00e0ff; font-size:1rem; transition:all 0.3s;
@@ -189,40 +189,66 @@
       <i class="fas fa-chevron-down"></i>
     </button>
 
-    <!-- Bottom Bar - Consolidated to 3 Core Actions -->
+    <!-- Bottom Bar - Expanded Actions -->
     <div class="bottom-stats-bar" id="bottom-stats-bar"
-      style="position:absolute; bottom:0; left:0; right:0; background:rgba(10,14,39,0.95);
-      border-top:2px solid rgba(0,224,255,0.3); height:68px; display:flex; align-items:center; justify-content:center;
-      gap:1.5rem; padding:0 2rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
+      style="position:absolute; bottom:8px; left:0; right:0; background:rgba(10,14,39,0.95);
+      border-top:2px solid rgba(0,224,255,0.3); height:82px; display:flex; align-items:center; justify-content:center;
+      gap:0.75rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
 
-      <!-- Primary Action: Quick Connect -->
+      <!-- Quick Connect -->
       <div class="stat-card-mini" id="btn-quickconnect"
         style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,128,255,0.1));
-        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1.5rem; text-align:center;
-        transition:all 0.2s; display:flex; align-items:center; gap:0.75rem; height:44px;">
+        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
+        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-user-plus"></i></div>
-        <div class="label" style="font-size:0.9rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Connect</div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Connect</div>
       </div>
 
-      <!-- Secondary Action: Messages -->
+      <!-- Messages -->
       <div class="stat-card-mini" id="btn-messages"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1.5rem; text-align:center; transition:all 0.2s; display:flex; align-items:center;
-        gap:0.75rem; height:44px;">
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-envelope"></i></div>
-        <div style="display:flex; flex-direction:column; align-items:flex-start;">
-          <div class="value" id="unread-messages" style="font-size:1.1rem; font-weight:bold; color:white; line-height:1;">0</div>
-          <div class="label" style="font-size:0.7rem; color:#aaa; text-transform:uppercase; line-height:1;">Messages</div>
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <div class="value" id="unread-messages" style="font-size:1rem; font-weight:bold; color:white; line-height:1;">0</div>
+          <div class="label" style="font-size:0.65rem; color:#aaa; text-transform:uppercase; line-height:1;">Messages</div>
         </div>
       </div>
 
-      <!-- Tertiary Action: Menu Controls -->
-      <div class="stat-card-mini" id="btn-view-controls"
+      <!-- Projects -->
+      <div class="stat-card-mini" id="btn-projects"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1.5rem; text-align:center; transition:all 0.2s; display:flex; align-items:center;
-        gap:0.75rem; height:44px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-bars"></i></div>
-        <div class="label" style="font-size:0.9rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Menu</div>
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-lightbulb"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Projects</div>
+      </div>
+
+      <!-- Endorsements -->
+      <div class="stat-card-mini" id="btn-endorsements"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-star"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Endorse</div>
+      </div>
+
+      <!-- Community Chat (BBS) -->
+      <div class="stat-card-mini" id="btn-bbs"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-comments"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Chat</div>
+      </div>
+
+      <!-- Admin (Manage Themes) - Only visible to admins -->
+      <div class="stat-card-mini" id="btn-admin" style="cursor:pointer; background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:none; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-crown"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Admin</div>
       </div>
     </div>
   </div>
