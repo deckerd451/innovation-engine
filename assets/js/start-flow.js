@@ -33,17 +33,17 @@ function initStartFlow() {
   // Wire up START button
   document.getElementById('btn-start')?.addEventListener('click', openStartModal);
 
-  // Wire up START modal navigation buttons (mentor panels)
+  // Wire up START modal navigation buttons (show content inline, don't open separate panels)
   document.getElementById('start-btn-focus')?.addEventListener('click', () => {
-    openMentorPanel('focus');
+    showStartContent('focus');
   });
 
   document.getElementById('start-btn-projects')?.addEventListener('click', () => {
-    openMentorPanel('projects');
+    showStartContent('projects');
   });
 
   document.getElementById('start-btn-people')?.addEventListener('click', () => {
-    openMentorPanel('people');
+    showStartContent('people');
   });
 
   // Wire up START modal action buttons (bottom bar actions)
@@ -114,6 +114,74 @@ async function openStartModal() {
     }, 10);
   }
 }
+
+// Show content inline in START modal (don't open separate panels)
+async function showStartContent(contentType) {
+  console.log(`🚀 Showing ${contentType} content in START modal`);
+
+  const contentArea = document.getElementById('start-dynamic-content');
+  const buttonSection = document.getElementById('start-button-section');
+
+  if (!contentArea) return;
+
+  // Show content area, minimize button section
+  contentArea.style.display = 'block';
+  if (buttonSection) {
+    buttonSection.style.display = 'none';
+  }
+
+  // Show loading state
+  contentArea.innerHTML = '<div style="text-align:center; padding:2rem; color:rgba(255,255,255,0.5);"><i class="fas fa-spinner fa-spin" style="font-size:2rem; margin-bottom:1rem;"></i><p>Loading...</p></div>';
+
+  // Get current user
+  const currentUser = window.currentUserProfile || window.appState?.communityProfile;
+  const supabase = window.supabase;
+
+  if (!currentUser || !supabase) {
+    contentArea.innerHTML = '<div style="text-align:center; padding:2rem; color:rgba(255,107,107,0.7);"><p>Unable to load content. Please refresh.</p></div>';
+    return;
+  }
+
+  try {
+    // Load suggestions
+    const [themes, projects, people] = await Promise.all([
+      loadSuggestedThemes(supabase, currentUser),
+      loadSuggestedProjects(supabase, currentUser),
+      loadSuggestedPeople(supabase, currentUser)
+    ]);
+
+    // Render content based on type
+    let html = `
+      <div style="padding: 1rem 0; border-bottom: 2px solid rgba(0,224,255,0.2); margin-bottom: 1.5rem;">
+        <button onclick="hideStartContent()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 0.5rem 1rem; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 0.85rem; transition: all 0.2s;">
+          <i class="fas fa-arrow-left" style="margin-right: 0.5rem;"></i>Back to menu
+        </button>
+      </div>
+    `;
+
+    if (contentType === 'focus') {
+      html += generateFocusHTML(themes, projects, people);
+    } else if (contentType === 'projects') {
+      html += generateProjectsHTML(projects);
+    } else if (contentType === 'people') {
+      html += generatePeopleHTML(people);
+    }
+
+    contentArea.innerHTML = html;
+  } catch (error) {
+    console.error('Error loading content:', error);
+    contentArea.innerHTML = '<div style="text-align:center; padding:2rem; color:rgba(255,107,107,0.7);"><p>Failed to load content. Please try again.</p></div>';
+  }
+}
+
+// Hide dynamic content and show button menu
+window.hideStartContent = function() {
+  const contentArea = document.getElementById('start-dynamic-content');
+  const buttonSection = document.getElementById('start-button-section');
+
+  if (contentArea) contentArea.style.display = 'none';
+  if (buttonSection) buttonSection.style.display = 'block';
+};
 
 // ================================================================
 // START MODAL CONTENT POPULATION
@@ -374,6 +442,122 @@ function getTimeLeftString(expiresAt) {
   return '< 1 hour';
 }
 
+// ================================================================
+// HTML GENERATION FOR INLINE CONTENT
+// ================================================================
+
+function generateFocusHTML(themes, projects, people) {
+  let html = '<div style="padding: 0 0.5rem;">';
+
+  // Suggested Themes
+  if (themes.length > 0) {
+    html += `
+      <div style="margin-bottom: 2rem;">
+        <h3 style="color: #00e0ff; font-size: 1.1rem; margin-bottom: 1rem; font-weight: 600;">
+          <i class="fas fa-bullseye"></i> Suggested Themes
+        </h3>
+        <div style="display: grid; gap: 1rem;">
+    `;
+    themes.forEach(theme => {
+      const timeLeft = getTimeLeftString(theme.expires_at);
+      html += `
+        <div style="background: rgba(0,224,255,0.08); border: 1px solid rgba(0,224,255,0.25); border-radius: 10px; padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+            <div style="flex: 1;">
+              <div style="color: #fff; font-weight: 600; font-size: 1.05rem; margin-bottom: 0.5rem;">${escapeHtml(theme.title)}</div>
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${timeLeft} remaining • ${theme.activity_score || 0} engaged</div>
+            </div>
+            <button onclick="joinTheme('${theme.id}')" style="background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 8px; padding: 0.6rem 1.25rem; color: #000; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; white-space: nowrap;">
+              Join
+            </button>
+          </div>
+          ${theme.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; line-height: 1.5;">${escapeHtml(theme.description)}</div>` : ''}
+        </div>
+      `;
+    });
+    html += '</div></div>';
+  } else {
+    html += '<div style="text-align:center; padding: 2rem; color: rgba(255,255,255,0.5);"><p>No new themes to explore right now.</p></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function generateProjectsHTML(projects) {
+  let html = '<div style="padding: 0 0.5rem;">';
+
+  if (projects.length > 0) {
+    html += `
+      <div style="margin-bottom: 1rem;">
+        <h3 style="color: #ff6b6b; font-size: 1.1rem; margin-bottom: 1rem; font-weight: 600;">
+          <i class="fas fa-rocket"></i> Active Projects
+        </h3>
+        <div style="display: grid; gap: 1rem;">
+    `;
+    projects.forEach(project => {
+      html += `
+        <div style="background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.25); border-radius: 10px; padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+            <div style="flex: 1;">
+              <div style="color: #fff; font-weight: 600; font-size: 1.05rem; margin-bottom: 0.5rem;">${escapeHtml(project.title)}</div>
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; text-transform: capitalize;">${project.status || 'Open'}</div>
+            </div>
+            <button onclick="viewProject('${project.id}')" style="background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; padding: 0.6rem 1.25rem; color: #fff; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; white-space: nowrap;">
+              View
+            </button>
+          </div>
+          ${project.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; line-height: 1.5;">${escapeHtml(project.description.substring(0, 180))}${project.description.length > 180 ? '...' : ''}</div>` : ''}
+        </div>
+      `;
+    });
+    html += '</div></div>';
+  } else {
+    html += '<div style="text-align:center; padding: 2rem; color: rgba(255,255,255,0.5);"><p>No new projects to explore right now.</p></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function generatePeopleHTML(people) {
+  let html = '<div style="padding: 0 0.5rem;">';
+
+  if (people.length > 0) {
+    html += `
+      <div style="margin-bottom: 1rem;">
+        <h3 style="color: #ffd700; font-size: 1.1rem; margin-bottom: 1rem; font-weight: 600;">
+          <i class="fas fa-users"></i> People to Connect With
+        </h3>
+        <div style="display: grid; gap: 1rem;">
+    `;
+    people.forEach(person => {
+      const skills = (person.skills || []).slice(0, 3);
+      html += `
+        <div style="background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25); border-radius: 10px; padding: 1.25rem; display: flex; gap: 1.25rem; align-items: center;">
+          ${person.image_url
+            ? `<img src="${person.image_url}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,215,0,0.4);" />`
+            : `<div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,215,0,0.2); display: flex; align-items: center; justify-content: center; color: #ffd700; font-weight: 700; font-size: 1.25rem; border: 2px solid rgba(255,215,0,0.4);">${getInitials(person.name)}</div>`
+          }
+          <div style="flex: 1; min-width: 0;">
+            <div style="color: #fff; font-weight: 600; font-size: 1.05rem; margin-bottom: 0.5rem;">${escapeHtml(person.name)}</div>
+            ${skills.length > 0 ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${skills.map(s => escapeHtml(String(s))).join(', ')}</div>` : ''}
+          </div>
+          <button onclick="connectWithPerson('${person.id}')" style="background: linear-gradient(135deg, #ffd700, #ffed4e); border: none; border-radius: 8px; padding: 0.6rem 1.25rem; color: #000; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; white-space: nowrap; flex-shrink: 0;">
+            Connect
+          </button>
+        </div>
+      `;
+    });
+    html += '</div></div>';
+  } else {
+    html += '<div style="text-align:center; padding: 2rem; color: rgba(255,255,255,0.5);"><p>No new people to connect with right now.</p></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
 // Global interaction functions
 window.joinTheme = async function(themeId) {
   const supabase = window.supabase;
@@ -461,6 +645,9 @@ function closeStartModal() {
     setTimeout(() => {
       modal.style.display = 'none';
       backdrop.style.display = 'none';
+
+      // Reset to button view
+      window.hideStartContent();
     }, 300);
   }
 
