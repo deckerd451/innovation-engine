@@ -1408,6 +1408,12 @@ window.editProjectFromPanel = async function(projectId) {
 
 window.manageProjectRequests = async function(projectId) {
   try {
+    // Ensure supabase is available
+    if (!supabase) supabase = window.supabase;
+    if (!supabase) {
+      throw new Error('Database connection not available');
+    }
+
     // Fetch pending requests for this project
     const { data: pendingRequests, error } = await supabase
       .from('project_members')
@@ -1508,6 +1514,12 @@ window.manageProjectRequests = async function(projectId) {
 
 window.approveJoinRequest = async function(projectId, requestId, userId) {
   try {
+    // Ensure supabase is available
+    if (!supabase) supabase = window.supabase;
+    if (!supabase) {
+      throw new Error('Database connection not available');
+    }
+
     // Update role from 'pending' to 'member'
     const { error } = await supabase
       .from('project_members')
@@ -1538,6 +1550,11 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
       await loadNodeDetails(currentNodeData);
     }
 
+    // Refresh synapse view to show updated project membership
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
+    }
+
   } catch (error) {
     console.error('Error approving request:', error);
     alert('Failed to approve request: ' + error.message);
@@ -1546,6 +1563,12 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
 
 window.declineJoinRequest = async function(projectId, requestId) {
   try {
+    // Ensure supabase is available
+    if (!supabase) supabase = window.supabase;
+    if (!supabase) {
+      throw new Error('Database connection not available');
+    }
+
     // Delete the pending request
     const { error } = await supabase
       .from('project_members')
@@ -1574,6 +1597,11 @@ window.declineJoinRequest = async function(projectId, requestId) {
     // Reload panel if it's currently showing this project
     if (currentNodeData?.id === projectId) {
       await loadNodeDetails(currentNodeData);
+    }
+
+    // Refresh synapse view to show updated project membership
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
     }
 
   } catch (error) {
