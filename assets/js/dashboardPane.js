@@ -1403,8 +1403,52 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
   // -----------------------------
   // Projects
   // -----------------------------
-  function showCreateProjectForm() {
-    $("project-form") && ($("project-form").style.display = "block");
+  async function showCreateProjectForm() {
+    const form = $("project-form");
+    if (form) {
+      form.style.display = "block";
+      // Load active themes into dropdown
+      await loadThemesIntoProjectDropdown();
+    }
+  }
+
+  // Load themes into project creation form dropdown
+  async function loadThemesIntoProjectDropdown() {
+    const dropdown = $("project-theme");
+    if (!dropdown || !state.supabase) return;
+
+    try {
+      const { data: themes, error } = await state.supabase
+        .from('theme_circles')
+        .select('id, title, tags, expires_at')
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString())
+        .order('title', { ascending: true });
+
+      if (error) {
+        console.error('Error loading themes:', error);
+        return;
+      }
+
+      // Clear existing options except the first one
+      dropdown.innerHTML = '<option value="">No theme (standalone project)</option>';
+
+      // Add theme options
+      if (themes && themes.length > 0) {
+        themes.forEach(theme => {
+          const option = document.createElement('option');
+          option.value = theme.id;
+          const tags = theme.tags && theme.tags.length > 0 ? ` [${theme.tags.join(', ')}]` : '';
+          option.textContent = `${theme.title}${tags}`;
+          dropdown.appendChild(option);
+        });
+        console.log(`✅ Loaded ${themes.length} themes into project form`);
+      } else {
+        console.log('ℹ️ No active themes available');
+      }
+    } catch (err) {
+      console.error('Error loading themes dropdown:', err);
+    }
   }
 
   function hideCreateProjectForm() {
@@ -1417,6 +1461,7 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
     const name = $("project-name")?.value?.trim();
     const description = $("project-description")?.value?.trim();
     const skills = $("project-skills")?.value?.trim() || "";
+    const themeId = $("project-theme")?.value || null;
 
     if (!name || !description) return;
 
@@ -1427,15 +1472,24 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
       if (!state.communityProfile?.id) await ensureCommunityProfile();
       if (!state.communityProfile?.id) throw new Error("Profile not found.");
 
+      // Build project data object
+      const projectData = {
+        name,
+        description,
+        skills_needed: skills,
+        creator_id: state.communityProfile.id,
+        status: "open",
+      };
+
+      // Add theme_id if a theme was selected
+      if (themeId) {
+        projectData.theme_id = themeId;
+        console.log(`✅ Creating project with theme: ${themeId}`);
+      }
+
       const { data: newProject, error } = await state.supabase
         .from("projects")
-        .insert({
-          name,
-          description,
-          skills_needed: skills,
-          creator_id: state.communityProfile.id,
-          status: "open",
-        })
+        .insert(projectData)
         .select()
         .single();
 
@@ -1447,12 +1501,23 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
         role: "creator",
       });
 
+      // Award XP for creating project
+      if (window.DailyEngagement) {
+        await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.CREATE_PROJECT, `Created project: ${name}`);
+      }
+
       $("project-name").value = "";
       $("project-description").value = "";
       $("project-skills").value = "";
+      if ($("project-theme")) $("project-theme").value = "";
       hideCreateProjectForm();
       await loadProjects();
       await refreshCounters();
+
+      // Refresh synapse view to show the new project
+      if (typeof window.refreshSynapseConnections === 'function') {
+        await window.refreshSynapseConnections();
+      }
     } catch (e) {
       console.error("createProject failed:", e);
       alert(`Project create failed: ${e.message || e}`);
