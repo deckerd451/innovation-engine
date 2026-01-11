@@ -39,6 +39,7 @@ let currentUserCommunityId = null;
 
 let initialized = false;
 let projectCircles = null;
+let showFullCommunity = false; // Default to filtered view (only user's activities)
 
 /* ==========================================================================
    PUBLIC API
@@ -100,6 +101,7 @@ export async function initSynapseView() {
   window.initSynapseView = initSynapseView;
   window.refreshThemeCircles = refreshThemeCircles;
   window.refreshSynapseConnections = refreshSynapseConnections;
+  window.toggleFullCommunityView = toggleFullCommunityView;
 
   // Expose functions needed by Illuminate Pathways
   window.getSynapseStats = getSynapseStats;
@@ -121,6 +123,19 @@ export async function refreshSynapseConnections() {
 }
 
 export async function refreshThemeCircles() {
+  await reloadAllData();
+  rebuildGraph();
+}
+
+export async function toggleFullCommunityView(show) {
+  if (typeof show === 'boolean') {
+    showFullCommunity = show;
+  } else {
+    showFullCommunity = !showFullCommunity;
+  }
+
+  console.log(`🌐 Synapse view mode: ${showFullCommunity ? 'Full Community' : 'My Network'}`);
+
   await reloadAllData();
   rebuildGraph();
 }
@@ -197,7 +212,11 @@ function setupSVG() {
 async function reloadAllData() {
   if (!supabase) return;
 
-  const loaded = await loadSynapseData({ supabase, currentUserCommunityId });
+  const loaded = await loadSynapseData({
+    supabase,
+    currentUserCommunityId,
+    showFullCommunity
+  });
 
   nodes = loaded.nodes || [];
   links = loaded.links || [];

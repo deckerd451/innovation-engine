@@ -10,8 +10,9 @@ export function parseSkills(skills) {
   return [];
 }
 
-export async function loadSynapseData({ supabase, currentUserCommunityId }) {
+export async function loadSynapseData({ supabase, currentUserCommunityId, showFullCommunity = false }) {
   // Community members
+  // If showFullCommunity is false (default), we filter to only show connected people
   const { data: members, error } = await supabase
     .from("community")
     .select("id, name, email, image_url, skills, interests, bio, availability, x, y, connection_count")
@@ -53,7 +54,24 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
     console.warn('⚠️ Error loading theme participants:', themeParticipantsError);
   }
 
-  let nodes = (members || []).map((member) => {
+  // Filter members if not showing full community
+  let filteredMembers = members || [];
+  if (!showFullCommunity && currentUserCommunityId) {
+    // Only show: current user + people with connections
+    filteredMembers = (members || []).filter(member => {
+      if (member.id === currentUserCommunityId) return true;
+
+      const hasConnection = connectionsData.some(conn =>
+        ((conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
+        (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id)) &&
+        (conn.status === 'accepted' || conn.status === 'active' || conn.status === 'connected')
+      );
+
+      return hasConnection;
+    });
+  }
+
+  let nodes = filteredMembers.map((member) => {
     const isCurrentUser = member.id === currentUserCommunityId;
 
     const hasConnection = connectionsData.some(conn =>
@@ -85,7 +103,19 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
   });
 
   if (projects?.length) {
-    const projectNodes = projects.map(project => {
+    let filteredProjects = projects;
+
+    // Filter projects if not showing full community
+    if (!showFullCommunity && currentUserCommunityId) {
+      // Only show projects the user is a member of
+      const userProjectIds = projectMembersData
+        .filter(pm => pm.user_id === currentUserCommunityId)
+        .map(pm => pm.project_id);
+
+      filteredProjects = projects.filter(project => userProjectIds.includes(project.id));
+    }
+
+    const projectNodes = filteredProjects.map(project => {
       const teamMembers = projectMembersData.filter(pm => pm.project_id === project.id);
       return {
         id: project.id,
@@ -110,24 +140,45 @@ export async function loadSynapseData({ supabase, currentUserCommunityId }) {
 
   // Create theme nodes
   if (themes?.length) {
-    const themeNodes = themes.map(theme => ({
-      id: `theme:${theme.id}`,
-      theme_id: theme.id,
-      type: 'theme',
-      name: theme.title,
-      title: theme.title,
-      description: theme.description,
-      tags: theme.tags || [],
-      created_at: theme.created_at,
-      expires_at: theme.expires_at,
-      activity_score: theme.activity_score || 0,
-      origin_type: theme.origin_type,
-      last_activity_at: theme.last_activity_at,
-      cta_text: theme.cta_text,
-      cta_link: theme.cta_link,
-      x: theme.x || (window.innerWidth * 0.5 + (Math.random() * 120 - 60)),
-      y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
-    }));
+    let filteredThemes = themes;
+
+    // Filter themes if not showing full community
+    if (!showFullCommunity && currentUserCommunityId) {
+      // Only show themes the user is participating in
+      const userThemeIds = (themeParticipants || [])
+        .filter(tp => tp.community_id === currentUserCommunityId)
+        .map(tp => tp.theme_id);
+
+      filteredThemes = themes.filter(theme => userThemeIds.includes(theme.id));
+    }
+
+    const themeNodes = filteredThemes.map(theme => {
+      // Check if user is participating and get their engagement level
+      const userParticipation = (themeParticipants || []).find(
+        tp => tp.theme_id === theme.id && tp.community_id === currentUserCommunityId
+      );
+
+      return {
+        id: `theme:${theme.id}`,
+        theme_id: theme.id,
+        type: 'theme',
+        name: theme.title,
+        title: theme.title,
+        description: theme.description,
+        tags: theme.tags || [],
+        created_at: theme.created_at,
+        expires_at: theme.expires_at,
+        activity_score: theme.activity_score || 0,
+        origin_type: theme.origin_type,
+        last_activity_at: theme.last_activity_at,
+        cta_text: theme.cta_text,
+        cta_link: theme.cta_link,
+        user_engagement_level: userParticipation?.engagement_level || null,
+        user_is_participant: !!userParticipation,
+        x: theme.x || (window.innerWidth * 0.5 + (Math.random() * 120 - 60)),
+        y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
+      };
+    });
     nodes = [...nodes, ...themeNodes];
   }
 

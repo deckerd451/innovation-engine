@@ -54,11 +54,19 @@ document.getElementById('btn-bbs')?.addEventListener('click', () => {
 });
 
 // Wire up Admin button
+// Per yellow instructions: Admin button shows full community view
 document.getElementById('btn-admin')?.addEventListener('click', () => {
-  if (typeof openThemeAdminModal === 'function') {
-    openThemeAdminModal();
+  if (typeof window.toggleFullCommunityView === 'function') {
+    // Toggle to full community view (show all users, projects, themes)
+    window.toggleFullCommunityView(true);
+    console.log('👑 Admin: Showing full community view');
+
+    // Show notification
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Showing full community view', 'success');
+    }
   } else {
-    console.warn('Admin modal not available');
+    console.warn('toggleFullCommunityView not available');
   }
 });
 
