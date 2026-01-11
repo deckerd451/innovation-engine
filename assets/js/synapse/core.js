@@ -301,6 +301,59 @@ function calculateRelevance(person, theme) {
 }
 
 /* ==========================================================================
+   PROJECT CONFINEMENT PHYSICS (per yellow instructions)
+   ========================================================================== */
+
+function createProjectConfinementForce(allNodes) {
+  // Custom force that keeps projects inside their theme circle boundaries
+  return function projectConfinement(alpha) {
+    const themes = allNodes.filter(n => n.type === 'theme');
+    const projects = allNodes.filter(n => n.type === 'project');
+
+    for (const project of projects) {
+      if (!project.x || !project.y || !project.theme_id) continue;
+
+      // Find the theme this project belongs to
+      const themeNodeId = `theme:${project.theme_id}`;
+      const theme = themes.find(t => t.id === themeNodeId);
+
+      if (!theme || !theme.x || !theme.y) continue;
+
+      // Calculate distance from project to theme center
+      const dx = project.x - theme.x;
+      const dy = project.y - theme.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Theme radius is approximately 80px (from render.js)
+      const themeRadius = 70; // A bit smaller to keep projects visibly inside
+      const projectRadius = 30; // Project node size
+
+      // Maximum distance project can be from theme center
+      const maxDistance = themeRadius - projectRadius;
+
+      // If project is outside the boundary, push it back in
+      if (distance > maxDistance) {
+        // Calculate how far outside it is
+        const overflow = distance - maxDistance;
+
+        // Apply strong corrective force (proportional to overflow)
+        const strength = 0.5; // Strong force to keep inside
+        const force = (strength * overflow) / (distance || 1);
+
+        // Push back toward center
+        project.vx -= (dx / distance) * force;
+        project.vy -= (dy / distance) * force;
+
+        // Also directly adjust position for immediate correction
+        const correction = overflow / distance;
+        project.x -= dx * correction * 0.3;
+        project.y -= dy * correction * 0.3;
+      }
+    }
+  };
+}
+
+/* ==========================================================================
    GRAPH BUILD / REBUILD
    ========================================================================== */
 
@@ -353,6 +406,7 @@ function buildGraph() {
       d3.forceCollide().radius((d) => (d.type === "theme" ? 140 : d.type === "project" ? 55 : 40))
     )
     .force("themeGravity", createThemeGravityForce(nodes))
+    .force("projectConfinement", createProjectConfinementForce(nodes)) // Per yellow instructions: constrain projects inside theme circles
     .velocityDecay(0.6)
     .alphaDecay(0.05)
     .alphaMin(0.001);

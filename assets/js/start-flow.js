@@ -94,7 +94,7 @@ function initStartFlow() {
 // MODAL MANAGEMENT
 // ================================================================
 
-function openStartModal() {
+async function openStartModal() {
   console.log('🚀 Opening START modal');
 
   const modal = document.getElementById('start-modal');
@@ -104,6 +104,9 @@ function openStartModal() {
     modal.style.display = 'block';
     backdrop.style.display = 'block';
 
+    // Load and populate suggestions before showing
+    await populateStartModalContent();
+
     // Animate in
     setTimeout(() => {
       modal.style.opacity = '1';
@@ -111,6 +114,338 @@ function openStartModal() {
     }, 10);
   }
 }
+
+// ================================================================
+// START MODAL CONTENT POPULATION
+// ================================================================
+
+async function populateStartModalContent() {
+  console.log('📝 Populating START modal content');
+
+  try {
+    // Get current user profile
+    const currentUser = window.currentUserProfile || window.appState?.communityProfile;
+    if (!currentUser) {
+      console.warn('No current user profile found');
+      return;
+    }
+
+    // Get Supabase client
+    const supabase = window.supabase;
+    if (!supabase) {
+      console.warn('Supabase not available');
+      return;
+    }
+
+    // Load suggestions in parallel
+    const [themes, projects, people] = await Promise.all([
+      loadSuggestedThemes(supabase, currentUser),
+      loadSuggestedProjects(supabase, currentUser),
+      loadSuggestedPeople(supabase, currentUser)
+    ]);
+
+    // Populate focus panel content
+    populateFocusContent(themes, projects, people);
+
+  } catch (error) {
+    console.error('Error populating START content:', error);
+  }
+}
+
+async function loadSuggestedThemes(supabase, currentUser) {
+  try {
+    // Get all active themes
+    const { data: themes, error } = await supabase
+      .from('theme_circles')
+      .select('*')
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .order('activity_score', { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+
+    // Get user's current theme participations
+    const { data: userThemes } = await supabase
+      .from('theme_participants')
+      .select('theme_id')
+      .eq('community_id', currentUser.id);
+
+    const userThemeIds = (userThemes || []).map(t => t.theme_id);
+
+    // Filter out themes user has already joined
+    return (themes || []).filter(t => !userThemeIds.includes(t.id));
+  } catch (error) {
+    console.error('Error loading suggested themes:', error);
+    return [];
+  }
+}
+
+async function loadSuggestedProjects(supabase, currentUser) {
+  try {
+    // Get active projects
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select('*')
+      .in('status', ['open', 'active', 'in-progress'])
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+
+    // Get user's current projects
+    const { data: userProjects } = await supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('community_id', currentUser.id);
+
+    const userProjectIds = (userProjects || []).map(p => p.project_id);
+
+    // Filter out projects user is already in
+    return (projects || []).filter(p => !userProjectIds.includes(p.id));
+  } catch (error) {
+    console.error('Error loading suggested projects:', error);
+    return [];
+  }
+}
+
+async function loadSuggestedPeople(supabase, currentUser) {
+  try {
+    // Get all community members
+    const { data: people, error } = await supabase
+      .from('community')
+      .select('id, name, email, image_url, skills, interests, bio')
+      .neq('id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+
+    // Get existing connections
+    const { data: connections } = await supabase
+      .from('connections')
+      .select('from_user_id, to_user_id')
+      .or(`from_user_id.eq.${currentUser.id},to_user_id.eq.${currentUser.id}`);
+
+    const connectedIds = new Set();
+    (connections || []).forEach(conn => {
+      if (conn.from_user_id === currentUser.id) connectedIds.add(conn.to_user_id);
+      if (conn.to_user_id === currentUser.id) connectedIds.add(conn.from_user_id);
+    });
+
+    // Filter out already connected people and score by relevance
+    const candidates = (people || [])
+      .filter(p => !connectedIds.has(p.id))
+      .map(person => {
+        // Calculate relevance score based on shared skills/interests
+        let score = 0;
+        const userSkills = (currentUser.skills || []).map(s => String(s).toLowerCase());
+        const personSkills = (person.skills || []).map(s => String(s).toLowerCase());
+        const sharedSkills = userSkills.filter(s => personSkills.includes(s));
+        score += sharedSkills.length * 2;
+
+        return { ...person, relevanceScore: score };
+      })
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 5);
+
+    return candidates;
+  } catch (error) {
+    console.error('Error loading suggested people:', error);
+    return [];
+  }
+}
+
+function populateFocusContent(themes, projects, people) {
+  const focusContent = document.getElementById('mentor-focus-content');
+  if (!focusContent) return;
+
+  let html = '<div style="padding: 1rem;">';
+
+  // Suggested Themes
+  if (themes.length > 0) {
+    html += `
+      <div style="margin-bottom: 2rem;">
+        <h3 style="color: #00e0ff; font-size: 1.1rem; margin-bottom: 1rem;">
+          <i class="fas fa-bullseye"></i> Suggested Themes
+        </h3>
+        <div style="display: grid; gap: 1rem;">
+    `;
+    themes.forEach(theme => {
+      const timeLeft = getTimeLeftString(theme.expires_at);
+      html += `
+        <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <div style="flex: 1;">
+              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${escapeHtml(theme.title)}</div>
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${timeLeft} remaining</div>
+            </div>
+            <button onclick="joinTheme('${theme.id}')" style="background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 6px; padding: 0.5rem 1rem; color: #000; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+              Join
+            </button>
+          </div>
+          ${theme.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.5rem;">${escapeHtml(theme.description)}</div>` : ''}
+        </div>
+      `;
+    });
+    html += '</div></div>';
+  }
+
+  // Suggested Projects
+  if (projects.length > 0) {
+    html += `
+      <div style="margin-bottom: 2rem;">
+        <h3 style="color: #ff6b6b; font-size: 1.1rem; margin-bottom: 1rem;">
+          <i class="fas fa-rocket"></i> Active Projects
+        </h3>
+        <div style="display: grid; gap: 1rem;">
+    `;
+    projects.forEach(project => {
+      html += `
+        <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <div style="flex: 1;">
+              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${escapeHtml(project.title)}</div>
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${project.status || 'Open'}</div>
+            </div>
+            <button onclick="viewProject('${project.id}')" style="background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 6px; padding: 0.5rem 1rem; color: #fff; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+              View
+            </button>
+          </div>
+          ${project.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.5rem;">${escapeHtml(project.description.substring(0, 150))}${project.description.length > 150 ? '...' : ''}</div>` : ''}
+        </div>
+      `;
+    });
+    html += '</div></div>';
+  }
+
+  // Suggested People
+  if (people.length > 0) {
+    html += `
+      <div style="margin-bottom: 1rem;">
+        <h3 style="color: #ffd700; font-size: 1.1rem; margin-bottom: 1rem;">
+          <i class="fas fa-users"></i> People to Connect With
+        </h3>
+        <div style="display: grid; gap: 1rem;">
+    `;
+    people.forEach(person => {
+      const skills = (person.skills || []).slice(0, 3);
+      html += `
+        <div style="background: rgba(255,215,0,0.05); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; padding: 1rem; display: flex; gap: 1rem; align-items: center;">
+          ${person.image_url ? `<img src="${person.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;" />` : `<div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,215,0,0.2); display: flex; align-items: center; justify-content: center; color: #ffd700; font-weight: 700;">${getInitials(person.name)}</div>`}
+          <div style="flex: 1;">
+            <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${escapeHtml(person.name)}</div>
+            ${skills.length > 0 ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${skills.map(s => escapeHtml(String(s))).join(', ')}</div>` : ''}
+          </div>
+          <button onclick="connectWithPerson('${person.id}')" style="background: linear-gradient(135deg, #ffd700, #ffed4e); border: none; border-radius: 6px; padding: 0.5rem 1rem; color: #000; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+            Connect
+          </button>
+        </div>
+      `;
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+  focusContent.innerHTML = html;
+}
+
+// Helper functions
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+}
+
+function getTimeLeftString(expiresAt) {
+  const now = Date.now();
+  const expires = new Date(expiresAt).getTime();
+  const remaining = expires - now;
+  const hours = Math.floor(remaining / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+
+  if (days > 1) return `${days} days`;
+  if (hours > 1) return `${hours} hours`;
+  return '< 1 hour';
+}
+
+// Global interaction functions
+window.joinTheme = async function(themeId) {
+  const supabase = window.supabase;
+  const currentUser = window.currentUserProfile || window.appState?.communityProfile;
+
+  if (!supabase || !currentUser) return;
+
+  try {
+    const { error } = await supabase
+      .from('theme_participants')
+      .insert({
+        theme_id: themeId,
+        community_id: currentUser.id,
+        engagement_level: 'interested'
+      });
+
+    if (error) throw error;
+
+    // Refresh the view
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
+    }
+
+    // Show success message
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Joined theme successfully!', 'success');
+    }
+
+    // Refresh START content
+    await populateStartModalContent();
+  } catch (error) {
+    console.error('Error joining theme:', error);
+    alert('Failed to join theme');
+  }
+};
+
+window.viewProject = function(projectId) {
+  if (typeof window.openProjectsModal === 'function') {
+    window.openProjectsModal();
+    // TODO: Navigate to specific project
+  }
+};
+
+window.connectWithPerson = async function(personId) {
+  const supabase = window.supabase;
+  const currentUser = window.currentUserProfile || window.appState?.communityProfile;
+
+  if (!supabase || !currentUser) return;
+
+  try {
+    const { error } = await supabase
+      .from('connections')
+      .insert({
+        from_user_id: currentUser.id,
+        to_user_id: personId,
+        status: 'pending'
+      });
+
+    if (error) throw error;
+
+    // Show success message
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Connection request sent!', 'success');
+    }
+
+    // Refresh START content
+    await populateStartModalContent();
+  } catch (error) {
+    console.error('Error sending connection request:', error);
+    alert('Failed to send connection request');
+  }
+};
 
 function closeStartModal() {
   console.log('🚀 Closing START modal');
