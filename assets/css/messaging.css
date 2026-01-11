@@ -641,27 +641,27 @@
     padding: 1rem;
   }
 }
-/* =========================================================
-   Mobile iMessage/WhatsApp mode — FINAL OVERRIDES
+//* =========================================================
+   WhatsApp / iMessage Mobile Mode (targets your messaging.js DOM)
+   DOM (from messaging.js):
+   .messages-container
+     .conversations-sidebar
+     .chat-panel
+       .chat-header
+       .messages-area
+       .message-input-container
    ========================================================= */
-:root{
+
+:root {
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
 }
 
-body.messages-open {
-  overflow: hidden !important;
-  touch-action: none;
-}
-
 @media (max-width: 768px) {
-
-  /* Full-screen modal */
+  /* Full-screen modal behavior (your modal container is outside messaging.js) */
   #messages-modal {
     position: fixed !important;
     inset: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
     z-index: 10050 !important;
   }
 
@@ -672,26 +672,12 @@ body.messages-open {
     max-height: none !important;
     margin: 0 !important;
     border-radius: 0 !important;
-
+    padding: 0 !important;
+    overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-    overflow: hidden !important;
-
-    padding: 0 !important;
-    box-shadow: none !important;
   }
 
-  /* If your close button is the page modal close */
-  #messages-modal .modal-close {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 10 !important;
-    width: 44px !important;
-    height: 44px !important;
-    margin-top: var(--safe-top) !important;
-  }
-
-  /* Render target fills available space */
   #messages-container {
     flex: 1 1 auto !important;
     min-height: 0 !important;
@@ -699,46 +685,75 @@ body.messages-open {
     padding-bottom: var(--safe-bottom) !important;
   }
 
-  /* Your grid container should not do vh math in full-screen mode */
-  #messages-modal #messages-container .messages-container {
+  /* Kill desktop height math inside full-screen */
+  #messages-container .messages-container {
     height: 100% !important;
     max-height: none !important;
     padding: 0 !important;
+    gap: 0 !important;
     grid-template-columns: 1fr !important;
   }
 
-  /* Chat panel becomes the full height shell */
-  #messages-modal #messages-container .chat-panel {
-    height: 100% !important;
+  /* Default mobile state = show conversations list, hide chat (like WhatsApp) */
+  #messages-container .conversations-sidebar {
     display: flex !important;
-    flex-direction: column !important;
-    min-height: 0 !important;
     border-radius: 0 !important;
+    height: 100% !important;
   }
 
-  /* Scroll region = message list */
-  #messages-modal #messages-container .messages-area {
+  #messages-container .chat-panel {
+    display: none !important;
+    border-radius: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  /* When user selects a conversation, we toggle these classes via JS */
+  #messages-container .conversations-sidebar.mobile-hide {
+    display: none !important;
+  }
+  #messages-container .chat-panel.mobile-show {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Header becomes sticky like an app nav bar */
+  #messages-container .chat-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 5 !important;
+    padding-top: calc(0.75rem + var(--safe-top)) !important;
+    padding-bottom: 0.75rem !important;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+  }
+
+  /* Message list = only scroll region */
+  #messages-container .messages-area {
     flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: contain !important;
+    padding: 1rem !important;
   }
 
   /* Composer pinned to bottom */
-  #messages-modal #messages-container .message-input-container {
+  #messages-container .message-input-container {
     position: sticky !important;
     bottom: 0 !important;
-    z-index: 20 !important;
-    padding: 10px 10px calc(10px + var(--safe-bottom)) !important;
+    z-index: 6 !important;
+    padding: 0.75rem 0.75rem calc(0.75rem + var(--safe-bottom)) !important;
     background: rgba(10,14,39,0.95) !important;
     backdrop-filter: blur(10px) !important;
-    border-top: 1px solid rgba(255,255,255,0.08) !important;
   }
 
-  /* Prevent iOS zoom on focus */
-  #messages-modal #messages-container .message-input {
+  /* Prevent iOS zoom */
+  #messages-container .message-input {
     font-size: 16px !important;
   }
-}
 
+  /* Make send button thumb-friendly */
+  #messages-container .send-button {
+    min-height: 44px !important;
+  }
+}
