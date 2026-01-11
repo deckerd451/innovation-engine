@@ -117,6 +117,25 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
 
     const projectNodes = filteredProjects.map(project => {
       const teamMembers = projectMembersData.filter(pm => pm.project_id === project.id);
+
+      // Per yellow instructions: Position projects near their theme circle
+      let initialX = Math.random() * window.innerWidth;
+      let initialY = Math.random() * window.innerHeight;
+
+      if (project.theme_id) {
+        // Find the theme node to position project near it
+        const themeNodeId = `theme:${project.theme_id}`;
+        const existingThemeNode = nodes.find(n => n.id === themeNodeId);
+
+        if (existingThemeNode && existingThemeNode.x && existingThemeNode.y) {
+          // Position project randomly within the theme circle (radius ~70px)
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * 50; // Within 50px of center
+          initialX = existingThemeNode.x + Math.cos(angle) * distance;
+          initialY = existingThemeNode.y + Math.sin(angle) * distance;
+        }
+      }
+
       return {
         id: project.id,
         type: "project",
@@ -131,8 +150,8 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         theme_id: project.theme_id || null,  // Include theme assignment
         team_size: teamMembers.length,
         team_members: teamMembers,
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight
+        x: initialX,
+        y: initialY
       };
     });
     nodes = [...nodes, ...projectNodes];

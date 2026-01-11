@@ -54,20 +54,9 @@ document.getElementById('btn-bbs')?.addEventListener('click', () => {
 });
 
 // Wire up Admin button
-// Per yellow instructions: Admin button shows full community view
+// Per yellow instructions: Admin button shows full community view AND allows theme/project management
 document.getElementById('btn-admin')?.addEventListener('click', () => {
-  if (typeof window.toggleFullCommunityView === 'function') {
-    // Toggle to full community view (show all users, projects, themes)
-    window.toggleFullCommunityView(true);
-    console.log('👑 Admin: Showing full community view');
-
-    // Show notification
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Showing full community view', 'success');
-    }
-  } else {
-    console.warn('toggleFullCommunityView not available');
-  }
+  openAdminPanel();
 });
 
 // Wire up View Controls button (backward compatibility if it exists)
@@ -674,5 +663,343 @@ function toggleBottomBar() {
 
 // Make toggleBottomBar available globally
 window.toggleBottomBar = toggleBottomBar;
+
+// -----------------------------
+// Admin Panel (per yellow instructions)
+// -----------------------------
+function openAdminPanel() {
+  // Remove existing panel if present
+  let panel = document.getElementById('admin-panel');
+  if (panel) {
+    panel.remove();
+    return;
+  }
+
+  panel = document.createElement('div');
+  panel.id = 'admin-panel';
+  panel.style.cssText = `
+    position: fixed;
+    inset: 20px;
+    background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
+    border: 2px solid rgba(255,215,0,0.5);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 25px 70px rgba(0,0,0,0.7);
+    z-index: 10003;
+    backdrop-filter: blur(20px);
+    overflow-y: auto;
+  `;
+
+  panel.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 2px solid rgba(255,215,0,0.3); padding-bottom: 1rem;">
+      <h2 style="color: #ffd700; margin: 0; font-size: 1.75rem;">
+        <i class="fas fa-crown"></i> Admin Panel
+      </h2>
+      <button onclick="document.getElementById('admin-panel').remove()"
+        style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
+        color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem;">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+      <button class="admin-tab active-admin-tab" data-tab="view" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <i class="fas fa-eye"></i> View Community
+      </button>
+      <button class="admin-tab" data-tab="themes" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <i class="fas fa-bullseye"></i> Manage Themes
+      </button>
+      <button class="admin-tab" data-tab="projects" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <i class="fas fa-rocket"></i> Manage Projects
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="admin-tab-content" style="padding: 1rem 0;">
+      <!-- Content will be loaded dynamically -->
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+
+  // Wire up tabs
+  panel.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      panel.querySelectorAll('.admin-tab').forEach(t => {
+        t.style.background = 'transparent';
+        t.style.borderBottomColor = 'transparent';
+        t.style.color = 'rgba(255,255,255,0.6)';
+        t.classList.remove('active-admin-tab');
+      });
+      tab.style.background = 'rgba(0,224,255,0.1)';
+      tab.style.borderBottomColor = '#00e0ff';
+      tab.style.color = '#00e0ff';
+      tab.classList.add('active-admin-tab');
+
+      const tabName = tab.dataset.tab;
+      loadAdminTabContent(tabName);
+    });
+  });
+
+  // Load initial tab
+  loadAdminTabContent('view');
+}
+
+function loadAdminTabContent(tabName) {
+  const content = document.getElementById('admin-tab-content');
+  if (!content) return;
+
+  if (tabName === 'view') {
+    content.innerHTML = `
+      <div style="text-align: center; padding: 2rem;">
+        <div style="font-size: 3rem; color: #00e0ff; margin-bottom: 1rem;">
+          <i class="fas fa-globe"></i>
+        </div>
+        <h3 style="color: #fff; font-size: 1.5rem; margin-bottom: 1rem;">View Full Community</h3>
+        <p style="color: rgba(255,255,255,0.7); margin-bottom: 2rem;">Toggle to see all users, projects, and themes in the network (not just your connections).</p>
+        <button id="admin-toggle-view-btn" style="padding: 1rem 2rem; background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 10px; color: #000; font-weight: 700; cursor: pointer; font-size: 1.1rem; transition: all 0.2s; box-shadow: 0 4px 15px rgba(0,255,136,0.3);">
+          <i class="fas fa-eye"></i> Show Full Community
+        </button>
+      </div>
+    `;
+
+    document.getElementById('admin-toggle-view-btn')?.addEventListener('click', () => {
+      if (typeof window.toggleFullCommunityView === 'function') {
+        window.toggleFullCommunityView(true);
+        document.getElementById('admin-panel')?.remove();
+        if (typeof window.showNotification === 'function') {
+          window.showNotification('Showing full community view', 'success');
+        }
+      }
+    });
+  } else if (tabName === 'themes') {
+    content.innerHTML = `
+      <div style="margin-bottom: 2rem;">
+        <button onclick="openThemeCreator()" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer;">
+          <i class="fas fa-plus"></i> Create New Theme
+        </button>
+      </div>
+      <div id="admin-themes-list" style="color: rgba(255,255,255,0.7);">
+        Loading themes...
+      </div>
+    `;
+    loadThemesList();
+  } else if (tabName === 'projects') {
+    content.innerHTML = `
+      <div style="margin-bottom: 2rem;">
+        <button onclick="if(typeof openProjectsModal === 'function') openProjectsModal();" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
+          <i class="fas fa-plus"></i> Create New Project
+        </button>
+      </div>
+      <div id="admin-projects-list" style="color: rgba(255,255,255,0.7);">
+        Loading projects...
+      </div>
+    `;
+    loadProjectsList();
+  }
+}
+
+async function loadThemesList() {
+  const listEl = document.getElementById('admin-themes-list');
+  if (!listEl) return;
+
+  try {
+    const supabase = window.supabase;
+    if (!supabase) {
+      listEl.innerHTML = '<p style="color: #ff6b6b;">Supabase not available</p>';
+      return;
+    }
+
+    const { data: themes, error } = await supabase
+      .from('theme_circles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!themes || themes.length === 0) {
+      listEl.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No themes found</p>';
+      return;
+    }
+
+    let html = '<div style="display: grid; gap: 1rem;">';
+    themes.forEach(theme => {
+      const isActive = theme.status === 'active';
+      const isExpired = new Date(theme.expires_at) < new Date();
+      html += `
+        <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="flex: 1;">
+              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${theme.title}</div>
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+                Status: <span style="color: ${isActive && !isExpired ? '#00ff88' : '#ff6b6b'}">${isActive && !isExpired ? 'Active' : 'Inactive/Expired'}</span>
+                | Expires: ${new Date(theme.expires_at).toLocaleDateString()}
+                | Activity Score: ${theme.activity_score || 0}
+              </div>
+            </div>
+            <button onclick="deleteTheme('${theme.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+  } catch (error) {
+    console.error('Error loading themes:', error);
+    listEl.innerHTML = '<p style="color: #ff6b6b;">Error loading themes</p>';
+  }
+}
+
+async function loadProjectsList() {
+  const listEl = document.getElementById('admin-projects-list');
+  if (!listEl) return;
+
+  try {
+    const supabase = window.supabase;
+    if (!supabase) {
+      listEl.innerHTML = '<p style="color: #ff6b6b;">Supabase not available</p>';
+      return;
+    }
+
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!projects || projects.length === 0) {
+      listEl.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No projects found</p>';
+      return;
+    }
+
+    let html = '<div style="display: grid; gap: 1rem;">';
+    projects.forEach(project => {
+      html += `
+        <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="flex: 1;">
+              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${project.title}</div>
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+                Status: ${project.status || 'Unknown'}
+                | Created: ${new Date(project.created_at).toLocaleDateString()}
+              </div>
+            </div>
+            <button onclick="deleteProject('${project.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+  } catch (error) {
+    console.error('Error loading projects:', error);
+    listEl.innerHTML = '<p style="color: #ff6b6b;">Error loading projects</p>';
+  }
+}
+
+window.openThemeCreator = function() {
+  if (typeof window.openThemeAdminModal === 'function') {
+    window.openThemeAdminModal();
+  } else {
+    // Fallback: simple prompt-based creation
+    createThemePromptFlow();
+  }
+};
+
+async function createThemePromptFlow() {
+  const supabase = window.supabase;
+  if (!supabase) {
+    alert("Supabase not available");
+    return;
+  }
+
+  const title = prompt("Theme title:");
+  if (!title) return;
+
+  const tagsRaw = prompt("Tags (comma-separated):", "");
+  const tags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
+
+  const days = parseInt(prompt("Expire in how many days?", "7") || "7");
+  const expires_at = new Date(Date.now() + days * 86400000).toISOString();
+
+  const { error } = await supabase.from("theme_circles").insert([{
+    title,
+    tags,
+    expires_at,
+    origin_type: "admin",
+    status: "active"
+  }]);
+
+  if (error) {
+    console.error("Failed to create theme:", error);
+    alert("Failed to create theme: " + error.message);
+    return;
+  }
+
+  alert("Theme created successfully!");
+  loadThemesList();
+
+  if (typeof window.refreshThemeCircles === 'function') {
+    await window.refreshThemeCircles();
+  }
+}
+
+window.deleteTheme = async function(themeId) {
+  if (!confirm("Are you sure you want to delete this theme?")) return;
+
+  const supabase = window.supabase;
+  if (!supabase) return;
+
+  try {
+    const { error } = await supabase
+      .from('theme_circles')
+      .delete()
+      .eq('id', themeId);
+
+    if (error) throw error;
+
+    alert("Theme deleted successfully!");
+    loadThemesList();
+
+    if (typeof window.refreshThemeCircles === 'function') {
+      await window.refreshThemeCircles();
+    }
+  } catch (error) {
+    console.error("Error deleting theme:", error);
+    alert("Failed to delete theme");
+  }
+};
+
+window.deleteProject = async function(projectId) {
+  if (!confirm("Are you sure you want to delete this project?")) return;
+
+  const supabase = window.supabase;
+  if (!supabase) return;
+
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (error) throw error;
+
+    alert("Project deleted successfully!");
+    loadProjectsList();
+
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
+    }
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    alert("Failed to delete project");
+  }
+};
 
 console.log("✅ Dashboard Actions ready");
