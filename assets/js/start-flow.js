@@ -104,8 +104,11 @@ async function openStartModal() {
     modal.style.display = 'block';
     backdrop.style.display = 'block';
 
-    // Load and populate suggestions before showing
-    await populateStartModalContent();
+    // Ensure button section is visible and content area is hidden
+    const buttonSection = document.getElementById('start-button-section');
+    const contentArea = document.getElementById('start-dynamic-content');
+    if (buttonSection) buttonSection.style.display = 'block';
+    if (contentArea) contentArea.style.display = 'none';
 
     // Animate in (slide from right)
     setTimeout(() => {
@@ -186,39 +189,8 @@ window.hideStartContent = function() {
 // ================================================================
 // START MODAL CONTENT POPULATION
 // ================================================================
-
-async function populateStartModalContent() {
-  console.log('📝 Populating START modal content');
-
-  try {
-    // Get current user profile
-    const currentUser = window.currentUserProfile || window.appState?.communityProfile;
-    if (!currentUser) {
-      console.warn('No current user profile found');
-      return;
-    }
-
-    // Get Supabase client
-    const supabase = window.supabase;
-    if (!supabase) {
-      console.warn('Supabase not available');
-      return;
-    }
-
-    // Load suggestions in parallel
-    const [themes, projects, people] = await Promise.all([
-      loadSuggestedThemes(supabase, currentUser),
-      loadSuggestedProjects(supabase, currentUser),
-      loadSuggestedPeople(supabase, currentUser)
-    ]);
-
-    // Populate focus panel content
-    populateFocusContent(themes, projects, people);
-
-  } catch (error) {
-    console.error('Error populating START content:', error);
-  }
-}
+// NOTE: Content is now loaded on-demand when users click buttons
+// in showStartContent() function above. No need for initial population.
 
 async function loadSuggestedThemes(supabase, currentUser) {
   try {
@@ -324,99 +296,9 @@ async function loadSuggestedPeople(supabase, currentUser) {
   }
 }
 
-function populateFocusContent(themes, projects, people) {
-  const focusContent = document.getElementById('mentor-focus-content');
-  if (!focusContent) return;
-
-  let html = '<div style="padding: 1rem;">';
-
-  // Suggested Themes
-  if (themes.length > 0) {
-    html += `
-      <div style="margin-bottom: 2rem;">
-        <h3 style="color: #00e0ff; font-size: 1.1rem; margin-bottom: 1rem;">
-          <i class="fas fa-bullseye"></i> Suggested Themes
-        </h3>
-        <div style="display: grid; gap: 1rem;">
-    `;
-    themes.forEach(theme => {
-      const timeLeft = getTimeLeftString(theme.expires_at);
-      html += `
-        <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-            <div style="flex: 1;">
-              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${escapeHtml(theme.title)}</div>
-              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${timeLeft} remaining</div>
-            </div>
-            <button onclick="joinTheme('${theme.id}')" style="background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 6px; padding: 0.5rem 1rem; color: #000; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
-              Join
-            </button>
-          </div>
-          ${theme.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.5rem;">${escapeHtml(theme.description)}</div>` : ''}
-        </div>
-      `;
-    });
-    html += '</div></div>';
-  }
-
-  // Suggested Projects
-  if (projects.length > 0) {
-    html += `
-      <div style="margin-bottom: 2rem;">
-        <h3 style="color: #ff6b6b; font-size: 1.1rem; margin-bottom: 1rem;">
-          <i class="fas fa-rocket"></i> Active Projects
-        </h3>
-        <div style="display: grid; gap: 1rem;">
-    `;
-    projects.forEach(project => {
-      html += `
-        <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; padding: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-            <div style="flex: 1;">
-              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${escapeHtml(project.title)}</div>
-              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${project.status || 'Open'}</div>
-            </div>
-            <button onclick="viewProject('${project.id}')" style="background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 6px; padding: 0.5rem 1rem; color: #fff; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
-              View
-            </button>
-          </div>
-          ${project.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.5rem;">${escapeHtml(project.description.substring(0, 150))}${project.description.length > 150 ? '...' : ''}</div>` : ''}
-        </div>
-      `;
-    });
-    html += '</div></div>';
-  }
-
-  // Suggested People
-  if (people.length > 0) {
-    html += `
-      <div style="margin-bottom: 1rem;">
-        <h3 style="color: #ffd700; font-size: 1.1rem; margin-bottom: 1rem;">
-          <i class="fas fa-users"></i> People to Connect With
-        </h3>
-        <div style="display: grid; gap: 1rem;">
-    `;
-    people.forEach(person => {
-      const skills = (person.skills || []).slice(0, 3);
-      html += `
-        <div style="background: rgba(255,215,0,0.05); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; padding: 1rem; display: flex; gap: 1rem; align-items: center;">
-          ${person.image_url ? `<img src="${person.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;" />` : `<div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,215,0,0.2); display: flex; align-items: center; justify-content: center; color: #ffd700; font-weight: 700;">${getInitials(person.name)}</div>`}
-          <div style="flex: 1;">
-            <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${escapeHtml(person.name)}</div>
-            ${skills.length > 0 ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${skills.map(s => escapeHtml(String(s))).join(', ')}</div>` : ''}
-          </div>
-          <button onclick="connectWithPerson('${person.id}')" style="background: linear-gradient(135deg, #ffd700, #ffed4e); border: none; border-radius: 6px; padding: 0.5rem 1rem; color: #000; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
-            Connect
-          </button>
-        </div>
-      `;
-    });
-    html += '</div></div>';
-  }
-
-  html += '</div>';
-  focusContent.innerHTML = html;
-}
+// NOTE: populateFocusContent() removed - content is now generated
+// dynamically by generateFocusHTML(), generateProjectsHTML(), and
+// generatePeopleHTML() when users click buttons in the START modal
 
 // Helper functions
 function escapeHtml(text) {
