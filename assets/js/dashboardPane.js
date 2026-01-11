@@ -1,4 +1,6 @@
+// assets/js/dashboardPane.js
 import { initIlluminatedPathways } from "./illuminatePathways.js";
+
 /* ==========================================================================
  * CharlestonHacks Innovation Engine — Dashboard Pane Controller (Messaging-fixed v2)
  * File: assets/js/dashboardPane.js
@@ -49,9 +51,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   const openModal = (id) => $(id)?.classList.add("active");
   const closeModal = (id) => $(id)?.classList.remove("active");
 
-  // Safe event binding - only binds if element exists
   const on = (el, evt, fn, opts) => {
-    if (el && typeof el.addEventListener === 'function') {
+    if (el && typeof el.addEventListener === "function") {
       el.addEventListener(evt, fn, opts);
       return true;
     }
@@ -102,8 +103,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     wireGlobalFunctions();
     bindEditProfileDelegation();
 
-    // Messaging UI wiring needs sendModalMessage to exist first (wireGlobalFunctions sets it)
-    wireMessagingUI();
+    // Messaging wiring:
+    // - If MessagingModule exists, it owns the UI.
+    // - Otherwise, legacy wiring is needed.
+    if (!window.MessagingModule) {
+      wireMessagingUI();
+    }
 
     // Listen for other modules providing profile
     window.addEventListener("profile-loaded", async (e) => {
@@ -125,7 +130,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       state.authUser = session?.user || null;
       if (!state.authUser) {
         state.communityProfile = null;
-        cleanupMessageChannel();
+        if (window.MessagingModule?.cleanup) window.MessagingModule.cleanup();
+        else cleanupMessageChannel();
         showLogin();
         return;
       }
@@ -134,7 +140,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       await onAppReady();
     });
 
-    window.addEventListener("beforeunload", cleanupMessageChannel);
+    window.addEventListener("beforeunload", () => {
+      if (window.MessagingModule?.cleanup) window.MessagingModule.cleanup();
+      else cleanupMessageChannel();
+    });
   }
 
   // -----------------------------
@@ -148,10 +157,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     // Header actions
     on($("user-menu"), "click", () => window.openProfileModal());
     on($("notifications-bell"), "click", async () => {
-      if (typeof window.toggleConnectionsPanel === 'function') {
+      if (typeof window.toggleConnectionsPanel === "function") {
         window.toggleConnectionsPanel();
       } else {
-        console.warn('Connection requests panel not available');
+        console.warn("Connection requests panel not available");
       }
     });
 
@@ -192,14 +201,36 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     };
     window.closeProfileModal = () => closeModal("profile-modal");
 
+    // =========================================================
+    // MESSAGES MODAL — MessagingModule-first (WhatsApp/iMessage mobile)
+    // =========================================================
     window.openMessagesModal = async () => {
       openModal("messages-modal");
-      // ensure messaging UI bindings exist even if modal DOM is injected late
+
+      // mobile scroll lock + safe-area behavior (pairs with messaging.css)
+      document.body.classList.add("messages-open");
+
+      // Give MessagingModule identity (if it uses this pattern)
+      window.__currentCommunityId = state.communityProfile?.id || null;
+
+      if (window.MessagingModule?.init) {
+        window.MessagingModule.init();
+        return;
+      }
+
+      // Fallback: legacy system
       wireMessagingUI();
       await loadConversationsForModal();
     };
+
     window.closeMessagesModal = () => {
       closeModal("messages-modal");
+      document.body.classList.remove("messages-open");
+
+      if (window.MessagingModule?.cleanup) {
+        window.MessagingModule.cleanup();
+        return;
+      }
       cleanupMessageChannel();
     };
 
@@ -218,6 +249,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     };
     window.closeEndorsementsModal = () => closeModal("endorsements-modal");
 
+    // IMPORTANT: openQuickConnectModal is overridden later by Illuminated Pathways
     window.openQuickConnectModal = async () => {
       openModal("quick-connect-modal");
       await loadSuggestedConnections();
@@ -239,10 +271,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     window.hideCreateProjectForm = hideCreateProjectForm;
     window.createProject = createProject;
 
-    // Messaging
-    window.openConversationById = openConversationById;
-    window.sendModalMessage = sendModalMessage;
-    window.startConversationWithUser = startConversationWithUser;
+    // Messaging globals:
+    // Only expose legacy functions if MessagingModule is NOT present
+    if (!window.MessagingModule) {
+      window.openConversationById = openConversationById;
+      window.sendModalMessage = sendModalMessage;
+      window.startConversationWithUser = startConversationWithUser;
+    }
 
     // BBS
     window.initBBS = initBBS;
@@ -252,10 +287,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // Messaging UI Wiring (bulletproof)
   // -----------------------------
   function wireMessagingUI() {
-    // run once per page load
-    if (window.__IE_MSG_WIRED__) return;
-    window.__IE_MSG_WIRED__ = true;
-
     const tryFindInput = () =>
       document.getElementById("modal-message-text") ||
       document.querySelector("#messages-modal input[type='text']") ||
@@ -316,9 +347,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     }
 
     // Rebind when modal DOM changes (covers late-rendered inputs)
-    const modal =
-      document.getElementById("messages-modal") ||
-      document.querySelector(".messages-modal");
+    const modal = document.getElementById("messages-modal") || document.querySelector(".messages-modal");
 
     if (modal && !modal.__ieBoundObserver) {
       modal.__ieBoundObserver = true;
@@ -425,7 +454,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     if (!state.authUser) return null;
     if (state.communityProfile?.id) return state.communityProfile;
 
-    // Load existing by user_id (auth uid)
     const { data: existing, error: exErr } = await state.supabase
       .from("community")
       .select("*")
@@ -437,7 +465,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       return existing;
     }
 
-    // Create minimal profile
     const displayName =
       state.authUser.user_metadata?.full_name ||
       state.authUser.user_metadata?.name ||
@@ -470,9 +497,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   function dispatchProfileLoadedIfNeeded() {
     if (!state.communityProfile?.id) return;
-    window.dispatchEvent(
-      new CustomEvent("profile-loaded", { detail: { profile: state.communityProfile } })
-    );
+    window.dispatchEvent(new CustomEvent("profile-loaded", { detail: { profile: state.communityProfile } }));
   }
 
   async function onAppReady() {
@@ -503,26 +528,24 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     safeText("user-initials-header", initials || "?");
   }
 
- // -----------------------------
-// Synapse
-// -----------------------------
-async function initSynapseOnce() {
-  if (state.synapseInitialized) return;
-  state.synapseInitialized = true;
+  // -----------------------------
+  // Synapse
+  // -----------------------------
+  async function initSynapseOnce() {
+    if (state.synapseInitialized) return;
+    state.synapseInitialized = true;
 
-  try {
-    const mod = await import("./synapse.js");
-    if (typeof mod.initSynapseView === "function") {
-      await mod.initSynapseView();
-    } else {
-      console.warn("synapse.js loaded but initSynapseView not found");
+    try {
+      const mod = await import("./synapse.js");
+      if (typeof mod.initSynapseView === "function") {
+        await mod.initSynapseView();
+      } else {
+        console.warn("synapse.js loaded but initSynapseView not found");
+      }
+    } catch (e) {
+      console.warn("Synapse init skipped:", e?.message || e);
     }
-  } catch (e) {
-    console.warn("Synapse init skipped:", e?.message || e);
   }
-}
-
-
 
   // -----------------------------
   // Counters
@@ -537,7 +560,6 @@ async function initSynapseOnce() {
   }
 
   async function countUnreadMessages() {
-    // Approximation: unread messages from others (no per-recipient column in schema)
     if (!state.communityProfile?.id) return;
 
     try {
@@ -657,11 +679,7 @@ async function initSynapseOnce() {
     </div>`;
 
     try {
-      const { data: allUsers, error } = await state.supabase
-        .from("community")
-        .select("*")
-        .limit(200);
-
+      const { data: allUsers, error } = await state.supabase.from("community").select("*").limit(200);
       if (error) throw error;
 
       const me = state.communityProfile;
@@ -738,254 +756,204 @@ async function initSynapseOnce() {
     `;
   }
 
- // ================================================================
-// CONNECTION ACTIONS (community.id based)
-// - send request
-// - accept request (TO me only)
-// - decline request (TO me only)
-// - withdraw request (FROM me only)
-// Notes:
-// - Avoids maybeSingle() on UPDATE (prevents 406 when 0 rows match)
-// - Explicitly checks direction/ownership to prevent “silent no-op”
-// ================================================================
+  // ================================================================
+  // Connection Requests (Send / Accept / Decline / Withdraw) — SAFE VERSION
+  // - No maybeSingle() anywhere (avoids 406 edge cases)
+  // - Accept/Decline require "addressed to me" (to_user_id === myId)
+  // - Withdraw requires "sent by me" (from_user_id === myId)
+  // ================================================================
 
-// =====================================================================
-// Connection Requests (Send / Accept / Decline / Withdraw) — SAFE VERSION
-// - No maybeSingle() anywhere (avoids 406 edge cases)
-// - Accept/Decline require "addressed to me" (to_user_id === myId)
-// - Withdraw requires "sent by me" (from_user_id === myId)
-// =====================================================================
-
-window.sendConnectionRequest = async function (
-  toCommunityId,
-  targetName = "User",
-  type = "recommendation"
-) {
-  try {
-    if (!state.supabase) throw new Error("Supabase not initialized.");
-    if (!state.communityProfile?.id) throw new Error("No profile loaded.");
-
-    const fromId = state.communityProfile.id;
-    const toId = toCommunityId;
-
-    if (!toId) throw new Error("Missing target user id.");
-    if (String(fromId) === String(toId)) throw new Error("You can’t connect to yourself.");
-
-    // Prefer central module if present
+  window.sendConnectionRequest = async function (toCommunityId, targetName = "User", type = "recommendation") {
     try {
-      const mod = await import("./connections.js");
-      if (typeof mod?.sendConnectionRequest === "function") {
-        await mod.sendConnectionRequest(toId, targetName, type);
-        try { await refreshCounters?.(); } catch {}
-        try { await window.refreshSynapse?.(); } catch {}
-        return;
+      if (!state.supabase) throw new Error("Supabase not initialized.");
+      if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+      const fromId = state.communityProfile.id;
+      const toId = toCommunityId;
+
+      if (!toId) throw new Error("Missing target user id.");
+      if (String(fromId) === String(toId)) throw new Error("You can’t connect to yourself.");
+
+      // Prefer central module if present
+      try {
+        const mod = await import("./connections.js");
+        if (typeof mod?.sendConnectionRequest === "function") {
+          await mod.sendConnectionRequest(toId, targetName, type);
+          try {
+            await refreshCounters?.();
+          } catch {}
+          try {
+            await window.refreshSynapse?.();
+          } catch {}
+          return;
+        }
+      } catch (_) {
+        // fall through to inline insert
       }
-    } catch (_) {
-      // fall through to inline insert
+
+      const { error } = await state.supabase.from("connections").insert({
+        from_user_id: fromId,
+        to_user_id: toId,
+        status: "pending",
+        type: type || "generic",
+      });
+
+      if (error) throw error;
+
+      console.log("✅ Connection request sent:", { from_user_id: fromId, to_user_id: toId });
+      try {
+        await refreshCounters?.();
+      } catch {}
+      try {
+        await window.refreshSynapse?.();
+      } catch {}
+    } catch (e) {
+      console.error("sendConnectionRequest failed:", e);
+      alert(`Could not send request: ${e?.message || e}`);
     }
+  };
 
-    const { error } = await state.supabase.from("connections").insert({
-      from_user_id: fromId,
-      to_user_id: toId,
-      status: "pending",
-      type: type || "generic",
-    });
+  window.acceptConnectionRequest = async function (connectionId) {
+    try {
+      if (!state.supabase) throw new Error("Supabase not initialized.");
+      if (!state.communityProfile?.id) throw new Error("No profile loaded.");
 
-    if (error) throw error;
+      const myId = state.communityProfile.id;
 
-    console.log("✅ Connection request sent:", { from_user_id: fromId, to_user_id: toId });
-    try { await refreshCounters?.(); } catch {}
-    try { await window.refreshSynapse?.(); } catch {}
-  } catch (e) {
-    console.error("sendConnectionRequest failed:", e);
-    alert(`Could not send request: ${e?.message || e}`);
-  }
-};
+      const { data: rows, error: readErr } = await state.supabase
+        .from("connections")
+        .select("id,status,from_user_id,to_user_id")
+        .eq("id", connectionId)
+        .limit(1);
 
-window.acceptConnectionRequest = async function (connectionId) {
-  try {
-    if (!state.supabase) throw new Error("Supabase not initialized.");
-    if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+      if (readErr) throw readErr;
 
-    const myId = state.communityProfile.id;
+      const row = rows?.[0] || null;
+      if (!row) return;
 
-    // Step 1: read the row (array-safe)
-    const { data: rows, error: readErr } = await state.supabase
-      .from("connections")
-      .select("id,status,from_user_id,to_user_id")
-      .eq("id", connectionId)
-      .limit(1);
+      if (row.status !== "pending") return;
+      if (String(row.to_user_id) !== String(myId)) return;
 
-    if (readErr) throw readErr;
+      const { data, error: upErr } = await state.supabase
+        .from("connections")
+        .update({ status: "accepted" })
+        .eq("id", connectionId)
+        .eq("status", "pending")
+        .select("id,status");
 
-    const row = rows?.[0] || null;
-    if (!row) {
-      console.warn("Accept skipped: connection not found:", connectionId);
-      return;
+      if (upErr) throw upErr;
+      if (!data || data.length === 0) return;
+
+      console.log("✅ Connection accepted:", data[0].id);
+
+      try {
+        await refreshCounters?.();
+      } catch {}
+      try {
+        await window.refreshSynapse?.();
+      } catch {}
+    } catch (e) {
+      console.error("acceptConnectionRequest failed:", e);
     }
+  };
 
-    if (row.status !== "pending") {
-      console.warn("Accept skipped: not pending:", row);
-      return;
+  window.declineConnectionRequest = async function (connectionId) {
+    try {
+      if (!state.supabase) throw new Error("Supabase not initialized.");
+      if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+      const myId = state.communityProfile.id;
+
+      const { data: rows, error: readErr } = await state.supabase
+        .from("connections")
+        .select("id,status,from_user_id,to_user_id")
+        .eq("id", connectionId)
+        .limit(1);
+
+      if (readErr) throw readErr;
+
+      const row = rows?.[0] || null;
+      if (!row) return;
+
+      if (row.status !== "pending") return;
+      if (String(row.to_user_id) !== String(myId)) return;
+
+      const { data, error: delErr } = await state.supabase
+        .from("connections")
+        .delete()
+        .eq("id", connectionId)
+        .eq("status", "pending")
+        .select("id");
+
+      if (delErr) throw delErr;
+      if (!data || data.length === 0) return;
+
+      console.log("🗑️ Connection declined:", data[0].id);
+
+      try {
+        await refreshCounters?.();
+      } catch {}
+      try {
+        await window.refreshSynapse?.();
+      } catch {}
+    } catch (e) {
+      console.error("declineConnectionRequest failed:", e);
     }
+  };
 
-    // Must be addressed TO me
-    if (String(row.to_user_id) !== String(myId)) {
-      console.warn("Accept skipped: not addressed to current user:", { myId, row });
-      return;
+  window.withdrawConnectionRequest = async function (connectionId) {
+    try {
+      if (!state.supabase) throw new Error("Supabase not initialized.");
+      if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+      const myId = state.communityProfile.id;
+
+      const { data: rows, error: readErr } = await state.supabase
+        .from("connections")
+        .select("id,status,from_user_id,to_user_id")
+        .eq("id", connectionId)
+        .limit(1);
+
+      if (readErr) throw readErr;
+
+      const row = rows?.[0] || null;
+      if (!row) return;
+
+      if (row.status !== "pending") return;
+      if (String(row.from_user_id) !== String(myId)) return;
+
+      const { data, error: delErr } = await state.supabase
+        .from("connections")
+        .delete()
+        .eq("id", connectionId)
+        .eq("status", "pending")
+        .select("id");
+
+      if (delErr) throw delErr;
+      if (!data || data.length === 0) return;
+
+      console.log("↩️ Connection request withdrawn:", data[0].id);
+
+      try {
+        await refreshCounters?.();
+      } catch {}
+      try {
+        await window.refreshSynapse?.();
+      } catch {}
+    } catch (e) {
+      console.error("withdrawConnectionRequest failed:", e);
     }
+  };
 
-    // Step 2: update (select returns array safely)
-    const { data, error: upErr } = await state.supabase
-      .from("connections")
-      .update({ status: "accepted" })
-      .eq("id", connectionId)
-      .eq("status", "pending")
-      .select("id,status");
-
-    if (upErr) throw upErr;
-
-    if (!data || data.length === 0) {
-      console.warn("Accept skipped: update matched 0 rows (RLS or race):", connectionId);
-      return;
-    }
-
-    console.log("✅ Connection accepted:", data[0].id);
-
-    try { await refreshCounters?.(); } catch {}
-    try { await window.refreshSynapse?.(); } catch {}
-  } catch (e) {
-    console.error("acceptConnectionRequest failed:", e);
-  }
-};
-
-window.declineConnectionRequest = async function (connectionId) {
-  try {
-    if (!state.supabase) throw new Error("Supabase not initialized.");
-    if (!state.communityProfile?.id) throw new Error("No profile loaded.");
-
-    const myId = state.communityProfile.id;
-
-    // Read (array-safe)
-    const { data: rows, error: readErr } = await state.supabase
-      .from("connections")
-      .select("id,status,from_user_id,to_user_id")
-      .eq("id", connectionId)
-      .limit(1);
-
-    if (readErr) throw readErr;
-
-    const row = rows?.[0] || null;
-    if (!row) {
-      console.warn("Decline skipped: connection not found:", connectionId);
-      return;
-    }
-
-    if (row.status !== "pending") {
-      console.warn("Decline skipped: not pending:", row);
-      return;
-    }
-
-    // Must be addressed TO me
-    if (String(row.to_user_id) !== String(myId)) {
-      console.warn("Decline skipped: not addressed to current user:", { myId, row });
-      return;
-    }
-
-    // Delete pending request
-    const { data, error: delErr } = await state.supabase
-      .from("connections")
-      .delete()
-      .eq("id", connectionId)
-      .eq("status", "pending")
-      .select("id");
-
-    if (delErr) throw delErr;
-
-    if (!data || data.length === 0) {
-      console.warn("Decline skipped: delete matched 0 rows (RLS or race):", connectionId);
-      return;
-    }
-
-    console.log("🗑️ Connection declined:", data[0].id);
-
-    try { await refreshCounters?.(); } catch {}
-    try { await window.refreshSynapse?.(); } catch {}
-  } catch (e) {
-    console.error("declineConnectionRequest failed:", e);
-  }
-};
-
-window.withdrawConnectionRequest = async function (connectionId) {
-  try {
-    if (!state.supabase) throw new Error("Supabase not initialized.");
-    if (!state.communityProfile?.id) throw new Error("No profile loaded.");
-
-    const myId = state.communityProfile.id;
-
-    // Read (array-safe)
-    const { data: rows, error: readErr } = await state.supabase
-      .from("connections")
-      .select("id,status,from_user_id,to_user_id")
-      .eq("id", connectionId)
-      .limit(1);
-
-    if (readErr) throw readErr;
-
-    const row = rows?.[0] || null;
-    if (!row) {
-      console.warn("Withdraw skipped: connection not found:", connectionId);
-      return;
-    }
-
-    if (row.status !== "pending") {
-      console.warn("Withdraw skipped: not pending:", row);
-      return;
-    }
-
-    // Must be FROM me
-    if (String(row.from_user_id) !== String(myId)) {
-      console.warn("Withdraw skipped: not sent by current user:", { myId, row });
-      return;
-    }
-
-    // Delete pending request
-    const { data, error: delErr } = await state.supabase
-      .from("connections")
-      .delete()
-      .eq("id", connectionId)
-      .eq("status", "pending")
-      .select("id");
-
-    if (delErr) throw delErr;
-
-    if (!data || data.length === 0) {
-      console.warn("Withdraw skipped: delete matched 0 rows (RLS or race):", connectionId);
-      return;
-    }
-
-    console.log("↩️ Connection request withdrawn:", data[0].id);
-
-    try { await refreshCounters?.(); } catch {}
-    try { await window.refreshSynapse?.(); } catch {}
-  } catch (e) {
-    console.error("withdrawConnectionRequest failed:", e);
-  }
-};
-
-// Handy console helpers
-window.__acceptTest = (id) => window.acceptConnectionRequest(id);
-window.__declineTest = (id) => window.declineConnectionRequest(id);
-window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
-
-
-
+  // Handy console helpers
+  window.__acceptTest = (id) => window.acceptConnectionRequest(id);
+  window.__declineTest = (id) => window.declineConnectionRequest(id);
+  window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
 
   window.joinProject = async function (projectId, projectName = "Project") {
     try {
       if (!state.communityProfile?.id) throw new Error("No profile loaded.");
 
-      // Check if already a member
       const { data: existing, error: checkError } = await state.supabase
         .from("project_members")
         .select("id")
@@ -1000,18 +968,16 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
         return;
       }
 
-      // Join the project
       const { error } = await state.supabase.from("project_members").insert({
         project_id: projectId,
         user_id: state.communityProfile.id,
-        role: "member"
+        role: "member",
       });
 
       if (error) throw error;
 
       alert(`✓ Successfully joined ${projectName}!`);
 
-      // Refresh the visualization to show new project connection
       if (window.refreshSynapseProjectCircles) {
         await window.refreshSynapseProjectCircles();
       }
@@ -1339,14 +1305,13 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
 
       const { error } = await state.supabase.from("messages").insert({
         conversation_id: state.currentConversationId,
-        sender_id: state.communityProfile.id, // community.id
+        sender_id: state.communityProfile.id,
         content: text,
         read: false,
       });
 
       if (error) throw error;
 
-      // best-effort: update conversation preview
       await state.supabase
         .from("conversations")
         .update({
@@ -1357,7 +1322,6 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
 
       if (input) input.value = "";
 
-      // fast UX
       await loadMessagesForConversation(state.currentConversationId);
       await refreshCounters();
     } catch (e) {
@@ -1385,12 +1349,7 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
       .channel(`messages:${conversationId}`)
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
+        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
         async () => {
           if (state.currentConversationId !== conversationId) return;
           await loadMessagesForConversation(conversationId);
@@ -1407,47 +1366,43 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
     const form = $("project-form");
     if (form) {
       form.style.display = "block";
-      // Load active themes into dropdown
       await loadThemesIntoProjectDropdown();
     }
   }
 
-  // Load themes into project creation form dropdown
   async function loadThemesIntoProjectDropdown() {
     const dropdown = $("project-theme");
     if (!dropdown || !state.supabase) return;
 
     try {
       const { data: themes, error } = await state.supabase
-        .from('theme_circles')
-        .select('id, title, tags, expires_at')
-        .eq('status', 'active')
-        .gt('expires_at', new Date().toISOString())
-        .order('title', { ascending: true });
+        .from("theme_circles")
+        .select("id, title, tags, expires_at")
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("title", { ascending: true });
 
       if (error) {
-        console.error('Error loading themes:', error);
+        console.error("Error loading themes:", error);
         return;
       }
 
-      // Clear existing options except the first one
       dropdown.innerHTML = '<option value="">No theme (standalone project)</option>';
 
-      // Add theme options
       if (themes && themes.length > 0) {
-        themes.forEach(theme => {
-          const option = document.createElement('option');
+        themes.forEach((theme) => {
+          const option = document.createElement("option");
           option.value = theme.id;
-          const tags = theme.tags && theme.tags.length > 0 ? ` [${theme.tags.join(', ')}]` : '';
+          const tags = theme.tags && theme.tags.length > 0 ? ` [${theme.tags.join(", ")}]` : "";
           option.textContent = `${theme.title}${tags}`;
           dropdown.appendChild(option);
         });
         console.log(`✅ Loaded ${themes.length} themes into project form`);
       } else {
-        console.log('ℹ️ No active themes available');
+        console.log("ℹ️ No active themes available");
       }
     } catch (err) {
-      console.error('Error loading themes dropdown:', err);
+      console.error("Error loading themes dropdown:", err);
     }
   }
 
@@ -1472,7 +1427,6 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
       if (!state.communityProfile?.id) await ensureCommunityProfile();
       if (!state.communityProfile?.id) throw new Error("Profile not found.");
 
-      // Build project data object
       const projectData = {
         name,
         description,
@@ -1481,18 +1435,12 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
         status: "open",
       };
 
-      // Add theme_id if a theme was selected
       if (themeId) {
         projectData.theme_id = themeId;
         console.log(`✅ Creating project with theme: ${themeId}`);
       }
 
-      const { data: newProject, error } = await state.supabase
-        .from("projects")
-        .insert(projectData)
-        .select()
-        .single();
-
+      const { data: newProject, error } = await state.supabase.from("projects").insert(projectData).select().single();
       if (error) throw error;
 
       await state.supabase.from("project_members").insert({
@@ -1501,21 +1449,23 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
         role: "creator",
       });
 
-      // Award XP for creating project
       if (window.DailyEngagement) {
-        await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.CREATE_PROJECT, `Created project: ${name}`);
+        await window.DailyEngagement.awardXP(
+          window.DailyEngagement.XP_REWARDS.CREATE_PROJECT,
+          `Created project: ${name}`
+        );
       }
 
       $("project-name").value = "";
       $("project-description").value = "";
       $("project-skills").value = "";
       if ($("project-theme")) $("project-theme").value = "";
+
       hideCreateProjectForm();
       await loadProjects();
       await refreshCounters();
 
-      // Refresh synapse view to show the new project
-      if (typeof window.refreshSynapseConnections === 'function') {
+      if (typeof window.refreshSynapseConnections === "function") {
         await window.refreshSynapseConnections();
       }
     } catch (e) {
@@ -1534,15 +1484,12 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
     </div>`;
 
     try {
-      // Load ALL projects
-      const { data: projects, error } = await state.supabase
-        .from("projects")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const { data: projects, error } = await state.supabase.from("projects").select("*").order("created_at", {
+        ascending: false,
+      });
 
       if (error) throw error;
 
-      // Load user's project memberships
       let userProjectIds = new Set();
       if (state.communityProfile?.id) {
         const { data: memberships } = await state.supabase
@@ -1550,9 +1497,7 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
           .select("project_id")
           .eq("user_id", state.communityProfile.id);
 
-        if (memberships) {
-          userProjectIds = new Set(memberships.map(m => m.project_id));
-        }
+        if (memberships) userProjectIds = new Set(memberships.map((m) => m.project_id));
       }
 
       if (!projects || projects.length === 0) {
@@ -1574,27 +1519,39 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
           const isMember = userProjectIds.has(p.id);
 
           return `
-            <div style="background:rgba(0,224,255,0.05); border:${isMember ? '2px solid rgba(0,255,136,0.5)' : '1px solid rgba(0,224,255,0.2)'};
+            <div style="background:rgba(0,224,255,0.05); border:${
+              isMember ? "2px solid rgba(0,255,136,0.5)" : "1px solid rgba(0,224,255,0.2)"
+            };
               border-radius:12px; padding:1.25rem; margin-bottom:1rem;">
               <div style="display:flex; justify-content:space-between; align-items:start; gap:1rem;">
                 <div style="flex: 1;">
                   <h3 style="color:#00e0ff; margin:0 0 0.25rem 0; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="fas fa-lightbulb"></i> ${escapeHtml(p.name)}
-                    ${isMember ? '<span style="background:rgba(0,255,136,0.2); color:#0f8; padding:0.15rem 0.5rem; border-radius:8px; font-size:0.7rem; font-weight:600;">MEMBER</span>' : ''}
+                    ${
+                      isMember
+                        ? '<span style="background:rgba(0,255,136,0.2); color:#0f8; padding:0.15rem 0.5rem; border-radius:8px; font-size:0.7rem; font-weight:600;">MEMBER</span>'
+                        : ""
+                    }
                   </h3>
                   <div style="color:#666; font-size:0.85rem;">${escapeHtml(created)}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
-                  <span style="background:${p.status === 'active' ? 'rgba(0,255,136,0.2)' : 'rgba(255,170,0,0.2)'}; color:${p.status === 'active' ? '#0f8' : '#fa0'}; padding:0.25rem 0.75rem; border-radius:12px; font-size:0.85rem; white-space: nowrap;">
+                  <span style="background:${
+                    p.status === "active" ? "rgba(0,255,136,0.2)" : "rgba(255,170,0,0.2)"
+                  }; color:${p.status === "active" ? "#0f8" : "#fa0"}; padding:0.25rem 0.75rem; border-radius:12px; font-size:0.85rem; white-space: nowrap;">
                     ${escapeHtml(p.status || "active")}
                   </span>
-                  ${!isMember ? `
+                  ${
+                    !isMember
+                      ? `
                     <button onclick="joinProject('${p.id}', '${escapeHtml(p.name).replace(/'/g, "\\'")}'); event.stopPropagation();"
                       style="background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; color: white;
                       padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">
                       <i class="fas fa-plus-circle"></i> Join
                     </button>
-                  ` : ''}
+                  `
+                      : ""
+                  }
                 </div>
               </div>
 
@@ -1606,12 +1563,17 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
                 skills.length
                   ? `
                 <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">
-                  ${skills.slice(0, 8).map((s) => `
+                  ${skills
+                    .slice(0, 8)
+                    .map(
+                      (s) => `
                     <span style="background:rgba(0,224,255,0.1); color:#00e0ff; padding:0.25rem 0.75rem;
                       border-radius:12px; font-size:0.85rem; border:1px solid rgba(0,224,255,0.2);">
                       ${escapeHtml(s)}
                     </span>
-                  `).join("")}
+                  `
+                    )
+                    .join("")}
                 </div>
               `
                   : ""
@@ -1857,14 +1819,8 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
   }
 
   // -----------------------------
-  // Animated Pathways
+  // Recommendations renderer (used by pathways, if needed)
   // -----------------------------
-  
-
-  // (Illuminated pathways implementation moved to illuminatePathways.js)
-
-
-
   async function renderRecommendationsList(recommendations) {
     const list = $("quick-connect-list");
     if (!list) return;
@@ -1892,7 +1848,7 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
       const isProject = rec.type === "project";
       const icon = isProject ? "💡" : "";
 
-      const matchBadges = rec.matchedSkills
+      const matchBadges = (rec.matchedSkills || [])
         .slice(0, 3)
         .map(
           (skill) => `
@@ -1912,7 +1868,7 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
 
           <div style="position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,215,0,0.2);
             color: #ffd700; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.7rem; font-weight: 700;">
-            ${Math.round(rec.score)} pts
+            ${Math.round(rec.score || 0)} pts
           </div>
 
           ${
@@ -1934,20 +1890,24 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
               ${isProject ? '<span style="color: #ff6b6b; margin-left: 0.5rem; font-size: 0.85rem;">(Project)</span>' : ""}
             </div>
             <div style="color:#aaa; font-size:0.85rem; margin-bottom: 0.5rem;">
-              ${escapeHtml(rec.reason)}
+              ${escapeHtml(rec.reason || "")}
             </div>
             ${matchBadges ? `<div style="margin-top: 0.5rem;">${matchBadges}</div>` : ""}
           </div>
 
           <button class="btn btn-primary" style="white-space:nowrap;"
-            onclick="${isProject ? `joinProject('${rec.userId}', '${escapeHtml(name).replace(/'/g, "\\'")}')` : `sendConnectionRequest('${rec.userId}', '${escapeHtml(name).replace(/'/g, "\\'")}', 'recommendation')`}">
+            onclick="${
+              isProject
+                ? `joinProject('${rec.userId}', '${escapeHtml(name).replace(/'/g, "\\'")}')`
+                : `sendConnectionRequest('${rec.userId}', '${escapeHtml(name).replace(/'/g, "\\'")}', 'recommendation')`
+            }">
             <i class="fas fa-${isProject ? "lightbulb" : "user-plus"}"></i> ${isProject ? "Join" : "Connect"}
           </button>
         </div>
       `;
     }
 
-    if (recommendations.length === 0) {
+    if (!recommendations || recommendations.length === 0) {
       list.innerHTML += `
         <div style="text-align:center; color:#aaa; padding:2rem;">
           <i class="fas fa-check-circle" style="font-size:3rem; opacity:0.3;"></i>
@@ -1965,11 +1925,9 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
     const bottomBar = document.querySelector(".bottom-stats-bar");
     if (!bottomBar) return;
 
-    // Smooth collapse animation
     bottomBar.style.transition = "transform 0.3s ease, opacity 0.3s ease";
     bottomBar.style.transform = "translateY(100%)";
     bottomBar.style.opacity = "0";
-
     console.log("📉 Bottom bar collapsed for pathway viewing");
   }
 
@@ -1977,38 +1935,34 @@ window.__withdrawTest = (id) => window.withdrawConnectionRequest(id);
     const bottomBar = document.querySelector(".bottom-stats-bar");
     if (!bottomBar) return;
 
-    // Smooth expand animation
     bottomBar.style.transition = "transform 0.3s ease, opacity 0.3s ease";
     bottomBar.style.transform = "translateY(0)";
     bottomBar.style.opacity = "1";
-
     console.log("📈 Bottom bar expanded");
   }
 
-// -----------------------------
-// Illuminated Pathways (sequential recommendations)
-// -----------------------------
-const pathways = initIlluminatedPathways({
-  collapseBottomBar,
-  expandBottomBar,
-  getCurrentUserCommunityId: () =>
-    state.communityProfile?.id ||
-    state.communityProfile?.community_id ||
-    state.authUser?.id ||
-    null,
-});
+  // -----------------------------
+  // Illuminated Pathways (sequential recommendations)
+  // -----------------------------
+  const pathways = initIlluminatedPathways({
+    collapseBottomBar,
+    expandBottomBar,
+    getCurrentUserCommunityId: () =>
+      state.communityProfile?.id || state.communityProfile?.community_id || state.authUser?.id || null,
 
-// Globals expected by dashboard-actions.js / HTML onclick hooks
-window.showAnimatedPathways = pathways.showAnimatedPathways;
-
-// Directly trigger animated pathways when clicking Connect button
-// (removed Quick Connect modal to go straight to pathway discovery)
-window.openQuickConnectModal = async function openQuickConnectModal() {
-  // Start narrated sequential reveal directly
-  return pathways.showAnimatedPathways({
-    autoplay: true, // immediately start playing
-    limit: 10,       // how many steps in the sequence
+    // Optional hook if your illuminatePathways.js wants to reuse this renderer
+    renderRecommendationsList,
   });
-};
 
+  // Globals expected by dashboard-actions.js / HTML onclick hooks
+  window.showAnimatedPathways = pathways.showAnimatedPathways;
+
+  // Directly trigger animated pathways when clicking Connect button
+  // (removed Quick Connect modal to go straight to pathway discovery)
+  window.openQuickConnectModal = async function openQuickConnectModal() {
+    return pathways.showAnimatedPathways({
+      autoplay: true,
+      limit: 10,
+    });
+  };
 })();
