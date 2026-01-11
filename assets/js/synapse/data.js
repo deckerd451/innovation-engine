@@ -171,33 +171,53 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       filteredThemes = themes.filter(theme => userThemeIds.includes(theme.id));
     }
 
-    const themeNodes = filteredThemes.map(theme => {
-      // Check if user is participating and get their engagement level
-      const userParticipation = (themeParticipants || []).find(
-        tp => tp.theme_id === theme.id && tp.community_id === currentUserCommunityId
-      );
+    const themeNodes = filteredThemes
+      .map(theme => {
+        // Check if user is participating and get their engagement level
+        const userParticipation = (themeParticipants || []).find(
+          tp => tp.theme_id === theme.id && tp.community_id === currentUserCommunityId
+        );
 
-      return {
-        id: `theme:${theme.id}`,
-        theme_id: theme.id,
-        type: 'theme',
-        name: theme.title,
-        title: theme.title,
-        description: theme.description,
-        tags: theme.tags || [],
-        created_at: theme.created_at,
-        expires_at: theme.expires_at,
-        activity_score: theme.activity_score || 0,
-        origin_type: theme.origin_type,
-        last_activity_at: theme.last_activity_at,
-        cta_text: theme.cta_text,
-        cta_link: theme.cta_link,
-        user_engagement_level: userParticipation?.engagement_level || null,
-        user_is_participant: !!userParticipation,
-        x: theme.x || (window.innerWidth * 0.5 + (Math.random() * 120 - 60)),
-        y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
-      };
-    });
+        // Count total participants for this theme
+        const participantCount = (themeParticipants || []).filter(
+          tp => tp.theme_id === theme.id
+        ).length;
+
+        return {
+          id: `theme:${theme.id}`,
+          theme_id: theme.id,
+          type: 'theme',
+          name: theme.title,
+          title: theme.title,
+          description: theme.description,
+          tags: theme.tags || [],
+          created_at: theme.created_at,
+          expires_at: theme.expires_at,
+          activity_score: theme.activity_score || 0,
+          participant_count: participantCount,
+          origin_type: theme.origin_type,
+          last_activity_at: theme.last_activity_at,
+          cta_text: theme.cta_text,
+          cta_link: theme.cta_link,
+          user_engagement_level: userParticipation?.engagement_level || null,
+          user_is_participant: !!userParticipation,
+          x: theme.x || (window.innerWidth * 0.5 + (Math.random() * 120 - 60)),
+          y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
+        };
+      })
+      // Per yellow instructions: Remove empty/unengaged theme circles
+      .filter(theme => {
+        // Always show if user is participating
+        if (theme.user_is_participant) return true;
+
+        // In full community view, show themes with at least 1 participant
+        if (showFullCommunity) {
+          return theme.participant_count > 0;
+        }
+
+        // In filtered view, only show user's themes (already filtered above)
+        return true;
+      });
     nodes = [...nodes, ...themeNodes];
   }
 
