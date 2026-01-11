@@ -81,7 +81,8 @@ export function renderLinks(container, links) {
     .attr("stroke-width", (d) => getLinkWidth(d))
     .attr("stroke-dasharray", (d) => {
       if (d.status === "pending") return "5,5";
-      if (d.status === "theme-participant" && d.engagement_level === "observer") return "3,3";
+      // Per yellow instructions: Make lines solid when themes are joined
+      // Theme participant lines are now ALWAYS solid
       return "none";
     })
     .attr("opacity", (d) => {
@@ -242,24 +243,26 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const opacity = Math.max(0.4, 1 - (progress * 0.6));
 
     // Determine if emerging (new) or established
+    // Themes are ALWAYS solid if user has joined (per yellow instructions)
     const isEmerging = d.activity_score < 5;
+    const userHasJoined = d.user_is_participant === true;
 
-    // Outer glow circle
+    // Outer glow circle - stronger if user has joined
     theme
       .append("circle")
       .attr("r", radius + 15)
-      .attr("fill", `rgba(0, 224, 255, ${0.05 * glowIntensity})`)
+      .attr("fill", `rgba(0, 224, 255, ${userHasJoined ? 0.1 * glowIntensity : 0.05 * glowIntensity})`)
       .attr("stroke", "none")
       .attr("class", "theme-glow");
 
-    // Main circle with gradient
+    // Main circle - ALWAYS solid, no dotted lines (per yellow instructions)
     theme
       .append("circle")
       .attr("r", radius)
       .attr("fill", `rgba(10, 14, 39, ${0.3})`)
-      .attr("stroke", "#00e0ff")
-      .attr("stroke-width", 3)
-      .attr("stroke-dasharray", isEmerging ? "10,5" : "none")
+      .attr("stroke", userHasJoined ? "#00ff88" : "#00e0ff")  // Green if joined
+      .attr("stroke-width", userHasJoined ? 4 : 3)  // Thicker if joined
+      .attr("stroke-dasharray", "none")  // Always solid per yellow instructions
       .attr("opacity", opacity)
       .attr("filter", "url(#glow)")
       .attr("class", "theme-main-circle");

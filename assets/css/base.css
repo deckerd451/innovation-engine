@@ -13,6 +13,8 @@ canvas#neural-bg {
   width: 100%;
   height: 100%;
   z-index: -5;
+  /* Per yellow instructions: Remove synapse background */
+  display: none !important;
 }
 
 .container {

@@ -316,8 +316,10 @@ label {
 }
 
 /* Prevent the neural canvas from overlapping results */
+/* Per yellow instructions: Remove synapse background */
 #neural-bg,
 #neural-interactive {
   z-index: -2 !important;
+  display: none !important;
 }
 
