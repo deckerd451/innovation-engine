@@ -1,22 +1,26 @@
 /*
- * Direct Messaging System — Fixed + Fully Functional Module (RLS-safe)
+ * Direct Messaging System — Full Rewrite (RLS-safe + Mobile WhatsApp UX)
  * File: assets/js/messaging.js
  *
- * ✅ Fixes:
- * - Uses correct IDs for schema + RLS:
- *   - conversations.participant_1_id / participant_2_id are community.id
- *   - messages.sender_id is auth.users(id) - the auth user ID
- * - Correctly filters conversations by communityId (not auth uid)
- * - Avoids 406 errors by using maybeSingle()-style logic
- * - Avoids duplicate conversations by sorting participants (matches unique_participants index)
- * - Works even if callers pass auth user_id OR community.id (auto-resolves to community.id)
+ * ✅ Key Decisions (CONSISTENT + PRACTICAL):
+ * - conversations.participant_1_id / participant_2_id are community.id
+ * - messages.sender_id is community.id   ✅ (consistent across load/send/realtime/render)
+ *
+ * ✅ Includes:
+ * - Mobile WhatsApp/iMessage navigation:
+ *   - List view by default
+ *   - Tap conversation => chat view
+ *   - Back button in chat header on mobile
+ * - Duplicate init protection + cleanup
+ * - Safe conversation de-dupe (sorted participant pairs)
+ * - Works whether caller passes auth user_id OR community.id (auto resolves to community.id)
  *
  * Requirements:
- * - window.supabase must exist (from supabaseClient.js)
+ * - window.supabase exists (from supabaseClient.js)
  * - Tables:
- *   - conversations(participant_1_id uuid, participant_2_id uuid, context_type, context_id, context_title, last_message_at, last_message_preview)
- *   - messages(conversation_id uuid, sender_id uuid REFERENCES auth.users(id), content text, read bool, ...)
- * - RLS policies already present (yours are)
+ *   - community(id, user_id, name, email, image_url, skills, ...)
+ *   - conversations(participant_1_id, participant_2_id, context_type, context_id, context_title, last_message_at, last_message_preview)
+ *   - messages(conversation_id, sender_id [community.id], content, read, created_at)
  */
 
 const MessagingModule = (function () {
@@ -29,45 +33,42 @@ const MessagingModule = (function () {
   const state = {
     initialized: false,
 
-    // Auth + profile
-    authUser: null, // supabase auth user
+    authUser: null, // Supabase auth user
     currentUser: null, // { authId, communityId, email, name, avatar }
 
-    // Data
     conversations: [],
     activeConversation: null,
     messages: [],
     unreadCount: 0,
     allUsers: [],
 
-    // Realtime
     realtimeChannel: null,
+    observer: null,
 
-    // UI flags
-    observer: null
+    // Mobile UX
+    mobileMode: null // "list" | "chat" | null
   };
 
   // ============================================================
-  // INIT
+  // INIT / CLEANUP
   // ============================================================
 
   async function init() {
     // One-time init guard - prevents double-binding and ghost listeners
     if (window.__IE_MESSAGING_INIT_DONE__) {
-      console.log("⚠️ Messaging already initialized globally, skipping...");
-      // Re-render UI when modal reopens
+      // If already initialized, re-render for modal reopen / tab switch
       if (state.initialized) {
         renderMessagesTab();
         renderConversationsList();
+        applyResponsiveLayout();
       }
       return;
     }
 
     if (state.initialized) {
-      console.log("Messaging already initialized");
-      // Re-render UI when modal reopens
       renderMessagesTab();
       renderConversationsList();
+      applyResponsiveLayout();
       return;
     }
 
@@ -90,7 +91,7 @@ const MessagingModule = (function () {
         .single();
 
       if (profErr) throw profErr;
-      if (!profile?.id) throw new Error("No community profile found for this user (community.id missing)");
+      if (!profile?.id) throw new Error("No community profile found (community.id missing)");
 
       state.currentUser = {
         authId: state.authUser.id,
@@ -100,7 +101,6 @@ const MessagingModule = (function () {
         avatar: profile?.image_url || null
       };
 
-      // Load initial data
       await Promise.all([
         loadConversations(),
         loadAllUsers(),
@@ -109,6 +109,7 @@ const MessagingModule = (function () {
 
       renderMessagesTab();
       setupRealtimeSubscriptions();
+      applyResponsiveLayout(); // ✅ mobile: start in list view
 
       state.initialized = true;
       console.log("✅ Messaging initialized");
@@ -118,8 +119,33 @@ const MessagingModule = (function () {
     }
   }
 
+  function cleanup() {
+    try {
+      if (state.realtimeChannel) {
+        window.supabase.removeChannel(state.realtimeChannel);
+        state.realtimeChannel = null;
+      }
+    } catch (e) {
+      console.warn("Messaging cleanup channel removal failed:", e);
+    }
+
+    // Clear module state
+    state.initialized = false;
+    state.conversations = [];
+    state.messages = [];
+    state.activeConversation = null;
+    state.unreadCount = 0;
+    state.allUsers = [];
+    state.mobileMode = null;
+
+    // Allow init again if user comes back
+    window.__IE_MESSAGING_INIT_DONE__ = false;
+
+    console.log("Messaging cleanup complete");
+  }
+
   // ============================================================
-  // HELPERS (ID RESOLUTION / SAFETY)
+  // GUARDS / HELPERS
   // ============================================================
 
   function requireReady() {
@@ -128,47 +154,117 @@ const MessagingModule = (function () {
     }
   }
 
-  // Accept either community.id OR community.user_id (auth uid) and return community.id
-  async function resolveCommunityId(maybeAuthOrCommunityId) {
-    if (!maybeAuthOrCommunityId) return null;
-
-    // Try as community.id first
-    let { data: row, error } = await window.supabase
-      .from("community")
-      .select("id, user_id")
-      .eq("id", maybeAuthOrCommunityId)
-      .maybeSingle?.() ?? await window.supabase
-        .from("community")
-        .select("id, user_id")
-        .eq("id", maybeAuthOrCommunityId)
-        .single().catch(e => ({ data: null, error: e }));
-
-    if (!error && row?.id) return row.id;
-
-    // Try as auth user_id
-    const res2 = await window.supabase
-      .from("community")
-      .select("id, user_id")
-      .eq("user_id", maybeAuthOrCommunityId)
-      .maybeSingle?.() ?? await window.supabase
-        .from("community")
-        .select("id, user_id")
-        .eq("user_id", maybeAuthOrCommunityId)
-        .single().catch(e => ({ data: null, error: e }));
-
-    if (!res2.error && res2.data?.id) return res2.data.id;
-
-    return null;
-  }
-
   function sortedPair(a, b) {
     return a < b ? [a, b] : [b, a];
   }
 
-  function safeMaybeSingle(queryPromise) {
-    // If supabase-js supports maybeSingle(), use it in the caller.
-    // Otherwise emulate: return first row or null.
-    return queryPromise;
+  // Accept either community.id OR community.user_id (auth uid) and return community.id
+  async function resolveCommunityId(maybeAuthOrCommunityId) {
+    if (!maybeAuthOrCommunityId) return null;
+
+    // 1) Try as community.id
+    {
+      const { data, error } = await window.supabase
+        .from("community")
+        .select("id")
+        .eq("id", maybeAuthOrCommunityId)
+        .limit(1);
+
+      if (!error && Array.isArray(data) && data[0]?.id) return data[0].id;
+    }
+
+    // 2) Try as auth user_id
+    {
+      const { data, error } = await window.supabase
+        .from("community")
+        .select("id")
+        .eq("user_id", maybeAuthOrCommunityId)
+        .limit(1);
+
+      if (!error && Array.isArray(data) && data[0]?.id) return data[0].id;
+    }
+
+    return null;
+  }
+
+  function isMobile() {
+    return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+  }
+
+  function setMobileView(mode) {
+    // mode: "list" | "chat"
+    const sidebar = document.querySelector("#messages-container .conversations-sidebar");
+    const chat = document.querySelector("#messages-container .chat-panel");
+    if (!sidebar || !chat) return;
+
+    if (!isMobile()) {
+      // Desktop/tablet: show both panes
+      sidebar.classList.remove("mobile-hide");
+      chat.classList.remove("mobile-show");
+      state.mobileMode = null;
+      return;
+    }
+
+    if (mode === "chat") {
+      sidebar.classList.add("mobile-hide");
+      chat.classList.add("mobile-show");
+      state.mobileMode = "chat";
+    } else {
+      sidebar.classList.remove("mobile-hide");
+      chat.classList.remove("mobile-show");
+      state.mobileMode = "list";
+    }
+  }
+
+  function ensureMobileBackButton() {
+    if (!isMobile()) return;
+
+    const header = document.querySelector("#messages-container .chat-header");
+    if (!header) return;
+
+    if (header.querySelector(".mobile-back-btn")) return;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mobile-back-btn";
+    btn.setAttribute("aria-label", "Back to conversations");
+    btn.innerHTML = `<i class="fas fa-chevron-left"></i>`;
+    btn.style.cssText = `
+      display: inline-flex;
+      width: 40px;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      border: 1px solid rgba(0,224,255,0.25);
+      background: rgba(0,224,255,0.12);
+      color: #00e0ff;
+      cursor: pointer;
+      flex: 0 0 auto;
+    `;
+
+    btn.addEventListener("click", () => {
+      setMobileView("list");
+    });
+
+    header.insertBefore(btn, header.firstChild);
+  }
+
+  function applyResponsiveLayout() {
+    // Called after render, and on resize.
+    if (!document.getElementById("messages-container")) return;
+
+    if (isMobile()) {
+      // Default to list on mobile unless currently in an active convo and user is in chat mode
+      if (state.activeConversation) {
+        // If user previously selected convo, keep them in chat
+        setMobileView(state.mobileMode === "chat" ? "chat" : "list");
+      } else {
+        setMobileView("list");
+      }
+    } else {
+      setMobileView("list"); // in desktop this function shows both panes
+    }
   }
 
   // ============================================================
@@ -191,7 +287,6 @@ const MessagingModule = (function () {
           id, user_id, name, email, image_url
         )
       `)
-      // ✅ IMPORTANT: filter by COMMUNITY IDs
       .or(`participant_1_id.eq.${myCid},participant_2_id.eq.${myCid}`)
       .order("last_message_at", { ascending: false });
 
@@ -201,19 +296,18 @@ const MessagingModule = (function () {
     }
 
     state.conversations = (data || []).map((conv) => {
-      const isParticipant1 = conv.participant_1_id === myCid;
-      const otherParticipant = isParticipant1 ? conv.participant_2 : conv.participant_1;
+      const isP1 = conv.participant_1_id === myCid;
+      const other = isP1 ? conv.participant_2 : conv.participant_1;
 
       return {
         ...conv,
-        otherUser: otherParticipant
+        otherUser: other
           ? {
-              // other user's identifiers
-              authId: otherParticipant.user_id,
-              communityId: otherParticipant.id,
-              name: otherParticipant.name || "Unknown",
-              email: otherParticipant.email || "",
-              avatar: otherParticipant.image_url || null
+              authId: other.user_id,
+              communityId: other.id,
+              name: other.name || "Unknown",
+              email: other.email || "",
+              avatar: other.image_url || null
             }
           : {
               authId: null,
@@ -229,7 +323,6 @@ const MessagingModule = (function () {
   async function loadMessages(conversationId) {
     requireReady();
 
-    // Fetch messages
     const { data, error } = await window.supabase
       .from("messages")
       .select("*")
@@ -241,39 +334,37 @@ const MessagingModule = (function () {
       return;
     }
 
-    // Get unique sender IDs (auth user IDs)
-    const senderIds = [...new Set((data || []).map(m => m.sender_id))];
+    // sender_id is community.id (UUID)
+    const senderCommunityIds = [...new Set((data || []).map((m) => m.sender_id).filter(Boolean))];
 
-    // Fetch sender info from community table
-    const { data: senders } = await window.supabase
-      .from("community")
-      .select("id, user_id, name, image_url")
-      .in("user_id", senderIds);
+    let senderMap = {};
+    if (senderCommunityIds.length > 0) {
+      const { data: senders } = await window.supabase
+        .from("community")
+        .select("id, name, image_url")
+        .in("id", senderCommunityIds);
 
-    // Create a map of user_id -> community profile
-    const senderMap = {};
-    (senders || []).forEach(s => {
-      senderMap[s.user_id] = { id: s.id, name: s.name, image_url: s.image_url };
-    });
+      (senders || []).forEach((s) => {
+        senderMap[s.id] = { id: s.id, name: s.name, image_url: s.image_url };
+      });
+    }
 
-    // Attach sender info to messages
-    state.messages = (data || []).map(msg => ({
+    state.messages = (data || []).map((msg) => ({
       ...msg,
       sender: senderMap[msg.sender_id] || null
     }));
 
-    // Mark as read (only messages not sent by me)
     await markMessagesAsRead(conversationId);
   }
 
   async function loadAllUsers() {
     requireReady();
 
-    // show all other community members (filter by auth user_id)
+    // Load all other community members
     const { data, error } = await window.supabase
       .from("community")
       .select("id, user_id, name, email, skills, image_url")
-      .neq("user_id", state.currentUser.authId);
+      .neq("id", state.currentUser.communityId);
 
     if (error) {
       console.error("Error loading users:", error);
@@ -296,12 +387,6 @@ const MessagingModule = (function () {
   // CONVERSATION ACTIONS
   // ============================================================
 
-  /**
-   * Start or open a conversation.
-   * Accepts either:
-   * - other user's auth uid (community.user_id), OR
-   * - other user's community.id
-   */
   async function startConversation(otherUserIdOrCommunityId, context = {}) {
     requireReady();
 
@@ -314,7 +399,7 @@ const MessagingModule = (function () {
 
       const [p1, p2] = sortedPair(myCid, otherCid);
 
-      // 1) Try to find existing (use unique index order)
+      // Find existing
       const { data: existingData, error: findError } = await window.supabase
         .from("conversations")
         .select("*")
@@ -322,15 +407,11 @@ const MessagingModule = (function () {
         .eq("participant_2_id", p2)
         .limit(1);
 
-      // Only throw on real errors (ignore empty results)
-      if (findError) {
-        console.error("Error finding conversation:", findError);
-      }
+      if (findError) console.error("Error finding conversation:", findError);
 
-      // Extract first result if it exists
       let convo = Array.isArray(existingData) && existingData.length > 0 ? existingData[0] : null;
 
-      // 2) Create if missing
+      // Create if missing
       if (!convo) {
         const payload = {
           participant_1_id: p1,
@@ -342,29 +423,24 @@ const MessagingModule = (function () {
           last_message_preview: null
         };
 
-        const insertQuery = window.supabase
+        const { data: created, error: createErr } = await window.supabase
           .from("conversations")
           .insert(payload)
           .select("*")
           .single();
 
-        const { data: created, error: createErr } = await insertQuery;
-
         if (createErr) {
-          // If we hit duplicate due to race, re-fetch
-          if (String(createErr.code || "").includes("23505") || createErr.message?.includes("unique_participants")) {
-            const { data: refetchedData, error: refetchErr } = await window.supabase
+          // Handle unique race
+          const dup = String(createErr.code || "") === "23505" || String(createErr.message || "").includes("unique");
+          if (dup) {
+            const { data: refetched } = await window.supabase
               .from("conversations")
               .select("*")
               .eq("participant_1_id", p1)
               .eq("participant_2_id", p2)
               .limit(1);
 
-            if (refetchErr) {
-              console.error("Error refetching conversation:", refetchErr);
-            }
-
-            convo = Array.isArray(refetchedData) && refetchedData.length > 0 ? refetchedData[0] : null;
+            convo = Array.isArray(refetched) && refetched.length > 0 ? refetched[0] : null;
           } else {
             throw createErr;
           }
@@ -373,12 +449,11 @@ const MessagingModule = (function () {
         }
       }
 
-      // Reload list + select
       await loadConversations();
-      const full = state.conversations.find((c) => c.id === convo.id) || null;
-
+      const full = state.conversations.find((c) => c.id === convo?.id) || null;
       if (full) await selectConversation(full);
-      return convo.id;
+
+      return convo?.id || null;
     } catch (error) {
       console.error("Error starting conversation:", error);
       showToast(error?.message || "Failed to start conversation", "error");
@@ -392,6 +467,10 @@ const MessagingModule = (function () {
     await loadMessages(conversation.id);
     renderChatPanel();
     await updateUnreadCount();
+
+    // Mobile: switch to chat view like WhatsApp
+    setMobileView("chat");
+    ensureMobileBackButton();
 
     // Scroll bottom
     setTimeout(() => {
@@ -407,17 +486,15 @@ const MessagingModule = (function () {
     try {
       const messageText = content.trim();
 
-      // ✅ IMPORTANT: sender_id must be community.id (not auth.uid())
-      const { data, error } = await window.supabase
+      // sender_id is community.id (✅ consistent)
+      const { error } = await window.supabase
         .from("messages")
         .insert({
           conversation_id: state.activeConversation.id,
           sender_id: state.currentUser.communityId,
           content: messageText,
           read: false
-        })
-        .select()
-        .single();
+        });
 
       if (error) throw error;
 
@@ -425,18 +502,11 @@ const MessagingModule = (function () {
       const input = document.querySelector(".message-input");
       if (input) input.value = "";
 
-      // Immediately reload messages to show the new message
+      // Reload and render
       await loadMessages(state.activeConversation.id);
       renderMessages();
 
-      // Scroll to bottom
-      setTimeout(() => {
-        const area = document.querySelector(".messages-area");
-        if (area) area.scrollTop = area.scrollHeight;
-      }, 50);
-
-      // Optionally bump conversation preview client-side (optional; DB trigger is better)
-      // This will also help the sidebar feel instant even before a realtime refresh
+      // Update conversation preview (client-side bump)
       await window.supabase
         .from("conversations")
         .update({
@@ -445,11 +515,16 @@ const MessagingModule = (function () {
         })
         .eq("id", state.activeConversation.id);
 
-      // Award XP for sending message
-      if (window.DailyEngagement) {
-        await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.SEND_MESSAGE, 'Sent message');
-      }
+      // Scroll to bottom
+      setTimeout(() => {
+        const area = document.querySelector(".messages-area");
+        if (area) area.scrollTop = area.scrollHeight;
+      }, 50);
 
+      // XP hook (optional)
+      if (window.DailyEngagement?.awardXP && window.DailyEngagement?.XP_REWARDS?.SEND_MESSAGE) {
+        await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.SEND_MESSAGE, "Sent message");
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       showToast(error?.message || "Failed to send message", "error");
@@ -459,7 +534,7 @@ const MessagingModule = (function () {
   async function markMessagesAsRead(conversationId) {
     requireReady();
 
-    // Mark messages in this conversation as read that were NOT sent by me
+    // Mark as read: messages in convo NOT sent by me
     await window.supabase
       .from("messages")
       .update({ read: true })
@@ -469,7 +544,7 @@ const MessagingModule = (function () {
   }
 
   // ============================================================
-  // REALTIME SUBSCRIPTIONS
+  // REALTIME
   // ============================================================
 
   function setupRealtimeSubscriptions() {
@@ -477,65 +552,56 @@ const MessagingModule = (function () {
 
     // Realtime channel duplication guard + cleanup
     if (window.__IE_MSG_RT_CHANNEL__) {
-      console.log("⚠️ Messaging realtime channel already exists globally, reusing...");
       state.realtimeChannel = window.__IE_MSG_RT_CHANNEL__;
       return;
     }
 
     if (state.realtimeChannel) {
-      window.supabase.removeChannel(state.realtimeChannel);
+      try { window.supabase.removeChannel(state.realtimeChannel); } catch {}
       state.realtimeChannel = null;
     }
 
     state.realtimeChannel = window.supabase
       .channel("messaging")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        async (payload) => {
-          const newMessage = payload.new;
-          if (!newMessage) return;
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
+        const newMessage = payload.new;
+        if (!newMessage) return;
 
-          // Update sidebar list in background
-          // (RLS ensures we only receive what we can see)
-          let isActive = state.activeConversation && newMessage.conversation_id === state.activeConversation.id;
+        const isActive = state.activeConversation && newMessage.conversation_id === state.activeConversation.id;
 
-          if (isActive) {
-            // Fetch sender by auth user_id (sender_id is auth.users.id)
-            const { data: sender } = await window.supabase
-              .from("community")
-              .select("id, name, image_url")
-              .eq("user_id", newMessage.sender_id)
-              .single()
-              .catch(() => ({ data: null }));
+        if (isActive) {
+          // sender_id is community.id
+          const { data: sender } = await window.supabase
+            .from("community")
+            .select("id, name, image_url")
+            .eq("id", newMessage.sender_id)
+            .single()
+            .catch(() => ({ data: null }));
 
-            state.messages.push({
-              ...newMessage,
-              sender: sender ? { id: sender.id, name: sender.name, image_url: sender.image_url } : null
-            });
+          state.messages.push({
+            ...newMessage,
+            sender: sender ? { id: sender.id, name: sender.name, image_url: sender.image_url } : null
+          });
 
-            renderMessages();
+          renderMessages();
 
-            const area = document.querySelector(".messages-area");
-            if (area) area.scrollTop = area.scrollHeight;
+          const area = document.querySelector(".messages-area");
+          if (area) area.scrollTop = area.scrollHeight;
 
-            // Mark as read if it's not mine
-            if (newMessage.sender_id !== state.currentUser.communityId) {
-              await markMessagesAsRead(state.activeConversation.id);
-            }
+          // Mark as read if it's not mine
+          if (newMessage.sender_id !== state.currentUser.communityId) {
+            await markMessagesAsRead(state.activeConversation.id);
           }
-
-          await loadConversations();
-          renderConversationsList();
-          await updateUnreadCount();
         }
-      )
+
+        await loadConversations();
+        renderConversationsList();
+        await updateUnreadCount();
+      })
       .subscribe();
 
-    // Store channel globally to prevent duplication
     window.__IE_MSG_RT_CHANNEL__ = state.realtimeChannel;
 
-    // Cleanup on page unload
     if (!window.__IE_MSG_RT_CLEANUP_REGISTERED__) {
       window.__IE_MSG_RT_CLEANUP_REGISTERED__ = true;
       window.addEventListener("beforeunload", () => {
@@ -600,6 +666,11 @@ const MessagingModule = (function () {
     `;
 
     renderConversationsList();
+
+    // Wire resize to keep mobile view sane
+    window.removeEventListener("resize", applyResponsiveLayout);
+    window.addEventListener("resize", applyResponsiveLayout);
+    applyResponsiveLayout();
   }
 
   function renderConversationsList() {
@@ -702,6 +773,9 @@ const MessagingModule = (function () {
       </div>
     `;
 
+    // Mobile: inject back button
+    ensureMobileBackButton();
+
     renderMessages();
   }
 
@@ -755,7 +829,7 @@ const MessagingModule = (function () {
         const initials = (user.name || "??").substring(0, 2).toUpperCase();
         const skills = typeof user.skills === "string" ? user.skills : "";
 
-        // ✅ IMPORTANT: pass community.id (not auth user_id) into startConversationWith
+        // Pass community.id into startConversationWith
         return `
           <div class="user-item" onclick="MessagingModule.startConversationWith('${user.id}')">
             <div class="user-item-avatar">
@@ -773,6 +847,20 @@ const MessagingModule = (function () {
         `;
       })
       .join("");
+  }
+
+  function renderError(message) {
+    const container = document.getElementById("messages-container");
+    if (!container) return;
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:400px;color:#888;text-align:center;">
+        <div>
+          <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+          <p>${escapeHtml(message)}</p>
+          <p style="font-size:0.85rem;margin-top:1rem;">Please sign in to access messages</p>
+        </div>
+      </div>
+    `;
   }
 
   // ============================================================
@@ -827,7 +915,7 @@ const MessagingModule = (function () {
   }
 
   // ============================================================
-  // UTILITIES
+  // UI UTILITIES
   // ============================================================
 
   function escapeHtml(text) {
@@ -911,37 +999,6 @@ const MessagingModule = (function () {
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3200);
-  }
-
-  function renderError(message) {
-    const container = document.getElementById("messages-container");
-    if (!container) return;
-    container.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:400px;color:#888;text-align:center;">
-        <div>
-          <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
-          <p>${escapeHtml(message)}</p>
-          <p style="font-size:0.85rem;margin-top:1rem;">Please sign in to access messages</p>
-        </div>
-      </div>
-    `;
-  }
-
-  // ============================================================
-  // CLEANUP
-  // ============================================================
-
-  function cleanup() {
-    if (state.realtimeChannel) {
-      window.supabase.removeChannel(state.realtimeChannel);
-      state.realtimeChannel = null;
-    }
-    state.initialized = false;
-    state.conversations = [];
-    state.messages = [];
-    state.activeConversation = null;
-    state.unreadCount = 0;
-    console.log("Messaging cleanup complete");
   }
 
   // ============================================================
