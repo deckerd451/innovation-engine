@@ -528,12 +528,20 @@ const DailyEngagement = (function () {
       padding: 2rem;
       max-width: 500px;
       width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
       box-shadow: 0 20px 60px rgba(0,224,255,0.3);
+      position: relative;
     `;
 
     const levelTitle = getLevelTitle(state.level);
 
     content.innerHTML = `
+      <!-- Close button at top right -->
+      <button onclick="DailyEngagement.closeDailyCheckIn()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; z-index: 1;">
+        <i class="fas fa-times"></i>
+      </button>
+
       <div style="text-align: center; margin-bottom: 2rem;">
         <div style="font-size: 4rem; margin-bottom: 1rem;">🌅</div>
         <h2 style="color: #00e0ff; margin-bottom: 0.5rem;">Welcome Back!</h2>
@@ -564,7 +572,7 @@ const DailyEngagement = (function () {
         <div id="quest-tracker"></div>
       </div>
 
-      <button onclick="DailyEngagement.closeDailyCheckIn()" style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 1.1rem; cursor: pointer;">
+      <button onclick="DailyEngagement.closeDailyCheckIn()" style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 1.1rem; cursor: pointer; margin-top: 0.5rem;">
         Let's Go! 🚀
       </button>
     `;
@@ -572,6 +580,13 @@ const DailyEngagement = (function () {
     modal.appendChild(content);
     document.body.appendChild(modal);
     updateQuestTrackerUI();
+
+    // Mobile responsiveness: Adjust padding for smaller screens
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    if (mediaQuery.matches) {
+      content.style.padding = '1.5rem 1rem';
+      content.style.width = '95%';
+    }
   }
 
   function closeDailyCheckIn() {
