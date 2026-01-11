@@ -641,3 +641,104 @@
     padding: 1rem;
   }
 }
+/* =========================================================
+   Mobile iMessage/WhatsApp mode — FINAL OVERRIDES
+   ========================================================= */
+:root{
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+body.messages-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+@media (max-width: 768px) {
+
+  /* Full-screen modal */
+  #messages-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 10050 !important;
+  }
+
+  #messages-modal .modal-content {
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* If your close button is the page modal close */
+  #messages-modal .modal-close {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin-top: var(--safe-top) !important;
+  }
+
+  /* Render target fills available space */
+  #messages-container {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding-bottom: var(--safe-bottom) !important;
+  }
+
+  /* Your grid container should not do vh math in full-screen mode */
+  #messages-modal #messages-container .messages-container {
+    height: 100% !important;
+    max-height: none !important;
+    padding: 0 !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Chat panel becomes the full height shell */
+  #messages-modal #messages-container .chat-panel {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  /* Scroll region = message list */
+  #messages-modal #messages-container .messages-area {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+
+  /* Composer pinned to bottom */
+  #messages-modal #messages-container .message-input-container {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 20 !important;
+    padding: 10px 10px calc(10px + var(--safe-bottom)) !important;
+    background: rgba(10,14,39,0.95) !important;
+    backdrop-filter: blur(10px) !important;
+    border-top: 1px solid rgba(255,255,255,0.08) !important;
+  }
+
+  /* Prevent iOS zoom on focus */
+  #messages-modal #messages-container .message-input {
+    font-size: 16px !important;
+  }
+}
+
