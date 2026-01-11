@@ -267,9 +267,9 @@
   </header>
 
   <!-- Main -->
-  <div class="unified-main hidden" id="main-content" style="position: fixed; inset: 0; overflow: hidden;">
-    <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1;">
-      <svg id="synapse-svg" style="width:100%; height:100%;"></svg>
+  <div class="unified-main hidden" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000;">
+    <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000;">
+      <svg id="synapse-svg" style="width:100%; height:100%; background: #000000;"></svg>
     </div>
 
     <!-- START Button (per yellow instructions: moved to bottom bar area) -->
@@ -572,11 +572,11 @@
   <div id="mentor-panel-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
     backdrop-filter:blur(4px); z-index:10000;" onclick="closeAllMentorPanels()"></div>
 
-  <!-- START Modal (per yellow instructions: contains all navigation) -->
-  <div id="start-modal" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
-    width:min(900px, 95vw); max-height:90vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
-    border:3px solid rgba(0,255,136,0.5); border-radius:20px; padding:2.5rem; z-index:10002; overflow-y:auto;
-    box-shadow:0 25px 70px rgba(0,0,0,0.7), 0 0 50px rgba(0,255,136,0.2); backdrop-filter:blur(25px);">
+  <!-- START Modal (per yellow instructions: side panel that shares screen) -->
+  <div id="start-modal" class="mentor-panel" style="display:none; position:fixed; top:0; right:0; bottom:0;
+    width:min(500px, 45vw); max-height:100vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border-left:3px solid rgba(0,255,136,0.5); padding:2rem; z-index:10002; overflow-y:auto;
+    box-shadow:-10px 0 50px rgba(0,0,0,0.7); backdrop-filter:blur(25px);">
 
     <button class="mentor-panel-close" onclick="closeStartModal()"
       style="position:absolute; top:1rem; right:1rem; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.3);
@@ -700,8 +700,8 @@
   </div>
 
   <!-- START Modal Backdrop -->
-  <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85);
-    backdrop-filter:blur(6px); z-index:10001;" onclick="closeStartModal()"></div>
+  <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3);
+    backdrop-filter:blur(2px); z-index:10001;" onclick="closeStartModal()"></div>
 
   <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>

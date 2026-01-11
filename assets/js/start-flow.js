@@ -107,10 +107,10 @@ async function openStartModal() {
     // Load and populate suggestions before showing
     await populateStartModalContent();
 
-    // Animate in
+    // Animate in (slide from right)
     setTimeout(() => {
       modal.style.opacity = '1';
-      modal.style.transform = 'translate(-50%, -50%) scale(1)';
+      modal.style.transform = 'translateX(0)';
     }, 10);
   }
 }
@@ -454,14 +454,14 @@ function closeStartModal() {
   const backdrop = document.getElementById('start-modal-backdrop');
 
   if (modal && backdrop) {
-    // Animate out
+    // Animate out (slide to right)
     modal.style.opacity = '0';
-    modal.style.transform = 'translate(-50%, -50%) scale(0.95)';
+    modal.style.transform = 'translateX(100%)';
 
     setTimeout(() => {
       modal.style.display = 'none';
       backdrop.style.display = 'none';
-    }, 200);
+    }, 300);
   }
 
   // Mark START as used today
@@ -609,8 +609,8 @@ style.textContent = `
 
   #start-modal {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform: translateX(100%);
+    transition: opacity 0.3s ease, transform 0.3s ease;
   }
 `;
 document.head.appendChild(style);

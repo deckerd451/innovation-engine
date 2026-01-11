@@ -12,6 +12,46 @@ export const COLORS = {
   edgeDefault: "rgba(0, 224, 255, 0.08)",
 };
 
+// Theme color palette - visual relationships per yellow instructions
+const THEME_COLORS = [
+  "#00e0ff", // Cyan
+  "#ff6b6b", // Red
+  "#ffd700", // Gold
+  "#00ff88", // Green
+  "#ff88ff", // Pink
+  "#ffaa00", // Orange
+  "#88ff00", // Lime
+  "#00ffff", // Aqua
+  "#ff00ff", // Magenta
+  "#00aaff", // Sky Blue
+];
+
+// Get a consistent color for a theme based on its ID
+export function getThemeColor(themeId) {
+  if (!themeId) return COLORS.nodeDefault;
+
+  // Convert theme ID to a number for consistent hashing
+  let hash = 0;
+  const idStr = String(themeId);
+  for (let i = 0; i < idStr.length; i++) {
+    hash = ((hash << 5) - hash) + idStr.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+
+  const index = Math.abs(hash) % THEME_COLORS.length;
+  return THEME_COLORS[index];
+}
+
+// Convert hex color to RGB object
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 224, b: 255 }; // Default to cyan
+}
+
 export function setupDefs(svg) {
   const defs = svg.append("defs");
 
@@ -41,10 +81,28 @@ export function getLinkColor(link) {
     case "project-member":
       return "#ff6b6b";
     case "theme-participant":
-      // Color based on engagement level
-      if (link.engagement_level === "leading") return "rgba(255, 215, 0, 0.7)"; // Gold for leaders
-      if (link.engagement_level === "active") return "rgba(0, 224, 255, 0.7)"; // Cyan for active
-      return "rgba(0, 224, 255, 0.4)"; // Lighter cyan for interested/observer
+      // Per yellow instructions: Use theme color for visual relationship
+      // Get the theme color from the source node (theme)
+      const themeId = typeof link.source === 'object' && link.source.theme_id
+        ? link.source.theme_id
+        : (typeof link.source === 'string' && link.source.startsWith('theme:'))
+          ? link.source.replace('theme:', '')
+          : null;
+
+      if (themeId) {
+        const themeColor = getThemeColor(themeId);
+        // Opacity based on engagement level
+        const alpha = link.engagement_level === "leading" ? 0.9 :
+                      link.engagement_level === "active" ? 0.7 : 0.5;
+        return themeColor.replace(')', `, ${alpha})`).replace('#', 'rgba(').replace(/^rgba\(([\da-f]{2})([\da-f]{2})([\da-f]{2})/, (_, r, g, b) => {
+          return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}`;
+        });
+      }
+
+      // Fallback to engagement-based colors
+      if (link.engagement_level === "leading") return "rgba(255, 215, 0, 0.7)";
+      if (link.engagement_level === "active") return "rgba(0, 224, 255, 0.7)";
+      return "rgba(0, 224, 255, 0.4)";
     default:
       return COLORS.edgeDefault;
   }
@@ -114,6 +172,10 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
     if (d.type === "project") {
       const size = Math.max(30, Math.min(50, 25 + (d.team_size * 3)));
 
+      // Per yellow instructions: Use theme color if project belongs to a theme
+      const projectColor = d.theme_id ? getThemeColor(d.theme_id) : "#ff6b6b";
+      const projectColorRgb = hexToRgb(projectColor);
+
       node
         .append("rect")
         .attr("width", size)
@@ -121,9 +183,9 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
         .attr("x", -size / 2)
         .attr("y", -size / 2)
         .attr("transform", "rotate(45)")
-        .attr("fill", d.status === "open" ? "rgba(255, 107, 107, 0.2)" : "rgba(255, 107, 107, 0.3)")
-        .attr("stroke", "#ff6b6b")
-        .attr("stroke-width", 2)
+        .attr("fill", `rgba(${projectColorRgb.r}, ${projectColorRgb.g}, ${projectColorRgb.b}, ${d.status === "open" ? 0.2 : 0.3})`)
+        .attr("stroke", projectColor)
+        .attr("stroke-width", d.theme_id ? 3 : 2)  // Thicker border if belongs to theme
         .attr("filter", "url(#glow)")
         .attr("class", "node-project");
 
@@ -131,7 +193,7 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
         .append("text")
         .attr("text-anchor", "middle")
         .attr("dy", "0.35em")
-        .attr("fill", "#ff6b6b")
+        .attr("fill", projectColor)
         .attr("font-size", "16px")
         .attr("pointer-events", "none")
         .attr("font-weight", "bold")
@@ -247,20 +309,24 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const isEmerging = d.activity_score < 5;
     const userHasJoined = d.user_is_participant === true;
 
-    // Outer glow circle - stronger if user has joined
+    // Per yellow instructions: Use consistent theme color for visual relationships
+    const themeColor = getThemeColor(d.theme_id);
+    const themeColorRgb = hexToRgb(themeColor);
+
+    // Outer glow circle - stronger if user has joined, using theme color
     theme
       .append("circle")
       .attr("r", radius + 15)
-      .attr("fill", `rgba(0, 224, 255, ${userHasJoined ? 0.1 * glowIntensity : 0.05 * glowIntensity})`)
+      .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, ${userHasJoined ? 0.15 * glowIntensity : 0.08 * glowIntensity})`)
       .attr("stroke", "none")
       .attr("class", "theme-glow");
 
-    // Main circle - ALWAYS solid, no dotted lines (per yellow instructions)
+    // Main circle - ALWAYS solid, using theme color
     theme
       .append("circle")
       .attr("r", radius)
       .attr("fill", `rgba(10, 14, 39, ${0.3})`)
-      .attr("stroke", userHasJoined ? "#00ff88" : "#00e0ff")  // Green if joined
+      .attr("stroke", userHasJoined ? themeColor : themeColor)  // Theme color
       .attr("stroke-width", userHasJoined ? 4 : 3)  // Thicker if joined
       .attr("stroke-dasharray", "none")  // Always solid per yellow instructions
       .attr("opacity", opacity)
