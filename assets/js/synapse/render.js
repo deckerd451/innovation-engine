@@ -273,6 +273,41 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
 }
 
 export function renderThemeCircles(container, themeNodes, { onThemeHover, onThemeClick } = {}) {
+  // Create defs section for gradients if it doesn't exist
+  let defs = container.select("defs");
+  if (defs.empty()) {
+    defs = container.append("defs");
+  }
+
+  // Create radial gradients for each theme's influence field
+  themeNodes.forEach(theme => {
+    const themeColor = getThemeColor(theme.theme_id);
+    const themeColorRgb = hexToRgb(themeColor);
+    const gradientId = `theme-influence-${theme.theme_id}`;
+
+    // Remove existing gradient if it exists
+    defs.select(`#${gradientId}`).remove();
+
+    // Create new radial gradient
+    const gradient = defs.append("radialGradient")
+      .attr("id", gradientId);
+
+    gradient.append("stop")
+      .attr("offset", "0%")
+      .attr("stop-color", themeColor)
+      .attr("stop-opacity", 0.08);
+
+    gradient.append("stop")
+      .attr("offset", "50%")
+      .attr("stop-color", themeColor)
+      .attr("stop-opacity", 0.03);
+
+    gradient.append("stop")
+      .attr("offset", "100%")
+      .attr("stop-color", themeColor)
+      .attr("stop-opacity", 0);
+  });
+
   const themeEls = container
     .append("g")
     .attr("class", "theme-circles")
@@ -300,71 +335,71 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const progress = Math.max(0, Math.min(1, 1 - (remaining / lifetime)));
 
     // Calculate visual properties based on lifecycle
-    const radius = Math.max(60, 80 - (progress * 20)); // 80px to 60px
+    const radius = Math.max(70, 90 - (progress * 20)); // Larger wells: 90px to 70px
     const glowIntensity = Math.max(0.3, 1 - progress);
     const opacity = Math.max(0.4, 1 - (progress * 0.6));
 
-    // Determine if emerging (new) or established
-    // Themes are ALWAYS solid if user has joined (per yellow instructions)
-    const isEmerging = d.activity_score < 5;
+    // Determine if user has joined
     const userHasJoined = d.user_is_participant === true;
 
-    // Per yellow instructions: Use consistent theme color for visual relationships
+    // Get theme color
     const themeColor = getThemeColor(d.theme_id);
     const themeColorRgb = hexToRgb(themeColor);
 
-    // Outer glow circle - stronger if user has joined, using theme color
+    // INFLUENCE FIELD - Radial gradient background extending beyond circle
     theme
       .append("circle")
-      .attr("r", radius + 15)
-      .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, ${userHasJoined ? 0.15 * glowIntensity : 0.08 * glowIntensity})`)
-      .attr("stroke", "none")
-      .attr("class", "theme-glow");
+      .attr("r", radius + 50) // Extends 50px beyond main circle
+      .attr("fill", `url(#theme-influence-${d.theme_id})`)
+      .attr("opacity", userHasJoined ? 1.0 : 0.6)
+      .attr("class", "theme-influence-field")
+      .attr("pointer-events", "none");
 
-    // Main circle - ALWAYS solid, using theme color
+    // Main circle - DOTTED BORDER with transparent fill
     theme
       .append("circle")
       .attr("r", radius)
-      .attr("fill", `rgba(10, 14, 39, ${0.3})`)
-      .attr("stroke", userHasJoined ? themeColor : themeColor)  // Theme color
-      .attr("stroke-width", userHasJoined ? 4 : 3)  // Thicker if joined
-      .attr("stroke-dasharray", "none")  // Always solid per yellow instructions
+      .attr("fill", `rgba(10, 14, 39, 0.15)`) // Very transparent fill
+      .attr("stroke", themeColor)
+      .attr("stroke-width", userHasJoined ? 3 : 2)
+      .attr("stroke-dasharray", userHasJoined ? "8,4" : "6,6") // Dotted border
       .attr("opacity", opacity)
       .attr("filter", "url(#glow)")
-      .attr("class", "theme-main-circle");
+      .attr("class", "theme-well-border");
 
     // Icon/emoji at top
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", -radius / 3)
+      .attr("dy", -radius + 25)
       .attr("fill", "#00e0ff")
       .attr("font-size", "28px")
       .attr("pointer-events", "none")
       .text("✨");
 
-    // Title text
+    // Title text - positioned at top of circle
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", 5)
+      .attr("dy", -radius + 50)
       .attr("fill", "#fff")
-      .attr("font-size", "14px")
-      .attr("font-weight", "bold")
+      .attr("font-size", "13px")
+      .attr("font-weight", "600")
       .attr("pointer-events", "none")
-      .text(truncateName(d.title, 20));
+      .text(truncateName(d.title, 18));
 
-    // Activity indicator (participant count)
+    // Participant count - shown at bottom
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", 25)
-      .attr("fill", "rgba(0, 224, 255, 0.7)")
-      .attr("font-size", "11px")
+      .attr("dy", radius - 15)
+      .attr("fill", "rgba(0, 224, 255, 0.8)")
+      .attr("font-size", "12px")
+      .attr("font-weight", "600")
       .attr("pointer-events", "none")
-      .text(`${d.activity_score || 0} engaged`);
+      .text(`${d.participant_count || 0} engaged`);
 
-    // Time remaining indicator
+    // Time remaining indicator - below circle
     const hoursRemaining = Math.floor(remaining / (1000 * 60 * 60));
     const daysRemaining = Math.floor(hoursRemaining / 24);
     const timeText = daysRemaining > 1 ? `${daysRemaining}d left` : `${hoursRemaining}h left`;
@@ -372,8 +407,8 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", radius + 20)
-      .attr("fill", "rgba(255, 255, 255, 0.5)")
+      .attr("dy", radius + 18)
+      .attr("fill", "rgba(255, 255, 255, 0.4)")
       .attr("font-size", "10px")
       .attr("pointer-events", "none")
       .text(timeText);

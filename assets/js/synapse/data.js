@@ -82,6 +82,11 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     const userProjects = projectMembersData.filter(pm => pm.user_id === member.id);
     const projectIds = userProjects.map(pm => pm.project_id);
 
+    // Get themes this person participates in
+    const userThemes = (themeParticipants || [])
+      .filter(tp => tp.community_id === member.id)
+      .map(tp => tp.theme_id);
+
     return {
       id: member.id,
       type: "person",
@@ -98,7 +103,8 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       isCurrentUser,
       shouldShowImage: isCurrentUser || hasConnection,
       projects: projectIds,
-      projectDetails: userProjects
+      projectDetails: userProjects,
+      themes: userThemes // Track theme participation
     };
   });
 
@@ -128,10 +134,11 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         const existingThemeNode = nodes.find(n => n.id === themeNodeId);
 
         if (existingThemeNode && existingThemeNode.x && existingThemeNode.y) {
-          // Position project inside the theme circle
-          // Theme radius is 60-80px, so position within 45px to ensure always inside
-          const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * 45; // Within 45px of center
+          // Position project in UPPER HALF of the theme well
+          // Theme radius is 70-90px, position projects in upper portion
+          // Angle range: -120° to -60° (upper arc)
+          const angle = (-120 + Math.random() * 60) * (Math.PI / 180);
+          const distance = 20 + Math.random() * 35; // 20-55px from center
           initialX = existingThemeNode.x + Math.cos(angle) * distance;
           initialY = existingThemeNode.y + Math.sin(angle) * distance;
         }
