@@ -267,7 +267,7 @@ async function loadSuggestedProjects(supabase, currentUser) {
     const { data: userProjects } = await supabase
       .from('project_members')
       .select('project_id')
-      .eq('community_id', currentUser.id);
+      .eq('user_id', currentUser.id);
 
     const userProjectIds = (userProjects || []).map(p => p.project_id);
 
@@ -309,8 +309,17 @@ async function loadSuggestedPeople(supabase, currentUser) {
       .map(person => {
         // Calculate relevance score based on shared skills/interests
         let score = 0;
-        const userSkills = (currentUser.skills || []).map(s => String(s).toLowerCase());
-        const personSkills = (person.skills || []).map(s => String(s).toLowerCase());
+
+        // Parse skills - handle both string and array formats
+        const parseSkills = (skills) => {
+          if (!skills) return [];
+          if (Array.isArray(skills)) return skills.map(s => String(s).toLowerCase().trim());
+          if (typeof skills === 'string') return skills.split(',').map(s => s.toLowerCase().trim());
+          return [];
+        };
+
+        const userSkills = parseSkills(currentUser.skills);
+        const personSkills = parseSkills(person.skills);
         const sharedSkills = userSkills.filter(s => personSkills.includes(s));
         score += sharedSkills.length * 2;
 
@@ -444,7 +453,13 @@ function generatePeopleHTML(people) {
         <div style="display: grid; gap: 1rem;">
     `;
     people.forEach(person => {
-      const skills = (person.skills || []).slice(0, 3);
+      // Parse skills - handle both string and array formats
+      let skills = person.skills || [];
+      if (typeof skills === 'string') {
+        skills = skills.split(',').map(s => s.trim());
+      }
+      skills = skills.slice(0, 3);
+
       html += `
         <div style="background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25); border-radius: 10px; padding: 1.25rem; display: flex; gap: 1.25rem; align-items: center;">
           ${person.image_url
