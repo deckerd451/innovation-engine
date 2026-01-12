@@ -334,136 +334,122 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const remaining = expires - now;
     const progress = Math.max(0, Math.min(1, 1 - (remaining / lifetime)));
 
-    // Hierarchical layout: Themes are LARGER and more prominent in the inner ring
-    const radius = Math.max(80, 100 - (progress * 15)); // Larger: 100px to 80px
-    const glowIntensity = Math.max(0.3, 1 - progress);
-    const opacity = Math.max(0.5, 1 - (progress * 0.5));
+    // HALO LAYOUT: Themes are colored halos (large circles with minimal fill)
+    const radius = 200; // Large halo radius
+    const glowIntensity = Math.max(0.4, 1 - progress);
 
-    // Determine if user has joined
+    // Determine if user has joined or if this is user's theme
     const userHasJoined = d.user_is_participant === true;
+    const isUserTheme = d.isUserTheme === true;
 
     // Get theme color
     const themeColor = getThemeColor(d.theme_id);
     const themeColorRgb = hexToRgb(themeColor);
 
-    // INFLUENCE FIELD - Extends outward to connect with middle ring (projects)
-    // In hierarchical layout, this helps show relationship to project ring
+    // HALO EFFECT: Multiple concentric circles for glow
+    // Outer glow ring
     theme
       .append("circle")
-      .attr("r", radius + 80) // Larger influence field to reach toward projects
-      .attr("fill", `url(#theme-influence-${d.theme_id})`)
-      .attr("opacity", userHasJoined ? 1.0 : 0.6)
-      .attr("class", "theme-influence-field")
+      .attr("r", radius + 8)
+      .attr("fill", "none")
+      .attr("stroke", themeColor)
+      .attr("stroke-width", 12)
+      .attr("stroke-opacity", 0.15)
+      .attr("filter", "url(#glow)")
+      .attr("class", "theme-halo-outer")
       .attr("pointer-events", "none");
 
-    // Main circle - Solid fill with distinct styling for hierarchy
+    // Middle glow ring
     theme
       .append("circle")
       .attr("r", radius)
-      .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.15)`)
+      .attr("fill", "none")
       .attr("stroke", themeColor)
-      .attr("stroke-width", userHasJoined ? 4 : 3) // Thicker border for prominence
-      .attr("stroke-dasharray", userHasJoined ? "none" : "8,8") // Solid if joined, dashed otherwise
-      .attr("opacity", opacity)
+      .attr("stroke-width", 6)
+      .attr("stroke-opacity", 0.4)
       .attr("filter", "url(#glow)")
-      .attr("class", "theme-well-border");
+      .attr("class", "theme-halo-middle")
+      .attr("pointer-events", "none");
 
-    // Icon/emoji - larger and more prominent
+    // Main halo circle - minimal/no fill, prominent border
+    theme
+      .append("circle")
+      .attr("r", radius)
+      .attr("fill", isUserTheme ? `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.03)` : "none")
+      .attr("stroke", themeColor)
+      .attr("stroke-width", userHasJoined ? 3 : 2)
+      .attr("stroke-opacity", userHasJoined ? 0.8 : 0.6)
+      .attr("filter", "url(#glow)")
+      .attr("class", "theme-halo-border");
+
+    // Label at top of halo
+    const labelY = -radius - 20;
+
+    // Icon/emoji
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", -10) // Centered near top
+      .attr("dy", labelY)
       .attr("fill", themeColor)
-      .attr("font-size", "36px") // Larger icon
+      .attr("font-size", "24px")
       .attr("pointer-events", "none")
+      .attr("opacity", 0.9)
       .text("✨");
 
-    // Title text - larger and centered
+    // Title text
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", 25) // Below icon
+      .attr("dy", labelY + 25)
       .attr("fill", "#fff")
-      .attr("font-size", "15px") // Larger text
-      .attr("font-weight", "700") // Bolder
+      .attr("font-size", "14px")
+      .attr("font-weight", "600")
       .attr("pointer-events", "none")
-      .text(truncateName(d.title, 20));
+      .attr("opacity", 0.9)
+      .text(truncateName(d.title, 22));
 
-    // Participant count - more prominent
+    // Participant count
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", 45)
+      .attr("dy", labelY + 42)
       .attr("fill", themeColor)
-      .attr("font-size", "13px")
-      .attr("font-weight", "600")
-      .attr("pointer-events", "none")
-      .text(`${d.participant_count || 0} engaged`);
-
-    // Time remaining indicator - below
-    const hoursRemaining = Math.floor(remaining / (1000 * 60 * 60));
-    const daysRemaining = Math.floor(hoursRemaining / 24);
-    const timeText = daysRemaining > 1 ? `${daysRemaining}d` : `${hoursRemaining}h`;
-
-    theme
-      .append("text")
-      .attr("text-anchor", "middle")
-      .attr("dy", radius + 20)
-      .attr("fill", "rgba(255, 255, 255, 0.5)")
       .attr("font-size", "11px")
-      .attr("font-weight", "600")
+      .attr("font-weight", "500")
       .attr("pointer-events", "none")
-      .text(timeText);
+      .attr("opacity", 0.7)
+      .text(`${d.participant_count || 0} engaged`);
   });
 
   return themeEls;
 }
 
-export function drawProjectCircles(container, peopleNodes) {
-  // Group people by project id
-  const projectGroups = {};
-  peopleNodes.forEach((n) => {
-    (n.projects || []).forEach((pid) => {
-      projectGroups[pid] ||= [];
-      projectGroups[pid].push(n);
-    });
-  });
+/**
+ * Render visible project circles around project nodes (per yellow instructions)
+ * Project circles contain users who are part of those projects
+ */
+export function drawProjectCircles(container, projectNodes) {
+  const projectCircleRadius = 35; // Same as containment force
 
   const circles = container
     .insert("g", ":first-child")
     .attr("class", "project-circles")
     .selectAll("circle")
-    .data(Object.entries(projectGroups))
+    .data(projectNodes.filter(n => n.type === 'project'))
     .enter()
     .append("circle")
     .attr("class", "project-circle")
-    .attr("fill", "none")
-    .attr("stroke", "rgba(0, 224, 255, 0.6)")
+    .attr("fill", "rgba(255, 107, 107, 0.05)") // Slight red tint
+    .attr("stroke", "rgba(255, 107, 107, 0.5)")
     .attr("stroke-width", 2)
-    .attr("stroke-dasharray", "10,5")
-    .attr("opacity", 0.7);
+    .attr("stroke-dasharray", "4,4")
+    .attr("opacity", 0.7)
+    .attr("r", projectCircleRadius);
 
   function update() {
-    circles.each(function ([_, group]) {
-      if (!group.length) return;
-
-      let cx = 0,
-        cy = 0;
-      group.forEach((n) => {
-        cx += n.x;
-        cy += n.y;
-      });
-      cx /= group.length;
-      cy /= group.length;
-
-      let maxD = 0;
-      group.forEach((n) => {
-        const d = Math.hypot(n.x - cx, n.y - cy);
-        if (d > maxD) maxD = d;
-      });
-
-      d3.select(this).attr("cx", cx).attr("cy", cy).attr("r", maxD + 80);
-    });
+    circles
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
   }
 
   return { update };
