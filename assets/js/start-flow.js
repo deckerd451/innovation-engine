@@ -15,7 +15,9 @@ console.log("%c🚀 START Flow Loading", "color:#0f8; font-weight:bold;");
 const startState = {
   hasUsedStartToday: false,
   lastStartDate: null,
-  isFirstTimeUser: true
+  isFirstTimeUser: true,
+  currentUserProfile: null,
+  supabase: null
 };
 
 // Initialize when DOM is ready
@@ -29,6 +31,28 @@ function initStartFlow() {
 
   // Check if it's a new day (reset START state)
   checkDailyReset();
+
+  // Listen for profile loaded event
+  window.addEventListener('profile-loaded', (e) => {
+    console.log('🚀 Profile loaded in START Flow');
+
+    // Get profile from event detail first, then fall back to global sources
+    startState.currentUserProfile = e?.detail?.profile ||
+                                     e?.detail ||
+                                     window.appState?.communityProfile ||
+                                     window.currentUserProfile ||
+                                     window.appState?.currentUser;
+
+    // Get supabase client
+    startState.supabase = window.supabase;
+
+    console.log('🚀 Profile data available for START:', {
+      hasProfile: !!startState.currentUserProfile,
+      hasSupabase: !!startState.supabase,
+      profileId: startState.currentUserProfile?.id,
+      profileName: startState.currentUserProfile?.name
+    });
+  });
 
   // Wire up START button
   document.getElementById('btn-start')?.addEventListener('click', openStartModal);
@@ -136,11 +160,17 @@ async function showStartContent(contentType) {
   // Show loading state
   contentArea.innerHTML = '<div style="text-align:center; padding:2rem; color:rgba(255,255,255,0.5);"><i class="fas fa-spinner fa-spin" style="font-size:2rem; margin-bottom:1rem;"></i><p>Loading...</p></div>';
 
-  // Get current user
-  const currentUser = window.currentUserProfile || window.appState?.communityProfile;
-  const supabase = window.supabase;
+  // Get current user from startState or fallback to global
+  const currentUser = startState.currentUserProfile ||
+                      window.currentUserProfile ||
+                      window.appState?.communityProfile;
+  const supabase = startState.supabase || window.supabase;
 
   if (!currentUser || !supabase) {
+    console.error('🚀 START content load failed - missing profile or supabase:', {
+      hasProfile: !!currentUser,
+      hasSupabase: !!supabase
+    });
     contentArea.innerHTML = '<div style="text-align:center; padding:2rem; color:rgba(255,107,107,0.7);"><p>Unable to load content. Please refresh.</p></div>';
     return;
   }
@@ -442,8 +472,10 @@ function generatePeopleHTML(people) {
 
 // Global interaction functions
 window.joinTheme = async function(themeId) {
-  const supabase = window.supabase;
-  const currentUser = window.currentUserProfile || window.appState?.communityProfile;
+  const supabase = startState.supabase || window.supabase;
+  const currentUser = startState.currentUserProfile ||
+                      window.currentUserProfile ||
+                      window.appState?.communityProfile;
 
   if (!supabase || !currentUser) return;
 
@@ -468,8 +500,7 @@ window.joinTheme = async function(themeId) {
       window.showNotification('Joined theme successfully!', 'success');
     }
 
-    // Refresh START content
-    await populateStartModalContent();
+    // Note: Content will auto-refresh when user navigates back to the menu
   } catch (error) {
     console.error('Error joining theme:', error);
     alert('Failed to join theme');
@@ -484,8 +515,10 @@ window.viewProject = function(projectId) {
 };
 
 window.connectWithPerson = async function(personId) {
-  const supabase = window.supabase;
-  const currentUser = window.currentUserProfile || window.appState?.communityProfile;
+  const supabase = startState.supabase || window.supabase;
+  const currentUser = startState.currentUserProfile ||
+                      window.currentUserProfile ||
+                      window.appState?.communityProfile;
 
   if (!supabase || !currentUser) return;
 
@@ -505,8 +538,7 @@ window.connectWithPerson = async function(personId) {
       window.showNotification('Connection request sent!', 'success');
     }
 
-    // Refresh START content
-    await populateStartModalContent();
+    // Note: Content will auto-refresh when user navigates back to the menu
   } catch (error) {
     console.error('Error sending connection request:', error);
     alert('Failed to send connection request');
