@@ -871,11 +871,17 @@ function buildGraph() {
       }
     }
 
-    linkEls
+    // Update link positions - handle both individual lines and grouped links
+    linkEls.selectAll("line")
       .attr("x1", (d) => d.source.x)
       .attr("y1", (d) => d.source.y)
       .attr("x2", (d) => d.target.x)
       .attr("y2", (d) => d.target.y);
+
+    // Update connection strength indicators
+    linkEls.selectAll(".connection-strength-indicator")
+      .attr("cx", (d) => (d.source.x + d.target.x) / 2)
+      .attr("cy", (d) => (d.source.y + d.target.y) / 2);
 
     nodeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
 
