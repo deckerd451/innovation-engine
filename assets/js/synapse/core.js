@@ -484,7 +484,7 @@ function buildGraph() {
         // Check if both endpoints are inside any theme circle
         let insideTheme = false;
         for (const theme of themeNodes) {
-          const themeRadius = 80; // Match render.js radius
+          const themeRadius = 90; // Match render.js radius (70-90px)
           const sourceDist = Math.hypot(link.source.x - theme.x, link.source.y - theme.y);
           const targetDist = Math.hypot(link.target.x - theme.x, link.target.y - theme.y);
 
