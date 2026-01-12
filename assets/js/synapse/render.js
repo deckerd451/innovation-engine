@@ -404,6 +404,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
 
     const userHasJoined = d.user_is_participant === true;
     const isUserTheme = d.isUserTheme === true;
+    const isDiscoverable = d.isDiscoverable === true; // New discoverable theme styling
     const participantCount = d.participant_count || 0;
 
     // Create theme container group for easier manipulation
@@ -425,36 +426,37 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         .style("animation", "themePulse 3s ease-in-out infinite");
     }
 
-    // Main influence field with gradient
+    // Main influence field with gradient (dimmed for discoverable themes)
     themeGroup
       .append("circle")
       .attr("r", radius)
       .attr("fill", `url(#theme-influence-${d.theme_id})`)
       .attr("stroke", "none")
       .attr("class", "theme-influence-field")
+      .attr("opacity", isDiscoverable ? 0.3 : 1) // Dimmed for discoverable themes
       .attr("pointer-events", "none");
 
-    // Outer decorative ring
+    // Outer decorative ring (dashed for discoverable themes)
     themeGroup
       .append("circle")
       .attr("r", radius + 8)
       .attr("fill", "none")
       .attr("stroke", themeColor)
       .attr("stroke-width", userHasJoined ? 4 : 2)
-      .attr("stroke-opacity", userHasJoined ? 0.6 : 0.3)
-      .attr("stroke-dasharray", userHasJoined ? "none" : "8,4")
+      .attr("stroke-opacity", isDiscoverable ? 0.4 : (userHasJoined ? 0.6 : 0.3))
+      .attr("stroke-dasharray", isDiscoverable ? "12,8" : (userHasJoined ? "none" : "8,4"))
       .attr("filter", "url(#glow)")
       .attr("class", "theme-outer-ring")
       .attr("pointer-events", "none");
 
-    // Main interactive border
+    // Main interactive border (dimmed for discoverable themes)
     themeGroup
       .append("circle")
       .attr("r", radius)
       .attr("fill", isUserTheme ? `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.08)` : "none")
       .attr("stroke", themeColor)
       .attr("stroke-width", userHasJoined ? 3 : 2)
-      .attr("stroke-opacity", userHasJoined ? 0.9 : 0.6)
+      .attr("stroke-opacity", isDiscoverable ? 0.5 : (userHasJoined ? 0.9 : 0.6))
       .attr("filter", "url(#glow)")
       .attr("class", "theme-main-border")
       .style("cursor", "pointer")
@@ -464,7 +466,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
           .transition()
           .duration(200)
           .attr("stroke-width", (userHasJoined ? 3 : 2) + 1)
-          .attr("stroke-opacity", 1);
+          .attr("stroke-opacity", isDiscoverable ? 0.8 : 1);
         
         onThemeHover?.(event, d, true);
       })
@@ -473,7 +475,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
           .transition()
           .duration(200)
           .attr("stroke-width", userHasJoined ? 3 : 2)
-          .attr("stroke-opacity", userHasJoined ? 0.9 : 0.6);
+          .attr("stroke-opacity", isDiscoverable ? 0.5 : (userHasJoined ? 0.9 : 0.6));
         
         onThemeHover?.(event, d, false);
       })
@@ -520,7 +522,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("class", "theme-icon")
       .text(themeIcons[iconIndex]);
 
-    // Enhanced title with better typography
+    // Enhanced title with better typography (dimmed for discoverable themes)
     themeGroup
       .append("text")
       .attr("y", labelY + 30)
@@ -530,11 +532,11 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("font-weight", "700")
       .attr("font-family", "system-ui, -apple-system, sans-serif")
       .attr("pointer-events", "none")
-      .attr("opacity", 0.95)
+      .attr("opacity", isDiscoverable ? 0.6 : 0.95)
       .attr("class", "theme-title")
       .text(truncateName(d.title, 20));
 
-    // Enhanced participant count with activity indicator
+    // Enhanced participant count with activity indicator (dimmed for discoverable themes)
     const activityLevel = participantCount > 10 ? "🔥" : participantCount > 5 ? "⚡" : participantCount > 0 ? "✨" : "💤";
     
     themeGroup
@@ -545,12 +547,27 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("font-size", "12px")
       .attr("font-weight", "600")
       .attr("pointer-events", "none")
-      .attr("opacity", 0.8)
+      .attr("opacity", isDiscoverable ? 0.5 : 0.8)
       .attr("class", "theme-stats")
       .text(`${activityLevel} ${participantCount} engaged`);
 
-    // User participation indicator
-    if (userHasJoined) {
+    // Discovery indicator for discoverable themes
+    if (isDiscoverable) {
+      themeGroup
+        .append("text")
+        .attr("y", labelY + 65)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#888")
+        .attr("font-size", "11px")
+        .attr("font-weight", "500")
+        .attr("pointer-events", "none")
+        .attr("opacity", 0.7)
+        .attr("class", "discovery-indicator")
+        .text("🔍 Discover");
+    }
+
+    // User participation indicator (only for joined themes)
+    if (userHasJoined && !isDiscoverable) {
       themeGroup
         .append("text")
         .attr("y", labelY + 65)
