@@ -334,8 +334,8 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const remaining = expires - now;
     const progress = Math.max(0, Math.min(1, 1 - (remaining / lifetime)));
 
-    // HALO LAYOUT: Themes are colored halos (large circles with minimal fill)
-    const radius = 200; // Large halo radius
+    // CONCENTRIC CIRCLES: Each theme has its own radius
+    const radius = d.themeRadius || 250; // Use theme's assigned radius
     const glowIntensity = Math.max(0.4, 1 - progress);
 
     // Determine if user has joined or if this is user's theme
