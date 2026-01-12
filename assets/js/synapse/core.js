@@ -232,202 +232,253 @@ async function reloadAllData() {
 }
 
 /* ==========================================================================
-   HIERARCHICAL CONCENTRIC CIRCLES LAYOUT
+   NESTED THEME LAYOUT (per yellow instructions)
    ========================================================================== */
 
-// Define the radial structure
-const RADIAL_CONFIG = {
-  center: 0,           // User at center
-  innerRing: 250,      // Theme nodes
-  middleRing: 500,     // Project nodes
-  outerRing: 750       // Other people and organizations
-};
+/**
+ * Calculate which theme has the most activity for the current user
+ * Returns the theme_id or null if no themes
+ */
+function findMostActiveTheme(allNodes, currentUserCommunityId) {
+  const themes = allNodes.filter(n => n.type === 'theme');
+  const projects = allNodes.filter(n => n.type === 'project');
+  const currentUser = allNodes.find(n => n.id === currentUserCommunityId);
+
+  if (!currentUser || themes.length === 0) return null;
+
+  let maxActivity = -1;
+  let mostActiveTheme = null;
+
+  themes.forEach(theme => {
+    let activityScore = 0;
+
+    // Score: Projects user is on in this theme
+    const userProjectsInTheme = projects.filter(p =>
+      p.theme_id === theme.theme_id &&
+      currentUser.projects?.includes(p.id)
+    );
+    activityScore += userProjectsInTheme.length * 10;
+
+    // Score: User participation in theme
+    if (currentUser.themes?.includes(theme.theme_id)) {
+      activityScore += 5;
+    }
+
+    // Score: Total projects in theme (minor factor)
+    const projectsInTheme = projects.filter(p => p.theme_id === theme.theme_id);
+    activityScore += projectsInTheme.length;
+
+    if (activityScore > maxActivity) {
+      maxActivity = activityScore;
+      mostActiveTheme = theme.theme_id;
+    }
+  });
+
+  return mostActiveTheme;
+}
 
 /**
- * Calculate initial radial position for a node based on its type and relationships
+ * Position nodes in nested structure:
+ * - Themes are distributed around canvas
+ * - Projects are INSIDE their theme circles
+ * - Users are INSIDE the projects they're on
+ * - Current user is in their most active theme
  */
-function calculateRadialPosition(node, allNodes, centerX, centerY, currentUserCommunityId) {
-  let targetRadius = 0;
-  let angle = 0;
+function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCommunityId) {
+  const themes = allNodes.filter(n => n.type === 'theme');
+  const themeRadius = 150; // Theme circle radius
+  const projectRadius = 40; // Project circle radius
 
-  // Determine which ring this node belongs to
-  if (node.isCurrentUser) {
-    // Center: Current user
-    targetRadius = RADIAL_CONFIG.center;
-    angle = 0;
-  } else if (node.type === 'theme') {
-    // Inner ring: Themes
-    targetRadius = RADIAL_CONFIG.innerRing;
-
-    // Distribute themes evenly around the inner ring
-    const themes = allNodes.filter(n => n.type === 'theme');
+  if (node.type === 'theme') {
+    // Distribute themes in a grid-like pattern
     const themeIndex = themes.findIndex(t => t.id === node.id);
     const totalThemes = themes.length;
-    angle = (themeIndex / totalThemes) * 2 * Math.PI;
-  } else if (node.type === 'project') {
-    // Middle ring: Projects (positioned near their theme if assigned)
-    targetRadius = RADIAL_CONFIG.middleRing;
 
+    // Arrange themes in a circular or grid pattern
+    if (totalThemes === 1) {
+      return { x: centerX, y: centerY, parentTheme: null };
+    } else if (totalThemes === 2) {
+      const spacing = 400;
+      const offset = (themeIndex - 0.5) * spacing;
+      return { x: centerX + offset, y: centerY, parentTheme: null };
+    } else {
+      // Circular arrangement for multiple themes
+      const radius = Math.max(300, totalThemes * 80);
+      const angle = (themeIndex / totalThemes) * 2 * Math.PI;
+      return {
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+        parentTheme: null
+      };
+    }
+  } else if (node.type === 'project') {
+    // Position project INSIDE its theme circle
     if (node.theme_id) {
-      // Find the parent theme to align angular position
-      const parentTheme = allNodes.find(n => n.type === 'theme' && n.theme_id === node.theme_id);
-      if (parentTheme && parentTheme.angle !== undefined) {
-        // Position project at same angle as theme, but in middle ring
-        angle = parentTheme.angle;
-        // Add slight offset for multiple projects per theme
+      const parentTheme = allNodes.find(n =>
+        n.type === 'theme' && n.theme_id === node.theme_id
+      );
+
+      if (parentTheme && parentTheme.x && parentTheme.y) {
+        // Get all projects in this theme
         const projectsInTheme = allNodes.filter(n =>
           n.type === 'project' && n.theme_id === node.theme_id
         );
         const projectIndex = projectsInTheme.findIndex(p => p.id === node.id);
-        angle += (projectIndex - projectsInTheme.length / 2) * 0.15; // Spread projects
-      } else {
-        angle = Math.random() * 2 * Math.PI;
-      }
-    } else {
-      // Distribute unassigned projects evenly
-      const projects = allNodes.filter(n => n.type === 'project');
-      const projectIndex = projects.findIndex(p => p.id === node.id);
-      const totalProjects = projects.length;
-      angle = (projectIndex / totalProjects) * 2 * Math.PI;
-    }
-  } else if (node.type === 'person') {
-    // Outer ring: Other people
-    targetRadius = RADIAL_CONFIG.outerRing;
 
-    // Position people near themes they participate in, or projects they're on
-    if (node.themes && node.themes.length > 0) {
-      // Position near first theme they participate in
-      const firstTheme = allNodes.find(n =>
-        n.type === 'theme' && n.theme_id === node.themes[0]
-      );
-      if (firstTheme && firstTheme.angle !== undefined) {
-        angle = firstTheme.angle;
-        // Add spread for multiple people per theme
-        angle += (Math.random() - 0.5) * 0.3;
-      } else {
-        angle = Math.random() * 2 * Math.PI;
+        // Arrange projects in a circle inside the theme
+        const projectCount = projectsInTheme.length;
+        const innerRadius = projectCount > 3 ? 60 : 40; // Smaller radius for fewer projects
+        const angle = (projectIndex / projectCount) * 2 * Math.PI;
+
+        return {
+          x: parentTheme.x + Math.cos(angle) * innerRadius,
+          y: parentTheme.y + Math.sin(angle) * innerRadius,
+          parentTheme: parentTheme.theme_id
+        };
       }
-    } else if (node.projects && node.projects.length > 0) {
-      // Position near first project they're on
-      const firstProject = allNodes.find(n =>
-        n.type === 'project' && n.id === node.projects[0]
-      );
-      if (firstProject && firstProject.angle !== undefined) {
-        angle = firstProject.angle;
-        angle += (Math.random() - 0.5) * 0.3;
-      } else {
-        angle = Math.random() * 2 * Math.PI;
+    }
+
+    // Fallback: position unassigned projects outside themes
+    return {
+      x: centerX + (Math.random() - 0.5) * 600,
+      y: centerY + (Math.random() - 0.5) * 600,
+      parentTheme: null
+    };
+  } else if (node.type === 'person') {
+    // Position user INSIDE their project(s) or theme
+    if (node.isCurrentUser) {
+      // Current user goes in their most active theme
+      const mostActiveThemeId = findMostActiveTheme(allNodes, currentUserCommunityId);
+      if (mostActiveThemeId) {
+        const activeTheme = allNodes.find(n =>
+          n.type === 'theme' && n.theme_id === mostActiveThemeId
+        );
+        if (activeTheme && activeTheme.x && activeTheme.y) {
+          return {
+            x: activeTheme.x,
+            y: activeTheme.y,
+            parentTheme: mostActiveThemeId
+          };
+        }
       }
+      // Fallback to center
+      return { x: centerX, y: centerY, parentTheme: null };
     } else {
-      // Distribute unconnected people evenly
-      const people = allNodes.filter(n => n.type === 'person' && !n.isCurrentUser);
-      const personIndex = people.findIndex(p => p.id === node.id);
-      const totalPeople = people.length;
-      angle = (personIndex / totalPeople) * 2 * Math.PI;
+      // Other users: position inside their first project
+      if (node.projects && node.projects.length > 0) {
+        const firstProject = allNodes.find(n =>
+          n.type === 'project' && n.id === node.projects[0]
+        );
+        if (firstProject && firstProject.x && firstProject.y) {
+          // Randomly position around the project center
+          const angle = Math.random() * 2 * Math.PI;
+          const distance = Math.random() * 15 + 5; // 5-20px from center
+          return {
+            x: firstProject.x + Math.cos(angle) * distance,
+            y: firstProject.y + Math.sin(angle) * distance,
+            parentTheme: firstProject.parentTheme || null
+          };
+        }
+      }
+
+      // If no projects, position in a theme they participate in
+      if (node.themes && node.themes.length > 0) {
+        const firstTheme = allNodes.find(n =>
+          n.type === 'theme' && n.theme_id === node.themes[0]
+        );
+        if (firstTheme && firstTheme.x && firstTheme.y) {
+          const angle = Math.random() * 2 * Math.PI;
+          const distance = Math.random() * 60 + 30;
+          return {
+            x: firstTheme.x + Math.cos(angle) * distance,
+            y: firstTheme.y + Math.sin(angle) * distance,
+            parentTheme: firstTheme.theme_id
+          };
+        }
+      }
+
+      // Fallback: position outside themes
+      return {
+        x: centerX + (Math.random() - 0.5) * 800,
+        y: centerY + (Math.random() - 0.5) * 800,
+        parentTheme: null
+      };
     }
   }
 
-  // Store angle for reference by child nodes
-  node.angle = angle;
-  node.targetRadius = targetRadius;
-
-  // Calculate x, y from polar coordinates
-  return {
-    x: centerX + Math.cos(angle) * targetRadius,
-    y: centerY + Math.sin(angle) * targetRadius,
-    angle: angle,
-    targetRadius: targetRadius
-  };
+  return { x: centerX, y: centerY, parentTheme: null };
 }
 
 /**
- * Custom force to maintain radial structure (concentric circles)
+ * Create containment force to keep nodes inside their parent containers
  */
-function createRadialForce(allNodes, centerX, centerY) {
-  return function radialForce(alpha) {
-    const strength = 0.3; // How strongly to pull nodes to their target radius
+function createContainmentForce(allNodes) {
+  return function containmentForce(alpha) {
+    const strength = 0.5;
 
     allNodes.forEach(node => {
-      if (!node.x || !node.y || node.targetRadius === undefined) return;
+      if (!node.x || !node.y || !node.parentTheme) return;
 
-      // Calculate current radius from center
-      const dx = node.x - centerX;
-      const dy = node.y - centerY;
-      const currentRadius = Math.sqrt(dx * dx + dy * dy);
+      // Find parent theme
+      const parentTheme = allNodes.find(n =>
+        n.type === 'theme' && n.theme_id === node.parentTheme
+      );
 
-      // Don't apply force if we're at the center (current user)
-      if (node.targetRadius === 0) {
-        node.vx = 0;
-        node.vy = 0;
-        node.x = centerX;
-        node.y = centerY;
-        return;
-      }
+      if (!parentTheme || !parentTheme.x || !parentTheme.y) return;
 
-      // Calculate how far we are from target radius
-      const radiusError = currentRadius - node.targetRadius;
+      // Calculate distance from theme center
+      const dx = node.x - parentTheme.x;
+      const dy = node.y - parentTheme.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // Apply force toward/away from center to reach target radius
-      if (currentRadius > 1) { // Avoid division by zero
-        const forceStrength = (radiusError * strength * alpha) / currentRadius;
-        node.vx -= dx * forceStrength;
-        node.vy -= dy * forceStrength;
+      // Theme radius boundary (smaller than visual radius to keep nodes inside)
+      const maxRadius = node.type === 'project' ? 80 : 120;
+
+      if (distance > maxRadius) {
+        // Push node back toward theme center
+        const overflow = distance - maxRadius;
+        const force = (overflow * strength * alpha) / (distance || 1);
+
+        node.vx -= (dx / distance) * force;
+        node.vy -= (dy / distance) * force;
       }
     });
   };
 }
 
 /**
- * Custom force to maintain angular spacing within rings
+ * Create project containment force to keep users inside projects
  */
-function createAngularSortingForce(allNodes, centerX, centerY) {
-  return function angularSortingForce(alpha) {
-    const strength = 0.05; // Gentle force to maintain angular order
+function createProjectContainmentForce(allNodes) {
+  return function projectContainmentForce(alpha) {
+    const strength = 0.7;
 
-    // Group nodes by ring
-    const rings = {
-      innerRing: allNodes.filter(n => n.targetRadius === RADIAL_CONFIG.innerRing),
-      middleRing: allNodes.filter(n => n.targetRadius === RADIAL_CONFIG.middleRing),
-      outerRing: allNodes.filter(n => n.targetRadius === RADIAL_CONFIG.outerRing)
-    };
+    allNodes.forEach(node => {
+      if (node.type !== 'person' || !node.x || !node.y) return;
+      if (!node.projects || node.projects.length === 0) return;
 
-    Object.values(rings).forEach(ringNodes => {
-      if (ringNodes.length <= 1) return;
+      // Find first project user is in
+      const project = allNodes.find(n =>
+        n.type === 'project' && n.id === node.projects[0]
+      );
 
-      ringNodes.forEach((node, i) => {
-        if (!node.x || !node.y) return;
+      if (!project || !project.x || !project.y) return;
 
-        // Find neighboring nodes in the ring
-        const prevNode = ringNodes[(i - 1 + ringNodes.length) % ringNodes.length];
-        const nextNode = ringNodes[(i + 1) % ringNodes.length];
+      // Calculate distance from project center
+      const dx = node.x - project.x;
+      const dy = node.y - project.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (!prevNode || !nextNode) return;
+      // Keep users within project radius
+      const maxRadius = 25;
 
-        // Calculate current angle
-        const dx = node.x - centerX;
-        const dy = node.y - centerY;
-        const currentAngle = Math.atan2(dy, dx);
+      if (distance > maxRadius) {
+        const overflow = distance - maxRadius;
+        const force = (overflow * strength * alpha) / (distance || 1);
 
-        // Calculate ideal angle (between neighbors)
-        const prevAngle = Math.atan2(prevNode.y - centerY, prevNode.x - centerX);
-        const nextAngle = Math.atan2(nextNode.y - centerY, nextNode.x - centerX);
-
-        // Gentle push to maintain spacing
-        let targetAngle = (prevAngle + nextAngle) / 2;
-
-        // Handle wrap-around
-        if (Math.abs(nextAngle - prevAngle) > Math.PI) {
-          targetAngle += Math.PI;
-        }
-
-        // Apply small rotational force
-        const angleDiff = targetAngle - currentAngle;
-        const radius = node.targetRadius || 1;
-
-        // Convert angle difference to tangential velocity
-        node.vx += -Math.sin(currentAngle) * angleDiff * strength * alpha * radius;
-        node.vy += Math.cos(currentAngle) * angleDiff * strength * alpha * radius;
-      });
+        node.vx -= (dx / distance) * force;
+        node.vy -= (dy / distance) * force;
+      }
     });
   };
 }
@@ -460,13 +511,28 @@ function buildGraph() {
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Apply initial radial positioning to all nodes
-  nodes.forEach(node => {
-    const position = calculateRadialPosition(node, nodes, centerX, centerY, currentUserCommunityId);
+  // Step 1: Position themes first (they need to be positioned before other nodes)
+  nodes.filter(n => n.type === 'theme').forEach(node => {
+    const position = calculateNestedPosition(node, nodes, centerX, centerY, currentUserCommunityId);
     node.x = position.x;
     node.y = position.y;
-    node.angle = position.angle;
-    node.targetRadius = position.targetRadius;
+    node.parentTheme = position.parentTheme;
+  });
+
+  // Step 2: Position projects (they depend on theme positions)
+  nodes.filter(n => n.type === 'project').forEach(node => {
+    const position = calculateNestedPosition(node, nodes, centerX, centerY, currentUserCommunityId);
+    node.x = position.x;
+    node.y = position.y;
+    node.parentTheme = position.parentTheme;
+  });
+
+  // Step 3: Position people (they depend on project and theme positions)
+  nodes.filter(n => n.type === 'person').forEach(node => {
+    const position = calculateNestedPosition(node, nodes, centerX, centerY, currentUserCommunityId);
+    node.x = position.x;
+    node.y = position.y;
+    node.parentTheme = position.parentTheme;
   });
 
   simulation = d3
@@ -477,58 +543,34 @@ function buildGraph() {
         .forceLink(links)
         .id((d) => d.id)
         .distance((d) => {
-          // Radial layout: links should adapt to hierarchy
-          const source = typeof d.source === 'object' ? d.source : nodes.find(n => n.id === d.source);
-          const target = typeof d.target === 'object' ? d.target : nodes.find(n => n.id === d.target);
-
-          if (!source || !target) return 100;
-
-          // Calculate natural distance based on ring positions
-          const sourceRadius = source.targetRadius || 0;
-          const targetRadius = target.targetRadius || 0;
-          const radiusDiff = Math.abs(sourceRadius - targetRadius);
-
-          // Connections within the same ring should be shorter
-          if (radiusDiff < 50) return 80;
-
-          // Connections between adjacent rings
-          if (radiusDiff < 300) return 150;
-
-          // Connections spanning multiple rings
-          return 250;
+          // Very weak link forces - we want containment to dominate
+          if (d.type === "project" || d.status === "project-member") return 30;
+          if (d.type === "theme" || d.status === "theme-participant") return 40;
+          if (d.status === "accepted") return 60;
+          return 80;
         })
         .strength((d) => {
-          // Weaker link strength to allow radial forces to dominate
-          const source = typeof d.source === 'object' ? d.source : nodes.find(n => n.id === d.source);
-          const target = typeof d.target === 'object' ? d.target : nodes.find(n => n.id === d.target);
-
-          if (!source || !target) return 0.1;
-
-          // Stronger for same-ring connections
-          const sourceRadius = source.targetRadius || 0;
-          const targetRadius = target.targetRadius || 0;
-          const radiusDiff = Math.abs(sourceRadius - targetRadius);
-
-          if (radiusDiff < 50) return 0.4;
-          if (radiusDiff < 300) return 0.2;
-          return 0.1;
+          // Very weak link strength to allow containment forces to dominate
+          if (d.type === "project" || d.status === "project-member") return 0.2;
+          if (d.type === "theme" || d.status === "theme-participant") return 0.15;
+          return 0.05;
         })
     )
-    .force("charge", d3.forceManyBody().strength(-150).distanceMax(300))
-    .force("radial", createRadialForce(nodes, centerX, centerY))
-    .force("angular", createAngularSortingForce(nodes, centerX, centerY))
+    .force("charge", d3.forceManyBody().strength(-80).distanceMax(200))
+    .force("containment", createContainmentForce(nodes))
+    .force("projectContainment", createProjectContainmentForce(nodes))
     .force(
       "collision",
       d3.forceCollide().radius((d) => {
-        // Collision radius based on node type and hierarchy
-        if (d.type === "theme") return 110; // Themes are large in inner ring
-        if (d.type === "project") return 45;
-        if (d.isCurrentUser) return 60; // Center user is largest
-        return 35;
-      })
+        // Collision radius based on node type
+        if (d.type === "theme") return 150; // Large theme circles
+        if (d.type === "project") return 35; // Medium project circles
+        if (d.isCurrentUser) return 30; // Current user
+        return 20; // Other users
+      }).strength(0.8)
     )
-    .velocityDecay(0.4)
-    .alphaDecay(0.03)
+    .velocityDecay(0.5)
+    .alphaDecay(0.04)
     .alphaMin(0.001);
 
   // Project circles (behind)
