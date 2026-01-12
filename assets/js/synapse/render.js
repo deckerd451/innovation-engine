@@ -359,24 +359,24 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     // Remove existing gradient if it exists
     defs.select(`#${gradientId}`).remove();
 
-    // Create animated radial gradient with pulsing effect
+    // Create animated radial gradient with pulsing effect (more subtle)
     const gradient = defs.append("radialGradient")
       .attr("id", gradientId);
 
     gradient.append("stop")
       .attr("offset", "0%")
       .attr("stop-color", themeColor)
-      .attr("stop-opacity", 0.25);
+      .attr("stop-opacity", 0.08); // Much more subtle
 
     gradient.append("stop")
       .attr("offset", "30%")
       .attr("stop-color", themeColor)
-      .attr("stop-opacity", 0.15);
+      .attr("stop-opacity", 0.04);
 
     gradient.append("stop")
       .attr("offset", "70%")
       .attr("stop-color", themeColor)
-      .attr("stop-opacity", 0.05);
+      .attr("stop-opacity", 0.02);
 
     gradient.append("stop")
       .attr("offset", "100%")
@@ -384,10 +384,11 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stop-opacity", 0);
   });
 
-  // Create theme groups with enhanced visual hierarchy
+  // Create theme groups with enhanced visual hierarchy (background layer)
   const themesGroup = container
-    .append("g")
-    .attr("class", "theme-circles-group");
+    .insert("g", ":first-child") // Insert at beginning to ensure background positioning
+    .attr("class", "theme-circles-group")
+    .style("pointer-events", "none"); // Prevent themes from blocking clicks on nodes
 
   themeNodes.forEach((d) => {
     const themeColor = getThemeColor(d.theme_id);
@@ -413,7 +414,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("class", `theme-container theme-${d.theme_id}`)
       .attr("transform", `translate(${d.x || 0}, ${d.y || 0})`);
 
-    // Animated background pulse for active themes
+    // Animated background pulse for active themes (very subtle)
     if (participantCount > 3) {
       themeGroup
         .append("circle")
@@ -421,45 +422,48 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         .attr("fill", "none")
         .attr("stroke", themeColor)
         .attr("stroke-width", 1)
-        .attr("stroke-opacity", 0.3)
+        .attr("stroke-opacity", 0.1) // Much more subtle
         .attr("class", "theme-pulse")
-        .style("animation", "themePulse 3s ease-in-out infinite");
+        .style("animation", "themePulse 3s ease-in-out infinite")
+        .attr("pointer-events", "none");
     }
 
-    // Main influence field with gradient (dimmed for discoverable themes)
+    // Main influence field with gradient (much more subtle)
     themeGroup
       .append("circle")
       .attr("r", radius)
       .attr("fill", `url(#theme-influence-${d.theme_id})`)
       .attr("stroke", "none")
       .attr("class", "theme-influence-field")
-      .attr("opacity", isDiscoverable ? 0.3 : 1) // Dimmed for discoverable themes
+      .attr("opacity", isDiscoverable ? 0.1 : 0.3) // Much more subtle background
       .attr("pointer-events", "none");
 
-    // Outer decorative ring (dashed for discoverable themes)
+    // Outer decorative ring (more subtle)
     themeGroup
       .append("circle")
       .attr("r", radius + 8)
       .attr("fill", "none")
       .attr("stroke", themeColor)
-      .attr("stroke-width", userHasJoined ? 4 : 2)
-      .attr("stroke-opacity", isDiscoverable ? 0.4 : (userHasJoined ? 0.6 : 0.3))
+      .attr("stroke-width", userHasJoined ? 2 : 1) // Thinner lines
+      .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.3 : 0.15)) // Much more subtle
       .attr("stroke-dasharray", isDiscoverable ? "12,8" : (userHasJoined ? "none" : "8,4"))
       .attr("filter", "url(#glow)")
       .attr("class", "theme-outer-ring")
       .attr("pointer-events", "none");
 
     // Main interactive border (dimmed for discoverable themes)
-    themeGroup
+    // This is the only theme element that should be clickable
+    const interactiveBorder = themeGroup
       .append("circle")
       .attr("r", radius)
-      .attr("fill", isUserTheme ? `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.08)` : "none")
+      .attr("fill", "transparent") // Transparent fill so it doesn't block visibility
       .attr("stroke", themeColor)
       .attr("stroke-width", userHasJoined ? 3 : 2)
       .attr("stroke-opacity", isDiscoverable ? 0.5 : (userHasJoined ? 0.9 : 0.6))
       .attr("filter", "url(#glow)")
       .attr("class", "theme-main-border")
       .style("cursor", "pointer")
+      .style("pointer-events", "all") // Enable pointer events only for this element
       .on("mouseenter", (event) => {
         // Enhanced hover effects
         d3.select(event.currentTarget)
@@ -483,6 +487,17 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         event.stopPropagation();
         onThemeClick?.(event, d);
       });
+
+    // Add a subtle fill for user themes that doesn't block visibility
+    if (isUserTheme && !isDiscoverable) {
+      themeGroup
+        .insert("circle", ".theme-main-border")
+        .attr("r", radius)
+        .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.02)`) // Very subtle fill
+        .attr("stroke", "none")
+        .attr("class", "theme-user-fill")
+        .attr("pointer-events", "none");
+    }
 
     // Progress indicator for theme lifecycle
     if (progress > 0.1) {
@@ -645,8 +660,9 @@ export function drawProjectCircles(container, projectNodes) {
   const projectCircleRadius = 40; // Slightly larger for better visibility
 
   const circles = container
-    .insert("g", ":first-child")
+    .insert("g", ":first-child") // Insert at beginning for background positioning
     .attr("class", "project-circles")
+    .style("pointer-events", "none") // Don't block clicks on nodes
     .selectAll("g")
     .data(projectNodes.filter(n => n.type === 'project'))
     .enter()
@@ -659,29 +675,29 @@ export function drawProjectCircles(container, projectNodes) {
     const projectColor = d.theme_id ? getThemeColor(d.theme_id) : "#ff6b6b";
     const projectColorRgb = hexToRgb(projectColor);
 
-    // Outer glow ring
+    // Outer glow ring (more subtle)
     group
       .append("circle")
       .attr("class", "project-circle-glow")
       .attr("fill", "none")
       .attr("stroke", projectColor)
-      .attr("stroke-width", 8)
-      .attr("stroke-opacity", 0.1)
+      .attr("stroke-width", 4) // Thinner
+      .attr("stroke-opacity", 0.05) // Much more subtle
       .attr("r", projectCircleRadius + 12)
       .attr("filter", "url(#glow)");
 
-    // Main circle with gradient fill
+    // Main circle with gradient fill (more subtle)
     group
       .append("circle")
       .attr("class", "project-circle-main")
-      .attr("fill", `rgba(${projectColorRgb.r}, ${projectColorRgb.g}, ${projectColorRgb.b}, 0.08)`)
+      .attr("fill", `rgba(${projectColorRgb.r}, ${projectColorRgb.g}, ${projectColorRgb.b}, 0.03)`) // Much more subtle
       .attr("stroke", projectColor)
-      .attr("stroke-width", 2)
+      .attr("stroke-width", 1) // Thinner
       .attr("stroke-dasharray", "6,3")
-      .attr("stroke-opacity", 0.6)
+      .attr("stroke-opacity", 0.2) // More subtle
       .attr("r", projectCircleRadius);
 
-    // Inner activity indicator
+    // Inner activity indicator (more subtle)
     if (d.team_size > 2) {
       group
         .append("circle")
@@ -689,7 +705,7 @@ export function drawProjectCircles(container, projectNodes) {
         .attr("fill", "none")
         .attr("stroke", projectColor)
         .attr("stroke-width", 1)
-        .attr("stroke-opacity", 0.4)
+        .attr("stroke-opacity", 0.15) // More subtle
         .attr("r", projectCircleRadius - 8)
         .style("animation", "projectActivity 4s ease-in-out infinite");
     }

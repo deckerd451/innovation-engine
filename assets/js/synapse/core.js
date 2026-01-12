@@ -817,18 +817,9 @@ function buildGraph() {
     .alphaDecay(0.04)
     .alphaMin(0.001);
 
-  // Project circles (behind) - only visible projects
-  const visibleProjects = visibleNodes.filter((n) => n.type === "project");
-  projectCircles = drawProjectCircles(container, visibleProjects);
-
-  // Links - only visible links
-  linkEls = renderLinks(container, simulationLinks);
-
-  // Nodes (people and projects) — themes rendered separately, only visible nodes
-  const visibleNonThemeNodes = visibleNodes.filter((n) => n.type !== "theme");
-  nodeEls = renderNodes(container, visibleNonThemeNodes, { onNodeClick });
-
-  // Theme circles (separate rendering) - only visible themes
+  // RENDERING ORDER: Background to foreground for proper z-index layering
+  
+  // 1. Theme circles (background layer) - render FIRST so they appear behind everything
   const visibleThemeNodes = visibleNodes.filter((n) => n.type === "theme");
   if (visibleThemeNodes.length > 0) {
     themeEls = renderThemeCircles(container, visibleThemeNodes, {
@@ -836,6 +827,17 @@ function buildGraph() {
       onThemeClick: (event, d) => openThemeCard(d),
     });
   }
+
+  // 2. Project circles (behind nodes but above themes)
+  const visibleProjects = visibleNodes.filter((n) => n.type === "project");
+  projectCircles = drawProjectCircles(container, visibleProjects);
+
+  // 3. Links (middle layer)
+  linkEls = renderLinks(container, simulationLinks);
+
+  // 4. Nodes (foreground layer) - render LAST so they appear on top
+  const visibleNonThemeNodes = visibleNodes.filter((n) => n.type !== "theme");
+  nodeEls = renderNodes(container, visibleNonThemeNodes, { onNodeClick });
 
   // Drag for nodes
   nodeEls.call(
