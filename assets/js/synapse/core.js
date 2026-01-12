@@ -236,6 +236,8 @@ function setupSVG() {
 async function reloadAllData() {
   if (!supabase) return;
 
+  console.log("🔄 Loading synapse data...");
+
   const loaded = await loadSynapseData({
     supabase,
     currentUserCommunityId,
@@ -246,6 +248,37 @@ async function reloadAllData() {
   links = loaded.links || [];
   connectionsData = loaded.connectionsData || [];
   projectMembersData = loaded.projectMembersData || [];
+
+  console.log("📊 Synapse data loaded:", {
+    nodes: nodes.length,
+    links: links.length,
+    connections: connectionsData.length,
+    projectMembers: projectMembersData.length,
+    currentUser: currentUserCommunityId,
+    showFullCommunity
+  });
+
+  // Log breakdown by type
+  const nodesByType = nodes.reduce((acc, n) => {
+    acc[n.type] = (acc[n.type] || 0) + 1;
+    return acc;
+  }, {});
+  console.log("📊 Nodes by type:", nodesByType);
+
+  // Log current user info
+  const currentUser = nodes.find(n => n.id === currentUserCommunityId);
+  if (currentUser) {
+    console.log("👤 Current user node:", {
+      name: currentUser.name,
+      projects: currentUser.projects?.length || 0,
+      themes: currentUser.themes?.length || 0,
+      connections: connectionsData.filter(c => 
+        c.from_user_id === currentUserCommunityId || c.to_user_id === currentUserCommunityId
+      ).length
+    });
+  } else {
+    console.warn("⚠️ Current user node not found in data");
+  }
 
   // ✅ Canonicalize + dedupe theme nodes:
   // - Force stable id: "theme:<theme_id>"
@@ -772,8 +805,39 @@ function buildGraph() {
     return visibleNodeIds.has(sourceId) && visibleNodeIds.has(targetId);
   });
 
-  console.log(`🎯 Filtered nodes: ${nodes.length} → ${visibleNodes.length} visible`);
-  console.log(`🎯 Filtered links: ${links.length} → ${visibleLinks.length} visible`);
+  console.log(`🎯 Visibility filtering:`, {
+    totalNodes: nodes.length,
+    visibleNodes: visibleNodes.length,
+    hiddenNodes: nodes.length - visibleNodes.length,
+    totalLinks: links.length,
+    visibleLinks: visibleLinks.length,
+    showFullCommunity
+  });
+
+  // Log what types of nodes are visible
+  const visibleByType = visibleNodes.reduce((acc, n) => {
+    acc[n.type] = (acc[n.type] || 0) + 1;
+    return acc;
+  }, {});
+  console.log("👁️ Visible nodes by type:", visibleByType);
+
+  // If no visible nodes, this might be the issue
+  if (visibleNodes.length === 0) {
+    console.warn("⚠️ No visible nodes! This might be why nothing is showing.");
+    console.log("🔍 All nodes:", nodes.map(n => ({ id: n.id, type: n.type, hidden: n.hidden })));
+  }
+
+  // If no visible nodes, automatically enable discovery mode for new users
+  if (visibleNodes.length <= 1) { // Only current user or no nodes
+    console.log("🔍 No connected content found, enabling discovery mode...");
+    if (!showFullCommunity) {
+      showFullCommunity = true;
+      console.log("🌐 Discovery mode enabled - reloading data...");
+      await reloadAllData();
+      rebuildGraph();
+      return;
+    }
+  }
 
   // ✅ Use only visible nodes and links for simulation
   const simulationNodes = visibleNodes;
