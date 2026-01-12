@@ -1032,15 +1032,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (MessagingModule.getState?.().observer) return;
 
   const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      const el = mutation.target;
-      if (!el || el.id !== "messages") return;
+  mutations.forEach((mutation) => {
+    const el = mutation.target;
+    if (!el || el.id !== "messages") return;
 
-      const isActive = el.classList.contains("active-tab-pane");
-      if (isActive) MessagingModule.init();
-      else MessagingModule.cleanup();
-    });
+    const isActive = el.classList.contains("active-tab-pane");
+    if (isActive) {
+      MessagingModule.init();
+    }
+    // DO NOT cleanup just because the tab is inactive
   });
+});
+
 
   observer.observe(messagesTab, { attributes: true, attributeFilter: ["class"] });
 
