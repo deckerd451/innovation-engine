@@ -191,7 +191,8 @@
 
     setHint("Opening provider…");
 
-    const redirectTo = window.location.origin + window.location.pathname;
+    const redirectTo = window.location.origin + "/dashboard.html";
+
 
     const { error } = await window.supabase.auth.signInWithOAuth({
       provider,
