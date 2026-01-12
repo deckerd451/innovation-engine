@@ -607,16 +607,7 @@ function buildGraph() {
       .on("end", dragEnded)
   );
 
-  // Drag for theme circles
-  if (themeEls) {
-    themeEls.call(
-      d3
-        .drag()
-        .on("start", dragStarted)
-        .on("drag", dragged)
-        .on("end", dragEnded)
-    );
-  }
+  // Themes are static in concentric circles - no dragging needed
 
   // Tick
   let tickCount = 0;
