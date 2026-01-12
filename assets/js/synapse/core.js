@@ -401,38 +401,18 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
 }
 
 /**
- * Keep themes at center (concentric circles all share the same center)
- */
-function createThemePositioningForce(allNodes, centerX, centerY) {
-  return function themePositioningForce(alpha) {
-    const strength = 1.0; // Very strong force to keep themes at center
-
-    allNodes.forEach(node => {
-      if (node.type !== 'theme') return;
-
-      // Pull theme strongly toward canvas center
-      const dx = centerX - node.x;
-      const dy = centerY - node.y;
-
-      node.vx += dx * strength * alpha;
-      node.vy += dy * strength * alpha;
-    });
-  };
-}
-
-/**
  * Create containment force to keep nodes inside their theme's concentric circle
  * Each theme has its own radius, nodes must stay within that radius from center
  */
-function createContainmentForce(allNodes, centerX, centerY) {
+function createContainmentForce(simulationNodes, allNodes, centerX, centerY) {
   return function containmentForce(alpha) {
     const strength = 0.5;
 
-    allNodes.forEach(node => {
+    simulationNodes.forEach(node => {
       if (!node.x || !node.y || !node.parentTheme) return;
       if (node.isUserCenter) return; // Don't constrain the center user
 
-      // Find parent theme
+      // Find parent theme (from all nodes, including themes)
       const parentTheme = allNodes.find(n =>
         n.type === 'theme' && n.theme_id === node.parentTheme
       );
@@ -557,8 +537,11 @@ function buildGraph() {
     node.parentProject = position.parentProject;
   });
 
+  // Only include non-theme nodes in simulation (themes are static)
+  const simulationNodes = nodes.filter(n => n.type !== 'theme');
+
   simulation = d3
-    .forceSimulation(nodes)
+    .forceSimulation(simulationNodes)
     .force(
       "link",
       d3
@@ -579,9 +562,8 @@ function buildGraph() {
         })
     )
     .force("charge", d3.forceManyBody().strength(-50).distanceMax(150))
-    .force("themePositioning", createThemePositioningForce(nodes, centerX, centerY))
-    .force("containment", createContainmentForce(nodes, centerX, centerY))
-    .force("projectContainment", createProjectContainmentForce(nodes))
+    .force("containment", createContainmentForce(simulationNodes, nodes, centerX, centerY))
+    .force("projectContainment", createProjectContainmentForce(simulationNodes))
     .force(
       "collision",
       d3.forceCollide().radius((d) => {
@@ -689,9 +671,7 @@ function buildGraph() {
 
     nodeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
 
-    if (themeEls) {
-      themeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
-    }
+    // Themes are now static SVG elements - no need to update their transform
 
     projectCircles?.update?.();
 

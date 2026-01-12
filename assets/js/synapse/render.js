@@ -308,25 +308,18 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stop-opacity", 0);
   });
 
-  const themeEls = container
+  // For concentric circles: create a single group at canvas center
+  // Don't use individual theme positions - all themes share the center
+  const themesGroup = container
     .append("g")
-    .attr("class", "theme-circles")
-    .selectAll("g")
-    .data(themeNodes)
-    .enter()
-    .append("g")
-    .attr("class", "theme-circle")
-    .on("mouseenter", (event, d) => onThemeHover?.(event, d, true))
-    .on("mouseleave", (event, d) => onThemeHover?.(event, d, false))
-    .on("click", (event, d) => {
-      event.stopPropagation();
-      onThemeClick?.(event, d);
-    });
+    .attr("class", "theme-circles-group");
 
-  themeEls.each(function (d) {
-    const theme = d3.select(this);
+  themeNodes.forEach((d) => {
+    const themeColor = getThemeColor(d.theme_id);
+    const themeColorRgb = hexToRgb(themeColor);
+    const radius = d.themeRadius || 250;
 
-    // Calculate lifecycle progress (0 = new, 1 = expired)
+    // Calculate lifecycle progress
     const now = Date.now();
     const expires = new Date(d.expires_at).getTime();
     const created = new Date(d.created_at).getTime();
@@ -334,94 +327,105 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const remaining = expires - now;
     const progress = Math.max(0, Math.min(1, 1 - (remaining / lifetime)));
 
-    // CONCENTRIC CIRCLES: Each theme has its own radius
-    const radius = d.themeRadius || 250; // Use theme's assigned radius
-    const glowIntensity = Math.max(0.4, 1 - progress);
-
-    // Determine if user has joined or if this is user's theme
     const userHasJoined = d.user_is_participant === true;
     const isUserTheme = d.isUserTheme === true;
 
-    // Get theme color
-    const themeColor = getThemeColor(d.theme_id);
-    const themeColorRgb = hexToRgb(themeColor);
-
-    // HALO EFFECT: Multiple concentric circles for glow
     // Outer glow ring
-    theme
+    themesGroup
       .append("circle")
+      .attr("cx", d.x || 0)
+      .attr("cy", d.y || 0)
       .attr("r", radius + 8)
       .attr("fill", "none")
       .attr("stroke", themeColor)
       .attr("stroke-width", 12)
       .attr("stroke-opacity", 0.15)
       .attr("filter", "url(#glow)")
-      .attr("class", "theme-halo-outer")
+      .attr("class", `theme-halo-outer theme-${d.theme_id}`)
       .attr("pointer-events", "none");
 
     // Middle glow ring
-    theme
+    themesGroup
       .append("circle")
+      .attr("cx", d.x || 0)
+      .attr("cy", d.y || 0)
       .attr("r", radius)
       .attr("fill", "none")
       .attr("stroke", themeColor)
       .attr("stroke-width", 6)
       .attr("stroke-opacity", 0.4)
       .attr("filter", "url(#glow)")
-      .attr("class", "theme-halo-middle")
+      .attr("class", `theme-halo-middle theme-${d.theme_id}`)
       .attr("pointer-events", "none");
 
-    // Main halo circle - minimal/no fill, prominent border
-    theme
+    // Main halo circle
+    themesGroup
       .append("circle")
+      .attr("cx", d.x || 0)
+      .attr("cy", d.y || 0)
       .attr("r", radius)
       .attr("fill", isUserTheme ? `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.03)` : "none")
       .attr("stroke", themeColor)
       .attr("stroke-width", userHasJoined ? 3 : 2)
       .attr("stroke-opacity", userHasJoined ? 0.8 : 0.6)
       .attr("filter", "url(#glow)")
-      .attr("class", "theme-halo-border");
+      .attr("class", `theme-halo-border theme-${d.theme_id}`)
+      .style("cursor", "pointer")
+      .on("mouseenter", (event) => onThemeHover?.(event, d, true))
+      .on("mouseleave", (event) => onThemeHover?.(event, d, false))
+      .on("click", (event) => {
+        event.stopPropagation();
+        onThemeClick?.(event, d);
+      });
 
-    // Label at top of halo
-    const labelY = -radius - 20;
+    // Label at top of circle
+    const labelY = (d.y || 0) - radius - 20;
+    const labelX = d.x || 0;
 
-    // Icon/emoji
-    theme
+    // Icon
+    themesGroup
       .append("text")
+      .attr("x", labelX)
+      .attr("y", labelY)
       .attr("text-anchor", "middle")
-      .attr("dy", labelY)
       .attr("fill", themeColor)
       .attr("font-size", "24px")
       .attr("pointer-events", "none")
       .attr("opacity", 0.9)
+      .attr("class", `theme-icon theme-${d.theme_id}`)
       .text("✨");
 
-    // Title text
-    theme
+    // Title
+    themesGroup
       .append("text")
+      .attr("x", labelX)
+      .attr("y", labelY + 25)
       .attr("text-anchor", "middle")
-      .attr("dy", labelY + 25)
       .attr("fill", "#fff")
       .attr("font-size", "14px")
       .attr("font-weight", "600")
       .attr("pointer-events", "none")
       .attr("opacity", 0.9)
+      .attr("class", `theme-title theme-${d.theme_id}`)
       .text(truncateName(d.title, 22));
 
     // Participant count
-    theme
+    themesGroup
       .append("text")
+      .attr("x", labelX)
+      .attr("y", labelY + 42)
       .attr("text-anchor", "middle")
-      .attr("dy", labelY + 42)
       .attr("fill", themeColor)
       .attr("font-size", "11px")
       .attr("font-weight", "500")
       .attr("pointer-events", "none")
       .attr("opacity", 0.7)
+      .attr("class", `theme-count theme-${d.theme_id}`)
       .text(`${d.participant_count || 0} engaged`);
   });
 
-  return themeEls;
+  // Return a dummy element for compatibility (themes are now static)
+  return d3.select(themesGroup.node());
 }
 
 /**
