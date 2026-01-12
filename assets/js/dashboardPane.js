@@ -542,9 +542,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       } else {
         console.warn("synapse.js loaded but initSynapseView not found");
       }
-    } catch (e) {
-      console.warn("Synapse init skipped:", e?.message || e);
-    }
+} catch (e) {
+  console.warn("❌ Synapse init failed (NOT skipped). Full error:", e);
+  if (e?.stack) console.warn("Stack:", e.stack);
+}
+
   }
 
   // -----------------------------
