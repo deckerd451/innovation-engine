@@ -10,7 +10,8 @@
 // - Auth events INITIAL_SESSION / SIGNED_IN can fire multiple times;
 //   we bootstrap the UI + profile EXACTLY ONCE per user id.
 // - Profile load is deduped (single in-flight promise).
-// - UI never hangs on "Checking session..." (timeout fallback).
+// - OAuth URL hash is cleaned ONLY AFTER session exists.
+// - Timeout fallback is CANCELLED on successful auth (prevents “login UI flash”).
 //
 // Emits canonical events:
 //  - profile-loaded  { detail: { user, profile } }
@@ -339,20 +340,30 @@
       }
 
       // Hard timeout guard: never hang on spinner.
-      const SESSION_TIMEOUT_MS = 3500;
+      // (In GitHub Pages + OAuth, first load can be slow; give it room.)
+      const SESSION_TIMEOUT_MS = 8000;
+
       let timedOut = false;
-      const t = setTimeout(() => {
+      let sessionTimer = setTimeout(() => {
         timedOut = true;
         warn("⏱️ Session check timed out — showing login UI fallback.");
         showLoginUI();
       }, SESSION_TIMEOUT_MS);
+
+      const cancelSessionTimer = () => {
+        if (sessionTimer) {
+          clearTimeout(sessionTimer);
+          sessionTimer = null;
+        }
+        timedOut = false;
+      };
 
       try {
         const {
           data: { session },
         } = await window.supabase.auth.getSession();
 
-        clearTimeout(t);
+        cancelSessionTimer();
         if (timedOut) return;
 
         if (session?.user) {
@@ -365,13 +376,16 @@
           showLoginUI();
         }
       } catch (e) {
-        clearTimeout(t);
+        cancelSessionTimer();
         err("❌ ERROR in initLoginSystem:", e);
         showLoginUI();
       }
 
       // Subscribe once (ever)
-      if (!window.__CH_IE_AUTH_UNSUB__ && window.supabase?.auth?.onAuthStateChange) {
+      if (
+        !window.__CH_IE_AUTH_UNSUB__ &&
+        window.supabase?.auth?.onAuthStateChange
+      ) {
         const { data: sub } = window.supabase.auth.onAuthStateChange(
           async (event, session2) => {
             lastAuthEvent = event;
@@ -381,8 +395,12 @@
               (event === "INITIAL_SESSION" || event === "SIGNED_IN") &&
               session2?.user
             ) {
+              // ✅ If auth succeeds, cancel the fallback timer immediately
+              cancelSessionTimer();
+
               // ✅ Clean OAuth hash only AFTER session is established
               cleanOAuthUrlSoon();
+
               await bootstrapForUser(session2.user, event);
               return;
             }
