@@ -444,13 +444,18 @@ export function drawProjectCircles(container, projectNodes) {
     .attr("stroke-width", 2)
     .attr("stroke-dasharray", "4,4")
     .attr("opacity", 0.7)
-    .attr("r", projectCircleRadius);
+    .attr("r", projectCircleRadius)
+    .attr("cx", d => d.x || 0) // Initial position
+    .attr("cy", d => d.y || 0);
 
   function update() {
     circles
       .attr("cx", d => d.x)
       .attr("cy", d => d.y);
   }
+
+  // Initial update to set positions
+  update();
 
   return { update };
 }

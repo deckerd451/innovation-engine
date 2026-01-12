@@ -419,6 +419,27 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
 }
 
 /**
+ * Keep themes at their designated positions (especially non-user themes at 450px radius)
+ */
+function createThemePositioningForce(allNodes, centerX, centerY) {
+  return function themePositioningForce(alpha) {
+    const strength = 0.8; // Strong force to keep themes in place
+
+    allNodes.forEach(node => {
+      if (node.type !== 'theme') return;
+      if (!node.targetX || !node.targetY) return;
+
+      // Pull theme toward its target position
+      const dx = node.targetX - node.x;
+      const dy = node.targetY - node.y;
+
+      node.vx += dx * strength * alpha;
+      node.vy += dy * strength * alpha;
+    });
+  };
+}
+
+/**
  * Create containment force to keep nodes inside their parent containers
  * For halo layout: theme radius is much larger (200px visual)
  */
@@ -527,7 +548,10 @@ function buildGraph() {
     const position = calculateNestedPosition(node, nodes, centerX, centerY, currentUserCommunityId);
     node.x = position.x;
     node.y = position.y;
+    node.targetX = position.x; // Store target for positioning force
+    node.targetY = position.y;
     node.parentTheme = position.parentTheme;
+    node.isUserTheme = position.isUserTheme; // Store flag for rendering
   });
 
   // Step 2: Position projects (they depend on theme positions)
@@ -536,6 +560,7 @@ function buildGraph() {
     node.x = position.x;
     node.y = position.y;
     node.parentTheme = position.parentTheme;
+    node.projectOrbitAngle = position.projectOrbitAngle;
   });
 
   // Step 3: Position people (they depend on project and theme positions)
@@ -544,6 +569,8 @@ function buildGraph() {
     node.x = position.x;
     node.y = position.y;
     node.parentTheme = position.parentTheme;
+    node.isUserCenter = position.isUserCenter;
+    node.parentProject = position.parentProject;
   });
 
   simulation = d3
@@ -567,18 +594,19 @@ function buildGraph() {
           return 0.05;
         })
     )
-    .force("charge", d3.forceManyBody().strength(-80).distanceMax(200))
+    .force("charge", d3.forceManyBody().strength(-50).distanceMax(150))
+    .force("themePositioning", createThemePositioningForce(nodes, centerX, centerY))
     .force("containment", createContainmentForce(nodes))
     .force("projectContainment", createProjectContainmentForce(nodes))
     .force(
       "collision",
       d3.forceCollide().radius((d) => {
         // Collision radius based on node type
-        if (d.type === "theme") return 150; // Large theme circles
-        if (d.type === "project") return 35; // Medium project circles
+        if (d.type === "theme") return 210; // Large theme halos (200px + buffer)
+        if (d.type === "project") return 38; // Medium project circles
         if (d.isCurrentUser) return 30; // Current user
         return 20; // Other users
-      }).strength(0.8)
+      }).strength(0.5)
     )
     .velocityDecay(0.5)
     .alphaDecay(0.04)
