@@ -295,12 +295,12 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     gradient.append("stop")
       .attr("offset", "0%")
       .attr("stop-color", themeColor)
-      .attr("stop-opacity", 0.08);
+      .attr("stop-opacity", 0.15);
 
     gradient.append("stop")
       .attr("offset", "50%")
       .attr("stop-color", themeColor)
-      .attr("stop-opacity", 0.03);
+      .attr("stop-opacity", 0.08);
 
     gradient.append("stop")
       .attr("offset", "100%")
@@ -351,7 +351,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .append("circle")
       .attr("r", radius + 50) // Extends 50px beyond main circle
       .attr("fill", `url(#theme-influence-${d.theme_id})`)
-      .attr("opacity", userHasJoined ? 1.0 : 0.6)
+      .attr("opacity", userHasJoined ? 1.2 : 0.8)
       .attr("class", "theme-influence-field")
       .attr("pointer-events", "none");
 
