@@ -4,7 +4,7 @@
 // ================================================================
 // Opinionated, race-safe auth flow for GitHub Pages + Supabase OAuth.
 //
-// Guarantees (updated):
+// Guarantees:
 // - Only ONE auth controller instance (global guard).
 // - Only ONE onAuthStateChange subscription.
 // - Auth events INITIAL_SESSION / SIGNED_IN can fire multiple times;
@@ -21,8 +21,8 @@
 // Requires (loaded earlier):
 //  - window.supabase from /assets/js/supabaseClient.js
 //
-// NOTE (important):
-// - This file NO LONGER auto-boots by default.
+// NOTE:
+// - This file does NOT auto-boot by default.
 // - Call window.setupLoginDOM() then window.initLoginSystem() from main.js.
 // ================================================================
 
@@ -39,7 +39,7 @@
   window[GUARD] = true;
 
   // -----------------------------
-  // Tiny helpers
+  // Helpers
   // -----------------------------
   const $ = (id) => document.getElementById(id);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -54,7 +54,7 @@
   }
 
   function showNotification(message, type = "info") {
-    // You can later swap this with your globals.js toast system.
+    // Swap later with globals.js toast if you want
     log(`[${String(type).toUpperCase()}] ${message}`);
   }
 
@@ -65,20 +65,19 @@
   let githubBtn, googleBtn;
 
   // -----------------------------
-  // Internal state (prevents races)
+  // Internal state
   // -----------------------------
   let loginDOMReady = false;
-  let initPromise = null; // makes initLoginSystem idempotent
+  let initPromise = null;
 
-  // NEW: de-dupe boot & profile loads across duplicate auth events
-  let bootUserId = null;            // "booted" user id for this page load
-  let profileLoadPromise = null;    // in-flight profile request (single flight)
-
-  // Optional: track last event for debugging
+  let bootUserId = null; // booted user id for this page load
+  let profileLoadPromise = null; // in-flight profile request (single flight)
   let lastAuthEvent = null;
 
+  // -----------------------------
+  // DOM wiring
+  // -----------------------------
   function setupLoginDOM() {
-    // Safe to call repeatedly
     loginSection = $("login-section");
     mainContent = $("main-content");
     mainHeader = $("main-header");
@@ -127,7 +126,7 @@
 
     document.body.style.overflow = "auto";
 
-    // Fire "app-ready" after UI is visible; onboarding can use this safely.
+    // Fire app-ready after UI is visible
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent("app-ready", { detail: { user } }));
     }, 50);
@@ -135,20 +134,19 @@
     log("✅ Showing app UI for:", user?.email);
   }
 
-  // OPTIONAL: hook these to your overlay element if you have one
   function showProfileLoading(user) {
-    // Keep this lightweight: do NOT block the whole app forever.
-    // If you have a dedicated overlay element, toggle it here.
     log("👤 Loading profile for:", user?.email);
   }
 
   function hideProfileLoading() {
-    // Hide overlay here if you have one.
-    // No-op by default.
+    // no-op by default
   }
 
+  /**
+   * Clean OAuth hash ONLY AFTER Supabase has processed it and session exists.
+   * If you call this too early, session won't persist and you'll get "Auth session missing".
+   */
   function cleanOAuthUrlSoon() {
-    // Supabase OAuth returns tokens in hash; clean it after it processes.
     const url = new URL(window.location.href);
     const hasOAuthHash =
       !!url.hash &&
@@ -174,15 +172,17 @@
       new CustomEvent("profile-loaded", { detail: { user, profile } })
     );
   }
+
   function emitProfileNew(user) {
     window.dispatchEvent(new CustomEvent("profile-new", { detail: { user } }));
   }
 
   // -----------------------------
-  // OAuth
+  // OAuth login
   // -----------------------------
   async function oauthLogin(provider) {
     log(`🔐 Starting OAuth login with ${provider}…`);
+
     if (!window.supabase) {
       err("❌ Supabase not available! Cannot login.");
       showNotification("System error. Please refresh and try again.", "error");
@@ -191,8 +191,8 @@
 
     setHint("Opening provider…");
 
+    // IMPORTANT: keep redirect stable and consistent with your app
     const redirectTo = window.location.origin + "/dashboard.html";
-
 
     const { error } = await window.supabase.auth.signInWithOAuth({
       provider,
@@ -211,6 +211,7 @@
   // -----------------------------
   window.handleLogout = async function handleLogout() {
     log("👋 Logging out…");
+
     if (!window.supabase) {
       err("❌ Supabase not available!");
       return;
@@ -223,7 +224,6 @@
       return;
     }
 
-    // reset boot state so a future login on same tab works
     bootUserId = null;
     profileLoadPromise = null;
 
@@ -237,7 +237,6 @@
   // Profile loader (single-flight)
   // -----------------------------
   async function fetchUserProfile(user) {
-    // NOTE: you may prefer .maybeSingle() but keeping your existing pattern.
     const { data, error } = await window.supabase
       .from("community")
       .select("*")
@@ -253,7 +252,6 @@
   async function loadUserProfileOnce(user) {
     if (!window.supabase || !user?.id) return null;
 
-    // Dedup: if a profile load is already running, reuse it.
     if (profileLoadPromise) return profileLoadPromise;
 
     profileLoadPromise = (async () => {
@@ -283,14 +281,16 @@
   }
 
   // -----------------------------
-  // Boot logic (dedupe INITIAL_SESSION + SIGNED_IN)
+  // Boot logic (dedupe auth events)
   // -----------------------------
   async function bootstrapForUser(user, sourceEvent = "unknown") {
     if (!user?.id) return;
 
-    // If we've already bootstrapped for this user in this page load, ignore.
     if (bootUserId === user.id) {
-      log(`🟡 Ignoring duplicate auth bootstrap (${sourceEvent}) for:`, user.email);
+      log(
+        `🟡 Ignoring duplicate auth bootstrap (${sourceEvent}) for:`,
+        user.email
+      );
       return;
     }
 
@@ -299,14 +299,14 @@
 
     showAppUI(user);
 
-    // Load profile after UI is visible (and deduped)
+    // Load profile after UI is visible (deduped)
     setTimeout(() => {
       loadUserProfileOnce(user);
     }, 100);
   }
 
   // -----------------------------
-  // Core init (race-safe)
+  // Core init
   // -----------------------------
   async function waitForSupabase(maxMs = 2500) {
     const start = Date.now();
@@ -318,7 +318,6 @@
   }
 
   async function initLoginSystem() {
-    // Idempotent: if called twice, return the same promise and do nothing extra.
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
@@ -339,8 +338,6 @@
         return;
       }
 
-      cleanOAuthUrlSoon();
-
       // Hard timeout guard: never hang on spinner.
       const SESSION_TIMEOUT_MS = 3500;
       let timedOut = false;
@@ -360,6 +357,8 @@
 
         if (session?.user) {
           log("🟢 Already logged in as:", session.user.email);
+          // ✅ Clean OAuth hash only AFTER we have a session
+          cleanOAuthUrlSoon();
           await bootstrapForUser(session.user, "getSession");
         } else {
           log("🟡 No active session");
@@ -378,8 +377,12 @@
             lastAuthEvent = event;
             log("⚡ Auth event:", event);
 
-            // Treat both as candidates to bootstrap, but dedupe by user id.
-            if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session2?.user) {
+            if (
+              (event === "INITIAL_SESSION" || event === "SIGNED_IN") &&
+              session2?.user
+            ) {
+              // ✅ Clean OAuth hash only AFTER session is established
+              cleanOAuthUrlSoon();
               await bootstrapForUser(session2.user, event);
               return;
             }
@@ -392,7 +395,6 @@
               return;
             }
 
-            // Optional: handle token refresh without re-booting
             if (event === "TOKEN_REFRESHED") {
               log("🔄 Token refreshed");
               return;
@@ -400,7 +402,6 @@
           }
         );
 
-        // store unsubscribe
         window.__CH_IE_AUTH_UNSUB__ = sub?.subscription?.unsubscribe
           ? () => sub.subscription.unsubscribe()
           : null;
@@ -416,7 +417,6 @@
 
   // Optional: if you ever want to re-enable auto-boot, set:
   // window.__CH_IE_AUTH_AUTOBOOT__ = true; BEFORE this script runs.
-  // (Main.js should be the coordinator, so default is false.)
   const autostart = !!window.__CH_IE_AUTH_AUTOBOOT__;
 
   const boot = async () => {
