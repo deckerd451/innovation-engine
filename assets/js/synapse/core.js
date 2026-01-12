@@ -269,9 +269,7 @@ function findMostActiveTheme(allNodes, currentUserCommunityId) {
     let activityScore = 0;
 
     const userProjectsInTheme = projects.filter(
-      (p) =>
-        p.theme_id === theme.theme_id &&
-        currentUser.projects?.includes(p.id)
+      (p) => p.theme_id === theme.theme_id && currentUser.projects?.includes(p.id)
     );
     activityScore += userProjectsInTheme.length * 10;
 
@@ -291,13 +289,7 @@ function findMostActiveTheme(allNodes, currentUserCommunityId) {
   return mostActiveTheme;
 }
 
-function calculateNestedPosition(
-  node,
-  allNodes,
-  centerX,
-  centerY,
-  currentUserCommunityId
-) {
+function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCommunityId) {
   const themes = allNodes.filter((n) => n.type === "theme");
   const baseThemeRadius = 250;
   const themeRadiusIncrement = 250;
@@ -330,8 +322,7 @@ function calculateNestedPosition(
         const projectCount = projectsInTheme.length;
 
         const angle = (projectIndex / (projectCount || 1)) * 2 * Math.PI;
-        const projectDistance =
-          (parentTheme.themeRadius || baseThemeRadius) * 0.6;
+        const projectDistance = (parentTheme.themeRadius || baseThemeRadius) * 0.6;
 
         return {
           x: centerX + Math.cos(angle) * projectDistance,
@@ -361,7 +352,7 @@ function calculateNestedPosition(
         const firstProject = allNodes.find(
           (n) => n.type === "project" && n.id === node.projects[0]
         );
-        if (firstProject && firstProject.x && firstProject.y) {
+        if (firstProject && firstProject.x != null && firstProject.y != null) {
           const angle = Math.random() * 2 * Math.PI;
           const distance = Math.random() * 20 + 10;
           return {
@@ -380,8 +371,7 @@ function calculateNestedPosition(
         if (firstTheme) {
           const themeRadius = firstTheme.themeRadius || baseThemeRadius;
           const angle = Math.random() * 2 * Math.PI;
-          const distance =
-            Math.random() * (themeRadius * 0.4) + themeRadius * 0.3;
+          const distance = Math.random() * (themeRadius * 0.4) + themeRadius * 0.3;
           return {
             x: centerX + Math.cos(angle) * distance,
             y: centerY + Math.sin(angle) * distance,
@@ -406,13 +396,13 @@ function createContainmentForce(simulationNodes, allNodes, centerX, centerY) {
     const strength = 0.5;
 
     simulationNodes.forEach((node) => {
-      if (!node.x || !node.y || !node.parentTheme) return;
+      if (node.type === "theme") return;
+      if (node.x == null || node.y == null || !node.parentTheme) return;
       if (node.isUserCenter) return;
 
       const parentTheme = allNodes.find(
         (n) => n.type === "theme" && n.theme_id === node.parentTheme
       );
-
       if (!parentTheme || !parentTheme.themeRadius) return;
 
       const dx = node.x - centerX;
@@ -441,15 +431,14 @@ function createProjectContainmentForce(allNodes) {
     const projectCircleRadius = 35;
 
     allNodes.forEach((node) => {
-      if (node.type !== "person" || !node.x || !node.y) return;
+      if (node.type !== "person" || node.x == null || node.y == null) return;
       if (node.isUserCenter) return;
       if (!node.projects || node.projects.length === 0) return;
 
       const project = allNodes.find(
         (n) => n.type === "project" && n.id === node.projects[0]
       );
-
-      if (!project || !project.x || !project.y) return;
+      if (!project || project.x == null || project.y == null) return;
 
       const dx = node.x - project.x;
       const dy = node.y - project.y;
@@ -488,19 +477,22 @@ function rebuildGraph() {
 
 /**
  * ✅ CRITICAL FIX:
- * D3 forceLink throws "node not found: <id>" if ANY link endpoint doesn't exist.
- * We normalize + repair theme:* ids when possible, then drop invalid links.
+ * D3 forceLink throws "node not found: <id>" if ANY link endpoint doesn't exist in the simulation nodes.
+ *
+ * This function:
+ * - Normalizes endpoints to ids
+ * - Repairs "theme:<uuid>" into actual theme node ids when possible
+ * - Drops any remaining invalid links
  */
 function normalizeAndFilterLinks(allNodes, rawLinks) {
   const nodeIdSet = new Set(allNodes.map((n) => n.id));
 
-  // Map theme_id -> node.id (because links may use "theme:<uuid>" while nodes use another id format)
+  // Map theme_id -> node.id (because links may use "theme:<uuid>")
   const themeIdToNodeId = new Map();
   allNodes
     .filter((n) => n.type === "theme")
     .forEach((t) => {
       if (t.theme_id) themeIdToNodeId.set(String(t.theme_id), t.id);
-      // also allow direct id matches
       themeIdToNodeId.set(String(t.id), t.id);
     });
 
@@ -510,26 +502,19 @@ function normalizeAndFilterLinks(allNodes, rawLinks) {
 
     if (nodeIdSet.has(id)) return id;
 
-    // repair "theme:<uuid>" → actual theme node id (matched by theme_id)
     if (typeof id === "string" && id.startsWith("theme:")) {
       const themeUuid = id.slice("theme:".length);
       const mapped = themeIdToNodeId.get(themeUuid);
       if (mapped && nodeIdSet.has(mapped)) return mapped;
     }
 
-    return id; // unresolved
+    return id;
   };
 
   const normalized = (rawLinks || []).map((l) => {
     const sourceId = normalizeEndpoint(l.source);
     const targetId = normalizeEndpoint(l.target);
-
-    // Preserve original properties; forceLink will later replace ids with node refs
-    return {
-      ...l,
-      source: sourceId,
-      target: targetId,
-    };
+    return { ...l, source: sourceId, target: targetId };
   });
 
   const filtered = normalized.filter((l) => {
@@ -558,22 +543,25 @@ function buildGraph() {
   const centerY = height / 2;
 
   // Step 1: Position themes first
-  nodes
-    .filter((n) => n.type === "theme")
-    .forEach((node) => {
-      const position = calculateNestedPosition(
-        node,
-        nodes,
-        centerX,
-        centerY,
-        currentUserCommunityId
-      );
-      node.x = position.x;
-      node.y = position.y;
-      node.themeRadius = position.themeRadius;
-      node.parentTheme = position.parentTheme;
-      node.isUserTheme = position.isUserTheme;
-    });
+  const themeNodes = nodes.filter((n) => n.type === "theme");
+  themeNodes.forEach((node) => {
+    const position = calculateNestedPosition(
+      node,
+      nodes,
+      centerX,
+      centerY,
+      currentUserCommunityId
+    );
+    node.x = position.x;
+    node.y = position.y;
+    node.themeRadius = position.themeRadius;
+    node.parentTheme = position.parentTheme;
+    node.isUserTheme = position.isUserTheme;
+
+    // ✅ Pin themes so they act "static" but exist for forceLink resolution
+    node.fx = node.x;
+    node.fy = node.y;
+  });
 
   // Step 2: Position projects
   nodes
@@ -611,10 +599,10 @@ function buildGraph() {
       node.parentProject = position.parentProject;
     });
 
-  // Only include non-theme nodes in simulation (themes are static)
-  const simulationNodes = nodes.filter((n) => n.type !== "theme");
+  // ✅ FIX: include ALL nodes in simulation so forceLink can resolve theme endpoints
+  const simulationNodes = nodes;
 
-  // ✅ CRITICAL: prevent D3 crash from stale/invalid theme links
+  // ✅ Normalize/repair "theme:*" endpoints and drop truly invalid links
   links = normalizeAndFilterLinks(nodes, links);
 
   simulation = d3
@@ -641,14 +629,13 @@ function buildGraph() {
       "containment",
       createContainmentForce(simulationNodes, nodes, centerX, centerY)
     )
-    // NOTE: createProjectContainmentForce expects all nodes (it checks types)
     .force("projectContainment", createProjectContainmentForce(nodes))
     .force(
       "collision",
       d3
         .forceCollide()
         .radius((d) => {
-          if (d.type === "theme") return 0;
+          if (d.type === "theme") return 0; // themes are separate visuals; keep collision out of it
           if (d.type === "project") return 38;
           if (d.isCurrentUser) return 30;
           return 20;
@@ -665,12 +652,11 @@ function buildGraph() {
   // Links
   linkEls = renderLinks(container, links);
 
-  // Nodes (people and projects)
+  // Nodes (people and projects) — themes rendered separately
   const nonThemeNodes = nodes.filter((n) => n.type !== "theme");
   nodeEls = renderNodes(container, nonThemeNodes, { onNodeClick });
 
   // Theme circles (separate rendering)
-  const themeNodes = nodes.filter((n) => n.type === "theme");
   if (themeNodes.length > 0) {
     themeEls = renderThemeCircles(container, themeNodes, {
       onThemeHover: handleThemeHover,
@@ -694,6 +680,14 @@ function buildGraph() {
   simulation.on("tick", () => {
     tickCount++;
     if (tickCount % 2 !== 0) return;
+
+    // ✅ Keep themes pinned every tick (prevents drift)
+    if (themeNodes.length > 0) {
+      for (const t of themeNodes) {
+        if (t.fx != null) t.x = t.fx;
+        if (t.fy != null) t.y = t.fy;
+      }
+    }
 
     if (!hasInitialCentered && simulation.alpha() < 0.1 && tickCount > 50) {
       hasInitialCentered = true;
@@ -727,8 +721,14 @@ function buildGraph() {
         let insideTheme = false;
         for (const theme of themeNodes) {
           const themeRadius = 90;
-          const sourceDist = Math.hypot(link.source.x - theme.x, link.source.y - theme.y);
-          const targetDist = Math.hypot(link.target.x - theme.x, link.target.y - theme.y);
+          const sourceDist = Math.hypot(
+            link.source.x - theme.x,
+            link.source.y - theme.y
+          );
+          const targetDist = Math.hypot(
+            link.target.x - theme.x,
+            link.target.y - theme.y
+          );
 
           if (sourceDist < themeRadius && targetDist < themeRadius) {
             insideTheme = true;
