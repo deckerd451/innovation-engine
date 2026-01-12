@@ -131,6 +131,9 @@ function isAdminUser() {
   return false;
 }
 
+// Expose globally for use by other modules (e.g., synapse)
+window.isAdminUser = isAdminUser;
+
 // -----------------------------
 // Theme circle creation (MVP)
 // -----------------------------

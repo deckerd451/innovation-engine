@@ -33,8 +33,8 @@ let state = {
   skills: [],
   // availability tags (e.g., "Available now", "Weekends", etc.)
   availability: [],
-  // node types: person/project/you (if your graph supports)
-  types: ["person", "project", "you"],
+  // node types: person/project/theme/you
+  types: ["person", "project", "theme", "you"],
 };
 
 function cssEscapeSafe(s) {
@@ -156,7 +156,7 @@ function buildOverlayIfNeeded() {
 
   applyBtn?.addEventListener("click", apply);
   resetBtn?.addEventListener("click", () => {
-    state = { query: "", skills: [], availability: [], types: ["person", "project", "you"] };
+    state = { query: "", skills: [], availability: [], types: ["person", "project", "theme", "you"] };
     renderAll();
     apply();
   });
@@ -227,7 +227,7 @@ function renderAll() {
 
   renderToggleChips(
     "#ch-type-chips",
-    ["Person", "Project", "You"],
+    ["Person", "Project", "Theme", "You"],
     () => state.types,
     (v) => (state.types = v)
   );
@@ -282,7 +282,7 @@ function setState(next) {
     query: (next?.query || "").toString(),
     skills: Array.isArray(next?.skills) ? next.skills.map((s) => (s || "").toString().toLowerCase()).filter(Boolean) : [],
     availability: Array.isArray(next?.availability) ? next.availability.map((s) => (s || "").toString().toLowerCase()).filter(Boolean) : [],
-    types: Array.isArray(next?.types) && next.types.length ? next.types.map((s) => (s || "").toString().toLowerCase()).filter(Boolean) : ["person", "project", "you"],
+    types: Array.isArray(next?.types) && next.types.length ? next.types.map((s) => (s || "").toString().toLowerCase()).filter(Boolean) : ["person", "project", "theme", "you"],
   };
   buildOverlayIfNeeded();
   renderAll();
