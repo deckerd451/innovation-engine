@@ -202,8 +202,8 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
       return;
     }
 
-    // People + themes (themes are re-styled in core.js)
-    const radius = d.isCurrentUser ? 35 : d.shouldShowImage ? 28 : d.isSuggested ? 21 : 14;
+    // People nodes - current user is larger as center of hierarchy
+    const radius = d.isCurrentUser ? 50 : d.shouldShowImage ? 28 : d.isSuggested ? 21 : 14;
 
     node
       .append("circle")
@@ -213,7 +213,7 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
         return d.shouldShowImage ? COLORS.nodeDefault : "rgba(0, 224, 255, 0.3)";
       })
       .attr("stroke", () => (d.isCurrentUser ? "#fff" : COLORS.nodeDefault))
-      .attr("stroke-width", d.isCurrentUser ? 3 : 1.5)
+      .attr("stroke-width", d.isCurrentUser ? 4 : 1.5)
       .attr("filter", "url(#glow)")
       .attr("class", "node-circle");
   });
@@ -224,7 +224,7 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
     const node = d3.select(this);
 
     if (d.image_url && d.shouldShowImage) {
-      const radius = d.isCurrentUser ? 32 : 25;
+      const radius = d.isCurrentUser ? 47 : 25;
 
       node
         .append("clipPath")
@@ -260,12 +260,12 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
   // Labels
   nodeEls
     .append("text")
-    .attr("dy", (d) => (d.type === "project" ? 40 : d.isCurrentUser ? 40 : 35))
+    .attr("dy", (d) => (d.type === "project" ? 40 : d.isCurrentUser ? 60 : 35))
     .attr("text-anchor", "middle")
     .attr("fill", (d) => (d.type === "project" ? "#ff6b6b" : "#fff"))
-    .attr("font-size", (d) => (d.type === "project" ? "12px" : "11px"))
+    .attr("font-size", (d) => (d.type === "project" ? "12px" : d.isCurrentUser ? "14px" : "11px"))
     .attr("font-family", "system-ui, sans-serif")
-    .attr("font-weight", (d) => (d.type === "project" ? "bold" : "normal"))
+    .attr("font-weight", (d) => (d.type === "project" ? "bold" : d.isCurrentUser ? "bold" : "normal"))
     .attr("pointer-events", "none")
     .text((d) => truncateName(d.name));
 
@@ -334,10 +334,10 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const remaining = expires - now;
     const progress = Math.max(0, Math.min(1, 1 - (remaining / lifetime)));
 
-    // Calculate visual properties based on lifecycle
-    const radius = Math.max(70, 90 - (progress * 20)); // Larger wells: 90px to 70px
+    // Hierarchical layout: Themes are LARGER and more prominent in the inner ring
+    const radius = Math.max(80, 100 - (progress * 15)); // Larger: 100px to 80px
     const glowIntensity = Math.max(0.3, 1 - progress);
-    const opacity = Math.max(0.4, 1 - (progress * 0.6));
+    const opacity = Math.max(0.5, 1 - (progress * 0.5));
 
     // Determine if user has joined
     const userHasJoined = d.user_is_participant === true;
@@ -346,70 +346,72 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const themeColor = getThemeColor(d.theme_id);
     const themeColorRgb = hexToRgb(themeColor);
 
-    // INFLUENCE FIELD - Radial gradient background extending beyond circle
+    // INFLUENCE FIELD - Extends outward to connect with middle ring (projects)
+    // In hierarchical layout, this helps show relationship to project ring
     theme
       .append("circle")
-      .attr("r", radius + 50) // Extends 50px beyond main circle
+      .attr("r", radius + 80) // Larger influence field to reach toward projects
       .attr("fill", `url(#theme-influence-${d.theme_id})`)
-      .attr("opacity", userHasJoined ? 1.2 : 0.8)
+      .attr("opacity", userHasJoined ? 1.0 : 0.6)
       .attr("class", "theme-influence-field")
       .attr("pointer-events", "none");
 
-    // Main circle - DOTTED BORDER with transparent fill
+    // Main circle - Solid fill with distinct styling for hierarchy
     theme
       .append("circle")
       .attr("r", radius)
-      .attr("fill", `rgba(10, 14, 39, 0.15)`) // Very transparent fill
+      .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.15)`)
       .attr("stroke", themeColor)
-      .attr("stroke-width", userHasJoined ? 3 : 2)
-      .attr("stroke-dasharray", userHasJoined ? "8,4" : "6,6") // Dotted border
+      .attr("stroke-width", userHasJoined ? 4 : 3) // Thicker border for prominence
+      .attr("stroke-dasharray", userHasJoined ? "none" : "8,8") // Solid if joined, dashed otherwise
       .attr("opacity", opacity)
       .attr("filter", "url(#glow)")
       .attr("class", "theme-well-border");
 
-    // Icon/emoji at top
+    // Icon/emoji - larger and more prominent
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", -radius + 25)
-      .attr("fill", "#00e0ff")
-      .attr("font-size", "28px")
+      .attr("dy", -10) // Centered near top
+      .attr("fill", themeColor)
+      .attr("font-size", "36px") // Larger icon
       .attr("pointer-events", "none")
       .text("✨");
 
-    // Title text - positioned at top of circle
+    // Title text - larger and centered
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", -radius + 50)
+      .attr("dy", 25) // Below icon
       .attr("fill", "#fff")
-      .attr("font-size", "13px")
-      .attr("font-weight", "600")
+      .attr("font-size", "15px") // Larger text
+      .attr("font-weight", "700") // Bolder
       .attr("pointer-events", "none")
-      .text(truncateName(d.title, 18));
+      .text(truncateName(d.title, 20));
 
-    // Participant count - shown at bottom
+    // Participant count - more prominent
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", radius - 15)
-      .attr("fill", "rgba(0, 224, 255, 0.8)")
-      .attr("font-size", "12px")
+      .attr("dy", 45)
+      .attr("fill", themeColor)
+      .attr("font-size", "13px")
       .attr("font-weight", "600")
       .attr("pointer-events", "none")
       .text(`${d.participant_count || 0} engaged`);
 
-    // Time remaining indicator - below circle
+    // Time remaining indicator - below
     const hoursRemaining = Math.floor(remaining / (1000 * 60 * 60));
     const daysRemaining = Math.floor(hoursRemaining / 24);
-    const timeText = daysRemaining > 1 ? `${daysRemaining}d left` : `${hoursRemaining}h left`;
+    const timeText = daysRemaining > 1 ? `${daysRemaining}d` : `${hoursRemaining}h`;
 
     theme
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", radius + 18)
-      .attr("fill", "rgba(255, 255, 255, 0.4)")
-      .attr("font-size", "10px")
+      .attr("dy", radius + 20)
+      .attr("fill", "rgba(255, 255, 255, 0.5)")
+      .attr("font-size", "11px")
+      .attr("font-weight", "600")
       .attr("pointer-events", "none")
       .text(timeText);
   });
