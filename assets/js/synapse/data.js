@@ -128,9 +128,10 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         const existingThemeNode = nodes.find(n => n.id === themeNodeId);
 
         if (existingThemeNode && existingThemeNode.x && existingThemeNode.y) {
-          // Position project randomly within the theme circle (radius ~70px)
+          // Position project inside the theme circle
+          // Theme radius is 60-80px, so position within 45px to ensure always inside
           const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * 50; // Within 50px of center
+          const distance = Math.random() * 45; // Within 45px of center
           initialX = existingThemeNode.x + Math.cos(angle) * distance;
           initialY = existingThemeNode.y + Math.sin(angle) * distance;
         }
@@ -198,13 +199,17 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
           y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
         };
       })
-      // Show all active themes (already filtered by status='active' and not expired)
-      // Themes are organizational structures that should be visible for discovery
+      // Filter themes based on admin status and participation
       .filter(theme => {
-        // Always show active themes
-        // We can hide themes with 0 participants in the future if needed,
-        // but for now show all to allow discovery and joining
-        return true;
+        // Always show if user is participating
+        if (theme.user_is_participant) return true;
+
+        // Check if user is admin (admins can see all themes)
+        const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
+        if (isAdmin) return true;
+
+        // Non-admin users only see themes with at least 1 participant
+        return theme.participant_count > 0;
       });
     nodes = [...nodes, ...themeNodes];
   }
