@@ -245,6 +245,50 @@ async function reloadAllData() {
   connectionsData = loaded.connectionsData || [];
   projectMembersData = loaded.projectMembersData || [];
 
+    // ✅ FIX: Canonicalize + dedupe theme nodes
+  // Sometimes loadSynapseData can return duplicate theme rows (joins/tags).
+  // We force a stable id: "theme:<theme_id>" and keep only one node per theme_id.
+  const seenTheme = new Map(); // theme_id -> canonical node
+  const deduped = [];
+
+  for (const n of nodes) {
+    if (n?.type === "theme" && n.theme_id) {
+      const key = String(n.theme_id);
+
+      // Force stable, unique id for ALL theme nodes
+      n.id = `theme:${key}`;
+
+      if (seenTheme.has(key)) continue; // drop duplicates
+      seenTheme.set(key, n);
+      deduped.push(n);
+    } else {
+      deduped.push(n);
+    }
+  }
+
+  nodes = deduped;
+
+    const themeIdToCanonical = new Map();
+  for (const t of nodes.filter(n => n.type === "theme" && n.theme_id)) {
+    themeIdToCanonical.set(String(t.theme_id), t.id); // id is theme:<uuid>
+  }
+
+  links = (links || []).map((l) => {
+    const src = typeof l.source === "object" ? l.source.id : l.source;
+    const tgt = typeof l.target === "object" ? l.target.id : l.target;
+
+    const fix = (id) => {
+      if (typeof id !== "string") return id;
+      if (id.startsWith("theme:")) return id;
+      if (themeIdToCanonical.has(id)) return themeIdToCanonical.get(id);
+      return id;
+    };
+
+    return { ...l, source: fix(src), target: fix(tgt) };
+  });
+
+
+
   // Keep pathway module in sync with the latest arrays
   try {
     PathwayAnimations.updateGraphData?.(nodes, links);
