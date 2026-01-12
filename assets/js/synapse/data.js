@@ -159,17 +159,10 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
 
   // Create theme nodes
   if (themes?.length) {
-    let filteredThemes = themes;
-
-    // Filter themes if not showing full community
-    if (!showFullCommunity && currentUserCommunityId) {
-      // Only show themes the user is participating in
-      const userThemeIds = (themeParticipants || [])
-        .filter(tp => tp.community_id === currentUserCommunityId)
-        .map(tp => tp.theme_id);
-
-      filteredThemes = themes.filter(theme => userThemeIds.includes(theme.id));
-    }
+    // NOTE: Always show all active themes, regardless of showFullCommunity setting
+    // Themes are organizational structures that need to be visible for discovery
+    // and navigation. We just highlight user participation differently.
+    const filteredThemes = themes;
 
     const themeNodes = filteredThemes
       .map(theme => {
@@ -205,17 +198,12 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
           y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
         };
       })
-      // Per yellow instructions: Remove empty/unengaged theme circles
+      // Show all active themes (already filtered by status='active' and not expired)
+      // Themes are organizational structures that should be visible for discovery
       .filter(theme => {
-        // Always show if user is participating
-        if (theme.user_is_participant) return true;
-
-        // In full community view, show themes with at least 1 participant
-        if (showFullCommunity) {
-          return theme.participant_count > 0;
-        }
-
-        // In filtered view, only show user's themes (already filtered above)
+        // Always show active themes
+        // We can hide themes with 0 participants in the future if needed,
+        // but for now show all to allow discovery and joining
         return true;
       });
     nodes = [...nodes, ...themeNodes];
