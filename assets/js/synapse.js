@@ -13,4 +13,4 @@ export {
   getRecommendations,
   // Theme API (new)
   refreshThemeCircles
-} from "./synapse/core.js?v=3";
+} from "./synapse/core.js?v=4";

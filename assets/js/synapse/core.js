@@ -1,6 +1,6 @@
 // assets/js/synapse/core.js
 // Synapse Core — init, svg, simulation wiring (modularized)
-// Version: 3.1 - Fixed async/await syntax error in rebuildGraph (2026-01-13)
+// Version: 4.0 - Fixed async/await syntax error in rebuildGraph (2026-01-13)
 
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
