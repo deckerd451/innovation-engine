@@ -134,8 +134,8 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
 
         // Check if there's a direct connection (accepted or pending)
         const hasConnection = (connectionsData || []).some(conn => {
-          const match = (conn.user1_id === currentUserCommunityId && conn.user2_id === member.id) ||
-                        (conn.user2_id === currentUserCommunityId && conn.user1_id === member.id);
+          const match = (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
+                        (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id);
 
           if (match) {
             console.log("🎯 Found matching connection!", {
@@ -241,15 +241,15 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     const connectionLinks = connectionsData
       .filter(conn => {
         // Only show connections involving users in the graph
-        const user1Exists = nodes.some(n => n.id === conn.user1_id);
-        const user2Exists = nodes.some(n => n.id === conn.user2_id);
+        const user1Exists = nodes.some(n => n.id === conn.from_user_id);
+        const user2Exists = nodes.some(n => n.id === conn.to_user_id);
 
         if (!user1Exists || !user2Exists) {
           console.log("⚠️ Filtering out connection:", {
-            user1: conn.user1_id,
-            user1Exists,
-            user2: conn.user2_id,
-            user2Exists,
+            from_user: conn.from_user_id,
+            from_user_exists: user1Exists,
+            to_user: conn.to_user_id,
+            to_user_exists: user2Exists,
             status: conn.status
           });
         }
@@ -257,9 +257,9 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         return user1Exists && user2Exists;
       })
       .map(conn => ({
-        id: `connection-${conn.user1_id}-${conn.user2_id}`,
-        source: conn.user1_id,
-        target: conn.user2_id,
+        id: `connection-${conn.from_user_id}-${conn.to_user_id}`,
+        source: conn.from_user_id,
+        target: conn.to_user_id,
         status: conn.status, // 'accepted' or 'pending'
         type: "connection",
         created_at: conn.created_at
