@@ -85,6 +85,15 @@ export function setupDefs(svg) {
 }
 
 export function getLinkColor(link) {
+  // Handle person-to-person connection links
+  if (link.type === "connection") {
+    if (link.status === "accepted") {
+      return COLORS.edgeAccepted; // Green for accepted connections
+    } else if (link.status === "pending") {
+      return "rgba(255, 255, 255, 0.15)"; // Subtle gray for pending
+    }
+  }
+
   switch (link.status) {
     case "accepted":
       return COLORS.edgeAccepted;
@@ -123,6 +132,15 @@ export function getLinkColor(link) {
 }
 
 export function getLinkWidth(link) {
+  // Handle person-to-person connection links
+  if (link.type === "connection") {
+    if (link.status === "accepted") {
+      return 2.5; // Thicker for accepted connections
+    } else if (link.status === "pending") {
+      return 1; // Thin for pending connections
+    }
+  }
+
   switch (link.status) {
     case "accepted":
       return 3;
@@ -154,6 +172,12 @@ export function renderLinks(container, links) {
     .attr("stroke-width", d => getLinkWidth(d))
     .attr("stroke-dasharray", d => d.status === "pending" ? "4,4" : "none")
     .attr("opacity", d => {
+      // Connection links (person-to-person)
+      if (d.type === "connection") {
+        if (d.status === "accepted") return 0.8; // More visible for accepted
+        if (d.status === "pending") return 0.3; // Very subtle for pending
+      }
+      // Theme and other links
       if (d.status === "suggested") return 0.4;
       if (d.status === "theme-participant") return 0.6;
       return 0.7;
@@ -383,135 +407,8 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("class", "theme-background")
       .attr("pointer-events", "none");
 
-    // Render projects as visual sub-elements within the theme (per yellow instructions)
-    // Projects positioned radially around the center of the circle
-    if (d.projects && d.projects.length > 0) {
-      const projectsGroup = themeGroup
-        .append("g")
-        .attr("class", "theme-projects")
-        .attr("pointer-events", "all"); // Enable interactions with projects
-
-      // Calculate optimal positioning for projects around center
-      const projectCount = d.projects.length;
-      const baseDistance = Math.min(radius * 0.35, 80); // Closer to center, max 80px from center
-      const maxProjectsPerRing = 8; // Maximum projects per ring before creating new ring
-      
-      d.projects.forEach((project, index) => {
-        // Determine which ring this project belongs to
-        const ring = Math.floor(index / maxProjectsPerRing);
-        const positionInRing = index % maxProjectsPerRing;
-        const projectsInThisRing = Math.min(maxProjectsPerRing, projectCount - (ring * maxProjectsPerRing));
-        
-        // Calculate angle for this project in its ring
-        const angleStep = (2 * Math.PI) / projectsInThisRing;
-        const projectAngle = positionInRing * angleStep;
-        
-        // Calculate distance from center (multiple rings if needed)
-        const ringDistance = baseDistance + (ring * 40); // Each ring 40px further out
-        const projectX = Math.cos(projectAngle) * ringDistance;
-        const projectY = Math.sin(projectAngle) * ringDistance;
-
-        // Project visual indicator (enhanced hexagon)
-        const projectGroup = projectsGroup
-          .append("g")
-          .attr("class", `project-indicator project-${project.id}`)
-          .attr("transform", `translate(${projectX}, ${projectY})`)
-          .style("cursor", "pointer");
-
-        // Larger, more prominent project hexagon
-        const hexSize = 16; // Increased from 12
-        const hexPath = createHexagonPath(hexSize);
-        
-        // Project background glow
-        projectGroup
-          .append("path")
-          .attr("d", createHexagonPath(hexSize + 4))
-          .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.2)`)
-          .attr("stroke", "none")
-          .attr("class", "project-glow");
-        
-        // Main project hexagon
-        projectGroup
-          .append("path")
-          .attr("d", hexPath)
-          .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.8)`)
-          .attr("stroke", themeColor)
-          .attr("stroke-width", 2)
-          .attr("class", "project-shape");
-
-        // Project status icon (larger and more visible)
-        const statusIcon = project.status === "open" ? "🚀" : project.status === "active" ? "⚡" : "💡";
-        projectGroup
-          .append("text")
-          .attr("text-anchor", "middle")
-          .attr("dy", "0.35em")
-          .attr("fill", "#fff")
-          .attr("font-size", "12px")
-          .attr("font-weight", "bold")
-          .attr("class", "project-icon")
-          .text(statusIcon);
-
-        // Project title (shown on hover)
-        const projectTitle = projectGroup
-          .append("text")
-          .attr("text-anchor", "middle")
-          .attr("dy", "25")
-          .attr("fill", themeColor)
-          .attr("font-size", "10px")
-          .attr("font-weight", "600")
-          .attr("class", "project-title")
-          .attr("opacity", 0)
-          .text(truncateName(project.title, 15));
-
-        // Add hover effects for individual projects
-        projectGroup
-          .on("mouseenter", function() {
-            d3.select(this).select(".project-shape")
-              .transition()
-              .duration(200)
-              .attr("stroke-width", 3)
-              .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 1.0)`);
-            
-            d3.select(this).select(".project-glow")
-              .transition()
-              .duration(200)
-              .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.4)`);
-            
-            d3.select(this).select(".project-title")
-              .transition()
-              .duration(200)
-              .attr("opacity", 1);
-          })
-          .on("mouseleave", function() {
-            d3.select(this).select(".project-shape")
-              .transition()
-              .duration(200)
-              .attr("stroke-width", 2)
-              .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.8)`);
-            
-            d3.select(this).select(".project-glow")
-              .transition()
-              .duration(200)
-              .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.2)`);
-            
-            d3.select(this).select(".project-title")
-              .transition()
-              .duration(200)
-              .attr("opacity", 0);
-          })
-          .on("click", function(event) {
-            event.stopPropagation();
-            // Handle project click - could open project details
-            console.log("Project clicked:", project.title);
-            if (typeof window.openProjectDetails === 'function') {
-              window.openProjectDetails(project);
-            }
-          });
-
-        // Store project data for interactions
-        projectGroup.datum(project);
-      });
-    }
+    // NOTE: Projects are now rendered as a separate overlay layer (see renderThemeProjectsOverlay)
+    // This ensures they appear on top of theme circles and remain clickable
 
     // Single interactive border (clickable area)
     themeGroup
@@ -744,4 +641,132 @@ export function drawProjectCircles(container, projectNodes) {
 
   update();
   return { update };
+}
+
+/**
+ * Render projects as a separate overlay layer on top of theme circles
+ * This ensures projects are clickable and appear above theme backgrounds
+ */
+export function renderThemeProjectsOverlay(container, themeNodes) {
+  const projectsOverlayGroup = container
+    .append("g")
+    .attr("class", "theme-projects-overlay")
+    .style("pointer-events", "all");
+
+  themeNodes.forEach(theme => {
+    if (!theme.projects || theme.projects.length === 0) return;
+
+    const themeColor = getThemeColor(theme.theme_id);
+    const themeColorRgb = hexToRgb(themeColor);
+    const radius = theme.themeRadius || 250;
+
+    const projectCount = theme.projects.length;
+    const baseDistance = Math.min(radius * 0.35, 80);
+    const maxProjectsPerRing = 8;
+
+    theme.projects.forEach((project, index) => {
+      const ring = Math.floor(index / maxProjectsPerRing);
+      const positionInRing = index % maxProjectsPerRing;
+      const projectsInThisRing = Math.min(maxProjectsPerRing, projectCount - (ring * maxProjectsPerRing));
+
+      const angleStep = (2 * Math.PI) / projectsInThisRing;
+      const projectAngle = positionInRing * angleStep;
+
+      const ringDistance = baseDistance + (ring * 40);
+      const projectX = (theme.x || 0) + Math.cos(projectAngle) * ringDistance;
+      const projectY = (theme.y || 0) + Math.sin(projectAngle) * ringDistance;
+
+      // Project visual indicator
+      const projectGroup = projectsOverlayGroup
+        .append("g")
+        .attr("class", `project-overlay project-${project.id}`)
+        .attr("transform", `translate(${projectX}, ${projectY})`)
+        .style("cursor", "pointer")
+        .datum({ ...project, theme_id: theme.theme_id, theme_x: theme.x, theme_y: theme.y, ring, positionInRing, projectsInThisRing });
+
+      const hexSize = 16;
+      const hexPath = createHexagonPath(hexSize);
+
+      // Project background glow
+      projectGroup
+        .append("path")
+        .attr("d", createHexagonPath(hexSize + 4))
+        .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.2)`)
+        .attr("stroke", "none")
+        .attr("class", "project-glow");
+
+      // Main project hexagon
+      projectGroup
+        .append("path")
+        .attr("d", hexPath)
+        .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.8)`)
+        .attr("stroke", themeColor)
+        .attr("stroke-width", 2)
+        .attr("class", "project-shape");
+
+      // Project status icon
+      const statusIcon = project.status === "open" ? "🚀" : project.status === "active" ? "⚡" : "💡";
+      projectGroup
+        .append("text")
+        .attr("text-anchor", "middle")
+        .attr("dy", "0.35em")
+        .attr("fill", "#fff")
+        .attr("font-size", "12px")
+        .attr("font-weight", "bold")
+        .attr("class", "project-icon")
+        .text(statusIcon);
+
+      // Project title (shown on hover)
+      projectGroup
+        .append("text")
+        .attr("text-anchor", "middle")
+        .attr("dy", "25")
+        .attr("fill", themeColor)
+        .attr("font-size", "10px")
+        .attr("font-weight", "600")
+        .attr("class", "project-title")
+        .attr("opacity", 0)
+        .text(truncateName(project.title, 15));
+
+      // Hover effects
+      projectGroup
+        .on("mouseenter", function() {
+          d3.select(this).select(".project-shape")
+            .transition().duration(200)
+            .attr("stroke-width", 3)
+            .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 1.0)`);
+
+          d3.select(this).select(".project-glow")
+            .transition().duration(200)
+            .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.4)`);
+
+          d3.select(this).select(".project-title")
+            .transition().duration(200)
+            .attr("opacity", 1);
+        })
+        .on("mouseleave", function() {
+          d3.select(this).select(".project-shape")
+            .transition().duration(200)
+            .attr("stroke-width", 2)
+            .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.8)`);
+
+          d3.select(this).select(".project-glow")
+            .transition().duration(200)
+            .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.2)`);
+
+          d3.select(this).select(".project-title")
+            .transition().duration(200)
+            .attr("opacity", 0);
+        })
+        .on("click", function(event) {
+          event.stopPropagation();
+          console.log("Project clicked:", project.title);
+          if (typeof window.openProjectDetails === 'function') {
+            window.openProjectDetails(project);
+          }
+        });
+    });
+  });
+
+  return projectsOverlayGroup;
 }

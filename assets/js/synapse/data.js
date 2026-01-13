@@ -53,11 +53,15 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   // Load project members (for seeding themes with projects)
   const projectMembersData = await getAllProjectMembers();
 
+  // Load person-to-person connections
+  const connectionsData = await getAllConnectionsForSynapse();
+
   console.log("📊 Raw data loaded:", {
     members: members?.length || 0,
     projects: projects?.length || 0,
     themes: themes?.length || 0,
     themeParticipants: themeParticipants?.length || 0,
+    connections: connectionsData?.length || 0,
     projectMembers: projectMembersData?.length || 0
   });
 
@@ -197,10 +201,32 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     console.log("🔗 Created theme participation links:", themeLinks.length);
   }
 
-  // 4. NO direct project-member links (projects are embedded within themes)
+  // 4. Add person-to-person connection links (for accepted and pending connections)
+  if (connectionsData?.length) {
+    const connectionLinks = connectionsData
+      .filter(conn => {
+        // Only show connections involving users in the graph
+        const user1Exists = nodes.some(n => n.id === conn.user1_id);
+        const user2Exists = nodes.some(n => n.id === conn.user2_id);
+        return user1Exists && user2Exists;
+      })
+      .map(conn => ({
+        id: `connection-${conn.user1_id}-${conn.user2_id}`,
+        source: conn.user1_id,
+        target: conn.user2_id,
+        status: conn.status, // 'accepted' or 'pending'
+        type: "connection",
+        created_at: conn.created_at
+      }));
+
+    links = [...links, ...connectionLinks];
+    console.log("🤝 Created connection links:", connectionLinks.length);
+  }
+
+  // 5. NO direct project-member links (projects are embedded within themes)
   // Projects are now visual sub-elements of themes, not separate connected nodes
 
-  // 5. Add suggested theme connections for discovery
+  // 6. Add suggested theme connections for discovery
   if (currentUserCommunityId) {
     const currentUser = nodes.find(n => n.id === currentUserCommunityId);
     if (currentUser) {
@@ -245,13 +271,13 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     themeConnections: links.filter(l => l.type === 'theme').length
   });
 
-  return { 
-    nodes, 
-    links, 
-    connectionsData: [], // No more direct connections
-    projectMembersData, 
-    projects: projects || [], 
-    themes: themes || [] 
+  return {
+    nodes,
+    links,
+    connectionsData: connectionsData || [], // Person-to-person connections
+    projectMembersData,
+    projects: projects || [],
+    themes: themes || []
   };
 }
 
