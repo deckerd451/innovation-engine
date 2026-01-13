@@ -122,14 +122,32 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     
     // Filter members based on theme participation AND direct connections
     if (!showFullCommunity && currentUserCommunityId) {
+      console.log("🔍 Filtering members. Current user ID:", currentUserCommunityId);
+      console.log("🔍 Connections available:", connectionsData?.length || 0);
+      if (connectionsData && connectionsData.length > 0) {
+        console.log("🔍 Sample connection:", connectionsData[0]);
+        console.log("🔍 Connection field names:", Object.keys(connectionsData[0]));
+      }
+
       filteredMembers = members.filter(member => {
         if (member.id === currentUserCommunityId) return true;
 
         // Check if there's a direct connection (accepted or pending)
-        const hasConnection = (connectionsData || []).some(conn =>
-          (conn.user1_id === currentUserCommunityId && conn.user2_id === member.id) ||
-          (conn.user2_id === currentUserCommunityId && conn.user1_id === member.id)
-        );
+        const hasConnection = (connectionsData || []).some(conn => {
+          const match = (conn.user1_id === currentUserCommunityId && conn.user2_id === member.id) ||
+                        (conn.user2_id === currentUserCommunityId && conn.user1_id === member.id);
+
+          if (match) {
+            console.log("🎯 Found matching connection!", {
+              conn,
+              currentUser: currentUserCommunityId,
+              member: member.id,
+              memberName: member.name
+            });
+          }
+
+          return match;
+        });
 
         if (hasConnection) {
           console.log("✅ Including user due to connection:", member.name, member.id);
