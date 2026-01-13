@@ -383,51 +383,134 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("class", "theme-background")
       .attr("pointer-events", "none");
 
-    // Render projects as visual sub-elements within the theme
+    // Render projects as visual sub-elements within the theme (per yellow instructions)
+    // Projects positioned radially around the center of the circle
     if (d.projects && d.projects.length > 0) {
       const projectsGroup = themeGroup
         .append("g")
         .attr("class", "theme-projects")
-        .attr("pointer-events", "none");
+        .attr("pointer-events", "all"); // Enable interactions with projects
 
-      // Position projects in a circle within the theme
+      // Calculate optimal positioning for projects around center
+      const projectCount = d.projects.length;
+      const baseDistance = Math.min(radius * 0.35, 80); // Closer to center, max 80px from center
+      const maxProjectsPerRing = 8; // Maximum projects per ring before creating new ring
+      
       d.projects.forEach((project, index) => {
-        const projectAngle = (index / d.projects.length) * 2 * Math.PI;
-        const projectDistance = radius * 0.6; // Position projects at 60% of theme radius
-        const projectX = Math.cos(projectAngle) * projectDistance;
-        const projectY = Math.sin(projectAngle) * projectDistance;
+        // Determine which ring this project belongs to
+        const ring = Math.floor(index / maxProjectsPerRing);
+        const positionInRing = index % maxProjectsPerRing;
+        const projectsInThisRing = Math.min(maxProjectsPerRing, projectCount - (ring * maxProjectsPerRing));
+        
+        // Calculate angle for this project in its ring
+        const angleStep = (2 * Math.PI) / projectsInThisRing;
+        const projectAngle = positionInRing * angleStep;
+        
+        // Calculate distance from center (multiple rings if needed)
+        const ringDistance = baseDistance + (ring * 40); // Each ring 40px further out
+        const projectX = Math.cos(projectAngle) * ringDistance;
+        const projectY = Math.sin(projectAngle) * ringDistance;
 
-        // Project visual indicator (small hexagon)
+        // Project visual indicator (enhanced hexagon)
         const projectGroup = projectsGroup
           .append("g")
           .attr("class", `project-indicator project-${project.id}`)
-          .attr("transform", `translate(${projectX}, ${projectY})`);
+          .attr("transform", `translate(${projectX}, ${projectY})`)
+          .style("cursor", "pointer");
 
-        // Project hexagon
-        const hexSize = 12;
+        // Larger, more prominent project hexagon
+        const hexSize = 16; // Increased from 12
         const hexPath = createHexagonPath(hexSize);
         
+        // Project background glow
+        projectGroup
+          .append("path")
+          .attr("d", createHexagonPath(hexSize + 4))
+          .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.2)`)
+          .attr("stroke", "none")
+          .attr("class", "project-glow");
+        
+        // Main project hexagon
         projectGroup
           .append("path")
           .attr("d", hexPath)
-          .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.6)`)
+          .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.8)`)
           .attr("stroke", themeColor)
-          .attr("stroke-width", 1.5)
+          .attr("stroke-width", 2)
           .attr("class", "project-shape");
 
-        // Project status icon
+        // Project status icon (larger and more visible)
         const statusIcon = project.status === "open" ? "🚀" : project.status === "active" ? "⚡" : "💡";
         projectGroup
           .append("text")
           .attr("text-anchor", "middle")
           .attr("dy", "0.35em")
-          .attr("fill", themeColor)
-          .attr("font-size", "8px")
+          .attr("fill", "#fff")
+          .attr("font-size", "12px")
+          .attr("font-weight", "bold")
           .attr("class", "project-icon")
           .text(statusIcon);
 
-        // Project tooltip on hover (will be handled by theme hover)
-        projectGroup.attr("data-project-title", project.title);
+        // Project title (shown on hover)
+        const projectTitle = projectGroup
+          .append("text")
+          .attr("text-anchor", "middle")
+          .attr("dy", "25")
+          .attr("fill", themeColor)
+          .attr("font-size", "10px")
+          .attr("font-weight", "600")
+          .attr("class", "project-title")
+          .attr("opacity", 0)
+          .text(truncateName(project.title, 15));
+
+        // Add hover effects for individual projects
+        projectGroup
+          .on("mouseenter", function() {
+            d3.select(this).select(".project-shape")
+              .transition()
+              .duration(200)
+              .attr("stroke-width", 3)
+              .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 1.0)`);
+            
+            d3.select(this).select(".project-glow")
+              .transition()
+              .duration(200)
+              .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.4)`);
+            
+            d3.select(this).select(".project-title")
+              .transition()
+              .duration(200)
+              .attr("opacity", 1);
+          })
+          .on("mouseleave", function() {
+            d3.select(this).select(".project-shape")
+              .transition()
+              .duration(200)
+              .attr("stroke-width", 2)
+              .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.8)`);
+            
+            d3.select(this).select(".project-glow")
+              .transition()
+              .duration(200)
+              .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.2)`);
+            
+            d3.select(this).select(".project-title")
+              .transition()
+              .duration(200)
+              .attr("opacity", 0);
+          })
+          .on("click", function(event) {
+            event.stopPropagation();
+            // Handle project click - could open project details
+            console.log("Project clicked:", project.title);
+            if (typeof window.openProjectDetails === 'function') {
+              window.openProjectDetails(project);
+            }
+          });
+
+        // Store project data for interactions
+        projectGroup.datum(project);
+      });
       });
     }
 
@@ -488,53 +571,67 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         .attr("pointer-events", "none");
     }
 
-    // Consolidated label group
-    const labelY = -radius - 25;
+    // Theme information displayed INSIDE the circle (per yellow instructions)
     const labelGroup = themeGroup
       .append("g")
       .attr("class", "theme-labels")
       .attr("pointer-events", "none");
 
-    // Theme icon
+    // Theme icon - positioned in center of circle
     const themeIcons = ["🚀", "💡", "🎨", "🔬", "🌟", "⚡"];
     const iconIndex = Math.abs(d.theme_id?.charCodeAt?.(0) || 0) % themeIcons.length;
     
     labelGroup
       .append("text")
-      .attr("y", labelY)
+      .attr("y", -15) // Center of circle, slightly above
       .attr("text-anchor", "middle")
       .attr("fill", themeColor)
-      .attr("font-size", "24px")
-      .attr("opacity", isDiscoverable ? 0.6 : 0.9)
+      .attr("font-size", "32px")
+      .attr("opacity", isDiscoverable ? 0.7 : 1.0)
+      .attr("filter", "drop-shadow(0 0 4px rgba(0,0,0,0.8))")
       .text(themeIcons[iconIndex]);
 
-    // Theme title
+    // Theme title - positioned in center of circle
     labelGroup
       .append("text")
-      .attr("y", labelY + 25)
+      .attr("y", 10) // Center of circle, slightly below icon
       .attr("text-anchor", "middle")
       .attr("fill", "#fff")
-      .attr("font-size", "14px")
-      .attr("font-weight", "600")
-      .attr("opacity", isDiscoverable ? 0.6 : 0.9)
-      .text(truncateName(d.title, 18));
+      .attr("font-size", "16px")
+      .attr("font-weight", "700")
+      .attr("opacity", isDiscoverable ? 0.7 : 1.0)
+      .attr("filter", "drop-shadow(0 0 6px rgba(0,0,0,0.9))")
+      .text(truncateName(d.title, 20));
 
-    // Enhanced status showing both participants and projects
+    // Enhanced status showing both participants and projects - positioned below title
     const statusText = isDiscoverable ? "🔍 Discover" : 
                       userHasJoined ? "👤 Joined" : 
                       `${participantCount} people • ${projectCount} projects`;
 
     labelGroup
       .append("text")
-      .attr("y", labelY + 42)
+      .attr("y", 30) // Below the title, still inside circle
       .attr("text-anchor", "middle")
       .attr("fill", themeColor)
-      .attr("font-size", "11px")
-      .attr("opacity", isDiscoverable ? 0.5 : 0.7)
+      .attr("font-size", "12px")
+      .attr("font-weight", "600")
+      .attr("opacity", isDiscoverable ? 0.6 : 0.9)
+      .attr("filter", "drop-shadow(0 0 4px rgba(0,0,0,0.8))")
       .text(statusText);
+
+    // Add semi-transparent background for better text readability
+    const textBgRadius = Math.min(80, radius * 0.3);
+    labelGroup
+      .insert("circle", ":first-child") // Insert before text elements
+      .attr("r", textBgRadius)
+      .attr("fill", "rgba(0,0,0,0.4)")
+      .attr("stroke", themeColor)
+      .attr("stroke-width", 1)
+      .attr("stroke-opacity", 0.3)
+      .attr("class", "theme-info-background");
   });
 
-  // Simplified CSS animations
+  // Enhanced CSS animations for radial project positioning
   if (!document.querySelector('#theme-animations')) {
     const style = document.createElement('style');
     style.id = 'theme-animations';
@@ -545,12 +642,61 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       }
       
       .theme-container:hover .project-indicator {
-        transform: scale(1.2);
+        transform: scale(1.1);
         transition: transform 0.2s ease;
+      }
+      
+      .theme-container:hover .theme-info-background {
+        fill: rgba(0,0,0,0.6);
+        stroke-opacity: 0.5;
+        transition: all 0.2s ease;
+      }
+      
+      .theme-container:hover .theme-labels text {
+        opacity: 1.0 !important;
+        transition: opacity 0.2s ease;
+      }
+      
+      .project-indicator {
+        transition: transform 0.2s ease;
+      }
+      
+      .project-indicator:hover {
+        transform: scale(1.3) !important;
+        filter: drop-shadow(0 0 8px rgba(255,255,255,0.3));
+      }
+      
+      .project-shape {
+        transition: all 0.2s ease;
+      }
+      
+      .project-glow {
+        transition: all 0.2s ease;
+      }
+      
+      .project-title {
+        transition: opacity 0.2s ease;
+        filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
       }
       
       .theme-interactive-border {
         transition: stroke-opacity 0.15s ease, stroke-width 0.15s ease;
+      }
+      
+      /* Animation for projects appearing */
+      @keyframes projectAppear {
+        from {
+          opacity: 0;
+          transform: scale(0.5);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      
+      .project-indicator {
+        animation: projectAppear 0.3s ease-out;
       }
     `;
     document.head.appendChild(style);

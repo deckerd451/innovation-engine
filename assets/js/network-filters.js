@@ -309,7 +309,7 @@ export function initNetworkFilters(filterChangeCallback) {
 
   if (!initialized) {
     initialized = true;
-    console.log("✅ Network filters initialized");
+    console.log("✅ Network filters ready");
   }
 
   // Return controller API so callers can drive it

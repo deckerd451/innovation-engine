@@ -283,7 +283,7 @@
   }
 
   // -----------------------------
-  // Boot logic (dedupe auth events)
+  // Boot logic (dedupe auth events + ensure synapse loads)
   // -----------------------------
   async function bootstrapForUser(user, sourceEvent = "unknown") {
     if (!user?.id) return;
@@ -298,8 +298,16 @@
 
     showAppUI(user);
 
-    setTimeout(() => {
-      loadUserProfileOnce(user);
+    // Load profile first, then ensure synapse initialization
+    setTimeout(async () => {
+      await loadUserProfileOnce(user);
+      
+      // Ensure synapse gets initialized after profile is loaded
+      setTimeout(() => {
+        if (typeof window.ensureSynapseInitialized === 'function') {
+          window.ensureSynapseInitialized();
+        }
+      }, 500);
     }, 100);
   }
 
@@ -335,8 +343,8 @@
         return;
       }
 
-      // ---- Timeout fallback (but NEVER override a successful boot) ----
-      const SESSION_TIMEOUT_MS = 8000;
+      // ---- Enhanced timeout with better reliability ----
+      const SESSION_TIMEOUT_MS = 12000; // Increased timeout for better reliability
 
       let sessionTimer = null;
       const cancelSessionTimer = () => {
@@ -393,34 +401,54 @@
           : null;
       }
 
-      // ---- Now do a direct session fetch (best-effort) ----
-      try {
-        const {
-          data: { session },
-        } = await window.supabase.auth.getSession();
+      // ---- Enhanced session fetch with retry logic ----
+      let sessionAttempts = 0;
+      const maxSessionAttempts = 3;
+      
+      while (sessionAttempts < maxSessionAttempts) {
+        try {
+          sessionAttempts++;
+          log(`🔍 Attempting to get session (attempt ${sessionAttempts}/${maxSessionAttempts})...`);
+          
+          const {
+            data: { session },
+          } = await window.supabase.auth.getSession();
 
-        // If an auth event already booted the app, just stop here.
-        if (hasBootstrappedThisLoad) {
+          // If an auth event already booted the app, just stop here.
+          if (hasBootstrappedThisLoad) {
+            cancelSessionTimer();
+            log("✅ App already bootstrapped via auth event");
+            return;
+          }
+
           cancelSessionTimer();
-          return;
+
+          if (session?.user) {
+            log("🟢 Already logged in as:", session.user.email);
+            cleanOAuthUrlSoon();
+            await bootstrapForUser(session.user, "getSession");
+            return;
+          } else if (sessionAttempts === maxSessionAttempts) {
+            log("🟡 No active session after all attempts");
+            showLoginUI();
+            return;
+          } else {
+            // Wait before retry
+            await sleep(1000);
+          }
+        } catch (e) {
+          err(`❌ ERROR in session attempt ${sessionAttempts}:`, e);
+          
+          if (sessionAttempts === maxSessionAttempts) {
+            cancelSessionTimer();
+            // If we already booted via auth event, don't override.
+            if (!hasBootstrappedThisLoad) showLoginUI();
+            return;
+          } else {
+            // Wait before retry
+            await sleep(1500);
+          }
         }
-
-        cancelSessionTimer();
-
-        if (session?.user) {
-          log("🟢 Already logged in as:", session.user.email);
-          cleanOAuthUrlSoon();
-          await bootstrapForUser(session.user, "getSession");
-        } else {
-          log("🟡 No active session");
-          showLoginUI();
-        }
-      } catch (e) {
-        cancelSessionTimer();
-        err("❌ ERROR in initLoginSystem:", e);
-
-        // If we already booted via auth event, don't override.
-        if (!hasBootstrappedThisLoad) showLoginUI();
       }
     })();
 
