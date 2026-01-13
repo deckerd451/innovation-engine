@@ -97,7 +97,7 @@ export async function initSynapseView() {
   // Realtime refresh (connections/projects/themes)
   setupSynapseRealtime(supabase, async () => {
     await reloadAllData();
-    rebuildGraph();
+    await rebuildGraph();
   });
 
   // Pathway animation system (safe)
@@ -137,12 +137,12 @@ export async function initSynapseView() {
 
 export async function refreshSynapseConnections() {
   await reloadAllData();
-  rebuildGraph();
+  await rebuildGraph();
 }
 
 export async function refreshThemeCircles() {
   await reloadAllData();
-  rebuildGraph();
+  await rebuildGraph();
 }
 
 export async function toggleFullCommunityView(show) {
@@ -159,7 +159,7 @@ export async function toggleFullCommunityView(show) {
   // Per yellow comments: In discovery mode, show themes user is not connected to
   // This allows users to discover new themes through the start sequence
   await reloadAllData();
-  rebuildGraph();
+  await rebuildGraph();
 }
 
 export function getSynapseStats() {
@@ -675,7 +675,7 @@ function createProjectContainmentForce(allNodes) {
    GRAPH BUILD / REBUILD
    ========================================================================== */
 
-function rebuildGraph() {
+async function rebuildGraph() {
   try {
     container?.selectAll("*")?.remove();
   } catch (_) {}
@@ -834,7 +834,7 @@ function buildGraph() {
       showFullCommunity = true;
       console.log("🌐 Discovery mode enabled - reloading data...");
       await reloadAllData();
-      rebuildGraph();
+      await rebuildGraph();
       return;
     }
   }
