@@ -990,13 +990,6 @@ async function loadProjectsList() {
     listEl.innerHTML = '<p style="color: #ff6b6b;">Error loading projects</p>';
   }
 }
-    html += '</div>';
-    listEl.innerHTML = html;
-  } catch (error) {
-    console.error('Error loading projects:', error);
-    listEl.innerHTML = '<p style="color: #ff6b6b;">Error loading projects</p>';
-  }
-}
 
 window.openThemeCreator = function() {
   if (typeof window.openThemeAdminModal === 'function') {
