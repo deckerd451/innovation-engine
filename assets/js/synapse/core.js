@@ -1,6 +1,6 @@
 // assets/js/synapse/core.js
 // Synapse Core — init, svg, simulation wiring (modularized)
-// Version: 4.0 - Fixed async/await syntax error in rebuildGraph (2026-01-13)
+// Version: 5.0 - Fixed async/await in BOTH rebuildGraph AND buildGraph (2026-01-13)
 
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
@@ -93,7 +93,7 @@ export async function initSynapseView() {
 
   setupSVG();
   await reloadAllData();
-  buildGraph();
+  await buildGraph();
 
   // Realtime refresh (connections/projects/themes)
   setupSynapseRealtime(supabase, async () => {
@@ -685,7 +685,7 @@ async function rebuildGraph() {
     simulation?.stop();
   } catch (_) {}
 
-  buildGraph();
+  await buildGraph();
 
   try {
     PathwayAnimations.updateGraphData?.(nodes, links);
@@ -758,7 +758,7 @@ function normalizeAndFilterLinks(allNodes, rawLinks) {
   return filtered;
 }
 
-function buildGraph() {
+async function buildGraph() {
   const d3 = window.d3;
   const width = window.innerWidth;
   const height = window.innerHeight;
