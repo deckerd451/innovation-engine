@@ -12,6 +12,7 @@ import {
   renderLinks,
   renderNodes,
   renderThemeCircles,
+  renderThemeProjectsOverlay,
   drawProjectCircles,
 } from "./render.js";
 import { showSynapseNotification } from "./ui.js";
@@ -854,8 +855,8 @@ async function buildGraph() {
     .alphaMin(0.001);
 
   // RENDERING ORDER: Background to foreground for proper z-index layering
-  
-  // 1. Theme circles (background layer) - render FIRST with embedded projects
+
+  // 1. Theme circles (background layer) - render FIRST without projects
   const visibleThemeNodes = visibleNodes.filter((n) => n.type === "theme");
   if (visibleThemeNodes.length > 0) {
     themeEls = renderThemeCircles(container, visibleThemeNodes, {
@@ -864,9 +865,14 @@ async function buildGraph() {
     });
   }
 
-  // 2. NO separate project circles (projects are now embedded within themes)
-  // 3. Links (middle layer) - only theme participation links
+  // 2. Links (middle layer) - connection links and theme participation links
   linkEls = renderLinks(container, simulationLinks);
+
+  // 3. Project overlays (on top of themes, clickable layer)
+  let projectOverlayEls = null;
+  if (visibleThemeNodes.length > 0) {
+    projectOverlayEls = renderThemeProjectsOverlay(container, visibleThemeNodes);
+  }
 
   // 4. People nodes only (foreground layer) - render LAST so they appear on top
   const visiblePeopleNodes = visibleNodes.filter((n) => n.type === "person");
