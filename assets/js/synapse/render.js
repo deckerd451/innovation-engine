@@ -761,8 +761,22 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
         .on("click", function(event) {
           event.stopPropagation();
           console.log("Project clicked:", project.title);
+
+          // Try multiple methods to open project details
           if (typeof window.openProjectDetails === 'function') {
             window.openProjectDetails(project);
+          } else if (typeof window.openNodePanel === 'function') {
+            // Fallback: open node panel with project data
+            window.openNodePanel({
+              ...project,
+              type: 'project',
+              id: project.id,
+              name: project.title
+            });
+          } else {
+            console.warn("⚠️ No project details handler available");
+            // Last resort: show alert with project info
+            alert(`Project: ${project.title}\n\nStatus: ${project.status}\n\nDescription: ${project.description || 'No description'}`);
           }
         });
     });
