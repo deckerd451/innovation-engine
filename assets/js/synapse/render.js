@@ -511,7 +511,6 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         // Store project data for interactions
         projectGroup.datum(project);
       });
-      });
     }
 
     // Single interactive border (clickable area)
