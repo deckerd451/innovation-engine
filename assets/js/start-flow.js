@@ -700,6 +700,21 @@ function checkDailyReset() {
   }
 }
 
+// Testing/debugging helper to reset START flow state
+function resetStartFlow() {
+  console.log('🔄 Manually resetting START flow state for testing...');
+  startState.hasUsedStartToday = false;
+  startState.lastStartDate = null;
+  startState.isFirstTimeUser = true;
+  saveStartState();
+  updateButtonVisibility();
+  console.log('✅ START flow reset - reload page to see fresh START experience');
+  console.log('💡 The START button should now pulse and bottom buttons should be hidden');
+}
+
+// Expose reset function to window for console access
+window.resetStartFlow = resetStartFlow;
+
 // Add CSS for pulse animation
 const style = document.createElement('style');
 style.textContent = `
