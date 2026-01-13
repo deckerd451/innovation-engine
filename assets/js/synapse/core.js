@@ -62,21 +62,27 @@ export async function initSynapseView() {
     return;
   }
 
+  // Set flag immediately to prevent race conditions
+  initialized = true;
+
   supabase = window.supabase;
   if (!supabase) {
     console.error("❌ Synapse: window.supabase not found");
+    initialized = false; // Reset on error
     return;
   }
 
   // D3 must be global in this build
   if (!window.d3) {
     console.error("❌ Synapse: D3 not found on window. Load D3 before synapse.");
+    initialized = false; // Reset on error
     return;
   }
 
   // Basic container checks
   if (!document.getElementById("synapse-svg")) {
     console.error("❌ Synapse: #synapse-svg not found in DOM");
+    initialized = false; // Reset on error
     return;
   }
   if (!document.getElementById("synapse-main-view")) {
@@ -113,8 +119,6 @@ export async function initSynapseView() {
   } catch (e) {
     console.warn("⚠️ Pathway animations init failed:", e);
   }
-
-  initialized = true;
 
   // Optional: expose for non-module callers / debugging
   window.initSynapseView = initSynapseView;
