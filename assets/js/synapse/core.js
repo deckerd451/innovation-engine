@@ -936,6 +936,33 @@ async function buildGraph() {
 
     nodeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
 
+    // Update project overlay positions (they should move with their parent themes)
+    if (projectOverlayEls) {
+      projectOverlayEls.selectAll(".project-overlay").attr("transform", function(d) {
+        if (d && d.theme_x !== undefined && d.theme_y !== undefined) {
+          // Find the current position of the parent theme
+          const theme = visibleThemes.find(t => t.theme_id === d.theme_id);
+          if (theme) {
+            const baseDistance = Math.min((theme.themeRadius || 250) * 0.35, 80);
+            const maxProjectsPerRing = 8;
+            const ring = d.ring || 0;
+            const positionInRing = d.positionInRing || 0;
+            const projectsInThisRing = d.projectsInThisRing || 1;
+
+            const angleStep = (2 * Math.PI) / projectsInThisRing;
+            const projectAngle = positionInRing * angleStep;
+            const ringDistance = baseDistance + (ring * 40);
+
+            const projectX = (theme.x || 0) + Math.cos(projectAngle) * ringDistance;
+            const projectY = (theme.y || 0) + Math.sin(projectAngle) * ringDistance;
+
+            return `translate(${projectX}, ${projectY})`;
+          }
+        }
+        return d3.select(this).attr("transform"); // Keep existing transform if no theme found
+      });
+    }
+
     try {
       PathwayAnimations.updateAllPathwayPositions?.();
     } catch (_) {}

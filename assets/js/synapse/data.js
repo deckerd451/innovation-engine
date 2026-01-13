@@ -120,10 +120,21 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   if (members?.length) {
     let filteredMembers = members;
     
-    // Filter members based on theme participation instead of direct connections
+    // Filter members based on theme participation AND direct connections
     if (!showFullCommunity && currentUserCommunityId) {
       filteredMembers = members.filter(member => {
         if (member.id === currentUserCommunityId) return true;
+
+        // Check if there's a direct connection (accepted or pending)
+        const hasConnection = (connectionsData || []).some(conn =>
+          (conn.user1_id === currentUserCommunityId && conn.user2_id === member.id) ||
+          (conn.user2_id === currentUserCommunityId && conn.user1_id === member.id)
+        );
+
+        if (hasConnection) {
+          console.log("✅ Including user due to connection:", member.name, member.id);
+          return true;
+        }
 
         // Show people who participate in the same themes as the current user
         const userThemes = (themeParticipants || [])
@@ -202,12 +213,29 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   }
 
   // 4. Add person-to-person connection links (for accepted and pending connections)
+  console.log("🔍 Debug connections:", {
+    connectionsCount: connectionsData?.length || 0,
+    connections: connectionsData,
+    nodeIds: nodes.filter(n => n.type === 'person').map(n => n.id)
+  });
+
   if (connectionsData?.length) {
     const connectionLinks = connectionsData
       .filter(conn => {
         // Only show connections involving users in the graph
         const user1Exists = nodes.some(n => n.id === conn.user1_id);
         const user2Exists = nodes.some(n => n.id === conn.user2_id);
+
+        if (!user1Exists || !user2Exists) {
+          console.log("⚠️ Filtering out connection:", {
+            user1: conn.user1_id,
+            user1Exists,
+            user2: conn.user2_id,
+            user2Exists,
+            status: conn.status
+          });
+        }
+
         return user1Exists && user2Exists;
       })
       .map(conn => ({
@@ -221,6 +249,8 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
 
     links = [...links, ...connectionLinks];
     console.log("🤝 Created connection links:", connectionLinks.length);
+  } else {
+    console.warn("⚠️ No connections data loaded from database");
   }
 
   // 5. NO direct project-member links (projects are embedded within themes)
