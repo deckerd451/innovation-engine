@@ -1,6 +1,6 @@
 // assets/js/synapse/core.js
 // Synapse Core — init, svg, simulation wiring (modularized)
-// Version: 5.0 - Fixed async/await in BOTH rebuildGraph AND buildGraph (2026-01-13)
+// Version: 6.0 - Fixed theme click handler null safety (2026-01-13)
 
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
@@ -1009,6 +1009,7 @@ async function openThemeCard(themeNode) {
   });
 
   nodeEls?.style("opacity", (d) => {
+    if (!d) return 0.2;
     if (d.type === "project" && relatedProjects.some((p) => p.id === d.id)) {
       return 1;
     }
@@ -1016,16 +1017,17 @@ async function openThemeCard(themeNode) {
   });
 
   linkEls?.style("opacity", (d) => {
-    const sourceId = typeof d.source === "object" ? d.source.id : d.source;
-    const targetId = typeof d.target === "object" ? d.target.id : d.target;
+    if (!d) return 0.1;
+    const sourceId = typeof d.source === "object" ? d.source?.id : d.source;
+    const targetId = typeof d.target === "object" ? d.target?.id : d.target;
 
     const isRelatedLink = relatedProjects.some(
-      (p) => sourceId === p.id || targetId === p.id
+      (p) => sourceId === p?.id || targetId === p?.id
     );
     return isRelatedLink ? 0.6 : 0.1;
   });
 
-  themeEls?.style("opacity", (d) => (d.id === themeNode.id ? 1 : 0.3));
+  themeEls?.style("opacity", (d) => (d?.id === themeNode?.id ? 1 : 0.3));
 
   await openThemeProjectsPanel(themeNode, relatedProjects);
 }
