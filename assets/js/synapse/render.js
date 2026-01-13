@@ -344,7 +344,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stop-opacity", 0);
   });
 
-  // Simplified theme rendering with fewer DOM elements
+  // Simplified theme rendering with embedded projects
   const themesGroup = container
     .insert("g", ":first-child")
     .attr("class", "theme-circles-group")
@@ -369,8 +369,9 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const isUserTheme = d.isUserTheme === true;
     const isDiscoverable = d.isDiscoverable === true;
     const participantCount = d.participant_count || 0;
+    const projectCount = d.project_count || 0;
 
-    // Single background circle with gradient (combines influence field + outer ring)
+    // Single background circle with gradient
     themeGroup
       .append("circle")
       .attr("r", radius)
@@ -381,6 +382,54 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stroke-dasharray", isDiscoverable ? "8,4" : "none")
       .attr("class", "theme-background")
       .attr("pointer-events", "none");
+
+    // Render projects as visual sub-elements within the theme
+    if (d.projects && d.projects.length > 0) {
+      const projectsGroup = themeGroup
+        .append("g")
+        .attr("class", "theme-projects")
+        .attr("pointer-events", "none");
+
+      // Position projects in a circle within the theme
+      d.projects.forEach((project, index) => {
+        const projectAngle = (index / d.projects.length) * 2 * Math.PI;
+        const projectDistance = radius * 0.6; // Position projects at 60% of theme radius
+        const projectX = Math.cos(projectAngle) * projectDistance;
+        const projectY = Math.sin(projectAngle) * projectDistance;
+
+        // Project visual indicator (small hexagon)
+        const projectGroup = projectsGroup
+          .append("g")
+          .attr("class", `project-indicator project-${project.id}`)
+          .attr("transform", `translate(${projectX}, ${projectY})`);
+
+        // Project hexagon
+        const hexSize = 12;
+        const hexPath = createHexagonPath(hexSize);
+        
+        projectGroup
+          .append("path")
+          .attr("d", hexPath)
+          .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.6)`)
+          .attr("stroke", themeColor)
+          .attr("stroke-width", 1.5)
+          .attr("class", "project-shape");
+
+        // Project status icon
+        const statusIcon = project.status === "open" ? "🚀" : project.status === "active" ? "⚡" : "💡";
+        projectGroup
+          .append("text")
+          .attr("text-anchor", "middle")
+          .attr("dy", "0.35em")
+          .attr("fill", themeColor)
+          .attr("font-size", "8px")
+          .attr("class", "project-icon")
+          .text(statusIcon);
+
+        // Project tooltip on hover (will be handled by theme hover)
+        projectGroup.attr("data-project-title", project.title);
+      });
+    }
 
     // Single interactive border (clickable area)
     themeGroup
@@ -446,7 +495,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("class", "theme-labels")
       .attr("pointer-events", "none");
 
-    // Single icon (simplified selection)
+    // Theme icon
     const themeIcons = ["🚀", "💡", "🎨", "🔬", "🌟", "⚡"];
     const iconIndex = Math.abs(d.theme_id?.charCodeAt?.(0) || 0) % themeIcons.length;
     
@@ -459,11 +508,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("opacity", isDiscoverable ? 0.6 : 0.9)
       .text(themeIcons[iconIndex]);
 
-    // Consolidated title and stats in single text element
-    const statusText = isDiscoverable ? "🔍 Discover" : 
-                      userHasJoined ? "👤 Joined" : 
-                      participantCount > 0 ? `${participantCount} engaged` : "Available";
-
+    // Theme title
     labelGroup
       .append("text")
       .attr("y", labelY + 25)
@@ -473,6 +518,11 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("font-weight", "600")
       .attr("opacity", isDiscoverable ? 0.6 : 0.9)
       .text(truncateName(d.title, 18));
+
+    // Enhanced status showing both participants and projects
+    const statusText = isDiscoverable ? "🔍 Discover" : 
+                      userHasJoined ? "👤 Joined" : 
+                      `${participantCount} people • ${projectCount} projects`;
 
     labelGroup
       .append("text")
@@ -484,7 +534,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .text(statusText);
   });
 
-  // Simplified CSS animations (fewer, more efficient)
+  // Simplified CSS animations
   if (!document.querySelector('#theme-animations')) {
     const style = document.createElement('style');
     style.id = 'theme-animations';
@@ -492,6 +542,11 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .theme-container:hover .theme-background {
         filter: brightness(1.2);
         transition: filter 0.2s ease;
+      }
+      
+      .theme-container:hover .project-indicator {
+        transform: scale(1.2);
+        transition: transform 0.2s ease;
       }
       
       .theme-interactive-border {

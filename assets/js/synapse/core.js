@@ -423,15 +423,17 @@ function calculateNestedPosition(
   const themes = allNodes.filter((n) => n.type === "theme");
 
   // ----------------------------
-  // THEMES - Per yellow comments: Only show themes user is connected to (unless in discovery mode)
+  // THEMES - Primary organizing structure
   // ----------------------------
   if (node.type === "theme") {
-    const userThemeSet = getUserThemeSet(allNodes, allLinks, currentUserCommunityId);
+    // Get user's theme participations from the node data
+    const currentUser = allNodes.find(n => n.id === currentUserCommunityId);
+    const userThemes = currentUser?.themes || [];
 
-    // Per yellow comments: Hide themes user is not connected to (unless in discovery mode)
-    const isUserConnected = node.theme_id && userThemeSet.has(String(node.theme_id));
+    // Check if user participates in this theme
+    const isUserConnected = userThemes.includes(node.theme_id);
     
-    // In discovery mode (showFullCommunity), show all themes but position differently
+    // In discovery mode, show all themes but position differently
     if (!isUserConnected && !showFullCommunity) {
       // Position far off-screen or mark as hidden
       return {
@@ -447,14 +449,20 @@ function calculateNestedPosition(
     if (isUserConnected) {
       // User's themes - concentric around center
       const myThemes = themes
-        .filter((t) => t.theme_id && userThemeSet.has(String(t.theme_id)))
+        .filter((t) => userThemes.includes(t.theme_id))
         .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
 
       const myIndex = myThemes.findIndex((t) => t.id === node.id);
       const baseThemeRadius = 220;
       const themeRadiusIncrement = 140;
 
-      const mostActiveThemeId = findMostActiveTheme(allNodes, currentUserCommunityId);
+      // Find most active theme (most projects or participants)
+      const mostActiveThemeId = themes.reduce((max, theme) => {
+        const currentScore = (theme.project_count || 0) + (theme.participant_count || 0);
+        const maxScore = (max?.project_count || 0) + (max?.participant_count || 0);
+        return currentScore > maxScore ? theme : max;
+      }, null)?.theme_id;
+
       const isUserTheme = node.theme_id === mostActiveThemeId;
 
       return {
@@ -468,7 +476,7 @@ function calculateNestedPosition(
     } else {
       // Discovery mode: show unconnected themes in outer orbit
       const otherThemes = themes
-        .filter((t) => !t.theme_id || !userThemeSet.has(String(t.theme_id)))
+        .filter((t) => !userThemes.includes(t.theme_id))
         .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
 
       const otherIndex = otherThemes.findIndex((t) => t.id === node.id);
@@ -488,95 +496,31 @@ function calculateNestedPosition(
   }
 
   // ----------------------------
-  // PROJECTS - Per yellow comments: Should be associated with themes and reside within theme circles
-  // ----------------------------
-  if (node.type === "project") {
-    const fallbackRadius = 250;
-
-    if (node.theme_id) {
-      const parentTheme = allNodes.find(
-        (n) => n.type === "theme" && n.theme_id === node.theme_id
-      );
-
-      if (parentTheme && !parentTheme.hidden) {
-        const projectsInTheme = allNodes.filter(
-          (n) => n.type === "project" && n.theme_id === node.theme_id
-        );
-
-        const projectIndex = projectsInTheme.findIndex((p) => p.id === node.id);
-        const projectCount = projectsInTheme.length;
-
-        const angle = (projectIndex / (projectCount || 1)) * 2 * Math.PI;
-        // Per yellow comments: Projects should be "orbited" by people within the theme circle
-        const projectDistance = (parentTheme.themeRadius || fallbackRadius) * 0.5; // Closer to theme center
-
-        return {
-          x: parentTheme.x + Math.cos(angle) * projectDistance,
-          y: parentTheme.y + Math.sin(angle) * projectDistance,
-          parentTheme: parentTheme.theme_id,
-          themeRadius: parentTheme.themeRadius,
-          projectOrbitAngle: angle,
-          hidden: false,
-        };
-      }
-    }
-
-    // Per yellow comments: If project has no theme or theme is hidden, hide the project
-    return {
-      x: centerX + 10000, // Off-screen
-      y: centerY + 10000,
-      parentTheme: null,
-      hidden: true,
-    };
-  }
-
-  // ----------------------------
-  // PEOPLE - Per yellow comments: User should be fixed in center
+  // PEOPLE - Connect to themes (not projects)
   // ----------------------------
   if (node.type === "person") {
-    const fallbackRadius = 250;
-
     if (node.isCurrentUser) {
-      // Per yellow comments: User node should be fixed in the center
+      // User is fixed at center
       return {
         x: centerX,
         y: centerY,
-        parentTheme: findMostActiveTheme(allNodes, currentUserCommunityId),
+        parentTheme: null,
         isUserCenter: true,
         hidden: false,
       };
     }
 
-    // Per yellow comments: Other people should orbit around projects within theme circles
-    if (Array.isArray(node.projects) && node.projects.length > 0) {
-      const firstProject = allNodes.find(
-        (n) => n.type === "project" && n.id === node.projects[0]
-      );
-
-      if (firstProject && firstProject.x != null && firstProject.y != null && !firstProject.hidden) {
-        const angle = Math.random() * 2 * Math.PI;
-        const distance = Math.random() * 25 + 15; // Closer orbit around projects
-
-        return {
-          x: firstProject.x + Math.cos(angle) * distance,
-          y: firstProject.y + Math.sin(angle) * distance,
-          parentTheme: firstProject.parentTheme || null,
-          parentProject: firstProject.id,
-          hidden: false,
-        };
-      }
-    }
-
-    // If person has themes but no projects, place near theme center
+    // Position people near themes they participate in
     if (Array.isArray(node.themes) && node.themes.length > 0) {
       const firstTheme = allNodes.find(
         (n) => n.type === "theme" && n.theme_id === node.themes[0]
       );
 
       if (firstTheme && !firstTheme.hidden) {
-        const themeRadius = firstTheme.themeRadius || fallbackRadius;
+        const themeRadius = firstTheme.themeRadius || 250;
         const angle = Math.random() * 2 * Math.PI;
-        const distance = Math.random() * (themeRadius * 0.3) + themeRadius * 0.2;
+        // Position people in the outer ring of the theme (not overlapping with projects)
+        const distance = themeRadius * 0.8 + Math.random() * (themeRadius * 0.15);
 
         return {
           x: firstTheme.x + Math.cos(angle) * distance,
@@ -587,12 +531,22 @@ function calculateNestedPosition(
       }
     }
 
-    // Per yellow comments: If person is not connected to user's themes, hide them
+    // If person has no theme participation, hide them (unless in discovery mode)
+    if (!showFullCommunity) {
+      return {
+        x: centerX + 10000, // Off-screen
+        y: centerY + 10000,
+        parentTheme: null,
+        hidden: true,
+      };
+    }
+
+    // Discovery mode: show unconnected people in outer area
     return {
-      x: centerX + 10000, // Off-screen
-      y: centerY + 10000,
+      x: centerX + (Math.random() - 0.5) * 1400,
+      y: centerY + (Math.random() - 0.5) * 1400,
       parentTheme: null,
-      hidden: true,
+      hidden: false,
     };
   }
 
@@ -866,39 +820,38 @@ async function buildGraph() {
         .forceLink(simulationLinks)
         .id((d) => d.id)
         .distance((d) => {
-          if (d.type === "project" || d.status === "project-member") return 30;
+          // Only theme participation links now
           if (d.type === "theme" || d.status === "theme-participant") return 40;
-          if (d.status === "accepted") return 60;
+          if (d.status === "suggested") return 100;
           return 80;
         })
         .strength((d) => {
-          if (d.type === "project" || d.status === "project-member") return 0.2;
-          if (d.type === "theme" || d.status === "theme-participant") return 0.15;
+          // Stronger attraction to themes
+          if (d.type === "theme" || d.status === "theme-participant") return 0.3;
+          if (d.status === "suggested") return 0.1;
           return 0.05;
         })
     )
-    .force("charge", d3.forceManyBody().strength(-50).distanceMax(150))
+    .force("charge", d3.forceManyBody().strength(-30).distanceMax(200))
     .force("containment", createContainmentForce(simulationNodes, visibleNodes))
-    .force("projectContainment", createProjectContainmentForce(visibleNodes))
     .force(
       "collision",
       d3
         .forceCollide()
         .radius((d) => {
           if (d.type === "theme") return 0; // themes are separate visuals; keep collision out of it
-          if (d.type === "project") return 38;
-          if (d.isCurrentUser) return 30;
-          return 20;
+          if (d.isCurrentUser) return 35;
+          return 25;
         })
-        .strength(0.7)
+        .strength(0.8)
     )
-    .velocityDecay(0.5)
-    .alphaDecay(0.04)
+    .velocityDecay(0.6)
+    .alphaDecay(0.05)
     .alphaMin(0.001);
 
   // RENDERING ORDER: Background to foreground for proper z-index layering
   
-  // 1. Theme circles (background layer) - render FIRST so they appear behind everything
+  // 1. Theme circles (background layer) - render FIRST with embedded projects
   const visibleThemeNodes = visibleNodes.filter((n) => n.type === "theme");
   if (visibleThemeNodes.length > 0) {
     themeEls = renderThemeCircles(container, visibleThemeNodes, {
@@ -907,16 +860,13 @@ async function buildGraph() {
     });
   }
 
-  // 2. Project circles (behind nodes but above themes)
-  const visibleProjects = visibleNodes.filter((n) => n.type === "project");
-  projectCircles = drawProjectCircles(container, visibleProjects);
-
-  // 3. Links (middle layer)
+  // 2. NO separate project circles (projects are now embedded within themes)
+  // 3. Links (middle layer) - only theme participation links
   linkEls = renderLinks(container, simulationLinks);
 
-  // 4. Nodes (foreground layer) - render LAST so they appear on top
-  const visibleNonThemeNodes = visibleNodes.filter((n) => n.type !== "theme");
-  nodeEls = renderNodes(container, visibleNonThemeNodes, { onNodeClick });
+  // 4. People nodes only (foreground layer) - render LAST so they appear on top
+  const visiblePeopleNodes = visibleNodes.filter((n) => n.type === "person");
+  nodeEls = renderNodes(container, visiblePeopleNodes, { onNodeClick });
 
   // Drag for nodes
   nodeEls.call(
@@ -975,8 +925,6 @@ async function buildGraph() {
       .attr("y2", (d) => d.target.y);
 
     nodeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
-
-    projectCircles?.update?.();
 
     try {
       PathwayAnimations.updateAllPathwayPositions?.();
