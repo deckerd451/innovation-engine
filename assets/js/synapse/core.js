@@ -765,6 +765,10 @@ async function buildGraph() {
   const centerX = width / 2;
   const centerY = height / 2;
 
+  // Performance monitoring
+  const perfStart = performance.now();
+  console.log("🚀 Building graph with performance optimizations...");
+
   // Ensure links are safe before any link-based computation
   links = normalizeAndFilterLinks(nodes, links);
 
@@ -844,6 +848,16 @@ async function buildGraph() {
   const simulationNodes = visibleNodes;
   const simulationLinks = visibleLinks;
 
+  // Performance: Count DOM elements that will be created
+  const domElementCount = {
+    themes: visibleNodes.filter(n => n.type === 'theme').length * 4, // Simplified: 2 circles + 3 text elements
+    projects: visibleNodes.filter(n => n.type === 'project').length * 1, // 1 circle each
+    people: visibleNodes.filter(n => n.type === 'person').length * 3, // circle + image/text + label
+    links: simulationLinks.length * 1, // 1 line each (simplified)
+  };
+  const totalElements = Object.values(domElementCount).reduce((a, b) => a + b, 0);
+  console.log("📊 DOM elements to create:", domElementCount, "Total:", totalElements);
+
   simulation = d3
     .forceSimulation(simulationNodes)
     .force(
@@ -913,6 +927,10 @@ async function buildGraph() {
       .on("end", dragEnded)
   );
 
+  // Performance monitoring
+  const perfEnd = performance.now();
+  console.log(`⚡ Graph built in ${(perfEnd - perfStart).toFixed(2)}ms with ${totalElements} DOM elements`);
+
   // Tick
   let tickCount = 0;
   let hasInitialCentered = false;
@@ -949,17 +967,12 @@ async function buildGraph() {
       }
     }
 
-    // Update link positions - handle both individual lines and grouped links
-    linkEls.selectAll("line")
+    // Update link positions - simplified for single line elements
+    linkEls
       .attr("x1", (d) => d.source.x)
       .attr("y1", (d) => d.source.y)
       .attr("x2", (d) => d.target.x)
       .attr("y2", (d) => d.target.y);
-
-    // Update connection strength indicators
-    linkEls.selectAll(".connection-strength-indicator")
-      .attr("cx", (d) => (d.source.x + d.target.x) / 2)
-      .attr("cy", (d) => (d.source.y + d.target.y) / 2);
 
     nodeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
 

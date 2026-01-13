@@ -141,58 +141,23 @@ export function getLinkWidth(link) {
 }
 
 export function renderLinks(container, links) {
+  // Simplified link rendering with single elements
   const linkEls = container
     .append("g")
     .attr("class", "links")
-    .selectAll("g")
-    .data(links)
+    .selectAll("line")
+    .data(links, d => d.id || `${d.source}-${d.target}`)
     .enter()
-    .append("g")
-    .attr("class", (d) => `synapse-link-group status-${d.status}`);
-
-  // Add glow effect for important connections
-  linkEls.each(function(d) {
-    const group = d3.select(this);
-    const linkColor = getLinkColor(d);
-    const linkWidth = getLinkWidth(d);
-
-    // Background glow line for accepted connections
-    if (d.status === "accepted" || d.status === "theme-participant") {
-      group
-        .append("line")
-        .attr("class", "link-glow")
-        .attr("stroke", linkColor)
-        .attr("stroke-width", linkWidth + 4)
-        .attr("stroke-opacity", 0.2)
-        .attr("filter", "url(#glow)");
-    }
-
-    // Main connection line
-    group
-      .append("line")
-      .attr("class", "synapse-link")
-      .attr("stroke", linkColor)
-      .attr("stroke-width", linkWidth)
-      .attr("stroke-dasharray", (d) => {
-        if (d.status === "pending") return "5,5";
-        return "none";
-      })
-      .attr("opacity", (d) => {
-        if (d.status === "suggested") return 0.5;
-        if (d.status === "theme-participant") return 0.7;
-        return 0.8;
-      });
-
-    // Add connection strength indicators for theme participation
-    if (d.status === "theme-participant" && d.engagement_level === "leading") {
-      group
-        .append("circle")
-        .attr("class", "connection-strength-indicator")
-        .attr("r", 3)
-        .attr("fill", linkColor)
-        .attr("opacity", 0.8);
-    }
-  });
+    .append("line")
+    .attr("class", d => `synapse-link status-${d.status}`)
+    .attr("stroke", d => getLinkColor(d))
+    .attr("stroke-width", d => getLinkWidth(d))
+    .attr("stroke-dasharray", d => d.status === "pending" ? "4,4" : "none")
+    .attr("opacity", d => {
+      if (d.status === "suggested") return 0.4;
+      if (d.status === "theme-participant") return 0.6;
+      return 0.7;
+    });
 
   return linkEls;
 }
@@ -344,39 +309,34 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
 }
 
 export function renderThemeCircles(container, themeNodes, { onThemeHover, onThemeClick } = {}) {
-  // Create defs section for gradients if it doesn't exist
+  // Performance optimization: Create gradients only once, reuse for similar themes
   let defs = container.select("defs");
   if (defs.empty()) {
     defs = container.append("defs");
   }
 
-  // Enhanced gradients with more dynamic visual effects
+  // Create a shared gradient template and reuse it
+  const gradientCache = new Map();
+  
   themeNodes.forEach(theme => {
     const themeColor = getThemeColor(theme.theme_id);
-    const themeColorRgb = hexToRgb(themeColor);
     const gradientId = `theme-influence-${theme.theme_id}`;
+    
+    // Skip if gradient already exists
+    if (gradientCache.has(themeColor)) return;
+    gradientCache.set(themeColor, gradientId);
 
     // Remove existing gradient if it exists
     defs.select(`#${gradientId}`).remove();
 
-    // Create animated radial gradient with pulsing effect (more subtle)
+    // Simplified gradient with fewer stops for better performance
     const gradient = defs.append("radialGradient")
       .attr("id", gradientId);
 
     gradient.append("stop")
       .attr("offset", "0%")
       .attr("stop-color", themeColor)
-      .attr("stop-opacity", 0.08); // Much more subtle
-
-    gradient.append("stop")
-      .attr("offset", "30%")
-      .attr("stop-color", themeColor)
-      .attr("stop-opacity", 0.04);
-
-    gradient.append("stop")
-      .attr("offset", "70%")
-      .attr("stop-color", themeColor)
-      .attr("stop-opacity", 0.02);
+      .attr("stop-opacity", 0.06);
 
     gradient.append("stop")
       .attr("offset", "100%")
@@ -384,103 +344,69 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stop-opacity", 0);
   });
 
-  // Create theme groups with enhanced visual hierarchy (background layer)
+  // Simplified theme rendering with fewer DOM elements
   const themesGroup = container
-    .insert("g", ":first-child") // Insert at beginning to ensure background positioning
+    .insert("g", ":first-child")
     .attr("class", "theme-circles-group")
-    .style("pointer-events", "none"); // Prevent themes from blocking clicks on nodes
+    .style("pointer-events", "none");
 
-  themeNodes.forEach((d) => {
+  // Use D3 data binding for better performance
+  const themeGroups = themesGroup
+    .selectAll(".theme-container")
+    .data(themeNodes, d => d.theme_id)
+    .enter()
+    .append("g")
+    .attr("class", d => `theme-container theme-${d.theme_id}`)
+    .attr("transform", d => `translate(${d.x || 0}, ${d.y || 0})`);
+
+  themeGroups.each(function(d) {
+    const themeGroup = d3.select(this);
     const themeColor = getThemeColor(d.theme_id);
     const themeColorRgb = hexToRgb(themeColor);
     const radius = d.themeRadius || 250;
 
-    // Calculate lifecycle progress for visual feedback
-    const now = Date.now();
-    const expires = new Date(d.expires_at).getTime();
-    const created = new Date(d.created_at).getTime();
-    const lifetime = expires - created;
-    const remaining = expires - now;
-    const progress = Math.max(0, Math.min(1, 1 - (remaining / lifetime)));
-
     const userHasJoined = d.user_is_participant === true;
     const isUserTheme = d.isUserTheme === true;
-    const isDiscoverable = d.isDiscoverable === true; // New discoverable theme styling
+    const isDiscoverable = d.isDiscoverable === true;
     const participantCount = d.participant_count || 0;
 
-    // Create theme container group for easier manipulation
-    const themeGroup = themesGroup
-      .append("g")
-      .attr("class", `theme-container theme-${d.theme_id}`)
-      .attr("transform", `translate(${d.x || 0}, ${d.y || 0})`);
-
-    // Animated background pulse for active themes (very subtle)
-    if (participantCount > 3) {
-      themeGroup
-        .append("circle")
-        .attr("r", radius + 20)
-        .attr("fill", "none")
-        .attr("stroke", themeColor)
-        .attr("stroke-width", 1)
-        .attr("stroke-opacity", 0.1) // Much more subtle
-        .attr("class", "theme-pulse")
-        .style("animation", "themePulse 3s ease-in-out infinite")
-        .attr("pointer-events", "none");
-    }
-
-    // Main influence field with gradient (much more subtle)
+    // Single background circle with gradient (combines influence field + outer ring)
     themeGroup
       .append("circle")
       .attr("r", radius)
       .attr("fill", `url(#theme-influence-${d.theme_id})`)
-      .attr("stroke", "none")
-      .attr("class", "theme-influence-field")
-      .attr("opacity", isDiscoverable ? 0.1 : 0.3) // Much more subtle background
+      .attr("stroke", themeColor)
+      .attr("stroke-width", userHasJoined ? 2 : 1)
+      .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.4 : 0.2))
+      .attr("stroke-dasharray", isDiscoverable ? "8,4" : "none")
+      .attr("class", "theme-background")
       .attr("pointer-events", "none");
 
-    // Outer decorative ring (more subtle)
+    // Single interactive border (clickable area)
     themeGroup
       .append("circle")
-      .attr("r", radius + 8)
-      .attr("fill", "none")
-      .attr("stroke", themeColor)
-      .attr("stroke-width", userHasJoined ? 2 : 1) // Thinner lines
-      .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.3 : 0.15)) // Much more subtle
-      .attr("stroke-dasharray", isDiscoverable ? "12,8" : (userHasJoined ? "none" : "8,4"))
-      .attr("filter", "url(#glow)")
-      .attr("class", "theme-outer-ring")
-      .attr("pointer-events", "none");
-
-    // Main interactive border (dimmed for discoverable themes)
-    // This is the only theme element that should be clickable
-    const interactiveBorder = themeGroup
-      .append("circle")
       .attr("r", radius)
-      .attr("fill", "transparent") // Transparent fill so it doesn't block visibility
+      .attr("fill", "transparent")
       .attr("stroke", themeColor)
-      .attr("stroke-width", userHasJoined ? 3 : 2)
-      .attr("stroke-opacity", isDiscoverable ? 0.5 : (userHasJoined ? 0.9 : 0.6))
-      .attr("filter", "url(#glow)")
-      .attr("class", "theme-main-border")
+      .attr("stroke-width", 2)
+      .attr("stroke-opacity", 0.6)
+      .attr("class", "theme-interactive-border")
       .style("cursor", "pointer")
-      .style("pointer-events", "all") // Enable pointer events only for this element
-      .on("mouseenter", (event) => {
-        // Enhanced hover effects
-        d3.select(event.currentTarget)
+      .style("pointer-events", "all")
+      .on("mouseenter", function(event) {
+        d3.select(this)
           .transition()
-          .duration(200)
-          .attr("stroke-width", (userHasJoined ? 3 : 2) + 1)
-          .attr("stroke-opacity", isDiscoverable ? 0.8 : 1);
-        
+          .duration(150)
+          .attr("stroke-opacity", 1)
+          .attr("stroke-width", 3);
         onThemeHover?.(event, d, true);
       })
-      .on("mouseleave", (event) => {
-        d3.select(event.currentTarget)
+      .on("mouseleave", function(event) {
+        d3.select(this)
           .transition()
-          .duration(200)
-          .attr("stroke-width", userHasJoined ? 3 : 2)
-          .attr("stroke-opacity", isDiscoverable ? 0.5 : (userHasJoined ? 0.9 : 0.6));
-        
+          .duration(150)
+          .attr("stroke-opacity", 0.6)
+          .attr("stroke-width", 2);
         onThemeHover?.(event, d, false);
       })
       .on("click", (event) => {
@@ -488,20 +414,14 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         onThemeClick?.(event, d);
       });
 
-    // Add a subtle fill for user themes that doesn't block visibility
-    if (isUserTheme && !isDiscoverable) {
-      themeGroup
-        .insert("circle", ".theme-main-border")
-        .attr("r", radius)
-        .attr("fill", `rgba(${themeColorRgb.r}, ${themeColorRgb.g}, ${themeColorRgb.b}, 0.02)`) // Very subtle fill
-        .attr("stroke", "none")
-        .attr("class", "theme-user-fill")
-        .attr("pointer-events", "none");
-    }
-
-    // Progress indicator for theme lifecycle
-    if (progress > 0.1) {
-      const progressRadius = radius - 15;
+    // Simplified progress indicator (only if significant progress)
+    const now = Date.now();
+    const expires = new Date(d.expires_at).getTime();
+    const created = new Date(d.created_at).getTime();
+    const progress = Math.max(0, Math.min(1, 1 - ((expires - now) / (expires - created))));
+    
+    if (progress > 0.2) {
+      const progressRadius = radius - 10;
       const circumference = 2 * Math.PI * progressRadius;
       const strokeDasharray = `${circumference * (1 - progress)} ${circumference}`;
 
@@ -510,234 +430,118 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         .attr("r", progressRadius)
         .attr("fill", "none")
         .attr("stroke", themeColor)
-        .attr("stroke-width", 3)
-        .attr("stroke-opacity", 0.4)
+        .attr("stroke-width", 2)
+        .attr("stroke-opacity", 0.5)
         .attr("stroke-dasharray", strokeDasharray)
         .attr("stroke-linecap", "round")
         .attr("transform", "rotate(-90)")
-        .attr("class", "theme-progress-ring")
+        .attr("class", "theme-progress")
         .attr("pointer-events", "none");
     }
 
-    // Enhanced label positioning and styling
-    const labelY = -radius - 30;
+    // Consolidated label group
+    const labelY = -radius - 25;
+    const labelGroup = themeGroup
+      .append("g")
+      .attr("class", "theme-labels")
+      .attr("pointer-events", "none");
 
-    // Theme category icon (more varied icons based on theme type)
-    const themeIcons = ["🚀", "💡", "🎨", "🔬", "🌟", "⚡", "🎯", "🔥", "💎", "🌈"];
+    // Single icon (simplified selection)
+    const themeIcons = ["🚀", "💡", "🎨", "🔬", "🌟", "⚡"];
     const iconIndex = Math.abs(d.theme_id?.charCodeAt?.(0) || 0) % themeIcons.length;
     
-    themeGroup
+    labelGroup
       .append("text")
       .attr("y", labelY)
       .attr("text-anchor", "middle")
       .attr("fill", themeColor)
-      .attr("font-size", "28px")
-      .attr("pointer-events", "none")
-      .attr("opacity", 0.9)
-      .attr("class", "theme-icon")
+      .attr("font-size", "24px")
+      .attr("opacity", isDiscoverable ? 0.6 : 0.9)
       .text(themeIcons[iconIndex]);
 
-    // Enhanced title with better typography (dimmed for discoverable themes)
-    themeGroup
+    // Consolidated title and stats in single text element
+    const statusText = isDiscoverable ? "🔍 Discover" : 
+                      userHasJoined ? "👤 Joined" : 
+                      participantCount > 0 ? `${participantCount} engaged` : "Available";
+
+    labelGroup
       .append("text")
-      .attr("y", labelY + 30)
+      .attr("y", labelY + 25)
       .attr("text-anchor", "middle")
       .attr("fill", "#fff")
-      .attr("font-size", "16px")
-      .attr("font-weight", "700")
-      .attr("font-family", "system-ui, -apple-system, sans-serif")
-      .attr("pointer-events", "none")
-      .attr("opacity", isDiscoverable ? 0.6 : 0.95)
-      .attr("class", "theme-title")
-      .text(truncateName(d.title, 20));
+      .attr("font-size", "14px")
+      .attr("font-weight", "600")
+      .attr("opacity", isDiscoverable ? 0.6 : 0.9)
+      .text(truncateName(d.title, 18));
 
-    // Enhanced participant count with activity indicator (dimmed for discoverable themes)
-    const activityLevel = participantCount > 10 ? "🔥" : participantCount > 5 ? "⚡" : participantCount > 0 ? "✨" : "💤";
-    
-    themeGroup
+    labelGroup
       .append("text")
-      .attr("y", labelY + 48)
+      .attr("y", labelY + 42)
       .attr("text-anchor", "middle")
       .attr("fill", themeColor)
-      .attr("font-size", "12px")
-      .attr("font-weight", "600")
-      .attr("pointer-events", "none")
-      .attr("opacity", isDiscoverable ? 0.5 : 0.8)
-      .attr("class", "theme-stats")
-      .text(`${activityLevel} ${participantCount} engaged`);
-
-    // Discovery indicator for discoverable themes
-    if (isDiscoverable) {
-      themeGroup
-        .append("text")
-        .attr("y", labelY + 65)
-        .attr("text-anchor", "middle")
-        .attr("fill", "#888")
-        .attr("font-size", "11px")
-        .attr("font-weight", "500")
-        .attr("pointer-events", "none")
-        .attr("opacity", 0.7)
-        .attr("class", "discovery-indicator")
-        .text("🔍 Discover");
-    }
-
-    // User participation indicator (only for joined themes)
-    if (userHasJoined && !isDiscoverable) {
-      themeGroup
-        .append("text")
-        .attr("y", labelY + 65)
-        .attr("text-anchor", "middle")
-        .attr("fill", "#ffd700")
-        .attr("font-size", "14px")
-        .attr("font-weight", "bold")
-        .attr("pointer-events", "none")
-        .attr("opacity", 0.9)
-        .attr("class", "user-participation")
-        .text("👤 You're in!");
-    }
+      .attr("font-size", "11px")
+      .attr("opacity", isDiscoverable ? 0.5 : 0.7)
+      .text(statusText);
   });
 
-  // Add CSS animations for enhanced effects
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes themePulse {
-      0%, 100% { 
-        stroke-opacity: 0.1; 
-        transform: scale(1); 
-      }
-      50% { 
-        stroke-opacity: 0.4; 
-        transform: scale(1.02); 
-      }
-    }
-    
-    @keyframes userPulse {
-      0%, 100% { 
-        stroke-opacity: 0.4; 
-        transform: scale(1); 
-      }
-      50% { 
-        stroke-opacity: 0.8; 
-        transform: scale(1.05); 
-      }
-    }
-    
-    .theme-container:hover .theme-influence-field {
-      filter: brightness(1.2);
-      transition: filter 0.3s ease;
-    }
-    
-    .theme-container:hover .theme-icon {
-      transform: scale(1.15);
-      transition: transform 0.2s ease;
-    }
-    
-    .synapse-node:hover .project-glow-bg {
-      filter: brightness(1.5);
-      transition: filter 0.2s ease;
-    }
-    
-    .synapse-node:hover .project-status-icon {
-      transform: scale(1.2);
-      transition: transform 0.2s ease;
-    }
-    
-    .synapse-node:hover .node-circle {
-      filter: brightness(1.2) drop-shadow(0 0 15px currentColor);
-      transition: filter 0.2s ease;
-    }
-  `;
-  document.head.appendChild(style);
-
-  return d3.select(themesGroup.node());
-}
-
-/**
- * Enhanced project circles with better visual design
- * Project circles contain users who are part of those projects
- */
-export function drawProjectCircles(container, projectNodes) {
-  const projectCircleRadius = 40; // Slightly larger for better visibility
-
-  const circles = container
-    .insert("g", ":first-child") // Insert at beginning for background positioning
-    .attr("class", "project-circles")
-    .style("pointer-events", "none") // Don't block clicks on nodes
-    .selectAll("g")
-    .data(projectNodes.filter(n => n.type === 'project'))
-    .enter()
-    .append("g")
-    .attr("class", "project-circle-group");
-
-  // Add multiple visual layers for each project circle
-  circles.each(function(d) {
-    const group = d3.select(this);
-    const projectColor = d.theme_id ? getThemeColor(d.theme_id) : "#ff6b6b";
-    const projectColorRgb = hexToRgb(projectColor);
-
-    // Outer glow ring (more subtle)
-    group
-      .append("circle")
-      .attr("class", "project-circle-glow")
-      .attr("fill", "none")
-      .attr("stroke", projectColor)
-      .attr("stroke-width", 4) // Thinner
-      .attr("stroke-opacity", 0.05) // Much more subtle
-      .attr("r", projectCircleRadius + 12)
-      .attr("filter", "url(#glow)");
-
-    // Main circle with gradient fill (more subtle)
-    group
-      .append("circle")
-      .attr("class", "project-circle-main")
-      .attr("fill", `rgba(${projectColorRgb.r}, ${projectColorRgb.g}, ${projectColorRgb.b}, 0.03)`) // Much more subtle
-      .attr("stroke", projectColor)
-      .attr("stroke-width", 1) // Thinner
-      .attr("stroke-dasharray", "6,3")
-      .attr("stroke-opacity", 0.2) // More subtle
-      .attr("r", projectCircleRadius);
-
-    // Inner activity indicator (more subtle)
-    if (d.team_size > 2) {
-      group
-        .append("circle")
-        .attr("class", "project-activity-ring")
-        .attr("fill", "none")
-        .attr("stroke", projectColor)
-        .attr("stroke-width", 1)
-        .attr("stroke-opacity", 0.15) // More subtle
-        .attr("r", projectCircleRadius - 8)
-        .style("animation", "projectActivity 4s ease-in-out infinite");
-    }
-  });
-
-  function update() {
-    circles
-      .attr("transform", d => `translate(${d.x}, ${d.y})`);
-  }
-
-  // Initial update to set positions
-  update();
-
-  // Add project activity animation
-  const existingStyle = document.querySelector('#project-animations');
-  if (!existingStyle) {
+  // Simplified CSS animations (fewer, more efficient)
+  if (!document.querySelector('#theme-animations')) {
     const style = document.createElement('style');
-    style.id = 'project-animations';
+    style.id = 'theme-animations';
     style.textContent = `
-      @keyframes projectActivity {
-        0%, 100% { 
-          stroke-opacity: 0.2; 
-          transform: scale(1); 
-        }
-        50% { 
-          stroke-opacity: 0.6; 
-          transform: scale(1.1); 
-        }
+      .theme-container:hover .theme-background {
+        filter: brightness(1.2);
+        transition: filter 0.2s ease;
+      }
+      
+      .theme-interactive-border {
+        transition: stroke-opacity 0.15s ease, stroke-width 0.15s ease;
       }
     `;
     document.head.appendChild(style);
   }
 
+  return d3.select(themesGroup.node());
+}
+
+/**
+ * Optimized project circles with minimal DOM elements
+ */
+export function drawProjectCircles(container, projectNodes) {
+  const projectCircleRadius = 40;
+
+  const circles = container
+    .insert("g", ":first-child")
+    .attr("class", "project-circles")
+    .style("pointer-events", "none")
+    .selectAll("g")
+    .data(projectNodes.filter(n => n.type === 'project'), d => d.id)
+    .enter()
+    .append("g")
+    .attr("class", "project-circle-group");
+
+  // Simplified single circle per project
+  circles.each(function(d) {
+    const group = d3.select(this);
+    const projectColor = d.theme_id ? getThemeColor(d.theme_id) : "#ff6b6b";
+    const projectColorRgb = hexToRgb(projectColor);
+
+    // Single circle combining all visual elements
+    group
+      .append("circle")
+      .attr("class", "project-circle")
+      .attr("fill", `rgba(${projectColorRgb.r}, ${projectColorRgb.g}, ${projectColorRgb.b}, 0.02)`)
+      .attr("stroke", projectColor)
+      .attr("stroke-width", d.team_size > 2 ? 2 : 1)
+      .attr("stroke-dasharray", "4,2")
+      .attr("stroke-opacity", 0.3)
+      .attr("r", projectCircleRadius);
+  });
+
+  function update() {
+    circles.attr("transform", d => `translate(${d.x}, ${d.y})`);
+  }
+
+  update();
   return { update };
 }
