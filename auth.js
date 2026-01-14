@@ -479,3 +479,18 @@
 
   log("✅ auth.js loaded (v4) — awaiting main.js to boot");
 })();
+
+// ================================================================
+// GLOBAL ERROR HANDLERS
+// ================================================================
+window.addEventListener('error', (event) => {
+  console.error('❌ Uncaught error:', event.error);
+  // Optional: Send to error tracking service
+  // trackError(event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('❌ Unhandled promise rejection:', event.reason);
+  // Optional: Send to error tracking service
+  // trackError(event.reason);
+});

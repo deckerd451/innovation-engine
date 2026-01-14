@@ -37,9 +37,9 @@ export async function initThemeAdmin() {
 // ============================================================================
 
 function isAdmin() {
-  // Debug override for testing
-  if (window.isAdminOverride) {
-    console.log('🔓 Admin access granted via override');
+  // Debug override for testing (ONLY in development)
+  if (window.isAdminOverride && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    console.log('🔓 Admin access granted via override (dev only)');
     return true;
   }
 

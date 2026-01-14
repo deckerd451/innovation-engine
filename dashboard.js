@@ -88,21 +88,31 @@ async function loadCommunityStats() {
     console.log('✅ Profile found, loading stats for:', currentUserProfile.name);
     
     // 1. Unread Messages Count
-    const { data: userConversations } = await window.supabase
+    const { data: userConversations, error: convError } = await window.supabase
       .from('conversations')
       .select('id')
       .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`);
+    
+    if (convError) {
+      console.error('❌ Error loading conversations:', convError);
+      throw convError;
+    }
     
     const convIds = (userConversations || []).map(c => c.id);
     
     let unreadCount = 0;
     if (convIds.length > 0) {
-      const { count } = await window.supabase
+      const { count, error: msgError } = await window.supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .in('conversation_id', convIds)
         .neq('sender_id', currentUser.id)
         .eq('read', false);
+      
+      if (msgError) {
+        console.error('❌ Error loading unread messages:', msgError);
+        throw msgError;
+      }
       
       unreadCount = count || 0;
     }
@@ -124,11 +134,16 @@ async function loadCommunityStats() {
     }
     
     // 2. Active Projects Count
-    const { count: activeProjects } = await window.supabase
+    const { count: activeProjects, error: projError } = await window.supabase
       .from('projects')
       .select('*', { count: 'exact', head: true })
       .eq('creator_id', currentUserProfile.id)
       .eq('status', 'in-progress');
+    
+    if (projError) {
+      console.error('❌ Error loading projects:', projError);
+      throw projError;
+    }
     
     const projectsEl = document.getElementById('active-projects');
     if (projectsEl) projectsEl.textContent = activeProjects || 0;
@@ -141,10 +156,15 @@ async function loadCommunityStats() {
     }
     
     // 3. Total Endorsements Received
-    const { count: endorsementsCount } = await window.supabase
+    const { count: endorsementsCount, error: endorseError } = await window.supabase
       .from('endorsements')
       .select('*', { count: 'exact', head: true })
       .eq('endorsed_community_id', currentUserProfile.id);
+    
+    if (endorseError) {
+      console.error('❌ Error loading endorsements:', endorseError);
+      throw endorseError;
+    }
     
     const endorsementsEl = document.getElementById('total-endorsements');
     if (endorsementsEl) endorsementsEl.textContent = endorsementsCount || 0;
@@ -153,11 +173,16 @@ async function loadCommunityStats() {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     
-    const { count: weeklyEndorsements } = await window.supabase
+    const { count: weeklyEndorsements, error: weeklyError } = await window.supabase
       .from('endorsements')
       .select('*', { count: 'exact', head: true })
       .eq('endorsed_community_id', currentUserProfile.id)
       .gte('created_at', weekAgo.toISOString());
+    
+    if (weeklyError) {
+      console.error('❌ Error loading weekly endorsements:', weeklyError);
+      throw weeklyError;
+    }
     
     const endorsementsTrendEl = document.getElementById('endorsements-trend');
     if (endorsementsTrendEl && weeklyEndorsements > 0) {
@@ -167,11 +192,16 @@ async function loadCommunityStats() {
     }
     
     // 4. Network Size (Total Connections)
-    const { count: networkSize } = await window.supabase
+    const { count: networkSize, error: networkError } = await window.supabase
       .from('connections')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'accepted')
       .or(`from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${currentUserProfile.id}`);
+    
+    if (networkError) {
+      console.error('❌ Error loading network size:', networkError);
+      throw networkError;
+    }
     
     const networkEl = document.getElementById('network-size');
     if (networkEl) networkEl.textContent = networkSize || 0;
@@ -180,12 +210,17 @@ async function loadCommunityStats() {
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
     
-    const { count: monthlyConnections } = await window.supabase
+    const { count: monthlyConnections, error: monthlyError } = await window.supabase
       .from('connections')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'accepted')
       .or(`from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${currentUserProfile.id}`)
       .gte('created_at', monthAgo.toISOString());
+    
+    if (monthlyError) {
+      console.error('❌ Error loading monthly connections:', monthlyError);
+      throw monthlyError;
+    }
     
     const networkTrendEl = document.getElementById('network-trend');
     if (networkTrendEl && monthlyConnections > 0) {
@@ -716,7 +751,7 @@ function parseSkills(skills) {
 }
 
 function getInitials(name) {
-  if (!name) return '?';
+  if (!name || typeof name !== 'string') return '?';
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
