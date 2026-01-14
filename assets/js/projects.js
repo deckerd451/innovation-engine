@@ -324,13 +324,19 @@ export async function getAllProjectMembers() {
       `);
 
     if (error) {
-      console.log('Project members table not available yet');
+      console.warn('⚠️ Project members table error:', error);
+      console.warn('⚠️ This means project memberships won\'t appear in synapse view');
       return [];
+    }
+
+    console.log('✅ Loaded project members:', data?.length || 0);
+    if (data && data.length > 0) {
+      console.log('📋 Sample project member:', data[0]);
     }
 
     return data || [];
   } catch (error) {
-    console.log('Project members feature not configured yet');
+    console.error('❌ Project members feature error:', error);
     return [];
   }
 }

@@ -65,6 +65,32 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     projectMembers: projectMembersData?.length || 0
   });
 
+  // Debug: Log projects and their theme associations
+  if (projects && projects.length > 0) {
+    console.log("🔍 Projects with themes:");
+    const projectsWithThemes = projects.filter(p => p.theme_id);
+    const projectsWithoutThemes = projects.filter(p => !p.theme_id);
+    console.log(`  ✅ ${projectsWithThemes.length} projects WITH theme_id`);
+    console.log(`  ⚠️  ${projectsWithoutThemes.length} projects WITHOUT theme_id (won't appear in synapse)`);
+    if (projectsWithThemes.length > 0) {
+      console.log("  Sample project with theme:", projectsWithThemes[0]);
+    }
+    if (projectsWithoutThemes.length > 0) {
+      console.log("  Sample project without theme:", projectsWithoutThemes[0]);
+    }
+  }
+
+  // Debug: Log current user's project memberships
+  if (currentUserCommunityId && projectMembersData && projectMembersData.length > 0) {
+    const userProjectMemberships = projectMembersData.filter(pm => pm.user_id === currentUserCommunityId);
+    console.log(`🔍 Current user (${currentUserCommunityId}) has ${userProjectMemberships.length} project memberships:`);
+    userProjectMemberships.forEach(pm => {
+      console.log(`  - Project: ${pm.project?.title || pm.project_id}, Role: ${pm.role}`);
+    });
+  } else if (currentUserCommunityId) {
+    console.warn(`⚠️ Current user (${currentUserCommunityId}) has NO project memberships in database`);
+  }
+
   // NEW MODEL: Reorganize data around themes as primary containers
   
   // 1. Create theme nodes first (themes are the primary organizing structure)
@@ -114,6 +140,13 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
 
     nodes = [...nodes, ...themeNodes];
     console.log("🎯 Created theme nodes:", themeNodes.length);
+
+    // Debug: Log themes with projects
+    const themesWithProjects = themeNodes.filter(t => t.projects && t.projects.length > 0);
+    console.log(`  📦 ${themesWithProjects.length} themes have projects:`);
+    themesWithProjects.forEach(t => {
+      console.log(`    - ${t.title}: ${t.projects.length} projects`, t.projects.map(p => p.title));
+    });
   }
 
   // 2. Create people nodes (people connect to themes, not directly to projects)
@@ -132,25 +165,29 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       filteredMembers = members.filter(member => {
         if (member.id === currentUserCommunityId) return true;
 
-        // Check if there's a direct connection (accepted or pending)
-        const hasConnection = (connectionsData || []).some(conn => {
+        // Check if there's an ACCEPTED direct connection
+        const hasAcceptedConnection = (connectionsData || []).some(conn => {
           const match = (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
                         (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id);
 
-          if (match) {
-            console.log("🎯 Found matching connection!", {
+          // Only count accepted connections
+          const isAccepted = String(conn.status || "").toLowerCase() === "accepted";
+
+          if (match && isAccepted) {
+            console.log("🎯 Found accepted connection!", {
               conn,
               currentUser: currentUserCommunityId,
               member: member.id,
-              memberName: member.name
+              memberName: member.name,
+              status: conn.status
             });
           }
 
-          return match;
+          return match && isAccepted;
         });
 
-        if (hasConnection) {
-          console.log("✅ Including user due to connection:", member.name, member.id);
+        if (hasAcceptedConnection) {
+          console.log("✅ Including user due to accepted connection:", member.name, member.id);
           return true;
         }
 
@@ -205,6 +242,16 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
 
     nodes = [...nodes, ...peopleNodes];
     console.log("👥 Created people nodes:", peopleNodes.length);
+
+    // Debug: Log current user's node data
+    const currentUserNode = peopleNodes.find(p => p.id === currentUserCommunityId);
+    if (currentUserNode) {
+      console.log("🔍 Current user node data:");
+      console.log(`  - Name: ${currentUserNode.name}`);
+      console.log(`  - Themes: ${currentUserNode.themes.length}`, currentUserNode.themes);
+      console.log(`  - Projects: ${currentUserNode.projects.length}`, currentUserNode.projects);
+      console.log(`  - Project details:`, currentUserNode.projectDetails);
+    }
   }
 
   // 3. Create links: People → Themes (primary connection model)
