@@ -1120,6 +1120,26 @@ window.deleteProject = async function(projectId) {
 
 console.log("✅ Dashboard Actions ready");
 
+// Simple notification helper if not already defined
+if (typeof window.showNotification !== 'function') {
+  window.showNotification = function(message, type = 'info') {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    // Use toast notification if available
+    if (typeof window.showToastNotification === 'function') {
+      window.showToastNotification(message, type);
+    } else {
+      // Fallback to alert for important messages
+      if (type === 'error') {
+        alert(message);
+      }
+    }
+  };
+}
+
+// Make theme assignment functions globally available
+window.assignProjectToTheme = assignProjectToTheme;
+window.removeProjectFromTheme = removeProjectFromTheme;
+
 // Theme assignment functions
 async function assignProjectToTheme(projectId) {
   try {
