@@ -11,17 +11,14 @@ export function parseSkills(skills) {
 }
 
 export async function loadSynapseData({ supabase, currentUserCommunityId, showFullCommunity = false }) {
-  // Community members
-  // If showFullCommunity is false (default), we filter to only show connected people
+  console.log("🔄 Loading synapse data with new theme-centric model...");
+
+  // Load all data first
   const { data: members, error } = await supabase
     .from("community")
     .select("id, name, email, image_url, skills, interests, bio, availability, x, y, connection_count")
     .order("created_at", { ascending: false });
   if (error) throw error;
-
-  // Connections & projects
-  const connectionsData = await getAllConnectionsForSynapse();
-  const projectMembersData = await getAllProjectMembers();
 
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
@@ -30,262 +27,353 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     .order("created_at", { ascending: false });
 
   if (projectsError) {
-    // non-fatal
     console.warn("⚠️ Error loading projects:", projectsError);
   }
 
   // Load theme circles (active only, not expired)
-  // Add error handling to prevent synapse initialization failure
-  let themes = [];
-  try {
-    const { data: themeData, error: themesError } = await supabase
-      .from('theme_circles')
-      .select('*')
-      .eq('status', 'active')
-      .gt('expires_at', new Date().toISOString());
+  const { data: themes, error: themesError } = await supabase
+    .from('theme_circles')
+    .select('*')
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString());
 
-    if (themesError) {
-      console.warn('⚠️ Error loading themes:', themesError);
-      // Continue without themes rather than failing
-      themes = [];
-    } else {
-      themes = themeData || [];
-    }
-  } catch (error) {
-    console.warn('⚠️ Theme table may not exist yet:', error);
-    themes = [];
+  if (themesError) {
+    console.warn('⚠️ Error loading themes:', themesError);
   }
 
-  // Load theme participants
-  let themeParticipants = [];
-  try {
-    const { data: participantData, error: themeParticipantsError } = await supabase
-      .from('theme_participants')
-      .select('theme_id, community_id, signals, engagement_level');
+  // Load theme participants (people connected to themes)
+  const { data: themeParticipants, error: themeParticipantsError } = await supabase
+    .from('theme_participants')
+    .select('theme_id, community_id, signals, engagement_level');
 
-    if (themeParticipantsError) {
-      console.warn('⚠️ Error loading theme participants:', themeParticipantsError);
-      themeParticipants = [];
-    } else {
-      themeParticipants = participantData || [];
-    }
-  } catch (error) {
-    console.warn('⚠️ Theme participants table may not exist yet:', error);
-    themeParticipants = [];
+  if (themeParticipantsError) {
+    console.warn('⚠️ Error loading theme participants:', themeParticipantsError);
   }
 
-  // Filter members if not showing full community
-  let filteredMembers = members || [];
-  if (!showFullCommunity && currentUserCommunityId) {
-    // Only show: current user + people with connections
-    filteredMembers = (members || []).filter(member => {
-      if (member.id === currentUserCommunityId) return true;
+  // Load project members (for seeding themes with projects)
+  const projectMembersData = await getAllProjectMembers();
 
-      const hasConnection = connectionsData.some(conn =>
-        ((conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
-        (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id)) &&
-        (conn.status === 'accepted' || conn.status === 'active' || conn.status === 'connected')
+  // Load person-to-person connections
+  const connectionsData = await getAllConnectionsForSynapse();
+
+  console.log("📊 Raw data loaded:", {
+    members: members?.length || 0,
+    projects: projects?.length || 0,
+    themes: themes?.length || 0,
+    themeParticipants: themeParticipants?.length || 0,
+    connections: connectionsData?.length || 0,
+    projectMembers: projectMembersData?.length || 0
+  });
+
+  // Debug: Log projects and their theme associations
+  if (projects && projects.length > 0) {
+    console.log("🔍 Projects with themes:");
+    const projectsWithThemes = projects.filter(p => p.theme_id);
+    const projectsWithoutThemes = projects.filter(p => !p.theme_id);
+    console.log(`  ✅ ${projectsWithThemes.length} projects WITH theme_id`);
+    console.log(`  ⚠️  ${projectsWithoutThemes.length} projects WITHOUT theme_id (won't appear in synapse)`);
+    if (projectsWithThemes.length > 0) {
+      console.log("  Sample project with theme:", projectsWithThemes[0]);
+    }
+    if (projectsWithoutThemes.length > 0) {
+      console.log("  Sample project without theme:", projectsWithoutThemes[0]);
+    }
+  }
+
+  // Debug: Log current user's project memberships
+  if (currentUserCommunityId && projectMembersData && projectMembersData.length > 0) {
+    const userProjectMemberships = projectMembersData.filter(pm => pm.user_id === currentUserCommunityId);
+    console.log(`🔍 Current user (${currentUserCommunityId}) has ${userProjectMemberships.length} project memberships:`);
+    userProjectMemberships.forEach(pm => {
+      console.log(`  - Project: ${pm.project?.title || pm.project_id}, Role: ${pm.role}`);
+    });
+  } else if (currentUserCommunityId) {
+    console.warn(`⚠️ Current user (${currentUserCommunityId}) has NO project memberships in database`);
+  }
+
+  // NEW MODEL: Reorganize data around themes as primary containers
+  
+  // 1. Create theme nodes first (themes are the primary organizing structure)
+  let nodes = [];
+  let links = [];
+
+  if (themes?.length) {
+    // Seed themes with their projects
+    const themeNodes = themes.map(theme => {
+      // Find projects that belong to this theme
+      const themeProjects = (projects || []).filter(p => p.theme_id === theme.id);
+      
+      // Count people participating in this theme
+      const participantCount = (themeParticipants || []).filter(
+        tp => tp.theme_id === theme.id
+      ).length;
+
+      // Check if current user participates in this theme
+      const userParticipation = (themeParticipants || []).find(
+        tp => tp.theme_id === theme.id && tp.community_id === currentUserCommunityId
       );
 
-      return hasConnection;
-    });
-  }
-
-  let nodes = filteredMembers.map((member) => {
-    const isCurrentUser = member.id === currentUserCommunityId;
-
-    const hasConnection = connectionsData.some(conn =>
-      (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
-      (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id)
-    );
-
-    const userProjects = projectMembersData.filter(pm => pm.user_id === member.id);
-    const projectIds = userProjects.map(pm => pm.project_id);
-
-    // Get themes this person participates in
-    const userThemes = (themeParticipants || [])
-      .filter(tp => tp.community_id === member.id)
-      .map(tp => tp.theme_id);
-
-    return {
-      id: member.id,
-      type: "person",
-      name: member.name || "Anonymous",
-      email: member.email,
-      image_url: member.image_url,
-      skills: parseSkills(member.skills),
-      interests: member.interests || [],
-      bio: member.bio,
-      availability: member.availability || "Available",
-      connection_count: member.connection_count || 0,
-      x: member.x || Math.random() * window.innerWidth,
-      y: member.y || Math.random() * window.innerHeight,
-      isCurrentUser,
-      shouldShowImage: isCurrentUser || hasConnection,
-      projects: projectIds,
-      projectDetails: userProjects,
-      themes: userThemes // Track theme participation
-    };
-  });
-
-  if (projects?.length) {
-    let filteredProjects = projects;
-
-    // Filter projects if not showing full community
-    if (!showFullCommunity && currentUserCommunityId) {
-      // Only show projects the user is a member of
-      const userProjectIds = projectMembersData
-        .filter(pm => pm.user_id === currentUserCommunityId)
-        .map(pm => pm.project_id);
-
-      filteredProjects = projects.filter(project => userProjectIds.includes(project.id));
-    }
-
-    const projectNodes = filteredProjects.map(project => {
-      const teamMembers = projectMembersData.filter(pm => pm.project_id === project.id);
-
-      // Per yellow instructions: Position projects near their theme circle
-      let initialX = Math.random() * window.innerWidth;
-      let initialY = Math.random() * window.innerHeight;
-
-      if (project.theme_id) {
-        // Find the theme node to position project near it
-        const themeNodeId = `theme:${project.theme_id}`;
-        const existingThemeNode = nodes.find(n => n.id === themeNodeId);
-
-        if (existingThemeNode && existingThemeNode.x && existingThemeNode.y) {
-          // Position project in UPPER HALF of the theme well
-          // Theme radius is 70-90px, position projects in upper portion
-          // Angle range: -120° to -60° (upper arc)
-          const angle = (-120 + Math.random() * 60) * (Math.PI / 180);
-          const distance = 20 + Math.random() * 35; // 20-55px from center
-          initialX = existingThemeNode.x + Math.cos(angle) * distance;
-          initialY = existingThemeNode.y + Math.sin(angle) * distance;
-        }
-      }
-
       return {
-        id: project.id,
-        type: "project",
-        name: project.title,
-        title: project.title,
-        description: project.description,
-        status: project.status,
-        creator_id: project.creator_id,
-        required_skills: project.required_skills || [],
-        tags: project.tags || [],
-        upvote_count: project.upvote_count || 0,
-        theme_id: project.theme_id || null,  // Include theme assignment
-        team_size: teamMembers.length,
-        team_members: teamMembers,
-        x: initialX,
-        y: initialY
+        id: `theme:${theme.id}`,
+        theme_id: theme.id,
+        type: 'theme',
+        name: theme.title,
+        title: theme.title,
+        description: theme.description,
+        tags: theme.tags || [],
+        created_at: theme.created_at,
+        expires_at: theme.expires_at,
+        activity_score: theme.activity_score || 0,
+        participant_count: participantCount,
+        project_count: themeProjects.length,
+        projects: themeProjects, // Embed projects within themes
+        origin_type: theme.origin_type,
+        last_activity_at: theme.last_activity_at,
+        cta_text: theme.cta_text,
+        cta_link: theme.cta_link,
+        user_engagement_level: userParticipation?.engagement_level || null,
+        user_is_participant: !!userParticipation,
+        x: theme.x || (window.innerWidth * 0.5 + (Math.random() * 120 - 60)),
+        y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
       };
     });
-    nodes = [...nodes, ...projectNodes];
-  }
 
-  // Create theme nodes
-  if (themes?.length) {
-    // NOTE: Always show all active themes, regardless of showFullCommunity setting
-    // Themes are organizational structures that need to be visible for discovery
-    // and navigation. We just highlight user participation differently.
-    const filteredThemes = themes;
-
-    const themeNodes = filteredThemes
-      .map(theme => {
-        // Check if user is participating and get their engagement level
-        const userParticipation = (themeParticipants || []).find(
-          tp => tp.theme_id === theme.id && tp.community_id === currentUserCommunityId
-        );
-
-        // Count total participants for this theme
-        const participantCount = (themeParticipants || []).filter(
-          tp => tp.theme_id === theme.id
-        ).length;
-
-        return {
-          id: `theme:${theme.id}`,
-          theme_id: theme.id,
-          type: 'theme',
-          name: theme.title,
-          title: theme.title,
-          description: theme.description,
-          tags: theme.tags || [],
-          created_at: theme.created_at,
-          expires_at: theme.expires_at,
-          activity_score: theme.activity_score || 0,
-          participant_count: participantCount,
-          origin_type: theme.origin_type,
-          last_activity_at: theme.last_activity_at,
-          cta_text: theme.cta_text,
-          cta_link: theme.cta_link,
-          user_engagement_level: userParticipation?.engagement_level || null,
-          user_is_participant: !!userParticipation,
-          x: theme.x || (window.innerWidth * 0.5 + (Math.random() * 120 - 60)),
-          y: theme.y || (window.innerHeight * 0.5 + (Math.random() * 120 - 60))
-        };
-      })
-      // Filter themes based on admin status and participation
-      .filter(theme => {
-        // Always show if user is participating
-        if (theme.user_is_participant) return true;
-
-        // Check if user is admin (admins can see all themes)
-        const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
-        if (isAdmin) return true;
-
-        // Non-admin users only see themes with at least 1 participant
-        return theme.participant_count > 0;
-      });
     nodes = [...nodes, ...themeNodes];
+    console.log("🎯 Created theme nodes:", themeNodes.length);
+
+    // Debug: Log themes with projects
+    const themesWithProjects = themeNodes.filter(t => t.projects && t.projects.length > 0);
+    console.log(`  📦 ${themesWithProjects.length} themes have projects:`);
+    themesWithProjects.forEach(t => {
+      console.log(`    - ${t.title}: ${t.projects.length} projects`, t.projects.map(p => p.title));
+    });
   }
 
-  // Links
-  let links = connectionsData.map(conn => ({
-    id: conn.id,
-    source: conn.from_user_id,
-    target: conn.to_user_id,
-    status: conn.status,
-    type: conn.type || "manual"
-  })).filter(l => nodes.some(n => n.id === l.source) && nodes.some(n => n.id === l.target));
+  // 2. Create people nodes (people connect to themes, not directly to projects)
+  if (members?.length) {
+    let filteredMembers = members;
+    
+    // Filter members based on theme participation AND direct connections
+    if (!showFullCommunity && currentUserCommunityId) {
+      console.log("🔍 Filtering members. Current user ID:", currentUserCommunityId);
+      console.log("🔍 Connections available:", connectionsData?.length || 0);
+      if (connectionsData && connectionsData.length > 0) {
+        console.log("🔍 Sample connection:", connectionsData[0]);
+        console.log("🔍 Connection field names:", Object.keys(connectionsData[0]));
+      }
 
-  // Project-member links
-  projectMembersData.forEach(pm => {
-    if (nodes.some(n => n.id === pm.project_id) && nodes.some(n => n.id === pm.user_id)) {
-      links.push({
-        id: `project-member-${pm.project_id}-${pm.user_id}`,
-        source: pm.project_id,
-        target: pm.user_id,
-        status: "project-member",
-        type: "project"
+      filteredMembers = members.filter(member => {
+        if (member.id === currentUserCommunityId) return true;
+
+        // Check if there's an ACCEPTED direct connection
+        const hasAcceptedConnection = (connectionsData || []).some(conn => {
+          const match = (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
+                        (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id);
+
+          // Only count accepted connections
+          const isAccepted = String(conn.status || "").toLowerCase() === "accepted";
+
+          if (match && isAccepted) {
+            console.log("🎯 Found accepted connection!", {
+              conn,
+              currentUser: currentUserCommunityId,
+              member: member.id,
+              memberName: member.name,
+              status: conn.status
+            });
+          }
+
+          return match && isAccepted;
+        });
+
+        if (hasAcceptedConnection) {
+          console.log("✅ Including user due to accepted connection:", member.name, member.id);
+          return true;
+        }
+
+        // Show people who participate in the same themes as the current user
+        const userThemes = (themeParticipants || [])
+          .filter(tp => tp.community_id === currentUserCommunityId)
+          .map(tp => tp.theme_id);
+
+        const memberThemes = (themeParticipants || [])
+          .filter(tp => tp.community_id === member.id)
+          .map(tp => tp.theme_id);
+
+        // Show if they share at least one theme
+        return userThemes.some(themeId => memberThemes.includes(themeId));
       });
     }
-  });
 
-  // Theme-participant links
-  (themeParticipants || []).forEach(tp => {
-    const themeNodeId = `theme:${tp.theme_id}`;
-    const userNodeExists = nodes.some(n => n.id === tp.community_id);
-    const themeNodeExists = nodes.some(n => n.id === themeNodeId);
+    const peopleNodes = filteredMembers.map((member) => {
+      const isCurrentUser = member.id === currentUserCommunityId;
 
-    if (userNodeExists && themeNodeExists) {
-      links.push({
+      // Get themes this person participates in
+      const userThemeParticipations = (themeParticipants || [])
+        .filter(tp => tp.community_id === member.id);
+      
+      const userThemes = userThemeParticipations.map(tp => tp.theme_id);
+
+      // Get projects this person is involved in (through project membership)
+      const userProjects = projectMembersData.filter(pm => pm.user_id === member.id);
+      const projectIds = userProjects.map(pm => pm.project_id);
+
+      return {
+        id: member.id,
+        type: "person",
+        name: member.name || "Anonymous",
+        email: member.email,
+        image_url: member.image_url,
+        skills: parseSkills(member.skills),
+        interests: member.interests || [],
+        bio: member.bio,
+        availability: member.availability || "Available",
+        connection_count: member.connection_count || 0,
+        x: member.x || Math.random() * window.innerWidth,
+        y: member.y || Math.random() * window.innerHeight,
+        isCurrentUser,
+        shouldShowImage: isCurrentUser || userThemes.length > 0, // Show image if they participate in themes
+        themes: userThemes, // Themes they participate in
+        themeParticipations: userThemeParticipations, // Full participation data
+        projects: projectIds, // Projects they're involved in
+        projectDetails: userProjects
+      };
+    });
+
+    nodes = [...nodes, ...peopleNodes];
+    console.log("👥 Created people nodes:", peopleNodes.length);
+
+    // Debug: Log current user's node data
+    const currentUserNode = peopleNodes.find(p => p.id === currentUserCommunityId);
+    if (currentUserNode) {
+      console.log("🔍 Current user node data:");
+      console.log(`  - Name: ${currentUserNode.name}`);
+      console.log(`  - Themes: ${currentUserNode.themes.length}`, currentUserNode.themes);
+      console.log(`  - Projects: ${currentUserNode.projects.length}`, currentUserNode.projects);
+      console.log(`  - Project details:`, currentUserNode.projectDetails);
+    }
+  }
+
+  // 3. Create links: People → Themes (primary connection model)
+  if (themeParticipants?.length) {
+    const themeLinks = themeParticipants
+      .filter(tp => {
+        const themeNodeId = `theme:${tp.theme_id}`;
+        const userNodeExists = nodes.some(n => n.id === tp.community_id);
+        const themeNodeExists = nodes.some(n => n.id === themeNodeId);
+        return userNodeExists && themeNodeExists;
+      })
+      .map(tp => ({
         id: `theme-participant-${tp.theme_id}-${tp.community_id}`,
-        source: themeNodeId,
-        target: tp.community_id,
+        source: tp.community_id, // Person
+        target: `theme:${tp.theme_id}`, // Theme
         status: "theme-participant",
         type: "theme",
         signals: tp.signals || "interested",
         engagement_level: tp.engagement_level || "observer"
-      });
-    }
+      }));
+
+    links = [...links, ...themeLinks];
+    console.log("🔗 Created theme participation links:", themeLinks.length);
+  }
+
+  // 4. Add person-to-person connection links (for accepted and pending connections)
+  console.log("🔍 Debug connections:", {
+    connectionsCount: connectionsData?.length || 0,
+    connections: connectionsData,
+    nodeIds: nodes.filter(n => n.type === 'person').map(n => n.id)
   });
 
-  // Suggested links (current-user only)
-  ({ links, nodes } = addSuggestedLinks({ links, nodes, currentUserCommunityId }));
+  if (connectionsData?.length) {
+    const connectionLinks = connectionsData
+      .filter(conn => {
+        // Only show connections involving users in the graph
+        const user1Exists = nodes.some(n => n.id === conn.from_user_id);
+        const user2Exists = nodes.some(n => n.id === conn.to_user_id);
 
-  return { nodes, links, connectionsData, projectMembersData, projects: projects || [], themes: themes || [] };
+        if (!user1Exists || !user2Exists) {
+          console.log("⚠️ Filtering out connection:", {
+            from_user: conn.from_user_id,
+            from_user_exists: user1Exists,
+            to_user: conn.to_user_id,
+            to_user_exists: user2Exists,
+            status: conn.status
+          });
+        }
+
+        return user1Exists && user2Exists;
+      })
+      .map(conn => ({
+        id: `connection-${conn.from_user_id}-${conn.to_user_id}`,
+        source: conn.from_user_id,
+        target: conn.to_user_id,
+        status: conn.status, // 'accepted' or 'pending'
+        type: "connection",
+        created_at: conn.created_at
+      }));
+
+    links = [...links, ...connectionLinks];
+    console.log("🤝 Created connection links:", connectionLinks.length);
+  } else {
+    console.warn("⚠️ No connections data loaded from database");
+  }
+
+  // 5. NO direct project-member links (projects are embedded within themes)
+  // Projects are now visual sub-elements of themes, not separate connected nodes
+
+  // 6. Add suggested theme connections for discovery
+  if (currentUserCommunityId) {
+    const currentUser = nodes.find(n => n.id === currentUserCommunityId);
+    if (currentUser) {
+      const userSkills = currentUser.skills || [];
+      const userThemes = currentUser.themes || [];
+
+      // Suggest themes based on skills and interests
+      const suggestedThemes = nodes
+        .filter(n => n.type === 'theme' && !userThemes.includes(n.theme_id))
+        .filter(theme => {
+          // Suggest if theme has projects requiring user's skills
+          const themeProjects = theme.projects || [];
+          return themeProjects.some(project => {
+            const requiredSkills = project.required_skills || [];
+            return requiredSkills.some(skill => 
+              userSkills.some(userSkill => 
+                String(userSkill).toLowerCase().includes(String(skill).toLowerCase())
+              )
+            );
+          });
+        })
+        .slice(0, 3); // Limit suggestions
+
+      const suggestionLinks = suggestedThemes.map(theme => ({
+        id: `suggested-theme-${currentUserCommunityId}-${theme.theme_id}`,
+        source: currentUserCommunityId,
+        target: theme.id,
+        status: "suggested",
+        type: "theme-suggestion"
+      }));
+
+      links = [...links, ...suggestionLinks];
+      console.log("💡 Created theme suggestions:", suggestionLinks.length);
+    }
+  }
+
+  console.log("✅ New synapse model loaded:", {
+    totalNodes: nodes.length,
+    totalLinks: links.length,
+    themes: nodes.filter(n => n.type === 'theme').length,
+    people: nodes.filter(n => n.type === 'person').length,
+    themeConnections: links.filter(l => l.type === 'theme').length
+  });
+
+  return {
+    nodes,
+    links,
+    connectionsData: connectionsData || [], // Person-to-person connections
+    projectMembersData,
+    projects: projects || [],
+    themes: themes || []
+  };
 }
 
 function addSuggestedLinks({ links, nodes, currentUserCommunityId }) {

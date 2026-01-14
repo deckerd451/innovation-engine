@@ -124,6 +124,11 @@ export async function createProject(event) {
 
   hideCreateProjectForm();
   await loadProjects();
+
+  // Refresh the synapse view to show the new project
+  if (window.refreshSynapseProjectCircles) {
+    await window.refreshSynapseProjectCircles();
+  }
 }
 
 // ========================
@@ -225,18 +230,18 @@ async function loadProjects() {
         </div>
         <p style="color: #aaa; font-size: 0.85rem; margin-bottom: 0.5rem;">by ${project.creator?.name || 'Unknown'}</p>
         <p style="color: white; margin-bottom: 1rem;">${project.description}</p>
-        ${project.required_skills ? `
+        ${project.required_skills && project.required_skills.length > 0 ? `
           <div style="margin-bottom: 1rem;">
             <p style="color: #aaa; font-size: 0.85rem; margin-bottom: 0.5rem;">Required Skills:</p>
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-              ${project.required_skills.split(',').map(skill => `
-                <span style="background: rgba(0,224,255,0.2); color: #00e0ff; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem;">${skill.trim()}</span>
+              ${(Array.isArray(project.required_skills) ? project.required_skills : project.required_skills.split(',')).map(skill => `
+                <span style="background: rgba(0,224,255,0.2); color: #00e0ff; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem;">${typeof skill === 'string' ? skill.trim() : skill}</span>
               `).join('')}
             </div>
           </div>
         ` : ''}
         ${!isOwner ? `
-          <button onclick="joinProject(${project.id}, this)" class="btn btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+          <button onclick="joinProject('${project.id}', this)" class="btn btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
             <i class="fas fa-hand-paper"></i> Express Interest
           </button>
         ` : ''}
@@ -319,13 +324,19 @@ export async function getAllProjectMembers() {
       `);
 
     if (error) {
-      console.log('Project members table not available yet');
+      console.warn('⚠️ Project members table error:', error);
+      console.warn('⚠️ This means project memberships won\'t appear in synapse view');
       return [];
+    }
+
+    console.log('✅ Loaded project members:', data?.length || 0);
+    if (data && data.length > 0) {
+      console.log('📋 Sample project member:', data[0]);
     }
 
     return data || [];
   } catch (error) {
-    console.log('Project members feature not configured yet');
+    console.error('❌ Project members feature error:', error);
     return [];
   }
 }

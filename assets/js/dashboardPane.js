@@ -110,40 +110,56 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       wireMessagingUI();
     }
 
-    // Listen for other modules providing profile
+    // ========================================================================================
+    // UNIFIED AUTH FLOW - Let auth.js handle all authentication
+    // ========================================================================================
+    // Listen for profile-loaded event from auth.js (existing user with profile)
     window.addEventListener("profile-loaded", async (e) => {
-      if (e?.detail?.profile) state.communityProfile = e.detail.profile;
-      await onAppReady();
-    });
-
-    await hydrateAuthUser();
-    if (state.authUser) {
-      await ensureCommunityProfile();
-      dispatchProfileLoadedIfNeeded();
-      await onAppReady();
-    } else {
-      showLogin();
-    }
-
-    // Auth state changes (OAuth return, logout, etc.)
-    state.supabase.auth.onAuthStateChange(async (_event, session) => {
-      state.authUser = session?.user || null;
-      if (!state.authUser) {
-        state.communityProfile = null;
-        if (window.MessagingModule?.cleanup) window.MessagingModule.cleanup();
-        else cleanupMessageChannel();
-        showLogin();
-        return;
+      console.log("📋 Dashboard received profile-loaded event:", e.detail);
+      if (e?.detail?.profile) {
+        state.authUser = e.detail.user;
+        state.communityProfile = e.detail.profile;
+        await onAppReady();
       }
-      await ensureCommunityProfile();
-      dispatchProfileLoadedIfNeeded();
-      await onAppReady();
     });
 
+    // Listen for profile-new event from auth.js (new user without profile)
+    window.addEventListener("profile-new", async (e) => {
+      console.log("🆕 Dashboard received profile-new event:", e.detail);
+      if (e?.detail?.user) {
+        state.authUser = e.detail.user;
+        // Create community profile for new user
+        await ensureCommunityProfile();
+        // After profile is created, initialize dashboard
+        if (state.communityProfile?.id) {
+          await onAppReady();
+        } else {
+          console.error("❌ Failed to create community profile for new user");
+          showLogin();
+        }
+      }
+    });
+
+    // Listen for logout event
+    window.addEventListener("user-logged-out", () => {
+      console.log("👋 Dashboard received logout event");
+      state.authUser = null;
+      state.communityProfile = null;
+      state.synapseInitialized = false;
+      if (window.MessagingModule?.cleanup) window.MessagingModule.cleanup();
+      else cleanupMessageChannel();
+      showLogin();
+    });
+
+    // Cleanup on page unload
     window.addEventListener("beforeunload", () => {
       if (window.MessagingModule?.cleanup) window.MessagingModule.cleanup();
       else cleanupMessageChannel();
     });
+
+    // NOTE: We no longer call hydrateAuthUser() here - auth.js handles all authentication
+    // This prevents the race condition between auth.js and dashboardPane.js
+    console.log("✅ Dashboard initialized - waiting for auth.js to emit events");
   }
 
   // -----------------------------
@@ -421,18 +437,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     show($("main-content"));
   }
 
-  async function hydrateAuthUser() {
-    try {
-      const { data, error } = await state.supabase.auth.getUser();
-      if (error) throw error;
-      state.authUser = data?.user || null;
-      return state.authUser;
-    } catch (e) {
-      console.warn("auth.getUser failed:", e?.message || e);
-      state.authUser = null;
-      return null;
-    }
-  }
+  // NOTE: hydrateAuthUser removed - auth.js handles all authentication
+  // This prevents race conditions between auth.js and dashboardPane.js
 
   async function oauthLogin(provider) {
     try {
@@ -451,9 +457,21 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   }
 
   async function ensureCommunityProfile() {
-    if (!state.authUser) return null;
-    if (state.communityProfile?.id) return state.communityProfile;
+    console.log("🔧 ensureCommunityProfile called");
 
+    if (!state.authUser) {
+      console.error("❌ Cannot create profile: No auth user");
+      return null;
+    }
+
+    if (state.communityProfile?.id) {
+      console.log("✅ Community profile already exists:", state.communityProfile.id);
+      return state.communityProfile;
+    }
+
+    console.log("🔍 Checking for existing community profile...");
+
+    // Check if profile already exists (might have been created by another tab/session)
     const { data: existing, error: exErr } = await state.supabase
       .from("community")
       .select("*")
@@ -461,9 +479,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       .maybeSingle();
 
     if (!exErr && existing) {
+      console.log("📋 Found existing community profile:", existing.id);
       state.communityProfile = existing;
       return existing;
     }
+
+    console.log("🆕 Creating new community profile for user:", state.authUser.email);
 
     const displayName =
       state.authUser.user_metadata?.full_name ||
@@ -487,31 +508,51 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       .single();
 
     if (createErr) {
-      console.warn("Could not create community profile:", createErr.message);
+      console.error("❌ Failed to create community profile:", createErr);
       return null;
     }
 
+    console.log("✅ Community profile created:", created.id);
     state.communityProfile = created;
     return created;
   }
 
-  function dispatchProfileLoadedIfNeeded() {
-    if (!state.communityProfile?.id) return;
-    window.dispatchEvent(new CustomEvent("profile-loaded", { detail: { profile: state.communityProfile } }));
-  }
+  // NOTE: dispatchProfileLoadedIfNeeded removed - auth.js handles all profile event dispatching
 
   async function onAppReady() {
-    if (!state.authUser) return;
-    if (!state.communityProfile?.id) return;
+    console.log("🚀 Dashboard onAppReady called with:", {
+      hasAuthUser: !!state.authUser,
+      hasCommunityProfile: !!state.communityProfile,
+      communityId: state.communityProfile?.id,
+    });
+
+    // Critical checks - must have both auth user AND community profile with ID
+    if (!state.authUser) {
+      console.warn("⚠️ onAppReady: No auth user, aborting");
+      return;
+    }
+    if (!state.communityProfile?.id) {
+      console.warn("⚠️ onAppReady: No community profile ID, aborting");
+      return;
+    }
+
+    console.log("✅ All prerequisites met, initializing dashboard...");
 
     showApp();
     renderHeaderIdentity();
+
+    // Initialize synapse with proper user context
     await initSynapseOnce();
+
+    // Start loading dashboard counters
     await refreshCounters();
 
+    // Set up periodic refresh
     if (!state.refreshTimer) {
       state.refreshTimer = setInterval(refreshCounters, 30000);
     }
+
+    console.log("✅ Dashboard fully initialized");
   }
 
   function renderHeaderIdentity() {
@@ -532,18 +573,59 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // Synapse
   // -----------------------------
   async function initSynapseOnce() {
-    if (state.synapseInitialized) return;
-    state.synapseInitialized = true;
+    if (state.synapseInitialized) {
+      console.log("⚠️ Synapse already initialized, skipping");
+      return;
+    }
+
+    console.log("🧠 Initializing Synapse visualization...");
 
     try {
+      // Verify we have the required user context BEFORE initializing
+      if (!state.communityProfile?.id) {
+        throw new Error("Cannot initialize Synapse: Missing community profile ID");
+      }
+
+      // Import and initialize synapse module
       const mod = await import("./synapse.js");
       if (typeof mod.initSynapseView === "function") {
         await mod.initSynapseView();
+        // Only mark as initialized if it actually succeeded
+        state.synapseInitialized = true;
+        console.log("✅ Synapse initialized successfully");
       } else {
-        console.warn("synapse.js loaded but initSynapseView not found");
+        throw new Error("synapse.js loaded but initSynapseView not found");
       }
     } catch (e) {
-      console.warn("Synapse init skipped:", e?.message || e);
+      console.error("❌ Synapse initialization failed:", e);
+      if (e?.stack) console.error("Stack:", e.stack);
+
+      // Show user-facing error message
+      const synapseContainer = document.getElementById("synapse-svg");
+      if (synapseContainer) {
+        synapseContainer.innerHTML = `
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                      text-align: center; color: #f44336; max-width: 500px; padding: 2rem;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+            <h3 style="margin: 0 0 1rem 0; color: #fff;">Visualization Error</h3>
+            <p style="color: #aaa; margin: 0 0 1rem 0;">
+              The network visualization failed to load. This might be due to a connection issue or missing user data.
+            </p>
+            <button onclick="window.location.reload()"
+                    style="background: linear-gradient(135deg, #00e0ff, #0080ff);
+                           border: none; color: white; padding: 0.75rem 1.5rem;
+                           border-radius: 8px; cursor: pointer; font-weight: 600;">
+              <i class="fas fa-sync-alt"></i> Reload Page
+            </button>
+            <p style="color: #666; font-size: 0.85rem; margin-top: 1rem;">
+              Error: ${e.message || "Unknown error"}
+            </p>
+          </div>
+        `;
+      }
+
+      // Don't set synapseInitialized to true on failure - allow retries
+      state.synapseInitialized = false;
     }
   }
 
@@ -1008,7 +1090,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     </div>`;
 
     try {
-      await hydrateAuthUser();
+      // Check if user is authenticated (state.authUser set by auth.js events)
       if (!state.authUser || !state.communityProfile?.id) {
         listEl.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">Please log in.</div>`;
         return;
@@ -1421,10 +1503,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     if (!name || !description) return;
 
     try {
-      await hydrateAuthUser();
+      // Check if user is authenticated (state.authUser set by auth.js events)
       if (!state.authUser) throw new Error("Please log in.");
-
-      if (!state.communityProfile?.id) await ensureCommunityProfile();
       if (!state.communityProfile?.id) throw new Error("Profile not found.");
 
       const projectData = {

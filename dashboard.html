@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Cache refresh: 2026-01-13 SYNTAX FIX UPDATE -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CharlestonHacks Innovation Engine</title>
@@ -254,6 +258,26 @@
           <i class="fas fa-bell"></i>
           <span class="notification-badge hidden" id="notif-count">0</span>
         </div>
+
+        <button id="logout-btn"
+          style="background: rgba(255, 59, 48, 0.15);
+                 border: 1px solid rgba(255, 59, 48, 0.3);
+                 color: #ff3b30;
+                 padding: 0.5rem 1rem;
+                 border-radius: 8px;
+                 cursor: pointer;
+                 font-size: 0.9rem;
+                 font-weight: 600;
+                 transition: all 0.2s ease;
+                 display: flex;
+                 align-items: center;
+                 gap: 0.5rem;"
+          onmouseover="this.style.background='rgba(255, 59, 48, 0.25)'; this.style.borderColor='rgba(255, 59, 48, 0.5)';"
+          onmouseout="this.style.background='rgba(255, 59, 48, 0.15)'; this.style.borderColor='rgba(255, 59, 48, 0.3)';"
+          title="Logout">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </button>
 
         <div class="user-menu" id="user-menu" style="cursor:pointer;" title="View your profile">
           <div class="user-avatar" id="user-avatar-header">
@@ -737,19 +761,52 @@
   <script type="module" src="auth.js"></script>
   <script type="module" src="profile.js"></script>
 
+  <!-- Synapse initialization helper (ensures reliable loading) -->
+  <script src="assets/js/synapse-init-helper.js"></script>
+  
+  <!-- Connection status indicator -->
+  <script src="assets/js/connection-status.js"></script>
+
    <!-- Synapse boot -->
-  <script type="module" src="assets/js/synapse.js"></script>
+  <script type="module" src="assets/js/synapse.js?v=12"></script>
 
   <!-- Main app boot -->
   <script type="module" src="main.js"></script>
 
   <!-- Dashboard controller -->
   <script type="module" src="assets/js/dashboardPane.js?v=2"></script>
-  <script src="assets/js/dashboard-actions.js"></script>
-  <script src="assets/js/start-flow.js"></script>
+  <script src="assets/js/dashboard-actions.js?v=3"></script>
+  <script src="assets/js/start-flow.js?v=2"></script>
 
   <!-- Mentor Guide System -->
   <script src="assets/js/mentor-guide.js"></script>
+
+  <!-- Logout Button Handler -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          if (window.handleLogout) {
+            console.log('🚪 Logging out...');
+            await window.handleLogout();
+
+            // Clear any cached state for a fresh start
+            console.log('🧹 Clearing cached state...');
+            localStorage.removeItem('start_flow_state');
+            localStorage.removeItem('chs_splash_seen_v2');
+
+            // Redirect to index page for a completely fresh start
+            setTimeout(() => {
+              window.location.href = '/index.html';
+            }, 500);
+          } else {
+            console.error('❌ Logout function not available');
+          }
+        });
+      }
+    });
+  </script>
 
   <!-- Profile Editor Extension -->
   </body>

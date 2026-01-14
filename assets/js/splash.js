@@ -81,4 +81,11 @@
   }
 
   window.addEventListener('DOMContentLoaded', maybeShowSplash);
+
+  // Expose reset function for testing/debugging
+  window.resetSplash = function() {
+    console.log('🔄 Resetting splash screen state...');
+    localStorage.removeItem(splashKey);
+    console.log('✅ Splash reset - reload page to see splash screen again');
+  };
 })();

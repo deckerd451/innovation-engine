@@ -2,7 +2,13 @@
 // Dashboard Actions - Wire up consolidated bottom bar
 // ================================================================
 
-console.log("%c🎮 Dashboard Actions Loading", "color:#0ff; font-weight:bold;");
+// Prevent duplicate initialization
+if (window.__DASHBOARD_ACTIONS_INITIALIZED__) {
+  console.log("⚠️ Dashboard Actions already initialized, skipping...");
+} else {
+  window.__DASHBOARD_ACTIONS_INITIALIZED__ = true;
+  console.log("%c🎮 Dashboard Actions Loading", "color:#0ff; font-weight:bold;");
+}
 
 // Wire up Quick Connect button
 document.getElementById('btn-quickconnect')?.addEventListener('click', () => {
@@ -615,6 +621,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Also create legend when profile is loaded
 window.addEventListener('profile-loaded', () => {
+  // Prevent duplicate legend creation
+  if (window.__LEGEND_PROFILE_LISTENER_ADDED__) return;
+  window.__LEGEND_PROFILE_LISTENER_ADDED__ = true;
+  
   setTimeout(createSynapseLegend, 500);
 
   // Show admin button if user is admin
@@ -860,40 +870,115 @@ async function loadProjectsList() {
   const listEl = document.getElementById('admin-projects-list');
   if (!listEl) return;
 
+  // Show loading state
+  listEl.innerHTML = '<div style="text-align: center; padding: 2rem; color: #00e0ff;"><i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i><br><br>Loading projects...</div>';
+
   try {
     const supabase = window.supabase;
     if (!supabase) {
-      listEl.innerHTML = '<p style="color: #ff6b6b;">Supabase not available</p>';
+      listEl.innerHTML = '<p style="color: #ff6b6b;"><i class="fas fa-exclamation-triangle"></i> Supabase client not available</p>';
       return;
     }
 
-    const { data: projects, error } = await supabase
+    // Test connection first
+    const { data: testData, error: testError } = await supabase
       .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('count')
+      .limit(1);
 
-    if (error) throw error;
+    if (testError) {
+      console.error('Supabase connection test failed:', testError);
+      listEl.innerHTML = `
+        <div style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 8px; padding: 1.5rem; text-align: center;">
+          <i class="fas fa-wifi" style="font-size: 2rem; color: #ff6b6b; margin-bottom: 1rem;"></i>
+          <h3 style="color: #ff6b6b; margin-bottom: 0.5rem;">Database Connection Error</h3>
+          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem;">Unable to connect to Supabase database.</p>
+          <p style="color: #888; font-size: 0.9rem;">Error: ${testError.message}</p>
+          <button onclick="loadProjectsList()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; color: #ff6b6b; cursor: pointer;">
+            <i class="fas fa-sync-alt"></i> Retry Connection
+          </button>
+        </div>
+      `;
+      return;
+    }
 
-    if (!projects || projects.length === 0) {
+    // Load projects and themes
+    const [projectsResult, themesResult] = await Promise.all([
+      supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('theme_circles')
+        .select('id, title, status')
+        .eq('status', 'active')
+        .order('title', { ascending: true })
+    ]);
+
+    if (projectsResult.error) throw projectsResult.error;
+    if (themesResult.error) throw themesResult.error;
+
+    const projects = projectsResult.data || [];
+    const themes = themesResult.data || [];
+
+    if (projects.length === 0) {
       listEl.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No projects found</p>';
       return;
     }
 
     let html = '<div style="display: grid; gap: 1rem;">';
     projects.forEach(project => {
+      const currentTheme = themes.find(t => t.id === project.theme_id);
+      
       html += `
         <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; padding: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
             <div style="flex: 1;">
               <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${project.title}</div>
-              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.5rem;">
                 Status: ${project.status || 'Unknown'}
                 | Created: ${new Date(project.created_at).toLocaleDateString()}
               </div>
+              ${project.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">${project.description}</div>` : ''}
             </div>
             <button onclick="deleteProject('${project.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
               <i class="fas fa-trash"></i> Delete
             </button>
+          </div>
+          
+          <!-- Theme Assignment Section -->
+          <div style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 1rem; border-left: 3px solid #00e0ff;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+              <div style="color: #00e0ff; font-weight: 600; font-size: 0.9rem;">
+                <i class="fas fa-bullseye"></i> Theme Assignment:
+              </div>
+              <div style="color: ${currentTheme ? '#00ff88' : 'rgba(255,255,255,0.5)'}; font-size: 0.9rem;">
+                ${currentTheme ? `📍 ${currentTheme.title}` : '❌ No theme assigned'}
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              <select id="theme-select-${project.id}" style="flex: 1; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.9rem;">
+                <option value="">Select a theme...</option>
+                ${themes.map(theme => `
+                  <option value="${theme.id}" ${theme.id === project.theme_id ? 'selected' : ''}>
+                    ${theme.title}
+                  </option>
+                `).join('')}
+              </select>
+              
+              <button onclick="assignProjectToTheme('${project.id}')" 
+                style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 4px; color: #000; font-weight: 600; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">
+                <i class="fas fa-link"></i> Assign
+              </button>
+              
+              ${project.theme_id ? `
+                <button onclick="removeProjectFromTheme('${project.id}')" 
+                  style="padding: 0.5rem 1rem; background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 4px; color: #ff6b6b; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+                  <i class="fas fa-unlink"></i> Remove
+                </button>
+              ` : ''}
+            </div>
           </div>
         </div>
       `;
@@ -1006,3 +1091,206 @@ window.deleteProject = async function(projectId) {
 };
 
 console.log("✅ Dashboard Actions ready");
+
+// Theme assignment functions
+async function assignProjectToTheme(projectId) {
+  try {
+    const supabase = window.supabase;
+    if (!supabase) {
+      console.error('Supabase not available');
+      return;
+    }
+
+    const selectElement = document.getElementById(`theme-select-${projectId}`);
+    const themeId = selectElement?.value;
+
+    if (!themeId) {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification('Please select a theme first', 'error');
+      }
+      return;
+    }
+
+    console.log(`🔗 Assigning project ${projectId} to theme ${themeId}...`);
+
+    const { error } = await supabase
+      .from('projects')
+      .update({ theme_id: themeId })
+      .eq('id', projectId);
+
+    if (error) throw error;
+
+    console.log('✅ Project assigned to theme successfully');
+    
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Project assigned to theme successfully!', 'success');
+    }
+
+    // Refresh the projects list to show updated assignment
+    loadProjectsList();
+
+    // Refresh synapse view if available
+    if (typeof window.refreshSynapseConnections === 'function') {
+      window.refreshSynapseConnections();
+    }
+
+  } catch (error) {
+    console.error('Error assigning project to theme:', error);
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Failed to assign project to theme', 'error');
+    }
+  }
+}
+
+async function removeProjectFromTheme(projectId) {
+  try {
+    const supabase = window.supabase;
+    if (!supabase) {
+      console.error('Supabase not available');
+      return;
+    }
+
+    console.log(`🔗 Removing project ${projectId} from theme...`);
+
+    const { error } = await supabase
+      .from('projects')
+      .update({ theme_id: null })
+      .eq('id', projectId);
+
+    if (error) throw error;
+
+    console.log('✅ Project removed from theme successfully');
+    
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Project removed from theme successfully!', 'success');
+    }
+
+    // Refresh the projects list to show updated assignment
+    loadProjectsList();
+
+    // Refresh synapse view if available
+    if (typeof window.refreshSynapseConnections === 'function') {
+      window.refreshSynapseConnections();
+    }
+
+  } catch (error) {
+    console.error('Error removing project from theme:', error);
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Failed to remove project from theme', 'error');
+    }
+  }
+}
+
+// Make functions globally available
+window.assignProjectToTheme = assignProjectToTheme;
+window.removeProjectFromTheme = removeProjectFromTheme;
+
+// Dashboard Actions initialization complete
+if (window.__DASHBOARD_ACTIONS_INITIALIZED__) {
+  console.log("✅ Dashboard Actions ready");
+}
+
+// Connection status checker
+window.checkSupabaseStatus = async function() {
+  const statusDiv = document.createElement('div');
+  statusDiv.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
+    border: 2px solid rgba(0,224,255,0.4);
+    border-radius: 16px;
+    padding: 2rem;
+    z-index: 10005;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    min-width: 400px;
+    text-align: center;
+  `;
+
+  statusDiv.innerHTML = `
+    <div style="margin-bottom: 1.5rem;">
+      <i class="fas fa-stethoscope" style="font-size: 3rem; color: #00e0ff; margin-bottom: 1rem;"></i>
+      <h3 style="color: #00e0ff; margin-bottom: 0.5rem;">Database Connection Status</h3>
+      <p style="color: rgba(255,255,255,0.7);">Checking Supabase connection...</p>
+    </div>
+    <div id="status-results" style="text-align: left;">
+      <div style="color: #888; margin-bottom: 0.5rem;">
+        <i class="fas fa-spinner fa-spin"></i> Testing connection...
+      </div>
+    </div>
+    <button onclick="this.parentElement.remove()" style="margin-top: 1.5rem; padding: 0.5rem 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; cursor: pointer;">
+      Close
+    </button>
+  `;
+
+  document.body.appendChild(statusDiv);
+
+  const resultsDiv = statusDiv.querySelector('#status-results');
+  
+  try {
+    // Test 1: Basic connection
+    resultsDiv.innerHTML += '<div style="color: #888; margin-bottom: 0.5rem;"><i class="fas fa-spinner fa-spin"></i> Testing basic connection...</div>';
+    
+    const startTime = Date.now();
+    const { data, error } = await window.supabase.from('community').select('count').limit(1);
+    const responseTime = Date.now() - startTime;
+
+    if (error) {
+      resultsDiv.innerHTML += `<div style="color: #ff6b6b; margin-bottom: 0.5rem;"><i class="fas fa-times"></i> Connection failed: ${error.message}</div>`;
+    } else {
+      resultsDiv.innerHTML += `<div style="color: #00ff88; margin-bottom: 0.5rem;"><i class="fas fa-check"></i> Connection successful (${responseTime}ms)</div>`;
+    }
+
+    // Test 2: Projects table
+    resultsDiv.innerHTML += '<div style="color: #888; margin-bottom: 0.5rem;"><i class="fas fa-spinner fa-spin"></i> Testing projects table...</div>';
+    
+    const { data: projects, error: projectsError } = await window.supabase.from('projects').select('count').limit(1);
+    
+    if (projectsError) {
+      resultsDiv.innerHTML += `<div style="color: #ff6b6b; margin-bottom: 0.5rem;"><i class="fas fa-times"></i> Projects table error: ${projectsError.message}</div>`;
+    } else {
+      resultsDiv.innerHTML += `<div style="color: #00ff88; margin-bottom: 0.5rem;"><i class="fas fa-check"></i> Projects table accessible</div>`;
+    }
+
+    // Test 3: Themes table
+    resultsDiv.innerHTML += '<div style="color: #888; margin-bottom: 0.5rem;"><i class="fas fa-spinner fa-spin"></i> Testing themes table...</div>';
+    
+    const { data: themes, error: themesError } = await window.supabase.from('theme_circles').select('count').limit(1);
+    
+    if (themesError) {
+      resultsDiv.innerHTML += `<div style="color: #ff6b6b; margin-bottom: 0.5rem;"><i class="fas fa-times"></i> Themes table error: ${themesError.message}</div>`;
+    } else {
+      resultsDiv.innerHTML += `<div style="color: #00ff88; margin-bottom: 0.5rem;"><i class="fas fa-check"></i> Themes table accessible</div>`;
+    }
+
+    // Summary
+    const hasErrors = error || projectsError || themesError;
+    if (hasErrors) {
+      resultsDiv.innerHTML += `
+        <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 6px;">
+          <div style="color: #ff6b6b; font-weight: 600; margin-bottom: 0.5rem;"><i class="fas fa-exclamation-triangle"></i> Issues Detected</div>
+          <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+            The database connection has issues. This may be due to:
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+              <li>Network connectivity problems</li>
+              <li>Supabase service outage</li>
+              <li>Database configuration issues</li>
+            </ul>
+          </div>
+        </div>
+      `;
+    } else {
+      resultsDiv.innerHTML += `
+        <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 6px;">
+          <div style="color: #00ff88; font-weight: 600;"><i class="fas fa-check-circle"></i> All Systems Operational</div>
+          <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Database connection is working properly.</div>
+        </div>
+      `;
+    }
+
+  } catch (error) {
+    resultsDiv.innerHTML += `<div style="color: #ff6b6b; margin-bottom: 0.5rem;"><i class="fas fa-times"></i> Unexpected error: ${error.message}</div>`;
+  }
+};

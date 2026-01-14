@@ -361,6 +361,11 @@ export async function sendConnectionRequest(
       await window.DailyEngagement.updateQuestProgress("send_connection", 1);
     }
 
+    // Refresh synapse view to show new connection
+    if (window.refreshSynapseConnections) {
+      await window.refreshSynapseConnections();
+    }
+
     return { success: true };
   } catch (err) {
     console.error("sendConnectionRequest error:", err);
@@ -384,6 +389,11 @@ export async function acceptConnectionRequest(connectionId) {
         window.DailyEngagement.XP_REWARDS.ACCEPT_CONNECTION,
         "Accepted connection request"
       );
+    }
+
+    // Refresh synapse view to show accepted connection
+    if (window.refreshSynapseConnections) {
+      await window.refreshSynapseConnections();
     }
   } else {
     showToast(error.message || "Failed to accept", "error");
@@ -428,6 +438,11 @@ export async function declineConnectionRequest(connectionId) {
       nextStatus === "withdrawn" ? "Request withdrawn." : "Connection declined.",
       "info"
     );
+
+    // Refresh synapse view to show updated connection status
+    if (window.refreshSynapseConnections) {
+      await window.refreshSynapseConnections();
+    }
   } else {
     showToast(error.message || "Failed to update connection", "error");
   }
@@ -482,6 +497,12 @@ export async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
       }
 
       showToast("Request canceled.", "info");
+
+      // Refresh synapse view to show updated connection status
+      if (window.refreshSynapseConnections) {
+        await window.refreshSynapseConnections();
+      }
+
       return { success: true, status: nextStatus, id: row.id };
     }
   } catch (_) {
@@ -517,6 +538,12 @@ export async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
   }
 
   showToast("Request canceled.", "info");
+
+  // Refresh synapse view to show updated connection status
+  if (window.refreshSynapseConnections) {
+    await window.refreshSynapseConnections();
+  }
+
   return { success: true, status: nextStatus, id: conn.id };
 }
 
@@ -564,6 +591,12 @@ export async function removeConnection(connectionIdOrTargetCommunityId) {
   }
 
   showToast("Connection removed.", "success");
+
+  // Refresh synapse view to show updated connections
+  if (window.refreshSynapseConnections) {
+    await window.refreshSynapseConnections();
+  }
+
   return { success: true };
 }
 

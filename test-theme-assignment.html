@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Theme Assignment</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0a0e27;
+            color: white;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: rgba(0,224,255,0.05);
+            border: 1px solid rgba(0,224,255,0.2);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .success {
+            color: #00ff88;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .info {
+            color: #00e0ff;
+        }
+        button {
+            background: linear-gradient(135deg, #00ff88, #00e0ff);
+            border: none;
+            border-radius: 6px;
+            color: #000;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+        }
+        .admin-panel-preview {
+            background: rgba(10,14,39,0.8);
+            border: 2px solid rgba(255,215,0,0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="info">🧪 Theme Assignment Testing</h1>
+    
+    <div class="test-section">
+        <h2>✅ Implementation Status</h2>
+        <p class="success">Theme assignment functionality has been successfully implemented in the admin panel!</p>
+        
+        <h3>📋 Features Implemented:</h3>
+        <ul>
+            <li class="success">✅ Enhanced admin panel with "Manage Projects" tab</li>
+            <li class="success">✅ Theme assignment dropdown for each project</li>
+            <li class="success">✅ Assign/Remove buttons with visual feedback</li>
+            <li class="success">✅ Real-time database updates via Supabase</li>
+            <li class="success">✅ Synapse view refresh after assignment changes</li>
+            <li class="success">✅ Visual indicators showing current theme assignments</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 How to Test</h2>
+        <ol>
+            <li><strong>Access Admin Panel:</strong> Click the "Admin" button in the bottom bar (gold crown icon)</li>
+            <li><strong>Navigate to Projects:</strong> Click the "Manage Projects" tab</li>
+            <li><strong>Assign Themes:</strong> Use the dropdown to select a theme and click "Assign"</li>
+            <li><strong>Verify Changes:</strong> Check that projects appear as hexagons within theme circles in synapse view</li>
+        </ol>
+        
+        <button onclick="openDashboard()">🚀 Open Dashboard to Test</button>
+        <button onclick="showImplementationDetails()">📖 View Implementation Details</button>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Key Functions Implemented</h2>
+        <div class="admin-panel-preview">
+            <h3 class="info">📁 assets/js/dashboard-actions.js</h3>
+            <ul>
+                <li><code class="success">assignProjectToTheme(projectId)</code> - Assigns project to selected theme</li>
+                <li><code class="success">removeProjectFromTheme(projectId)</code> - Removes project from theme</li>
+                <li><code class="success">loadProjectsList()</code> - Loads projects with theme assignment UI</li>
+                <li><code class="success">openAdminPanel()</code> - Opens admin panel with tabs</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎨 Visual Integration</h2>
+        <p>Projects assigned to themes will appear as:</p>
+        <ul>
+            <li class="info">🔷 Small hexagonal indicators within theme circles</li>
+            <li class="info">🎯 Positioned at 60% radius of the theme circle</li>
+            <li class="info">⚡ Status icons (🚀 for open, ⚡ for active, 💡 for others)</li>
+            <li class="info">🎨 Colored to match the theme's color palette</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Database Schema</h2>
+        <p>The theme assignment uses the existing <code>projects.theme_id</code> column:</p>
+        <div class="admin-panel-preview">
+            <code>
+                UPDATE projects SET theme_id = ? WHERE id = ?<br>
+                UPDATE projects SET theme_id = NULL WHERE id = ?
+            </code>
+        </div>
+    </div>
+
+    <script>
+        function openDashboard() {
+            window.open('dashboard.html', '_blank');
+        }
+
+        function showImplementationDetails() {
+            alert(`Implementation Details:
+
+1. Admin Panel Enhancement:
+   - Added "Manage Projects" tab to admin panel
+   - Shows all projects with current theme assignments
+   - Dropdown populated with active themes
+
+2. Theme Assignment Functions:
+   - assignProjectToTheme(): Updates project.theme_id in database
+   - removeProjectFromTheme(): Sets project.theme_id to null
+   - Both functions refresh synapse view automatically
+
+3. Visual Integration:
+   - Projects appear as hexagons within theme circles
+   - Color-coded to match theme colors
+   - Status icons for project type indication
+
+4. User Experience:
+   - Real-time feedback with notifications
+   - Visual indicators for current assignments
+   - Automatic synapse refresh after changes
+
+The implementation is complete and ready for testing!`);
+        }
+
+        // Show success message
+        setTimeout(() => {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'test-section';
+            successDiv.innerHTML = `
+                <h2 class="success">🎉 Ready for Testing!</h2>
+                <p>The theme assignment functionality is fully implemented and integrated with the synapse view. 
+                Projects assigned to themes will appear as embedded hexagonal elements within the theme circles.</p>
+                <p class="info">Click the dashboard button above to test the functionality live!</p>
+            `;
+            document.body.appendChild(successDiv);
+        }, 1000);
+    </script>
+</body>
+</html>

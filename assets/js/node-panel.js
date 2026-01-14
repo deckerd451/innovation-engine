@@ -720,6 +720,17 @@ async function getSharedProjects(userId) {
 
 // Action handlers (these will be attached to window)
 window.closeNodePanel = closeNodePanel;
+window.openNodePanel = openNodePanel;
+
+// Open project details by calling openNodePanel with proper project structure
+window.openProjectDetails = function(project) {
+  openNodePanel({
+    ...project,
+    type: 'project',
+    id: project.id,
+    name: project.title || project.name
+  });
+};
 
 window.sendConnectionFromPanel = async function(userId) {
   try {
@@ -1205,6 +1216,11 @@ window.joinProjectFromPanel = async function(projectId) {
     // Reload panel to update UI
     await loadNodeDetails(currentNodeData);
 
+    // Refresh synapse view to show updated project membership
+    if (window.refreshSynapseProjectCircles) {
+      await window.refreshSynapseProjectCircles();
+    }
+
   } catch (error) {
     console.error('Error sending join request:', error);
     alert('Failed to send join request: ' + error.message);
@@ -1456,7 +1472,14 @@ window.manageProjectRequests = async function(projectId) {
             </div>
           ` : pendingRequests.map(request => {
             const user = request.user;
-            const skills = user.skills || [];
+            // Parse skills - could be string (comma-separated) or array
+            let skills = user.skills || [];
+            if (typeof skills === 'string') {
+              skills = skills.split(',').map(s => s.trim()).filter(Boolean);
+            }
+            if (!Array.isArray(skills)) {
+              skills = [];
+            }
             return `
               <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;" data-request-id="${request.id}">
                 <div style="display: flex; gap: 1rem; align-items: start;">
