@@ -1537,6 +1537,8 @@ window.manageProjectRequests = async function(projectId) {
 
 window.approveJoinRequest = async function(projectId, requestId, userId) {
   try {
+    console.log('🔄 Approving join request:', { projectId, requestId, userId });
+    
     // Ensure supabase is available
     if (!supabase) supabase = window.supabase;
     if (!supabase) {
@@ -1544,18 +1546,27 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
     }
 
     // Update role from 'pending' to 'member'
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('project_members')
       .update({ role: 'member' })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error updating project_members:', error);
+      throw error;
+    }
+
+    console.log('✅ Successfully approved request:', data);
 
     showToastNotification('Request approved!', 'success');
 
     // Remove the request card from UI
     const card = document.querySelector(`[data-request-id="${requestId}"]`);
-    if (card) card.remove();
+    if (card) {
+      card.remove();
+      console.log('✅ Removed request card from UI');
+    }
 
     // Check if container is now empty
     const container = document.getElementById('requests-container');
@@ -1570,17 +1581,21 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
 
     // Reload panel if it's currently showing this project
     if (currentNodeData?.id === projectId) {
+      console.log('🔄 Reloading node panel...');
       await loadNodeDetails(currentNodeData);
     }
 
     // Refresh synapse view to show updated project membership
     if (typeof window.refreshSynapseConnections === 'function') {
+      console.log('🔄 Refreshing synapse connections...');
       await window.refreshSynapseConnections();
+    } else {
+      console.warn('⚠️ window.refreshSynapseConnections not available');
     }
 
   } catch (error) {
-    console.error('Error approving request:', error);
-    alert('Failed to approve request: ' + error.message);
+    console.error('❌ Error approving request:', error);
+    showToastNotification('Failed to approve request: ' + error.message, 'error');
   }
 };
 
