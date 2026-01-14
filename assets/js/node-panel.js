@@ -1216,6 +1216,11 @@ window.joinProjectFromPanel = async function(projectId) {
     // Reload panel to update UI
     await loadNodeDetails(currentNodeData);
 
+    // Refresh synapse view to show updated project membership
+    if (window.refreshSynapseProjectCircles) {
+      await window.refreshSynapseProjectCircles();
+    }
+
   } catch (error) {
     console.error('Error sending join request:', error);
     alert('Failed to send join request: ' + error.message);
