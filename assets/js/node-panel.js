@@ -1513,10 +1513,10 @@ window.manageProjectRequests = async function(projectId) {
 
                 <!-- Action Buttons -->
                 <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-                  <button onclick="approveJoinRequest('${projectId}', '${request.id}', '${user.id}')" style="flex: 1; padding: 0.65rem; background: linear-gradient(135deg, #00ff88, #00cc70); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                  <button class="approve-request-btn" data-project-id="${projectId}" data-request-id="${request.id}" data-user-id="${user.id}" style="flex: 1; padding: 0.65rem; background: linear-gradient(135deg, #00ff88, #00cc70); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
                     <i class="fas fa-check"></i> Approve
                   </button>
-                  <button onclick="declineJoinRequest('${projectId}', '${request.id}')" style="flex: 1; padding: 0.65rem; background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer;">
+                  <button class="decline-request-btn" data-project-id="${projectId}" data-request-id="${request.id}" style="flex: 1; padding: 0.65rem; background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer;">
                     <i class="fas fa-times"></i> Decline
                   </button>
                 </div>
@@ -1528,6 +1528,26 @@ window.manageProjectRequests = async function(projectId) {
     `;
 
     document.body.appendChild(modal);
+
+    // Add event listeners for approve/decline buttons
+    modal.querySelectorAll('.approve-request-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const projectId = e.currentTarget.dataset.projectId;
+        const requestId = e.currentTarget.dataset.requestId;
+        const userId = e.currentTarget.dataset.userId;
+        console.log('🔘 Approve button clicked:', { projectId, requestId, userId });
+        await window.approveJoinRequest(projectId, requestId, userId);
+      });
+    });
+
+    modal.querySelectorAll('.decline-request-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const projectId = e.currentTarget.dataset.projectId;
+        const requestId = e.currentTarget.dataset.requestId;
+        console.log('🔘 Decline button clicked:', { projectId, requestId });
+        await window.declineJoinRequest(projectId, requestId);
+      });
+    });
 
   } catch (error) {
     console.error('Error loading join requests:', error);
