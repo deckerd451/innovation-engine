@@ -451,6 +451,24 @@ function calculateNestedPosition(
     // Show theme if user participates OR has projects in it
     const shouldShowTheme = isUserConnected || hasProjectsInTheme;
 
+    // Debug logging for theme visibility
+    if (!shouldShowTheme) {
+      console.log(`🔍 Hiding theme "${node.name || node.title}":`, {
+        isUserConnected,
+        hasProjectsInTheme,
+        userProjects,
+        themeProjects: node.projects,
+        showFullCommunity
+      });
+    } else {
+      console.log(`✅ Showing theme "${node.name || node.title}":`, {
+        isUserConnected,
+        hasProjectsInTheme,
+        userProjects,
+        themeProjects: node.projects?.map(p => p.title)
+      });
+    }
+
     // In non-discovery mode, hide themes user has no connection to
     if (!shouldShowTheme && !showFullCommunity) {
       // Position far off-screen or mark as hidden
