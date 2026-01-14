@@ -101,12 +101,21 @@ function getUserEngagement(themeId) {
 function getRecommendedThemes() {
   if (!currentUser) return [];
 
-  const userSkills = (currentUser.skills || []).map(s =>
-    String(s).toLowerCase().trim()
-  );
-  const userInterests = (currentUser.interests || []).map(i =>
-    String(i).toLowerCase().trim()
-  );
+  // Handle skills - could be array, string, or null
+  let userSkills = [];
+  if (Array.isArray(currentUser.skills)) {
+    userSkills = currentUser.skills.map(s => String(s).toLowerCase().trim());
+  } else if (typeof currentUser.skills === 'string') {
+    userSkills = currentUser.skills.split(',').map(s => s.toLowerCase().trim()).filter(Boolean);
+  }
+
+  // Handle interests - could be array, string, or null
+  let userInterests = [];
+  if (Array.isArray(currentUser.interests)) {
+    userInterests = currentUser.interests.map(i => String(i).toLowerCase().trim());
+  } else if (typeof currentUser.interests === 'string') {
+    userInterests = currentUser.interests.split(',').map(i => i.toLowerCase().trim()).filter(Boolean);
+  }
 
   return allThemes
     .map(theme => {
