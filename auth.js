@@ -301,13 +301,6 @@
     // Load profile first, then ensure synapse initialization
     setTimeout(async () => {
       await loadUserProfileOnce(user);
-      
-      // Ensure synapse gets initialized after profile is loaded
-      setTimeout(() => {
-        if (typeof window.ensureSynapseInitialized === 'function') {
-          window.ensureSynapseInitialized();
-        }
-      }, 500);
     }, 100);
   }
 
