@@ -1472,7 +1472,14 @@ window.manageProjectRequests = async function(projectId) {
             </div>
           ` : pendingRequests.map(request => {
             const user = request.user;
-            const skills = user.skills || [];
+            // Parse skills - could be string (comma-separated) or array
+            let skills = user.skills || [];
+            if (typeof skills === 'string') {
+              skills = skills.split(',').map(s => s.trim()).filter(Boolean);
+            }
+            if (!Array.isArray(skills)) {
+              skills = [];
+            }
             return `
               <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;" data-request-id="${request.id}">
                 <div style="display: flex; gap: 1rem; align-items: start;">
