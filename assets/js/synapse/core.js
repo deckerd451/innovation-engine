@@ -125,6 +125,7 @@ export async function initSynapseView() {
   window.initSynapseView = initSynapseView;
   window.refreshThemeCircles = refreshThemeCircles;
   window.refreshSynapseConnections = refreshSynapseConnections;
+  window.refreshSynapseProjectCircles = refreshSynapseProjectCircles;
   window.toggleFullCommunityView = toggleFullCommunityView;
 
   // Expose functions needed by Illuminate Pathways
@@ -147,6 +148,11 @@ export async function refreshSynapseConnections() {
 }
 
 export async function refreshThemeCircles() {
+  await reloadAllData();
+  await rebuildGraph();
+}
+
+export async function refreshSynapseProjectCircles() {
   await reloadAllData();
   await rebuildGraph();
 }
