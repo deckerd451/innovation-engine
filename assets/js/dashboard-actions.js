@@ -43,8 +43,8 @@ document.getElementById('btn-projects')?.addEventListener('click', () => {
 
 // Wire up Themes button
 document.getElementById('btn-themes')?.addEventListener('click', () => {
-  if (typeof window.openThemeDiscovery === 'function') {
-    window.openThemeDiscovery();
+  if (typeof window.openThemeDiscoveryModal === 'function') {
+    window.openThemeDiscoveryModal();
   } else {
     console.warn('Theme discovery not available');
   }
@@ -600,8 +600,8 @@ function applyVisualizationFilters(filterState) {
         return 'all';
       });
 
-    // Filter theme circles separately
-    svg.selectAll('.theme-circle')
+    // Filter theme circles separately (use correct class name)
+    svg.selectAll('.theme-container')
       .style('opacity', d => {
         if (!filterState.themes) return 0.2;
         return 1;
@@ -612,7 +612,7 @@ function applyVisualizationFilters(filterState) {
       });
 
     // Also filter theme labels
-    svg.selectAll('.theme-label')
+    svg.selectAll('.theme-labels')
       .style('opacity', d => {
         if (!filterState.themes) return 0;
         return 1;
