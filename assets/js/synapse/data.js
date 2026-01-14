@@ -132,25 +132,29 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       filteredMembers = members.filter(member => {
         if (member.id === currentUserCommunityId) return true;
 
-        // Check if there's a direct connection (accepted or pending)
-        const hasConnection = (connectionsData || []).some(conn => {
+        // Check if there's an ACCEPTED direct connection
+        const hasAcceptedConnection = (connectionsData || []).some(conn => {
           const match = (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
                         (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id);
 
-          if (match) {
-            console.log("🎯 Found matching connection!", {
+          // Only count accepted connections
+          const isAccepted = String(conn.status || "").toLowerCase() === "accepted";
+
+          if (match && isAccepted) {
+            console.log("🎯 Found accepted connection!", {
               conn,
               currentUser: currentUserCommunityId,
               member: member.id,
-              memberName: member.name
+              memberName: member.name,
+              status: conn.status
             });
           }
 
-          return match;
+          return match && isAccepted;
         });
 
-        if (hasConnection) {
-          console.log("✅ Including user due to connection:", member.name, member.id);
+        if (hasAcceptedConnection) {
+          console.log("✅ Including user due to accepted connection:", member.name, member.id);
           return true;
         }
 
