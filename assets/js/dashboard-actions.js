@@ -41,6 +41,15 @@ document.getElementById('btn-projects')?.addEventListener('click', () => {
   }
 });
 
+// Wire up Themes button
+document.getElementById('btn-themes')?.addEventListener('click', () => {
+  if (typeof window.openThemeDiscovery === 'function') {
+    window.openThemeDiscovery();
+  } else {
+    console.warn('Theme discovery not available');
+  }
+});
+
 // Wire up Endorsements button
 document.getElementById('btn-endorsements')?.addEventListener('click', () => {
   if (typeof openEndorsementsModal === 'function') {
@@ -380,9 +389,14 @@ function createSynapseLegend() {
         <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">People</span>
         <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
       </div>
-      <div id="legend-projects" data-filter="projects" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3);">
-        <div style="width: 24px; height: 24px; transform: rotate(45deg); background: rgba(255,107,107,0.3); border: 2px solid #ff6b6b; flex-shrink: 0;"></div>
+      <div id="legend-projects" data-filter="projects" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);">
+        <div style="width: 24px; height: 24px; transform: rotate(45deg); background: rgba(0,255,136,0.3); border: 2px solid #00ff88; flex-shrink: 0;"></div>
         <span style="color: #fff; font-size: 0.85rem; font-weight: 600; margin-left: 0.25rem;">Projects</span>
+        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+      </div>
+      <div id="legend-themes" data-filter="themes" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3);">
+        <div style="width: 24px; height: 24px; border-radius: 50%; background: transparent; border: 3px solid #ffa500; flex-shrink: 0;"></div>
+        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Themes</span>
         <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
       </div>
       <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
@@ -532,11 +546,12 @@ function createSynapseLegend() {
   const filterState = {
     people: true,
     projects: true,
+    themes: true,
     connections: true
   };
 
   // Add click handlers for each filter
-  ['people', 'projects', 'connections'].forEach(filterType => {
+  ['people', 'projects', 'themes', 'connections'].forEach(filterType => {
     const element = document.getElementById(`legend-${filterType}`);
     if (!element) return;
 
@@ -587,8 +602,21 @@ function applyVisualizationFilters(filterState) {
 
     // Filter theme circles separately
     svg.selectAll('.theme-circle')
-      .style('opacity', 1)  // Always show themes
-      .style('pointer-events', 'all');
+      .style('opacity', d => {
+        if (!filterState.themes) return 0.2;
+        return 1;
+      })
+      .style('pointer-events', d => {
+        if (!filterState.themes) return 'none';
+        return 'all';
+      });
+
+    // Also filter theme labels
+    svg.selectAll('.theme-label')
+      .style('opacity', d => {
+        if (!filterState.themes) return 0;
+        return 1;
+      });
 
     // Filter connections/links
     svg.selectAll('.links line')
