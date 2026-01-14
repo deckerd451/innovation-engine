@@ -440,12 +440,19 @@ function calculateNestedPosition(
     // Get user's theme participations from the node data
     const currentUser = allNodes.find(n => n.id === currentUserCommunityId);
     const userThemes = currentUser?.themes || [];
+    const userProjects = currentUser?.projects || [];
 
-    // Check if user participates in this theme
+    // Check if user participates in this theme OR has projects in this theme
     const isUserConnected = userThemes.includes(node.theme_id);
-    
-    // In discovery mode, show all themes but position differently
-    if (!isUserConnected && !showFullCommunity) {
+    const hasProjectsInTheme = (node.projects || []).some(project =>
+      userProjects.includes(project.id)
+    );
+
+    // Show theme if user participates OR has projects in it
+    const shouldShowTheme = isUserConnected || hasProjectsInTheme;
+
+    // In non-discovery mode, hide themes user has no connection to
+    if (!shouldShowTheme && !showFullCommunity) {
       // Position far off-screen or mark as hidden
       return {
         x: centerX + 10000, // Off-screen
@@ -457,10 +464,14 @@ function calculateNestedPosition(
       };
     }
 
-    if (isUserConnected) {
+    if (shouldShowTheme) {
       // User's themes - concentric around center
       const myThemes = themes
-        .filter((t) => userThemes.includes(t.theme_id))
+        .filter((t) => {
+          const hasThemeParticipation = userThemes.includes(t.theme_id);
+          const hasThemeProjects = (t.projects || []).some(p => userProjects.includes(p.id));
+          return hasThemeParticipation || hasThemeProjects;
+        })
         .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
 
       const myIndex = myThemes.findIndex((t) => t.id === node.id);
@@ -487,7 +498,11 @@ function calculateNestedPosition(
     } else {
       // Discovery mode: show unconnected themes in outer orbit
       const otherThemes = themes
-        .filter((t) => !userThemes.includes(t.theme_id))
+        .filter((t) => {
+          const hasThemeParticipation = userThemes.includes(t.theme_id);
+          const hasThemeProjects = (t.projects || []).some(p => userProjects.includes(p.id));
+          return !hasThemeParticipation && !hasThemeProjects;
+        })
         .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
 
       const otherIndex = otherThemes.findIndex((t) => t.id === node.id);
