@@ -720,6 +720,17 @@ async function getSharedProjects(userId) {
 
 // Action handlers (these will be attached to window)
 window.closeNodePanel = closeNodePanel;
+window.openNodePanel = openNodePanel;
+
+// Open project details by calling openNodePanel with proper project structure
+window.openProjectDetails = function(project) {
+  openNodePanel({
+    ...project,
+    type: 'project',
+    id: project.id,
+    name: project.title || project.name
+  });
+};
 
 window.sendConnectionFromPanel = async function(userId) {
   try {
