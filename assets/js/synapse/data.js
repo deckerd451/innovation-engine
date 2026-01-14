@@ -35,23 +35,43 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   }
 
   // Load theme circles (active only, not expired)
-  const { data: themes, error: themesError } = await supabase
-    .from('theme_circles')
-    .select('*')
-    .eq('status', 'active')
-    .gt('expires_at', new Date().toISOString());
+  // Add error handling to prevent synapse initialization failure
+  let themes = [];
+  try {
+    const { data: themeData, error: themesError } = await supabase
+      .from('theme_circles')
+      .select('*')
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString());
 
-  if (themesError) {
-    console.warn('⚠️ Error loading themes:', themesError);
+    if (themesError) {
+      console.warn('⚠️ Error loading themes:', themesError);
+      // Continue without themes rather than failing
+      themes = [];
+    } else {
+      themes = themeData || [];
+    }
+  } catch (error) {
+    console.warn('⚠️ Theme table may not exist yet:', error);
+    themes = [];
   }
 
   // Load theme participants
-  const { data: themeParticipants, error: themeParticipantsError } = await supabase
-    .from('theme_participants')
-    .select('theme_id, community_id, signals, engagement_level');
+  let themeParticipants = [];
+  try {
+    const { data: participantData, error: themeParticipantsError } = await supabase
+      .from('theme_participants')
+      .select('theme_id, community_id, signals, engagement_level');
 
-  if (themeParticipantsError) {
-    console.warn('⚠️ Error loading theme participants:', themeParticipantsError);
+    if (themeParticipantsError) {
+      console.warn('⚠️ Error loading theme participants:', themeParticipantsError);
+      themeParticipants = [];
+    } else {
+      themeParticipants = participantData || [];
+    }
+  } catch (error) {
+    console.warn('⚠️ Theme participants table may not exist yet:', error);
+    themeParticipants = [];
   }
 
   // Filter members if not showing full community

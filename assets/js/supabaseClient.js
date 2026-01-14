@@ -31,6 +31,9 @@ if (!window.supabase) {
   window.supabase = supabase;
   console.log("✅ Supabase client initialized");
 }
+
+// Export alias for consistency across codebase
+export const supabaseClient = supabase;
 // ======================================================================
 // 2. OAUTH PROVIDERS
 // ======================================================================

@@ -278,24 +278,24 @@ function findMostActiveTheme(allNodes, currentUserCommunityId) {
 }
 
 /**
- * Position nodes in concentric circle structure:
- * - User at CENTER of canvas
- * - ALL themes are concentric circles centered on user at different radii
+ * Position nodes in concentric circle structure (per user's illustration):
+ * - User at CENTER of canvas (center of all theme circles)
+ * - Theme circles are concentric halos around the user at different radii
  * - Projects orbit within their theme's circle
- * - Other users positioned inside project circles
+ * - Other users positioned inside project circles or theme areas
  */
 function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCommunityId) {
   const themes = allNodes.filter(n => n.type === 'theme');
-  const baseThemeRadius = 250; // Starting radius for first theme
-  const themeRadiusIncrement = 250; // Additional radius for each theme
+  const baseThemeRadius = 200; // Starting radius for first theme circle
+  const themeRadiusIncrement = 150; // Additional radius for each theme
 
   if (node.type === 'theme') {
     // ALL themes centered at canvas center (on the user)
-    // But each theme has a different radius for its halo
+    // Each theme has a different radius for its halo/circle
     const themeIndex = themes.findIndex(t => t.id === node.id);
     const themeRadius = baseThemeRadius + (themeIndex * themeRadiusIncrement);
 
-    // Find which theme has the current user
+    // Find which theme has the most user activity
     const mostActiveThemeId = findMostActiveTheme(allNodes, currentUserCommunityId);
     const isUserTheme = node.theme_id === mostActiveThemeId;
 
@@ -304,7 +304,8 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
       y: centerY,
       themeRadius: themeRadius, // Store the radius for this theme's halo
       parentTheme: null,
-      isUserTheme: isUserTheme
+      isUserTheme: isUserTheme,
+      themeIndex: themeIndex
     };
   } else if (node.type === 'project') {
     // Position project within its theme's circle (orbital position)
@@ -319,12 +320,12 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
           n.type === 'project' && n.theme_id === node.theme_id
         );
         const projectIndex = projectsInTheme.findIndex(p => p.id === node.id);
-        const projectCount = projectsInTheme.length;
+        const projectCount = Math.max(projectsInTheme.length, 1);
 
-        // Position project on the theme's circle (at its radius)
+        // Position project on the theme's circle (at 70% of theme radius)
         // Distribute projects evenly around the circle
         const angle = (projectIndex / projectCount) * 2 * Math.PI;
-        const projectDistance = (parentTheme.themeRadius || baseThemeRadius) * 0.6; // 60% of theme radius
+        const projectDistance = (parentTheme.themeRadius || baseThemeRadius) * 0.7;
 
         return {
           x: centerX + Math.cos(angle) * projectDistance,
@@ -336,14 +337,15 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
       }
     }
 
-    // Fallback: position unassigned projects outside themes
+    // Fallback: position unassigned projects in outer ring
+    const outerRadius = baseThemeRadius + (themes.length * themeRadiusIncrement) + 100;
+    const angle = Math.random() * 2 * Math.PI;
     return {
-      x: centerX + (Math.random() - 0.5) * 1000,
-      y: centerY + (Math.random() - 0.5) * 1000,
+      x: centerX + Math.cos(angle) * outerRadius,
+      y: centerY + Math.sin(angle) * outerRadius,
       parentTheme: null
     };
   } else if (node.type === 'person') {
-    // Position user INSIDE their project(s) or theme
     if (node.isCurrentUser) {
       // Current user at CENTER of canvas (center of all concentric circles)
       return {
@@ -353,15 +355,15 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
         isUserCenter: true
       };
     } else {
-      // Other users: position inside their project circle
+      // Other users: position inside their project circle or theme area
       if (node.projects && node.projects.length > 0) {
         const firstProject = allNodes.find(n =>
           n.type === 'project' && n.id === node.projects[0]
         );
         if (firstProject && firstProject.x && firstProject.y) {
-          // Position in circle around project center
+          // Position in small circle around project center
           const angle = Math.random() * 2 * Math.PI;
-          const distance = Math.random() * 20 + 10; // 10-30px from project center
+          const distance = Math.random() * 25 + 15; // 15-40px from project center
           return {
             x: firstProject.x + Math.cos(angle) * distance,
             y: firstProject.y + Math.sin(angle) * distance,
@@ -379,7 +381,7 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
         if (firstTheme) {
           const themeRadius = firstTheme.themeRadius || baseThemeRadius;
           const angle = Math.random() * 2 * Math.PI;
-          const distance = Math.random() * (themeRadius * 0.4) + (themeRadius * 0.3);
+          const distance = Math.random() * (themeRadius * 0.5) + (themeRadius * 0.3);
           return {
             x: centerX + Math.cos(angle) * distance,
             y: centerY + Math.sin(angle) * distance,
@@ -388,10 +390,12 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
         }
       }
 
-      // Fallback: position outside themes
+      // Fallback: position outside all themes
+      const outerRadius = baseThemeRadius + (themes.length * themeRadiusIncrement) + 150;
+      const angle = Math.random() * 2 * Math.PI;
       return {
-        x: centerX + (Math.random() - 0.5) * 1200,
-        y: centerY + (Math.random() - 0.5) * 1200,
+        x: centerX + Math.cos(angle) * outerRadius,
+        y: centerY + Math.sin(angle) * outerRadius,
         parentTheme: null
       };
     }
@@ -406,7 +410,7 @@ function calculateNestedPosition(node, allNodes, centerX, centerY, currentUserCo
  */
 function createContainmentForce(simulationNodes, allNodes, centerX, centerY) {
   return function containmentForce(alpha) {
-    const strength = 0.5;
+    const strength = 0.3; // Gentler containment
 
     simulationNodes.forEach(node => {
       if (!node.x || !node.y || !node.parentTheme) return;
@@ -424,10 +428,10 @@ function createContainmentForce(simulationNodes, allNodes, centerX, centerY) {
       const dy = node.y - centerY;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // Maximum radius for this theme (80% of theme radius for projects, 90% for users)
+      // Maximum radius for this theme (85% of theme radius for projects, 95% for users)
       const maxRadius = node.type === 'project'
-        ? parentTheme.themeRadius * 0.75
-        : parentTheme.themeRadius * 0.9;
+        ? parentTheme.themeRadius * 0.85
+        : parentTheme.themeRadius * 0.95;
 
       if (distance > maxRadius) {
         // Push node back toward center
