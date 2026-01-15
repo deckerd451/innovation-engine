@@ -45,6 +45,9 @@ async function openEnhancedStartModal() {
 /**
  * Populate the START modal with ranked recommendations
  */
+let populateAttempts = 0;
+const MAX_POPULATE_ATTEMPTS = 10;
+
 async function populateRecommendations() {
   const container = document.getElementById('start-options-container');
   if (!container) {
@@ -62,15 +65,34 @@ async function populateRecommendations() {
   `;
 
   try {
-    // Get current user and supabase
+    // Get current user and supabase - check multiple sources
     const currentUser = window.currentUserProfile || 
                        window.appState?.communityProfile ||
-                       window.startState?.currentUserProfile;
-    const supabase = window.supabase;
+                       window.startState?.currentUserProfile ||
+                       window.synapseData?.currentUser;
+    
+    const supabase = window.supabase || window.supabaseClient;
 
-    if (!currentUser || !supabase) {
-      throw new Error('User profile or Supabase not available');
+    if (!currentUser) {
+      populateAttempts++;
+      if (populateAttempts >= MAX_POPULATE_ATTEMPTS) {
+        throw new Error('User profile not available after multiple attempts');
+      }
+      console.warn(`⚠️ User profile not yet available, waiting... (attempt ${populateAttempts}/${MAX_POPULATE_ATTEMPTS})`);
+      // Wait a bit and try again
+      setTimeout(populateRecommendations, 500);
+      return;
     }
+
+    if (!supabase) {
+      throw new Error('Supabase client not available');
+    }
+
+    // Reset attempts counter on success
+    populateAttempts = 0;
+
+    console.log('✅ Found user profile:', currentUser.name || currentUser.email);
+    console.log('✅ Supabase client available');
 
     // Calculate recommendations
     const options = await window.calculateRecommendedFocus(supabase, currentUser);
