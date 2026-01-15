@@ -47,7 +47,11 @@ async function openEnhancedStartModal() {
  */
 async function populateRecommendations() {
   const container = document.getElementById('start-options-container');
-  if (!container) return;
+  if (!container) {
+    console.error('❌ start-options-container not found, showing fallback');
+    showFallbackStartFlow();
+    return;
+  }
 
   // Show loading state
   container.innerHTML = `
@@ -105,7 +109,22 @@ async function populateRecommendations() {
         <p>Unable to load recommendations. Please try again.</p>
       </div>
     `;
+    // Show fallback after 2 seconds
+    setTimeout(showFallbackStartFlow, 2000);
   }
+}
+
+/**
+ * Show fallback START flow if enhanced version fails
+ */
+function showFallbackStartFlow() {
+  const container = document.getElementById('start-options-container');
+  const buttonSection = document.getElementById('start-button-section');
+  const doneButton = document.getElementById('start-done-button');
+  
+  if (container) container.style.display = 'none';
+  if (buttonSection) buttonSection.style.display = 'block';
+  if (doneButton) doneButton.style.display = 'block';
 }
 
 /**
@@ -372,5 +391,13 @@ document.addEventListener('DOMContentLoaded', () => {
 window.openEnhancedStartModal = openEnhancedStartModal;
 window.closeStartModal = closeStartModal;
 window.populateRecommendations = populateRecommendations;
+window.showFallbackStartFlow = showFallbackStartFlow;
+window.clearSessionFocus = function() {
+  if (window.clearFocus) {
+    window.clearFocus();
+  }
+  localStorage.removeItem('startSessionFocus');
+  console.log('🔄 Session focus cleared');
+};
 
 console.log('✅ START Flow Integration ready');
