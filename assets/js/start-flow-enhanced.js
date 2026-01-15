@@ -318,7 +318,7 @@ function generatePreviewHTML(option) {
 // ================================================================
 
 function animateNetworkForChoice(choiceType, choiceData) {
-  console.log('🎨 Animating network for choice:', choiceType);
+  console.log('🎨 Animating network for choice:', choiceType, choiceData);
 
   if (!window.d3 || !document.getElementById('synapse-svg')) {
     console.warn('⚠️ D3 or synapse SVG not available for animation');
@@ -351,23 +351,44 @@ function animateNetworkForChoice(choiceType, choiceData) {
       .style('opacity', 1);
 
     showNetworkOverlay("Focusing on active projects that need your skills.");
-  } else if (choiceType === 'people') {
-    // Highlight people nodes
-    svg.selectAll('.synapse-node[data-type="person"]')
-      .transition()
-      .duration(600)
-      .style('opacity', 1);
+  } else if (choiceType === 'people' && choiceData.people) {
+    // Highlight SPECIFIC recommended people
+    const recommendedIds = choiceData.people.map(p => p.id);
+    console.log('👥 Highlighting recommended people:', recommendedIds);
 
-    showNetworkOverlay("Highlighting people you should connect with.");
+    // Highlight each recommended person
+    recommendedIds.forEach(personId => {
+      svg.selectAll(`.synapse-node[data-id="${personId}"]`)
+        .transition()
+        .duration(600)
+        .style('opacity', 1)
+        .style('filter', 'drop-shadow(0 0 10px #ffd700)');
+    });
+
+    // Also use pathway animations if available
+    if (typeof window.showConnectPathways === 'function') {
+      recommendedIds.forEach((personId, index) => {
+        setTimeout(() => {
+          window.showConnectPathways(null, personId, {
+            color: '#ffd700',
+            duration: 2000,
+            label: 'Recommended'
+          });
+        }, index * 300);
+      });
+    }
+
+    showNetworkOverlay(`Highlighting ${recommendedIds.length} people you should connect with.`);
   }
 
-  // Reset after 3 seconds
+  // Reset after 5 seconds (longer to see the highlights)
   setTimeout(() => {
     svg.selectAll('.synapse-node, .theme-container')
       .transition()
       .duration(600)
-      .style('opacity', 1);
-  }, 3000);
+      .style('opacity', 1)
+      .style('filter', 'none');
+  }, 5000);
 }
 
 function showNetworkOverlay(message) {

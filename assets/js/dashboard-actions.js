@@ -596,9 +596,14 @@ function createSynapseLegend() {
   const discoveryBtnText = document.getElementById('discovery-btn-text');
   
   if (discoveryBtn && discoveryBtnText) {
+    console.log('🔍 Wiring up discovery mode toggle button');
+    
     // Update button text based on current mode
     const updateDiscoveryButton = () => {
-      if (window.synapseShowFullCommunity) {
+      const currentMode = window.synapseShowFullCommunity || false;
+      console.log('🔍 Updating discovery button, current mode:', currentMode);
+      
+      if (currentMode) {
         discoveryBtnText.textContent = 'My Network';
         discoveryBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8c8c)';
         discoveryBtn.title = 'Switch to filtered view (only your connections)';
@@ -614,20 +619,30 @@ function createSynapseLegend() {
 
     // Click handler
     discoveryBtn.addEventListener('click', async () => {
+      console.log('🔍 Discovery button clicked');
+      console.log('🔍 toggleFullCommunityView available:', typeof window.toggleFullCommunityView);
+      
       if (typeof window.toggleFullCommunityView === 'function') {
-        // Toggle the mode
-        await window.toggleFullCommunityView();
-        
-        // Update button appearance
-        updateDiscoveryButton();
-        
-        // Show notification
-        if (typeof window.showNotification === 'function') {
-          const mode = window.synapseShowFullCommunity ? 'Discovery Mode' : 'My Network';
-          window.showNotification(`Switched to ${mode}`, 'success');
+        try {
+          // Toggle the mode
+          console.log('🔍 Calling toggleFullCommunityView...');
+          await window.toggleFullCommunityView();
+          console.log('🔍 Toggle complete, new mode:', window.synapseShowFullCommunity);
+          
+          // Update button appearance
+          updateDiscoveryButton();
+          
+          // Show notification
+          if (typeof window.showNotification === 'function') {
+            const mode = window.synapseShowFullCommunity ? 'Discovery Mode' : 'My Network';
+            window.showNotification(`Switched to ${mode}`, 'success');
+          }
+        } catch (error) {
+          console.error('❌ Error toggling discovery mode:', error);
         }
       } else {
         console.warn('⚠️ toggleFullCommunityView not available');
+        alert('Discovery mode toggle not available yet. Please wait for synapse to initialize.');
       }
     });
 
@@ -641,6 +656,10 @@ function createSynapseLegend() {
       discoveryBtn.style.transform = 'translateY(0)';
       discoveryBtn.style.boxShadow = '0 2px 8px rgba(0,255,136,0.3)';
     });
+    
+    console.log('✅ Discovery button wired up successfully');
+  } else {
+    console.warn('⚠️ Discovery button elements not found:', { discoveryBtn, discoveryBtnText });
   }
 }
 
