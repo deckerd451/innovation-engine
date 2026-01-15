@@ -128,6 +128,9 @@ export async function initSynapseView() {
   window.refreshSynapseProjectCircles = refreshSynapseProjectCircles;
   window.toggleFullCommunityView = toggleFullCommunityView;
 
+  // Expose state for UI components
+  window.synapseShowFullCommunity = showFullCommunity;
+
   // Expose functions needed by Illuminate Pathways
   window.getSynapseStats = getSynapseStats;
   window.getRecommendations = getRecommendations;
@@ -163,6 +166,9 @@ export async function toggleFullCommunityView(show) {
   } else {
     showFullCommunity = !showFullCommunity;
   }
+
+  // Expose state globally for UI components
+  window.synapseShowFullCommunity = showFullCommunity;
 
   console.log(
     `🌐 Synapse view mode: ${showFullCommunity ? "Full Community (Discovery Mode)" : "My Network"}`
@@ -831,8 +837,8 @@ async function buildGraph() {
   }
 
   // If no visible nodes, automatically enable discovery mode for new users
-  if (visibleNodes.length <= 1) { // Only current user or no nodes
-    console.log("🔍 No connected content found, enabling discovery mode...");
+  if (visibleNodes.length <= 10) { // Limited content - enable discovery
+    console.log("🔍 Limited content found, enabling discovery mode...");
     if (!showFullCommunity) {
       showFullCommunity = true;
       console.log("🌐 Discovery mode enabled - reloading data...");
