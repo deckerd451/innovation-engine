@@ -623,14 +623,35 @@
         <i class="fas fa-play-circle"></i>
       </div>
       <h2 style="color:#00ff88; font-size:2rem; margin:0 0 0.5rem 0; font-weight:700;">Your focus today</h2>
-      <p style="color:rgba(255,255,255,0.6); font-size:1rem; margin:0;">Choose how you'd like to engage</p>
+      <p style="color:rgba(255,255,255,0.6); font-size:1rem; margin:0;">Based on your activity and interests, here's the best place to start today</p>
+    </div>
+
+    <!-- Enhanced START Flow - Dynamic Recommendations Container -->
+    <div id="start-options-container" style="display:flex; flex-direction:column; gap:1.5rem; margin-bottom:2rem;">
+      <!-- Populated dynamically by start-flow-integration.js -->
+    </div>
+
+    <!-- Escape Hatch -->
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <button id="explore-freely-btn" onclick="clearSessionFocus(); closeStartModal();" style="
+        background: transparent;
+        border: none;
+        color: rgba(255,255,255,0.5);
+        font-size: 0.9rem;
+        cursor: pointer;
+        text-decoration: underline;
+        padding: 0.5rem;
+        transition: color 0.2s;
+      ">
+        I just want to explore freely
+      </button>
     </div>
 
     <!-- Dynamic content area (shown when user clicks a button) -->
     <div id="start-dynamic-content" style="display:none;"></div>
 
-    <!-- Button sections (hidden when content is shown) -->
-    <div id="start-button-section">
+    <!-- Button sections (hidden when content is shown) - LEGACY FALLBACK -->
+    <div id="start-button-section" style="display:none;">
 
     <!-- Mentor Panel Buttons -->
     <div style="margin-bottom:2.5rem;">
@@ -731,8 +752,8 @@
     <!-- Close button sections wrapper -->
     </div>
 
-    <!-- Done button -->
-    <div style="text-align:center; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1);">
+    <!-- Done button - LEGACY FALLBACK (hidden by default, shown if enhanced flow fails) -->
+    <div id="start-done-button" style="display:none; text-align:center; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1);">
       <button onclick="closeStartModal()" style="padding:1rem 2.5rem; background:linear-gradient(135deg, #00ff88, #00e0ff);
         border:none; border-radius:10px; color:#000; font-weight:700; cursor:pointer; font-size:1rem; transition:all 0.2s;
         box-shadow:0 4px 15px rgba(0,255,136,0.3);">
