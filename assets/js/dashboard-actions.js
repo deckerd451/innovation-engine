@@ -404,6 +404,24 @@ function createSynapseLegend() {
         <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Connections</span>
         <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
       </div>
+
+      <!-- Discovery Mode Toggle -->
+      <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+        <button id="toggle-discovery-btn" style="
+          width: 100%;
+          padding: 0.75rem;
+          background: linear-gradient(135deg, #00ff88, #00e0ff);
+          border: none;
+          border-radius: 8px;
+          color: #000;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 2px 8px rgba(0,255,136,0.3);
+        ">
+          <i class="fas fa-globe"></i> <span id="discovery-btn-text">Discovery Mode</span>
+        </button>
+      </div>
     </div>
   `;
 
@@ -572,6 +590,58 @@ function createSynapseLegend() {
       applyVisualizationFilters(filterState);
     });
   });
+
+  // Wire up discovery mode toggle button
+  const discoveryBtn = document.getElementById('toggle-discovery-btn');
+  const discoveryBtnText = document.getElementById('discovery-btn-text');
+  
+  if (discoveryBtn && discoveryBtnText) {
+    // Update button text based on current mode
+    const updateDiscoveryButton = () => {
+      if (window.synapseShowFullCommunity) {
+        discoveryBtnText.textContent = 'My Network';
+        discoveryBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8c8c)';
+        discoveryBtn.title = 'Switch to filtered view (only your connections)';
+      } else {
+        discoveryBtnText.textContent = 'Discovery Mode';
+        discoveryBtn.style.background = 'linear-gradient(135deg, #00ff88, #00e0ff)';
+        discoveryBtn.title = 'Show all people and projects in the community';
+      }
+    };
+
+    // Initial state
+    updateDiscoveryButton();
+
+    // Click handler
+    discoveryBtn.addEventListener('click', async () => {
+      if (typeof window.toggleFullCommunityView === 'function') {
+        // Toggle the mode
+        await window.toggleFullCommunityView();
+        
+        // Update button appearance
+        updateDiscoveryButton();
+        
+        // Show notification
+        if (typeof window.showNotification === 'function') {
+          const mode = window.synapseShowFullCommunity ? 'Discovery Mode' : 'My Network';
+          window.showNotification(`Switched to ${mode}`, 'success');
+        }
+      } else {
+        console.warn('⚠️ toggleFullCommunityView not available');
+      }
+    });
+
+    // Hover effects
+    discoveryBtn.addEventListener('mouseenter', () => {
+      discoveryBtn.style.transform = 'translateY(-2px)';
+      discoveryBtn.style.boxShadow = '0 4px 12px rgba(0,255,136,0.5)';
+    });
+
+    discoveryBtn.addEventListener('mouseleave', () => {
+      discoveryBtn.style.transform = 'translateY(0)';
+      discoveryBtn.style.boxShadow = '0 2px 8px rgba(0,255,136,0.3)';
+    });
+  }
 }
 
 // Apply filters to the synapse visualization
