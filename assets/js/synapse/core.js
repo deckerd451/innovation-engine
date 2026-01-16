@@ -171,13 +171,19 @@ export async function toggleFullCommunityView(show) {
   window.synapseShowFullCommunity = showFullCommunity;
 
   console.log(
-    `🌐 Synapse view mode: ${showFullCommunity ? "Full Community (Discovery Mode)" : "My Network"}`
+    `🌐 Synapse view mode: ${showFullCommunity ? "Full Community (Discovery Mode)" : "My Network"}`,
+    `(showFullCommunity=${showFullCommunity})`
   );
 
   // Per yellow comments: In discovery mode, show themes user is not connected to
   // This allows users to discover new themes through the start sequence
   await reloadAllData();
   await rebuildGraph();
+  
+  // Update discovery button if it exists
+  if (typeof window.updateDiscoveryButtonState === 'function') {
+    window.updateDiscoveryButtonState();
+  }
 }
 
 export function getSynapseStats() {
@@ -841,7 +847,14 @@ async function buildGraph() {
     console.log("🔍 Limited content found, enabling discovery mode...");
     if (!showFullCommunity) {
       showFullCommunity = true;
+      window.synapseShowFullCommunity = showFullCommunity; // Update global state
       console.log("🌐 Discovery mode enabled - reloading data...");
+      
+      // Update button if it exists
+      if (typeof window.updateDiscoveryButtonState === 'function') {
+        window.updateDiscoveryButtonState();
+      }
+      
       await reloadAllData();
       await rebuildGraph();
       return;

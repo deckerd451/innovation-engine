@@ -614,12 +614,19 @@ function createSynapseLegend() {
       }
     };
 
-    // Initial state
-    updateDiscoveryButton();
+    // Expose update function globally so synapse can call it
+    window.updateDiscoveryButtonState = updateDiscoveryButton;
+
+    // Initial state - check after a delay to let synapse initialize
+    setTimeout(() => {
+      updateDiscoveryButton();
+      console.log('🔍 Initial discovery button state set');
+    }, 1000);
 
     // Click handler
     discoveryBtn.addEventListener('click', async () => {
       console.log('🔍 Discovery button clicked');
+      console.log('🔍 Current state BEFORE toggle:', window.synapseShowFullCommunity);
       console.log('🔍 toggleFullCommunityView available:', typeof window.toggleFullCommunityView);
       
       if (typeof window.toggleFullCommunityView === 'function') {
@@ -629,7 +636,7 @@ function createSynapseLegend() {
           await window.toggleFullCommunityView();
           console.log('🔍 Toggle complete, new mode:', window.synapseShowFullCommunity);
           
-          // Update button appearance
+          // Update button appearance (will be called by synapse too, but ensure it happens)
           updateDiscoveryButton();
           
           // Show notification
