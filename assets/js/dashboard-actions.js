@@ -996,7 +996,7 @@ async function loadThemesList() {
                 | Activity Score: ${theme.activity_score || 0}
               </div>
             </div>
-            <button onclick="deleteTheme('${theme.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
+            <button onclick="window.deleteTheme('${theme.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
               <i class="fas fa-trash"></i> Delete
             </button>
           </div>
