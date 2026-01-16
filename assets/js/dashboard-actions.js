@@ -1210,28 +1210,65 @@ window.deleteTheme = async function(themeId) {
 };
 
 window.deleteProject = async function(projectId) {
-  if (!confirm("Are you sure you want to delete this project?")) return;
+  console.log('🗑️ Delete project called with ID:', projectId);
+  
+  if (!confirm("Are you sure you want to delete this project?")) {
+    console.log('🗑️ Delete cancelled by user');
+    return;
+  }
 
   const supabase = window.supabase;
-  if (!supabase) return;
+  if (!supabase) {
+    console.error('❌ Supabase not available');
+    alert('Database connection not available');
+    return;
+  }
 
   try {
+    console.log('🗑️ Attempting to delete project:', projectId);
+    
     const { error } = await supabase
       .from('projects')
       .delete()
       .eq('id', projectId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Delete error:', error);
+      throw error;
+    }
 
+    console.log('✅ Project deleted successfully');
     alert("Project deleted successfully!");
-    loadProjectsList();
+    
+    // Refresh the projects list
+    if (typeof loadProjectsList === 'function') {
+      loadProjectsList();
+    } else {
+      console.warn('⚠️ loadProjectsList not available, reloading page...');
+      location.reload();
+    }
 
+    // Refresh synapse view
     if (typeof window.refreshSynapseConnections === 'function') {
       await window.refreshSynapseConnections();
     }
   } catch (error) {
-    console.error("Error deleting project:", error);
-    alert("Failed to delete project");
+    console.error("❌ Error deleting project:", error);
+    alert("Failed to delete project: " + (error.message || 'Unknown error'));
+  }
+};
+
+// Test function for debugging
+window.testDeleteProject = function(projectId) {
+  console.log('🧪 Testing deleteProject function...');
+  console.log('  Function available:', typeof window.deleteProject);
+  console.log('  Supabase available:', typeof window.supabase);
+  console.log('  Project ID:', projectId);
+  
+  if (projectId) {
+    window.deleteProject(projectId);
+  } else {
+    console.log('💡 Usage: window.testDeleteProject("project-id-here")');
   }
 };
 
