@@ -624,8 +624,13 @@ function createSynapseLegend() {
     }, 1000);
 
     // Click handler
-    discoveryBtn.addEventListener('click', async () => {
-      console.log('🔍 Discovery button clicked');
+    discoveryBtn.addEventListener('click', async (e) => {
+      e.preventDefault(); // Prevent any default behavior
+      e.stopPropagation(); // Stop event bubbling
+      
+      console.log('🔍 ========== DISCOVERY BUTTON CLICKED ==========');
+      console.log('🔍 Event:', e);
+      console.log('🔍 Button element:', discoveryBtn);
       console.log('🔍 Current state BEFORE toggle:', window.synapseShowFullCommunity);
       console.log('🔍 toggleFullCommunityView available:', typeof window.toggleFullCommunityView);
       
@@ -646,6 +651,7 @@ function createSynapseLegend() {
           }
         } catch (error) {
           console.error('❌ Error toggling discovery mode:', error);
+          alert('Error toggling discovery mode: ' + error.message);
         }
       } else {
         console.warn('⚠️ toggleFullCommunityView not available');
@@ -665,6 +671,21 @@ function createSynapseLegend() {
     });
     
     console.log('✅ Discovery button wired up successfully');
+    
+    // Expose test function for debugging
+    window.testDiscoveryButton = () => {
+      console.log('🧪 Testing discovery button...');
+      console.log('  Button element:', discoveryBtn);
+      console.log('  Button text element:', discoveryBtnText);
+      console.log('  Current text:', discoveryBtnText.textContent);
+      console.log('  Current mode:', window.synapseShowFullCommunity);
+      console.log('  Toggle function:', typeof window.toggleFullCommunityView);
+      
+      // Try clicking programmatically
+      discoveryBtn.click();
+    };
+    
+    console.log('💡 Test button with: window.testDiscoveryButton()');
   } else {
     console.warn('⚠️ Discovery button elements not found:', { discoveryBtn, discoveryBtnText });
   }
@@ -1232,11 +1253,7 @@ if (typeof window.showNotification !== 'function') {
   };
 }
 
-// Make theme assignment functions globally available
-window.assignProjectToTheme = assignProjectToTheme;
-window.removeProjectFromTheme = removeProjectFromTheme;
-
-// Theme assignment functions
+// Theme assignment functions (defined here, exposed to window below)
 async function assignProjectToTheme(projectId) {
   try {
     const supabase = window.supabase;
