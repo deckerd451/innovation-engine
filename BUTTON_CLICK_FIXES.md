@@ -249,11 +249,216 @@ console.log('updateDiscoveryButtonState:', typeof window.updateDiscoveryButtonSt
 
 ## Status: FIXED ✅
 
-Both issues have been fixed:
+All issues have been fixed:
 1. ✅ Project assignment button now works
 2. ✅ Discovery mode toggle has enhanced debugging
+3. ✅ Project delete button has comprehensive logging
+4. ✅ Theme delete button has comprehensive logging
 
 Changes pushed to `fix/synapse-theme-circles-loading` branch.
+
+---
+
+### 3. ✅ Project Delete Button Enhancement
+
+**Problem**: User couldn't delete projects - needed better error visibility.
+
+**Solution**: Enhanced `window.deleteProject()` with comprehensive logging and error handling:
+
+```javascript
+window.deleteProject = async function(projectId) {
+  console.log('🗑️ Delete project called with ID:', projectId);
+  
+  if (!confirm("Are you sure you want to delete this project?")) {
+    console.log('🗑️ Delete cancelled by user');
+    return;
+  }
+
+  const supabase = window.supabase;
+  if (!supabase) {
+    console.error('❌ Supabase not available');
+    alert('Database connection not available');
+    return;
+  }
+
+  try {
+    console.log('🗑️ Attempting to delete project:', projectId);
+    
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (error) {
+      console.error('❌ Delete error:', error);
+      throw error;
+    }
+
+    console.log('✅ Project deleted successfully');
+    alert("Project deleted successfully!");
+    
+    // Refresh the projects list
+    if (typeof loadProjectsList === 'function') {
+      loadProjectsList();
+    } else {
+      console.warn('⚠️ loadProjectsList not available, reloading page...');
+      location.reload();
+    }
+
+    // Refresh synapse view
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
+    }
+  } catch (error) {
+    console.error("❌ Error deleting project:", error);
+    alert("Failed to delete project: " + (error.message || 'Unknown error'));
+  }
+};
+
+// Test function for debugging
+window.testDeleteProject = function(projectId) {
+  console.log('🧪 Testing deleteProject function...');
+  console.log('  Function available:', typeof window.deleteProject);
+  console.log('  Supabase available:', typeof window.supabase);
+  console.log('  Project ID:', projectId);
+  
+  if (projectId) {
+    window.deleteProject(projectId);
+  } else {
+    console.log('  Usage: window.testDeleteProject(projectId)');
+  }
+};
+```
+
+**Features Added**:
+- ✅ Logs function call with project ID
+- ✅ Logs user confirmation/cancellation
+- ✅ Checks Supabase availability with error message
+- ✅ Logs delete attempt
+- ✅ Logs success/failure with specific error messages
+- ✅ Fallback to page reload if `loadProjectsList` unavailable
+- ✅ Test function for console debugging
+
+---
+
+### 4. ✅ Theme Delete Button Enhancement
+
+**Problem**: User sees "Theme deleted successfully!" but wants better visibility for debugging duplicate theme deletion.
+
+**Solution**: Enhanced `window.deleteTheme()` with the same comprehensive logging pattern:
+
+```javascript
+window.deleteTheme = async function(themeId) {
+  console.log('🗑️ Delete theme called with ID:', themeId);
+  
+  if (!confirm("Are you sure you want to delete this theme?")) {
+    console.log('🗑️ Delete cancelled by user');
+    return;
+  }
+
+  const supabase = window.supabase;
+  if (!supabase) {
+    console.error('❌ Supabase not available');
+    alert('Database connection not available');
+    return;
+  }
+
+  try {
+    console.log('🗑️ Attempting to delete theme:', themeId);
+    
+    const { error } = await supabase
+      .from('theme_circles')
+      .delete()
+      .eq('id', themeId);
+
+    if (error) {
+      console.error('❌ Delete error:', error);
+      throw error;
+    }
+
+    console.log('✅ Theme deleted successfully');
+    alert("Theme deleted successfully!");
+    
+    // Refresh the themes list
+    if (typeof loadThemesList === 'function') {
+      loadThemesList();
+    } else {
+      console.warn('⚠️ loadThemesList not available, reloading page...');
+      location.reload();
+    }
+
+    // Refresh theme circles visualization
+    if (typeof window.refreshThemeCircles === 'function') {
+      await window.refreshThemeCircles();
+    }
+  } catch (error) {
+    console.error("❌ Error deleting theme:", error);
+    alert("Failed to delete theme: " + (error.message || 'Unknown error'));
+  }
+};
+
+// Test function for debugging
+window.testDeleteTheme = function(themeId) {
+  console.log('🧪 Testing deleteTheme function...');
+  console.log('  Function available:', typeof window.deleteTheme);
+  console.log('  Supabase available:', typeof window.supabase);
+  console.log('  Theme ID:', themeId);
+  
+  if (themeId) {
+    window.deleteTheme(themeId);
+  } else {
+    console.log('  Usage: window.testDeleteTheme(themeId)');
+  }
+};
+```
+
+**Features Added**:
+- ✅ Logs function call with theme ID
+- ✅ Logs user confirmation/cancellation
+- ✅ Checks Supabase availability with error message
+- ✅ Logs delete attempt
+- ✅ Logs success/failure with specific error messages
+- ✅ Fallback to page reload if `loadThemesList` unavailable
+- ✅ Test function for console debugging
+
+**How to Test Theme Deletion**:
+
+1. **Open Admin Panel**: Click ADMIN button (crown icon)
+2. **Go to Manage Themes**: Click "Manage Themes" tab
+3. **Find Duplicate Theme**: Locate the theme you want to delete
+4. **Open Console**: Open browser console to see logs
+5. **Click Delete**: Click the red "Delete" button
+6. **Expected Console Output**:
+   ```
+   🗑️ Delete theme called with ID: theme-id-here
+   🗑️ Attempting to delete theme: theme-id-here
+   ✅ Theme deleted successfully
+   ```
+7. **Expected Results**:
+   - Confirmation dialog appears
+   - Success alert shows "Theme deleted successfully!"
+   - Theme list refreshes
+   - Theme circles visualization updates
+   - Deleted theme no longer appears
+
+**Console Testing**:
+```javascript
+// Test the function
+window.testDeleteTheme('theme-id-here')
+
+// Check function availability
+console.log('deleteTheme:', typeof window.deleteTheme);
+console.log('Supabase:', typeof window.supabase);
+```
+
+**If Delete Doesn't Work**:
+1. Check console for specific error messages (now visible with emoji indicators)
+2. Verify Supabase connection: `window.supabase`
+3. Run test function: `window.testDeleteTheme(themeId)`
+4. Check if theme ID is correct
+5. Look for database permission errors in console
+
+---
 
 ## Next Steps
 

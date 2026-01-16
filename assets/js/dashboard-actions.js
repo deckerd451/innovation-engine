@@ -1184,28 +1184,65 @@ async function createThemePromptFlow() {
 }
 
 window.deleteTheme = async function(themeId) {
-  if (!confirm("Are you sure you want to delete this theme?")) return;
+  console.log('🗑️ Delete theme called with ID:', themeId);
+  
+  if (!confirm("Are you sure you want to delete this theme?")) {
+    console.log('🗑️ Delete cancelled by user');
+    return;
+  }
 
   const supabase = window.supabase;
-  if (!supabase) return;
+  if (!supabase) {
+    console.error('❌ Supabase not available');
+    alert('Database connection not available');
+    return;
+  }
 
   try {
+    console.log('🗑️ Attempting to delete theme:', themeId);
+    
     const { error } = await supabase
       .from('theme_circles')
       .delete()
       .eq('id', themeId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Delete error:', error);
+      throw error;
+    }
 
+    console.log('✅ Theme deleted successfully');
     alert("Theme deleted successfully!");
-    loadThemesList();
+    
+    // Refresh the themes list
+    if (typeof loadThemesList === 'function') {
+      loadThemesList();
+    } else {
+      console.warn('⚠️ loadThemesList not available, reloading page...');
+      location.reload();
+    }
 
+    // Refresh theme circles visualization
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
     }
   } catch (error) {
-    console.error("Error deleting theme:", error);
-    alert("Failed to delete theme");
+    console.error("❌ Error deleting theme:", error);
+    alert("Failed to delete theme: " + (error.message || 'Unknown error'));
+  }
+};
+
+// Test function for debugging
+window.testDeleteTheme = function(themeId) {
+  console.log('🧪 Testing deleteTheme function...');
+  console.log('  Function available:', typeof window.deleteTheme);
+  console.log('  Supabase available:', typeof window.supabase);
+  console.log('  Theme ID:', themeId);
+  
+  if (themeId) {
+    window.deleteTheme(themeId);
+  } else {
+    console.log('  Usage: window.testDeleteTheme(themeId)');
   }
 };
 
