@@ -51,7 +51,7 @@ let currentUserCommunityId = null;
 
 let initialized = false;
 let projectCircles = null;
-let showFullCommunity = false; // Default to filtered view (only user's activities)
+let showFullCommunity = true; // Default to Discovery Mode (show full community)
 let userManuallyToggledMode = false; // Track if user manually changed the mode
 
 /* ==========================================================================
