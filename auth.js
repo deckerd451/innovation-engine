@@ -263,6 +263,8 @@
 
         if (profile) {
           log("📋 Existing profile found:", profile);
+          // Expose profile globally for START flow and other modules
+          window.currentUserProfile = profile;
           setTimeout(() => emitProfileLoaded(user, profile), 10);
           return profile;
         }
