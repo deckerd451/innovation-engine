@@ -226,7 +226,10 @@ async function loadProjects() {
       <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
           <h3 style="color: #00e0ff; margin: 0; font-size: 1.1rem;">${project.title}</h3>
-          ${isOwner ? '<span style="background: rgba(0,224,255,0.2); color: #00e0ff; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem;">Your Project</span>' : ''}
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            ${isOwner ? '<span style="background: rgba(0,224,255,0.2); color: #00e0ff; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem;">Your Project</span>' : ''}
+            ${isOwner ? `<button onclick="window.editProject('${project.id}')" style="background: rgba(0,224,255,0.2); border: 1px solid rgba(0,224,255,0.4); border-radius: 6px; padding: 0.25rem 0.75rem; color: #00e0ff; cursor: pointer; font-size: 0.85rem;"><i class="fas fa-edit"></i> Edit</button>` : ''}
+          </div>
         </div>
         <p style="color: #aaa; font-size: 0.85rem; margin-bottom: 0.5rem;">by ${project.creator?.name || 'Unknown'}</p>
         <p style="color: white; margin-bottom: 1rem;">${project.description}</p>
@@ -339,4 +342,215 @@ export async function getAllProjectMembers() {
     console.error('❌ Project members feature error:', error);
     return [];
   }
+}
+
+// ========================
+// PROJECT EDITING
+// ========================
+
+window.editProject = async function(projectId) {
+  console.log('✏️ Edit project called with ID:', projectId);
+
+  if (!currentUserProfile) {
+    alert('Please log in first');
+    return;
+  }
+
+  try {
+    // Fetch the project
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    if (error) throw error;
+
+    // Verify ownership
+    if (project.creator_id !== currentUserProfile.id) {
+      alert('You can only edit your own projects');
+      return;
+    }
+
+    // Show edit modal
+    showEditProjectModal(project);
+
+  } catch (error) {
+    console.error('Error loading project for edit:', error);
+    alert('Error loading project. Please try again.');
+  }
+};
+
+function showEditProjectModal(project) {
+  // Create modal overlay
+  const existing = document.getElementById('edit-project-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'edit-project-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 1rem;
+  `;
+
+  const skillsString = Array.isArray(project.required_skills) 
+    ? project.required_skills.join(', ') 
+    : (project.required_skills || '');
+
+  modal.innerHTML = `
+    <div style="
+      background: linear-gradient(135deg, rgba(20,20,40,0.98), rgba(10,10,30,0.98));
+      border: 1px solid rgba(0,224,255,0.3);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h2 style="color: #00e0ff; margin: 0;">
+          <i class="fas fa-edit"></i> Edit Project
+        </h2>
+        <button id="close-edit-modal" style="
+          background: transparent;
+          border: none;
+          color: rgba(255,255,255,0.6);
+          font-size: 1.5rem;
+          cursor: pointer;
+          padding: 0;
+          width: 32px;
+          height: 32px;
+        ">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <form id="edit-project-form">
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 0.5rem; font-weight: 600;">
+            Project Title
+          </label>
+          <input type="text" id="edit-project-title" value="${project.title || ''}" required
+            style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 0.5rem; font-weight: 600;">
+            Description
+          </label>
+          <textarea id="edit-project-description" rows="4" required
+            style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem; resize: vertical;">${project.description || ''}</textarea>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 0.5rem; font-weight: 600;">
+            Required Skills <span style="font-weight: normal; font-size: 0.85rem; opacity: 0.7;">(comma-separated)</span>
+          </label>
+          <input type="text" id="edit-project-skills" value="${skillsString}"
+            style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; color: rgba(255,255,255,0.8); margin-bottom: 0.5rem; font-weight: 600;">
+            Status
+          </label>
+          <select id="edit-project-status"
+            style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+            <option value="active" ${project.status === 'active' ? 'selected' : ''}>Active</option>
+            <option value="completed" ${project.status === 'completed' ? 'selected' : ''}>Completed</option>
+            <option value="paused" ${project.status === 'paused' ? 'selected' : ''}>Paused</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+          <button type="button" id="cancel-edit-btn" style="
+            padding: 0.75rem 1.5rem;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+          ">
+            Cancel
+          </button>
+          <button type="submit" style="
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, rgba(0,224,255,0.3), rgba(0,224,255,0.2));
+            border: 1px solid rgba(0,224,255,0.5);
+            border-radius: 8px;
+            color: #00e0ff;
+            cursor: pointer;
+            font-weight: 600;
+          ">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Close handlers
+  const closeModal = () => modal.remove();
+  modal.querySelector('#close-edit-modal').addEventListener('click', closeModal);
+  modal.querySelector('#cancel-edit-btn').addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Form submit handler
+  modal.querySelector('#edit-project-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const title = document.getElementById('edit-project-title').value.trim();
+    const description = document.getElementById('edit-project-description').value.trim();
+    const skills = document.getElementById('edit-project-skills').value;
+    const status = document.getElementById('edit-project-status').value;
+
+    if (!title || !description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          title,
+          description,
+          required_skills: skillsArray,
+          status
+        })
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      alert('Project updated successfully!');
+      closeModal();
+      await loadProjects();
+
+      // Refresh synapse view
+      if (window.refreshSynapseConnections) {
+        await window.refreshSynapseConnections();
+      }
+
+    } catch (error) {
+      console.error('Error updating project:', error);
+      alert('Error updating project. Please try again.');
+    }
+  });
 }
