@@ -52,6 +52,7 @@ let currentUserCommunityId = null;
 let initialized = false;
 let projectCircles = null;
 let showFullCommunity = false; // Default to filtered view (only user's activities)
+let userManuallyToggledMode = false; // Track if user manually changed the mode
 
 /* ==========================================================================
    PUBLIC API
@@ -167,12 +168,15 @@ export async function toggleFullCommunityView(show) {
     showFullCommunity = !showFullCommunity;
   }
 
+  // Mark that user manually toggled (disable auto-discovery)
+  userManuallyToggledMode = true;
+
   // Expose state globally for UI components
   window.synapseShowFullCommunity = showFullCommunity;
 
   console.log(
     `🌐 Synapse view mode: ${showFullCommunity ? "Full Community (Discovery Mode)" : "My Network"}`,
-    `(showFullCommunity=${showFullCommunity})`
+    `(showFullCommunity=${showFullCommunity}, userManuallyToggled=true)`
   );
 
   // Per yellow comments: In discovery mode, show themes user is not connected to
@@ -843,7 +847,8 @@ async function buildGraph() {
   }
 
   // If no visible nodes, automatically enable discovery mode for new users
-  if (visibleNodes.length <= 10) { // Limited content - enable discovery
+  // BUT only if user hasn't manually toggled the mode
+  if (visibleNodes.length <= 10 && !userManuallyToggledMode) { // Limited content - enable discovery
     console.log("🔍 Limited content found, enabling discovery mode...");
     if (!showFullCommunity) {
       showFullCommunity = true;
@@ -859,6 +864,8 @@ async function buildGraph() {
       await rebuildGraph();
       return;
     }
+  } else if (visibleNodes.length <= 10 && userManuallyToggledMode) {
+    console.log("🔍 Limited content found, but user manually toggled mode - respecting user choice");
   }
 
   // ✅ Use only visible nodes and links for simulation
