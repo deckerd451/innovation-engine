@@ -241,6 +241,8 @@
   // Profile loader (single-flight)
   // -----------------------------
   async function fetchUserProfile(user) {
+    log("🔍 Fetching profile for user_id:", user.id);
+    
     // Add timeout wrapper
     const withTimeout = (promise, timeoutMs) => {
       return Promise.race([
@@ -260,9 +262,15 @@
       15000 // 15 second timeout instead of 8
     );
 
-    if (error) throw error;
+    if (error) {
+      err("❌ Database error fetching profile:", error);
+      throw error;
+    }
 
-    return Array.isArray(data) && data.length ? data[0] : null;
+    const profile = Array.isArray(data) && data.length ? data[0] : null;
+    log("🔍 Profile query result:", profile ? "found" : "not found");
+
+    return profile;
   }
 
   async function loadUserProfileOnce(user) {
@@ -315,7 +323,22 @@
 
     // Load profile first, then ensure synapse initialization
     setTimeout(async () => {
-      await loadUserProfileOnce(user);
+      try {
+        // Add timeout protection to prevent hanging
+        const profileLoadTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Profile load timeout after 10s')), 10000)
+        );
+
+        await Promise.race([
+          loadUserProfileOnce(user),
+          profileLoadTimeout
+        ]);
+      } catch (error) {
+        err("❌ Profile loading failed:", error);
+        // Emit profile-new as fallback to allow dashboard to initialize
+        log("⚠️ Falling back to new profile creation flow");
+        setTimeout(() => emitProfileNew(user), 10);
+      }
     }, 100);
   }
 

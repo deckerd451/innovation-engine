@@ -297,6 +297,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     // BBS
     window.initBBS = initBBS;
+
+    // Utility functions
+    window.escapeHtml = escapeHtml;
   }
 
   // -----------------------------

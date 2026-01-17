@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- Cache refresh: 2026-01-13 SYNTAX FIX UPDATE -->
+  <!-- Cache refresh: 2026-01-17 SESSION PERSISTENCE FIX -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -770,49 +770,49 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
   <!-- Required base modules -->
-  <script type="module" src="assets/js/supabaseClient.js"></script>
-  <script src="assets/js/ecosystem-connector.js"></script>
-  <script src="assets/js/cynq.js"></script>
-  <script src="assets/js/neuralBackground.js"></script>
+  <script type="module" src="assets/js/supabaseClient.js?v=4"></script>
+  <script src="assets/js/ecosystem-connector.js?v=4"></script>
+  <script src="assets/js/cynq.js?v=4"></script>
+  <script src="assets/js/neuralBackground.js?v=4"></script>
 
   <!-- Feature modules -->
-  <script type="module" src="assets/js/onboarding.js"></script>
-  <script type="module" src="assets/js/node-panel.js"></script>
-  <script type="module" src="assets/js/network-filters.js"></script>
-  <script type="module" src="assets/js/graph-legend.js"></script>
-  <script type="module" src="assets/js/admin-analytics.js"></script>
-  <script type="module" src="assets/js/theme-admin.js"></script>
-  <script type="module" src="assets/js/theme-discovery.js"></script>
-  <script type="module" src="assets/js/daily-engagement.js"></script>
-  <script type="module" src="assets/js/connectionRequests.js"></script>
-  <script src="assets/js/messaging.js"></script>
+  <script type="module" src="assets/js/onboarding.js?v=4"></script>
+  <script type="module" src="assets/js/node-panel.js?v=4"></script>
+  <script type="module" src="assets/js/network-filters.js?v=4"></script>
+  <script type="module" src="assets/js/graph-legend.js?v=4"></script>
+  <script type="module" src="assets/js/admin-analytics.js?v=4"></script>
+  <script type="module" src="assets/js/theme-admin.js?v=4"></script>
+  <script type="module" src="assets/js/theme-discovery.js?v=4"></script>
+  <script type="module" src="assets/js/daily-engagement.js?v=4"></script>
+  <script type="module" src="assets/js/connectionRequests.js?v=4"></script>
+  <script src="assets/js/messaging.js?v=4"></script>
 
   <!-- Auth + profile are in ROOT -->
-  <script type="module" src="auth.js"></script>
-  <script type="module" src="profile.js"></script>
+  <script type="module" src="auth.js?v=5"></script>
+  <script type="module" src="profile.js?v=4"></script>
 
   <!-- Synapse initialization helper (ensures reliable loading) -->
-  <script src="assets/js/synapse-init-helper.js"></script>
-  
+  <script src="assets/js/synapse-init-helper.js?v=4"></script>
+
   <!-- Connection status indicator -->
-  <script src="assets/js/connection-status.js"></script>
+  <script src="assets/js/connection-status.js?v=4"></script>
 
    <!-- Synapse boot -->
   <script type="module" src="assets/js/synapse.js?v=12"></script>
 
   <!-- Main app boot -->
-  <script type="module" src="main.js"></script>
+  <script type="module" src="main.js?v=4"></script>
 
   <!-- Dashboard controller -->
   <script type="module" src="assets/js/dashboardPane.js?v=2"></script>
-  <script src="assets/js/dashboard-actions.js?v=3"></script>
+  <script src="assets/js/dashboard-actions.js?v=4"></script>
   <script src="assets/js/start-flow.js?v=2"></script>
   <script src="assets/js/start-flow-enhanced.js?v=3"></script>
   <script src="assets/js/start-flow-phase2.js?v=3"></script>
   <script src="assets/js/start-flow-integration.js?v=3"></script>
 
   <!-- Mentor Guide System -->
-  <script src="assets/js/mentor-guide.js"></script>
+  <script src="assets/js/mentor-guide.js?v=4"></script>
 
   <!-- Logout Button Handler -->
   <script>
@@ -839,6 +839,115 @@
         });
       }
     });
+  </script>
+
+  <!-- Session Restoration Handler - Fixes tab switching issues -->
+  <script>
+    (function() {
+      let lastActiveTime = Date.now();
+      let sessionCheckTimer = null;
+
+      // Check session when tab becomes visible again
+      document.addEventListener('visibilitychange', async () => {
+        if (!document.hidden) {
+          const timeSinceActive = Date.now() - lastActiveTime;
+          console.log(`👁️ Tab visible again (was away for ${Math.floor(timeSinceActive / 1000)}s)`);
+
+          // If away for more than 30 seconds, check session
+          if (timeSinceActive > 30000 && window.supabase) {
+            console.log('🔄 Checking session after being away...');
+
+            try {
+              const { data: { session }, error } = await window.supabase.auth.getSession();
+
+              if (error) {
+                console.error('❌ Session check error:', error);
+                return;
+              }
+
+              if (session?.user) {
+                console.log('✅ Session valid for:', session.user.email);
+
+                // If UI is showing login screen but we have a session, fix it
+                const loginSection = document.getElementById('login-section');
+                const mainContent = document.getElementById('main-content');
+
+                if (loginSection && !loginSection.classList.contains('hidden')) {
+                  console.log('🔧 Fixing UI - showing app instead of login');
+                  loginSection.classList.add('hidden');
+                  loginSection.classList.remove('active-tab-pane');
+
+                  if (mainContent) {
+                    mainContent.classList.remove('hidden');
+                  }
+
+                  const mainHeader = document.getElementById('main-header');
+                  if (mainHeader) {
+                    mainHeader.classList.remove('hidden');
+                  }
+
+                  document.body.style.overflow = 'auto';
+
+                  // Reload profile if needed
+                  if (!window.currentUserProfile) {
+                    console.log('📋 Reloading user profile...');
+                    try {
+                      const { data: profile } = await window.supabase
+                        .from('community')
+                        .select('*')
+                        .eq('user_id', session.user.id)
+                        .limit(1);
+
+                      if (profile && profile.length > 0) {
+                        window.currentUserProfile = profile[0];
+                        window.dispatchEvent(
+                          new CustomEvent('profile-loaded', {
+                            detail: { user: session.user, profile: profile[0] }
+                          })
+                        );
+                        console.log('✅ Profile reloaded:', profile[0].name);
+                      }
+                    } catch (e) {
+                      console.error('❌ Error reloading profile:', e);
+                    }
+                  }
+                }
+              } else {
+                console.log('⚠️ No active session found');
+                // Show login if not already showing
+                const loginSection = document.getElementById('login-section');
+                if (loginSection && loginSection.classList.contains('hidden')) {
+                  console.log('🔒 Showing login screen');
+                  loginSection.classList.remove('hidden');
+                  loginSection.classList.add('active-tab-pane');
+
+                  const mainContent = document.getElementById('main-content');
+                  if (mainContent) mainContent.classList.add('hidden');
+
+                  const mainHeader = document.getElementById('main-header');
+                  if (mainHeader) mainHeader.classList.add('hidden');
+
+                  document.body.style.overflow = 'hidden';
+                }
+              }
+            } catch (e) {
+              console.error('❌ Error checking session:', e);
+            }
+          }
+
+          lastActiveTime = Date.now();
+        }
+      });
+
+      // Update last active time periodically while tab is active
+      setInterval(() => {
+        if (!document.hidden) {
+          lastActiveTime = Date.now();
+        }
+      }, 5000);
+
+      console.log('✅ Session restoration handler initialized');
+    })();
   </script>
 
   <!-- Profile Editor Extension -->
