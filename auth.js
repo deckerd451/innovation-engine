@@ -480,9 +480,34 @@
               try {
                 // Clear any existing auth listeners that might be conflicting
                 window.supabase?.auth?.stopAutoRefresh?.();
-                await sleep(2000); // Wait longer for cleanup
+                
+                // More aggressive: try to recreate the Supabase client
+                console.log("🔄 Attempting to recreate Supabase client...");
+                const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+                
+                const newClient = createClient(
+                  "https://hvmotpzhliufzomewzfl.supabase.co",
+                  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s",
+                  {
+                    auth: {
+                      autoRefreshToken: false, // Disable auto refresh to prevent conflicts
+                      persistSession: true,
+                      detectSessionInUrl: true,
+                      storage: window.localStorage,
+                      storageKey: 'supabase.auth.token.new',
+                      flowType: 'pkce',
+                      debug: false,
+                    },
+                  }
+                );
+                
+                window.supabase = newClient;
+                console.log("✅ Supabase client recreated");
+                
+                await sleep(3000); // Wait longer for cleanup
               } catch (cleanupError) {
                 console.warn("⚠️ Auth cleanup error:", cleanupError);
+                await sleep(2000);
               }
             }
           }
@@ -515,6 +540,55 @@
     // Log other unhandled rejections normally
     console.error('❌ Unhandled promise rejection:', event.reason);
   });
+
+  // Auth system reset function for persistent AbortErrors
+  window.resetAuthSystem = async function() {
+    console.log("🔄 Resetting auth system...");
+    
+    try {
+      // 1. Clear all auth-related localStorage
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        console.log(`🗑️ Removing localStorage key: ${key}`);
+        localStorage.removeItem(key);
+      });
+      
+      // 2. Clear sessionStorage too
+      const sessionKeysToRemove = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
+          sessionKeysToRemove.push(key);
+        }
+      }
+      
+      sessionKeysToRemove.forEach(key => {
+        console.log(`🗑️ Removing sessionStorage key: ${key}`);
+        sessionStorage.removeItem(key);
+      });
+      
+      // 3. Stop any existing auth processes
+      if (window.supabase?.auth) {
+        try {
+          window.supabase.auth.stopAutoRefresh();
+        } catch (e) {
+          console.warn("⚠️ Could not stop auto refresh:", e);
+        }
+      }
+      
+      console.log("✅ Auth system reset complete. Please refresh the page.");
+      
+    } catch (error) {
+      console.error("❌ Auth reset failed:", error);
+    }
+  };
 
   // Diagnostic function for auth issues
   window.testAuthSystem = async function() {
