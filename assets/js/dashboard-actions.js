@@ -989,7 +989,7 @@ async function loadThemesList() {
         <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: start;">
             <div style="flex: 1;">
-              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${theme.title}</div>
+              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${window.escapeHtml?.(theme.title) || theme.title || 'Untitled Theme'}</div>
               <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
                 Status: <span style="color: ${isActive && !isExpired ? '#00ff88' : '#ff6b6b'}">${isActive && !isExpired ? 'Active' : 'Inactive/Expired'}</span>
                 | Expires: ${new Date(theme.expires_at).toLocaleDateString()}
@@ -1079,12 +1079,12 @@ async function loadProjectsList() {
         <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; padding: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
             <div style="flex: 1;">
-              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${project.title}</div>
+              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${window.escapeHtml?.(project.name) || project.name || 'Untitled'}</div>
               <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.5rem;">
-                Status: ${project.status || 'Unknown'}
+                Status: ${window.escapeHtml?.(project.status) || 'Unknown'}
                 | Created: ${new Date(project.created_at).toLocaleDateString()}
               </div>
-              ${project.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">${project.description}</div>` : ''}
+              ${project.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">${window.escapeHtml?.(project.description) || ''}</div>` : ''}
             </div>
             <button onclick="deleteProject('${project.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
               <i class="fas fa-trash"></i> Delete
@@ -1098,7 +1098,7 @@ async function loadProjectsList() {
                 <i class="fas fa-bullseye"></i> Theme Assignment:
               </div>
               <div style="color: ${currentTheme ? '#00ff88' : 'rgba(255,255,255,0.5)'}; font-size: 0.9rem;">
-                ${currentTheme ? `📍 ${currentTheme.title}` : '❌ No theme assigned'}
+                ${currentTheme ? `📍 ${window.escapeHtml?.(currentTheme.title) || currentTheme.title}` : '❌ No theme assigned'}
               </div>
             </div>
             
@@ -1107,7 +1107,7 @@ async function loadProjectsList() {
                 <option value="">Select a theme...</option>
                 ${themes.map(theme => `
                   <option value="${theme.id}" ${theme.id === project.theme_id ? 'selected' : ''}>
-                    ${theme.title}
+                    ${window.escapeHtml?.(theme.title) || theme.title}
                   </option>
                 `).join('')}
               </select>
