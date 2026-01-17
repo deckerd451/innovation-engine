@@ -23,22 +23,33 @@ if (window.supabase) {
   console.log("♻️ Reusing existing Supabase client");
 } else {
   // Create new client only if one doesn't exist
-  supabaseInstance = createClient(
-    "https://hvmotpzhliufzomewzfl.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s",
-    {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        storage: window.localStorage, // Explicit localStorage usage
-        storageKey: 'supabase.auth.token', // Consistent storage key
-        flowType: 'pkce', // Use PKCE flow for better security
-      },
-    }
-  );
-  window.supabase = supabaseInstance;
-  console.log("✅ Supabase client initialized");
+  try {
+    supabaseInstance = createClient(
+      "https://hvmotpzhliufzomewzfl.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s",
+      {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+          storage: window.localStorage, // Explicit localStorage usage
+          storageKey: 'supabase.auth.token', // Consistent storage key
+          flowType: 'pkce', // Use PKCE flow for better security
+          debug: false, // Disable debug to reduce noise
+        },
+        global: {
+          headers: {
+            'X-Client-Info': 'charlestonhacks-dashboard'
+          }
+        }
+      }
+    );
+    window.supabase = supabaseInstance;
+    console.log("✅ Supabase client initialized");
+  } catch (error) {
+    console.error("❌ Failed to initialize Supabase client:", error);
+    throw error;
+  }
 }
 
 export const supabase = supabaseInstance;
