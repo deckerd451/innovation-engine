@@ -242,19 +242,25 @@
   // -----------------------------
   async function fetchUserProfile(user) {
     log("🔍 Fetching profile for user_id:", user.id);
+    
+    // Add timeout wrapper
+    const withTimeout = (promise, timeoutMs) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Database query timeout after ${timeoutMs/1000}s`)), timeoutMs)
+        )
+      ]);
+    };
 
-    // Add timeout protection for the database query
-    const queryPromise = window.supabase
-      .from("community")
-      .select("*")
-      .eq("user_id", user.id)
-      .limit(1);
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Database query timeout after 8s')), 8000)
+    const { data, error } = await withTimeout(
+      window.supabase
+        .from("community")
+        .select("*")
+        .eq("user_id", user.id)
+        .limit(1),
+      15000 // 15 second timeout instead of 8
     );
-
-    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
     if (error) {
       err("❌ Database error fetching profile:", error);

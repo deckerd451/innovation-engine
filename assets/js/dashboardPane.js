@@ -459,6 +459,60 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     }
   }
 
+  // Database diagnostic function
+  window.testDatabaseConnection = async function() {
+    console.log("🔍 Testing database connection...");
+    
+    const tests = [
+      {
+        name: "Basic connection test",
+        test: async () => {
+          const start = Date.now();
+          const { data, error } = await state.supabase
+            .from("community")
+            .select("count")
+            .limit(1);
+          const duration = Date.now() - start;
+          return { success: !error, duration, error: error?.message };
+        }
+      },
+      {
+        name: "Profile query test",
+        test: async () => {
+          if (!state.authUser) return { success: false, error: "No auth user" };
+          const start = Date.now();
+          const { data, error } = await state.supabase
+            .from("community")
+            .select("*")
+            .eq("user_id", state.authUser.id)
+            .limit(1);
+          const duration = Date.now() - start;
+          return { success: !error, duration, error: error?.message, data: data?.length };
+        }
+      },
+      {
+        name: "Auth status test",
+        test: async () => {
+          const start = Date.now();
+          const { data, error } = await state.supabase.auth.getUser();
+          const duration = Date.now() - start;
+          return { success: !error, duration, error: error?.message, user: !!data?.user };
+        }
+      }
+    ];
+
+    for (const test of tests) {
+      try {
+        console.log(`🧪 Running: ${test.name}`);
+        const result = await test.test();
+        console.log(`${result.success ? '✅' : '❌'} ${test.name}:`, result);
+      } catch (error) {
+        console.log(`❌ ${test.name} failed:`, error);
+      }
+    }
+  };
+
+  // Enhanced profile creation with better error handling
   async function ensureCommunityProfile() {
     console.log("🔧 ensureCommunityProfile called");
 
@@ -474,20 +528,27 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     console.log("🔍 Checking for existing community profile...");
 
+    // Helper function to add timeout to any promise
+    const withTimeout = (promise, timeoutMs, operation) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`${operation} timeout after ${timeoutMs/1000}s`)), timeoutMs)
+        )
+      ]);
+    };
+
     try {
-      // Check if profile already exists (might have been created by another tab/session)
-      // Add timeout protection for the database query
-      const queryPromise = state.supabase
-        .from("community")
-        .select("*")
-        .eq("user_id", state.authUser.id)
-        .maybeSingle();
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile check timeout after 8s')), 8000)
+      // Check if profile already exists with timeout
+      const { data: existing, error: exErr } = await withTimeout(
+        state.supabase
+          .from("community")
+          .select("*")
+          .eq("user_id", state.authUser.id)
+          .maybeSingle(),
+        15000, // 15 second timeout
+        "Profile check"
       );
-
-      const { data: existing, error: exErr } = await Promise.race([queryPromise, timeoutPromise]);
 
       if (!exErr && existing) {
         console.log("📋 Found existing community profile:", existing.id);
@@ -496,11 +557,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
 
       if (exErr) {
-        console.warn("⚠️ Error checking for existing profile:", exErr);
+        console.warn("⚠️ Error checking existing profile:", exErr.message);
       }
-    } catch (timeoutError) {
-      console.error("❌ Timeout checking for existing profile:", timeoutError);
-      // Continue to creation attempt
+    } catch (error) {
+      console.error("❌ Timeout checking for existing profile:", error);
+      // Continue to try creating new profile
     }
 
     console.log("🆕 Creating new community profile for user:", state.authUser.email);
@@ -521,18 +582,15 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     };
 
     try {
-      // Add timeout protection for profile creation
-      const insertPromise = state.supabase
-        .from("community")
-        .insert(payload)
-        .select("*")
-        .single();
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile creation timeout after 10s')), 10000)
+      const { data: created, error: createErr } = await withTimeout(
+        state.supabase
+          .from("community")
+          .insert(payload)
+          .select("*")
+          .single(),
+        15000, // 15 second timeout
+        "Profile creation"
       );
-
-      const { data: created, error: createErr } = await Promise.race([insertPromise, timeoutPromise]);
 
       if (createErr) {
         console.error("❌ Failed to create community profile:", createErr);
@@ -542,8 +600,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       console.log("✅ Community profile created:", created.id);
       state.communityProfile = created;
       return created;
-    } catch (timeoutError) {
-      console.error("❌ Timeout creating community profile:", timeoutError);
+    } catch (error) {
+      console.error("❌ Timeout creating community profile:", error);
       return null;
     }
   }
