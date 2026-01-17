@@ -470,14 +470,32 @@
         } catch (e) {
           err(`❌ ERROR in session attempt ${sessionAttempts}:`, e);
           
+          // Handle specific AbortError - this usually means auth system is conflicted
+          if (e.name === 'AbortError' || e.message?.includes('signal is aborted')) {
+            console.warn("⚠️ Auth session aborted - likely due to multiple auth attempts or page navigation");
+            
+            // For AbortError, try to clear any existing auth state and restart
+            if (sessionAttempts === 1) {
+              console.log("🔄 Clearing auth state and retrying...");
+              try {
+                // Clear any existing auth listeners that might be conflicting
+                window.supabase?.auth?.stopAutoRefresh?.();
+                await sleep(2000); // Wait longer for cleanup
+              } catch (cleanupError) {
+                console.warn("⚠️ Auth cleanup error:", cleanupError);
+              }
+            }
+          }
+          
           if (sessionAttempts === maxSessionAttempts) {
             cancelSessionTimer();
             // If we already booted via auth event, don't override.
             if (!hasBootstrappedThisLoad) showLoginUI();
             return;
           } else {
-            // Wait before retry
-            await sleep(1500);
+            // Wait longer for AbortError to allow cleanup
+            const waitTime = e.name === 'AbortError' ? 3000 : 1500;
+            await sleep(waitTime);
           }
         }
       }
@@ -485,6 +503,45 @@
 
     return initPromise;
   }
+
+  // Global error handler for unhandled promise rejections
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason?.name === 'AbortError' || event.reason?.message?.includes('signal is aborted')) {
+      console.warn('⚠️ Suppressed AbortError promise rejection:', event.reason.message);
+      event.preventDefault(); // Prevent the error from being logged to console repeatedly
+      return;
+    }
+    
+    // Log other unhandled rejections normally
+    console.error('❌ Unhandled promise rejection:', event.reason);
+  });
+
+  // Diagnostic function for auth issues
+  window.testAuthSystem = async function() {
+    console.log("🔍 Testing auth system...");
+    
+    try {
+      console.log("1. Checking Supabase client:", !!window.supabase);
+      console.log("2. Auth client available:", !!window.supabase?.auth);
+      
+      // Test basic auth status
+      const { data: { user }, error } = await window.supabase.auth.getUser();
+      console.log("3. Current user:", user ? `${user.email} (${user.id})` : 'None');
+      console.log("4. Auth error:", error?.message || 'None');
+      
+      // Test session
+      const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
+      console.log("5. Current session:", session ? 'Active' : 'None');
+      console.log("6. Session error:", sessionError?.message || 'None');
+      
+      // Check localStorage
+      const authKeys = Object.keys(localStorage).filter(key => key.includes('supabase') || key.includes('auth'));
+      console.log("7. Auth localStorage keys:", authKeys);
+      
+    } catch (error) {
+      console.error("❌ Auth test failed:", error);
+    }
+  };
 
   // Export to window (legacy callers)
   window.setupLoginDOM = setupLoginDOM;
