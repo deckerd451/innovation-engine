@@ -333,6 +333,13 @@
           loadUserProfileOnce(user),
           profileLoadTimeout
         ]);
+
+        // Ensure synapse gets initialized after profile is loaded
+        setTimeout(() => {
+          if (typeof window.ensureSynapseInitialized === 'function') {
+            window.ensureSynapseInitialized();
+          }
+        }, 500);
       } catch (error) {
         err("❌ Profile loading failed:", error);
         // Emit profile-new as fallback to allow dashboard to initialize
@@ -641,18 +648,3 @@
 
   log("✅ auth.js loaded (v4) — awaiting main.js to boot");
 })();
-
-// ================================================================
-// GLOBAL ERROR HANDLERS
-// ================================================================
-window.addEventListener('error', (event) => {
-  console.error('❌ Uncaught error:', event.error);
-  // Optional: Send to error tracking service
-  // trackError(event.error);
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('❌ Unhandled promise rejection:', event.reason);
-  // Optional: Send to error tracking service
-  // trackError(event.reason);
-});
