@@ -1333,6 +1333,7 @@ async function assignProjectToTheme(projectId) {
     const supabase = window.supabase;
     if (!supabase) {
       console.error('Supabase not available');
+      alert('Database connection not available');
       return;
     }
 
@@ -1340,13 +1341,14 @@ async function assignProjectToTheme(projectId) {
     const themeId = selectElement?.value;
 
     if (!themeId) {
-      if (typeof window.showNotification === 'function') {
-        window.showNotification('Please select a theme first', 'error');
-      }
+      alert('Please select a theme first');
       return;
     }
 
     console.log(`🔗 Assigning project ${projectId} to theme ${themeId}...`);
+
+    // Get the theme name for the confirmation message
+    const selectedThemeName = selectElement.options[selectElement.selectedIndex].text;
 
     const { error } = await supabase
       .from('projects')
@@ -1356,10 +1358,9 @@ async function assignProjectToTheme(projectId) {
     if (error) throw error;
 
     console.log('✅ Project assigned to theme successfully');
-    
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Project assigned to theme successfully!', 'success');
-    }
+
+    // Show prominent success notification
+    alert(`✅ SUCCESS!\n\nProject has been assigned to theme: ${selectedThemeName}`);
 
     // Refresh the projects list to show updated assignment
     loadProjectsList();
@@ -1371,9 +1372,7 @@ async function assignProjectToTheme(projectId) {
 
   } catch (error) {
     console.error('Error assigning project to theme:', error);
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Failed to assign project to theme', 'error');
-    }
+    alert(`❌ ERROR\n\nFailed to assign project to theme:\n${error.message || 'Unknown error'}`);
   }
 }
 
@@ -1382,6 +1381,12 @@ async function removeProjectFromTheme(projectId) {
     const supabase = window.supabase;
     if (!supabase) {
       console.error('Supabase not available');
+      alert('Database connection not available');
+      return;
+    }
+
+    // Confirm before removing
+    if (!confirm('Are you sure you want to remove this project from its theme?')) {
       return;
     }
 
@@ -1395,10 +1400,9 @@ async function removeProjectFromTheme(projectId) {
     if (error) throw error;
 
     console.log('✅ Project removed from theme successfully');
-    
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Project removed from theme successfully!', 'success');
-    }
+
+    // Show prominent success notification
+    alert('✅ SUCCESS!\n\nProject has been removed from its theme');
 
     // Refresh the projects list to show updated assignment
     loadProjectsList();
@@ -1410,9 +1414,7 @@ async function removeProjectFromTheme(projectId) {
 
   } catch (error) {
     console.error('Error removing project from theme:', error);
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Failed to remove project from theme', 'error');
-    }
+    alert(`❌ ERROR\n\nFailed to remove project from theme:\n${error.message || 'Unknown error'}`);
   }
 }
 
