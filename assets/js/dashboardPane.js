@@ -474,17 +474,33 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     console.log("🔍 Checking for existing community profile...");
 
-    // Check if profile already exists (might have been created by another tab/session)
-    const { data: existing, error: exErr } = await state.supabase
-      .from("community")
-      .select("*")
-      .eq("user_id", state.authUser.id)
-      .maybeSingle();
+    try {
+      // Check if profile already exists (might have been created by another tab/session)
+      // Add timeout protection for the database query
+      const queryPromise = state.supabase
+        .from("community")
+        .select("*")
+        .eq("user_id", state.authUser.id)
+        .maybeSingle();
 
-    if (!exErr && existing) {
-      console.log("📋 Found existing community profile:", existing.id);
-      state.communityProfile = existing;
-      return existing;
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile check timeout after 8s')), 8000)
+      );
+
+      const { data: existing, error: exErr } = await Promise.race([queryPromise, timeoutPromise]);
+
+      if (!exErr && existing) {
+        console.log("📋 Found existing community profile:", existing.id);
+        state.communityProfile = existing;
+        return existing;
+      }
+
+      if (exErr) {
+        console.warn("⚠️ Error checking for existing profile:", exErr);
+      }
+    } catch (timeoutError) {
+      console.error("❌ Timeout checking for existing profile:", timeoutError);
+      // Continue to creation attempt
     }
 
     console.log("🆕 Creating new community profile for user:", state.authUser.email);
@@ -504,20 +520,32 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       image_url: state.authUser.user_metadata?.avatar_url || null,
     };
 
-    const { data: created, error: createErr } = await state.supabase
-      .from("community")
-      .insert(payload)
-      .select("*")
-      .single();
+    try {
+      // Add timeout protection for profile creation
+      const insertPromise = state.supabase
+        .from("community")
+        .insert(payload)
+        .select("*")
+        .single();
 
-    if (createErr) {
-      console.error("❌ Failed to create community profile:", createErr);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile creation timeout after 10s')), 10000)
+      );
+
+      const { data: created, error: createErr } = await Promise.race([insertPromise, timeoutPromise]);
+
+      if (createErr) {
+        console.error("❌ Failed to create community profile:", createErr);
+        return null;
+      }
+
+      console.log("✅ Community profile created:", created.id);
+      state.communityProfile = created;
+      return created;
+    } catch (timeoutError) {
+      console.error("❌ Timeout creating community profile:", timeoutError);
       return null;
     }
-
-    console.log("✅ Community profile created:", created.id);
-    state.communityProfile = created;
-    return created;
   }
 
   // NOTE: dispatchProfileLoadedIfNeeded removed - auth.js handles all profile event dispatching
