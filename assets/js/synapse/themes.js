@@ -201,6 +201,9 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
           <i class="fas fa-star"></i> Signal Interest
         </button>
       ` : ''}
+      <button class="synapse-connect-btn" id="theme-add-project-btn" style="background:rgba(0,224,255,0.2); border-color:rgba(0,224,255,0.5);">
+        <i class="fas fa-plus-circle"></i> Add Project to Theme
+      </button>
       ${themeNode.cta_text && themeNode.cta_link ? `
         <button class="synapse-connect-btn" style="background:rgba(255,107,107,0.2); border-color:rgba(255,107,107,0.5);" onclick="window.open('${escapeHtml(themeNode.cta_link)}', '_blank')">
           <i class="fas fa-external-link-alt"></i> ${escapeHtml(themeNode.cta_text)}
@@ -211,6 +214,16 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
 
   card.querySelector(".synapse-card-close")?.addEventListener("click", () => card.remove());
   card.querySelector("#theme-interested-btn")?.addEventListener("click", onInterested);
+
+  // Add Project to Theme button
+  card.querySelector("#theme-add-project-btn")?.addEventListener("click", async () => {
+    try {
+      await showAddProjectToThemeModal(themeNode);
+    } catch (error) {
+      console.error("Failed to open add project modal:", error);
+      showSynapseNotification(error.message || "Failed to open modal", "error");
+    }
+  });
 
   // Engagement upgrade button
   const upgradeBtn = card.querySelector("#btn-upgrade-engagement");
@@ -261,4 +274,136 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
   }
 
   document.getElementById("synapse-main-view")?.appendChild(card);
+}
+
+// Show modal to add existing projects to a theme
+async function showAddProjectToThemeModal(themeNode) {
+  const supabase = window.supabase;
+  if (!supabase) throw new Error("Supabase not available");
+
+  // Get current user's projects that aren't already in this theme
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not logged in");
+
+  const { data: profile } = await supabase
+    .from("community")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!profile) throw new Error("Profile not found");
+
+  // Get user's projects
+  const { data: projects, error } = await supabase
+    .from("projects")
+    .select("id, title, description, theme_id")
+    .eq("creator_id", profile.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  if (!projects || projects.length === 0) {
+    showSynapseNotification("You don't have any projects yet. Create one first!", "info");
+    return;
+  }
+
+  // Filter out projects already in this theme
+  const availableProjects = projects.filter(p => p.theme_id !== themeNode.theme_id);
+
+  if (availableProjects.length === 0) {
+    showSynapseNotification("All your projects are already in this theme!", "info");
+    return;
+  }
+
+  // Create modal
+  const existing = document.getElementById("add-project-theme-modal");
+  if (existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "add-project-theme-modal";
+  modal.className = "synapse-profile-card";
+  modal.style.maxWidth = "500px";
+  modal.style.maxHeight = "80vh";
+  modal.style.overflowY = "auto";
+
+  modal.innerHTML = `
+    <button class="synapse-card-close" aria-label="Close">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <div class="synapse-card-header">
+      <div class="synapse-card-avatar-fallback" style="background: rgba(0,224,255,0.12); border: 1px solid rgba(0,224,255,0.35); font-size:32px;">
+        ✨
+      </div>
+      <div class="synapse-card-info">
+        <h3>Add Project to Theme</h3>
+        <span class="synapse-availability">${escapeHtml(themeNode.title)}</span>
+      </div>
+    </div>
+
+    <div class="synapse-card-bio" style="margin-bottom:1rem;">
+      Select a project to add to this theme:
+    </div>
+
+    <div id="project-selection-list" style="display:flex; flex-direction:column; gap:0.75rem;">
+      ${availableProjects.map(project => `
+        <div class="project-selection-item" data-project-id="${project.id}" style="
+          background: rgba(0,224,255,0.05);
+          border: 2px solid rgba(0,224,255,0.2);
+          border-radius: 8px;
+          padding: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        " onmouseover="this.style.borderColor='rgba(0,224,255,0.5)'; this.style.background='rgba(0,224,255,0.1)';"
+           onmouseout="this.style.borderColor='rgba(0,224,255,0.2)'; this.style.background='rgba(0,224,255,0.05)';">
+          <div style="font-weight:bold; color:#00e0ff; margin-bottom:0.25rem;">
+            <i class="fas fa-lightbulb"></i> ${escapeHtml(project.title)}
+          </div>
+          <div style="font-size:0.85rem; color:rgba(255,255,255,0.7);">
+            ${escapeHtml(project.description || 'No description')}
+          </div>
+          ${project.theme_id ? `
+            <div style="margin-top:0.5rem; font-size:0.75rem; color:rgba(255,255,255,0.5);">
+              <i class="fas fa-info-circle"></i> Currently in another theme
+            </div>
+          ` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  modal.querySelector(".synapse-card-close")?.addEventListener("click", () => modal.remove());
+
+  // Add click handlers to project items
+  modal.querySelectorAll(".project-selection-item").forEach(item => {
+    item.addEventListener("click", async () => {
+      const projectId = item.dataset.projectId;
+      const projectTitle = item.querySelector("div").textContent.replace("💡 ", "").trim();
+
+      if (!confirm(`Add "${projectTitle}" to "${themeNode.title}"?`)) return;
+
+      try {
+        const { error } = await supabase
+          .from("projects")
+          .update({ theme_id: themeNode.theme_id })
+          .eq("id", projectId);
+
+        if (error) throw error;
+
+        showSynapseNotification(`Project added to theme! 🎉`, "success");
+        modal.remove();
+
+        // Refresh synapse view
+        if (typeof window.refreshSynapseConnections === 'function') {
+          await window.refreshSynapseConnections();
+        }
+      } catch (error) {
+        console.error("Failed to add project to theme:", error);
+        showSynapseNotification(error.message || "Failed to add project", "error");
+      }
+    });
+  });
+
+  document.getElementById("synapse-main-view")?.appendChild(modal);
 }

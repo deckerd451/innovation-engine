@@ -665,14 +665,14 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
     const maxProjectsPerRing = 8;
 
     theme.projects.forEach((project, index) => {
+      // Simple approach: distribute all projects evenly around the circle
+      const angleStep = (2 * Math.PI) / projectCount;
+      const projectAngle = index * angleStep;
+
+      // If we have many projects, use rings
       const ring = Math.floor(index / maxProjectsPerRing);
-      const positionInRing = index % maxProjectsPerRing;
-      const projectsInThisRing = Math.min(maxProjectsPerRing, projectCount - (ring * maxProjectsPerRing));
-
-      const angleStep = (2 * Math.PI) / projectsInThisRing;
-      const projectAngle = positionInRing * angleStep;
-
       const ringDistance = baseDistance + (ring * 40);
+      
       const projectX = (theme.x || 0) + Math.cos(projectAngle) * ringDistance;
       const projectY = (theme.y || 0) + Math.sin(projectAngle) * ringDistance;
 
@@ -682,7 +682,7 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
         .attr("class", `project-overlay project-${project.id}`)
         .attr("transform", `translate(${projectX}, ${projectY})`)
         .style("cursor", "pointer")
-        .datum({ ...project, theme_id: theme.theme_id, theme_x: theme.x, theme_y: theme.y, ring, positionInRing, projectsInThisRing });
+        .datum({ ...project, theme_id: theme.theme_id, theme_x: theme.x, theme_y: theme.y, ring, index });
 
       const hexSize = 16;
       const hexPath = createHexagonPath(hexSize);

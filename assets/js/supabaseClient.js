@@ -12,28 +12,48 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ======================================================================
-// 1. CREATE SUPABASE CLIENT
+// 1. CREATE SUPABASE CLIENT (Singleton pattern to prevent multiple instances)
 // ======================================================================
-export const supabase = createClient(
-  "https://hvmotpzhliufzomewzfl.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s",
-  {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-    },
-  }
-);
+// Check if client already exists on window to prevent multiple GoTrueClient instances
+let supabaseInstance;
 
-// Debug access - only set once
-if (!window.supabase) {
-  window.supabase = supabase;
-  console.log("✅ Supabase client initialized");
+if (window.supabase) {
+  // Reuse existing client if module is imported multiple times
+  supabaseInstance = window.supabase;
+  console.log("♻️ Reusing existing Supabase client");
+} else {
+  // Create new client only if one doesn't exist
+  try {
+    supabaseInstance = createClient(
+      "https://hvmotpzhliufzomewzfl.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s",
+      {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+          storage: window.localStorage, // Explicit localStorage usage
+          storageKey: 'supabase.auth.token', // Consistent storage key
+          flowType: 'pkce', // Use PKCE flow for better security
+          debug: false, // Disable debug to reduce noise
+        },
+        global: {
+          headers: {
+            'X-Client-Info': 'charlestonhacks-dashboard'
+          }
+        }
+      }
+    );
+    window.supabase = supabaseInstance;
+    console.log("✅ Supabase client initialized");
+  } catch (error) {
+    console.error("❌ Failed to initialize Supabase client:", error);
+    throw error;
+  }
 }
 
-// Export alias for consistency across codebase
-export const supabaseClient = supabase;
+export const supabase = supabaseInstance;
+export const supabaseClient = supabaseInstance;
 // ======================================================================
 // 2. OAUTH PROVIDERS
 // ======================================================================

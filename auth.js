@@ -241,15 +241,36 @@
   // Profile loader (single-flight)
   // -----------------------------
   async function fetchUserProfile(user) {
-    const { data, error } = await window.supabase
-      .from("community")
-      .select("*")
-      .eq("user_id", user.id)
-      .limit(1);
+    log("🔍 Fetching profile for user_id:", user.id);
+    
+    // Add timeout wrapper
+    const withTimeout = (promise, timeoutMs) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Database query timeout after ${timeoutMs/1000}s`)), timeoutMs)
+        )
+      ]);
+    };
 
-    if (error) throw error;
+    const { data, error } = await withTimeout(
+      window.supabase
+        .from("community")
+        .select("*")
+        .eq("user_id", user.id)
+        .limit(1),
+      15000 // 15 second timeout instead of 8
+    );
 
-    return Array.isArray(data) && data.length ? data[0] : null;
+    if (error) {
+      err("❌ Database error fetching profile:", error);
+      throw error;
+    }
+
+    const profile = Array.isArray(data) && data.length ? data[0] : null;
+    log("🔍 Profile query result:", profile ? "found" : "not found");
+
+    return profile;
   }
 
   async function loadUserProfileOnce(user) {
@@ -302,14 +323,29 @@
 
     // Load profile first, then ensure synapse initialization
     setTimeout(async () => {
-      await loadUserProfileOnce(user);
-      
-      // Ensure synapse gets initialized after profile is loaded
-      setTimeout(() => {
-        if (typeof window.ensureSynapseInitialized === 'function') {
-          window.ensureSynapseInitialized();
-        }
-      }, 500);
+      try {
+        // Add timeout protection to prevent hanging
+        const profileLoadTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Profile load timeout after 10s')), 10000)
+        );
+
+        await Promise.race([
+          loadUserProfileOnce(user),
+          profileLoadTimeout
+        ]);
+
+        // Ensure synapse gets initialized after profile is loaded
+        setTimeout(() => {
+          if (typeof window.ensureSynapseInitialized === 'function') {
+            window.ensureSynapseInitialized();
+          }
+        }, 500);
+      } catch (error) {
+        err("❌ Profile loading failed:", error);
+        // Emit profile-new as fallback to allow dashboard to initialize
+        log("⚠️ Falling back to new profile creation flow");
+        setTimeout(() => emitProfileNew(user), 10);
+      }
     }, 100);
   }
 
@@ -441,14 +477,57 @@
         } catch (e) {
           err(`❌ ERROR in session attempt ${sessionAttempts}:`, e);
           
+          // Handle specific AbortError - this usually means auth system is conflicted
+          if (e.name === 'AbortError' || e.message?.includes('signal is aborted')) {
+            console.warn("⚠️ Auth session aborted - likely due to multiple auth attempts or page navigation");
+            
+            // For AbortError, try to clear any existing auth state and restart
+            if (sessionAttempts === 1) {
+              console.log("🔄 Clearing auth state and retrying...");
+              try {
+                // Clear any existing auth listeners that might be conflicting
+                window.supabase?.auth?.stopAutoRefresh?.();
+                
+                // More aggressive: try to recreate the Supabase client
+                console.log("🔄 Attempting to recreate Supabase client...");
+                const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+                
+                const newClient = createClient(
+                  "https://hvmotpzhliufzomewzfl.supabase.co",
+                  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s",
+                  {
+                    auth: {
+                      autoRefreshToken: false, // Disable auto refresh to prevent conflicts
+                      persistSession: true,
+                      detectSessionInUrl: true,
+                      storage: window.localStorage,
+                      storageKey: 'supabase.auth.token.new',
+                      flowType: 'pkce',
+                      debug: false,
+                    },
+                  }
+                );
+                
+                window.supabase = newClient;
+                console.log("✅ Supabase client recreated");
+                
+                await sleep(3000); // Wait longer for cleanup
+              } catch (cleanupError) {
+                console.warn("⚠️ Auth cleanup error:", cleanupError);
+                await sleep(2000);
+              }
+            }
+          }
+          
           if (sessionAttempts === maxSessionAttempts) {
             cancelSessionTimer();
             // If we already booted via auth event, don't override.
             if (!hasBootstrappedThisLoad) showLoginUI();
             return;
           } else {
-            // Wait before retry
-            await sleep(1500);
+            // Wait longer for AbortError to allow cleanup
+            const waitTime = e.name === 'AbortError' ? 3000 : 1500;
+            await sleep(waitTime);
           }
         }
       }
@@ -456,6 +535,94 @@
 
     return initPromise;
   }
+
+  // Global error handler for unhandled promise rejections
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason?.name === 'AbortError' || event.reason?.message?.includes('signal is aborted')) {
+      console.warn('⚠️ Suppressed AbortError promise rejection:', event.reason.message);
+      event.preventDefault(); // Prevent the error from being logged to console repeatedly
+      return;
+    }
+    
+    // Log other unhandled rejections normally
+    console.error('❌ Unhandled promise rejection:', event.reason);
+  });
+
+  // Auth system reset function for persistent AbortErrors
+  window.resetAuthSystem = async function() {
+    console.log("🔄 Resetting auth system...");
+    
+    try {
+      // 1. Clear all auth-related localStorage
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        console.log(`🗑️ Removing localStorage key: ${key}`);
+        localStorage.removeItem(key);
+      });
+      
+      // 2. Clear sessionStorage too
+      const sessionKeysToRemove = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
+          sessionKeysToRemove.push(key);
+        }
+      }
+      
+      sessionKeysToRemove.forEach(key => {
+        console.log(`🗑️ Removing sessionStorage key: ${key}`);
+        sessionStorage.removeItem(key);
+      });
+      
+      // 3. Stop any existing auth processes
+      if (window.supabase?.auth) {
+        try {
+          window.supabase.auth.stopAutoRefresh();
+        } catch (e) {
+          console.warn("⚠️ Could not stop auto refresh:", e);
+        }
+      }
+      
+      console.log("✅ Auth system reset complete. Please refresh the page.");
+      
+    } catch (error) {
+      console.error("❌ Auth reset failed:", error);
+    }
+  };
+
+  // Diagnostic function for auth issues
+  window.testAuthSystem = async function() {
+    console.log("🔍 Testing auth system...");
+    
+    try {
+      console.log("1. Checking Supabase client:", !!window.supabase);
+      console.log("2. Auth client available:", !!window.supabase?.auth);
+      
+      // Test basic auth status
+      const { data: { user }, error } = await window.supabase.auth.getUser();
+      console.log("3. Current user:", user ? `${user.email} (${user.id})` : 'None');
+      console.log("4. Auth error:", error?.message || 'None');
+      
+      // Test session
+      const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
+      console.log("5. Current session:", session ? 'Active' : 'None');
+      console.log("6. Session error:", sessionError?.message || 'None');
+      
+      // Check localStorage
+      const authKeys = Object.keys(localStorage).filter(key => key.includes('supabase') || key.includes('auth'));
+      console.log("7. Auth localStorage keys:", authKeys);
+      
+    } catch (error) {
+      console.error("❌ Auth test failed:", error);
+    }
+  };
 
   // Export to window (legacy callers)
   window.setupLoginDOM = setupLoginDOM;

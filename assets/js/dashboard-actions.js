@@ -404,6 +404,24 @@ function createSynapseLegend() {
         <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Connections</span>
         <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
       </div>
+
+      <!-- Discovery Mode Toggle -->
+      <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+        <button id="toggle-discovery-btn" style="
+          width: 100%;
+          padding: 0.75rem;
+          background: linear-gradient(135deg, #00ff88, #00e0ff);
+          border: none;
+          border-radius: 8px;
+          color: #000;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 2px 8px rgba(0,255,136,0.3);
+        ">
+          <i class="fas fa-globe"></i> <span id="discovery-btn-text">Discovery Mode</span>
+        </button>
+      </div>
     </div>
   `;
 
@@ -572,6 +590,105 @@ function createSynapseLegend() {
       applyVisualizationFilters(filterState);
     });
   });
+
+  // Wire up discovery mode toggle button
+  const discoveryBtn = document.getElementById('toggle-discovery-btn');
+  const discoveryBtnText = document.getElementById('discovery-btn-text');
+  
+  if (discoveryBtn && discoveryBtnText) {
+    console.log('🔍 Wiring up discovery mode toggle button');
+    
+    // Update button text based on current mode
+    const updateDiscoveryButton = () => {
+      const currentMode = window.synapseShowFullCommunity || false;
+      console.log('🔍 Updating discovery button, current mode:', currentMode);
+      
+      if (currentMode) {
+        discoveryBtnText.textContent = 'My Network';
+        discoveryBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8c8c)';
+        discoveryBtn.title = 'Switch to filtered view (only your connections)';
+      } else {
+        discoveryBtnText.textContent = 'Discovery Mode';
+        discoveryBtn.style.background = 'linear-gradient(135deg, #00ff88, #00e0ff)';
+        discoveryBtn.title = 'Show all people and projects in the community';
+      }
+    };
+
+    // Expose update function globally so synapse can call it
+    window.updateDiscoveryButtonState = updateDiscoveryButton;
+
+    // Initial state - check after a delay to let synapse initialize
+    setTimeout(() => {
+      updateDiscoveryButton();
+      console.log('🔍 Initial discovery button state set');
+    }, 1000);
+
+    // Click handler
+    discoveryBtn.addEventListener('click', async (e) => {
+      e.preventDefault(); // Prevent any default behavior
+      e.stopPropagation(); // Stop event bubbling
+      
+      console.log('🔍 ========== DISCOVERY BUTTON CLICKED ==========');
+      console.log('🔍 Event:', e);
+      console.log('🔍 Button element:', discoveryBtn);
+      console.log('🔍 Current state BEFORE toggle:', window.synapseShowFullCommunity);
+      console.log('🔍 toggleFullCommunityView available:', typeof window.toggleFullCommunityView);
+      
+      if (typeof window.toggleFullCommunityView === 'function') {
+        try {
+          // Toggle the mode
+          console.log('🔍 Calling toggleFullCommunityView...');
+          await window.toggleFullCommunityView();
+          console.log('🔍 Toggle complete, new mode:', window.synapseShowFullCommunity);
+          
+          // Update button appearance (will be called by synapse too, but ensure it happens)
+          updateDiscoveryButton();
+          
+          // Show notification
+          if (typeof window.showNotification === 'function') {
+            const mode = window.synapseShowFullCommunity ? 'Discovery Mode' : 'My Network';
+            window.showNotification(`Switched to ${mode}`, 'success');
+          }
+        } catch (error) {
+          console.error('❌ Error toggling discovery mode:', error);
+          alert('Error toggling discovery mode: ' + error.message);
+        }
+      } else {
+        console.warn('⚠️ toggleFullCommunityView not available');
+        alert('Discovery mode toggle not available yet. Please wait for synapse to initialize.');
+      }
+    });
+
+    // Hover effects
+    discoveryBtn.addEventListener('mouseenter', () => {
+      discoveryBtn.style.transform = 'translateY(-2px)';
+      discoveryBtn.style.boxShadow = '0 4px 12px rgba(0,255,136,0.5)';
+    });
+
+    discoveryBtn.addEventListener('mouseleave', () => {
+      discoveryBtn.style.transform = 'translateY(0)';
+      discoveryBtn.style.boxShadow = '0 2px 8px rgba(0,255,136,0.3)';
+    });
+    
+    console.log('✅ Discovery button wired up successfully');
+    
+    // Expose test function for debugging
+    window.testDiscoveryButton = () => {
+      console.log('🧪 Testing discovery button...');
+      console.log('  Button element:', discoveryBtn);
+      console.log('  Button text element:', discoveryBtnText);
+      console.log('  Current text:', discoveryBtnText.textContent);
+      console.log('  Current mode:', window.synapseShowFullCommunity);
+      console.log('  Toggle function:', typeof window.toggleFullCommunityView);
+      
+      // Try clicking programmatically
+      discoveryBtn.click();
+    };
+    
+    console.log('💡 Test button with: window.testDiscoveryButton()');
+  } else {
+    console.warn('⚠️ Discovery button elements not found:', { discoveryBtn, discoveryBtnText });
+  }
 }
 
 // Apply filters to the synapse visualization
@@ -872,14 +989,14 @@ async function loadThemesList() {
         <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: start;">
             <div style="flex: 1;">
-              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${theme.title}</div>
+              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${window.escapeHtml?.(theme.title) || theme.title || 'Untitled Theme'}</div>
               <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
                 Status: <span style="color: ${isActive && !isExpired ? '#00ff88' : '#ff6b6b'}">${isActive && !isExpired ? 'Active' : 'Inactive/Expired'}</span>
                 | Expires: ${new Date(theme.expires_at).toLocaleDateString()}
                 | Activity Score: ${theme.activity_score || 0}
               </div>
             </div>
-            <button onclick="deleteTheme('${theme.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
+            <button onclick="window.deleteTheme('${theme.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
               <i class="fas fa-trash"></i> Delete
             </button>
           </div>
@@ -962,12 +1079,12 @@ async function loadProjectsList() {
         <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; padding: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
             <div style="flex: 1;">
-              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${project.title}</div>
+              <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${window.escapeHtml?.(project.name) || project.name || 'Untitled'}</div>
               <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.5rem;">
-                Status: ${project.status || 'Unknown'}
+                Status: ${window.escapeHtml?.(project.status) || 'Unknown'}
                 | Created: ${new Date(project.created_at).toLocaleDateString()}
               </div>
-              ${project.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">${project.description}</div>` : ''}
+              ${project.description ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">${window.escapeHtml?.(project.description) || ''}</div>` : ''}
             </div>
             <button onclick="deleteProject('${project.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer;">
               <i class="fas fa-trash"></i> Delete
@@ -981,7 +1098,7 @@ async function loadProjectsList() {
                 <i class="fas fa-bullseye"></i> Theme Assignment:
               </div>
               <div style="color: ${currentTheme ? '#00ff88' : 'rgba(255,255,255,0.5)'}; font-size: 0.9rem;">
-                ${currentTheme ? `📍 ${currentTheme.title}` : '❌ No theme assigned'}
+                ${currentTheme ? `📍 ${window.escapeHtml?.(currentTheme.title) || currentTheme.title}` : '❌ No theme assigned'}
               </div>
             </div>
             
@@ -990,7 +1107,7 @@ async function loadProjectsList() {
                 <option value="">Select a theme...</option>
                 ${themes.map(theme => `
                   <option value="${theme.id}" ${theme.id === project.theme_id ? 'selected' : ''}>
-                    ${theme.title}
+                    ${window.escapeHtml?.(theme.title) || theme.title}
                   </option>
                 `).join('')}
               </select>
@@ -1067,54 +1184,128 @@ async function createThemePromptFlow() {
 }
 
 window.deleteTheme = async function(themeId) {
-  if (!confirm("Are you sure you want to delete this theme?")) return;
+  console.log('🗑️ Delete theme called with ID:', themeId);
+  
+  if (!confirm("Are you sure you want to delete this theme?")) {
+    console.log('🗑️ Delete cancelled by user');
+    return;
+  }
 
   const supabase = window.supabase;
-  if (!supabase) return;
+  if (!supabase) {
+    console.error('❌ Supabase not available');
+    alert('Database connection not available');
+    return;
+  }
 
   try {
+    console.log('🗑️ Attempting to delete theme:', themeId);
+    
     const { error } = await supabase
       .from('theme_circles')
       .delete()
       .eq('id', themeId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Delete error:', error);
+      throw error;
+    }
 
+    console.log('✅ Theme deleted successfully');
     alert("Theme deleted successfully!");
-    loadThemesList();
+    
+    // Refresh the themes list
+    if (typeof loadThemesList === 'function') {
+      loadThemesList();
+    } else {
+      console.warn('⚠️ loadThemesList not available, reloading page...');
+      location.reload();
+    }
 
+    // Refresh theme circles visualization
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
     }
   } catch (error) {
-    console.error("Error deleting theme:", error);
-    alert("Failed to delete theme");
+    console.error("❌ Error deleting theme:", error);
+    alert("Failed to delete theme: " + (error.message || 'Unknown error'));
+  }
+};
+
+// Test function for debugging
+window.testDeleteTheme = function(themeId) {
+  console.log('🧪 Testing deleteTheme function...');
+  console.log('  Function available:', typeof window.deleteTheme);
+  console.log('  Supabase available:', typeof window.supabase);
+  console.log('  Theme ID:', themeId);
+  
+  if (themeId) {
+    window.deleteTheme(themeId);
+  } else {
+    console.log('  Usage: window.testDeleteTheme(themeId)');
   }
 };
 
 window.deleteProject = async function(projectId) {
-  if (!confirm("Are you sure you want to delete this project?")) return;
+  console.log('🗑️ Delete project called with ID:', projectId);
+  
+  if (!confirm("Are you sure you want to delete this project?")) {
+    console.log('🗑️ Delete cancelled by user');
+    return;
+  }
 
   const supabase = window.supabase;
-  if (!supabase) return;
+  if (!supabase) {
+    console.error('❌ Supabase not available');
+    alert('Database connection not available');
+    return;
+  }
 
   try {
+    console.log('🗑️ Attempting to delete project:', projectId);
+    
     const { error } = await supabase
       .from('projects')
       .delete()
       .eq('id', projectId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Delete error:', error);
+      throw error;
+    }
 
+    console.log('✅ Project deleted successfully');
     alert("Project deleted successfully!");
-    loadProjectsList();
+    
+    // Refresh the projects list
+    if (typeof loadProjectsList === 'function') {
+      loadProjectsList();
+    } else {
+      console.warn('⚠️ loadProjectsList not available, reloading page...');
+      location.reload();
+    }
 
+    // Refresh synapse view
     if (typeof window.refreshSynapseConnections === 'function') {
       await window.refreshSynapseConnections();
     }
   } catch (error) {
-    console.error("Error deleting project:", error);
-    alert("Failed to delete project");
+    console.error("❌ Error deleting project:", error);
+    alert("Failed to delete project: " + (error.message || 'Unknown error'));
+  }
+};
+
+// Test function for debugging
+window.testDeleteProject = function(projectId) {
+  console.log('🧪 Testing deleteProject function...');
+  console.log('  Function available:', typeof window.deleteProject);
+  console.log('  Supabase available:', typeof window.supabase);
+  console.log('  Project ID:', projectId);
+  
+  if (projectId) {
+    window.deleteProject(projectId);
+  } else {
+    console.log('💡 Usage: window.testDeleteProject("project-id-here")');
   }
 };
 
@@ -1136,16 +1327,13 @@ if (typeof window.showNotification !== 'function') {
   };
 }
 
-// Make theme assignment functions globally available
-window.assignProjectToTheme = assignProjectToTheme;
-window.removeProjectFromTheme = removeProjectFromTheme;
-
-// Theme assignment functions
+// Theme assignment functions (defined here, exposed to window below)
 async function assignProjectToTheme(projectId) {
   try {
     const supabase = window.supabase;
     if (!supabase) {
       console.error('Supabase not available');
+      alert('Database connection not available');
       return;
     }
 
@@ -1153,13 +1341,14 @@ async function assignProjectToTheme(projectId) {
     const themeId = selectElement?.value;
 
     if (!themeId) {
-      if (typeof window.showNotification === 'function') {
-        window.showNotification('Please select a theme first', 'error');
-      }
+      alert('Please select a theme first');
       return;
     }
 
     console.log(`🔗 Assigning project ${projectId} to theme ${themeId}...`);
+
+    // Get the theme name for the confirmation message
+    const selectedThemeName = selectElement.options[selectElement.selectedIndex].text;
 
     const { error } = await supabase
       .from('projects')
@@ -1169,10 +1358,9 @@ async function assignProjectToTheme(projectId) {
     if (error) throw error;
 
     console.log('✅ Project assigned to theme successfully');
-    
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Project assigned to theme successfully!', 'success');
-    }
+
+    // Show prominent success notification
+    alert(`✅ SUCCESS!\n\nProject has been assigned to theme: ${selectedThemeName}`);
 
     // Refresh the projects list to show updated assignment
     loadProjectsList();
@@ -1184,9 +1372,7 @@ async function assignProjectToTheme(projectId) {
 
   } catch (error) {
     console.error('Error assigning project to theme:', error);
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Failed to assign project to theme', 'error');
-    }
+    alert(`❌ ERROR\n\nFailed to assign project to theme:\n${error.message || 'Unknown error'}`);
   }
 }
 
@@ -1195,6 +1381,12 @@ async function removeProjectFromTheme(projectId) {
     const supabase = window.supabase;
     if (!supabase) {
       console.error('Supabase not available');
+      alert('Database connection not available');
+      return;
+    }
+
+    // Confirm before removing
+    if (!confirm('Are you sure you want to remove this project from its theme?')) {
       return;
     }
 
@@ -1208,10 +1400,9 @@ async function removeProjectFromTheme(projectId) {
     if (error) throw error;
 
     console.log('✅ Project removed from theme successfully');
-    
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Project removed from theme successfully!', 'success');
-    }
+
+    // Show prominent success notification
+    alert('✅ SUCCESS!\n\nProject has been removed from its theme');
 
     // Refresh the projects list to show updated assignment
     loadProjectsList();
@@ -1223,9 +1414,7 @@ async function removeProjectFromTheme(projectId) {
 
   } catch (error) {
     console.error('Error removing project from theme:', error);
-    if (typeof window.showNotification === 'function') {
-      window.showNotification('Failed to remove project from theme', 'error');
-    }
+    alert(`❌ ERROR\n\nFailed to remove project from theme:\n${error.message || 'Unknown error'}`);
   }
 }
 

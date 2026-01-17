@@ -51,7 +51,8 @@ let currentUserCommunityId = null;
 
 let initialized = false;
 let projectCircles = null;
-let showFullCommunity = false; // Default to filtered view (only user's activities)
+let showFullCommunity = true; // Default to Discovery Mode (show full community)
+let userManuallyToggledMode = false; // Track if user manually changed the mode
 
 /* ==========================================================================
    PUBLIC API
@@ -128,6 +129,9 @@ export async function initSynapseView() {
   window.refreshSynapseProjectCircles = refreshSynapseProjectCircles;
   window.toggleFullCommunityView = toggleFullCommunityView;
 
+  // Expose state for UI components
+  window.synapseShowFullCommunity = showFullCommunity;
+
   // Expose functions needed by Illuminate Pathways
   window.getSynapseStats = getSynapseStats;
   window.getRecommendations = getRecommendations;
@@ -164,14 +168,26 @@ export async function toggleFullCommunityView(show) {
     showFullCommunity = !showFullCommunity;
   }
 
+  // Mark that user manually toggled (disable auto-discovery)
+  userManuallyToggledMode = true;
+
+  // Expose state globally for UI components
+  window.synapseShowFullCommunity = showFullCommunity;
+
   console.log(
-    `🌐 Synapse view mode: ${showFullCommunity ? "Full Community (Discovery Mode)" : "My Network"}`
+    `🌐 Synapse view mode: ${showFullCommunity ? "Full Community (Discovery Mode)" : "My Network"}`,
+    `(showFullCommunity=${showFullCommunity}, userManuallyToggled=true)`
   );
 
   // Per yellow comments: In discovery mode, show themes user is not connected to
   // This allows users to discover new themes through the start sequence
   await reloadAllData();
   await rebuildGraph();
+  
+  // Update discovery button if it exists
+  if (typeof window.updateDiscoveryButtonState === 'function') {
+    window.updateDiscoveryButtonState();
+  }
 }
 
 export function getSynapseStats() {
@@ -831,15 +847,25 @@ async function buildGraph() {
   }
 
   // If no visible nodes, automatically enable discovery mode for new users
-  if (visibleNodes.length <= 1) { // Only current user or no nodes
-    console.log("🔍 No connected content found, enabling discovery mode...");
+  // BUT only if user hasn't manually toggled the mode
+  if (visibleNodes.length <= 10 && !userManuallyToggledMode) { // Limited content - enable discovery
+    console.log("🔍 Limited content found, enabling discovery mode...");
     if (!showFullCommunity) {
       showFullCommunity = true;
+      window.synapseShowFullCommunity = showFullCommunity; // Update global state
       console.log("🌐 Discovery mode enabled - reloading data...");
+      
+      // Update button if it exists
+      if (typeof window.updateDiscoveryButtonState === 'function') {
+        window.updateDiscoveryButtonState();
+      }
+      
       await reloadAllData();
       await rebuildGraph();
       return;
     }
+  } else if (visibleNodes.length <= 10 && userManuallyToggledMode) {
+    console.log("🔍 Limited content found, but user manually toggled mode - respecting user choice");
   }
 
   // ✅ Use only visible nodes and links for simulation

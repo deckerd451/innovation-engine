@@ -14,6 +14,17 @@ console.log("%c🚀 START Flow Integration Loading", "color:#0f8; font-weight:bo
 // ENHANCED START MODAL
 // ================================================================
 
+// Store profile when it loads
+let cachedUserProfile = null;
+let cachedSupabase = null;
+
+// Listen for profile-loaded event
+window.addEventListener('profile-loaded', (e) => {
+  cachedUserProfile = e.detail?.profile;
+  cachedSupabase = window.supabase || window.supabaseClient;
+  console.log('✅ START Flow: Profile cached for recommendations');
+});
+
 /**
  * Enhanced openStartModal with recommendations
  */
@@ -65,34 +76,16 @@ async function populateRecommendations() {
   `;
 
   try {
-    // Debug: log what's available
-    if (populateAttempts === 0) {
-      console.log('🔍 Checking for user profile...');
-      console.log('  window.currentUserProfile:', !!window.currentUserProfile);
-      console.log('  window.appState?.communityProfile:', !!window.appState?.communityProfile);
-      console.log('  window.startState?.currentUserProfile:', !!window.startState?.currentUserProfile);
-      console.log('  window.synapseData?.currentUser:', !!window.synapseData?.currentUser);
-      if (window.startState) {
-        console.log('  window.startState keys:', Object.keys(window.startState));
-      }
-    }
-    
-    // Get current user and supabase - check multiple sources
-    const currentUser = window.currentUserProfile || 
-                       window.appState?.communityProfile ||
-                       window.startState?.currentUserProfile ||
-                       window.synapseData?.currentUser;
-    
-    const supabase = window.supabase || window.supabaseClient;
+    // Use cached profile from event listener
+    const currentUser = cachedUserProfile;
+    const supabase = cachedSupabase || window.supabase || window.supabaseClient;
 
     if (!currentUser) {
       populateAttempts++;
       if (populateAttempts >= MAX_POPULATE_ATTEMPTS) {
-        console.error('❌ User profile sources checked:');
-        console.error('  window.currentUserProfile:', window.currentUserProfile);
-        console.error('  window.appState:', window.appState);
-        console.error('  window.startState:', window.startState);
-        console.error('  window.synapseData:', window.synapseData);
+        console.error('❌ User profile not available after multiple attempts');
+        console.error('  Cached profile:', cachedUserProfile);
+        console.error('  Try waiting for profile-loaded event');
         throw new Error('User profile not available after multiple attempts');
       }
       console.warn(`⚠️ User profile not yet available, waiting... (attempt ${populateAttempts}/${MAX_POPULATE_ATTEMPTS})`);
