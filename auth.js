@@ -241,11 +241,24 @@
   // Profile loader (single-flight)
   // -----------------------------
   async function fetchUserProfile(user) {
-    const { data, error } = await window.supabase
-      .from("community")
-      .select("*")
-      .eq("user_id", user.id)
-      .limit(1);
+    // Add timeout wrapper
+    const withTimeout = (promise, timeoutMs) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Database query timeout after ${timeoutMs/1000}s`)), timeoutMs)
+        )
+      ]);
+    };
+
+    const { data, error } = await withTimeout(
+      window.supabase
+        .from("community")
+        .select("*")
+        .eq("user_id", user.id)
+        .limit(1),
+      15000 // 15 second timeout instead of 8
+    );
 
     if (error) throw error;
 
