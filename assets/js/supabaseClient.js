@@ -22,6 +22,9 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: true,
+      storage: window.localStorage, // Explicit localStorage usage
+      storageKey: 'supabase.auth.token', // Consistent storage key
+      flowType: 'pkce', // Use PKCE flow for better security
     },
   }
 );
