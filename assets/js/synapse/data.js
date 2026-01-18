@@ -218,6 +218,14 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       const userProjects = projectMembersData.filter(pm => pm.user_id === member.id);
       const projectIds = userProjects.map(pm => pm.project_id);
 
+      // Check if this person is connected to the current user
+      const isConnectedToCurrentUser = (connectionsData || []).some(conn => {
+        const isConnected = (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
+                           (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id);
+        const isAccepted = String(conn.status || "").toLowerCase() === "accepted";
+        return isConnected && isAccepted;
+      });
+
       return {
         id: member.id,
         type: "person",
@@ -232,16 +240,26 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         x: member.x || Math.random() * window.innerWidth,
         y: member.y || Math.random() * window.innerHeight,
         isCurrentUser,
-        shouldShowImage: isCurrentUser || userThemes.length > 0, // Show image if they participate in themes
+        shouldShowImage: isCurrentUser || userThemes.length > 0 || isConnectedToCurrentUser, // Show image if current user, has themes, or is connected
         themes: userThemes, // Themes they participate in
         themeParticipations: userThemeParticipations, // Full participation data
         projects: projectIds, // Projects they're involved in
-        projectDetails: userProjects
+        projectDetails: userProjects,
+        isConnectedToCurrentUser // Add this for debugging
       };
     });
 
     nodes = [...nodes, ...peopleNodes];
     console.log("👥 Created people nodes:", peopleNodes.length);
+
+    // Debug: Log image visibility stats
+    const peopleWithImages = peopleNodes.filter(p => p.shouldShowImage);
+    const connectedPeople = peopleNodes.filter(p => p.isConnectedToCurrentUser);
+    console.log("🖼️ Image visibility stats:");
+    console.log(`  - Total people: ${peopleNodes.length}`);
+    console.log(`  - Should show images: ${peopleWithImages.length}`);
+    console.log(`  - Connected to current user: ${connectedPeople.length}`);
+    console.log(`  - People with image URLs: ${peopleNodes.filter(p => p.image_url).length}`);
 
     // Debug: Log current user's node data
     const currentUserNode = peopleNodes.find(p => p.id === currentUserCommunityId);
