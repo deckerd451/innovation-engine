@@ -463,12 +463,28 @@
       log("🚀 Initializing login system (OAuth)…");
       setHint("Checking session…");
 
-      // Early cleanup for OAuth callback query params
-      const wasOAuthCallback = cleanOAuthUrlNow();
-      if (wasOAuthCallback) {
-        log("🔄 OAuth callback detected and cleaned, reloading...");
-        setTimeout(() => window.location.reload(), 100);
-        return;
+      // Handle OAuth callback manually (since detectSessionInUrl is disabled)
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      if (code) {
+        log("🔄 OAuth callback detected, exchanging code for session...");
+        try {
+          await window.supabase.auth.exchangeCodeForSession(code);
+          log("✅ Code exchanged successfully");
+          // Clean URL and reload
+          cleanOAuthUrlNow();
+          setTimeout(() => window.location.reload(), 100);
+          return;
+        } catch (e) {
+          err("❌ Failed to exchange code:", e);
+          cleanOAuthUrlNow();
+          // Continue to show login UI
+        }
+      }
+
+      // Clean any OAuth error params
+      if (url.searchParams.has("error")) {
+        cleanOAuthUrlNow();
       }
 
       if (!loginDOMReady) {
@@ -487,6 +503,9 @@
       // Subscribe to auth changes for future events
       attachAuthSubscriptionOnce();
 
+      // Give Supabase a moment to finish any internal initialization
+      await sleep(100);
+
       // Supabase INITIAL_SESSION event is unreliable - manually check session once
       // This is safe because:
       // 1. We only call it once (no retry loop)
@@ -497,7 +516,7 @@
         const { data, error } = await Promise.race([
           window.supabase.auth.getSession(),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Session check timeout")), 5000)
+            setTimeout(() => reject(new Error("Session check timeout")), 3000)
           )
         ]);
 
