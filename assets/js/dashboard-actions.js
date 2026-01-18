@@ -734,64 +734,6 @@ function applyVisualizationFilters(filterState) {
     connections: connectionLines.length
   });
 }
-  // Use D3 to filter nodes and links properly
-  if (window.d3) {
-    const svg = window.d3.select('#synapse-svg');
-
-    // Filter nodes based on their data type
-    // Nodes have class "synapse-node" and we filter by d.type
-    svg.selectAll('.synapse-node')
-      .style('opacity', d => {
-        if (d.type === 'person' && !filterState.people) return 0;
-        if (d.type === 'project' && !filterState.projects) return 0;
-        return 1;
-      })
-      .style('pointer-events', d => {
-        if (d.type === 'person' && !filterState.people) return 'none';
-        if (d.type === 'project' && !filterState.projects) return 'none';
-        return 'all';
-      });
-
-    // Filter theme circles separately (use correct class name)
-    svg.selectAll('.theme-container')
-      .style('opacity', d => {
-        if (!filterState.themes) return 0.2;
-        return 1;
-      })
-      .style('pointer-events', d => {
-        if (!filterState.themes) return 'none';
-        return 'all';
-      });
-
-    // Also filter theme labels
-    svg.selectAll('.theme-labels')
-      .style('opacity', d => {
-        if (!filterState.themes) return 0;
-        return 1;
-      });
-
-    // Filter connections/links
-    svg.selectAll('.links line')
-      .style('opacity', d => {
-        if (!filterState.connections) return 0;
-
-        // If filtering people/projects, also filter links involving them
-        const sourceType = typeof d.source === 'object' ? d.source.type : null;
-        const targetType = typeof d.target === 'object' ? d.target.type : null;
-
-        if (sourceType === 'person' && !filterState.people) return 0;
-        if (targetType === 'person' && !filterState.people) return 0;
-        if (sourceType === 'project' && !filterState.projects) return 0;
-        if (targetType === 'project' && !filterState.projects) return 0;
-
-        return d.status === 'suggested' ? 0.5 : 0.8;
-      });
-
-    console.log('🔍 D3 Filters applied:', filterState);
-  } else {
-    console.warn('⚠️ D3 not available for filtering');
-  }
-}
 
 // Initialize legend when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -1565,4 +1507,7 @@ window.checkSupabaseStatus = async function() {
   } catch (error) {
     resultsDiv.innerHTML += `<div style="color: #ff6b6b; margin-bottom: 0.5rem;"><i class="fas fa-times"></i> Unexpected error: ${error.message}</div>`;
   }
-};
+}
+
+// Close any missing function braces
+window.openAdminPanel = openAdminPanel;
