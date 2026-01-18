@@ -21,6 +21,9 @@ export function initNodePanel() {
     currentUserProfile = e.detail.profile;
   });
 
+  // Expose functions globally
+  window.createProjectInTheme = createProjectInTheme;
+
   console.log('✅ Node panel initialized');
 }
 
@@ -185,7 +188,7 @@ async function renderThemeLensPanel(themeData) {
       `}
 
       <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">
-        <button onclick="if(typeof window.openProjectsModal === 'function') window.openProjectsModal();"
+        <button onclick="createProjectInTheme('${themeData.id}', '${escapeHtml(name)}')"
           style="width: 100%; padding: 0.875rem; background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1)); border: 1px solid rgba(0,224,255,0.4); border-radius: 8px; color: #00e0ff; cursor: pointer; font-weight: 700; font-size: 1rem;">
           <i class="fas fa-plus-circle"></i> Create Project in ${escapeHtml(name)}
         </button>
@@ -2034,6 +2037,52 @@ async function saveProfileEditor() {
   } finally {
     if (saveBtn) saveBtn.disabled = false;
     if (label) label.textContent = "Save Changes";
+  }
+}
+
+// Function to create a project in a specific theme
+async function createProjectInTheme(themeId, themeName) {
+  console.log("🎯 Creating project in theme:", { themeId, themeName });
+  
+  try {
+    // Close the node panel first
+    closeNodePanel();
+    
+    // Open the projects modal
+    if (typeof window.openProjectsModal === 'function') {
+      await window.openProjectsModal();
+      
+      // Show the create project form
+      if (typeof window.showCreateProjectForm === 'function') {
+        await window.showCreateProjectForm();
+        
+        // Pre-select the theme in the dropdown
+        setTimeout(() => {
+          const themeSelect = document.getElementById('project-theme');
+          if (themeSelect) {
+            // Try to find and select the theme
+            for (let option of themeSelect.options) {
+              if (option.value === themeId) {
+                option.selected = true;
+                console.log("✅ Pre-selected theme in dropdown:", themeName);
+                break;
+              }
+            }
+          } else {
+            console.warn("⚠️ Theme select dropdown not found");
+          }
+        }, 100); // Small delay to ensure form is rendered
+        
+      } else {
+        console.warn("⚠️ showCreateProjectForm function not available");
+      }
+    } else {
+      console.warn("⚠️ openProjectsModal function not available");
+      alert("Project creation is not available at the moment. Please try again later.");
+    }
+  } catch (error) {
+    console.error("❌ Failed to create project in theme:", error);
+    alert("Failed to open project creation form. Please try again.");
   }
 }
 

@@ -1071,6 +1071,12 @@ async function openThemeCard(themeNode) {
   // Add visual selection feedback
   highlightSelectedTheme(themeNode.theme_id);
 
+  console.log("🎯 Opening theme card for:", {
+    themeId: themeNode.theme_id,
+    themeName: themeNode.title || themeNode.name,
+    themeNode: themeNode
+  });
+
   const scale = 1.2;
 
   svg
@@ -1086,14 +1092,49 @@ async function openThemeCard(themeNode) {
 
   const themeTags = themeNode.tags || [];
 
+  // Debug: Log all project nodes to see what's available
+  const allProjects = nodes.filter((n) => n.type === "project");
+  console.log("🔍 All project nodes:", allProjects.map(p => ({
+    id: p.id,
+    title: p.title || p.name,
+    theme_id: p.theme_id,
+    tags: p.tags
+  })));
+
   const relatedProjects = nodes.filter((n) => {
     if (n.type !== "project") return false;
 
-    if (n.theme_id === themeNode.theme_id) return true;
+    // Primary match: same theme_id
+    if (n.theme_id === themeNode.theme_id) {
+      console.log("✅ Found project by theme_id:", {
+        projectTitle: n.title || n.name,
+        projectThemeId: n.theme_id,
+        targetThemeId: themeNode.theme_id
+      });
+      return true;
+    }
 
+    // Secondary match: shared tags
     const projectTags = n.tags || [];
-    return projectTags.some((tag) => themeTags.includes(tag));
+    const hasSharedTag = projectTags.some((tag) => themeTags.includes(tag));
+    if (hasSharedTag) {
+      console.log("✅ Found project by shared tags:", {
+        projectTitle: n.title || n.name,
+        projectTags: projectTags,
+        themeTags: themeTags,
+        sharedTags: projectTags.filter(tag => themeTags.includes(tag))
+      });
+      return true;
+    }
+
+    return false;
   });
+
+  console.log("🎯 Related projects found:", relatedProjects.length, relatedProjects.map(p => ({
+    id: p.id,
+    title: p.title || p.name,
+    theme_id: p.theme_id
+  })));
 
   nodeEls?.style("opacity", (d) => {
     if (!d) return 0.2;
