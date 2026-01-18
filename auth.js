@@ -4,11 +4,13 @@
 // ================================================================
 // OAuth-safe auth flow for GitHub Pages + Supabase.
 //
-// Fixes included:
-// ✅ Cancels “timeout fallback” when auth succeeds
-// ✅ Subscribes to onAuthStateChange BEFORE getSession() (so we never miss SIGNED_IN)
-// ✅ If getSession() hangs, auth event still boots the app
-// ✅ Hash cleanup ONLY after session exists
+// Improvements vs prior version:
+// ✅ NO Supabase client recreation during retries (prevents lock AbortError cascades)
+// ✅ NO stopAutoRefresh() during boot (avoids half-disabled auth state)
+// ✅ Single-flight init + single auth subscription guard
+// ✅ One cleanOAuthUrlSoon() (duplicate removed)
+// ✅ AbortError handling = backoff + retry getSession only
+// ✅ Exposes window.__authReady for other modules (ecosystem, session restoration, synapse init)
 //
 // Emits:
 //  - profile-loaded  { detail: { user, profile } }
@@ -23,13 +25,15 @@
 // - Does NOT auto-boot by default.
 // - Call window.setupLoginDOM() then window.initLoginSystem() from main.js.
 // ================================================================
+//
+// Based on your current auth controller file: :contentReference[oaicite:0]{index=0}
 
 /* global window, document */
 
 (() => {
   "use strict";
 
-  const GUARD = "__CH_IE_AUTH_V4__";
+  const GUARD = "__CH_IE_AUTH_V5__";
   if (window[GUARD]) {
     console.log("⚠️ auth.js already initialized — skipping duplicate init.");
     return;
@@ -45,6 +49,11 @@
   const log = (...args) => console.log(...args);
   const warn = (...args) => console.warn(...args);
   const err = (...args) => console.error(...args);
+
+  const isAbortError = (e) =>
+    e?.name === "AbortError" ||
+    String(e?.message || "").includes("signal is aborted") ||
+    String(e?.message || "").toLowerCase().includes("aborted");
 
   function setHint(msg) {
     const hint = $("login-hint");
@@ -69,10 +78,16 @@
 
   let bootUserId = null; // booted user id for this page load
   let profileLoadPromise = null; // in-flight profile request (single flight)
-  let lastAuthEvent = null;
 
-  // Track whether we already successfully booted UI (prevents timeout override)
   let hasBootstrappedThisLoad = false;
+  let sessionTimer = null;
+
+  // Auth subscription guard
+  let authSubAttached = false;
+  let authUnsub = null;
+
+  // Signal to other modules that initial auth decision is done
+  window.__authReady = false;
 
   // -----------------------------
   // DOM wiring
@@ -90,24 +105,38 @@
       return;
     }
 
-    if (!githubBtn?.dataset.bound) {
-      githubBtn?.addEventListener("click", () => oauthLogin("github"));
-      if (githubBtn) githubBtn.dataset.bound = "1";
+    if (githubBtn && !githubBtn.dataset.bound) {
+      githubBtn.addEventListener("click", () => oauthLogin("github"));
+      githubBtn.dataset.bound = "1";
     }
 
-    if (!googleBtn?.dataset.bound) {
-      googleBtn?.addEventListener("click", () => oauthLogin("google"));
-      if (googleBtn) googleBtn.dataset.bound = "1";
+    if (googleBtn && !googleBtn.dataset.bound) {
+      googleBtn.addEventListener("click", () => oauthLogin("google"));
+      googleBtn.dataset.bound = "1";
     }
 
     loginDOMReady = true;
     log("🎨 Login DOM setup complete (OAuth mode)");
   }
 
+  function cancelSessionTimer() {
+    if (sessionTimer) {
+      clearTimeout(sessionTimer);
+      sessionTimer = null;
+    }
+  }
+
+  function markAuthReadyOnce() {
+    if (window.__authReady) return;
+    window.__authReady = true;
+    window.dispatchEvent(new CustomEvent("auth-ready", { detail: {} }));
+  }
+
   function showLoginUI() {
-    // IMPORTANT: never let login UI override an already-booted app
+    // never let login UI override an already-booted app
     if (hasBootstrappedThisLoad) {
       warn("🟡 showLoginUI ignored (app already bootstrapped).");
+      markAuthReadyOnce();
       return;
     }
 
@@ -120,6 +149,8 @@
     document.body.style.overflow = "hidden";
     setHint("Continue with GitHub or Google.");
     log("🔒 Showing login UI");
+
+    markAuthReadyOnce();
   }
 
   function showAppUI(user) {
@@ -138,6 +169,7 @@
     }, 50);
 
     log("✅ Showing app UI for:", user?.email);
+    markAuthReadyOnce();
   }
 
   function showProfileLoading(user) {
@@ -148,28 +180,10 @@
     // no-op
   }
 
-  function cleanOAuthUrlSoon() {
-    // Supabase OAuth returns tokens in hash; clean it after it processes.
-    const url = new URL(window.location.href);
-    const hasOAuthHash =
-      !!url.hash &&
-      (url.hash.includes("access_token") ||
-        url.hash.includes("refresh_token") ||
-        url.hash.includes("expires_in") ||
-        url.hash.includes("token_type") ||
-        url.hash.includes("error"));
-
-    const hasOAuthCode = url.searchParams.has("code");
-
-    if (!hasOAuthHash && !hasOAuthCode) return;
-
-    setTimeout(() => {
-      log("🧹 Cleaning OAuth URL hash/code…");
-      window.history.replaceState({}, document.title, url.pathname);
-    }, 800);
-  }
-
-  // Immediate URL cleanup for login loops
+  // -----------------------------
+  // OAuth URL cleanup
+  // -----------------------------
+  // Immediate cleanup for ?code / ?error to break login loops (safe to do before session)
   function cleanOAuthUrlNow() {
     const url = new URL(window.location.href);
     const hasOAuthCode = url.searchParams.has("code");
@@ -183,7 +197,7 @@
     return false;
   }
 
-  // Clean OAuth hash ONLY AFTER session exists
+  // Clean OAuth hash (access_token etc.) AFTER auth had a chance to parse it
   function cleanOAuthUrlSoon() {
     const url = new URL(window.location.href);
     const hasOAuthHash =
@@ -275,18 +289,17 @@
   // -----------------------------
   // Profile loader (single-flight)
   // -----------------------------
+  function withTimeout(promise, timeoutMs, label = "Timeout") {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`${label} after ${Math.floor(timeoutMs / 1000)}s`)), timeoutMs)
+      ),
+    ]);
+  }
+
   async function fetchUserProfile(user) {
     log("🔍 Fetching profile for user_id:", user.id);
-    
-    // Add timeout wrapper
-    const withTimeout = (promise, timeoutMs) => {
-      return Promise.race([
-        promise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error(`Database query timeout after ${timeoutMs/1000}s`)), timeoutMs)
-        )
-      ]);
-    };
 
     const { data, error } = await withTimeout(
       window.supabase
@@ -294,7 +307,8 @@
         .select("*")
         .eq("user_id", user.id)
         .limit(1),
-      15000 // 15 second timeout instead of 8
+      15000,
+      "Database query timeout"
     );
 
     if (error) {
@@ -304,7 +318,6 @@
 
     const profile = Array.isArray(data) && data.length ? data[0] : null;
     log("🔍 Profile query result:", profile ? "found" : "not found");
-
     return profile;
   }
 
@@ -319,7 +332,6 @@
 
         if (profile) {
           log("📋 Existing profile found:", profile);
-          // Expose profile globally for START flow and other modules
           window.currentUserProfile = profile;
           setTimeout(() => emitProfileLoaded(user, profile), 10);
           return profile;
@@ -354,32 +366,23 @@
     bootUserId = user.id;
     log(`🟢 Bootstrapping app for user (${sourceEvent}):`, user.email);
 
+    cancelSessionTimer();
+    cleanOAuthUrlSoon();
     showAppUI(user);
 
-    // Load profile first, then ensure synapse initialization
+    // Load profile, then let synapse init (event driven + safe fallback)
     setTimeout(async () => {
       try {
-        // Add timeout protection to prevent hanging
-        const profileLoadTimeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Profile load timeout after 10s')), 10000)
-        );
-
-        await Promise.race([
-          loadUserProfileOnce(user),
-          profileLoadTimeout
-        ]);
-
-        // Ensure synapse gets initialized after profile is loaded
+        await withTimeout(loadUserProfileOnce(user), 10000, "Profile load timeout");
+      } catch (e) {
+        err("❌ Profile loading failed:", e);
+        setTimeout(() => emitProfileNew(user), 10);
+      } finally {
         setTimeout(() => {
-          if (typeof window.ensureSynapseInitialized === 'function') {
+          if (typeof window.ensureSynapseInitialized === "function") {
             window.ensureSynapseInitialized();
           }
         }, 500);
-      } catch (error) {
-        err("❌ Profile loading failed:", error);
-        // Emit profile-new as fallback to allow dashboard to initialize
-        log("⚠️ Falling back to new profile creation flow");
-        setTimeout(() => emitProfileNew(user), 10);
       }
     }, 100);
   }
@@ -387,13 +390,54 @@
   // -----------------------------
   // Core init
   // -----------------------------
-  async function waitForSupabase(maxMs = 2500) {
+  async function waitForSupabase(maxMs = 3000) {
     const start = Date.now();
     while (!window.supabase) {
       if (Date.now() - start > maxMs) return false;
       await sleep(50);
     }
     return true;
+  }
+
+  function attachAuthSubscriptionOnce() {
+    if (authSubAttached) return;
+    if (!window.supabase?.auth?.onAuthStateChange) return;
+
+    authSubAttached = true;
+
+    const { data: sub } = window.supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        log("⚡ Auth event:", event);
+
+        if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
+          cancelSessionTimer();
+          cleanOAuthUrlSoon();
+          await bootstrapForUser(session.user, event);
+          return;
+        }
+
+        if (event === "SIGNED_OUT") {
+          cancelSessionTimer();
+          log("🟡 User signed out");
+          bootUserId = null;
+          profileLoadPromise = null;
+          hasBootstrappedThisLoad = false;
+          showLoginUI();
+          return;
+        }
+
+        if (event === "TOKEN_REFRESHED") {
+          // Useful log only
+          log("🔄 Token refreshed");
+        }
+      }
+    );
+
+    authUnsub = sub?.subscription?.unsubscribe
+      ? () => sub.subscription.unsubscribe()
+      : null;
+
+    window.__CH_IE_AUTH_UNSUB__ = authUnsub;
   }
 
   async function initLoginSystem() {
@@ -403,7 +447,7 @@
       log("🚀 Initializing login system (OAuth)…");
       setHint("Checking session…");
 
-      // Immediately clean OAuth URL if present to prevent login loops
+      // Early cleanup for OAuth callback query params
       const wasOAuthCallback = cleanOAuthUrlNow();
       if (wasOAuthCallback) {
         log("🔄 OAuth callback detected and cleaned, reloading...");
@@ -424,87 +468,38 @@
         return;
       }
 
-      // Clean OAuth URL immediately, before any session attempts
-      cleanOAuthUrlSoon();
+      // Subscribe FIRST so we can't miss SIGNED_IN / INITIAL_SESSION
+      attachAuthSubscriptionOnce();
 
-      // ---- Enhanced timeout with better reliability ----
-      const SESSION_TIMEOUT_MS = 12000; // Increased timeout for better reliability
-
-      let sessionTimer = null;
-      const cancelSessionTimer = () => {
-        if (sessionTimer) {
-          clearTimeout(sessionTimer);
-          sessionTimer = null;
-        }
-      };
-
+      // Session timeout fallback (won't override a booted app)
+      const SESSION_TIMEOUT_MS = 12000;
+      cancelSessionTimer();
       sessionTimer = setTimeout(() => {
-        // If we already booted due to an auth event, do nothing.
         if (hasBootstrappedThisLoad) {
           warn("⏱️ Session timeout fired but app already bootstrapped — ignoring.");
           return;
         }
-
         warn("⏱️ Session check timed out — showing login UI fallback.");
         showLoginUI();
       }, SESSION_TIMEOUT_MS);
 
-      // ---- Subscribe FIRST so we can't miss SIGNED_IN ----
-      if (!window.__CH_IE_AUTH_UNSUB__ && window.supabase?.auth?.onAuthStateChange) {
-        const { data: sub } = window.supabase.auth.onAuthStateChange(
-          async (event, session2) => {
-            lastAuthEvent = event;
-            log("⚡ Auth event:", event);
-
-            if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session2?.user) {
-              cancelSessionTimer();
-              cleanOAuthUrlSoon();
-              await bootstrapForUser(session2.user, event);
-              return;
-            }
-
-            if (event === "SIGNED_OUT") {
-              cancelSessionTimer();
-              log("🟡 User signed out");
-              bootUserId = null;
-              profileLoadPromise = null;
-              hasBootstrappedThisLoad = false;
-              showLoginUI();
-              return;
-            }
-
-            if (event === "TOKEN_REFRESHED") {
-              log("🔄 Token refreshed");
-              return;
-            }
-          }
-        );
-
-        window.__CH_IE_AUTH_UNSUB__ = sub?.subscription?.unsubscribe
-          ? () => sub.subscription.unsubscribe()
-          : null;
-      }
-
-      // ---- Enhanced session fetch with retry logic ----
-      let sessionAttempts = 0;
+      // Attempt getSession with retries + AbortError backoff
       const maxSessionAttempts = 3;
-      
-      while (sessionAttempts < maxSessionAttempts) {
+      for (let attempt = 1; attempt <= maxSessionAttempts; attempt++) {
         try {
-          sessionAttempts++;
-          log(`🔍 Attempting to get session (attempt ${sessionAttempts}/${maxSessionAttempts})...`);
-          
-          const {
-            data: { session },
-          } = await window.supabase.auth.getSession();
+          log(`🔍 Attempting to get session (attempt ${attempt}/${maxSessionAttempts})...`);
 
-          // If an auth event already booted the app, just stop here.
+          const { data, error } = await window.supabase.auth.getSession();
+          if (error) throw error;
+
+          // If auth event already booted the app, stop here.
           if (hasBootstrappedThisLoad) {
             cancelSessionTimer();
             log("✅ App already bootstrapped via auth event");
             return;
           }
 
+          const session = data?.session;
           cancelSessionTimer();
 
           if (session?.user) {
@@ -512,69 +507,33 @@
             cleanOAuthUrlSoon();
             await bootstrapForUser(session.user, "getSession");
             return;
-          } else if (sessionAttempts === maxSessionAttempts) {
+          }
+
+          // No session
+          if (attempt === maxSessionAttempts) {
             log("🟡 No active session after all attempts");
             showLoginUI();
             return;
-          } else {
-            // Wait before retry
-            await sleep(1000);
           }
+
+          await sleep(800);
         } catch (e) {
-          err(`❌ ERROR in session attempt ${sessionAttempts}:`, e);
-          
-          // Handle specific AbortError - this usually means auth system is conflicted
-          if (e.name === 'AbortError' || e.message?.includes('signal is aborted')) {
-            console.warn("⚠️ Auth session aborted - likely due to multiple auth attempts or page navigation");
-            
-            // For AbortError, try to clear any existing auth state and restart
-            if (sessionAttempts === 1) {
-              console.log("🔄 Clearing auth state and retrying...");
-              try {
-                // Clear any existing auth listeners that might be conflicting
-                window.supabase?.auth?.stopAutoRefresh?.();
-                
-                // More aggressive: try to recreate the Supabase client
-                console.log("🔄 Attempting to recreate Supabase client...");
-                const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-                
-                const newClient = createClient(
-                  "https://hvmotpzhliufzomewzfl.supabase.co",
-                  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s",
-                  {
-                    auth: {
-                      autoRefreshToken: false, // Disable auto refresh to prevent conflicts
-                      persistSession: true,
-                      detectSessionInUrl: true,
-                      storage: window.localStorage,
-                      storageKey: 'supabase.auth.token.new',
-                      flowType: 'pkce',
-                      debug: false,
-                    },
-                  }
-                );
-                
-                window.supabase = newClient;
-                console.log("✅ Supabase client recreated");
-                
-                await sleep(3000); // Wait longer for cleanup
-              } catch (cleanupError) {
-                console.warn("⚠️ Auth cleanup error:", cleanupError);
-                await sleep(2000);
-              }
-            }
-          }
-          
-          if (sessionAttempts === maxSessionAttempts) {
+          err(`❌ ERROR in session attempt ${attempt}:`, e);
+
+          // If auth event already booted the app, don’t override it
+          if (hasBootstrappedThisLoad) {
             cancelSessionTimer();
-            // If we already booted via auth event, don't override.
-            if (!hasBootstrappedThisLoad) showLoginUI();
             return;
-          } else {
-            // Wait longer for AbortError to allow cleanup
-            const waitTime = e.name === 'AbortError' ? 3000 : 1500;
-            await sleep(waitTime);
           }
+
+          if (attempt === maxSessionAttempts) {
+            cancelSessionTimer();
+            showLoginUI();
+            return;
+          }
+
+          // Backoff: AbortError usually indicates overlapping auth work; wait longer
+          await sleep(isAbortError(e) ? 2500 : 1200);
         }
       }
     })();
@@ -582,89 +541,36 @@
     return initPromise;
   }
 
-  // Global error handler for unhandled promise rejections
-  window.addEventListener('unhandledrejection', (event) => {
-    if (event.reason?.name === 'AbortError' || event.reason?.message?.includes('signal is aborted')) {
-      console.warn('⚠️ Suppressed AbortError promise rejection:', event.reason.message);
-      event.preventDefault(); // Prevent the error from being logged to console repeatedly
-      return;
+  // Suppress noisy AbortError unhandled rejections
+  window.addEventListener("unhandledrejection", (event) => {
+    const r = event.reason;
+    if (isAbortError(r)) {
+      console.warn("⚠️ Suppressed AbortError promise rejection:", r?.message || r);
+      event.preventDefault();
     }
-    
-    // Log other unhandled rejections normally
-    console.error('❌ Unhandled promise rejection:', event.reason);
   });
 
-  // Auth system reset function for persistent AbortErrors
-  window.resetAuthSystem = async function() {
-    console.log("🔄 Resetting auth system...");
-    
-    try {
-      // 1. Clear all auth-related localStorage
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
-          keysToRemove.push(key);
-        }
-      }
-      
-      keysToRemove.forEach(key => {
-        console.log(`🗑️ Removing localStorage key: ${key}`);
-        localStorage.removeItem(key);
-      });
-      
-      // 2. Clear sessionStorage too
-      const sessionKeysToRemove = [];
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
-          sessionKeysToRemove.push(key);
-        }
-      }
-      
-      sessionKeysToRemove.forEach(key => {
-        console.log(`🗑️ Removing sessionStorage key: ${key}`);
-        sessionStorage.removeItem(key);
-      });
-      
-      // 3. Stop any existing auth processes
-      if (window.supabase?.auth) {
-        try {
-          window.supabase.auth.stopAutoRefresh();
-        } catch (e) {
-          console.warn("⚠️ Could not stop auto refresh:", e);
-        }
-      }
-      
-      console.log("✅ Auth system reset complete. Please refresh the page.");
-      
-    } catch (error) {
-      console.error("❌ Auth reset failed:", error);
-    }
-  };
-
-  // Diagnostic function for auth issues
-  window.testAuthSystem = async function() {
+  // Diagnostic helpers (non-destructive)
+  window.testAuthSystem = async function () {
     console.log("🔍 Testing auth system...");
-    
+
     try {
-      console.log("1. Checking Supabase client:", !!window.supabase);
-      console.log("2. Auth client available:", !!window.supabase?.auth);
-      
-      // Test basic auth status
-      const { data: { user }, error } = await window.supabase.auth.getUser();
-      console.log("3. Current user:", user ? `${user.email} (${user.id})` : 'None');
-      console.log("4. Auth error:", error?.message || 'None');
-      
-      // Test session
-      const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
-      console.log("5. Current session:", session ? 'Active' : 'None');
-      console.log("6. Session error:", sessionError?.message || 'None');
-      
-      // Check localStorage
-      const authKeys = Object.keys(localStorage).filter(key => key.includes('supabase') || key.includes('auth'));
+      console.log("1. Supabase client:", !!window.supabase);
+      console.log("2. Auth client:", !!window.supabase?.auth);
+
+      const { data: userData, error: userError } = await window.supabase.auth.getUser();
+      console.log("3. Current user:", userData?.user ? `${userData.user.email} (${userData.user.id})` : "None");
+      console.log("4. getUser error:", userError?.message || "None");
+
+      const { data: sessData, error: sessError } = await window.supabase.auth.getSession();
+      console.log("5. Current session:", sessData?.session ? "Active" : "None");
+      console.log("6. getSession error:", sessError?.message || "None");
+
+      const authKeys = Object.keys(localStorage).filter(
+        (k) => k.includes("supabase") || k.includes("sb-") || k.includes("auth")
+      );
       console.log("7. Auth localStorage keys:", authKeys);
-      
+      console.log("8. __authReady:", window.__authReady);
     } catch (error) {
       console.error("❌ Auth test failed:", error);
     }
@@ -692,5 +598,5 @@
 
   if (autostart) boot();
 
-  log("✅ auth.js loaded (v4) — awaiting main.js to boot");
+  log("✅ auth.js loaded (v5) — awaiting main.js to boot");
 })();
