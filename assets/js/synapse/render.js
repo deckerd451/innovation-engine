@@ -410,7 +410,87 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     // NOTE: Projects are now rendered as a separate overlay layer (see renderThemeProjectsOverlay)
     // This ensures they appear on top of theme circles and remain clickable
 
-    // Single interactive border (clickable area)
+    // Enhanced interactive border with wider hit area and better feedback
+    const hitAreaRadius = radius + 15; // Wider hit area extending beyond visual ring
+    
+    // Invisible wider hit area for easier clicking
+    themeGroup
+      .append("circle")
+      .attr("r", hitAreaRadius)
+      .attr("fill", "transparent")
+      .attr("stroke", "none")
+      .attr("class", "theme-hit-area")
+      .style("cursor", "pointer")
+      .style("pointer-events", "all")
+      .on("mouseenter", function(event) {
+        // Enhance visual feedback on hover
+        const border = themeGroup.select(".theme-interactive-border");
+        const background = themeGroup.select(".theme-background");
+        
+        border
+          .transition()
+          .duration(150)
+          .attr("stroke-opacity", 1)
+          .attr("stroke-width", 4)
+          .style("filter", "drop-shadow(0 0 8px " + themeColor + ")");
+          
+        background
+          .transition()
+          .duration(150)
+          .attr("stroke-opacity", 0.8)
+          .attr("stroke-width", 3);
+          
+        onThemeHover?.(event, d, true);
+      })
+      .on("mouseleave", function(event) {
+        // Reset visual state
+        const border = themeGroup.select(".theme-interactive-border");
+        const background = themeGroup.select(".theme-background");
+        
+        border
+          .transition()
+          .duration(150)
+          .attr("stroke-opacity", 0.6)
+          .attr("stroke-width", 2)
+          .style("filter", "none");
+          
+        background
+          .transition()
+          .duration(150)
+          .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.4 : 0.2))
+          .attr("stroke-width", userHasJoined ? 2 : 1);
+          
+        onThemeHover?.(event, d, false);
+      })
+      .on("click", (event) => {
+        event.stopPropagation();
+        
+        console.log("🎯 Theme clicked:", d.title, "ID:", d.theme_id);
+        
+        // Add selection feedback
+        const border = themeGroup.select(".theme-interactive-border");
+        border
+          .transition()
+          .duration(100)
+          .attr("stroke-width", 6)
+          .attr("stroke-opacity", 1)
+          .style("filter", "drop-shadow(0 0 12px " + themeColor + ")")
+          .transition()
+          .delay(100)
+          .duration(200)
+          .attr("stroke-width", 4)
+          .attr("stroke-opacity", 0.8);
+        
+        // Call the theme click handler
+        try {
+          onThemeClick?.(event, d);
+          console.log("✅ Theme click handler called successfully");
+        } catch (error) {
+          console.error("❌ Theme click handler failed:", error);
+        }
+      });
+
+    // Visual border (non-interactive, just for display)
     themeGroup
       .append("circle")
       .attr("r", radius)
@@ -419,28 +499,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stroke-width", 2)
       .attr("stroke-opacity", 0.6)
       .attr("class", "theme-interactive-border")
-      .style("cursor", "pointer")
-      .style("pointer-events", "all")
-      .on("mouseenter", function(event) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr("stroke-opacity", 1)
-          .attr("stroke-width", 3);
-        onThemeHover?.(event, d, true);
-      })
-      .on("mouseleave", function(event) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr("stroke-opacity", 0.6)
-          .attr("stroke-width", 2);
-        onThemeHover?.(event, d, false);
-      })
-      .on("click", (event) => {
-        event.stopPropagation();
-        onThemeClick?.(event, d);
-      });
+      .style("pointer-events", "none"); // Visual only, hit area handles interaction
 
     // Simplified progress indicator (only if significant progress)
     const now = Date.now();
@@ -527,37 +586,95 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("class", "theme-info-background");
   });
 
-  // Enhanced CSS animations for radial project positioning
-  if (!document.querySelector('#theme-animations')) {
+  // Enhanced CSS animations for theme interaction
+  if (!document.querySelector('#theme-interaction-styles')) {
     const style = document.createElement('style');
-    style.id = 'theme-animations';
+    style.id = 'theme-interaction-styles';
     style.textContent = `
+      .theme-container {
+        transition: transform 0.2s ease;
+        will-change: transform;
+      }
+      
+      .theme-container:hover {
+        transform: scale(1.02);
+      }
+      
+      .theme-hit-area {
+        transition: all 0.15s ease;
+        will-change: opacity;
+      }
+      
+      .theme-interactive-border {
+        transition: all 0.15s ease;
+        will-change: stroke-width, stroke-opacity, filter;
+      }
+      
+      .theme-background {
+        transition: all 0.15s ease;
+        will-change: stroke-width, stroke-opacity;
+      }
+      
       .theme-container:hover .theme-background {
-        filter: brightness(1.2);
-        transition: filter 0.2s ease;
+        filter: brightness(1.1);
       }
       
       .theme-container:hover .project-indicator {
-        transform: scale(1.1);
-        transition: transform 0.2s ease;
-      }
-      
-      .theme-container:hover .theme-info-background {
-        fill: rgba(0,0,0,0.6);
-        stroke-opacity: 0.5;
-        transition: all 0.2s ease;
+        transform: scale(1.05);
       }
       
       .theme-container:hover .theme-labels text {
         opacity: 1.0 !important;
-        transition: opacity 0.2s ease;
       }
       
-      .project-indicator {
-        transition: transform 0.2s ease;
+      /* Enhanced pulse animation for selected themes */
+      @keyframes theme-selected-pulse {
+        0% { 
+          stroke-width: 6px; 
+          stroke-opacity: 1; 
+          filter: drop-shadow(0 0 12px currentColor);
+        }
+        50% { 
+          stroke-width: 8px; 
+          stroke-opacity: 0.8; 
+          filter: drop-shadow(0 0 16px currentColor);
+        }
+        100% { 
+          stroke-width: 4px; 
+          stroke-opacity: 0.8; 
+          filter: drop-shadow(0 0 8px currentColor);
+        }
       }
       
-      .project-indicator:hover {
+      .theme-selected .theme-interactive-border {
+        animation: theme-selected-pulse 0.4s ease-out;
+        stroke-width: 4px !important;
+        stroke-opacity: 0.9 !important;
+        filter: drop-shadow(0 0 12px currentColor) !important;
+      }
+      
+      /* Improved hover feedback */
+      .theme-container:hover .theme-interactive-border {
+        stroke-width: 3px;
+        stroke-opacity: 0.8;
+        filter: drop-shadow(0 0 8px currentColor);
+      }
+      
+      /* Better visual hierarchy for theme rings */
+      .theme-container .theme-background {
+        pointer-events: none;
+      }
+      
+      .theme-container .theme-interactive-border {
+        pointer-events: none;
+      }
+      
+      .theme-container .theme-hit-area {
+        pointer-events: all;
+      }
+    `;
+    document.head.appendChild(style);
+  }
         transform: scale(1.3) !important;
         filter: drop-shadow(0 0 8px rgba(255,255,255,0.3));
       }
@@ -599,6 +716,40 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
   }
 
   return d3.select(themesGroup.node());
+}
+
+// Function to highlight a selected theme
+export function highlightSelectedTheme(themeId) {
+  console.log("🎯 Highlighting theme:", themeId);
+  
+  // Remove previous selection
+  d3.selectAll('.theme-container').classed('theme-selected', false);
+  
+  // Add selection to new theme
+  if (themeId) {
+    const themeSelector = `.theme-${themeId}`;
+    const themeElement = d3.select(themeSelector);
+    
+    if (!themeElement.empty()) {
+      themeElement.classed('theme-selected', true);
+      console.log("✅ Theme highlighted successfully:", themeId);
+    } else {
+      console.warn("⚠️ Theme element not found for highlighting:", themeId, "selector:", themeSelector);
+      // Try to find any theme containers for debugging
+      const allThemes = d3.selectAll('.theme-container');
+      console.log("🔍 Available theme containers:", allThemes.size());
+      allThemes.each(function(d) {
+        console.log("  - Theme container:", d?.theme_id, "class:", this.className.baseVal);
+      });
+    }
+  }
+}
+
+// Function to clear all theme selections
+export function clearThemeSelection() {
+  console.log("🧹 Clearing all theme selections");
+  const cleared = d3.selectAll('.theme-container').classed('theme-selected', false);
+  console.log("✅ Cleared selections from", cleared.size(), "theme containers");
 }
 
 /**

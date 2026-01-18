@@ -14,6 +14,8 @@ import {
   renderThemeCircles,
   renderThemeProjectsOverlay,
   drawProjectCircles,
+  highlightSelectedTheme,
+  clearThemeSelection,
 } from "./render.js";
 import { showSynapseNotification } from "./ui.js";
 import { setupSynapseRealtime } from "./realtime.js";
@@ -128,6 +130,22 @@ export async function initSynapseView() {
   window.refreshSynapseConnections = refreshSynapseConnections;
   window.refreshSynapseProjectCircles = refreshSynapseProjectCircles;
   window.toggleFullCommunityView = toggleFullCommunityView;
+
+  // Expose theme selection functions for debugging
+  window.highlightSelectedTheme = highlightSelectedTheme;
+  window.clearThemeSelection = clearThemeSelection;
+  
+  // Add test function for theme selection
+  window.testThemeSelection = function(themeId) {
+    console.log("🎯 Testing theme selection for:", themeId);
+    if (themeId) {
+      highlightSelectedTheme(themeId);
+      console.log("✅ Theme highlighted:", themeId);
+    } else {
+      clearThemeSelection();
+      console.log("✅ All theme selections cleared");
+    }
+  };
 
   // Expose state for UI components
   window.synapseShowFullCommunity = showFullCommunity;
@@ -254,6 +272,9 @@ function setupSVG() {
 
     // Clear focus effects when clicking background
     clearFocusEffects(nodeEls, linkEls);
+    
+    // Clear theme selection when clicking background
+    clearThemeSelection();
   });
 }
 
@@ -1047,6 +1068,9 @@ function handleThemeHover(event, themeNode, isEntering) {
 async function openThemeCard(themeNode) {
   const d3 = window.d3;
 
+  // Add visual selection feedback
+  highlightSelectedTheme(themeNode.theme_id);
+
   const scale = 1.2;
 
   svg
@@ -1115,6 +1139,9 @@ async function openThemeProjectsPanel(themeNode, relatedProjects) {
 }
 
 function clearThemeFocus() {
+  // Clear theme selection visual feedback
+  clearThemeSelection();
+  
   nodeEls?.style("opacity", 1);
   linkEls?.style("opacity", (d) => {
     if (d.status === "suggested") return 0.5;
