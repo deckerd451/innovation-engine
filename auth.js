@@ -148,6 +148,27 @@
     // no-op
   }
 
+  function cleanOAuthUrlSoon() {
+    // Supabase OAuth returns tokens in hash; clean it after it processes.
+    const url = new URL(window.location.href);
+    const hasOAuthHash =
+      !!url.hash &&
+      (url.hash.includes("access_token") ||
+        url.hash.includes("refresh_token") ||
+        url.hash.includes("expires_in") ||
+        url.hash.includes("token_type") ||
+        url.hash.includes("error"));
+
+    const hasOAuthCode = url.searchParams.has("code");
+
+    if (!hasOAuthHash && !hasOAuthCode) return;
+
+    setTimeout(() => {
+      log("🧹 Cleaning OAuth URL hash/code…");
+      window.history.replaceState({}, document.title, url.pathname);
+    }, 800);
+  }
+
   // Clean OAuth hash ONLY AFTER session exists
   function cleanOAuthUrlSoon() {
     const url = new URL(window.location.href);
