@@ -506,24 +506,24 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
 
     labelGroup
       .append("text")
-      .attr("y", 30) // Below the title, still inside circle
+      .attr("y", 45) // Moved further down to avoid project overlap
       .attr("text-anchor", "middle")
       .attr("fill", themeColor)
-      .attr("font-size", "12px")
+      .attr("font-size", "11px") // Slightly smaller to fit better
       .attr("font-weight", "600")
       .attr("opacity", isDiscoverable ? 0.6 : 0.9)
       .attr("filter", "drop-shadow(0 0 4px rgba(0,0,0,0.8))")
       .text(statusText);
 
     // Add semi-transparent background for better text readability
-    const textBgRadius = Math.min(80, radius * 0.3);
+    const textBgRadius = Math.min(70, radius * 0.25); // Smaller background
     labelGroup
       .insert("circle", ":first-child") // Insert before text elements
       .attr("r", textBgRadius)
-      .attr("fill", "rgba(0,0,0,0.4)")
+      .attr("fill", "rgba(0,0,0,0.6)") // More opaque background
       .attr("stroke", themeColor)
       .attr("stroke-width", 1)
-      .attr("stroke-opacity", 0.3)
+      .attr("stroke-opacity", 0.4)
       .attr("class", "theme-info-background");
   });
 
