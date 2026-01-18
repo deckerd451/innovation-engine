@@ -368,6 +368,11 @@
 
     cancelSessionTimer();
     cleanOAuthUrlSoon();
+
+    // Set global user and emit authenticated-user event for other modules
+    window.currentAuthUser = user;
+    window.dispatchEvent(new CustomEvent("authenticated-user", { detail: { user } }));
+
     showAppUI(user);
 
     // Load profile, then let synapse init (event driven + safe fallback)
@@ -471,71 +476,17 @@
       // Subscribe FIRST so we can't miss SIGNED_IN / INITIAL_SESSION
       attachAuthSubscriptionOnce();
 
-      // Session timeout fallback (won't override a booted app)
-      const SESSION_TIMEOUT_MS = 12000;
+      // If INITIAL_SESSION does not arrive quickly, show login UI.
+      // (This does NOT call getSession, so it avoids lock contention.)
+      const SESSION_TIMEOUT_MS = 8000;
       cancelSessionTimer();
       sessionTimer = setTimeout(() => {
-        if (hasBootstrappedThisLoad) {
-          warn("⏱️ Session timeout fired but app already bootstrapped — ignoring.");
-          return;
-        }
-        warn("⏱️ Session check timed out — showing login UI fallback.");
+        if (hasBootstrappedThisLoad) return;
+        warn("⏱️ INITIAL_SESSION not received in time — showing login UI fallback.");
         showLoginUI();
       }, SESSION_TIMEOUT_MS);
 
-      // Attempt getSession with retries + AbortError backoff
-      const maxSessionAttempts = 3;
-      for (let attempt = 1; attempt <= maxSessionAttempts; attempt++) {
-        try {
-          log(`🔍 Attempting to get session (attempt ${attempt}/${maxSessionAttempts})...`);
-
-          const { data, error } = await window.supabase.auth.getSession();
-          if (error) throw error;
-
-          // If auth event already booted the app, stop here.
-          if (hasBootstrappedThisLoad) {
-            cancelSessionTimer();
-            log("✅ App already bootstrapped via auth event");
-            return;
-          }
-
-          const session = data?.session;
-          cancelSessionTimer();
-
-          if (session?.user) {
-            log("🟢 Already logged in as:", session.user.email);
-            cleanOAuthUrlSoon();
-            await bootstrapForUser(session.user, "getSession");
-            return;
-          }
-
-          // No session
-          if (attempt === maxSessionAttempts) {
-            log("🟡 No active session after all attempts");
-            showLoginUI();
-            return;
-          }
-
-          await sleep(800);
-        } catch (e) {
-          err(`❌ ERROR in session attempt ${attempt}:`, e);
-
-          // If auth event already booted the app, don’t override it
-          if (hasBootstrappedThisLoad) {
-            cancelSessionTimer();
-            return;
-          }
-
-          if (attempt === maxSessionAttempts) {
-            cancelSessionTimer();
-            showLoginUI();
-            return;
-          }
-
-          // Backoff: AbortError usually indicates overlapping auth work; wait longer
-          await sleep(isAbortError(e) ? 2500 : 1200);
-        }
-      }
+      // Nothing else here. Let onAuthStateChange drive the flow.
     })();
 
     return initPromise;
