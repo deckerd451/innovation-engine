@@ -169,6 +169,20 @@
     }, 800);
   }
 
+  // Immediate URL cleanup for login loops
+  function cleanOAuthUrlNow() {
+    const url = new URL(window.location.href);
+    const hasOAuthCode = url.searchParams.has("code");
+    const hasOAuthError = url.searchParams.has("error");
+
+    if (hasOAuthCode || hasOAuthError) {
+      log("🧹 Immediately cleaning OAuth URL to break login loop…");
+      window.history.replaceState({}, document.title, url.pathname);
+      return true;
+    }
+    return false;
+  }
+
   // Clean OAuth hash ONLY AFTER session exists
   function cleanOAuthUrlSoon() {
     const url = new URL(window.location.href);
@@ -389,6 +403,14 @@
       log("🚀 Initializing login system (OAuth)…");
       setHint("Checking session…");
 
+      // Immediately clean OAuth URL if present to prevent login loops
+      const wasOAuthCallback = cleanOAuthUrlNow();
+      if (wasOAuthCallback) {
+        log("🔄 OAuth callback detected and cleaned, reloading...");
+        setTimeout(() => window.location.reload(), 100);
+        return;
+      }
+
       if (!loginDOMReady) {
         try {
           setupLoginDOM();
@@ -401,6 +423,9 @@
         showLoginUI();
         return;
       }
+
+      // Clean OAuth URL immediately, before any session attempts
+      cleanOAuthUrlSoon();
 
       // ---- Enhanced timeout with better reliability ----
       const SESSION_TIMEOUT_MS = 12000; // Increased timeout for better reliability
