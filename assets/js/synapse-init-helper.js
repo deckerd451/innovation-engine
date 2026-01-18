@@ -106,15 +106,9 @@ async function waitForDependencies(maxWait = 10000) {
     if (!window.d3) missing.push('d3');
     if (!document.getElementById('synapse-svg')) missing.push('synapse-svg');
 
-    // Check for user authentication
-    let hasUser = false;
-    try {
-      const { data: { user } } = await window.supabase?.auth?.getUser();
-      hasUser = !!user;
-    } catch (e) {
-      // Auth not ready yet
-    }
-    if (!hasUser) missing.push('authenticated-user');
+    // Check for user authentication via the global set by auth.js
+    // This avoids calling auth methods that can cause lock contention
+    if (!window.currentAuthUser) missing.push('authenticated-user');
 
     if (missing.length === 0) {
       return { success: true, missing: [] };

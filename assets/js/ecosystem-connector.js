@@ -270,18 +270,22 @@ const EcosystemConnector = (function() {
   return {
     async init(supabaseClient) {
       console.log('🌐 Initializing Ecosystem Connector...');
-      
+
       try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) return;
-        
+        // Use the already-authenticated user from window.currentAuthUser
+        const user = window.currentAuthUser;
+        if (!user) {
+          console.log('🌐 No authenticated user available');
+          return;
+        }
+
         // Get current user from community table
         const { data: profile } = await supabaseClient
           .from('community')
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('user_id', user.id)
           .single();
-        
+
         state.currentUser = profile;
         
         // Load all users
@@ -357,10 +361,24 @@ const EcosystemConnector = (function() {
 // Expose globally
 window.EcosystemConnector = EcosystemConnector;
 
-// Auto-initialize when Supabase is ready
-const waitForInit = setInterval(() => {
+// Initialize only after auth is ready
+function startEcosystemWhenReady() {
+  // Wait until auth.js finished its initial decision
+  if (!window.__authReady) {
+    window.addEventListener("auth-ready", startEcosystemWhenReady, { once: true });
+    return;
+  }
+
+  // If you require login, also require a user:
+  if (!window.currentAuthUser) {
+    console.log("🌐 Ecosystem connector skipped (no user)");
+    return;
+  }
+
+  // Initialize with current Supabase client
   if (window.supabase) {
-    clearInterval(waitForInit);
     EcosystemConnector.init(window.supabase);
   }
-}, 100);
+}
+
+startEcosystemWhenReady();
