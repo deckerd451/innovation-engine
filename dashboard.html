@@ -770,8 +770,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
   <!-- Required base modules -->
-  <!-- IMPORTANT: module scripts must NOT use ?v= if any module imports them without ?v= -->
-  <script type="module" src="assets/js/supabaseClient.js"></script>
+  <!-- Cache-busting version for auth fix -->
+  <script type="module" src="assets/js/supabaseClient.js?v=6"></script>
 
   <!-- Non-module scripts can keep cache-busting -->
   <script src="assets/js/ecosystem-connector.js?v=4"></script>
@@ -792,9 +792,9 @@
   <!-- Messaging is non-module today -->
   <script src="assets/js/messaging.js?v=4"></script>
 
-  <!-- Auth + profile are in ROOT (NO ?v= for module URL consistency) -->
-  <script type="module" src="auth.js"></script>
-  <script type="module" src="profile.js"></script>
+  <!-- Auth + profile with cache-busting for auth fix -->
+  <script type="module" src="auth.js?v=6"></script>
+  <script type="module" src="profile.js?v=6"></script>
 
   <!-- Synapse initialization helper (non-module) -->
   <script src="assets/js/synapse-init-helper.js?v=4"></script>
