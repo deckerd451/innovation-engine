@@ -484,20 +484,45 @@
         return;
       }
 
-      // Subscribe FIRST so we can't miss SIGNED_IN / INITIAL_SESSION
+      // Subscribe to auth changes for future events
       attachAuthSubscriptionOnce();
 
-      // If INITIAL_SESSION does not arrive quickly, show login UI.
-      // (This does NOT call getSession, so it avoids lock contention.)
-      const SESSION_TIMEOUT_MS = 8000;
-      cancelSessionTimer();
-      sessionTimer = setTimeout(() => {
-        if (hasBootstrappedThisLoad) return;
-        warn("⏱️ INITIAL_SESSION not received in time — showing login UI fallback.");
-        showLoginUI();
-      }, SESSION_TIMEOUT_MS);
+      // Supabase INITIAL_SESSION event is unreliable - manually check session once
+      // This is safe because:
+      // 1. We only call it once (no retry loop)
+      // 2. onAuthStateChange will handle future changes
+      // 3. We have a timeout fallback if this hangs
+      try {
+        log("🔍 Checking initial session state...");
+        const { data, error } = await Promise.race([
+          window.supabase.auth.getSession(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Session check timeout")), 5000)
+          )
+        ]);
 
-      // Nothing else here. Let onAuthStateChange drive the flow.
+        if (hasBootstrappedThisLoad) {
+          log("✅ App already bootstrapped via auth event");
+          return;
+        }
+
+        if (error) throw error;
+
+        const session = data?.session;
+        if (session?.user) {
+          log("🟢 Already logged in as:", session.user.email);
+          cleanOAuthUrlSoon();
+          await bootstrapForUser(session.user, "getSession");
+        } else {
+          log("🟡 No active session");
+          showLoginUI();
+        }
+      } catch (e) {
+        err("❌ Session check failed:", e);
+        if (!hasBootstrappedThisLoad) {
+          showLoginUI();
+        }
+      }
     })();
 
     return initPromise;
