@@ -701,12 +701,39 @@ function createSynapseLegend() {
 
 // Apply filters to the synapse visualization
 function applyVisualizationFilters(filterState) {
-  // Try to call the synapse filtering function if it exists
-  if (typeof window.filterSynapseNodes === 'function') {
-    window.filterSynapseNodes(filterState);
-    return;
-  }
-
+  console.log('🔍 Applying visualization filters:', filterState);
+  
+  // Filter people nodes
+  const peopleNodes = document.querySelectorAll('.person-node');
+  peopleNodes.forEach(node => {
+    node.style.display = filterState.people ? 'block' : 'none';
+  });
+  
+  // Filter theme nodes
+  const themeNodes = document.querySelectorAll('.theme-container');
+  themeNodes.forEach(node => {
+    node.style.display = filterState.themes ? 'block' : 'none';
+  });
+  
+  // Filter project overlays
+  const projectNodes = document.querySelectorAll('.project-overlay');
+  projectNodes.forEach(node => {
+    node.style.display = filterState.projects ? 'block' : 'none';
+  });
+  
+  // Filter connection lines
+  const connectionLines = document.querySelectorAll('.link');
+  connectionLines.forEach(line => {
+    line.style.display = filterState.connections ? 'block' : 'none';
+  });
+  
+  console.log('✅ Filters applied:', {
+    people: peopleNodes.length,
+    themes: themeNodes.length, 
+    projects: projectNodes.length,
+    connections: connectionLines.length
+  });
+}
   // Use D3 to filter nodes and links properly
   if (window.d3) {
     const svg = window.d3.select('#synapse-svg');

@@ -665,11 +665,15 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
     const maxProjectsPerRing = 8;
 
     theme.projects.forEach((project, index) => {
+      // FIXED: Add theme-specific offset to prevent overlap between themes
+      const themeOffset = (theme.theme_id || '').slice(-2); // Use last 2 chars of theme ID
+      const themeOffsetAngle = parseInt(themeOffset, 16) || 0; // Convert to number
+      const themeAngleOffset = (themeOffsetAngle / 255) * Math.PI * 0.5; // 0 to π/2 offset
+      
       // FIXED: Ensure even distribution around the circle
-      // Start from 0 degrees and distribute evenly
       const angleStep = (2 * Math.PI) / projectCount;
-      const projectAngle = index * angleStep;
-
+      const projectAngle = (index * angleStep) + themeAngleOffset; // Add theme offset
+      
       // If we have many projects, use rings
       const ring = Math.floor(index / maxProjectsPerRing);
       const ringDistance = baseDistance + (ring * 40);
@@ -680,8 +684,10 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
 
       // Debug logging for project positioning
       console.log(`🎯 Project "${project.title}" positioned:`, {
+        themeId: theme.theme_id,
         index,
         angle: (projectAngle * 180 / Math.PI).toFixed(1) + '°',
+        themeOffset: themeAngleOffset.toFixed(2),
         x: projectX.toFixed(1),
         y: projectY.toFixed(1),
         ring,
