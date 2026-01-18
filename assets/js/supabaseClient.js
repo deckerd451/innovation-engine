@@ -31,7 +31,7 @@ if (window.supabase) {
         auth: {
           autoRefreshToken: true,
           persistSession: true,
-          detectSessionInUrl: true,
+          detectSessionInUrl: false, // Disable - auth.js handles URL parsing to avoid lock
           storage: window.localStorage, // Explicit localStorage usage
           storageKey: 'supabase.auth.token', // Consistent storage key
           flowType: 'pkce', // Use PKCE flow for better security
