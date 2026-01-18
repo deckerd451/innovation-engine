@@ -79,15 +79,13 @@ export async function signInWithGoogle() {
 // 3. ENSURE COMMUNITY USER EXISTS (NEVER OVERWRITE EXISTING DATA!)
 // ======================================================================
 export async function ensureCommunityUser() {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData?.session;
+  // Use the global user set by auth.js to avoid calling getSession()
+  const user = window.currentAuthUser;
 
-  if (!session?.user) {
+  if (!user) {
     console.warn("⚠️ No logged-in user for community sync");
     return;
   }
-
-  const user = session.user;
 
   // --- STEP 1: CHECK IF PROFILE ALREADY EXISTS (by user_id) ---
   const { data: existingProfile, error: fetchError } = await supabase
@@ -179,9 +177,8 @@ export async function ensureCommunityUser() {
  * Fetch all CYNQ cards for the current user
  */
 export async function getCYNQCards() {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData?.session?.user;
-  
+  const user = window.currentAuthUser;
+
   if (!user) {
     throw new Error("User not authenticated");
   }
@@ -200,9 +197,8 @@ export async function getCYNQCards() {
  * Create a new CYNQ card
  */
 export async function createCYNQCard(cardData) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData?.session?.user;
-  
+  const user = window.currentAuthUser;
+
   if (!user) {
     throw new Error("User not authenticated");
   }
@@ -252,9 +248,8 @@ export async function deleteCYNQCard(cardId) {
  * Get CYNQ cards by stage
  */
 export async function getCYNQCardsByStage(stage) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData?.session?.user;
-  
+  const user = window.currentAuthUser;
+
   if (!user) {
     throw new Error("User not authenticated");
   }
@@ -301,24 +296,11 @@ export async function moveCYNQCard(cardId, newStage) {
 }
 
 // ======================================================================
-// 5. AUTH STATE LISTENER → ALWAYS ENSURE PROFILE EXISTS
+// 5. AUTH STATE LISTENER
 // ======================================================================
-supabase.auth.onAuthStateChange(async (event, session) => {
-  console.log("⚡ Auth State Change:", event);
-
-  if (event === "SIGNED_IN" && session?.user) {
-    console.log("🟢 User logged in:", session.user.email);
-    await ensureCommunityUser();
-  }
-
-  if (event === "TOKEN_REFRESHED" && session?.user) {
-    console.log("🔄 Session refreshed");
-  }
-
-  if (event === "SIGNED_OUT") {
-    console.log("🟡 User signed out");
-  }
-});
+// NOTE: Auth state changes are handled by auth.js to avoid duplicate
+// listeners and lock contention. The ensureCommunityUser() function
+// is called from profile.js after successful authentication.
 
 // ======================================================================
 // 6. UTILITY FUNCTIONS
@@ -328,23 +310,21 @@ supabase.auth.onAuthStateChange(async (event, session) => {
  * Check if user is authenticated
  */
 export async function isAuthenticated() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return !!session?.user;
+  return !!window.currentAuthUser;
 }
 
 /**
  * Get current user
  */
 export async function getCurrentUser() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.user || null;
+  return window.currentAuthUser || null;
 }
 
 /**
  * Get user profile from community table
  */
 export async function getUserProfile() {
-  const user = await getCurrentUser();
+  const user = window.currentAuthUser;
   if (!user) return null;
 
   const { data, error } = await supabase
