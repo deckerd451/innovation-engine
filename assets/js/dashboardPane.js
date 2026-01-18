@@ -636,9 +636,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     // Start loading dashboard counters
     await refreshCounters();
 
-    // Set up periodic refresh
+    // Set up periodic refresh with longer interval to reduce connection issues
     if (!state.refreshTimer) {
-      state.refreshTimer = setInterval(refreshCounters, 30000);
+      state.refreshTimer = setInterval(refreshCounters, 60000); // Increased from 30s to 60s
     }
 
     console.log("✅ Dashboard fully initialized");
@@ -722,41 +722,72 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // Counters
   // -----------------------------
   async function refreshCounters() {
-    await Promise.allSettled([
+    // Add connection check and error handling
+    if (!state.supabase || !navigator.onLine) {
+      console.log('⚠️ Skipping counter refresh - no connection');
+      return;
+    }
+
+    console.log('🔄 Refreshing dashboard counters...');
+    
+    const results = await Promise.allSettled([
       countUnreadMessages(),
       countActiveProjects(),
       countEndorsementsReceived(),
       countNetworkSize(),
     ]);
+
+    // Log any failures for debugging
+    results.forEach((result, index) => {
+      const counterNames = ['messages', 'projects', 'endorsements', 'community'];
+      if (result.status === 'rejected') {
+        console.warn(`⚠️ Counter ${counterNames[index]} failed:`, result.reason?.message || result.reason);
+      }
+    });
   }
 
   async function countUnreadMessages() {
     if (!state.communityProfile?.id) return;
 
     try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
       const { count, error } = await state.supabase
         .from("messages")
         .select("id", { count: "exact", head: true })
         .eq("read", false)
-        .neq("sender_id", state.communityProfile.id);
+        .neq("sender_id", state.communityProfile.id)
+        .abortSignal(controller.signal);
+
+      clearTimeout(timeoutId);
 
       if (error) throw error;
       safeText("unread-messages", count ?? 0);
-    } catch {
+    } catch (error) {
+      console.warn('⚠️ Failed to count unread messages:', error.message);
       safeText("unread-messages", 0);
     }
   }
 
   async function countActiveProjects() {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const { count, error } = await state.supabase
         .from("projects")
         .select("id", { count: "exact", head: true })
-        .eq("status", "active");
+        .eq("status", "active")
+        .abortSignal(controller.signal);
+
+      clearTimeout(timeoutId);
 
       if (error) throw error;
       safeText("active-projects", count ?? 0);
-    } catch {
+    } catch (error) {
+      console.warn('⚠️ Failed to count active projects:', error.message);
       safeText("active-projects", 0);
     }
   }
@@ -764,27 +795,41 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   async function countEndorsementsReceived() {
     if (!state.communityProfile?.id) return;
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const { count, error } = await state.supabase
         .from("endorsements")
         .select("id", { count: "exact", head: true })
-        .eq("endorsed_community_id", state.communityProfile.id);
+        .eq("endorsed_community_id", state.communityProfile.id)
+        .abortSignal(controller.signal);
+
+      clearTimeout(timeoutId);
 
       if (error) throw error;
       safeText("total-endorsements", count ?? 0);
-    } catch {
+    } catch (error) {
+      console.warn('⚠️ Failed to count endorsements:', error.message);
       safeText("total-endorsements", 0);
     }
   }
 
   async function countNetworkSize() {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const { count, error } = await state.supabase
         .from("community")
-        .select("id", { count: "exact", head: true });
+        .select("id", { count: "exact", head: true })
+        .abortSignal(controller.signal);
+
+      clearTimeout(timeoutId);
 
       if (error) throw error;
       safeText("network-size", count ?? 0);
-    } catch {
+    } catch (error) {
+      console.warn('⚠️ Failed to count network size:', error.message);
       safeText("network-size", 0);
     }
   }
