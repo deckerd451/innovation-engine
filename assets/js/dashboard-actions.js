@@ -703,10 +703,13 @@ function createSynapseLegend() {
 function applyVisualizationFilters(filterState) {
   console.log('🔍 Applying visualization filters:', filterState);
   
-  // Filter people nodes
-  const peopleNodes = document.querySelectorAll('.person-node');
-  peopleNodes.forEach(node => {
-    node.style.display = filterState.people ? 'block' : 'none';
+  // Filter people nodes (they use class 'synapse-node' and have type 'person')
+  const allNodes = document.querySelectorAll('.synapse-node');
+  allNodes.forEach(node => {
+    const nodeData = node.__data__; // D3 stores data on DOM elements
+    if (nodeData && nodeData.type === 'person') {
+      node.style.display = filterState.people ? 'block' : 'none';
+    }
   });
   
   // Filter theme nodes
@@ -722,13 +725,13 @@ function applyVisualizationFilters(filterState) {
   });
   
   // Filter connection lines
-  const connectionLines = document.querySelectorAll('.link');
+  const connectionLines = document.querySelectorAll('.links line');
   connectionLines.forEach(line => {
     line.style.display = filterState.connections ? 'block' : 'none';
   });
   
   console.log('✅ Filters applied:', {
-    people: peopleNodes.length,
+    people: Array.from(allNodes).filter(n => n.__data__?.type === 'person').length,
     themes: themeNodes.length, 
     projects: projectNodes.length,
     connections: connectionLines.length
