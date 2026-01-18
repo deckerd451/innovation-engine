@@ -337,7 +337,7 @@ function toggleViewControls() {
 // -----------------------------
 // Legend on Synapse Screen (Collapsible)
 // -----------------------------
-let legendCollapsed = false;
+let legendCollapsed = true; // Start collapsed to give more space to synapse view
 
 function createSynapseLegend() {
   // Remove existing legend if present
@@ -447,6 +447,14 @@ function createSynapseLegend() {
       toggleIcon.style.transform = 'rotate(0deg)';
     }
   };
+
+  // Set initial collapsed state
+  if (legendCollapsed) {
+    content.style.maxHeight = '0';
+    content.style.opacity = '0';
+    content.style.marginTop = '0';
+    toggleIcon.style.transform = 'rotate(180deg)';
+  }
 
   legendTitle.addEventListener('click', toggleCollapse);
   toggleIcon.addEventListener('click', toggleCollapse);

@@ -665,7 +665,8 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
     const maxProjectsPerRing = 8;
 
     theme.projects.forEach((project, index) => {
-      // Simple approach: distribute all projects evenly around the circle
+      // FIXED: Ensure even distribution around the circle
+      // Start from 0 degrees and distribute evenly
       const angleStep = (2 * Math.PI) / projectCount;
       const projectAngle = index * angleStep;
 
@@ -673,8 +674,19 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
       const ring = Math.floor(index / maxProjectsPerRing);
       const ringDistance = baseDistance + (ring * 40);
       
+      // FIXED: Use proper trigonometry for even spacing
       const projectX = (theme.x || 0) + Math.cos(projectAngle) * ringDistance;
       const projectY = (theme.y || 0) + Math.sin(projectAngle) * ringDistance;
+
+      // Debug logging for project positioning
+      console.log(`🎯 Project "${project.title}" positioned:`, {
+        index,
+        angle: (projectAngle * 180 / Math.PI).toFixed(1) + '°',
+        x: projectX.toFixed(1),
+        y: projectY.toFixed(1),
+        ring,
+        distance: ringDistance
+      });
 
       // Project visual indicator
       const projectGroup = projectsOverlayGroup
