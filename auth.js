@@ -409,10 +409,20 @@
     if (!window.supabase?.auth?.onAuthStateChange) return;
 
     authSubAttached = true;
+    log("📡 Setting up onAuthStateChange listener...");
 
     const { data: sub } = window.supabase.auth.onAuthStateChange(
       async (event, session) => {
-        log("⚡ Auth event:", event);
+        log("⚡ Auth event received:", event, session?.user ? `user: ${session.user.email}` : "no user");
+
+        // INITIAL_SESSION with no user means user is logged out
+        if (event === "INITIAL_SESSION" && !session?.user) {
+          log("🟡 INITIAL_SESSION received - no active session");
+          cancelSessionTimer();
+          markAuthReadyOnce();
+          showLoginUI();
+          return;
+        }
 
         if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
           cancelSessionTimer();
@@ -443,6 +453,7 @@
       : null;
 
     window.__CH_IE_AUTH_UNSUB__ = authUnsub;
+    log("✅ onAuthStateChange listener attached");
   }
 
   async function initLoginSystem() {
