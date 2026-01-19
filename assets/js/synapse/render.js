@@ -368,14 +368,14 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stop-opacity", 0);
   });
 
-  // CRITICAL FIX: Sort themes by radius (LARGEST first) so inner themes render LAST (on top)
+  // Sort themes by radius for proper rendering (largest first for backgrounds)
   const sortedThemes = [...themeNodes].sort((a, b) => {
     const radiusA = a.themeRadius || 250;
     const radiusB = b.themeRadius || 250;
-    return radiusB - radiusA; // LARGEST radius first, so smaller themes render LAST (on top)
+    return radiusB - radiusA; // LARGEST radius first for background rendering
   });
 
-  console.log("🎯 Theme rendering order (largest radius first, smaller themes render on top):", 
+  console.log("🎯 Theme rendering order (largest radius first):", 
     sortedThemes.map(t => ({ 
       title: t.title, 
       radius: t.themeRadius || 250 
@@ -387,7 +387,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     .insert("g", ":first-child")
     .attr("class", "theme-circles-group");
 
-  // Create theme containers in order (largest first, so smallest render on top)
+  // Create theme containers in order (largest first for proper background layering)
   const themeGroups = themesGroup
     .selectAll("g.theme-container")
     .data(sortedThemes, d => d.theme_id)
@@ -396,6 +396,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     .attr("class", d => `theme-container theme-${d.theme_id}`)
     .attr("transform", d => `translate(${d.x || 0}, ${d.y || 0})`);
 
+  // Render visual elements (backgrounds and borders) - NO click handlers here
   themeGroups.each(function(d) {
     const themeGroup = d3.select(this);
     const themeColor = getThemeColor(d.theme_id);
@@ -408,7 +409,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     const participantCount = d.participant_count || 0;
     const projectCount = d.project_count || 0;
 
-    // Single background circle with gradient
+    // Background circle with gradient - NO POINTER EVENTS
     themeGroup
       .append("circle")
       .attr("r", radius)
@@ -418,45 +419,152 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.4 : 0.2))
       .attr("stroke-dasharray", isDiscoverable ? "8,4" : "none")
       .attr("class", "theme-background")
-      .attr("pointer-events", "none");
+      .attr("pointer-events", "none"); // CRITICAL: No pointer events on background
 
-    // NOTE: Projects are now rendered as a separate overlay layer (see renderThemeProjectsOverlay)
-    // This ensures they appear on top of theme circles and remain clickable
-
-    // Enhanced interactive border with MINIMAL hit area to prevent overlap
-    const hitAreaRadius = radius + 2; // REDUCED from 5 to 2 to prevent blocking inner circles
-    
-    // Invisible wider hit area for easier clicking (but not too wide)
+    // Visual border (non-interactive, just for display) - NO POINTER EVENTS
     themeGroup
       .append("circle")
-      .attr("r", hitAreaRadius)
+      .attr("r", radius)
       .attr("fill", "transparent")
-      .attr("stroke", "none")
-      .attr("class", "theme-hit-area")
-      .style("cursor", "pointer")
-      .style("pointer-events", "all")
-      .on("mouseenter", function(event) {
-        // Enhance visual feedback on hover
+      .attr("stroke", themeColor)
+      .attr("stroke-width", 2)
+      .attr("stroke-opacity", 0.6)
+      .attr("class", "theme-interactive-border")
+      .attr("pointer-events", "none"); // CRITICAL: No pointer events on border
+
+    // Theme information displayed INSIDE the circle
+    const labelGroup = themeGroup
+      .append("g")
+      .attr("class", "theme-labels")
+      .attr("pointer-events", "none"); // CRITICAL: No pointer events on labels
+
+    // Theme icon - positioned in center of circle
+    const themeIcons = ["🚀", "💡", "🎨", "🔬", "🌟", "⚡"];
+    const iconIndex = Math.abs(d.theme_id?.charCodeAt?.(0) || 0) % themeIcons.length;
+    
+    labelGroup
+      .append("text")
+      .attr("y", -15)
+      .attr("text-anchor", "middle")
+      .attr("fill", themeColor)
+      .attr("font-size", "32px")
+      .attr("opacity", isDiscoverable ? 0.7 : 1.0)
+      .attr("filter", "drop-shadow(0 0 4px rgba(0,0,0,0.8))")
+      .text(themeIcons[iconIndex]);
+
+    // Theme title
+    labelGroup
+      .append("text")
+      .attr("y", 10)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#fff")
+      .attr("font-size", "16px")
+      .attr("font-weight", "700")
+      .attr("opacity", isDiscoverable ? 0.7 : 1.0)
+      .attr("filter", "drop-shadow(0 0 6px rgba(0,0,0,0.9))")
+      .text(truncateName(d.title, 20));
+
+    // Status text
+    const statusText = isDiscoverable ? "🔍 Discover" : 
+                      userHasJoined ? "👤 Joined" : 
+                      `${participantCount} people • ${projectCount} projects`;
+
+    labelGroup
+      .append("text")
+      .attr("y", 45)
+      .attr("text-anchor", "middle")
+      .attr("fill", themeColor)
+      .attr("font-size", "11px")
+      .attr("font-weight", "600")
+      .attr("opacity", isDiscoverable ? 0.6 : 0.9)
+      .attr("filter", "drop-shadow(0 0 4px rgba(0,0,0,0.8))")
+      .text(statusText);
+
+    // Semi-transparent background for better text readability
+    const textBgRadius = Math.min(70, radius * 0.25);
+    labelGroup
+      .insert("circle", ":first-child")
+      .attr("r", textBgRadius)
+      .attr("fill", "rgba(0,0,0,0.6)")
+      .attr("stroke", themeColor)
+      .attr("stroke-width", 1)
+      .attr("stroke-opacity", 0.4)
+      .attr("class", "theme-info-background");
+  });
+
+  // CRITICAL FIX: Create a single transparent overlay for ALL theme hit detection
+  // This overlay will handle clicks and determine which theme should receive them
+  const maxRadius = Math.max(...themeNodes.map(t => t.themeRadius || 250)) + 10;
+  
+  const hitDetectionOverlay = themesGroup
+    .append("circle")
+    .attr("r", maxRadius)
+    .attr("fill", "transparent")
+    .attr("stroke", "none")
+    .attr("class", "theme-hit-detection-overlay")
+    .style("cursor", "pointer")
+    .style("pointer-events", "all");
+
+  // Custom hit detection logic
+  hitDetectionOverlay
+    .on("mousemove", function(event) {
+      const [mouseX, mouseY] = d3.pointer(event, this);
+      const hoveredTheme = findClosestTheme(mouseX, mouseY, themeNodes);
+      
+      // Update hover states
+      themeGroups.each(function(d) {
+        const themeGroup = d3.select(this);
+        const isHovered = hoveredTheme && d.theme_id === hoveredTheme.theme_id;
+        
         const border = themeGroup.select(".theme-interactive-border");
         const background = themeGroup.select(".theme-background");
         
-        border
-          .transition()
-          .duration(150)
-          .attr("stroke-opacity", 1)
-          .attr("stroke-width", 4)
-          .style("filter", "drop-shadow(0 0 8px " + themeColor + ")");
+        if (isHovered) {
+          // Apply hover state
+          border
+            .transition()
+            .duration(150)
+            .attr("stroke-opacity", 1)
+            .attr("stroke-width", 4)
+            .style("filter", "drop-shadow(0 0 8px " + getThemeColor(d.theme_id) + ")");
+            
+          background
+            .transition()
+            .duration(150)
+            .attr("stroke-opacity", 0.8)
+            .attr("stroke-width", 3);
+        } else {
+          // Reset to normal state
+          const userHasJoined = d.user_is_participant === true;
+          const isDiscoverable = d.isDiscoverable === true;
           
-        background
-          .transition()
-          .duration(150)
-          .attr("stroke-opacity", 0.8)
-          .attr("stroke-width", 3);
-          
-        onThemeHover?.(event, d, true);
-      })
-      .on("mouseleave", function(event) {
-        // Reset visual state
+          border
+            .transition()
+            .duration(150)
+            .attr("stroke-opacity", 0.6)
+            .attr("stroke-width", 2)
+            .style("filter", "none");
+            
+          background
+            .transition()
+            .duration(150)
+            .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.4 : 0.2))
+            .attr("stroke-width", userHasJoined ? 2 : 1);
+        }
+      });
+      
+      // Call hover handler
+      if (hoveredTheme) {
+        onThemeHover?.(event, hoveredTheme, true);
+      }
+    })
+    .on("mouseleave", function(event) {
+      // Reset all hover states
+      themeGroups.each(function(d) {
+        const themeGroup = d3.select(this);
+        const userHasJoined = d.user_is_participant === true;
+        const isDiscoverable = d.isDiscoverable === true;
+        
         const border = themeGroup.select(".theme-interactive-border");
         const background = themeGroup.select(".theme-background");
         
@@ -472,16 +580,24 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
           .duration(150)
           .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.4 : 0.2))
           .attr("stroke-width", userHasJoined ? 2 : 1);
-          
-        onThemeHover?.(event, d, false);
-      })
-      .on("click", (event) => {
-        event.stopPropagation();
+      });
+      
+      onThemeHover?.(event, null, false);
+    })
+    .on("click", function(event) {
+      event.stopPropagation();
+      
+      const [mouseX, mouseY] = d3.pointer(event, this);
+      const clickedTheme = findClosestTheme(mouseX, mouseY, themeNodes);
+      
+      if (clickedTheme) {
+        console.log("🎯 Theme clicked via custom hit detection:", clickedTheme.title, "ID:", clickedTheme.theme_id);
         
-        console.log("🎯 Theme clicked:", d.title, "ID:", d.theme_id);
+        // Add visual feedback to the clicked theme
+        const clickedGroup = themesGroup.select(`.theme-${clickedTheme.theme_id}`);
+        const border = clickedGroup.select(".theme-interactive-border");
+        const themeColor = getThemeColor(clickedTheme.theme_id);
         
-        // Add selection feedback
-        const border = themeGroup.select(".theme-interactive-border");
         border
           .transition()
           .duration(100)
@@ -496,108 +612,45 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         
         // Call the theme click handler
         try {
-          onThemeClick?.(event, d);
+          onThemeClick?.(event, clickedTheme);
           console.log("✅ Theme click handler called successfully");
         } catch (error) {
           console.error("❌ Theme click handler failed:", error);
         }
-      });
+      } else {
+        console.log("⚠️ No theme found at click position");
+      }
+    });
 
-    // Visual border (non-interactive, just for display)
-    themeGroup
-      .append("circle")
-      .attr("r", radius)
-      .attr("fill", "transparent")
-      .attr("stroke", themeColor)
-      .attr("stroke-width", 2)
-      .attr("stroke-opacity", 0.6)
-      .attr("class", "theme-interactive-border")
-      .style("pointer-events", "none"); // Visual only, hit area handles interaction
-
-    // Simplified progress indicator (only if significant progress)
-    const now = Date.now();
-    const expires = new Date(d.expires_at).getTime();
-    const created = new Date(d.created_at).getTime();
-    const progress = Math.max(0, Math.min(1, 1 - ((expires - now) / (expires - created))));
+  // Helper function to find the closest theme to a mouse position
+  function findClosestTheme(mouseX, mouseY, themes) {
+    let closestTheme = null;
+    let closestDistance = Infinity;
     
-    if (progress > 0.2) {
-      const progressRadius = radius - 10;
-      const circumference = 2 * Math.PI * progressRadius;
-      const strokeDasharray = `${circumference * (1 - progress)} ${circumference}`;
-
-      themeGroup
-        .append("circle")
-        .attr("r", progressRadius)
-        .attr("fill", "none")
-        .attr("stroke", themeColor)
-        .attr("stroke-width", 2)
-        .attr("stroke-opacity", 0.5)
-        .attr("stroke-dasharray", strokeDasharray)
-        .attr("stroke-linecap", "round")
-        .attr("transform", "rotate(-90)")
-        .attr("class", "theme-progress")
-        .attr("pointer-events", "none");
+    // Sort themes by radius (smallest first) so inner themes take priority
+    const sortedByRadius = [...themes].sort((a, b) => {
+      const radiusA = a.themeRadius || 250;
+      const radiusB = b.themeRadius || 250;
+      return radiusA - radiusB; // Smallest first
+    });
+    
+    for (const theme of sortedByRadius) {
+      const themeX = theme.x || 0;
+      const themeY = theme.y || 0;
+      const themeRadius = theme.themeRadius || 250;
+      
+      // Calculate distance from mouse to theme center
+      const distance = Math.sqrt(Math.pow(mouseX - themeX, 2) + Math.pow(mouseY - themeY, 2));
+      
+      // Check if mouse is within this theme's radius
+      if (distance <= themeRadius) {
+        // Since we sorted by radius (smallest first), the first match is the innermost theme
+        return theme;
+      }
     }
-
-    // Theme information displayed INSIDE the circle (per yellow instructions)
-    const labelGroup = themeGroup
-      .append("g")
-      .attr("class", "theme-labels")
-      .attr("pointer-events", "none");
-
-    // Theme icon - positioned in center of circle
-    const themeIcons = ["🚀", "💡", "🎨", "🔬", "🌟", "⚡"];
-    const iconIndex = Math.abs(d.theme_id?.charCodeAt?.(0) || 0) % themeIcons.length;
     
-    labelGroup
-      .append("text")
-      .attr("y", -15) // Center of circle, slightly above
-      .attr("text-anchor", "middle")
-      .attr("fill", themeColor)
-      .attr("font-size", "32px")
-      .attr("opacity", isDiscoverable ? 0.7 : 1.0)
-      .attr("filter", "drop-shadow(0 0 4px rgba(0,0,0,0.8))")
-      .text(themeIcons[iconIndex]);
-
-    // Theme title - positioned in center of circle
-    labelGroup
-      .append("text")
-      .attr("y", 10) // Center of circle, slightly below icon
-      .attr("text-anchor", "middle")
-      .attr("fill", "#fff")
-      .attr("font-size", "16px")
-      .attr("font-weight", "700")
-      .attr("opacity", isDiscoverable ? 0.7 : 1.0)
-      .attr("filter", "drop-shadow(0 0 6px rgba(0,0,0,0.9))")
-      .text(truncateName(d.title, 20));
-
-    // Enhanced status showing both participants and projects - positioned below title
-    const statusText = isDiscoverable ? "🔍 Discover" : 
-                      userHasJoined ? "👤 Joined" : 
-                      `${participantCount} people • ${projectCount} projects`;
-
-    labelGroup
-      .append("text")
-      .attr("y", 45) // Moved further down to avoid project overlap
-      .attr("text-anchor", "middle")
-      .attr("fill", themeColor)
-      .attr("font-size", "11px") // Slightly smaller to fit better
-      .attr("font-weight", "600")
-      .attr("opacity", isDiscoverable ? 0.6 : 0.9)
-      .attr("filter", "drop-shadow(0 0 4px rgba(0,0,0,0.8))")
-      .text(statusText);
-
-    // Add semi-transparent background for better text readability
-    const textBgRadius = Math.min(70, radius * 0.25); // Smaller background
-    labelGroup
-      .insert("circle", ":first-child") // Insert before text elements
-      .attr("r", textBgRadius)
-      .attr("fill", "rgba(0,0,0,0.6)") // More opaque background
-      .attr("stroke", themeColor)
-      .attr("stroke-width", 1)
-      .attr("stroke-opacity", 0.4)
-      .attr("class", "theme-info-background");
-  });
+    return null;
+  }
 
   // Enhanced CSS animations for theme interaction
   if (!document.querySelector('#theme-interaction-styles')) {
@@ -613,7 +666,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         transform: scale(1.02);
       }
       
-      .theme-hit-area {
+      .theme-hit-detection-overlay {
         transition: all 0.15s ease;
         will-change: opacity;
       }
@@ -682,56 +735,17 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         pointer-events: none;
       }
       
-      .theme-container .theme-hit-area {
+      .theme-hit-detection-overlay {
         pointer-events: all;
       }
       
-      /* Ensure proper SVG layering - smaller themes render last and receive events first */
+      /* Ensure proper SVG layering - custom hit detection handles all interactions */
       .theme-circles-group {
         isolation: isolate;
       }
       
       .theme-container {
         position: relative;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-        transform: scale(1.3) !important;
-        filter: drop-shadow(0 0 8px rgba(255,255,255,0.3));
-      }
-      
-      .project-shape {
-        transition: all 0.2s ease;
-      }
-      
-      .project-glow {
-        transition: all 0.2s ease;
-      }
-      
-      .project-title {
-        transition: opacity 0.2s ease;
-        filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
-      }
-      
-      .theme-interactive-border {
-        transition: stroke-opacity 0.15s ease, stroke-width 0.15s ease;
-      }
-      
-      /* Animation for projects appearing */
-      @keyframes projectAppear {
-        from {
-          opacity: 0;
-          transform: scale(0.5);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
-      }
-      
-      .project-indicator {
-        animation: projectAppear 0.3s ease-out;
       }
     `;
     document.head.appendChild(style);
