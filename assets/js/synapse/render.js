@@ -497,13 +497,32 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
   console.log("🎯 About to create hit detection overlay...");
   console.log("🎯 Theme nodes for overlay:", themeNodes.length, themeNodes.map(t => ({ title: t.title, x: t.x, y: t.y, radius: t.themeRadius })));
 
+  // Safety check for empty theme nodes
+  if (!themeNodes || themeNodes.length === 0) {
+    console.error("❌ No theme nodes available for hit detection overlay");
+    return d3.select(themesGroup.node());
+  }
+
   // CRITICAL FIX: Create hit detection overlay AFTER all other elements
   // This ensures it's on top and receives all mouse events first
-  const maxRadius = Math.max(...themeNodes.map(t => t.themeRadius || 250)) + 10;
+  let maxRadius;
+  try {
+    maxRadius = Math.max(...themeNodes.map(t => t.themeRadius || 250)) + 10;
+  } catch (error) {
+    console.error("❌ Error calculating maxRadius:", error);
+    maxRadius = 260; // fallback
+  }
   
   // Calculate the center point of all themes to position the overlay correctly
-  const centerX = themeNodes.reduce((sum, t) => sum + (t.x || 0), 0) / themeNodes.length;
-  const centerY = themeNodes.reduce((sum, t) => sum + (t.y || 0), 0) / themeNodes.length;
+  let centerX, centerY;
+  try {
+    centerX = themeNodes.reduce((sum, t) => sum + (t.x || 0), 0) / themeNodes.length;
+    centerY = themeNodes.reduce((sum, t) => sum + (t.y || 0), 0) / themeNodes.length;
+  } catch (error) {
+    console.error("❌ Error calculating center position:", error);
+    centerX = 0;
+    centerY = 0;
+  }
   
   console.log("🎯 Calculated overlay position:", { centerX, centerY, maxRadius });
 
