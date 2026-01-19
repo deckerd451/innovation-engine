@@ -195,7 +195,9 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
     .enter()
     .append("g")
     .attr("class", "synapse-node")
+    .style("pointer-events", "none") // Let hit detection handle all clicks
     .on("click", (event, d) => {
+      // This won't fire due to pointer-events: none, but keeping for reference
       event.stopPropagation();
       onNodeClick?.(event, d);
     });
@@ -492,8 +494,8 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("class", "theme-info-background");
   });
 
-  // CRITICAL FIX: Create a single transparent overlay for ALL theme hit detection
-  // This overlay will handle clicks and determine which theme should receive them
+  // CRITICAL FIX: Create hit detection overlay AFTER all other elements
+  // This ensures it's on top and receives all mouse events first
   const maxRadius = Math.max(...themeNodes.map(t => t.themeRadius || 250)) + 10;
   
   const hitDetectionOverlay = themesGroup
@@ -504,6 +506,8 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     .attr("class", "theme-hit-detection-overlay")
     .style("cursor", "pointer")
     .style("pointer-events", "all");
+
+  console.log("🎯 Hit detection overlay created with radius:", maxRadius, "positioned at center of themes group");
 
   // Custom hit detection logic
   hitDetectionOverlay
@@ -862,7 +866,7 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
   const projectsOverlayGroup = container
     .append("g")
     .attr("class", "theme-projects-overlay")
-    .style("pointer-events", "all");
+    .style("pointer-events", "none"); // CRITICAL: Let hit detection overlay handle all clicks
 
   themeNodes.forEach(theme => {
     if (!theme.projects || theme.projects.length === 0) return;
@@ -911,6 +915,7 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
         .attr("class", `project-overlay project-${project.id}`)
         .attr("transform", `translate(${projectX}, ${projectY})`)
         .style("cursor", "pointer")
+        .style("pointer-events", "none") // Let hit detection overlay handle clicks
         .datum({ ...project, theme_id: theme.theme_id, theme_x: theme.x, theme_y: theme.y, ring, index });
 
       const hexSize = 16;
@@ -986,28 +991,8 @@ export function renderThemeProjectsOverlay(container, themeNodes) {
           d3.select(this).select(".project-title")
             .transition().duration(200)
             .attr("opacity", 0);
-        })
-        .on("click", function(event) {
-          event.stopPropagation();
-          console.log("Project clicked:", project.title);
-
-          // Try multiple methods to open project details
-          if (typeof window.openProjectDetails === 'function') {
-            window.openProjectDetails(project);
-          } else if (typeof window.openNodePanel === 'function') {
-            // Fallback: open node panel with project data
-            window.openNodePanel({
-              ...project,
-              type: 'project',
-              id: project.id,
-              name: project.title
-            });
-          } else {
-            console.warn("⚠️ No project details handler available");
-            // Last resort: show alert with project info
-            alert(`Project: ${project.title}\n\nStatus: ${project.status}\n\nDescription: ${project.description || 'No description'}`);
-          }
         });
+        // NOTE: Project clicks will be handled by the central hit detection overlay
     });
   });
 
