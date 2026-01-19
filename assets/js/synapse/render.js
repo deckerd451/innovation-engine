@@ -498,20 +498,35 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
   // This ensures it's on top and receives all mouse events first
   const maxRadius = Math.max(...themeNodes.map(t => t.themeRadius || 250)) + 10;
   
+  // Calculate the center point of all themes to position the overlay correctly
+  const centerX = themeNodes.reduce((sum, t) => sum + (t.x || 0), 0) / themeNodes.length;
+  const centerY = themeNodes.reduce((sum, t) => sum + (t.y || 0), 0) / themeNodes.length;
+  
   const hitDetectionOverlay = themesGroup
     .append("circle")
+    .attr("cx", centerX) // Position at center of themes
+    .attr("cy", centerY) // Position at center of themes
     .attr("r", maxRadius)
-    .attr("fill", "transparent")
-    .attr("stroke", "none")
+    .attr("fill", "rgba(255, 0, 0, 0.1)") // Temporary red tint to see the overlay
+    .attr("stroke", "red")
+    .attr("stroke-width", 2)
+    .attr("stroke-dasharray", "5,5")
     .attr("class", "theme-hit-detection-overlay")
     .style("cursor", "pointer")
     .style("pointer-events", "all");
 
-  console.log("🎯 Hit detection overlay created with radius:", maxRadius, "positioned at center of themes group");
+  console.log("🎯 Hit detection overlay created:", {
+    centerX: centerX.toFixed(1),
+    centerY: centerY.toFixed(1), 
+    radius: maxRadius,
+    themeCount: themeNodes.length,
+    themePositions: themeNodes.map(t => ({ title: t.title, x: t.x, y: t.y }))
+  });
 
   // Custom hit detection logic
   hitDetectionOverlay
     .on("mousemove", function(event) {
+      console.log("🖱️ Mouse moving over hit detection overlay");
       const [mouseX, mouseY] = d3.pointer(event, this);
       const hoveredTheme = findClosestTheme(mouseX, mouseY, themeNodes);
       
@@ -563,6 +578,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       }
     })
     .on("mouseleave", function(event) {
+      console.log("🖱️ Mouse left hit detection overlay");
       // Reset all hover states
       themeGroups.each(function(d) {
         const themeGroup = d3.select(this);
