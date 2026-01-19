@@ -217,6 +217,7 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
 
   // Add Project to Theme button
   card.querySelector("#theme-add-project-btn")?.addEventListener("click", async () => {
+    console.log("🎯 Add Project to Theme button clicked for theme:", themeNode.theme_id);
     try {
       await showAddProjectToThemeModal(themeNode);
     } catch (error) {
@@ -278,12 +279,22 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
 
 // Show modal to add existing projects to a theme
 async function showAddProjectToThemeModal(themeNode) {
+  console.log("🚀 showAddProjectToThemeModal called with theme:", themeNode);
+  
   const supabase = window.supabase;
-  if (!supabase) throw new Error("Supabase not available");
+  if (!supabase) {
+    console.error("❌ Supabase not available");
+    throw new Error("Supabase not available");
+  }
 
   // Get current user's projects that aren't already in this theme
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not logged in");
+  if (!user) {
+    console.error("❌ User not logged in");
+    throw new Error("Not logged in");
+  }
+
+  console.log("✅ User authenticated:", user.email);
 
   const { data: profile } = await supabase
     .from("community")
@@ -291,7 +302,12 @@ async function showAddProjectToThemeModal(themeNode) {
     .eq("user_id", user.id)
     .single();
 
-  if (!profile) throw new Error("Profile not found");
+  if (!profile) {
+    console.error("❌ Profile not found for user:", user.id);
+    throw new Error("Profile not found");
+  }
+
+  console.log("✅ Profile found:", profile.id);
 
   // Get user's projects
   const { data: projects, error } = await supabase
@@ -301,31 +317,46 @@ async function showAddProjectToThemeModal(themeNode) {
     .eq("status", "active")
     .order("created_at", { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.error("❌ Error fetching projects:", error);
+    throw error;
+  }
+
+  console.log("📋 User's projects:", projects?.length || 0, projects);
 
   if (!projects || projects.length === 0) {
+    console.log("⚠️ No projects found for user");
     showSynapseNotification("You don't have any projects yet. Create one first!", "info");
     return;
   }
 
   // Filter out projects already in this theme
   const availableProjects = projects.filter(p => p.theme_id !== themeNode.theme_id);
+  console.log("📋 Available projects for theme:", availableProjects.length, availableProjects);
 
   if (availableProjects.length === 0) {
+    console.log("⚠️ All projects already in this theme");
     showSynapseNotification("All your projects are already in this theme!", "info");
     return;
   }
 
   // Create modal
   const existing = document.getElementById("add-project-theme-modal");
-  if (existing) existing.remove();
+  if (existing) {
+    console.log("🗑️ Removing existing modal");
+    existing.remove();
+  }
 
+  console.log("🎨 Creating modal...");
   const modal = document.createElement("div");
   modal.id = "add-project-theme-modal";
   modal.className = "synapse-profile-card";
   modal.style.maxWidth = "500px";
   modal.style.maxHeight = "80vh";
   modal.style.overflowY = "auto";
+  modal.style.top = "50%";
+  modal.style.left = "50%";
+  modal.style.transform = "translate(-50%, -50%)";
 
   modal.innerHTML = `
     <button class="synapse-card-close" aria-label="Close">
@@ -373,7 +404,10 @@ async function showAddProjectToThemeModal(themeNode) {
     </div>
   `;
 
-  modal.querySelector(".synapse-card-close")?.addEventListener("click", () => modal.remove());
+  modal.querySelector(".synapse-card-close")?.addEventListener("click", () => {
+    console.log("🗑️ Modal close button clicked");
+    modal.remove();
+  });
 
   // Add click handlers to project items
   modal.querySelectorAll(".project-selection-item").forEach(item => {
@@ -381,29 +415,51 @@ async function showAddProjectToThemeModal(themeNode) {
       const projectId = item.dataset.projectId;
       const projectTitle = item.querySelector("div").textContent.replace("💡 ", "").trim();
 
-      if (!confirm(`Add "${projectTitle}" to "${themeNode.title}"?`)) return;
+      console.log("🎯 Project selected:", projectId, projectTitle);
+
+      if (!confirm(`Add "${projectTitle}" to "${themeNode.title}"?`)) {
+        console.log("❌ User cancelled project assignment");
+        return;
+      }
 
       try {
+        console.log("🔄 Updating project theme_id...");
         const { error } = await supabase
           .from("projects")
           .update({ theme_id: themeNode.theme_id })
           .eq("id", projectId);
 
-        if (error) throw error;
+        if (error) {
+          console.error("❌ Database error:", error);
+          throw error;
+        }
 
+        console.log("✅ Project assigned to theme successfully");
         showSynapseNotification(`Project added to theme! 🎉`, "success");
         modal.remove();
 
         // Refresh synapse view
         if (typeof window.refreshSynapseConnections === 'function') {
+          console.log("🔄 Refreshing synapse view...");
           await window.refreshSynapseConnections();
+        } else {
+          console.warn("⚠️ refreshSynapseConnections not available");
         }
       } catch (error) {
-        console.error("Failed to add project to theme:", error);
+        console.error("❌ Failed to add project to theme:", error);
         showSynapseNotification(error.message || "Failed to add project", "error");
       }
     });
   });
 
-  document.getElementById("synapse-main-view")?.appendChild(modal);
+  const targetElement = document.getElementById("synapse-main-view");
+  if (!targetElement) {
+    console.error("❌ synapse-main-view element not found");
+    document.body.appendChild(modal);
+  } else {
+    console.log("✅ Appending modal to synapse-main-view");
+    targetElement.appendChild(modal);
+  }
+
+  console.log("🎉 Modal created and added to DOM");
 }

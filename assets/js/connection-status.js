@@ -63,7 +63,7 @@ function createStatusIndicator() {
     border: 2px solid rgba(0,224,255,0.3);
     border-radius: 12px;
     padding: 1rem 1.5rem;
-    z-index: 9999;
+    z-index: 10100;
     backdrop-filter: blur(10px);
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     display: flex;
