@@ -1172,26 +1172,68 @@ async function openThemeCard(themeNode) {
 
 async function openThemeProjectsPanel(themeNode, relatedProjects) {
   try {
-    openNodePanel({
-      id: themeNode.id,
-      name: themeNode.title,
-      type: "theme",
-      description: themeNode.description,
-      tags: themeNode.tags,
-      expires_at: themeNode.expires_at,
-      relatedProjects,
-      isThemeLens: true,
-      onClearFocus: clearThemeFocus,
+    // Use the theme overlay card instead of node panel for better UX
+    // This includes the "Add Project to Theme" button
+    const { renderThemeOverlayCard, getThemeInterestCount } = await import('./themes.js');
+    
+    // Get theme interest count
+    const interestCount = await getThemeInterestCount(supabase, themeNode.theme_id);
+    
+    // Show the theme overlay card with Add Project to Theme functionality
+    await renderThemeOverlayCard({
+      themeNode: {
+        ...themeNode,
+        projects: relatedProjects // Include related projects in theme node
+      },
+      interestCount,
+      participants: [],
+      onInterested: async () => {
+        try {
+          const { markInterested } = await import('./themes.js');
+          await markInterested(supabase, {
+            themeId: themeNode.theme_id,
+            communityId: currentUserCommunityId
+          });
+          showSynapseNotification("Interest marked! 🌟", "success");
+        } catch (error) {
+          console.error("Failed to mark interest:", error);
+          showSynapseNotification(error.message || "Failed to mark interest", "error");
+        }
+      },
+      currentUserEngagement: null // TODO: Get actual engagement level
     });
+    
   } catch (error) {
-    console.error("Failed to open theme panel:", error);
-    showSynapseNotification("Could not open theme details", "error");
+    console.error("Failed to open theme overlay:", error);
+    // Fallback to node panel if theme overlay fails
+    try {
+      openNodePanel({
+        id: themeNode.id,
+        name: themeNode.title,
+        type: "theme",
+        description: themeNode.description,
+        tags: themeNode.tags,
+        expires_at: themeNode.expires_at,
+        relatedProjects,
+        isThemeLens: true,
+        onClearFocus: clearThemeFocus,
+      });
+    } catch (fallbackError) {
+      console.error("Fallback node panel also failed:", fallbackError);
+      showSynapseNotification("Could not open theme details", "error");
+    }
   }
 }
 
 function clearThemeFocus() {
   // Clear theme selection visual feedback
   clearThemeSelection();
+  
+  // Close any open theme overlay cards
+  const existingCard = document.getElementById("synapse-theme-card");
+  if (existingCard) {
+    existingCard.remove();
+  }
   
   nodeEls?.style("opacity", 1);
   linkEls?.style("opacity", (d) => {
