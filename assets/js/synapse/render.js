@@ -588,6 +588,10 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       event.stopPropagation();
       
       const [mouseX, mouseY] = d3.pointer(event, this);
+      console.log("🖱️ Click detected at:", { mouseX: mouseX.toFixed(1), mouseY: mouseY.toFixed(1) });
+      console.log("🖱️ Event target:", this);
+      console.log("🖱️ Available themes:", themeNodes.map(t => ({ title: t.title, x: t.x, y: t.y, radius: t.themeRadius })));
+      
       const clickedTheme = findClosestTheme(mouseX, mouseY, themeNodes);
       
       if (clickedTheme) {
@@ -624,8 +628,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
 
   // Helper function to find the closest theme to a mouse position
   function findClosestTheme(mouseX, mouseY, themes) {
-    let closestTheme = null;
-    let closestDistance = Infinity;
+    console.log("🔍 Finding closest theme at mouse position:", { mouseX: mouseX.toFixed(1), mouseY: mouseY.toFixed(1) });
     
     // Sort themes by radius (smallest first) so inner themes take priority
     const sortedByRadius = [...themes].sort((a, b) => {
@@ -634,21 +637,42 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       return radiusA - radiusB; // Smallest first
     });
     
+    console.log("🎯 Checking themes in order (smallest radius first):");
+    
     for (const theme of sortedByRadius) {
-      const themeX = theme.x || 0;
-      const themeY = theme.y || 0;
+      // Get the actual DOM element to get its real transformed position
+      const themeElement = themesGroup.select(`.theme-${theme.theme_id}`);
+      
+      let themeX = theme.x || 0;
+      let themeY = theme.y || 0;
+      
+      // Try to get the actual transformed position from the DOM element
+      if (!themeElement.empty()) {
+        const transform = themeElement.attr("transform");
+        if (transform) {
+          const match = transform.match(/translate\(([^,]+),([^)]+)\)/);
+          if (match) {
+            themeX = parseFloat(match[1]);
+            themeY = parseFloat(match[2]);
+          }
+        }
+      }
+      
       const themeRadius = theme.themeRadius || 250;
       
       // Calculate distance from mouse to theme center
       const distance = Math.sqrt(Math.pow(mouseX - themeX, 2) + Math.pow(mouseY - themeY, 2));
       
+      console.log(`  - ${theme.title}: center(${themeX.toFixed(1)}, ${themeY.toFixed(1)}) radius=${themeRadius} distance=${distance.toFixed(1)} ${distance <= themeRadius ? '✅ MATCH' : '❌'}`);
+      
       // Check if mouse is within this theme's radius
       if (distance <= themeRadius) {
-        // Since we sorted by radius (smallest first), the first match is the innermost theme
+        console.log(`🎯 Selected theme: ${theme.title} (smallest radius that contains mouse)`);
         return theme;
       }
     }
     
+    console.log("⚠️ No theme found at mouse position");
     return null;
   }
 
