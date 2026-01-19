@@ -96,6 +96,8 @@ export async function initSynapseView() {
   }
 
   console.log("%c🧠 Synapse Core booting...", "color:#0ff; font-weight:bold;");
+console.log("🔥 CORE.JS CACHE BUSTER - TIMESTAMP:", Date.now());
+console.log("🔥 IMPORTING FROM: render-hit-detection.js");
 
   // Connection system gives us currentUserCommunityId reliably
   const userInfo = await initConnections(supabase);
