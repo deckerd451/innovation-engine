@@ -1,6 +1,8 @@
 // assets/js/synapse/render.js
 // Rendering helpers for links/nodes + project circles
 
+console.log("🔥 CUSTOM RENDER.JS FILE LOADED - HIT DETECTION VERSION");
+
 import { getInitials, truncateName } from "./ui.js";
 
 export const COLORS = {
@@ -335,6 +337,9 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
 }
 
 export function renderThemeCircles(container, themeNodes, { onThemeHover, onThemeClick } = {}) {
+  console.log("🚀 CUSTOM renderThemeCircles function called with", themeNodes.length, "themes");
+  console.log("🚀 Function location: assets/js/synapse/render.js - CUSTOM HIT DETECTION VERSION");
+  
   // Performance optimization: Create gradients only once, reuse for similar themes
   let defs = container.select("defs");
   if (defs.empty()) {
