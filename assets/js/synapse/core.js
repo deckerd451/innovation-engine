@@ -16,7 +16,7 @@ import {
   drawProjectCircles,
   highlightSelectedTheme,
   clearThemeSelection,
-} from "./render-new-version.js";
+} from "./render-hit-detection.js";
 import { showSynapseNotification } from "./ui.js";
 import { setupSynapseRealtime } from "./realtime.js";
 import {

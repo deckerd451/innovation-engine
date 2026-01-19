@@ -1,7 +1,9 @@
 // assets/js/synapse/render.js
 // Rendering helpers for links/nodes + project circles
 
-console.log("🔥 CUSTOM RENDER.JS FILE LOADED - HIT DETECTION VERSION");
+console.log("🔥 RENDER-HIT-DETECTION.JS LOADED - TIMESTAMP:", Date.now());
+console.log("🔥 CACHE BUSTER: This should appear if new file loads - ID:", Math.random());
+console.log("🔥 FILE: assets/js/synapse/render-hit-detection.js");
 
 import { getInitials, truncateName } from "./ui.js";
 
