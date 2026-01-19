@@ -368,32 +368,33 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stop-opacity", 0);
   });
 
-  // CRITICAL FIX: Sort themes by radius (largest first) so inner themes render on top
+  // CRITICAL FIX: Sort themes by radius (LARGEST first) so inner themes render LAST (on top)
   const sortedThemes = [...themeNodes].sort((a, b) => {
     const radiusA = a.themeRadius || 250;
     const radiusB = b.themeRadius || 250;
-    return radiusB - radiusA; // Largest radius first (outer themes first)
+    return radiusB - radiusA; // LARGEST radius first, so smaller themes render LAST (on top)
   });
 
-  // Simplified theme rendering with embedded projects
+  console.log("🎯 Theme rendering order (largest radius first, smaller themes render on top):", 
+    sortedThemes.map(t => ({ 
+      title: t.title, 
+      radius: t.themeRadius || 250 
+    }))
+  );
+
+  // Create main themes group
   const themesGroup = container
     .insert("g", ":first-child")
-    .attr("class", "theme-circles-group")
-    .style("pointer-events", "none");
+    .attr("class", "theme-circles-group");
 
-  // Use D3 data binding for better performance with sorted themes
+  // Create theme containers in order (largest first, so smallest render on top)
   const themeGroups = themesGroup
-    .selectAll(".theme-container")
+    .selectAll("g.theme-container")
     .data(sortedThemes, d => d.theme_id)
     .enter()
     .append("g")
     .attr("class", d => `theme-container theme-${d.theme_id}`)
-    .attr("transform", d => `translate(${d.x || 0}, ${d.y || 0})`)
-    .style("z-index", d => {
-      // Inner themes (smaller radius) get higher z-index
-      const radius = d.themeRadius || 250;
-      return 1000 - Math.floor(radius / 10); // Smaller radius = higher z-index
-    });
+    .attr("transform", d => `translate(${d.x || 0}, ${d.y || 0})`);
 
   themeGroups.each(function(d) {
     const themeGroup = d3.select(this);
@@ -422,8 +423,8 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     // NOTE: Projects are now rendered as a separate overlay layer (see renderThemeProjectsOverlay)
     // This ensures they appear on top of theme circles and remain clickable
 
-    // Enhanced interactive border with SMALLER hit area to prevent overlap
-    const hitAreaRadius = radius + 5; // REDUCED from 15 to 5 to prevent blocking inner circles
+    // Enhanced interactive border with MINIMAL hit area to prevent overlap
+    const hitAreaRadius = radius + 2; // REDUCED from 5 to 2 to prevent blocking inner circles
     
     // Invisible wider hit area for easier clicking (but not too wide)
     themeGroup
@@ -685,7 +686,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         pointer-events: all;
       }
       
-      /* Ensure inner themes appear above outer themes */
+      /* Ensure proper SVG layering - smaller themes render last and receive events first */
       .theme-circles-group {
         isolation: isolate;
       }
