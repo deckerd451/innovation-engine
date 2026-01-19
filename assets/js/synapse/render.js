@@ -368,20 +368,32 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("stop-opacity", 0);
   });
 
+  // CRITICAL FIX: Sort themes by radius (largest first) so inner themes render on top
+  const sortedThemes = [...themeNodes].sort((a, b) => {
+    const radiusA = a.themeRadius || 250;
+    const radiusB = b.themeRadius || 250;
+    return radiusB - radiusA; // Largest radius first (outer themes first)
+  });
+
   // Simplified theme rendering with embedded projects
   const themesGroup = container
     .insert("g", ":first-child")
     .attr("class", "theme-circles-group")
     .style("pointer-events", "none");
 
-  // Use D3 data binding for better performance
+  // Use D3 data binding for better performance with sorted themes
   const themeGroups = themesGroup
     .selectAll(".theme-container")
-    .data(themeNodes, d => d.theme_id)
+    .data(sortedThemes, d => d.theme_id)
     .enter()
     .append("g")
     .attr("class", d => `theme-container theme-${d.theme_id}`)
-    .attr("transform", d => `translate(${d.x || 0}, ${d.y || 0})`);
+    .attr("transform", d => `translate(${d.x || 0}, ${d.y || 0})`)
+    .style("z-index", d => {
+      // Inner themes (smaller radius) get higher z-index
+      const radius = d.themeRadius || 250;
+      return 1000 - Math.floor(radius / 10); // Smaller radius = higher z-index
+    });
 
   themeGroups.each(function(d) {
     const themeGroup = d3.select(this);
@@ -410,10 +422,10 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     // NOTE: Projects are now rendered as a separate overlay layer (see renderThemeProjectsOverlay)
     // This ensures they appear on top of theme circles and remain clickable
 
-    // Enhanced interactive border with wider hit area and better feedback
-    const hitAreaRadius = radius + 15; // Wider hit area extending beyond visual ring
+    // Enhanced interactive border with SMALLER hit area to prevent overlap
+    const hitAreaRadius = radius + 5; // REDUCED from 15 to 5 to prevent blocking inner circles
     
-    // Invisible wider hit area for easier clicking
+    // Invisible wider hit area for easier clicking (but not too wide)
     themeGroup
       .append("circle")
       .attr("r", hitAreaRadius)
@@ -660,7 +672,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
         filter: drop-shadow(0 0 8px currentColor);
       }
       
-      /* Better visual hierarchy for theme rings */
+      /* Better visual hierarchy for theme rings - CRITICAL FIX */
       .theme-container .theme-background {
         pointer-events: none;
       }
@@ -671,6 +683,15 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       
       .theme-container .theme-hit-area {
         pointer-events: all;
+      }
+      
+      /* Ensure inner themes appear above outer themes */
+      .theme-circles-group {
+        isolation: isolate;
+      }
+      
+      .theme-container {
+        position: relative;
       }
     `;
     document.head.appendChild(style);
