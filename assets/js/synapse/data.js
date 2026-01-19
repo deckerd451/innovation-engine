@@ -149,7 +149,38 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     });
   }
 
-  // 2. Create people nodes (people connect to themes, not directly to projects)
+  // 2. Create project nodes (projects are standalone entities that belong to themes)
+  if (projects?.length) {
+    const projectNodes = projects
+      .filter(project => project.theme_id) // Only include projects with themes
+      .map(project => ({
+        id: project.id,
+        type: 'project',
+        name: project.title,
+        title: project.title,
+        description: project.description,
+        theme_id: project.theme_id,
+        status: project.status || 'active',
+        required_skills: project.required_skills || [],
+        tags: project.tags || [],
+        team_size: project.team_size || 0,
+        creator_id: project.creator_id,
+        created_at: project.created_at,
+        view_count: project.view_count || 0,
+        // Position will be calculated by layout algorithm
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight
+      }));
+
+    nodes = [...nodes, ...projectNodes];
+    console.log("💡 Created project nodes:", projectNodes.length);
+    
+    if (projectNodes.length > 0) {
+      console.log("  Sample project node:", projectNodes[0]);
+    }
+  }
+
+  // 3. Create people nodes (people connect to themes, not directly to projects)
   if (members?.length) {
     let filteredMembers = members;
     
@@ -272,7 +303,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     }
   }
 
-  // 3. Create links: People → Themes (primary connection model)
+  // 4. Create links: People → Themes (primary connection model)
   if (themeParticipants?.length) {
     const themeLinks = themeParticipants
       .filter(tp => {
@@ -295,7 +326,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     console.log("🔗 Created theme participation links:", themeLinks.length);
   }
 
-  // 4. Add person-to-person connection links (for accepted and pending connections)
+  // 5. Add person-to-person connection links (for accepted and pending connections)
   console.log("🔍 Debug connections:", {
     connectionsCount: connectionsData?.length || 0,
     connections: connectionsData,
@@ -380,6 +411,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     totalNodes: nodes.length,
     totalLinks: links.length,
     themes: nodes.filter(n => n.type === 'theme').length,
+    projects: nodes.filter(n => n.type === 'project').length,
     people: nodes.filter(n => n.type === 'person').length,
     themeConnections: links.filter(l => l.type === 'theme').length
   });

@@ -207,8 +207,19 @@ async function renderThemeLensPanel(themeData) {
 }
 
 function renderThemeProjectCard(project) {
+  // Create a safe project ID for the onclick handler
+  const safeProjectData = JSON.stringify({
+    id: project.id,
+    title: project.title || project.name,
+    name: project.title || project.name,
+    description: project.description,
+    status: project.status,
+    team_size: project.team_size,
+    theme_id: project.theme_id
+  }).replace(/"/g, '&quot;');
+
   return `
-    <div class="theme-project-card" style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s;" onclick="window.openProjectDetails?.('${project.id}')">
+    <div class="theme-project-card" style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s;" onclick="window.openProjectDetails(JSON.parse('${safeProjectData}'))">
       <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
         <h4 style="color: #00e0ff; margin: 0; font-size: 1rem;">
           ${escapeHtml(project.name || project.title)}
@@ -228,7 +239,7 @@ function renderThemeProjectCard(project) {
         <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6);">
           <i class="fas fa-users"></i> ${project.team_size || 0} members
         </div>
-        <button onclick="event.stopPropagation(); window.joinProject?.('${project.id}');"
+        <button onclick="event.stopPropagation(); window.joinProjectFromPanel?.('${project.id}');"
           style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #00e0ff, #00a8cc); border: none; border-radius: 6px; color: #000; cursor: pointer; font-weight: 700; font-size: 0.85rem;">
           <i class="fas fa-plus"></i> Join
         </button>

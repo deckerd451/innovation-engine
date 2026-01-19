@@ -1074,6 +1074,7 @@ async function openThemeCard(themeNode) {
   console.log("🎯 Opening theme card for:", {
     themeId: themeNode.theme_id,
     themeName: themeNode.title || themeNode.name,
+    embeddedProjects: themeNode.projects?.length || 0,
     themeNode: themeNode
   });
 
@@ -1092,21 +1093,22 @@ async function openThemeCard(themeNode) {
 
   const themeTags = themeNode.tags || [];
 
-  // Debug: Log all project nodes to see what's available
-  const allProjects = nodes.filter((n) => n.type === "project");
-  console.log("🔍 All project nodes:", allProjects.map(p => ({
+  // Get projects from the theme node itself (they're embedded in the theme data)
+  const embeddedProjects = themeNode.projects || [];
+  console.log("📦 Embedded projects in theme:", embeddedProjects.map(p => ({
     id: p.id,
     title: p.title || p.name,
-    theme_id: p.theme_id,
-    tags: p.tags
+    theme_id: p.theme_id
   })));
 
-  const relatedProjects = nodes.filter((n) => {
+  // Also find any additional project nodes that match this theme
+  const additionalProjectNodes = nodes.filter((n) => {
     if (n.type !== "project") return false;
+    if (embeddedProjects.some(p => p.id === n.id)) return false; // Don't duplicate
 
     // Primary match: same theme_id
     if (n.theme_id === themeNode.theme_id) {
-      console.log("✅ Found project by theme_id:", {
+      console.log("✅ Found additional project node by theme_id:", {
         projectTitle: n.title || n.name,
         projectThemeId: n.theme_id,
         targetThemeId: themeNode.theme_id
@@ -1118,7 +1120,7 @@ async function openThemeCard(themeNode) {
     const projectTags = n.tags || [];
     const hasSharedTag = projectTags.some((tag) => themeTags.includes(tag));
     if (hasSharedTag) {
-      console.log("✅ Found project by shared tags:", {
+      console.log("✅ Found additional project node by shared tags:", {
         projectTitle: n.title || n.name,
         projectTags: projectTags,
         themeTags: themeTags,
@@ -1130,15 +1132,23 @@ async function openThemeCard(themeNode) {
     return false;
   });
 
-  console.log("🎯 Related projects found:", relatedProjects.length, relatedProjects.map(p => ({
-    id: p.id,
-    title: p.title || p.name,
-    theme_id: p.theme_id
-  })));
+  // Combine embedded projects with any additional project nodes
+  const allRelatedProjects = [...embeddedProjects, ...additionalProjectNodes];
+
+  console.log("🎯 All related projects found:", {
+    embedded: embeddedProjects.length,
+    additional: additionalProjectNodes.length,
+    total: allRelatedProjects.length,
+    projects: allRelatedProjects.map(p => ({
+      id: p.id,
+      title: p.title || p.name,
+      theme_id: p.theme_id
+    }))
+  });
 
   nodeEls?.style("opacity", (d) => {
     if (!d) return 0.2;
-    if (d.type === "project" && relatedProjects.some((p) => p.id === d.id)) {
+    if (d.type === "project" && allRelatedProjects.some((p) => p.id === d.id)) {
       return 1;
     }
     return 0.2;
@@ -1149,7 +1159,7 @@ async function openThemeCard(themeNode) {
     const sourceId = typeof d.source === "object" ? d.source?.id : d.source;
     const targetId = typeof d.target === "object" ? d.target?.id : d.target;
 
-    const isRelatedLink = relatedProjects.some(
+    const isRelatedLink = allRelatedProjects.some(
       (p) => sourceId === p?.id || targetId === p?.id
     );
     return isRelatedLink ? 0.6 : 0.1;
@@ -1157,7 +1167,7 @@ async function openThemeCard(themeNode) {
 
   themeEls?.style("opacity", (d) => (d?.id === themeNode?.id ? 1 : 0.3));
 
-  await openThemeProjectsPanel(themeNode, relatedProjects);
+  await openThemeProjectsPanel(themeNode, allRelatedProjects);
 }
 
 async function openThemeProjectsPanel(themeNode, relatedProjects) {
