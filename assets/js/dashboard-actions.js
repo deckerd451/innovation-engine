@@ -74,6 +74,16 @@ document.getElementById('btn-admin')?.addEventListener('click', () => {
   openAdminPanel();
 });
 
+// Wire up Organizations button
+document.getElementById('btn-organizations')?.addEventListener('click', () => {
+  window.location.href = '/organizations.html';
+});
+
+// Wire up Opportunities button
+document.getElementById('btn-opportunities')?.addEventListener('click', () => {
+  window.location.href = '/opportunities.html';
+});
+
 // Wire up View Controls button (backward compatibility if it exists)
 document.getElementById('btn-view-controls')?.addEventListener('click', () => {
   toggleViewControls();
