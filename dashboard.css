@@ -1287,6 +1287,18 @@
     .mt-3 { margin-top: 3rem; }
 
     /* Responsive */
+    /* Engagement displays responsive styles */
+    @media (max-width: 1200px) {
+      #engagement-displays {
+        gap: 0.5rem;
+      }
+      
+      #engagement-displays > div {
+        padding: 0.4rem 0.75rem !important;
+        font-size: 0.85rem;
+      }
+    }
+
     @media (max-width: 968px) {
       .two-col-grid {
         grid-template-columns: 1fr;
@@ -1330,6 +1342,11 @@
       .header-notification {
         width: 36px;
         height: 36px;
+      }
+
+      /* Hide engagement displays on mobile to prevent overlap */
+      #engagement-displays {
+        display: none !important;
       }
 
       .user-menu {

@@ -16,7 +16,7 @@ function addThemeStrategyToggle() {
   button.id = 'theme-strategy-toggle';
   button.style.cssText = `
     position: fixed;
-    top: 20px;
+    top: 80px;
     right: 20px;
     background: linear-gradient(135deg, rgba(0, 224, 255, 0.2), rgba(0, 224, 255, 0.1));
     border: 2px solid #00e0ff;
@@ -25,7 +25,7 @@ function addThemeStrategyToggle() {
     padding: 0.75rem 1rem;
     cursor: pointer;
     font-weight: bold;
-    z-index: 99999;
+    z-index: 1500;
     transition: all 0.3s ease;
     font-size: 0.9rem;
     display: flex;
@@ -34,6 +34,27 @@ function addThemeStrategyToggle() {
     backdrop-filter: blur(10px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   `;
+
+  // Add responsive positioning
+  const mediaQuery = window.matchMedia('(max-width: 768px)');
+  function updateButtonPosition() {
+    if (mediaQuery.matches) {
+      // On mobile, move button lower to avoid header
+      button.style.top = '120px';
+      button.style.right = '10px';
+      button.style.padding = '0.5rem 0.75rem';
+      button.style.fontSize = '0.8rem';
+    } else {
+      // On desktop, use normal position
+      button.style.top = '80px';
+      button.style.right = '20px';
+      button.style.padding = '0.75rem 1rem';
+      button.style.fontSize = '0.9rem';
+    }
+  }
+
+  updateButtonPosition();
+  mediaQuery.addListener(updateButtonPosition);
 
   updateButtonText(button);
 
