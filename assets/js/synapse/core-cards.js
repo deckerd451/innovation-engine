@@ -646,7 +646,7 @@ function addModeToggleButton() {
   button.id = 'theme-mode-toggle';
   button.style.cssText = `
     position: fixed;
-    top: 20px;
+    top: 80px;
     left: 20px;
     background: rgba(0, 224, 255, 0.2);
     border: 2px solid #00e0ff;
@@ -658,6 +658,27 @@ function addModeToggleButton() {
     z-index: 1000;
     transition: all 0.2s ease;
   `;
+
+  // Add responsive positioning
+  const mediaQuery = window.matchMedia('(max-width: 768px)');
+  function updateButtonPosition() {
+    if (mediaQuery.matches) {
+      // On mobile, move button lower and to the right to avoid header
+      button.style.top = '120px';
+      button.style.left = '10px';
+      button.style.padding = '0.4rem 0.75rem';
+      button.style.fontSize = '0.85rem';
+    } else {
+      // On desktop, use position below header
+      button.style.top = '80px';
+      button.style.left = '20px';
+      button.style.padding = '0.5rem 1rem';
+      button.style.fontSize = '1rem';
+    }
+  }
+
+  updateButtonPosition();
+  mediaQuery.addListener(updateButtonPosition);
 
   const modeLabels = {
     cards: '📋 Cards',
