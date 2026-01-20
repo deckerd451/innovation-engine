@@ -317,6 +317,10 @@ async function buildInterface() {
     console.error("❌ Theme area not found");
     return;
   }
+  
+  if (!networkArea) {
+    console.warn('⚠️ Network area not found, some features may not work');
+  }
 
   // Get theme nodes
   const themeNodes = nodes.filter(n => n.type === 'theme');
@@ -331,8 +335,8 @@ async function buildInterface() {
   
   // Show/hide network area based on mode
   if (themeDisplayMode === 'cards') {
-    networkArea.style.display = 'none';
-    themeArea.style.zIndex = '10';
+    if (networkArea) networkArea.style.display = 'none';
+    if (themeArea) themeArea.style.zIndex = '10';
     
     // Render theme cards grid
     renderThemeCardsGrid(themeArea, themeNodes, {
@@ -341,8 +345,8 @@ async function buildInterface() {
     });
     
   } else if (themeDisplayMode === 'sidebar') {
-    networkArea.style.display = 'block';
-    themeArea.style.zIndex = '20';
+    if (networkArea) networkArea.style.display = 'block';
+    if (themeArea) themeArea.style.zIndex = '20';
     
     // Render people/projects network in background
     await renderPeopleProjectsNetwork(peopleNodes, projectNodes);
@@ -354,8 +358,8 @@ async function buildInterface() {
     });
     
   } else if (themeDisplayMode === 'hybrid') {
-    networkArea.style.display = 'block';
-    themeArea.style.zIndex = '15';
+    if (networkArea) networkArea.style.display = 'block';
+    if (themeArea) themeArea.style.zIndex = '15';
     
     // Render people/projects network
     await renderPeopleProjectsNetwork(peopleNodes, projectNodes);
