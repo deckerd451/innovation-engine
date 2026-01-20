@@ -91,6 +91,8 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
   card.style.top = "50%";
   card.style.left = "50%";
   card.style.transform = "translate(-50%, -50%)";
+  card.style.maxHeight = "calc(100vh - 120px)"; // Leave space for bottom navigation
+  card.style.overflowY = "auto"; // Allow scrolling if content is too tall
 
   // Calculate time remaining
   const now = Date.now();
@@ -222,6 +224,14 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
   `;
 
   card.querySelector(".synapse-card-close")?.addEventListener("click", () => card.remove());
+  
+  // Add click-outside-to-close functionality
+  card.addEventListener("click", (e) => {
+    if (e.target === card) {
+      card.remove();
+    }
+  });
+  
   card.querySelector("#theme-interested-btn")?.addEventListener("click", onInterested);
 
   // Add Project to Theme button
