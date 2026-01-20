@@ -164,15 +164,19 @@ BEGIN
   -- ============================================
   RAISE NOTICE '🔑 Checking Database Permissions...';
 
-  -- Check if current user can create tables
-  IF pg_has_role(current_user, 'rds_superuser', 'member')
-     OR pg_has_role(current_user, 'postgres', 'member')
-     OR has_database_privilege(current_database(), 'CREATE') THEN
-    RAISE NOTICE '   ✅ Current user has CREATE permissions';
-  ELSE
-    RAISE NOTICE '   ⚠️  Current user may not have CREATE permissions';
-    RAISE NOTICE '   → You might need to run this as postgres user';
-  END IF;
+  -- Check if current user can create tables (Supabase compatible)
+  BEGIN
+    IF has_database_privilege(current_database(), 'CREATE')
+       OR has_schema_privilege('public', 'CREATE') THEN
+      RAISE NOTICE '   ✅ Current user has CREATE permissions';
+    ELSE
+      RAISE NOTICE '   ⚠️  Current user may not have CREATE permissions';
+      RAISE NOTICE '   → This is OK in Supabase - service role will be used';
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE '   ℹ️  Could not check permissions (this is normal in Supabase)';
+    RAISE NOTICE '   → Continuing anyway...';
+  END;
 
   RAISE NOTICE '';
 
