@@ -25,7 +25,7 @@ function addThemeStrategyToggle() {
     padding: 0.75rem 1rem;
     cursor: pointer;
     font-weight: bold;
-    z-index: 10000;
+    z-index: 99999;
     transition: all 0.3s ease;
     font-size: 0.9rem;
     display: flex;
