@@ -107,6 +107,73 @@ export async function refreshSynapseConnections() {
   await rebuildInterface();
 }
 
+export function getSynapseStats() {
+  const peopleCount = nodes.filter((n) => n.type === "person").length;
+  const projectCount = nodes.filter((n) => n.type === "project").length;
+  const themeCount = nodes.filter((n) => n.type === "theme").length;
+
+  const acceptedSet = new Set(["accepted", "active", "connected", "approved"]);
+  const myConns = (connectionsData || []).filter(
+    (c) =>
+      c.from_user_id === currentUserCommunityId ||
+      c.to_user_id === currentUserCommunityId
+  );
+
+  const myAccepted = myConns.filter((c) =>
+    !c.status ? true : acceptedSet.has(String(c.status).toLowerCase())
+  );
+
+  return {
+    totalNodes: nodes.length,
+    totalLinks: links.length,
+    peopleCount,
+    projectCount,
+    themeCount,
+    myConnectionCount: myAccepted.length || myConns.length || 0,
+    currentUserCommunityId,
+  };
+}
+
+export function getRecommendations() {
+  // Simple recommendations based on current data
+  const currentUser = nodes.find(n => n.id === currentUserCommunityId);
+  if (!currentUser) return [];
+
+  const userSkills = currentUser.skills || [];
+  const userThemes = currentUser.themes || [];
+
+  // Recommend themes based on skills
+  const recommendedThemes = nodes
+    .filter(n => n.type === 'theme' && !userThemes.includes(n.theme_id))
+    .filter(theme => {
+      const themeProjects = theme.projects || [];
+      return themeProjects.some(project => {
+        const requiredSkills = project.required_skills || [];
+        return requiredSkills.some(skill => 
+          userSkills.some(userSkill => 
+            String(userSkill).toLowerCase().includes(String(skill).toLowerCase())
+          )
+        );
+      });
+    })
+    .slice(0, 3);
+
+  return recommendedThemes.map(theme => ({
+    type: 'theme',
+    id: theme.id,
+    title: theme.title,
+    reason: 'Based on your skills'
+  }));
+}
+
+export function showConnectPathways() {
+  console.log("🌟 Connect pathways visualization not implemented in cards mode");
+}
+
+export function clearConnectPathways() {
+  console.log("🌟 Clear pathways not needed in cards mode");
+}
+
 export async function toggleFullCommunityView(show) {
   if (typeof show === "boolean") {
     showFullCommunity = show;

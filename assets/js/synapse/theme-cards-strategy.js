@@ -3,7 +3,39 @@
 
 console.log("🎯 NEW THEME CARDS STRATEGY LOADED");
 
-import { getThemeColor, escapeHtml } from "./ui.js";
+import { getInitials, truncateName, escapeHtml } from "./ui.js";
+
+// Enhanced theme color palette with more vibrant, distinct colors
+const THEME_COLORS = [
+  "#00e0ff", // Electric Cyan
+  "#ff4757", // Vibrant Red
+  "#ffd700", // Gold
+  "#2ed573", // Emerald Green
+  "#ff6b9d", // Pink
+  "#ff7f50", // Coral
+  "#7bed9f", // Mint Green
+  "#70a1ff", // Sky Blue
+  "#a4b0be", // Steel Blue
+  "#ff6348", // Orange Red
+  "#dda0dd", // Plum
+  "#40e0d0", // Turquoise
+];
+
+// Get a consistent color for a theme based on its ID
+export function getThemeColor(themeId) {
+  if (!themeId) return "#00e0ff";
+
+  // Convert theme ID to a number for consistent hashing
+  let hash = 0;
+  const idStr = String(themeId);
+  for (let i = 0; i < idStr.length; i++) {
+    hash = ((hash << 5) - hash) + idStr.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+
+  const index = Math.abs(hash) % THEME_COLORS.length;
+  return THEME_COLORS[index];
+}
 import { showSynapseNotification } from "./ui.js";
 
 /**
