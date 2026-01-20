@@ -46,33 +46,6 @@ CREATE INDEX IF NOT EXISTS idx_organizations_status ON organizations(status);
 CREATE INDEX IF NOT EXISTS idx_organizations_industry ON organizations USING GIN(industry);
 CREATE INDEX IF NOT EXISTS idx_organizations_created_by ON organizations(created_by);
 
--- RLS Policies
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Organizations are viewable by everyone" ON organizations;
-CREATE POLICY "Organizations are viewable by everyone"
-  ON organizations FOR SELECT
-  USING (status = 'active');
-
-DROP POLICY IF EXISTS "Authenticated users can create organizations" ON organizations;
-CREATE POLICY "Authenticated users can create organizations"
-  ON organizations FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL);
-
-DROP POLICY IF EXISTS "Organization admins can update" ON organizations;
-CREATE POLICY "Organization admins can update"
-  ON organizations FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.organization_id = organizations.id
-      AND organization_members.community_id IN (
-        SELECT id FROM community WHERE user_id = auth.uid()
-      )
-      AND organization_members.role IN ('owner', 'admin')
-    )
-  );
-
 -- ============================================
 -- 2. ORGANIZATION MEMBERS TABLE
 -- ============================================
@@ -103,28 +76,6 @@ CREATE TABLE IF NOT EXISTS organization_members (
 CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
 CREATE INDEX IF NOT EXISTS idx_org_members_community ON organization_members(community_id);
 CREATE INDEX IF NOT EXISTS idx_org_members_role ON organization_members(role);
-
--- RLS Policies
-ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Organization members are viewable by everyone" ON organization_members;
-CREATE POLICY "Organization members are viewable by everyone"
-  ON organization_members FOR SELECT
-  USING (status = 'active');
-
-DROP POLICY IF EXISTS "Organization admins can manage members" ON organization_members;
-CREATE POLICY "Organization admins can manage members"
-  ON organization_members FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM organization_members om
-      WHERE om.organization_id = organization_members.organization_id
-      AND om.community_id IN (
-        SELECT id FROM community WHERE user_id = auth.uid()
-      )
-      AND om.role IN ('owner', 'admin')
-    )
-  );
 
 -- ============================================
 -- 3. OPPORTUNITIES TABLE
@@ -181,42 +132,6 @@ CREATE INDEX IF NOT EXISTS idx_opportunities_theme ON opportunities(theme_id);
 CREATE INDEX IF NOT EXISTS idx_opportunities_skills ON opportunities USING GIN(required_skills);
 CREATE INDEX IF NOT EXISTS idx_opportunities_expires ON opportunities(expires_at);
 
--- RLS Policies
-ALTER TABLE opportunities ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Open opportunities are viewable by everyone" ON opportunities;
-CREATE POLICY "Open opportunities are viewable by everyone"
-  ON opportunities FOR SELECT
-  USING (status = 'open' AND (expires_at IS NULL OR expires_at > NOW()));
-
-DROP POLICY IF EXISTS "Organization members can create opportunities" ON opportunities;
-CREATE POLICY "Organization members can create opportunities"
-  ON opportunities FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.organization_id = opportunities.organization_id
-      AND organization_members.community_id IN (
-        SELECT id FROM community WHERE user_id = auth.uid()
-      )
-      AND organization_members.can_post_opportunities = true
-    )
-  );
-
-DROP POLICY IF EXISTS "Organization members can update opportunities" ON opportunities;
-CREATE POLICY "Organization members can update opportunities"
-  ON opportunities FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM organization_members
-      WHERE organization_members.organization_id = opportunities.organization_id
-      AND organization_members.community_id IN (
-        SELECT id FROM community WHERE user_id = auth.uid()
-      )
-      AND organization_members.can_post_opportunities = true
-    )
-  );
-
 -- ============================================
 -- 4. ORGANIZATION FOLLOWERS TABLE
 -- ============================================
@@ -233,32 +148,6 @@ CREATE TABLE IF NOT EXISTS organization_followers (
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_org_followers_org ON organization_followers(organization_id);
 CREATE INDEX IF NOT EXISTS idx_org_followers_community ON organization_followers(community_id);
-
--- RLS Policies
-ALTER TABLE organization_followers ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view followers" ON organization_followers;
-CREATE POLICY "Users can view followers"
-  ON organization_followers FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "Users can follow organizations" ON organization_followers;
-CREATE POLICY "Users can follow organizations"
-  ON organization_followers FOR INSERT
-  WITH CHECK (
-    community_id IN (
-      SELECT id FROM community WHERE user_id = auth.uid()
-    )
-  );
-
-DROP POLICY IF EXISTS "Users can unfollow organizations" ON organization_followers;
-CREATE POLICY "Users can unfollow organizations"
-  ON organization_followers FOR DELETE
-  USING (
-    community_id IN (
-      SELECT id FROM community WHERE user_id = auth.uid()
-    )
-  );
 
 -- ============================================
 -- 5. ORGANIZATION THEME SPONSORSHIPS TABLE
@@ -287,14 +176,6 @@ CREATE TABLE IF NOT EXISTS organization_theme_sponsorships (
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_org_sponsorships_org ON organization_theme_sponsorships(organization_id);
 CREATE INDEX IF NOT EXISTS idx_org_sponsorships_theme ON organization_theme_sponsorships(theme_id);
-
--- RLS Policies
-ALTER TABLE organization_theme_sponsorships ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Sponsorships are viewable by everyone" ON organization_theme_sponsorships;
-CREATE POLICY "Sponsorships are viewable by everyone"
-  ON organization_theme_sponsorships FOR SELECT
-  USING (status = 'active');
 
 -- ============================================
 -- HELPER FUNCTIONS
@@ -382,6 +263,143 @@ LEFT JOIN organization_theme_sponsorships ots ON o.id = ots.organization_id AND 
 LEFT JOIN theme_circles tc ON ots.theme_id = tc.id
 WHERE o.status = 'active'
 GROUP BY o.id;
+
+-- ============================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================
+-- All RLS policies are defined here AFTER all tables are created
+-- to avoid circular dependency issues
+
+-- Enable RLS on all tables
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE opportunities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_followers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_theme_sponsorships ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- ORGANIZATIONS TABLE POLICIES
+-- ============================================
+
+DROP POLICY IF EXISTS "Organizations are viewable by everyone" ON organizations;
+CREATE POLICY "Organizations are viewable by everyone"
+  ON organizations FOR SELECT
+  USING (status = 'active');
+
+DROP POLICY IF EXISTS "Authenticated users can create organizations" ON organizations;
+CREATE POLICY "Authenticated users can create organizations"
+  ON organizations FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Organization admins can update" ON organizations;
+CREATE POLICY "Organization admins can update"
+  ON organizations FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.organization_id = organizations.id
+      AND organization_members.community_id IN (
+        SELECT id FROM community WHERE user_id = auth.uid()
+      )
+      AND organization_members.role IN ('owner', 'admin')
+    )
+  );
+
+-- ============================================
+-- ORGANIZATION MEMBERS TABLE POLICIES
+-- ============================================
+
+DROP POLICY IF EXISTS "Organization members are viewable by everyone" ON organization_members;
+CREATE POLICY "Organization members are viewable by everyone"
+  ON organization_members FOR SELECT
+  USING (status = 'active');
+
+DROP POLICY IF EXISTS "Organization admins can manage members" ON organization_members;
+CREATE POLICY "Organization admins can manage members"
+  ON organization_members FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM organization_members om
+      WHERE om.organization_id = organization_members.organization_id
+      AND om.community_id IN (
+        SELECT id FROM community WHERE user_id = auth.uid()
+      )
+      AND om.role IN ('owner', 'admin')
+    )
+  );
+
+-- ============================================
+-- OPPORTUNITIES TABLE POLICIES
+-- ============================================
+
+DROP POLICY IF EXISTS "Open opportunities are viewable by everyone" ON opportunities;
+CREATE POLICY "Open opportunities are viewable by everyone"
+  ON opportunities FOR SELECT
+  USING (status = 'open' AND (expires_at IS NULL OR expires_at > NOW()));
+
+DROP POLICY IF EXISTS "Organization members can create opportunities" ON opportunities;
+CREATE POLICY "Organization members can create opportunities"
+  ON opportunities FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.organization_id = opportunities.organization_id
+      AND organization_members.community_id IN (
+        SELECT id FROM community WHERE user_id = auth.uid()
+      )
+      AND organization_members.can_post_opportunities = true
+    )
+  );
+
+DROP POLICY IF EXISTS "Organization members can update opportunities" ON opportunities;
+CREATE POLICY "Organization members can update opportunities"
+  ON opportunities FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM organization_members
+      WHERE organization_members.organization_id = opportunities.organization_id
+      AND organization_members.community_id IN (
+        SELECT id FROM community WHERE user_id = auth.uid()
+      )
+      AND organization_members.can_post_opportunities = true
+    )
+  );
+
+-- ============================================
+-- ORGANIZATION FOLLOWERS TABLE POLICIES
+-- ============================================
+
+DROP POLICY IF EXISTS "Users can view followers" ON organization_followers;
+CREATE POLICY "Users can view followers"
+  ON organization_followers FOR SELECT
+  USING (true);
+
+DROP POLICY IF EXISTS "Users can follow organizations" ON organization_followers;
+CREATE POLICY "Users can follow organizations"
+  ON organization_followers FOR INSERT
+  WITH CHECK (
+    community_id IN (
+      SELECT id FROM community WHERE user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can unfollow organizations" ON organization_followers;
+CREATE POLICY "Users can unfollow organizations"
+  ON organization_followers FOR DELETE
+  USING (
+    community_id IN (
+      SELECT id FROM community WHERE user_id = auth.uid()
+    )
+  );
+
+-- ============================================
+-- ORGANIZATION THEME SPONSORSHIPS TABLE POLICIES
+-- ============================================
+
+DROP POLICY IF EXISTS "Sponsorships are viewable by everyone" ON organization_theme_sponsorships;
+CREATE POLICY "Sponsorships are viewable by everyone"
+  ON organization_theme_sponsorships FOR SELECT
+  USING (status = 'active');
 
 -- ============================================
 -- COMPLETE
