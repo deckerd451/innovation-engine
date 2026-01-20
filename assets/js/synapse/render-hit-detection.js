@@ -510,236 +510,122 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     return d3.select(themesGroup.node());
   }
 
-  // CRITICAL FIX: Create hit detection overlay AFTER all other elements
-  // This ensures it's on top and receives all mouse events first
-  let maxRadius;
-  try {
-    maxRadius = Math.max(...themeNodes.map(t => t.themeRadius || 250)) + 10;
-  } catch (error) {
-    console.error("❌ Error calculating maxRadius:", error);
-    maxRadius = 260; // fallback
-  }
-  
-  // Calculate the center point of all themes to position the overlay correctly
-  let centerX, centerY;
-  try {
-    centerX = themeNodes.reduce((sum, t) => sum + (t.x || 0), 0) / themeNodes.length;
-    centerY = themeNodes.reduce((sum, t) => sum + (t.y || 0), 0) / themeNodes.length;
-  } catch (error) {
-    console.error("❌ Error calculating center position:", error);
-    centerX = 0;
-    centerY = 0;
-  }
-  
-  console.log("🎯 Calculated overlay position:", { centerX, centerY, maxRadius });
+  // CRITICAL FIX: Create individual hit detection areas for each theme
+  // This ensures proper click detection for themes at different positions
+  console.log("🎯 Creating individual hit detection areas for each theme...");
 
   try {
-    const hitDetectionOverlay = themesGroup
+    // Create hit detection group that will contain individual theme hit areas
+    const hitDetectionGroup = themesGroup
+      .append("g")
+      .attr("class", "theme-hit-detection-group")
+      .style("pointer-events", "all");
+
+    // Create individual hit detection circles for each theme
+    const hitDetectionAreas = hitDetectionGroup
+      .selectAll("circle.theme-hit-area")
+      .data(themeNodes, d => d.theme_id)
+      .enter()
       .append("circle")
-      .attr("cx", centerX) // Position at center of themes
-      .attr("cy", centerY) // Position at center of themes
-      .attr("r", maxRadius)
-      .attr("fill", "rgba(255, 0, 0, 0.1)") // Temporary red tint to see the overlay
-      .attr("stroke", "red")
-      .attr("stroke-width", 2)
-      .attr("stroke-dasharray", "5,5")
-      .attr("class", "theme-hit-detection-overlay")
+      .attr("class", d => `theme-hit-area theme-hit-${d.theme_id}`)
+      .attr("cx", d => d.x || 0)
+      .attr("cy", d => d.y || 0)
+      .attr("r", d => (d.themeRadius || 250))
+      .attr("fill", "transparent") // Invisible but clickable
+      .attr("stroke", "none") // Remove debug stroke for production
       .style("cursor", "pointer")
       .style("pointer-events", "all");
 
-    console.log("🎯 Hit detection overlay created successfully:", {
-      centerX: centerX.toFixed(1),
-      centerY: centerY.toFixed(1), 
-      radius: maxRadius,
-      themeCount: themeNodes.length,
-      element: hitDetectionOverlay.node()
-    });
+    console.log("🎯 Created", hitDetectionAreas.size(), "individual hit detection areas");
 
-    // Test if the overlay element exists in DOM
-    const overlayElement = hitDetectionOverlay.node();
-    if (overlayElement) {
-      console.log("✅ Overlay element exists in DOM:", overlayElement);
-    } else {
-      console.error("❌ Overlay element not found in DOM");
-    }
-
-    // Custom hit detection logic
-    hitDetectionOverlay
-      .on("mousemove", function(event) {
-        console.log("🖱️ Mouse moving over hit detection overlay");
-        const [mouseX, mouseY] = d3.pointer(event, this);
-        const hoveredTheme = findClosestTheme(mouseX, mouseY, themeNodes);
+    // Add event handlers to each hit detection area
+    hitDetectionAreas
+      .on("mouseenter", function(event, d) {
+        console.log("🖱️ Mouse entering theme:", d.title);
         
-        // Update hover states
-        themeGroups.each(function(d) {
-          const themeGroup = d3.select(this);
-          const isHovered = hoveredTheme && d.theme_id === hoveredTheme.theme_id;
+        // Apply hover state to this theme
+        const themeGroup = themesGroup.select(`.theme-${d.theme_id}`);
+        const border = themeGroup.select(".theme-interactive-border");
+        const background = themeGroup.select(".theme-background");
+        
+        border
+          .transition()
+          .duration(150)
+          .attr("stroke-opacity", 1)
+          .attr("stroke-width", 4)
+          .style("filter", "drop-shadow(0 0 8px " + getThemeColor(d.theme_id) + ")");
           
-          const border = themeGroup.select(".theme-interactive-border");
-          const background = themeGroup.select(".theme-background");
-          
-          if (isHovered) {
-            // Apply hover state
-            border
-              .transition()
-              .duration(150)
-              .attr("stroke-opacity", 1)
-              .attr("stroke-width", 4)
-              .style("filter", "drop-shadow(0 0 8px " + getThemeColor(d.theme_id) + ")");
-              
-            background
-              .transition()
-              .duration(150)
-              .attr("stroke-opacity", 0.8)
-              .attr("stroke-width", 3);
-          } else {
-            // Reset to normal state
-            const userHasJoined = d.user_is_participant === true;
-            const isDiscoverable = d.isDiscoverable === true;
-            
-            border
-              .transition()
-              .duration(150)
-              .attr("stroke-opacity", 0.6)
-              .attr("stroke-width", 2)
-              .style("filter", "none");
-              
-            background
-              .transition()
-              .duration(150)
-              .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.4 : 0.2))
-              .attr("stroke-width", userHasJoined ? 2 : 1);
-          }
-        });
+        background
+          .transition()
+          .duration(150)
+          .attr("stroke-opacity", 0.8)
+          .attr("stroke-width", 3);
         
         // Call hover handler
-        if (hoveredTheme) {
-          onThemeHover?.(event, hoveredTheme, true);
-        }
+        onThemeHover?.(event, d, true);
       })
-      .on("mouseleave", function(event) {
-        console.log("🖱️ Mouse left hit detection overlay");
-        // Reset all hover states
-        themeGroups.each(function(d) {
-          const themeGroup = d3.select(this);
-          const userHasJoined = d.user_is_participant === true;
-          const isDiscoverable = d.isDiscoverable === true;
-          
-          const border = themeGroup.select(".theme-interactive-border");
-          const background = themeGroup.select(".theme-background");
-          
-          border
-            .transition()
-            .duration(150)
-            .attr("stroke-opacity", 0.6)
-            .attr("stroke-width", 2)
-            .style("filter", "none");
-            
-          background
-            .transition()
-            .duration(150)
-            .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.4 : 0.2))
-            .attr("stroke-width", userHasJoined ? 2 : 1);
-        });
+      .on("mouseleave", function(event, d) {
+        console.log("🖱️ Mouse leaving theme:", d.title);
         
+        // Reset hover state for this theme
+        const themeGroup = themesGroup.select(`.theme-${d.theme_id}`);
+        const border = themeGroup.select(".theme-interactive-border");
+        const background = themeGroup.select(".theme-background");
+        
+        const userHasJoined = d.user_is_participant === true;
+        const isDiscoverable = d.isDiscoverable === true;
+        
+        border
+          .transition()
+          .duration(150)
+          .attr("stroke-opacity", 0.6)
+          .attr("stroke-width", 2)
+          .style("filter", "none");
+          
+        background
+          .transition()
+          .duration(150)
+          .attr("stroke-opacity", isDiscoverable ? 0.2 : (userHasJoined ? 0.4 : 0.2))
+          .attr("stroke-width", userHasJoined ? 2 : 1);
+        
+        // Call hover handler
         onThemeHover?.(event, null, false);
       })
-      .on("click", function(event) {
+      .on("click", function(event, d) {
         event.stopPropagation();
         
-        const [mouseX, mouseY] = d3.pointer(event, this);
-        console.log("🖱️ Click detected at:", { mouseX: mouseX.toFixed(1), mouseY: mouseY.toFixed(1) });
-        console.log("🖱️ Event target:", this);
-        console.log("🖱️ Available themes:", themeNodes.map(t => ({ title: t.title, x: t.x, y: t.y, radius: t.themeRadius })));
+        console.log("🖱️ Theme clicked:", d.title, "ID:", d.theme_id);
         
-        const clickedTheme = findClosestTheme(mouseX, mouseY, themeNodes);
+        // Add visual feedback to the clicked theme
+        const themeGroup = themesGroup.select(`.theme-${d.theme_id}`);
+        const border = themeGroup.select(".theme-interactive-border");
+        const themeColor = getThemeColor(d.theme_id);
         
-        if (clickedTheme) {
-          console.log("🎯 Theme clicked via custom hit detection:", clickedTheme.title, "ID:", clickedTheme.theme_id);
-          
-          // Add visual feedback to the clicked theme
-          const clickedGroup = themesGroup.select(`.theme-${clickedTheme.theme_id}`);
-          const border = clickedGroup.select(".theme-interactive-border");
-          const themeColor = getThemeColor(clickedTheme.theme_id);
-          
-          border
-            .transition()
-            .duration(100)
-            .attr("stroke-width", 6)
-            .attr("stroke-opacity", 1)
-            .style("filter", "drop-shadow(0 0 12px " + themeColor + ")")
-            .transition()
-            .delay(100)
-            .duration(200)
-            .attr("stroke-width", 4)
-            .attr("stroke-opacity", 0.8);
-          
-          // Call the theme click handler
-          try {
-            onThemeClick?.(event, clickedTheme);
-            console.log("✅ Theme click handler called successfully");
-          } catch (error) {
-            console.error("❌ Theme click handler failed:", error);
-          }
-        } else {
-          console.log("⚠️ No theme found at click position");
+        border
+          .transition()
+          .duration(100)
+          .attr("stroke-width", 6)
+          .attr("stroke-opacity", 1)
+          .style("filter", "drop-shadow(0 0 12px " + themeColor + ")")
+          .transition()
+          .delay(100)
+          .duration(200)
+          .attr("stroke-width", 4)
+          .attr("stroke-opacity", 0.8);
+        
+        // Call the theme click handler
+        try {
+          onThemeClick?.(event, d);
+          console.log("✅ Theme click handler called successfully");
+        } catch (error) {
+          console.error("❌ Theme click handler failed:", error);
         }
       });
 
-    console.log("✅ Event handlers attached to hit detection overlay");
+    console.log("✅ Event handlers attached to individual hit detection areas");
 
   } catch (error) {
-    console.error("❌ Failed to create hit detection overlay:", error);
-  }
-
-  // Helper function to find the closest theme to a mouse position
-  function findClosestTheme(mouseX, mouseY, themes) {
-    console.log("🔍 Finding closest theme at mouse position:", { mouseX: mouseX.toFixed(1), mouseY: mouseY.toFixed(1) });
-    
-    // Sort themes by radius (smallest first) so inner themes take priority
-    const sortedByRadius = [...themes].sort((a, b) => {
-      const radiusA = a.themeRadius || 250;
-      const radiusB = b.themeRadius || 250;
-      return radiusA - radiusB; // Smallest first
-    });
-    
-    console.log("🎯 Checking themes in order (smallest radius first):");
-    
-    for (const theme of sortedByRadius) {
-      // Get the actual DOM element to get its real transformed position
-      const themeElement = themesGroup.select(`.theme-${theme.theme_id}`);
-      
-      let themeX = theme.x || 0;
-      let themeY = theme.y || 0;
-      
-      // Try to get the actual transformed position from the DOM element
-      if (!themeElement.empty()) {
-        const transform = themeElement.attr("transform");
-        if (transform) {
-          const match = transform.match(/translate\(([^,]+),([^)]+)\)/);
-          if (match) {
-            themeX = parseFloat(match[1]);
-            themeY = parseFloat(match[2]);
-          }
-        }
-      }
-      
-      const themeRadius = theme.themeRadius || 250;
-      
-      // Calculate distance from mouse to theme center
-      const distance = Math.sqrt(Math.pow(mouseX - themeX, 2) + Math.pow(mouseY - themeY, 2));
-      
-      console.log(`  - ${theme.title}: center(${themeX.toFixed(1)}, ${themeY.toFixed(1)}) radius=${themeRadius} distance=${distance.toFixed(1)} ${distance <= themeRadius ? '✅ MATCH' : '❌'}`);
-      
-      // Check if mouse is within this theme's radius
-      if (distance <= themeRadius) {
-        console.log(`🎯 Selected theme: ${theme.title} (smallest radius that contains mouse)`);
-        return theme;
-      }
-    }
-    
-    console.log("⚠️ No theme found at mouse position");
-    return null;
+    console.error("❌ Failed to create hit detection areas:", error);
   }
 
   // Enhanced CSS animations for theme interaction
