@@ -667,39 +667,254 @@ function showActionSuccess(type, title) {
 /**
  * Navigate to the appropriate view for the recommendation
  */
+/**
+ * Navigate to the appropriate view with synapse integration
+ */
 function navigateToRecommendation(type, recommendation) {
+  console.log('🌐 Navigating with synapse integration:', type, recommendation.title);
+  
+  // First, ensure we're in the right synapse mode for the recommendation
+  const synapseMode = getSynapseModeForType(type);
+  
+  // Switch to synapse view if not already there
+  switchToSynapseView(synapseMode);
+  
+  // Wait a moment for synapse to load, then highlight the recommendation
+  setTimeout(() => {
+    highlightRecommendationInSynapse(type, recommendation);
+    
+    // Show contextual guidance overlay
+    showSynapseGuidanceOverlay(type, recommendation);
+  }, 1000);
+  
+  // Legacy navigation as fallback
   switch (type) {
     case 'theme':
-      // Open theme overlay or navigate to theme
       if (window.openThemeCard) {
-        window.openThemeCard(recommendation.data);
+        setTimeout(() => window.openThemeCard(recommendation.data), 1500);
       }
       break;
       
     case 'project':
-      // Open project modal or navigate to project
       if (window.openProjectsModal) {
-        window.openProjectsModal();
+        setTimeout(() => window.openProjectsModal(), 1500);
       }
       break;
       
     case 'person':
-      // Open quick connect or profile
       if (window.openQuickConnectModal) {
-        window.openQuickConnectModal();
+        setTimeout(() => window.openQuickConnectModal(), 1500);
       }
       break;
       
     case 'organization':
-      // Open organization profile (TODO: implement)
       console.log('🏢 Navigate to organization:', recommendation.data);
       break;
       
     case 'opportunity':
-      // Open opportunity details (TODO: implement)
       console.log('💼 Navigate to opportunity:', recommendation.data);
       break;
   }
+}
+
+/**
+ * Get the appropriate synapse mode for a recommendation type
+ */
+function getSynapseModeForType(type) {
+  const modeMap = {
+    'theme': 'circles',
+    'project': 'circles', // Projects are shown within theme circles
+    'person': 'network',
+    'organization': 'network',
+    'opportunity': 'circles'
+  };
+  
+  return modeMap[type] || 'circles';
+}
+
+/**
+ * Switch to synapse view programmatically
+ */
+function switchToSynapseView(mode = 'circles') {
+  console.log('🌐 Switching to synapse view:', mode);
+  
+  // Hide theme cards view if showing
+  const themeCardsContainer = document.querySelector('.theme-cards-container');
+  if (themeCardsContainer) {
+    themeCardsContainer.style.display = 'none';
+  }
+  
+  // Show synapse container
+  const synapseContainer = document.getElementById('synapse-main-view');
+  if (synapseContainer) {
+    synapseContainer.style.display = 'block';
+  }
+  
+  // Switch to the appropriate mode
+  if (mode === 'circles' && window.switchToCirclesMode) {
+    window.switchToCirclesMode();
+  } else if (mode === 'network' && window.switchToNetworkMode) {
+    window.switchToNetworkMode();
+  }
+  
+  // Update UI state
+  updateSynapseViewButtons(mode);
+}
+
+/**
+ * Update synapse view toggle buttons
+ */
+function updateSynapseViewButtons(mode) {
+  // Update "Switch to Circles" button if it exists
+  const switchButton = document.querySelector('[onclick*="switchToCirclesMode"]');
+  if (switchButton) {
+    if (mode === 'circles') {
+      switchButton.textContent = '🌐 Switch to Network';
+      switchButton.onclick = () => switchToSynapseView('network');
+    } else {
+      switchButton.textContent = '🎯 Switch to Circles';
+      switchButton.onclick = () => switchToSynapseView('circles');
+    }
+  }
+}
+
+/**
+ * Highlight a specific recommendation in the synapse view
+ */
+function highlightRecommendationInSynapse(type, recommendation) {
+  console.log('✨ Highlighting recommendation in synapse:', recommendation.title);
+  
+  // Find the node in the synapse
+  const nodeId = recommendation.id;
+  
+  // Try different selectors based on type
+  const selectors = [
+    `[data-id="${nodeId}"]`,
+    `[data-theme-id="${nodeId}"]`,
+    `[data-project-id="${nodeId}"]`,
+    `.theme-card[data-id="${nodeId}"]`,
+    `.node[data-id="${nodeId}"]`
+  ];
+  
+  let targetElement = null;
+  for (const selector of selectors) {
+    targetElement = document.querySelector(selector);
+    if (targetElement) break;
+  }
+  
+  if (targetElement) {
+    // Add highlight effect
+    targetElement.style.boxShadow = '0 0 30px rgba(0,224,255,0.8)';
+    targetElement.style.transform = 'scale(1.05)';
+    targetElement.style.zIndex = '1000';
+    
+    // Scroll into view
+    targetElement.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'center' 
+    });
+    
+    // Remove highlight after a few seconds
+    setTimeout(() => {
+      targetElement.style.boxShadow = '';
+      targetElement.style.transform = '';
+      targetElement.style.zIndex = '';
+    }, 5000);
+    
+    console.log('✅ Recommendation highlighted in synapse');
+  } else {
+    console.warn('⚠️ Could not find recommendation in synapse view');
+  }
+}
+
+/**
+ * Show contextual guidance overlay in synapse view
+ */
+function showSynapseGuidanceOverlay(type, recommendation) {
+  console.log('🧭 Showing synapse guidance overlay');
+  
+  // Create guidance overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'synapse-guidance-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, rgba(0,224,255,0.95), rgba(0,128,255,0.95));
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 350px;
+    color: #000;
+    font-weight: 600;
+    z-index: 10001;
+    box-shadow: 0 8px 25px rgba(0,224,255,0.3);
+    animation: slideInRight 0.5s ease-out;
+  `;
+  
+  const messages = {
+    theme: `🎯 Perfect! You're now focused on "${recommendation.title}". The network view shows all related projects, people, and connections. Click on any connected node to explore further.`,
+    project: `🚀 Great choice! "${recommendation.title}" is highlighted. You can see team members, related themes, and potential collaborators in the network view.`,
+    person: `👥 Excellent! "${recommendation.title}" is highlighted. Explore their connections and shared interests in the network to find collaboration opportunities.`,
+    organization: `🏢 Smart move! "${recommendation.title}" is now in focus. See their opportunities, sponsored themes, and network connections.`,
+    opportunity: `💼 Perfect timing! "${recommendation.title}" is highlighted. Explore the organization and related themes to understand the full context.`
+  };
+  
+  overlay.innerHTML = `
+    <div style="display: flex; align-items: start; gap: 1rem;">
+      <div style="font-size: 2rem;">🧭</div>
+      <div style="flex: 1;">
+        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">Your Next Steps</h3>
+        <p style="margin: 0 0 1rem 0; line-height: 1.4; font-size: 0.9rem;">
+          ${messages[type] || 'Explore the network to discover connections and opportunities.'}
+        </p>
+        <button onclick="this.closest('#synapse-guidance-overlay').remove()" style="
+          background: rgba(0,0,0,0.2);
+          border: 1px solid rgba(0,0,0,0.3);
+          border-radius: 6px;
+          color: #000;
+          padding: 0.5rem 1rem;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 0.8rem;
+        ">
+          Got it!
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // Add CSS animation
+  if (!document.getElementById('synapse-guidance-styles')) {
+    const style = document.createElement('style');
+    style.id = 'synapse-guidance-styles';
+    style.textContent = `
+      @keyframes slideInRight {
+        from {
+          opacity: 0;
+          transform: translateX(100%);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // Remove any existing overlay
+  const existing = document.getElementById('synapse-guidance-overlay');
+  if (existing) existing.remove();
+  
+  // Add to page
+  document.body.appendChild(overlay);
+  
+  // Auto-remove after 10 seconds
+  setTimeout(() => {
+    if (overlay.parentNode) {
+      overlay.remove();
+    }
+  }, 10000);
 }
 
 // ================================================================
@@ -778,5 +993,8 @@ window.openRedesignedStartModal = openRedesignedStartModal;
 window.populateRedesignedRecommendations = populateRedesignedRecommendations;
 window.switchTab = switchTab;
 window.handleRecommendationAction = handleRecommendationAction;
+window.switchToSynapseView = switchToSynapseView;
+window.highlightRecommendationInSynapse = highlightRecommendationInSynapse;
+window.showSynapseGuidanceOverlay = showSynapseGuidanceOverlay;
 
 console.log('✅ START Flow UI Redesigned ready');
