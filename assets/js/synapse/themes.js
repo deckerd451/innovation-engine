@@ -74,14 +74,23 @@ export async function upgradeEngagement(supabase, { themeId, communityId, newLev
 }
 
 export async function renderThemeOverlayCard({ themeNode, interestCount, onInterested, participants = [], currentUserEngagement = null }) {
+  console.log("🎯 renderThemeOverlayCard called for theme:", themeNode.title);
+  console.log("🎯 Participants:", participants.length, "Interest count:", interestCount);
+
   // Lightweight card so we don't depend on node-panel changes yet
   const existing = document.getElementById("synapse-theme-card");
-  if (existing) existing.remove();
+  if (existing) {
+    console.log("🗑️ Removing existing theme card");
+    existing.remove();
+  }
 
   const card = document.createElement("div");
   card.id = "synapse-theme-card";
   card.className = "synapse-profile-card"; // reuse your existing styling class
   card.style.maxWidth = "420px";
+  card.style.top = "50%";
+  card.style.left = "50%";
+  card.style.transform = "translate(-50%, -50%)";
 
   // Calculate time remaining
   const now = Date.now();
@@ -274,7 +283,16 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
     });
   }
 
-  document.getElementById("synapse-main-view")?.appendChild(card);
+  const targetContainer = document.getElementById("synapse-main-view");
+  if (!targetContainer) {
+    console.error("❌ synapse-main-view container not found! Appending to body instead.");
+    document.body.appendChild(card);
+  } else {
+    console.log("✅ Appending theme overlay card to synapse-main-view");
+    targetContainer.appendChild(card);
+  }
+
+  console.log("🎉 Theme overlay card rendered successfully!");
 }
 
 // Show modal to add existing projects to a theme
