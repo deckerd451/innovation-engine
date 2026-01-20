@@ -122,6 +122,9 @@ async function toggleThemeStrategy() {
     // Switch strategy
     currentStrategy = currentStrategy === 'old' ? 'new' : 'old';
     
+    // Update global reference
+    window.currentStrategy = currentStrategy;
+    
     // Dynamically import and initialize the appropriate strategy
     if (currentStrategy === 'new') {
       // Import new cards strategy
@@ -276,3 +279,4 @@ if (document.readyState === 'loading') {
 // Export for manual use
 window.toggleThemeStrategy = toggleThemeStrategy;
 window.addThemeStrategyToggle = addThemeStrategyToggle;
+window.currentStrategy = currentStrategy;

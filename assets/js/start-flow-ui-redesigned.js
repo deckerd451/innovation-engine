@@ -692,13 +692,15 @@ function navigateToRecommendation(type, recommendation) {
  * Continue navigation after ensuring content is visible
  */
 function continueNavigation(type, recommendation) {
-  // First, ensure we're in the right synapse mode for the recommendation
-  const synapseMode = getSynapseModeForType(type);
+  // For theme recommendations, we want to show the circles view for better interaction
+  const synapseMode = (type === 'theme') ? 'circles' : getSynapseModeForType(type);
   
-  // Switch to synapse view if not already there
+  console.log(`🎯 Navigating to ${type} recommendation in ${synapseMode} mode`);
+  
+  // Switch to synapse view
   switchToSynapseView(synapseMode);
   
-  // Wait a moment for synapse to load, then highlight the recommendation
+  // Wait for the view to switch, then highlight and show guidance
   setTimeout(() => {
     // Only try to highlight if synapse is ready
     if (window.isSynapseReady && window.isSynapseReady()) {
@@ -708,7 +710,7 @@ function continueNavigation(type, recommendation) {
       console.log('🔄 Synapse not ready - showing guidance without highlighting');
       showSynapseGuidanceOverlay(type, recommendation);
     }
-  }, 1000);
+  }, 2000); // Longer delay to allow for strategy switching
   
   // Legacy navigation as fallback
   switch (type) {
@@ -761,23 +763,46 @@ function getSynapseModeForType(type) {
 function switchToSynapseView(mode = 'circles') {
   console.log('🌐 Switching to synapse view:', mode);
   
-  // Hide theme cards view if showing
-  const themeCardsContainer = document.querySelector('.theme-cards-container');
-  if (themeCardsContainer) {
-    themeCardsContainer.style.display = 'none';
+  // Ensure main content is visible
+  const mainContent = document.getElementById('main-content');
+  if (mainContent && mainContent.classList.contains('hidden')) {
+    mainContent.classList.remove('hidden');
   }
   
-  // Show synapse container
-  const synapseContainer = document.getElementById('synapse-main-view');
-  if (synapseContainer) {
-    synapseContainer.style.display = 'block';
-  }
-  
-  // Switch to the appropriate mode
-  if (mode === 'circles' && window.switchToCirclesMode) {
-    window.switchToCirclesMode();
-  } else if (mode === 'network' && window.switchToNetworkMode) {
-    window.switchToNetworkMode();
+  // For circles mode, we need to switch to the old SVG strategy
+  if (mode === 'circles') {
+    console.log('🎯 Switching to SVG circles strategy for network view');
+    
+    // Check if we need to switch from cards to circles strategy
+    if (window.toggleThemeStrategy && typeof window.toggleThemeStrategy === 'function') {
+      // Check current strategy - if it's 'new' (cards), switch to 'old' (circles)
+      const currentStrategy = window.currentStrategy || 'new';
+      if (currentStrategy === 'new') {
+        console.log('🔄 Switching from cards to circles strategy');
+        window.toggleThemeStrategy();
+        return; // toggleThemeStrategy will handle the switch
+      }
+    }
+    
+    // If already in circles mode or no toggle available, ensure synapse is visible
+    const synapseContainer = document.getElementById('synapse-main-view');
+    if (synapseContainer) {
+      synapseContainer.style.display = 'block';
+    }
+    
+    // Hide theme cards if showing
+    const themeCardsContainer = document.querySelector('.theme-cards-container');
+    if (themeCardsContainer) {
+      themeCardsContainer.style.display = 'none';
+    }
+    
+  } else if (mode === 'network') {
+    // For network mode, we can use the new cards system
+    console.log('👥 Switching to network view in cards system');
+    
+    if (window.toggleThemeDisplayMode) {
+      window.toggleThemeDisplayMode('hybrid'); // Show both network and themes
+    }
   }
   
   // Update UI state
@@ -875,11 +900,11 @@ function showSynapseGuidanceOverlay(type, recommendation) {
   `;
   
   const messages = {
-    theme: `🎯 Perfect! You're now focused on "${recommendation.title}". The network view shows all related projects, people, and connections. Click on any connected node to explore further.`,
-    project: `🚀 Great choice! "${recommendation.title}" is highlighted. You can see team members, related themes, and potential collaborators in the network view.`,
-    person: `👥 Excellent! "${recommendation.title}" is highlighted. Explore their connections and shared interests in the network to find collaboration opportunities.`,
-    organization: `🏢 Smart move! "${recommendation.title}" is now in focus. See their opportunities, sponsored themes, and network connections.`,
-    opportunity: `💼 Perfect timing! "${recommendation.title}" is highlighted. Explore the organization and related themes to understand the full context.`
+    theme: `🎯 Perfect! You're now focused on "${recommendation.title}". The circles view shows all related projects, people, and connections. Click on any theme circle or connected node to explore further.`,
+    project: `🚀 Great choice! "${recommendation.title}" is highlighted. You can see team members, related themes, and potential collaborators in the circles network view.`,
+    person: `👥 Excellent! "${recommendation.title}" is highlighted. Explore their connections and shared interests in the network circles to find collaboration opportunities.`,
+    organization: `🏢 Smart move! "${recommendation.title}" is now in focus. See their opportunities, sponsored themes, and network connections in the circles view.`,
+    opportunity: `💼 Perfect timing! "${recommendation.title}" is highlighted. Explore the organization and related themes in the circles view to understand the full context.`
   };
   
   overlay.innerHTML = `
