@@ -87,12 +87,22 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
   const card = document.createElement("div");
   card.id = "synapse-theme-card";
   card.className = "synapse-profile-card"; // reuse your existing styling class
-  card.style.maxWidth = "420px";
-  card.style.top = "40%"; // Move up slightly to ensure it doesn't cover bottom navigation
-  card.style.left = "50%";
-  card.style.transform = "translate(-50%, -50%)";
-  card.style.maxHeight = "calc(100vh - 140px)"; // More space for bottom navigation
-  card.style.overflowY = "auto"; // Allow scrolling if content is too tall
+  card.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 420px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    z-index: 2000;
+    background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
+    border: 2px solid rgba(0, 224, 255, 0.5);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  `;
 
   // Calculate time remaining
   const now = Date.now();
@@ -235,15 +245,28 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
   card.querySelector("#theme-interested-btn")?.addEventListener("click", onInterested);
 
   // Add Project to Theme button
-  card.querySelector("#theme-add-project-btn")?.addEventListener("click", async () => {
-    console.log("🎯 Add Project to Theme button clicked for theme:", themeNode.theme_id);
-    try {
-      await showAddProjectToThemeModal(themeNode);
-    } catch (error) {
-      console.error("Failed to open add project modal:", error);
-      showSynapseNotification(error.message || "Failed to open modal", "error");
-    }
-  });
+  const addProjectBtn = card.querySelector("#theme-add-project-btn");
+  if (addProjectBtn) {
+    addProjectBtn.addEventListener("click", async () => {
+      console.log("🎯 Add Project to Theme button clicked for theme:", themeNode.theme_id);
+      
+      // Add loading state
+      const originalHTML = addProjectBtn.innerHTML;
+      addProjectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+      addProjectBtn.disabled = true;
+      
+      try {
+        await showAddProjectToThemeModal(themeNode);
+      } catch (error) {
+        console.error("Failed to open add project modal:", error);
+        showSynapseNotification(error.message || "Failed to open modal", "error");
+      } finally {
+        // Restore button state
+        addProjectBtn.innerHTML = originalHTML;
+        addProjectBtn.disabled = false;
+      }
+    });
+  }
 
   // Engagement upgrade button
   const upgradeBtn = card.querySelector("#btn-upgrade-engagement");
@@ -251,6 +274,11 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
     upgradeBtn.addEventListener("click", async () => {
       const nextLevel = upgradeBtn.dataset.nextLevel;
       if (!nextLevel) return;
+
+      // Add loading state
+      const originalHTML = upgradeBtn.innerHTML;
+      upgradeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Upgrading...';
+      upgradeBtn.disabled = true;
 
       try {
         const supabase = window.supabase;
@@ -268,6 +296,8 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
 
         if (!profile) throw new Error("Profile not found");
 
+        console.log("🔄 Upgrading engagement to:", nextLevel);
+        
         await upgradeEngagement(supabase, {
           themeId: themeNode.theme_id,
           communityId: profile.id,
@@ -289,6 +319,10 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
       } catch (error) {
         console.error("Failed to upgrade engagement:", error);
         showSynapseNotification(error.message || "Failed to upgrade", "error");
+        
+        // Restore button state on error
+        upgradeBtn.innerHTML = originalHTML;
+        upgradeBtn.disabled = false;
       }
     });
   }
@@ -379,12 +413,22 @@ async function showAddProjectToThemeModal(themeNode) {
   const modal = document.createElement("div");
   modal.id = "add-project-theme-modal";
   modal.className = "synapse-profile-card";
-  modal.style.maxWidth = "500px";
-  modal.style.maxHeight = "80vh";
-  modal.style.overflowY = "auto";
-  modal.style.top = "50%";
-  modal.style.left = "50%";
-  modal.style.transform = "translate(-50%, -50%)";
+  modal.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 2001;
+    background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
+    border: 2px solid rgba(0, 224, 255, 0.5);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  `;
 
   modal.innerHTML = `
     <button class="synapse-card-close" aria-label="Close">
@@ -480,14 +524,30 @@ async function showAddProjectToThemeModal(themeNode) {
     });
   });
 
-  const targetElement = document.getElementById("synapse-main-view");
-  if (!targetElement) {
-    console.error("❌ synapse-main-view element not found");
-    document.body.appendChild(modal);
-  } else {
-    console.log("✅ Appending modal to synapse-main-view");
-    targetElement.appendChild(modal);
-  }
+  // Add backdrop
+  const backdrop = document.createElement('div');
+  backdrop.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+  `;
+  
+  backdrop.addEventListener('click', () => {
+    modal.remove();
+    backdrop.remove();
+  });
+
+  // Always append to body for proper z-index layering
+  document.body.appendChild(backdrop);
+  document.body.appendChild(modal);
+
+  // Update close button to remove backdrop too
+  modal.querySelector(".synapse-card-close")?.addEventListener("click", () => {
+    modal.remove();
+    backdrop.remove();
+  });
 
   console.log("🎉 Modal created and added to DOM");
 }
