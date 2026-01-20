@@ -116,7 +116,7 @@ async function toggleThemeStrategy() {
       
     } else {
       // Import old circles strategy
-      const { initSynapseView } = await import('./synapse/core.js?v=6');
+      const { initSynapseView } = await import('./synapse/core.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292');
       
       // Setup container for SVG
       setupSVGContainer();
@@ -183,6 +183,8 @@ function setupSVGContainer() {
   
   synapseContainer.innerHTML = `
     <svg id="synapse-svg" style="width:100%; height:100%; background: #000000;"></svg>
+    <!-- Keep theme area for potential mode switching -->
+    <div id="synapse-theme-area" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;"></div>
   `;
 }
 
