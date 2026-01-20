@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Opportunities - CharlestonHacks Innovation Engine</title>
+  <link rel="icon" href="favicon.ico"/>
+
+  <!-- Core CSS -->
+  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/engine.css" />
+  <link rel="stylesheet" href="assets/css/organizations.css" />
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+      color: #fff;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    .opportunities-page {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .page-header h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #00e0ff, #00a8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-header p {
+      font-size: 1.2rem;
+      color: rgba(255, 255, 255, 0.7);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .recommended-section {
+      margin-bottom: 3rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, rgba(0,224,255,0.1) 0%, rgba(0,168,255,0.1) 100%);
+      border: 1px solid rgba(0,224,255,0.2);
+      border-radius: 16px;
+    }
+
+    .recommended-section h2 {
+      color: #00e0ff;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .recommended-section h2 i {
+      font-size: 1.5rem;
+    }
+
+    .controls-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1.5rem;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .search-box input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .filters-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-select {
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .filter-select option {
+      background: #1a1f3a;
+      color: #fff;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00e0ff, #00a8ff);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 224, 255, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .opportunities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .opportunity-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.3s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .opportunity-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 224, 255, 0.2);
+      border-color: rgba(0, 224, 255, 0.3);
+    }
+
+    .opp-org-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .opp-org-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .opp-org-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .opp-org-name {
+      font-weight: 600;
+      color: #00e0ff;
+      margin: 0;
+      font-size: 0.95rem;
+    }
+
+    .opp-org-verified {
+      color: #00e0ff;
+      margin-left: 0.25rem;
+      font-size: 0.8rem;
+    }
+
+    .opp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+
+    .opp-header h3 {
+      font-size: 1.3rem;
+      margin: 0;
+      flex: 1;
+    }
+
+    .opp-type-badge {
+      background: rgba(0, 224, 255, 0.2);
+      color: #00e0ff;
+      padding: 0.35rem 0.85rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .opp-description {
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.6;
+      margin-bottom: 1rem;
+      flex: 1;
+    }
+
+    .opp-details {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .opp-details span {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .opp-details i {
+      color: #00e0ff;
+    }
+
+    .opp-skills {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .skill-tag {
+      background: rgba(138, 43, 226, 0.2);
+      color: #ba7ff5;
+      padding: 0.3rem 0.8rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(138, 43, 226, 0.3);
+    }
+
+    .opp-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      margin-top: auto;
+    }
+
+    .opp-meta {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.85rem;
+    }
+
+    .opp-meta i {
+      color: rgba(0, 224, 255, 0.7);
+      margin-right: 0.25rem;
+    }
+
+    .loading-spinner {
+      text-align: center;
+      padding: 4rem;
+      font-size: 1.2rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+
+    .empty-state i {
+      font-size: 4rem;
+      color: rgba(255, 255, 255, 0.3);
+      margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 1.5rem;
+    }
+
+    .pagination-controls {
+      display: flex;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .opportunities-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .controls-bar {
+        flex-direction: column;
+      }
+
+      .filters-group {
+        width: 100%;
+      }
+
+      .filter-select {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .opp-details {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="opportunities-page">
+    <!-- Header -->
+    <div class="page-header">
+      <h1>Opportunities</h1>
+      <p>Discover jobs, internships, volunteer positions, and more from organizations in our community</p>
+    </div>
+
+    <!-- Recommended Opportunities -->
+    <div class="recommended-section" id="recommended-section" style="display: none;">
+      <h2><i class="fas fa-star"></i> Recommended For You</h2>
+      <div id="recommended-opportunities" class="opportunities-grid"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <div class="search-box">
+        <input type="text" id="opp-search-input" placeholder="Search opportunities...">
+      </div>
+
+      <div class="filters-group">
+        <select id="opp-type-filter" class="filter-select">
+          <option value="">All Types</option>
+          <option value="job">Jobs</option>
+          <option value="internship">Internships</option>
+          <option value="volunteer">Volunteer</option>
+          <option value="contract">Contract</option>
+          <option value="mentorship">Mentorship</option>
+        </select>
+
+        <select id="opp-experience-filter" class="filter-select">
+          <option value="">All Experience Levels</option>
+          <option value="entry">Entry Level</option>
+          <option value="mid">Mid Level</option>
+          <option value="senior">Senior Level</option>
+          <option value="any">Any Level</option>
+        </select>
+
+        <select id="opp-commitment-filter" class="filter-select">
+          <option value="">All Commitment Types</option>
+          <option value="full-time">Full-time</option>
+          <option value="part-time">Part-time</option>
+          <option value="flexible">Flexible</option>
+          <option value="one-time">One-time</option>
+        </select>
+
+        <select id="opp-remote-filter" class="filter-select">
+          <option value="">All Locations</option>
+          <option value="true">Remote OK</option>
+          <option value="false">On-site Only</option>
+        </select>
+
+        <select id="opp-sort-select" class="filter-select">
+          <option value="created_at-desc">Newest First</option>
+          <option value="view_count-desc">Most Viewed</option>
+          <option value="application_count-desc">Most Applied</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Opportunities Container -->
+    <div id="opportunities-container">
+      <div class="loading-spinner">
+        <i class="fas fa-spinner fa-spin"></i> Loading opportunities...
+      </div>
+    </div>
+
+    <!-- Load More -->
+    <div class="pagination-controls">
+      <button class="btn btn-secondary" id="load-more-btn" style="display: none;">
+        Load More Opportunities
+      </button>
+    </div>
+  </div>
+
+  <!-- Supabase Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabaseClient.js"></script>
+
+  <!-- Organization Modules -->
+  <script type="module">
+    import { initOpportunityManager, getOpportunities, getRecommendedOpportunities } from './assets/js/organizations/opportunities.js';
+
+    // State
+    let currentFilters = {
+      search: '',
+      type: null,
+      experience_level: null,
+      commitment: null,
+      remote_ok: null,
+      sortBy: 'created_at',
+      sortOrder: 'desc',
+      limit: 20,
+      offset: 0
+    };
+
+    let opportunities = [];
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // Get Supabase client
+        const supabase = window.supabase;
+        if (!supabase) {
+          console.error('Supabase client not found');
+          return;
+        }
+
+        // Initialize opportunity manager
+        await initOpportunityManager(supabase);
+
+        // Load recommended opportunities
+        await loadRecommended();
+
+        // Load all opportunities
+        await loadOpportunities();
+
+        // Setup event listeners
+        setupEventListeners();
+      } catch (error) {
+        console.error('Error initializing opportunities page:', error);
+      }
+    });
+
+    async function loadRecommended() {
+      try {
+        const recommended = await getRecommendedOpportunities();
+
+        if (recommended.length > 0) {
+          document.getElementById('recommended-section').style.display = 'block';
+          document.getElementById('recommended-opportunities').innerHTML =
+            recommended.slice(0, 3).map(opp => renderOpportunityCard(opp)).join('');
+        }
+      } catch (error) {
+        console.error('Error loading recommended opportunities:', error);
+      }
+    }
+
+    async function loadOpportunities(append = false) {
+      try {
+        const container = document.getElementById('opportunities-container');
+
+        if (!append) {
+          container.innerHTML = '<div class="loading-spinner">Loading opportunities...</div>';
+        }
+
+        const results = await getOpportunities(currentFilters);
+
+        if (!append) {
+          opportunities = results;
+        } else {
+          opportunities = [...opportunities, ...results];
+        }
+
+        renderOpportunities();
+        updatePaginationButtons(results.length);
+      } catch (error) {
+        console.error('Error loading opportunities:', error);
+        showError('Failed to load opportunities');
+      }
+    }
+
+    function renderOpportunities() {
+      const container = document.getElementById('opportunities-container');
+
+      if (opportunities.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-briefcase"></i>
+            <h3>No opportunities found</h3>
+            <p>Try adjusting your filters or search terms.</p>
+            <button class="btn btn-primary" id="clear-filters-btn">Clear Filters</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="opportunities-grid">
+          ${opportunities.map(opp => renderOpportunityCard(opp)).join('')}
+        </div>
+      `;
+    }
+
+    function renderOpportunityCard(opp) {
+      const org = opp.organizations || {};
+
+      return `
+        <div class="opportunity-card">
+          <div class="opp-org-header">
+            <img src="${org.logo_url || 'https://via.placeholder.com/40'}"
+                 alt="${org.name}"
+                 class="opp-org-logo">
+            <div class="opp-org-info">
+              <a href="/organization-profile.html?slug=${org.slug}" class="opp-org-name">
+                ${org.name}
+                ${org.verified ? '<i class="fas fa-check-circle opp-org-verified"></i>' : ''}
+              </a>
+            </div>
+          </div>
+
+          <div class="opp-header">
+            <h3>${opp.title}</h3>
+            <span class="opp-type-badge">${formatType(opp.type)}</span>
+          </div>
+
+          <p class="opp-description">${truncate(opp.description, 150)}</p>
+
+          <div class="opp-details">
+            ${opp.location ? `<span><i class="fas fa-map-marker-alt"></i> ${opp.location}</span>` : ''}
+            ${opp.remote_ok ? `<span><i class="fas fa-home"></i> Remote OK</span>` : ''}
+            ${opp.experience_level ? `<span><i class="fas fa-chart-line"></i> ${formatExperienceLevel(opp.experience_level)}</span>` : ''}
+            ${opp.commitment ? `<span><i class="fas fa-clock"></i> ${formatCommitment(opp.commitment)}</span>` : ''}
+            ${opp.compensation_range ? `<span><i class="fas fa-dollar-sign"></i> ${opp.compensation_range}</span>` : ''}
+          </div>
+
+          ${opp.required_skills && opp.required_skills.length > 0 ? `
+            <div class="opp-skills">
+              ${opp.required_skills.slice(0, 5).map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
+            </div>
+          ` : ''}
+
+          <div class="opp-footer">
+            <div class="opp-meta">
+              <i class="fas fa-eye"></i> ${opp.view_count || 0} views
+              <span style="margin-left: 1rem;"><i class="fas fa-paper-plane"></i> ${opp.application_count || 0} applied</span>
+            </div>
+            <a href="/opportunity.html?id=${opp.id}" class="btn btn-sm btn-primary">View Details</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function setupEventListeners() {
+      // Search
+      document.getElementById('opp-search-input')?.addEventListener('input', debounce(handleSearch, 500));
+
+      // Filters
+      document.getElementById('opp-type-filter')?.addEventListener('change', handleFilterChange);
+      document.getElementById('opp-experience-filter')?.addEventListener('change', handleFilterChange);
+      document.getElementById('opp-commitment-filter')?.addEventListener('change', handleFilterChange);
+      document.getElementById('opp-remote-filter')?.addEventListener('change', handleFilterChange);
+
+      // Sort
+      document.getElementById('opp-sort-select')?.addEventListener('change', handleSortChange);
+
+      // Load more
+      document.getElementById('load-more-btn')?.addEventListener('click', handleLoadMore);
+
+      // Clear filters
+      document.addEventListener('click', (e) => {
+        if (e.target.id === 'clear-filters-btn' || e.target.closest('#clear-filters-btn')) {
+          handleClearFilters();
+        }
+      });
+    }
+
+    function handleSearch(e) {
+      currentFilters.search = e.target.value;
+      currentFilters.offset = 0;
+      loadOpportunities();
+    }
+
+    function handleFilterChange() {
+      currentFilters.type = document.getElementById('opp-type-filter')?.value || null;
+      currentFilters.experience_level = document.getElementById('opp-experience-filter')?.value || null;
+      currentFilters.commitment = document.getElementById('opp-commitment-filter')?.value || null;
+
+      const remoteValue = document.getElementById('opp-remote-filter')?.value;
+      currentFilters.remote_ok = remoteValue === 'true' ? true : remoteValue === 'false' ? false : null;
+
+      currentFilters.offset = 0;
+      loadOpportunities();
+    }
+
+    function handleSortChange(e) {
+      const [sortBy, sortOrder] = e.target.value.split('-');
+      currentFilters.sortBy = sortBy;
+      currentFilters.sortOrder = sortOrder;
+      currentFilters.offset = 0;
+      loadOpportunities();
+    }
+
+    function handleLoadMore() {
+      currentFilters.offset += currentFilters.limit;
+      loadOpportunities(true);
+    }
+
+    function handleClearFilters() {
+      currentFilters = {
+        search: '',
+        type: null,
+        experience_level: null,
+        commitment: null,
+        remote_ok: null,
+        sortBy: 'created_at',
+        sortOrder: 'desc',
+        limit: 20,
+        offset: 0
+      };
+
+      document.getElementById('opp-search-input').value = '';
+      document.getElementById('opp-type-filter').value = '';
+      document.getElementById('opp-experience-filter').value = '';
+      document.getElementById('opp-commitment-filter').value = '';
+      document.getElementById('opp-remote-filter').value = '';
+      document.getElementById('opp-sort-select').value = 'created_at-desc';
+
+      loadOpportunities();
+    }
+
+    function updatePaginationButtons(resultsCount) {
+      const loadMoreBtn = document.getElementById('load-more-btn');
+      if (loadMoreBtn) {
+        loadMoreBtn.style.display = resultsCount < currentFilters.limit ? 'none' : 'block';
+      }
+    }
+
+    function formatType(type) {
+      const types = { job: 'Job', internship: 'Internship', volunteer: 'Volunteer', contract: 'Contract', mentorship: 'Mentorship' };
+      return types[type] || type;
+    }
+
+    function formatExperienceLevel(level) {
+      const levels = { entry: 'Entry', mid: 'Mid', senior: 'Senior', any: 'Any Level' };
+      return levels[level] || level;
+    }
+
+    function formatCommitment(commitment) {
+      const commitments = { 'full-time': 'Full-time', 'part-time': 'Part-time', 'flexible': 'Flexible', 'one-time': 'One-time' };
+      return commitments[commitment] || commitment;
+    }
+
+    function truncate(text, maxLength) {
+      if (!text || text.length <= maxLength) return text || '';
+      return text.substring(0, maxLength) + '...';
+    }
+
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    function showError(message) {
+      document.getElementById('opportunities-container').innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-exclamation-triangle"></i>
+          <h3>${message}</h3>
+          <button class="btn btn-primary" onclick="location.reload()">Reload Page</button>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>

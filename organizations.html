@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Organizations - CharlestonHacks Innovation Engine</title>
+  <link rel="icon" href="favicon.ico"/>
+
+  <!-- Core CSS -->
+  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/engine.css" />
+  <link rel="stylesheet" href="assets/css/organizations.css" />
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+      color: #fff;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    .organizations-page {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .page-header h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #00e0ff, #00a8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-header p {
+      font-size: 1.2rem;
+      color: rgba(255, 255, 255, 0.7);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .controls-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1.5rem;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .search-box input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .filters-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-select {
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .filter-select option {
+      background: #1a1f3a;
+      color: #fff;
+    }
+
+    .view-toggle {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .view-btn {
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.6);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .view-btn:hover,
+    .view-btn.active {
+      background: rgba(0, 224, 255, 0.2);
+      border-color: #00e0ff;
+      color: #00e0ff;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00e0ff, #00a8ff);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 224, 255, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .loading-spinner {
+      text-align: center;
+      padding: 4rem;
+      font-size: 1.2rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .empty-state,
+    .error-container {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+
+    .empty-state i,
+    .error-container i {
+      font-size: 4rem;
+      color: rgba(255, 255, 255, 0.3);
+      margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 1.5rem;
+    }
+
+    #organizations-container {
+      min-height: 400px;
+    }
+
+    .organizations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .organization-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.3s;
+    }
+
+    .organization-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 224, 255, 0.2);
+      border-color: rgba(0, 224, 255, 0.3);
+    }
+
+    .org-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .org-card-logo {
+      width: 100px;
+      height: 100px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .verified-badge-small {
+      position: absolute;
+      top: -5px;
+      right: calc(50% - 55px);
+      background: #00e0ff;
+      color: #000;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .org-card-body {
+      flex: 1;
+    }
+
+    .org-card-name {
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    .org-card-description {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .org-card-tags {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+      justify-content: center;
+    }
+
+    .industry-tag-sm {
+      background: rgba(0, 224, 255, 0.15);
+      color: #00e0ff;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(0, 224, 255, 0.3);
+    }
+
+    .org-card-stats {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .org-card-stats i {
+      color: #00e0ff;
+    }
+
+    .org-card-footer {
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .org-card-footer .btn {
+      flex: 1;
+    }
+
+    .organizations-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .organization-list-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      transition: all 0.3s;
+    }
+
+    .organization-list-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(0, 224, 255, 0.3);
+    }
+
+    .org-list-logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
+    }
+
+    .org-list-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .org-list-name {
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .verified-badge-inline {
+      color: #00e0ff;
+      font-size: 1rem;
+      margin-left: 0.5rem;
+    }
+
+    .org-list-description {
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .org-list-meta {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .size-badge {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+    }
+
+    .location-text {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.9rem;
+    }
+
+    .org-list-stats {
+      display: flex;
+      gap: 2rem;
+      margin-right: 2rem;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-item strong {
+      display: block;
+      font-size: 1.5rem;
+      color: #00e0ff;
+    }
+
+    .stat-item span {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .org-list-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-direction: column;
+    }
+
+    .pagination-controls {
+      display: flex;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .organizations-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .organization-list-item {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .org-list-stats {
+        margin-right: 0;
+      }
+
+      .org-list-actions {
+        flex-direction: row;
+        width: 100%;
+      }
+
+      .controls-bar {
+        flex-direction: column;
+      }
+
+      .filters-group {
+        width: 100%;
+      }
+
+      .filter-select {
+        flex: 1;
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="organizations-page">
+    <!-- Header -->
+    <div class="page-header">
+      <h1>Discover Organizations</h1>
+      <p>Connect with companies, nonprofits, and groups in the CharlestonHacks community</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <div class="search-box">
+        <input type="text" id="org-search-input" placeholder="Search organizations...">
+      </div>
+
+      <div class="filters-group">
+        <select id="org-industry-filter" class="filter-select">
+          <option value="">All Industries</option>
+          <option value="Technology">Technology</option>
+          <option value="Healthcare">Healthcare</option>
+          <option value="Finance">Finance</option>
+          <option value="Education">Education</option>
+          <option value="Nonprofit">Nonprofit</option>
+          <option value="Energy">Energy</option>
+          <option value="Retail">Retail</option>
+          <option value="Manufacturing">Manufacturing</option>
+        </select>
+
+        <select id="org-size-filter" class="filter-select">
+          <option value="">All Sizes</option>
+          <option value="startup">Startup (1-10)</option>
+          <option value="small">Small (11-50)</option>
+          <option value="medium">Medium (51-200)</option>
+          <option value="large">Large (201-1000)</option>
+          <option value="enterprise">Enterprise (1000+)</option>
+        </select>
+
+        <select id="org-verified-filter" class="filter-select">
+          <option value="">All Organizations</option>
+          <option value="true">Verified Only</option>
+        </select>
+
+        <select id="org-sort-select" class="filter-select">
+          <option value="follower_count-desc">Most Followers</option>
+          <option value="opportunity_count-desc">Most Opportunities</option>
+          <option value="name-asc">Name (A-Z)</option>
+          <option value="created_at-desc">Newest First</option>
+        </select>
+      </div>
+
+      <div class="view-toggle">
+        <button class="view-btn active" id="grid-view-btn">
+          <i class="fas fa-th"></i>
+        </button>
+        <button class="view-btn" id="list-view-btn">
+          <i class="fas fa-list"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Organizations Container -->
+    <div id="organizations-container">
+      <div class="loading-spinner">
+        <i class="fas fa-spinner fa-spin"></i> Loading organizations...
+      </div>
+    </div>
+
+    <!-- Load More -->
+    <div class="pagination-controls">
+      <button class="btn btn-secondary" id="load-more-btn" style="display: none;">
+        Load More Organizations
+      </button>
+    </div>
+  </div>
+
+  <!-- Supabase Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabaseClient.js"></script>
+
+  <!-- Organization Modules -->
+  <script type="module">
+    import { initOrganizationManager } from './assets/js/organizations/organization-manager.js';
+    import { initOrganizationDiscovery } from './assets/js/organizations/organization-discovery.js';
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // Get Supabase client
+        const supabase = window.supabase;
+        if (!supabase) {
+          console.error('Supabase client not found');
+          return;
+        }
+
+        // Initialize managers
+        await initOrganizationManager(supabase);
+        await initOrganizationDiscovery();
+      } catch (error) {
+        console.error('Error initializing organizations page:', error);
+      }
+    });
+  </script>
+</body>
+</html>
