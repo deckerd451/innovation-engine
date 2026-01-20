@@ -88,10 +88,10 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
   card.id = "synapse-theme-card";
   card.className = "synapse-profile-card"; // reuse your existing styling class
   card.style.maxWidth = "420px";
-  card.style.top = "50%";
+  card.style.top = "40%"; // Move up slightly to ensure it doesn't cover bottom navigation
   card.style.left = "50%";
   card.style.transform = "translate(-50%, -50%)";
-  card.style.maxHeight = "calc(100vh - 120px)"; // Leave space for bottom navigation
+  card.style.maxHeight = "calc(100vh - 140px)"; // More space for bottom navigation
   card.style.overflowY = "auto"; // Allow scrolling if content is too tall
 
   // Calculate time remaining
