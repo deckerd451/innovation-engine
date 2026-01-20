@@ -716,8 +716,10 @@ function resetStartFlow() {
 window.resetStartFlow = resetStartFlow;
 
 // Add CSS for pulse animation
-const style = document.createElement('style');
-style.textContent = `
+if (!document.getElementById('start-flow-pulse-styles')) {
+  const style = document.createElement('style');
+  style.id = 'start-flow-pulse-styles';
+  style.textContent = `
   @keyframes pulse {
     0%, 100% {
       box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7);
@@ -744,6 +746,7 @@ style.textContent = `
     transition: opacity 0.3s ease, transform 0.3s ease;
   }
 `;
-document.head.appendChild(style);
+  document.head.appendChild(style);
+}
 
 console.log("✅ START Flow ready");

@@ -85,6 +85,54 @@ async function initializeStartFlow() {
 }
 
 /**
+ * Load user learning data and preferences
+ */
+async function loadUserLearningData() {
+  console.log('📚 Loading user learning data...');
+  
+  try {
+    // Load user preferences from localStorage
+    const storedPreferences = localStorage.getItem('start_user_preferences');
+    if (storedPreferences) {
+      StartFlowState.userPreferences = JSON.parse(storedPreferences);
+    }
+    
+    // Load activity history from localStorage
+    const storedHistory = localStorage.getItem('start_activity_history');
+    if (storedHistory) {
+      StartFlowState.activityHistory = JSON.parse(storedHistory);
+    }
+    
+    console.log('✅ User learning data loaded');
+  } catch (error) {
+    console.warn('⚠️ Failed to load user learning data:', error);
+    // Continue with empty data
+    StartFlowState.userPreferences = {};
+    StartFlowState.activityHistory = [];
+  }
+}
+
+/**
+ * Initialize fallback mode when main system fails
+ */
+function initializeFallbackMode() {
+  console.log('🔄 Initializing START flow fallback mode...');
+  
+  // Set fallback state
+  StartFlowState.fallbackMode = true;
+  
+  // Provide basic functionality
+  window.StartFlowRedesigned = {
+    initialize: () => Promise.resolve(),
+    calculateDailyRecommendations: () => Promise.resolve(null),
+    loadEcosystemData: () => Promise.resolve({}),
+    state: StartFlowState
+  };
+  
+  console.log('✅ Fallback mode initialized');
+}
+
+/**
  * Wait for required dependencies to be available
  */
 async function waitForDependencies() {
@@ -125,6 +173,62 @@ async function loadUserContext() {
   if (extendedProfile) {
     StartFlowState.currentUser = { ...StartFlowState.currentUser, ...extendedProfile };
   }
+}
+
+/**
+ * Setup event listeners for the START flow system
+ */
+function setupEventListeners() {
+  console.log('🎧 Setting up START flow event listeners...');
+  
+  // Listen for profile updates
+  window.addEventListener('profile-updated', () => {
+    console.log('👤 Profile updated, refreshing recommendations...');
+    calculateDailyRecommendations();
+  });
+  
+  // Listen for theme participation changes
+  window.addEventListener('theme-participation-changed', () => {
+    console.log('🎯 Theme participation changed, refreshing recommendations...');
+    calculateDailyRecommendations();
+  });
+  
+  // Listen for project membership changes
+  window.addEventListener('project-membership-changed', () => {
+    console.log('💡 Project membership changed, refreshing recommendations...');
+    calculateDailyRecommendations();
+  });
+  
+  console.log('✅ Event listeners setup complete');
+}
+
+/**
+ * Setup daily refresh system for recommendations
+ */
+function setupDailyRefresh() {
+  console.log('📅 Setting up daily refresh system...');
+  
+  // Check for new day every hour
+  setInterval(() => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (StartFlowState.lastCalculated && StartFlowState.todaysDate !== today) {
+      console.log('🌅 New day detected, clearing cached recommendations');
+      StartFlowState.todaysDate = today;
+      StartFlowState.dailyRecommendations = null;
+      StartFlowState.lastCalculated = null;
+      
+      // Clear localStorage cache
+      localStorage.removeItem('start_daily_recommendations');
+      
+      // Pre-calculate new recommendations
+      calculateDailyRecommendations()
+        .then(() => console.log('✅ New daily recommendations calculated'))
+        .catch(err => console.warn('⚠️ Failed to calculate new recommendations:', err));
+    }
+  }, 60 * 60 * 1000); // Every hour
+  
+  console.log('✅ Daily refresh system active');
 }
 
 // ================================================================
