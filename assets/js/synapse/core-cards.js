@@ -508,9 +508,11 @@ async function renderPeopleProjectsNetwork(peopleNodes, projectNodes) {
 
 async function handleThemeClick(event, theme) {
   console.log("🎯 Theme clicked:", theme.title, theme.theme_id);
+  console.log("🎯 Theme data:", theme);
 
   try {
     // Get theme participants for the overlay
+    console.log("📡 Fetching theme participants from Supabase...");
     const { data: participants, error } = await supabase
       .from('theme_participants')
       .select(`
@@ -525,8 +527,12 @@ async function handleThemeClick(event, theme) {
       .eq('theme_id', theme.theme_id);
 
     if (error) {
-      console.warn("⚠️ Error loading theme participants:", error);
+      console.error("❌ Error loading theme participants:", error);
+      showSynapseNotification("Failed to load theme participants", "error");
+      return;
     }
+
+    console.log("✅ Theme participants loaded:", participants?.length || 0, participants);
 
     const participantList = (participants || []).map(p => ({
       id: p.community_id,
@@ -536,12 +542,16 @@ async function handleThemeClick(event, theme) {
     }));
 
     // Get interest count
+    console.log("📊 Fetching interest count...");
     const interestCount = await getThemeInterestCount(supabase, theme.theme_id);
+    console.log("✅ Interest count:", interestCount);
 
     // Check current user's engagement
     const currentUserEngagement = participantList.find(p => p.id === currentUserCommunityId)?.engagement_level || null;
+    console.log("👤 Current user engagement level:", currentUserEngagement);
 
     // Show theme overlay card
+    console.log("🎨 Rendering theme overlay card...");
     await renderThemeOverlayCard({
       themeNode: theme,
       interestCount,
@@ -571,7 +581,13 @@ async function handleThemeClick(event, theme) {
 
   } catch (error) {
     console.error("❌ Error handling theme click:", error);
-    showSynapseNotification("Failed to load theme details", "error");
+    console.error("❌ Error stack:", error.stack);
+    console.error("❌ Error details:", {
+      message: error.message,
+      name: error.name,
+      theme: theme.title
+    });
+    showSynapseNotification("Failed to load theme details: " + error.message, "error");
   }
 }
 
