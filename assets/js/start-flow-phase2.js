@@ -49,6 +49,8 @@ function setSessionFocus(focusType, focusData) {
   // Animate network
   if (typeof window.animateNetworkForChoice === 'function') {
     window.animateNetworkForChoice(focusType, focusData);
+  } else if (typeof window.isSynapseReady === 'function' && !window.isSynapseReady()) {
+    console.log('🔄 Synapse not ready yet - animation will be attempted when network loads');
   }
 
   // Close START modal
@@ -347,10 +349,17 @@ function clearSessionFocus() {
   // Reset network visualization
   if (window.d3 && document.getElementById('synapse-svg')) {
     const svg = window.d3.select('#synapse-svg');
-    svg.selectAll('.synapse-node, .theme-container')
-      .transition()
-      .duration(400)
-      .style('opacity', 1);
+    const nodeCount = svg.selectAll('.synapse-node, .theme-container').size();
+    if (nodeCount > 0) {
+      svg.selectAll('.synapse-node, .theme-container')
+        .transition()
+        .duration(400)
+        .style('opacity', 1);
+    } else {
+      console.warn('⚠️ Synapse network not initialized - skipping reset animation');
+    }
+  } else {
+    console.warn('⚠️ D3 or synapse SVG not available - skipping reset animation');
   }
 
   if (typeof window.showToastNotification === 'function') {

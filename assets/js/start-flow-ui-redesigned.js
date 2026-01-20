@@ -673,6 +673,25 @@ function showActionSuccess(type, title) {
 function navigateToRecommendation(type, recommendation) {
   console.log('🌐 Navigating with synapse integration:', type, recommendation.title);
   
+  // Ensure main content is visible first
+  const mainContent = document.getElementById('main-content');
+  if (mainContent && mainContent.classList.contains('hidden')) {
+    console.log('📱 Main content hidden - showing it first');
+    mainContent.classList.remove('hidden');
+    
+    // Wait a moment for the content to become visible
+    setTimeout(() => {
+      continueNavigation(type, recommendation);
+    }, 500);
+  } else {
+    continueNavigation(type, recommendation);
+  }
+}
+
+/**
+ * Continue navigation after ensuring content is visible
+ */
+function continueNavigation(type, recommendation) {
   // First, ensure we're in the right synapse mode for the recommendation
   const synapseMode = getSynapseModeForType(type);
   
@@ -681,10 +700,14 @@ function navigateToRecommendation(type, recommendation) {
   
   // Wait a moment for synapse to load, then highlight the recommendation
   setTimeout(() => {
-    highlightRecommendationInSynapse(type, recommendation);
-    
-    // Show contextual guidance overlay
-    showSynapseGuidanceOverlay(type, recommendation);
+    // Only try to highlight if synapse is ready
+    if (window.isSynapseReady && window.isSynapseReady()) {
+      highlightRecommendationInSynapse(type, recommendation);
+      showSynapseGuidanceOverlay(type, recommendation);
+    } else {
+      console.log('🔄 Synapse not ready - showing guidance without highlighting');
+      showSynapseGuidanceOverlay(type, recommendation);
+    }
   }, 1000);
   
   // Legacy navigation as fallback
@@ -996,5 +1019,6 @@ window.handleRecommendationAction = handleRecommendationAction;
 window.switchToSynapseView = switchToSynapseView;
 window.highlightRecommendationInSynapse = highlightRecommendationInSynapse;
 window.showSynapseGuidanceOverlay = showSynapseGuidanceOverlay;
+window.continueNavigation = continueNavigation;
 
 console.log('✅ START Flow UI Redesigned ready');
