@@ -280,9 +280,22 @@ async function getOrganizations(filters = {}) {
     throw new Error('Supabase not available');
   }
   
-  let query = supabase
-    .from('active_organizations_summary')
-    .select('*');
+  // Try the view first, fallback to direct table query
+  let query;
+  try {
+    query = supabase
+      .from('active_organizations_summary')
+      .select('*');
+  } catch (viewError) {
+    console.warn('⚠️ active_organizations_summary view not available, using direct query');
+    query = supabase
+      .from('organizations')
+      .select(`
+        id, name, slug, description, logo_url, banner_url, industry, size, location,
+        website, follower_count, opportunity_count, verified, created_at
+      `)
+      .eq('status', 'active');
+  }
     
   // Apply filters
   if (filters.industry) {
@@ -298,7 +311,7 @@ async function getOrganizations(filters = {}) {
   }
   
   if (filters.hasOpportunities) {
-    query = query.gt('open_opportunities', 0);
+    query = query.gt('opportunity_count', 0);
   }
   
   // Default ordering
@@ -322,10 +335,22 @@ async function getOrganization(identifier) {
     throw new Error('Supabase not available');
   }
   
-  // Try by ID first, then by slug
-  let query = supabase
-    .from('active_organizations_summary')
-    .select('*');
+  // Try the view first, fallback to direct table query
+  let query;
+  try {
+    query = supabase
+      .from('active_organizations_summary')
+      .select('*');
+  } catch (viewError) {
+    console.warn('⚠️ active_organizations_summary view not available, using direct query');
+    query = supabase
+      .from('organizations')
+      .select(`
+        id, name, slug, description, logo_url, banner_url, industry, size, location,
+        website, follower_count, opportunity_count, verified, created_at
+      `)
+      .eq('status', 'active');
+  }
     
   if (identifier.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
     query = query.eq('id', identifier);
@@ -434,9 +459,22 @@ async function getOpportunities(filters = {}) {
     throw new Error('Supabase not available');
   }
   
-  let query = supabase
-    .from('opportunities_with_org')
-    .select('*');
+  // Try the view first, fallback to direct table query
+  let query;
+  try {
+    query = supabase
+      .from('opportunities_with_org')
+      .select('*');
+  } catch (viewError) {
+    console.warn('⚠️ opportunities_with_org view not available, using direct query');
+    query = supabase
+      .from('opportunities')
+      .select(`
+        *,
+        organization:organizations(name, slug, logo_url, verified)
+      `)
+      .eq('status', 'open');
+  }
     
   // Apply filters
   if (filters.type) {

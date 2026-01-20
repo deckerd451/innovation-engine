@@ -286,11 +286,28 @@ async function loadPeopleData() {
  */
 async function loadOrganizationsData() {
   try {
-    const { data: organizations } = await StartFlowState.supabase
-      .from('active_organizations_summary')
-      .select('*')
-      .order('follower_count', { ascending: false })
-      .limit(20);
+    // Try the view first, fallback to direct table query
+    let organizationsQuery;
+    try {
+      organizationsQuery = await StartFlowState.supabase
+        .from('active_organizations_summary')
+        .select('*')
+        .order('follower_count', { ascending: false })
+        .limit(20);
+    } catch (viewError) {
+      console.warn('⚠️ active_organizations_summary view not available, using direct query');
+      organizationsQuery = await StartFlowState.supabase
+        .from('organizations')
+        .select(`
+          id, name, slug, description, logo_url, banner_url, industry, size, location,
+          website, follower_count, opportunity_count, verified, created_at
+        `)
+        .eq('status', 'active')
+        .order('follower_count', { ascending: false })
+        .limit(20);
+    }
+    
+    const { data: organizations } = organizationsQuery;
       
     const { data: userFollowing } = await StartFlowState.supabase
       .from('organization_followers')
@@ -315,11 +332,28 @@ async function loadOrganizationsData() {
  */
 async function loadOpportunitiesData() {
   try {
-    const { data: opportunities } = await StartFlowState.supabase
-      .from('opportunities_with_org')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(30);
+    // Try the view first, fallback to direct table query
+    let opportunitiesQuery;
+    try {
+      opportunitiesQuery = await StartFlowState.supabase
+        .from('opportunities_with_org')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(30);
+    } catch (viewError) {
+      console.warn('⚠️ opportunities_with_org view not available, using direct query');
+      opportunitiesQuery = await StartFlowState.supabase
+        .from('opportunities')
+        .select(`
+          *,
+          organization:organizations(name, slug, logo_url, verified)
+        `)
+        .eq('status', 'open')
+        .order('created_at', { ascending: false })
+        .limit(30);
+    }
+    
+    const { data: opportunities } = opportunitiesQuery;
       
     return {
       all: opportunities || [],
