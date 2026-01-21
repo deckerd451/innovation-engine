@@ -48,8 +48,6 @@ export function initRealtimeCollaboration() {
   // Expose functions globally
   window.openMessagingInterface = openMessagingInterface;
   window.closeMessagingInterface = closeMessagingInterface;
-  window.openConversation = openConversation;
-  window.loadConversationsList = loadConversationsList;
   window.sendDirectMessage = sendDirectMessage;
   window.markMessagesAsRead = markMessagesAsRead;
   window.showUserPresence = showUserPresence;
@@ -101,8 +99,7 @@ async function setupRealtimeChannels() {
         if (status === 'SUBSCRIBED') {
           // Track user presence
           await presenceChannel.track({
-            user_id: currentUserProfile.user_id,
-            community_id: currentUserProfile.id,
+            user_id: currentUserProfile.id,
             name: currentUserProfile.name,
             avatar: currentUserProfile.image_url,
             online_at: new Date().toISOString()
@@ -133,7 +130,7 @@ function handleNewMessage(payload) {
   }
 
   // Update unread count
-  if (message.sender_id !== currentUserProfile.user_id) {
+  if (message.sender_id !== currentUserProfile.id) {
     updateUnreadCount(message.conversation_id, 1);
     showMessageNotification(message);
   }
@@ -157,7 +154,7 @@ function handleConversationUpdate(payload) {
 function handleTeamInvite(payload) {
   const invite = payload.new;
   
-  if (invite.user_id === currentUserProfile.user_id && invite.role === 'pending') {
+  if (invite.user_id === currentUserProfile.id && invite.role === 'pending') {
     console.log('👥 New team invitation received:', invite);
     showTeamInviteNotification(invite);
   }
@@ -534,11 +531,15 @@ async function loadConversationsList() {
   try {
     console.log('📋 Loading conversations for user:', currentUserProfile.id);
 
-    // Query conversations using the existing schema - simplified approach
+    // First, let's try a simpler query to check if conversations table exists
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select('*')
-      .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`)
+      .select(`
+        *,
+        participant1:community!participant1_id(id, name, image_url),
+        participant2:community!participant2_id(id, name, image_url)
+      `)
+      .or(`participant1_id.eq.${currentUserProfile.id},participant2_id.eq.${currentUserProfile.id}`)
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -586,29 +587,6 @@ async function loadConversationsList() {
 
     console.log(`📋 Loaded ${conversations.length} conversations`);
 
-    // Get participant details separately to avoid foreign key issues
-    const participantIds = new Set();
-    conversations.forEach(conv => {
-      participantIds.add(conv.participant_1_id);
-      participantIds.add(conv.participant_2_id);
-    });
-
-    let participantDetails = new Map();
-    if (participantIds.size > 0) {
-      try {
-        const { data: participants } = await supabase
-          .from('community')
-          .select('id, name, image_url')
-          .in('id', Array.from(participantIds));
-        
-        if (participants) {
-          participants.forEach(p => participantDetails.set(p.id, p));
-        }
-      } catch (participantError) {
-        console.warn('📋 Could not load participant details:', participantError);
-      }
-    }
-
     // Get last messages for each conversation
     const conversationIds = conversations.map(c => c.id);
     let lastMessages = new Map();
@@ -636,11 +614,9 @@ async function loadConversationsList() {
 
     let html = '';
     conversations.forEach(conversation => {
-      const otherUserId = conversation.participant_1_id === currentUserProfile.id 
-        ? conversation.participant_2_id 
-        : conversation.participant_1_id;
-      
-      const otherUser = participantDetails.get(otherUserId);
+      const otherUser = conversation.participant1_id === currentUserProfile.id 
+        ? conversation.participant2 
+        : conversation.participant1;
       
       if (!otherUser) {
         console.warn('📋 Skipping conversation with missing user data:', conversation.id);
@@ -739,27 +715,22 @@ async function loadConversationMessages(conversationId) {
   if (!messagesArea) return;
 
   try {
-    // Get conversation details - simplified approach
+    // Get conversation details
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
-      .select('*')
+      .select(`
+        *,
+        participant1:community!conversations_participant1_id_fkey(id, name, image_url),
+        participant2:community!conversations_participant2_id_fkey(id, name, image_url)
+      `)
       .eq('id', conversationId)
       .single();
 
     if (convError) throw convError;
 
-    // Get participant details separately
-    const otherUserId = conversation.participant_1_id === currentUserProfile.id 
-      ? conversation.participant_2_id 
-      : conversation.participant_1_id;
-
-    const { data: otherUser, error: userError } = await supabase
-      .from('community')
-      .select('id, name, image_url')
-      .eq('id', otherUserId)
-      .single();
-
-    if (userError) throw userError;
+    const otherUser = conversation.participant1_id === currentUserProfile.id 
+      ? conversation.participant2 
+      : conversation.participant1;
 
     // Update chat header
     const chatHeader = document.getElementById('chat-header');
@@ -802,7 +773,7 @@ async function loadConversationMessages(conversationId) {
       `;
     } else {
       messages.forEach(message => {
-        const isOwn = message.sender_id === currentUserProfile.user_id;
+        const isOwn = message.sender_id === currentUserProfile.id;
         const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
         messagesHtml += `
@@ -847,7 +818,7 @@ window.sendMessage = async function() {
       .from('messages')
       .insert({
         conversation_id: activeConversationId,
-        sender_id: currentUserProfile.user_id,
+        sender_id: currentUserProfile.id,
         content: content,
         message_type: MESSAGE_TYPES.TEXT
       });
@@ -885,7 +856,7 @@ function appendMessageToConversation(conversationId, message) {
   const messagesArea = document.getElementById('messages-area');
   if (!messagesArea) return;
 
-  const isOwn = message.sender_id === currentUserProfile.user_id;
+  const isOwn = message.sender_id === currentUserProfile.id;
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
   const messageElement = document.createElement('div');
@@ -932,120 +903,18 @@ function playNotificationSound() {
   }
 }
 
-// Send direct message to user
-export async function sendDirectMessage(userId, message) {
-  console.log('📨 Sending direct message to:', userId, message);
-  
-  if (!currentUserProfile || !userId || !message) {
-    console.error('❌ Missing required parameters for direct message');
-    return;
-  }
-
-  try {
-    // Create or find conversation
-    await createNewMessage(userId, 'Direct Message');
-    
-    // The message will be sent through the normal messaging interface
-    console.log('✅ Direct message initiated');
-    
-  } catch (error) {
-    console.error('❌ Error sending direct message:', error);
-    if (window.showSynapseNotification) {
-      window.showSynapseNotification('Failed to send direct message', 'error');
-    }
-  }
-}
-
-// Load active conversations for current user
+// Placeholder functions for future implementation
 async function loadActiveConversations() {
   console.log('📋 Loading active conversations...');
-  
-  if (!currentUserProfile || !supabase) {
-    console.log('📋 No user profile or supabase client available yet');
-    return;
-  }
-
-  try {
-    const { data: conversations, error } = await supabase
-      .from('conversations')
-      .select('*')
-      .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`)
-      .order('updated_at', { ascending: false })
-      .limit(10);
-
-    if (error) {
-      console.warn('📋 Could not load active conversations:', error);
-      return;
-    }
-
-    if (conversations && conversations.length > 0) {
-      console.log(`📋 Found ${conversations.length} active conversations`);
-      
-      // Store conversation IDs for real-time updates
-      conversations.forEach(conv => {
-        activeConversations.set(conv.id, true);
-      });
-    } else {
-      console.log('📋 No active conversations found');
-    }
-
-  } catch (error) {
-    console.error('❌ Error loading active conversations:', error);
-  }
 }
 
-// Load unread message counts
 async function loadUnreadCounts() {
   console.log('📊 Loading unread counts...');
-  
-  if (!currentUserProfile || !supabase) {
-    console.log('📊 No user profile or supabase client available yet');
-    return;
-  }
-
-  try {
-    // Get conversations for current user
-    const { data: conversations, error: convError } = await supabase
-      .from('conversations')
-      .select('id')
-      .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`);
-
-    if (convError || !conversations) {
-      console.warn('📊 Could not load conversations for unread counts:', convError);
-      return;
-    }
-
-    // Get unread message counts for each conversation
-    for (const conv of conversations) {
-      try {
-        const { count, error: countError } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('conversation_id', conv.id)
-          .neq('sender_id', currentUserProfile.user_id)
-          .is('read_at', null);
-
-        if (!countError && count > 0) {
-          unreadCounts.set(conv.id, count);
-          console.log(`📊 Conversation ${conv.id}: ${count} unread messages`);
-        }
-      } catch (error) {
-        console.warn('📊 Error counting unread messages for conversation:', conv.id, error);
-      }
-    }
-
-    console.log(`📊 Loaded unread counts for ${conversations.length} conversations`);
-
-  } catch (error) {
-    console.error('❌ Error loading unread counts:', error);
-  }
 }
 
-// Update unread count for a conversation
 function updateUnreadCount(conversationId, increment) {
   const current = unreadCounts.get(conversationId) || 0;
   unreadCounts.set(conversationId, current + increment);
-  console.log(`📊 Updated unread count for ${conversationId}: ${current + increment}`);
 }
 
 function refreshConversationList() {
@@ -1066,7 +935,7 @@ window.markMessagesAsRead = async function(conversationId) {
       .from('messages')
       .update({ read_at: new Date().toISOString() })
       .eq('conversation_id', conversationId)
-      .eq('sender_id', currentUserProfile.user_id, { negate: true })
+      .eq('sender_id', currentUserProfile.id, { negate: true })
       .is('read_at', null);
     
     unreadCounts.set(conversationId, 0);
@@ -1123,11 +992,11 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
   }
 
   try {
-    // Check if conversation already exists using correct column names
+    // Check if conversation already exists
     const { data: existingConversation } = await supabase
       .from('conversations')
       .select('id')
-      .or(`and(participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${targetUserId}),and(participant_1_id.eq.${targetUserId},participant_2_id.eq.${currentUserProfile.id})`)
+      .or(`and(participant1_id.eq.${currentUserProfile.id},participant2_id.eq.${targetUserId}),and(participant1_id.eq.${targetUserId},participant2_id.eq.${currentUserProfile.id})`)
       .single();
 
     let conversationId;
@@ -1136,12 +1005,12 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
       conversationId = existingConversation.id;
       console.log('💬 Using existing conversation:', conversationId);
     } else {
-      // Create new conversation using correct column names
+      // Create new conversation
       const { data: newConversation, error: createError } = await supabase
         .from('conversations')
         .insert([{
-          participant_1_id: currentUserProfile.id,
-          participant_2_id: targetUserId,
+          participant1_id: currentUserProfile.id,
+          participant2_id: targetUserId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
