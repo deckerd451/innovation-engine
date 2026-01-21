@@ -470,6 +470,51 @@
         <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Admin</div>
       </div>
 
+      <!-- Analytics Dashboard -->
+      <div class="stat-card-mini" id="btn-analytics-dashboard"
+        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,255,136,0.15),rgba(0,224,255,0.1));
+        border:2px solid rgba(0,255,136,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
+        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00ff88;"><i class="fas fa-chart-bar"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00ff88; text-transform:uppercase; font-weight:700; white-space:nowrap;">Analytics</div>
+      </div>
+
+      <!-- Activity Feed -->
+      <div class="stat-card-mini" id="btn-activity-feed"
+        style="cursor:pointer; background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ff6b6b;"><i class="fas fa-stream"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ff6b6b; text-transform:uppercase; font-weight:600; white-space:nowrap;">Activity</div>
+      </div>
+
+      <!-- Performance Monitor -->
+      <div class="stat-card-mini" id="btn-performance"
+        style="cursor:pointer; background:rgba(138,43,226,0.08); border:1px solid rgba(138,43,226,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#8a2be2;"><i class="fas fa-tachometer-alt"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#8a2be2; text-transform:uppercase; font-weight:600; white-space:nowrap;">Performance</div>
+      </div>
+
+      <!-- System Diagnostics -->
+      <div class="stat-card-mini" id="btn-diagnostics"
+        style="cursor:pointer; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-stethoscope"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Diagnostics</div>
+      </div>
+
+      <!-- Language Switcher -->
+      <div class="stat-card-mini" id="btn-language"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-globe"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Language</div>
+      </div>
+
       <!-- Organizations -->
       <div class="stat-card-mini" id="btn-organizations"
         style="cursor:pointer; background:linear-gradient(135deg,rgba(138,43,226,0.15),rgba(186,127,245,0.1));
@@ -1028,7 +1073,235 @@
           window.location.href = '/index.html';
         }, 500);
       });
+
+      // Add handlers for new integrated features
+      setupIntegratedFeatureHandlers();
     });
+
+    // Setup handlers for newly integrated features
+    function setupIntegratedFeatureHandlers() {
+      // Analytics Dashboard
+      const analyticsBtn = document.getElementById('btn-analytics-dashboard');
+      if (analyticsBtn) {
+        analyticsBtn.addEventListener('click', () => {
+          if (typeof window.openAnalyticsDashboard === 'function') {
+            window.openAnalyticsDashboard();
+          } else {
+            console.warn('Analytics dashboard not available');
+          }
+        });
+      }
+
+      // Activity Feed
+      const activityBtn = document.getElementById('btn-activity-feed');
+      if (activityBtn) {
+        activityBtn.addEventListener('click', () => {
+          if (typeof window.openActivityFeed === 'function') {
+            window.openActivityFeed();
+          } else {
+            console.warn('Activity feed not available');
+          }
+        });
+      }
+
+      // Performance Monitor
+      const performanceBtn = document.getElementById('btn-performance');
+      if (performanceBtn) {
+        performanceBtn.addEventListener('click', () => {
+          if (typeof window.openPerformanceMonitor === 'function') {
+            window.openPerformanceMonitor();
+          } else {
+            // Fallback: open system diagnostics page
+            window.open('system-diagnostics.html', '_blank');
+          }
+        });
+      }
+
+      // System Diagnostics
+      const diagnosticsBtn = document.getElementById('btn-diagnostics');
+      if (diagnosticsBtn) {
+        diagnosticsBtn.addEventListener('click', () => {
+          window.open('system-diagnostics.html', '_blank');
+        });
+      }
+
+      // Language Switcher
+      const languageBtn = document.getElementById('btn-language');
+      if (languageBtn) {
+        languageBtn.addEventListener('click', () => {
+          openLanguageSwitcher();
+        });
+      }
+
+      // Enhanced existing buttons
+      enhanceExistingButtons();
+    }
+
+    // Enhance existing button functionality
+    function enhanceExistingButtons() {
+      // Enhanced Connect button
+      const connectBtn = document.getElementById('btn-quickconnect');
+      if (connectBtn) {
+        connectBtn.addEventListener('click', () => {
+          if (typeof window.openConnectionDiscovery === 'function') {
+            window.openConnectionDiscovery();
+          } else if (typeof window.openQuickConnectModal === 'function') {
+            window.openQuickConnectModal();
+          }
+        });
+      }
+
+      // Enhanced Themes button
+      const themesBtn = document.getElementById('btn-themes');
+      if (themesBtn) {
+        themesBtn.addEventListener('click', () => {
+          if (typeof window.openThemeDiscoveryModal === 'function') {
+            window.openThemeDiscoveryModal();
+          }
+        });
+      }
+    }
+
+    // Language switcher modal
+    function openLanguageSwitcher() {
+      // Remove existing modal
+      const existing = document.getElementById('language-switcher-modal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'language-switcher-modal';
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 1rem;
+      `;
+
+      modal.innerHTML = `
+        <div style="
+          background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
+          border: 2px solid rgba(0, 224, 255, 0.5);
+          border-radius: 16px;
+          backdrop-filter: blur(10px);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+          max-width: 500px;
+          width: 100%;
+          padding: 2rem;
+          position: relative;
+        ">
+          <button onclick="this.parentElement.parentElement.remove()" style="
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+          ">
+            <i class="fas fa-times"></i>
+          </button>
+
+          <h2 style="color: #00e0ff; margin-bottom: 1.5rem; text-align: center;">
+            <i class="fas fa-globe"></i> Choose Language
+          </h2>
+
+          <div style="display: grid; gap: 1rem;">
+            <button onclick="selectLanguage('en')" style="
+              background: rgba(0, 224, 255, 0.1);
+              border: 2px solid rgba(0, 224, 255, 0.3);
+              border-radius: 8px;
+              padding: 1rem;
+              color: white;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
+              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇺🇸</div>
+              <div style="font-weight: 600;">English</div>
+              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Default language</div>
+            </button>
+
+            <button onclick="selectLanguage('es')" style="
+              background: rgba(0, 224, 255, 0.1);
+              border: 2px solid rgba(0, 224, 255, 0.3);
+              border-radius: 8px;
+              padding: 1rem;
+              color: white;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
+              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇪🇸</div>
+              <div style="font-weight: 600;">Español</div>
+              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Spanish</div>
+            </button>
+
+            <button onclick="selectLanguage('fr')" style="
+              background: rgba(0, 224, 255, 0.1);
+              border: 2px solid rgba(0, 224, 255, 0.3);
+              border-radius: 8px;
+              padding: 1rem;
+              color: white;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
+              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇫🇷</div>
+              <div style="font-weight: 600;">Français</div>
+              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">French</div>
+            </button>
+
+            <div style="text-align: center; margin-top: 1rem; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
+              More languages coming soon...
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      // Close on backdrop click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    }
+
+    // Language selection handler
+    function selectLanguage(languageCode) {
+      console.log('🌍 Language selected:', languageCode);
+      
+      if (typeof window.setLanguage === 'function') {
+        window.setLanguage(languageCode);
+      }
+      
+      // Close modal
+      const modal = document.getElementById('language-switcher-modal');
+      if (modal) modal.remove();
+      
+      // Show confirmation
+      if (typeof window.createToast === 'function') {
+        const languageNames = {
+          en: 'English',
+          es: 'Español', 
+          fr: 'Français'
+        };
+        window.createToast(`Language changed to ${languageNames[languageCode]}`, 'success');
+      }
+    }
   </script>
 
   <!-- Session Restoration Handler - Fixes tab switching issues -->
