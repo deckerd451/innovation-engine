@@ -430,23 +430,4 @@ if (!window.originalSendDirectMessage && window.sendDirectMessage) {
   window.originalSendDirectMessage = window.sendDirectMessage;
 }
 
-// ================================================================
-// EXPORT FOR ES6 MODULES
-// ================================================================
-
-export {
-  dbHelper,
-  DATABASE_SCHEMA,
-  COLUMN_MAPPINGS
-};
-
-export default {
-  dbHelper,
-  DATABASE_SCHEMA,
-  COLUMN_MAPPINGS,
-  testDatabaseConnection: window.testDatabaseConnection,
-  enhancedCommunitySearch: window.enhancedCommunitySearch,
-  getEnhancedNetworkStats: window.getEnhancedNetworkStats
-};
-
 console.log('✅ Database integration completed - all systems wired');
