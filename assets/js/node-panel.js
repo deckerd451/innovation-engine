@@ -2059,37 +2059,37 @@ async function createProjectInTheme(themeId, themeName) {
     // Close the node panel first
     closeNodePanel();
     
-    // Open the projects modal
-    if (typeof window.openProjectsModal === 'function') {
-      await window.openProjectsModal();
+    // Use enhanced project creation if available
+    if (typeof window.showEnhancedProjectCreation === 'function') {
+      console.log("✅ Using enhanced project creation");
+      await window.showEnhancedProjectCreation(themeId, themeName);
+    } else {
+      // Fallback to original project modal
+      console.log("⚠️ Enhanced project creation not available, using fallback");
       
-      // Show the create project form
-      if (typeof window.showCreateProjectForm === 'function') {
-        await window.showCreateProjectForm();
+      if (typeof window.openProjectsModal === 'function') {
+        await window.openProjectsModal();
         
-        // Pre-select the theme in the dropdown
-        setTimeout(() => {
-          const themeSelect = document.getElementById('project-theme');
-          if (themeSelect) {
-            // Try to find and select the theme
-            for (let option of themeSelect.options) {
-              if (option.value === themeId) {
-                option.selected = true;
-                console.log("✅ Pre-selected theme in dropdown:", themeName);
-                break;
+        if (typeof window.showCreateProjectForm === 'function') {
+          await window.showCreateProjectForm();
+          
+          // Pre-select the theme in the dropdown
+          setTimeout(() => {
+            const themeSelect = document.getElementById('project-theme');
+            if (themeSelect) {
+              for (let option of themeSelect.options) {
+                if (option.value === themeId) {
+                  option.selected = true;
+                  console.log("✅ Pre-selected theme in dropdown:", themeName);
+                  break;
+                }
               }
             }
-          } else {
-            console.warn("⚠️ Theme select dropdown not found");
-          }
-        }, 100); // Small delay to ensure form is rendered
-        
+          }, 100);
+        }
       } else {
-        console.warn("⚠️ showCreateProjectForm function not available");
+        alert("Project creation is not available at the moment. Please try again later.");
       }
-    } else {
-      console.warn("⚠️ openProjectsModal function not available");
-      alert("Project creation is not available at the moment. Please try again later.");
     }
   } catch (error) {
     console.error("❌ Failed to create project in theme:", error);

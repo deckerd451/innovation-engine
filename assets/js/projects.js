@@ -32,6 +32,16 @@ export function closeProjectsModal() {
 // ========================
 
 export async function showCreateProjectForm() {
+  // Check if enhanced project creation is available
+  if (typeof window.showEnhancedProjectCreation === 'function') {
+    console.log('✅ Using enhanced project creation instead of basic form');
+    closeProjectsModal();
+    await window.showEnhancedProjectCreation();
+    return;
+  }
+
+  // Fallback to original form
+  console.log('⚠️ Enhanced project creation not available, using basic form');
   document.getElementById('project-form').style.display = 'block';
   await loadThemesIntoDropdown();
 }
