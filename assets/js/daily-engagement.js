@@ -60,6 +60,9 @@ const DailyEngagement = (function () {
     WEEKLY_QUEST: 100,
     COMPLETE_PROFILE: 50,
     ADD_PHOTO: 25,
+    VIDEO_CALL_STARTED: 15,
+    VIDEO_CALL_COMPLETED: 25,
+    SCREEN_SHARE_USED: 10,
   };
 
   const LEVEL_THRESHOLDS = [

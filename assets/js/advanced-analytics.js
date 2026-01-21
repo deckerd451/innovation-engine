@@ -28,7 +28,11 @@ const ANALYTICS_EVENTS = {
   TEAM_CREATED: 'team_created',
   ACHIEVEMENT_EARNED: 'achievement_earned',
   SESSION_START: 'session_start',
-  SESSION_END: 'session_end'
+  SESSION_END: 'session_end',
+  VIDEO_CALL_STARTED: 'video_call_started',
+  VIDEO_CALL_ENDED: 'video_call_ended',
+  VIDEO_CALL_ANSWERED: 'video_call_answered',
+  SCREEN_SHARE_TOGGLE: 'screen_share_toggle'
 };
 
 // Metric categories

@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Chat Integration Demo</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+    }
+
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .demo-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .demo-header h1 {
+      color: #ff6b6b;
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .demo-card {
+      background: rgba(255, 107, 107, 0.05);
+      border: 2px solid rgba(255, 107, 107, 0.3);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .demo-card:hover {
+      border-color: rgba(255, 107, 107, 0.6);
+      background: rgba(255, 107, 107, 0.1);
+      transform: translateY(-4px);
+    }
+
+    .demo-card i {
+      font-size: 3rem;
+      color: #ff6b6b;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .demo-card h3 {
+      color: #ff6b6b;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .demo-card p {
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .demo-button {
+      background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .demo-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+    }
+
+    .status-indicator {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+
+    .status-ready {
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+      border: 1px solid rgba(0, 255, 136, 0.4);
+    }
+
+    .status-demo {
+      background: rgba(255, 170, 0, 0.2);
+      color: #ffaa00;
+      border: 1px solid rgba(255, 170, 0, 0.4);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .feature-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .feature-item i {
+      font-size: 2rem;
+      color: #ff6b6b;
+      margin-bottom: 1rem;
+    }
+
+    .feature-item h4 {
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-item p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .video-preview {
+      background: rgba(255, 107, 107, 0.05);
+      border: 1px solid rgba(255, 107, 107, 0.2);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+      text-align: center;
+    }
+
+    .video-mockup {
+      background: #1a1a1a;
+      border-radius: 8px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.6);
+      margin: 1rem 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .video-controls-mockup {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .control-btn-mockup {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(255, 107, 107, 0.2);
+      border: 2px solid rgba(255, 107, 107, 0.4);
+      color: #ff6b6b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .integration-showcase {
+      background: rgba(0, 224, 255, 0.05);
+      border: 1px solid rgba(0, 224, 255, 0.2);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+
+    .integration-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .integration-item i {
+      font-size: 1.5rem;
+      color: #00e0ff;
+      width: 40px;
+      text-align: center;
+    }
+
+    .call-simulation {
+      background: rgba(255, 107, 107, 0.1);
+      border: 1px solid rgba(255, 107, 107, 0.3);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+
+    .simulated-users {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .user-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .user-card:hover {
+      background: rgba(255, 107, 107, 0.1);
+      border-color: rgba(255, 107, 107, 0.3);
+    }
+
+    .user-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+      margin: 0 auto 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-header">
+      <h1><i class="fas fa-video"></i> Video Chat Integration Demo</h1>
+      <p style="color: rgba(255, 255, 255, 0.7); font-size: 1.2rem;">
+        Real-time video communication system for CharlestonHacks Innovation Engine
+      </p>
+    </div>
+
+    <!-- Video Interface Preview -->
+    <div class="video-preview">
+      <h3 style="color: #ff6b6b; margin-bottom: 1rem; text-align: center;">
+        <i class="fas fa-play-circle"></i> Video Call Interface Preview
+      </h3>
+      
+      <div class="video-mockup">
+        <div style="text-align: center;">
+          <i class="fas fa-video" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+          <p>Interactive video call interface with WebRTC technology</p>
+        </div>
+      </div>
+
+      <div class="video-controls-mockup">
+        <div class="control-btn-mockup" title="Mute/Unmute">
+          <i class="fas fa-microphone"></i>
+        </div>
+        <div class="control-btn-mockup" title="Camera On/Off">
+          <i class="fas fa-video"></i>
+        </div>
+        <div class="control-btn-mockup" title="Screen Share">
+          <i class="fas fa-desktop"></i>
+        </div>
+        <div class="control-btn-mockup" title="End Call" style="background: rgba(255, 107, 107, 0.3);">
+          <i class="fas fa-phone-slash"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Demo Cards -->
+    <div class="demo-grid">
+      <div class="demo-card" onclick="demoVideoCall()">
+        <i class="fas fa-video"></i>
+        <h3>Video Call Interface</h3>
+        <p>
+          Complete WebRTC-based video calling system with peer-to-peer 
+          communication, audio/video controls, and real-time signaling 
+          through Supabase channels.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-play"></i> Demo Video Call
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="demoCallManagement()">
+        <i class="fas fa-phone-alt"></i>
+        <h3>Call Management</h3>
+        <p>
+          Incoming call notifications, call controls, call history, 
+          and comprehensive call state management with real-time 
+          updates and user feedback.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-cog"></i> Demo Call Controls
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="demoScreenShare()">
+        <i class="fas fa-desktop"></i>
+        <h3>Screen Sharing</h3>
+        <p>
+          Desktop and application screen sharing capabilities with 
+          seamless switching between camera and screen share modes 
+          during active video calls.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-share-square"></i> Demo Screen Share
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="demoTeamMeetings()">
+        <i class="fas fa-users"></i>
+        <h3>Team Meetings</h3>
+        <p>
+          Group video calls for project teams with meeting room 
+          creation, participant management, and integration with 
+          project management system.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-users-cog"></i> Demo Team Meeting
+        </button>
+        <div class="status-indicator status-demo">🚧 Demo Mode</div>
+      </div>
+
+      <div class="demo-card" onclick="demoIntegrations()">
+        <i class="fas fa-plug"></i>
+        <h3>System Integration</h3>
+        <p>
+          Seamless integration with user profiles, messaging system, 
+          project management, and real-time notifications throughout 
+          the CharlestonHacks platform.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-link"></i> View Integrations
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="demoMobileSupport()">
+        <i class="fas fa-mobile-alt"></i>
+        <h3>Mobile Support</h3>
+        <p>
+          Responsive video calling interface optimized for mobile 
+          devices with touch-friendly controls and adaptive layouts 
+          for different screen sizes.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-tablet-alt"></i> Mobile Demo
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+    </div>
+
+    <!-- Call Simulation -->
+    <div class="call-simulation">
+      <h3 style="color: #ff6b6b; text-align: center; margin-bottom: 2rem;">
+        <i class="fas fa-phone"></i> Simulate Video Calls
+      </h3>
+      
+      <p style="text-align: center; color: rgba(255, 255, 255, 0.8); margin-bottom: 2rem;">
+        Click on any user below to simulate starting a video call
+      </p>
+
+      <div class="simulated-users">
+        <div class="user-card" onclick="simulateCall('sarah-chen', 'Sarah Chen')">
+          <div class="user-avatar">SC</div>
+          <h4 style="color: white; margin: 0 0 0.5rem 0;">Sarah Chen</h4>
+          <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; margin: 0;">AI/ML Expert</p>
+        </div>
+
+        <div class="user-card" onclick="simulateCall('mike-rodriguez', 'Mike Rodriguez')">
+          <div class="user-avatar">MR</div>
+          <h4 style="color: white; margin: 0 0 0.5rem 0;">Mike Rodriguez</h4>
+          <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; margin: 0;">Full Stack Developer</p>
+        </div>
+
+        <div class="user-card" onclick="simulateCall('emily-davis', 'Emily Davis')">
+          <div class="user-avatar">ED</div>
+          <h4 style="color: white; margin: 0 0 0.5rem 0;">Emily Davis</h4>
+          <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; margin: 0;">UX Designer</p>
+        </div>
+
+        <div class="user-card" onclick="simulateCall('alex-johnson', 'Alex Johnson')">
+          <div class="user-avatar">AJ</div>
+          <h4 style="color: white; margin: 0 0 0.5rem 0;">Alex Johnson</h4>
+          <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; margin: 0;">Product Manager</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integration Showcase -->
+    <div class="integration-showcase">
+      <h3 style="color: #00e0ff; text-align: center; margin-bottom: 2rem;">
+        <i class="fas fa-puzzle-piece"></i> System Integrations
+      </h3>
+      
+      <div class="integration-item">
+        <i class="fas fa-user-circle"></i>
+        <div>
+          <h4 style="color: white; margin: 0 0 0.25rem 0;">User Profiles</h4>
+          <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.9rem;">
+            Video call buttons automatically added to user profile modals
+          </p>
+        </div>
+      </div>
+
+      <div class="integration-item">
+        <i class="fas fa-comments"></i>
+        <div>
+          <h4 style="color: white; margin: 0 0 0.25rem 0;">Messaging System</h4>
+          <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.9rem;">
+            Video call buttons in conversation headers for instant calls
+          </p>
+        </div>
+      </div>
+
+      <div class="integration-item">
+        <i class="fas fa-lightbulb"></i>
+        <div>
+          <h4 style="color: white; margin: 0 0 0.25rem 0;">Project Management</h4>
+          <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.9rem;">
+            Team meeting buttons for project collaboration sessions
+          </p>
+        </div>
+      </div>
+
+      <div class="integration-item">
+        <i class="fas fa-bell"></i>
+        <div>
+          <h4 style="color: white; margin: 0 0 0.25rem 0;">Notification System</h4>
+          <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.9rem;">
+            Real-time call notifications and browser alerts
+          </p>
+        </div>
+      </div>
+
+      <div class="integration-item">
+        <i class="fas fa-play-circle"></i>
+        <div>
+          <h4 style="color: white; margin: 0 0 0.25rem 0;">START Flow</h4>
+          <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.9rem;">
+            Video call option in the main navigation and quick actions
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Highlights -->
+    <div style="background: rgba(255, 107, 107, 0.05); border-radius: 12px; padding: 2rem; margin-top: 3rem;">
+      <h3 style="color: #ff6b6b; text-align: center; margin-bottom: 2rem;">
+        <i class="fas fa-star"></i> Video Chat Features
+      </h3>
+      
+      <div class="feature-grid">
+        <div class="feature-item">
+          <i class="fas fa-video"></i>
+          <h4>WebRTC Technology</h4>
+          <p>Peer-to-peer video communication with high quality and low latency</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-microphone"></i>
+          <h4>Audio Controls</h4>
+          <p>Mute/unmute functionality with visual feedback and status indicators</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-desktop"></i>
+          <h4>Screen Sharing</h4>
+          <p>Share desktop or specific applications during video calls</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-users"></i>
+          <h4>Group Calls</h4>
+          <p>Team meetings and group video calls for project collaboration</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-mobile-alt"></i>
+          <h4>Mobile Responsive</h4>
+          <p>Optimized interface for mobile devices and touch interactions</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-shield-alt"></i>
+          <h4>Secure Communication</h4>
+          <p>Encrypted peer-to-peer connections with privacy protection</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Demo Information -->
+    <div style="text-align: center; margin-top: 3rem; padding: 2rem; background: rgba(255, 107, 107, 0.05); border-radius: 12px; border: 1px solid rgba(255, 107, 107, 0.2);">
+      <h3 style="color: #ff6b6b; margin-bottom: 1rem;">
+        <i class="fas fa-info-circle"></i> Demo Information
+      </h3>
+      <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 1rem;">
+        This demonstration showcases the video chat integration system with 
+        WebRTC technology, real-time signaling, and comprehensive UI components.
+      </p>
+      <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">
+        Note: This is a demonstration environment. Full video calling requires 
+        camera/microphone permissions and WebRTC-compatible browsers.
+      </p>
+    </div>
+  </div>
+
+  <!-- Mock Supabase for demo -->
+  <script>
+    // Mock Supabase client for demo purposes
+    window.supabase = {
+      channel: (name) => ({
+        on: () => ({ subscribe: () => {} }),
+        send: () => Promise.resolve()
+      })
+    };
+
+    // Mock current user profile
+    window.currentUserProfile = {
+      id: 'demo-user',
+      name: 'Demo User',
+      email: 'demo@example.com'
+    };
+
+    // Mock global variables
+    window.isCallActive = false;
+    window.currentCall = null;
+    window.callStartTime = null;
+
+    // Demo functions
+    function demoVideoCall() {
+      if (window.openVideoCallInterface) {
+        window.openVideoCallInterface();
+      } else {
+        showNotification({
+          type: 'info',
+          title: 'Video Call Demo',
+          message: 'Video call interface would open here with full WebRTC functionality.',
+          duration: 4000
+        });
+      }
+    }
+
+    function demoCallManagement() {
+      showNotification({
+        type: 'success',
+        title: 'Call Management',
+        message: 'Call controls include mute, video toggle, screen share, and call termination.',
+        duration: 4000
+      });
+
+      setTimeout(() => {
+        showNotification({
+          type: 'info',
+          message: 'Incoming call notifications support browser alerts and in-app notifications.',
+          duration: 3000
+        });
+      }, 2000);
+    }
+
+    function demoScreenShare() {
+      showNotification({
+        type: 'info',
+        title: 'Screen Sharing',
+        message: 'Screen sharing uses getDisplayMedia API for desktop and application sharing.',
+        duration: 4000
+      });
+
+      setTimeout(() => {
+        showNotification({
+          type: 'success',
+          message: 'Seamless switching between camera and screen share modes.',
+          duration: 3000
+        });
+      }, 2000);
+    }
+
+    function demoTeamMeetings() {
+      showNotification({
+        type: 'info',
+        title: 'Team Meetings',
+        message: 'Group video calls for project teams with meeting room creation.',
+        duration: 4000
+      });
+    }
+
+    function demoIntegrations() {
+      showNotification({
+        type: 'success',
+        title: 'System Integration',
+        message: 'Video chat buttons automatically added to profiles, messaging, and projects.',
+        duration: 5000
+      });
+    }
+
+    function demoMobileSupport() {
+      showNotification({
+        type: 'info',
+        title: 'Mobile Support',
+        message: 'Responsive design with touch-friendly controls for mobile devices.',
+        duration: 4000
+      });
+    }
+
+    function simulateCall(userId, userName) {
+      showNotification({
+        type: 'info',
+        title: `Calling ${userName}...`,
+        message: 'In a real implementation, this would initiate a WebRTC video call.',
+        duration: 3000
+      });
+
+      setTimeout(() => {
+        if (window.openVideoCallInterface) {
+          window.openVideoCallInterface();
+        }
+      }, 1500);
+    }
+
+    // Notification system
+    function showNotification(options) {
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${getNotificationColor(options.type)};
+        border: 1px solid ${getNotificationBorderColor(options.type)};
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        color: white;
+        font-weight: 600;
+        z-index: 10001;
+        max-width: 400px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        animation: slideIn 0.3s ease-out;
+      `;
+
+      notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <i class="${getNotificationIcon(options.type)}"></i>
+          <div>
+            ${options.title ? `<div style="font-weight: 700; margin-bottom: 0.25rem;">${options.title}</div>` : ''}
+            <div style="font-weight: 400;">${options.message}</div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      }, options.duration || 3000);
+    }
+
+    function getNotificationColor(type) {
+      switch (type) {
+        case 'success': return 'rgba(0, 255, 136, 0.2)';
+        case 'error': return 'rgba(255, 107, 107, 0.2)';
+        case 'warning': return 'rgba(255, 170, 0, 0.2)';
+        default: return 'rgba(0, 224, 255, 0.2)';
+      }
+    }
+
+    function getNotificationBorderColor(type) {
+      switch (type) {
+        case 'success': return 'rgba(0, 255, 136, 0.4)';
+        case 'error': return 'rgba(255, 107, 107, 0.4)';
+        case 'warning': return 'rgba(255, 170, 0, 0.4)';
+        default: return 'rgba(0, 224, 255, 0.4)';
+      }
+    }
+
+    function getNotificationIcon(type) {
+      switch (type) {
+        case 'success': return 'fas fa-check-circle';
+        case 'error': return 'fas fa-exclamation-circle';
+        case 'warning': return 'fas fa-exclamation-triangle';
+        default: return 'fas fa-info-circle';
+      }
+    }
+
+    // Add animation styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(100px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes slideOut {
+        from {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(100px);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Initialize demo
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Video Chat Demo Ready');
+      
+      setTimeout(() => {
+        showNotification({
+          type: 'success',
+          title: 'Welcome to Video Chat Demo!',
+          message: 'Explore comprehensive video communication features and integrations.',
+          duration: 5000
+        });
+      }, 1000);
+    });
+  </script>
+
+  <!-- Video Chat Scripts -->
+  <script src="assets/js/video-chat-engine.js"></script>
+  <script src="assets/js/call-management.js"></script>
+  <script src="assets/js/video-chat-integration.js"></script>
+</body>
+</html>
