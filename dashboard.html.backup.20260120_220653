@@ -158,94 +158,6 @@
       .stat-card-mini { padding: 0.5rem !important; }
       .stat-card-mini .label { font-size: 0.65rem !important; }
       .stat-card-mini .value { font-size: 1.25rem !important; }
-      
-      /* Clean up header on mobile */
-      .header-actions { 
-        flex-wrap: wrap; 
-        gap: 0.25rem !important; 
-      }
-      
-      .header-actions > div:first-child {
-        margin-right: 0.5rem !important;
-      }
-      
-      .header-actions button {
-        padding: 0.4rem 0.6rem !important;
-        font-size: 0.8rem !important;
-      }
-      
-      #user-name-header {
-        display: none !important;
-      }
-      
-      #engagement-displays {
-        gap: 0.5rem !important;
-      }
-      
-      .header-search {
-        max-width: 200px !important;
-      }
-      
-      .header-search input {
-        font-size: 0.8rem !important;
-        padding: 0.4rem 2.5rem 0.4rem 2rem !important;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .header-actions > div:first-child {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem;
-      }
-      
-      .header-actions button {
-        padding: 0.35rem 0.5rem !important;
-        min-width: auto !important;
-      }
-      
-      #engagement-displays {
-        flex-wrap: wrap;
-        gap: 0.25rem !important;
-      }
-      
-      .header-search {
-        max-width: 150px !important;
-      }
-      
-      .header-search input::placeholder {
-        content: "Search...";
-      }
-    }
-
-    /* Header layout improvements */
-    .app-header {
-      padding: 0.75rem 1rem !important;
-      min-height: 60px;
-    }
-    
-    .header-content {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      width: 100%;
-    }
-    
-    .header-logo {
-      flex-shrink: 0;
-    }
-    
-    .header-search {
-      flex: 1;
-      min-width: 200px;
-    }
-    
-    #engagement-displays {
-      flex-shrink: 0;
-    }
-    
-    .header-actions {
-      flex-shrink: 0;
     }
 
     .bottom-stats-bar::-webkit-scrollbar { height: 6px; }
@@ -318,7 +230,7 @@
   </div>
 
   <!-- Header -->
-  <header class="unified-header app-header hidden" id="main-header" data-animate="slideInDown"
+  <header class="unified-header hidden" id="main-header" data-animate="slideInDown"
     style="position: fixed; top:0; left:0; right:0; z-index:1000; background:rgba(10,14,39,0.95);
     backdrop-filter: blur(10px); border-bottom:2px solid rgba(0,224,255,0.3);">
     <div class="header-content">
@@ -331,129 +243,128 @@
         </a>
       </div>
 
-      <div class="header-search" style="position: relative; flex: 1; max-width: 350px;">
+      <div class="header-search" style="position: relative;">
         <i class="fas fa-search"
-           style="position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; font-size:0.9rem;"></i>
-        <input type="text" id="global-search" placeholder="Search..." 
-               style="width: 100%; padding: 0.5rem 3rem 0.5rem 2.25rem; border: 1px solid rgba(0,224,255,0.3);
-                      border-radius: 8px; background: rgba(0,224,255,0.05); color: white; font-size: 0.9rem;
-                      outline: none; transition: all 0.2s;"
-               onfocus="this.style.borderColor='rgba(0,224,255,0.6)'; this.style.background='rgba(0,224,255,0.1)'"
-               onblur="this.style.borderColor='rgba(0,224,255,0.3)'; this.style.background='rgba(0,224,255,0.05)'"
+           style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none;"></i>
+        <input type="text" id="global-search" placeholder="Search everything... (Ctrl+K)" 
+               style="padding-left:2.5rem; padding-right:8rem;"
                onclick="openEnhancedSearch(this.value)"
                onfocus="openEnhancedSearch(this.value)">
-        <button id="search-button"
-          onclick="openEnhancedSearch(document.getElementById('global-search').value)"
-          style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
-                 background: linear-gradient(135deg,#00e0ff,#0080ff); border: none; padding: 0.35rem 0.6rem; 
-                 border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 0.8rem;
-                 transition: all 0.2s;"
-          onmouseover="this.style.transform='translateY(-50%) scale(1.05)'"
-          onmouseout="this.style.transform='translateY(-50%) scale(1)'">
-          <i class="fas fa-search"></i>
-        </button>
+        <div style="position:absolute; right:0.25rem; top:50%; transform:translateY(-50%); display:flex; gap:0.25rem;">
+          <button id="search-button"
+            onclick="openEnhancedSearch(document.getElementById('global-search').value)"
+            style="background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.4rem 0.75rem; border-radius:6px;
+            color:white; cursor:pointer; font-weight:600; font-size:0.85rem;">
+            <i class="fas fa-search"></i>
+          </button>
+          <button onclick="openEnhancedSearch('', 'people')"
+            style="background:rgba(0,224,255,0.2); border:1px solid rgba(0,224,255,0.4); padding:0.4rem 0.5rem; border-radius:6px;
+            color:#00e0ff; cursor:pointer; font-size:0.8rem;" title="Search People">
+            <i class="fas fa-users"></i>
+          </button>
+          <button onclick="openEnhancedSearch('', 'projects')"
+            style="background:rgba(0,224,255,0.2); border:1px solid rgba(0,224,255,0.4); padding:0.4rem 0.5rem; border-radius:6px;
+            color:#00e0ff; cursor:pointer; font-size:0.8rem;" title="Search Projects">
+            <i class="fas fa-lightbulb"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Engagement displays will be injected here by daily-engagement.js -->
       <div id="engagement-displays" style="display: flex; align-items: center; gap: 0.75rem;"></div>
 
-      <div class="header-actions" style="display: flex; align-items: center; gap: 0.5rem;">
-        <!-- Primary Actions Group -->
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-right: 1rem;">
-          <button onclick="openMessagingInterface()" 
-                  style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #00e0ff; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Messages"
-                  onmouseover="this.style.background='rgba(0,224,255,0.2)'; this.style.borderColor='rgba(0,224,255,0.5)'"
-                  onmouseout="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
-            <i class="fas fa-comments"></i>
-          </button>
+      <div class="header-actions">
+        <!-- Real-time Collaboration Buttons -->
+        <button onclick="openMessagingInterface()" 
+                style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #00e0ff; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Real-time Messaging"
+                onmouseover="this.style.background='rgba(0,224,255,0.2)'; this.style.borderColor='rgba(0,224,255,0.5)'"
+                onmouseout="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
+          <i class="fas fa-comments"></i>
+          <span style="margin-left: 0.5rem;">Messages</span>
+        </button>
 
-          <button onclick="openActivityFeed()" 
-                  style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #ff6b6b; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Activity"
-                  onmouseover="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
-                  onmouseout="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'">
-            <i class="fas fa-stream"></i>
-          </button>
+        <button onclick="openActivityFeed()" 
+                style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #ff6b6b; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Live Activity Feed"
+                onmouseover="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
+                onmouseout="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'">
+          <i class="fas fa-stream"></i>
+          <span style="margin-left: 0.5rem;">Activity</span>
+        </button>
 
-          <button onclick="openAnalyticsDashboard()" 
-                  style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #00ff88; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Analytics"
-                  onmouseover="this.style.background='rgba(0,255,136,0.2)'; this.style.borderColor='rgba(0,255,136,0.5)'"
-                  onmouseout="this.style.background='rgba(0,255,136,0.1)'; this.style.borderColor='rgba(0,255,136,0.3)'">
-            <i class="fas fa-chart-line"></i>
-          </button>
+        <button onclick="openAnalyticsDashboard()" 
+                style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #00ff88; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Analytics & Insights Dashboard"
+                onmouseover="this.style.background='rgba(0,255,136,0.2)'; this.style.borderColor='rgba(0,255,136,0.5)'"
+                onmouseout="this.style.background='rgba(0,255,136,0.1)'; this.style.borderColor='rgba(0,255,136,0.3)'">
+          <i class="fas fa-chart-line"></i>
+          <span style="margin-left: 0.5rem;">Analytics</span>
+        </button>
 
-          <button onclick="openVideoCallInterface()" 
-                  style="background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #ffaa00; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Video"
-                  onmouseover="this.style.background='rgba(255,170,0,0.2)'; this.style.borderColor='rgba(255,170,0,0.5)'"
-                  onmouseout="this.style.background='rgba(255,170,0,0.1)'; this.style.borderColor='rgba(255,170,0,0.3)'">
-            <i class="fas fa-video"></i>
-          </button>
+        <button onclick="openVideoCallInterface()" 
+                style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #ff6b6b; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Video Chat & Calls"
+                onmouseover="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
+                onmouseout="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'">
+          <i class="fas fa-video"></i>
+          <span style="margin-left: 0.5rem;">Video</span>
+        </button>
 
-          <button onclick="openCollaborationHub()" 
-                  style="background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #8a2be2; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Teams"
-                  onmouseover="this.style.background='rgba(138,43,226,0.2)'; this.style.borderColor='rgba(138,43,226,0.5)'"
-                  onmouseout="this.style.background='rgba(138,43,226,0.1)'; this.style.borderColor='rgba(138,43,226,0.3)'">
-            <i class="fas fa-users-cog"></i>
-          </button>
+        <!-- Team Builder Button -->
+        <button onclick="openCollaborationHub()" 
+                style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #00e0ff; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Team Building & Collaboration Hub"
+                onmouseover="this.style.background='rgba(0,224,255,0.2)'; this.style.borderColor='rgba(0,224,255,0.5)'"
+                onmouseout="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
+          <i class="fas fa-users-cog"></i>
+          <span style="margin-left: 0.5rem;">Teams</span>
+        </button>
+
+        <div class="header-notification" id="notifications-bell" 
+             style="cursor:pointer;" 
+             title="View notifications and settings"
+             onclick="openNotificationCenter()">
+          <i class="fas fa-bell"></i>
+          <span class="notification-badge hidden" id="notif-count">0</span>
         </div>
 
-        <!-- Secondary Actions Group -->
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <div class="header-notification" id="notifications-bell" 
-               style="cursor:pointer; padding: 0.5rem; border-radius: 8px; 
-                      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                      color: #ddd; transition: all 0.2s;" 
-               title="Notifications"
-               onclick="openNotificationCenter()"
-               onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'"
-               onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
-            <i class="fas fa-bell"></i>
-            <span class="notification-badge hidden" id="notif-count">0</span>
-          </div>
+        <button id="logout-btn"
+          style="background: rgba(255, 59, 48, 0.15);
+                 border: 1px solid rgba(255, 59, 48, 0.3);
+                 color: #ff3b30;
+                 padding: 0.5rem 1rem;
+                 border-radius: 8px;
+                 cursor: pointer;
+                 font-size: 0.9rem;
+                 font-weight: 600;
+                 transition: all 0.2s ease;
+                 display: flex;
+                 align-items: center;
+                 gap: 0.5rem;"
+          onmouseover="this.style.background='rgba(255, 59, 48, 0.25)'; this.style.borderColor='rgba(255, 59, 48, 0.5)';"
+          onmouseout="this.style.background='rgba(255, 59, 48, 0.15)'; this.style.borderColor='rgba(255, 59, 48, 0.3)';"
+          title="Logout">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </button>
 
-          <div class="user-menu" id="user-menu" 
-               style="cursor:pointer; display: flex; align-items: center; gap: 0.5rem; 
-                      padding: 0.5rem 0.75rem; border-radius: 8px; 
-                      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                      transition: all 0.2s;" 
-               title="Profile"
-               onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'"
-               onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
-            <div class="user-avatar" id="user-avatar-header" style="width: 24px; height: 24px;">
-              <span id="user-initials-header" style="font-size: 0.8rem;">?</span>
-            </div>
-            <span id="user-name-header" style="font-size: 0.9rem; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Loading...</span>
+        <div class="user-menu" id="user-menu" style="cursor:pointer;" title="View your profile">
+          <div class="user-avatar" id="user-avatar-header">
+            <span id="user-initials-header">?</span>
           </div>
-
-          <button id="logout-btn"
-            style="background: rgba(255, 59, 48, 0.15);
-                   border: 1px solid rgba(255, 59, 48, 0.3);
-                   color: #ff3b30;
-                   padding: 0.5rem 0.75rem;
-                   border-radius: 8px;
-                   cursor: pointer;
-                   font-size: 0.9rem;
-                   font-weight: 600;
-                   transition: all 0.2s ease;"
-            onmouseover="this.style.background='rgba(255, 59, 48, 0.25)'; this.style.borderColor='rgba(255, 59, 48, 0.5)';"
-            onmouseout="this.style.background='rgba(255, 59, 48, 0.15)'; this.style.borderColor='rgba(255, 59, 48, 0.3)';"
-            title="Logout">
-            <i class="fas fa-sign-out-alt"></i>
-          </button>
+          <span id="user-name-header">Loading...</span>
+          <i class="fas fa-user-circle"></i>
         </div>
       </div>
     </div>
@@ -1051,27 +962,27 @@
   <script src="assets/js/event-deduplication.js?v=deduplication-2026-01-20"></script>
   
   <!-- Cache-busting using git commit hash - changes on every deploy -->
-  <script type="module" src="assets/js/supabaseClient.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/supabaseClient.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Non-module scripts with commit-based cache-busting -->
-  <script src="assets/js/ecosystem-connector.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/cynq.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/neuralBackground.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/ecosystem-connector.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/cynq.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/neuralBackground.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Feature modules with commit-based cache-busting -->
-  <script type="module" src="assets/js/onboarding.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/node-panel.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/network-filters.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/graph-legend.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/admin-analytics.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/theme-admin.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/theme-discovery.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/enhanced-project-creation.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/project-creation-integration.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/smart-connection-suggestions.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/enhanced-connection-discovery.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/enhanced-search-discovery.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/search-integration.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/onboarding.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/node-panel.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/network-filters.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/graph-legend.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/admin-analytics.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/theme-admin.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/theme-discovery.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/enhanced-project-creation.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/project-creation-integration.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/smart-connection-suggestions.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/enhanced-connection-discovery.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/enhanced-search-discovery.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/search-integration.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
   
   <!-- Enhanced Team Building System -->
   <script type="module" src="assets/js/enhanced-team-builder.js?v=team-building-2026-01-20"></script>
@@ -1094,33 +1005,33 @@
   <!-- UI Enhancement System -->
   <script type="module" src="assets/js/ui-enhancements.js?v=ui-enhancements-2026-01-20"></script>
   
-  <script type="module" src="assets/js/daily-engagement.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/connectionRequests.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/daily-engagement.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/connectionRequests.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Messaging with commit-based cache-busting -->
-  <script src="assets/js/messaging.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/messaging.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Auth + profile with commit-based cache-busting for auth fix -->
-  <script type="module" src="auth.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="profile.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="auth.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="profile.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Synapse initialization helper with commit-based cache-busting -->
-  <script src="assets/js/synapse-init-helper.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/synapse-init-helper.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Connection status indicator with commit-based cache-busting -->
-  <script src="assets/js/connection-status.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/connection-status.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Synapse boot with commit-based cache-busting -->
-  <script type="module" src="assets/js/synapse.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/synapse.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Theme Strategy Toggle (for testing both old and new systems) -->
-  <script src="assets/js/theme-strategy-toggle.js?v=81031223963"></script>
+  <script src="assets/js/theme-strategy-toggle.js?v=1768917963"></script>
 
   <!-- Main app boot with commit-based cache-busting -->
-  <script type="module" src="main.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="main.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Dashboard controller with commit-based cache-busting -->
-  <script type="module" src="assets/js/dashboardPane.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/dashboardPane.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Enhanced Onboarding System -->
   <script src="assets/js/enhanced-onboarding.js?v=onboarding-2026-01-20"></script>
@@ -1134,13 +1045,13 @@
   <script src="assets/js/start-flow-complete-integration.js?v=redesigned-2026-01-20"></script>
 
   <!-- Legacy START Flow (for fallback) -->
-  <script src="assets/js/start-flow.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/start-flow-enhanced.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/start-flow-phase2.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/start-flow-integration.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/start-flow.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/start-flow-enhanced.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/start-flow-phase2.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/start-flow-integration.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Mentor Guide System with commit-based cache-busting -->
-  <script src="assets/js/mentor-guide.js?v=81031223cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/mentor-guide.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
   <!-- Logout Button Handler -->
   <script>
