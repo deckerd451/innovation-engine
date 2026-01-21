@@ -35,9 +35,90 @@ const MESSAGE_TYPES = {
   CONNECTION_REQUEST: 'connection_request'
 };
 
+// Send direct message function
+async function sendDirectMessage(userId, message) {
+  console.log('📨 Direct message function called:', userId, message);
+  
+  if (!currentUserProfile || !userId) {
+    console.error('❌ Missing user information for direct message');
+    return;
+  }
+
+  try {
+    // Check if conversation already exists
+    const { data: existingConversation } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`and(participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${userId}),and(participant_1_id.eq.${userId},participant_2_id.eq.${currentUserProfile.id})`)
+      .single();
+
+    let conversationId;
+    
+    if (existingConversation) {
+      conversationId = existingConversation.id;
+    } else {
+      // Create new conversation
+      const { data: newConversation, error: createError } = await supabase
+        .from('conversations')
+        .insert([{
+          participant_1_id: currentUserProfile.id,
+          participant_2_id: userId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      conversationId = newConversation.id;
+    }
+
+    // Send the message if provided (using community ID as sender)
+    if (message && message.trim()) {
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserProfile.id, // Use community ID
+          content: message.trim(),
+          message_type: MESSAGE_TYPES.TEXT
+        });
+
+      if (messageError) throw messageError;
+
+      // Update conversation timestamp
+      await supabase
+        .from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+    }
+
+    // Open messaging interface to the conversation
+    await openMessagingInterface(conversationId);
+    
+    console.log('✅ Direct message sent successfully');
+    
+  } catch (error) {
+    console.error('❌ Error sending direct message:', error);
+    if (window.showSynapseNotification) {
+      window.showSynapseNotification('Failed to send message', 'error');
+    }
+  }
+}
+
+// Initialize real-time collaboration
 // Initialize real-time collaboration
 export function initRealtimeCollaboration() {
   supabase = window.supabase;
+  
+  // Expose functions globally FIRST to prevent undefined errors
+  window.sendDirectMessage = sendDirectMessage;
+  window.openMessagingInterface = openMessagingInterface;
+  window.closeMessagingInterface = closeMessagingInterface;
+  window.markMessagesAsRead = markMessagesAsRead;
+  window.showUserPresence = showUserPresence;
+  window.startTypingIndicator = startTypingIndicator;
+  window.stopTypingIndicator = stopTypingIndicator;
   
   // Listen for profile loaded
   window.addEventListener('profile-loaded', (e) => {
@@ -45,16 +126,7 @@ export function initRealtimeCollaboration() {
     setupRealtimeChannels();
   });
 
-  // Expose functions globally
-  window.openMessagingInterface = openMessagingInterface;
-  window.closeMessagingInterface = closeMessagingInterface;
-  window.sendDirectMessage = sendDirectMessage;
-  window.markMessagesAsRead = markMessagesAsRead;
-  window.showUserPresence = showUserPresence;
-  window.startTypingIndicator = startTypingIndicator;
-  window.stopTypingIndicator = stopTypingIndicator;
-
-  console.log('✅ Real-time collaboration initialized');
+  console.log('✅ Real-time collaboration ready');
 }
 
 // Setup real-time channels
@@ -531,15 +603,11 @@ async function loadConversationsList() {
   try {
     console.log('📋 Loading conversations for user:', currentUserProfile.id);
 
-    // First, let's try a simpler query to check if conversations table exists
+    // Try a simple query first to test table access
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        participant1:community!participant1_id(id, name, image_url),
-        participant2:community!participant2_id(id, name, image_url)
-      `)
-      .or(`participant1_id.eq.${currentUserProfile.id},participant2_id.eq.${currentUserProfile.id}`)
+      .select('*')
+      .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`)
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -569,7 +637,7 @@ async function loadConversationsList() {
           <i class="fas fa-inbox" style="font-size: 2rem; opacity: 0.3; margin-bottom: 1rem;"></i>
           <h4 style="color: #00e0ff; margin-bottom: 0.5rem;">No conversations yet</h4>
           <p style="margin-bottom: 1rem;">Start connecting with community members!</p>
-          <button onclick="closeMessaging(); window.openEnhancedSearch?.('', 'people')" style="
+          <button onclick="closeMessagingInterface(); window.openEnhancedSearch?.('', 'people')" style="
             background: linear-gradient(135deg, #00e0ff, #0080ff);
             border: none;
             border-radius: 8px;
@@ -586,6 +654,30 @@ async function loadConversationsList() {
     }
 
     console.log(`📋 Loaded ${conversations.length} conversations`);
+
+    // Get participant details for each conversation
+    const participantIds = new Set();
+    conversations.forEach(conv => {
+      participantIds.add(conv.participant_1_id);
+      participantIds.add(conv.participant_2_id);
+    });
+
+    // Fetch participant details
+    let participantDetails = new Map();
+    if (participantIds.size > 0) {
+      try {
+        const { data: participants } = await supabase
+          .from('community')
+          .select('id, name, image_url')
+          .in('id', Array.from(participantIds));
+        
+        if (participants) {
+          participants.forEach(p => participantDetails.set(p.id, p));
+        }
+      } catch (participantError) {
+        console.warn('📋 Could not load participant details:', participantError);
+      }
+    }
 
     // Get last messages for each conversation
     const conversationIds = conversations.map(c => c.id);
@@ -614,9 +706,11 @@ async function loadConversationsList() {
 
     let html = '';
     conversations.forEach(conversation => {
-      const otherUser = conversation.participant1_id === currentUserProfile.id 
-        ? conversation.participant2 
-        : conversation.participant1;
+      const otherUserId = conversation.participant_1_id === currentUserProfile.id 
+        ? conversation.participant_2_id 
+        : conversation.participant_1_id;
+      
+      const otherUser = participantDetails.get(otherUserId);
       
       if (!otherUser) {
         console.warn('📋 Skipping conversation with missing user data:', conversation.id);
@@ -718,19 +812,24 @@ async function loadConversationMessages(conversationId) {
     // Get conversation details
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        participant1:community!conversations_participant1_id_fkey(id, name, image_url),
-        participant2:community!conversations_participant2_id_fkey(id, name, image_url)
-      `)
+      .select('*')
       .eq('id', conversationId)
       .single();
 
     if (convError) throw convError;
 
-    const otherUser = conversation.participant1_id === currentUserProfile.id 
-      ? conversation.participant2 
-      : conversation.participant1;
+    // Get participant details
+    const otherUserId = conversation.participant_1_id === currentUserProfile.id 
+      ? conversation.participant_2_id 
+      : conversation.participant_1_id;
+
+    const { data: otherUser, error: userError } = await supabase
+      .from('community')
+      .select('id, name, image_url')
+      .eq('id', otherUserId)
+      .single();
+
+    if (userError) throw userError;
 
     // Update chat header
     const chatHeader = document.getElementById('chat-header');
@@ -773,6 +872,7 @@ async function loadConversationMessages(conversationId) {
       `;
     } else {
       messages.forEach(message => {
+        // Check if message is from current user (using community ID)
         const isOwn = message.sender_id === currentUserProfile.id;
         const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
@@ -813,12 +913,12 @@ window.sendMessage = async function() {
   if (!content) return;
 
   try {
-    // Send message
+    // Send message using community ID as sender
     const { error } = await supabase
       .from('messages')
       .insert({
         conversation_id: activeConversationId,
-        sender_id: currentUserProfile.id,
+        sender_id: currentUserProfile.id, // Use community ID
         content: content,
         message_type: MESSAGE_TYPES.TEXT
       });
@@ -856,6 +956,7 @@ function appendMessageToConversation(conversationId, message) {
   const messagesArea = document.getElementById('messages-area');
   if (!messagesArea) return;
 
+  // Check if message is from current user (using community ID)
   const isOwn = message.sender_id === currentUserProfile.id;
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
@@ -935,7 +1036,7 @@ window.markMessagesAsRead = async function(conversationId) {
       .from('messages')
       .update({ read_at: new Date().toISOString() })
       .eq('conversation_id', conversationId)
-      .eq('sender_id', currentUserProfile.id, { negate: true })
+      .neq('sender_id', currentUserProfile.id)
       .is('read_at', null);
     
     unreadCounts.set(conversationId, 0);
@@ -996,7 +1097,7 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
     const { data: existingConversation } = await supabase
       .from('conversations')
       .select('id')
-      .or(`and(participant1_id.eq.${currentUserProfile.id},participant2_id.eq.${targetUserId}),and(participant1_id.eq.${targetUserId},participant2_id.eq.${currentUserProfile.id})`)
+      .or(`and(participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${targetUserId}),and(participant_1_id.eq.${targetUserId},participant_2_id.eq.${currentUserProfile.id})`)
       .single();
 
     let conversationId;
@@ -1009,8 +1110,8 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
       const { data: newConversation, error: createError } = await supabase
         .from('conversations')
         .insert([{
-          participant1_id: currentUserProfile.id,
-          participant2_id: targetUserId,
+          participant_1_id: currentUserProfile.id,
+          participant_2_id: targetUserId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -1039,8 +1140,7 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
     }
 
     // Open the messaging interface and conversation
-    await openMessaging();
-    await openConversation(conversationId);
+    await openMessagingInterface(conversationId);
     
     // Focus on message input
     setTimeout(() => {

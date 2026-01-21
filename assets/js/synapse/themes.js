@@ -47,7 +47,7 @@ export async function markInterested(supabase, { themeId, communityId }) {
     .insert([{
       theme_id: themeId,
       community_id: communityId,
-      signals: "interested",
+      signals: ["interested"], // Fix: Use array format
       engagement_level: "observer"
     }]);
 
@@ -65,7 +65,7 @@ export async function upgradeEngagement(supabase, { themeId, communityId, newLev
     .from("theme_participants")
     .update({
       engagement_level: newLevel,
-      signals: newLevel === "observer" ? "interested" : "active"
+      signals: newLevel === "observer" ? ["interested"] : ["active"] // Fix: Use array format
     })
     .eq("theme_id", themeId)
     .eq("community_id", communityId);

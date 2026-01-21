@@ -318,7 +318,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         target: `theme:${tp.theme_id}`, // Theme
         status: "theme-participant",
         type: "theme",
-        signals: tp.signals || "interested",
+        signals: tp.signals || ["interested"], // Fix: Ensure array format
         engagement_level: tp.engagement_level || "observer"
       }));
 
