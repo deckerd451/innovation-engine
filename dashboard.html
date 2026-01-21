@@ -246,13 +246,28 @@
       <div class="header-search" style="position: relative;">
         <i class="fas fa-search"
            style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none;"></i>
-        <input type="text" id="global-search" placeholder="Search people, skills, projects..." style="padding-left:2.5rem; padding-right:4rem;">
-        <button id="search-button"
-          style="position:absolute; right:0.25rem; top:50%; transform:translateY(-50%);
-          background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.4rem 0.75rem; border-radius:6px;
-          color:white; cursor:pointer; font-weight:600; font-size:0.85rem;">
-          <i class="fas fa-search"></i>
-        </button>
+        <input type="text" id="global-search" placeholder="Search everything... (Ctrl+K)" 
+               style="padding-left:2.5rem; padding-right:8rem;"
+               onclick="openEnhancedSearch(this.value)"
+               onfocus="openEnhancedSearch(this.value)">
+        <div style="position:absolute; right:0.25rem; top:50%; transform:translateY(-50%); display:flex; gap:0.25rem;">
+          <button id="search-button"
+            onclick="openEnhancedSearch(document.getElementById('global-search').value)"
+            style="background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.4rem 0.75rem; border-radius:6px;
+            color:white; cursor:pointer; font-weight:600; font-size:0.85rem;">
+            <i class="fas fa-search"></i>
+          </button>
+          <button onclick="openEnhancedSearch('', 'people')"
+            style="background:rgba(0,224,255,0.2); border:1px solid rgba(0,224,255,0.4); padding:0.4rem 0.5rem; border-radius:6px;
+            color:#00e0ff; cursor:pointer; font-size:0.8rem;" title="Search People">
+            <i class="fas fa-users"></i>
+          </button>
+          <button onclick="openEnhancedSearch('', 'projects')"
+            style="background:rgba(0,224,255,0.2); border:1px solid rgba(0,224,255,0.4); padding:0.4rem 0.5rem; border-radius:6px;
+            color:#00e0ff; cursor:pointer; font-size:0.8rem;" title="Search Projects">
+            <i class="fas fa-lightbulb"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Engagement displays will be injected here by daily-engagement.js -->

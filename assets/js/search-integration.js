@@ -22,64 +22,11 @@ export function initSearchIntegration() {
   console.log('✅ Search integration initialized');
 }
 
-// Add search button to dashboard
+// Add search button to dashboard (integrated into header)
 function addSearchButtonToDashboard() {
-  // Find a good place to add the search button
-  const dashboardHeader = document.querySelector('.dashboard-header') || 
-                         document.querySelector('#dashboard-content') ||
-                         document.querySelector('body');
-
-  if (!dashboardHeader) return;
-
-  // Check if search button already exists
-  if (document.getElementById('global-search-btn')) return;
-
-  // Create search button
-  const searchButton = document.createElement('button');
-  searchButton.id = 'global-search-btn';
-  searchButton.innerHTML = `
-    <i class="fas fa-search"></i>
-    <span>Search</span>
-  `;
-  searchButton.style.cssText = `
-    position: fixed;
-    top: 2rem;
-    right: 2rem;
-    background: linear-gradient(135deg, rgba(0, 224, 255, 0.2), rgba(0, 224, 255, 0.1));
-    border: 2px solid rgba(0, 224, 255, 0.4);
-    border-radius: 12px;
-    color: #00e0ff;
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 0.9rem;
-    z-index: 1000;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    box-shadow: 0 4px 15px rgba(0, 224, 255, 0.2);
-  `;
-
-  // Add hover effects
-  searchButton.addEventListener('mouseenter', () => {
-    searchButton.style.transform = 'translateY(-2px)';
-    searchButton.style.boxShadow = '0 8px 25px rgba(0, 224, 255, 0.3)';
-  });
-
-  searchButton.addEventListener('mouseleave', () => {
-    searchButton.style.transform = 'translateY(0)';
-    searchButton.style.boxShadow = '0 4px 15px rgba(0, 224, 255, 0.2)';
-  });
-
-  // Add click handler
-  searchButton.addEventListener('click', () => {
-    if (typeof window.openEnhancedSearch === 'function') {
-      window.openEnhancedSearch();
-    }
-  });
-
-  document.body.appendChild(searchButton);
+  // Search functionality is now integrated into the header
+  // No need for additional search buttons
+  console.log('✅ Search integrated into header');
 }
 
 // Setup global search shortcut (Ctrl/Cmd + K)

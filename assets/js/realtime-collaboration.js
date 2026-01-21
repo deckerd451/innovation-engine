@@ -196,9 +196,9 @@ export async function openMessagingInterface(conversationId = null) {
   if (existing) existing.remove();
 
   // Create messaging interface
-  const interface = document.createElement('div');
-  interface.id = 'messaging-interface';
-  interface.style.cssText = `
+  const messagingInterface = document.createElement('div');
+  messagingInterface.id = 'messaging-interface';
+  messagingInterface.style.cssText = `
     position: fixed;
     top: 0;
     left: 0;
@@ -213,7 +213,7 @@ export async function openMessagingInterface(conversationId = null) {
     padding: 1rem;
   `;
 
-  interface.innerHTML = `
+  messagingInterface.innerHTML = `
     <div class="messaging-container" style="
       background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
       border: 2px solid rgba(0, 224, 255, 0.5);
@@ -454,7 +454,7 @@ export async function openMessagingInterface(conversationId = null) {
   `;
   document.head.appendChild(style);
 
-  document.body.appendChild(interface);
+  document.body.appendChild(messagingInterface);
 
   // Setup event listeners
   setupMessagingEventListeners();
@@ -494,10 +494,10 @@ function setupMessagingEventListeners() {
   }
 
   // Close on backdrop click
-  const interface = document.getElementById('messaging-interface');
-  if (interface) {
-    interface.addEventListener('click', (e) => {
-      if (e.target === interface) {
+  const messagingInterface = document.getElementById('messaging-interface');
+  if (messagingInterface) {
+    messagingInterface.addEventListener('click', (e) => {
+      if (e.target === messagingInterface) {
         closeMessagingInterface();
       }
     });
@@ -863,9 +863,9 @@ window.showUserPresence = function(userId) {
 };
 
 window.closeMessagingInterface = function() {
-  const interface = document.getElementById('messaging-interface');
-  if (interface) {
-    interface.remove();
+  const messagingInterface = document.getElementById('messaging-interface');
+  if (messagingInterface) {
+    messagingInterface.remove();
   }
   
   // Cleanup channels if needed

@@ -104,24 +104,30 @@ function setupAnimationObservers() {
 function setupInteractiveElements() {
   // Enhanced button interactions
   document.addEventListener('click', (e) => {
-    const button = e.target.closest('.btn');
-    if (button && !button.disabled) {
-      rippleEffect(button, e);
+    if (e.target && e.target.closest) {
+      const button = e.target.closest('.btn');
+      if (button && !button.disabled) {
+        rippleEffect(button, e);
+      }
     }
   });
 
   // Card hover effects
   document.addEventListener('mouseenter', (e) => {
-    const card = e.target.closest('.card');
-    if (card && !card.classList.contains('no-hover')) {
-      card.classList.add('hover-lift');
+    if (e.target && e.target.closest) {
+      const card = e.target.closest('.card');
+      if (card && !card.classList.contains('no-hover')) {
+        card.classList.add('hover-lift');
+      }
     }
   }, true);
 
   document.addEventListener('mouseleave', (e) => {
-    const card = e.target.closest('.card');
-    if (card) {
-      card.classList.remove('hover-lift');
+    if (e.target && e.target.closest) {
+      const card = e.target.closest('.card');
+      if (card) {
+        card.classList.remove('hover-lift');
+      }
     }
   }, true);
 

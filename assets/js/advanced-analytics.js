@@ -44,6 +44,15 @@ const METRIC_CATEGORIES = {
   TECHNICAL: 'technical'
 };
 
+// Performance monitoring thresholds
+const PERFORMANCE_THRESHOLDS = {
+  MEMORY_WARNING: 100, // MB
+  MEMORY_CRITICAL: 200, // MB
+  GOOD_FID: 100, // ms (First Input Delay)
+  GOOD_LCP: 2500, // ms (Largest Contentful Paint)
+  GOOD_CLS: 0.1 // Cumulative Layout Shift
+};
+
 // Initialize advanced analytics
 export function initAdvancedAnalytics() {
   supabase = window.supabase;
@@ -1279,6 +1288,24 @@ function setupRealTimeAnalytics() {
     .subscribe();
 
   console.log('📊 Real-time analytics streaming enabled');
+}
+
+// Get current performance metrics
+function getPerformanceMetrics() {
+  const memory = performance.memory || {};
+  const navigation = performance.getEntriesByType('navigation')[0] || {};
+  
+  return {
+    currentMemory: Math.round((memory.usedJSHeapSize || 0) / 1024 / 1024), // MB
+    totalMemory: Math.round((memory.totalJSHeapSize || 0) / 1024 / 1024), // MB
+    memoryLimit: Math.round((memory.jsHeapSizeLimit || 0) / 1024 / 1024), // MB
+    loadTime: navigation.loadEventEnd - navigation.loadEventStart || 0,
+    domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart || 0,
+    avgInteractionLatency: sessionData.interactions > 0 ? sessionData.timeSpent / sessionData.interactions : 0,
+    pageViews: sessionData.pageViews,
+    interactions: sessionData.interactions,
+    sessionDuration: Date.now() - sessionData.startTime
+  };
 }
 
 // Performance monitoring integration
