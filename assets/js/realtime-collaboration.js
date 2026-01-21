@@ -48,6 +48,8 @@ export function initRealtimeCollaboration() {
   // Expose functions globally
   window.openMessagingInterface = openMessagingInterface;
   window.closeMessagingInterface = closeMessagingInterface;
+  window.openConversation = openConversation;
+  window.loadConversationsList = loadConversationsList;
   window.sendDirectMessage = sendDirectMessage;
   window.markMessagesAsRead = markMessagesAsRead;
   window.showUserPresence = showUserPresence;
