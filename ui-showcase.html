@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UI Enhancement Showcase</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  
+  <!-- Enhanced UI Styles -->
+  <link rel="stylesheet" href="assets/css/enhanced-ui.css">
+  <link rel="stylesheet" href="assets/css/animations.css">
+  <link rel="stylesheet" href="assets/css/mobile-optimized.css">
+  
+  <style>
+    body {
+      padding: 2rem 0;
+    }
+    
+    .showcase-section {
+      margin-bottom: 4rem;
+      padding: 2rem;
+    }
+    
+    .showcase-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    
+    .component-demo {
+      background: var(--bg-card);
+      border: 1px solid var(--border-secondary);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .demo-title {
+      color: var(--primary-cyan);
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    
+    .demo-description {
+      color: var(--text-tertiary);
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+    
+    .demo-content {
+      display: grid;
+      gap: 1rem;
+    }
+    
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .color-swatch {
+      text-align: center;
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .typography-demo h1,
+    .typography-demo h2,
+    .typography-demo h3,
+    .typography-demo h4,
+    .typography-demo h5,
+    .typography-demo h6 {
+      margin-bottom: 0.5rem;
+    }
+    
+    .animation-demo-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-secondary);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-base);
+    }
+    
+    .animation-demo-item:hover {
+      border-color: var(--primary-cyan);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="showcase-header">
+      <h1 data-animate="fadeInDown">✨ UI Enhancement Showcase</h1>
+      <p data-animate="fadeInUp" data-stagger="1">
+        Comprehensive UI/UX improvements for CharlestonHacks Innovation Engine
+      </p>
+    </div>
+
+    <!-- Color Palette -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="2">
+      <div class="component-demo">
+        <h2 class="demo-title">Color Palette</h2>
+        <p class="demo-description">Enhanced color system with CSS custom properties</p>
+        
+        <div class="color-palette">
+          <div class="color-swatch" style="background: var(--primary-cyan);">
+            Primary Cyan<br>#00e0ff
+          </div>
+          <div class="color-swatch" style="background: var(--secondary-red);">
+            Secondary Red<br>#ff6b6b
+          </div>
+          <div class="color-swatch" style="background: var(--accent-green);">
+            Accent Green<br>#00ff88
+          </div>
+          <div class="color-swatch" style="background: var(--accent-orange);">
+            Accent Orange<br>#ffaa00
+          </div>
+          <div class="color-swatch" style="background: var(--accent-purple);">
+            Accent Purple<br>#8a2be2
+          </div>
+          <div class="color-swatch" style="background: var(--accent-gold);">
+            Accent Gold<br>#ffd700
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Typography -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="3">
+      <div class="component-demo">
+        <h2 class="demo-title">Typography System</h2>
+        <p class="demo-description">Consistent typography scale with proper hierarchy</p>
+        
+        <div class="typography-demo">
+          <h1>Heading 1 - Main Title</h1>
+          <h2>Heading 2 - Section Title</h2>
+          <h3>Heading 3 - Subsection</h3>
+          <h4>Heading 4 - Component Title</h4>
+          <h5>Heading 5 - Small Title</h5>
+          <h6>Heading 6 - Micro Title</h6>
+          <p>Body text with proper line height and spacing for optimal readability.</p>
+          <p class="text-secondary">Secondary text with reduced opacity for hierarchy.</p>
+          <p class="text-tertiary">Tertiary text for subtle information.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Button System -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="4">
+      <div class="component-demo">
+        <h2 class="demo-title">Enhanced Button System</h2>
+        <p class="demo-description">Interactive buttons with ripple effects and hover animations</p>
+        
+        <div class="demo-content" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <button class="btn btn-primary">Primary Button</button>
+          <button class="btn btn-secondary">Secondary Button</button>
+          <button class="btn btn-success">Success Button</button>
+          <button class="btn btn-danger">Danger Button</button>
+          
+          <button class="btn btn-primary btn-sm">Small Button</button>
+          <button class="btn btn-primary btn-lg">Large Button</button>
+          <button class="btn btn-primary" disabled>Disabled Button</button>
+          <button class="btn btn-primary">
+            <i class="fas fa-star"></i> With Icon
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card System -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="5">
+      <div class="component-demo">
+        <h2 class="demo-title">Enhanced Card System</h2>
+        <p class="demo-description">Interactive cards with hover effects and proper spacing</p>
+        
+        <div class="grid grid-cols-3">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Card Title</h3>
+              <p class="card-subtitle">Card subtitle</p>
+            </div>
+            <div class="card-body">
+              <p>This is a sample card with enhanced styling and hover effects.</p>
+            </div>
+            <div class="card-footer">
+              <button class="btn btn-primary btn-sm">Action</button>
+              <button class="btn btn-secondary btn-sm">Cancel</button>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Interactive Card</h3>
+            </div>
+            <div class="card-body">
+              <p>Hover over this card to see the lift effect and border animation.</p>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Feature Card</h3>
+            </div>
+            <div class="card-body">
+              <p>Cards include proper spacing, typography, and interactive states.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Form System -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="6">
+      <div class="component-demo">
+        <h2 class="demo-title">Enhanced Form System</h2>
+        <p class="demo-description">Improved form controls with focus states and validation</p>
+        
+        <form style="max-width: 500px;">
+          <div class="form-group">
+            <label class="form-label">Text Input</label>
+            <input type="text" class="form-control" placeholder="Enter text here">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Email Input</label>
+            <input type="email" class="form-control" placeholder="your@email.com">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Textarea</label>
+            <textarea class="form-control" rows="3" placeholder="Enter your message"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary">Submit Form</button>
+            <button type="button" class="btn btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Badge System -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="7">
+      <div class="component-demo">
+        <h2 class="demo-title">Badge System</h2>
+        <p class="demo-description">Status indicators and labels with consistent styling</p>
+        
+        <div class="demo-content" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+          <span class="badge">Default</span>
+          <span class="badge badge-success">Success</span>
+          <span class="badge badge-warning">Warning</span>
+          <span class="badge badge-danger">Danger</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loading States -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="8">
+      <div class="component-demo">
+        <h2 class="demo-title">Loading States</h2>
+        <p class="demo-description">Professional loading indicators and skeleton screens</p>
+        
+        <div class="grid grid-cols-2">
+          <div>
+            <h4>Spinner Loading</h4>
+            <div class="loading">
+              <span class="spinner"></span>
+              Loading content...
+            </div>
+          </div>
+          
+          <div>
+            <h4>Skeleton Loading</h4>
+            <div id="skeleton-demo">
+              <div class="skeleton skeleton-title"></div>
+              <div class="skeleton skeleton-text"></div>
+              <div class="skeleton skeleton-text" style="width: 80%;"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 2rem;">
+          <button class="btn btn-primary" onclick="demoLoadingButton(this)">
+            Demo Loading Button
+          </button>
+          <button class="btn btn-secondary" onclick="demoSkeleton()">
+            Toggle Skeleton
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Animation System -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="9">
+      <div class="component-demo">
+        <h2 class="demo-title">Animation System</h2>
+        <p class="demo-description">Smooth animations and micro-interactions</p>
+        
+        <div class="grid grid-cols-4">
+          <div class="animation-demo-item" onclick="animateElement(this, 'fadeIn')">
+            <i class="fas fa-eye"></i>
+            <p>Fade In</p>
+          </div>
+          
+          <div class="animation-demo-item" onclick="animateElement(this, 'scaleIn')">
+            <i class="fas fa-expand"></i>
+            <p>Scale In</p>
+          </div>
+          
+          <div class="animation-demo-item" onclick="animateElement(this, 'slideInUp')">
+            <i class="fas fa-arrow-up"></i>
+            <p>Slide Up</p>
+          </div>
+          
+          <div class="animation-demo-item" onclick="animateElement(this, 'bounce')">
+            <i class="fas fa-basketball-ball"></i>
+            <p>Bounce</p>
+          </div>
+          
+          <div class="animation-demo-item" onclick="animateElement(this, 'shake')">
+            <i class="fas fa-bell"></i>
+            <p>Shake</p>
+          </div>
+          
+          <div class="animation-demo-item" onclick="animateElement(this, 'pulse')">
+            <i class="fas fa-heart"></i>
+            <p>Pulse</p>
+          </div>
+          
+          <div class="animation-demo-item" onclick="animateElement(this, 'wobble')">
+            <i class="fas fa-wave-square"></i>
+            <p>Wobble</p>
+          </div>
+          
+          <div class="animation-demo-item" onclick="animateElement(this, 'flipInX')">
+            <i class="fas fa-sync"></i>
+            <p>Flip</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Toast Notifications -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="10">
+      <div class="component-demo">
+        <h2 class="demo-title">Toast Notifications</h2>
+        <p class="demo-description">Elegant notification system with multiple types</p>
+        
+        <div class="demo-content" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="createToast('This is an info message', 'info')">
+            Info Toast
+          </button>
+          <button class="btn btn-success" onclick="createToast('Operation completed successfully!', 'success')">
+            Success Toast
+          </button>
+          <button class="btn btn-danger" onclick="createToast('An error occurred', 'error')">
+            Error Toast
+          </button>
+          <button class="btn" style="background: var(--accent-orange); color: white;" onclick="createToast('Warning: Please check your input', 'warning')">
+            Warning Toast
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mobile Responsive -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="11">
+      <div class="component-demo">
+        <h2 class="demo-title">Mobile Responsive Design</h2>
+        <p class="demo-description">Optimized for all screen sizes with touch-friendly interactions</p>
+        
+        <div class="grid grid-auto-fit">
+          <div class="card">
+            <h4>Mobile Navigation</h4>
+            <p>Bottom navigation bar for mobile devices with touch-friendly buttons.</p>
+          </div>
+          
+          <div class="card">
+            <h4>Touch Interactions</h4>
+            <p>Enhanced touch feedback and gestures for mobile users.</p>
+          </div>
+          
+          <div class="card">
+            <h4>Responsive Grid</h4>
+            <p>Adaptive grid system that works on all screen sizes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Accessibility -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="12">
+      <div class="component-demo">
+        <h2 class="demo-title">Accessibility Features</h2>
+        <p class="demo-description">Enhanced accessibility with keyboard navigation and screen reader support</p>
+        
+        <div class="demo-content">
+          <p>✅ Keyboard navigation support</p>
+          <p>✅ Screen reader compatibility</p>
+          <p>✅ High contrast focus indicators</p>
+          <p>✅ Proper ARIA labels and roles</p>
+          <p>✅ Reduced motion preferences</p>
+          <p>✅ Touch target size compliance</p>
+        </div>
+        
+        <div style="margin-top: 1rem;">
+          <button class="btn btn-primary" onclick="announceToScreenReader('This message was announced to screen readers')">
+            Test Screen Reader Announcement
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Performance -->
+    <section class="showcase-section" data-animate="fadeInUp" data-stagger="13">
+      <div class="component-demo">
+        <h2 class="demo-title">Performance Optimizations</h2>
+        <p class="demo-description">Optimized for performance with lazy loading and efficient animations</p>
+        
+        <div class="demo-content">
+          <p>⚡ CSS custom properties for consistent theming</p>
+          <p>⚡ Optimized animations with GPU acceleration</p>
+          <p>⚡ Lazy loading for images and content</p>
+          <p>⚡ Debounced scroll events</p>
+          <p>⚡ Reduced motion support</p>
+          <p>⚡ Efficient DOM manipulation</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Demo Modal -->
+  <div class="modal" id="demo-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Demo Modal</h2>
+        <button class="modal-close" onclick="closeDemoModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>This is a demonstration of the enhanced modal system with smooth animations and backdrop blur.</p>
+        <div class="form-group">
+          <label class="form-label">Sample Input</label>
+          <input type="text" class="form-control" placeholder="Try typing here">
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+        <button class="btn btn-secondary" onclick="closeDemoModal()">Cancel</button>
+        <button class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="assets/js/ui-enhancements.js"></script>
+  
+  <script>
+    // Demo functions
+    function demoLoadingButton(button) {
+      showLoadingState(button, 'Processing...');
+      setTimeout(() => {
+        hideLoadingState(button);
+        createToast('Loading demo completed!', 'success');
+      }, 3000);
+    }
+    
+    let skeletonVisible = false;
+    function demoSkeleton() {
+      const container = document.getElementById('skeleton-demo');
+      if (skeletonVisible) {
+        hideSkeleton(container);
+        skeletonVisible = false;
+      } else {
+        showSkeleton(container, 'default');
+        skeletonVisible = true;
+      }
+    }
+    
+    function openDemoModal() {
+      document.getElementById('demo-modal').classList.add('active');
+    }
+    
+    function closeDemoModal() {
+      document.getElementById('demo-modal').classList.remove('active');
+    }
+    
+    // Add demo modal trigger
+    document.addEventListener('DOMContentLoaded', () => {
+      // Add modal demo button
+      const modalDemo = document.createElement('button');
+      modalDemo.className = 'btn btn-primary';
+      modalDemo.textContent = 'Open Demo Modal';
+      modalDemo.onclick = openDemoModal;
+      
+      const modalSection = document.createElement('section');
+      modalSection.className = 'showcase-section';
+      modalSection.setAttribute('data-animate', 'fadeInUp');
+      modalSection.setAttribute('data-stagger', '14');
+      modalSection.innerHTML = `
+        <div class="component-demo">
+          <h2 class="demo-title">Modal System</h2>
+          <p class="demo-description">Enhanced modals with backdrop blur and smooth animations</p>
+          <div class="demo-content">
+            ${modalDemo.outerHTML}
+          </div>
+        </div>
+      `;
+      
+      document.querySelector('.container').appendChild(modalSection);
+      
+      // Re-initialize animations for new content
+      setTimeout(() => {
+        if (window.intersectionObserver) {
+          modalSection.querySelectorAll('[data-animate]').forEach(element => {
+            window.intersectionObserver.observe(element);
+          });
+        }
+      }, 100);
+    });
+    
+    // Initialize showcase
+    console.log('🎨 UI Showcase initialized');
+  </script>
+</body>
+</html>

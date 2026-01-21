@@ -19,6 +19,11 @@
   <link rel="stylesheet" href="assets/css/messaging.css" />
   <link rel="stylesheet" href="dashboard.css" />
 
+  <!-- Enhanced UI System -->
+  <link rel="stylesheet" href="assets/css/enhanced-ui.css" />
+  <link rel="stylesheet" href="assets/css/animations.css" />
+  <link rel="stylesheet" href="assets/css/mobile-optimized.css" />
+
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
@@ -225,7 +230,7 @@
   </div>
 
   <!-- Header -->
-  <header class="unified-header hidden" id="main-header"
+  <header class="unified-header hidden" id="main-header" data-animate="slideInDown"
     style="position: fixed; top:0; left:0; right:0; z-index:1000; background:rgba(10,14,39,0.95);
     backdrop-filter: blur(10px); border-bottom:2px solid rgba(0,224,255,0.3);">
     <div class="header-content">
@@ -371,7 +376,7 @@
     </button>
 
     <!-- Bottom Bar - Expanded Actions -->
-    <div class="bottom-stats-bar" id="bottom-stats-bar"
+    <div class="bottom-stats-bar" id="bottom-stats-bar" data-animate="slideInUp"
       style="position:absolute; bottom:8px; left:0; right:0; background:rgba(10,14,39,0.95);
       border-top:2px solid rgba(0,224,255,0.3); height:82px; display:flex; align-items:center; justify-content:center;
       gap:0.75rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
@@ -476,31 +481,42 @@
   <!-- Profile Modal -->
   <div class="modal" id="profile-modal">
     <div class="modal-content">
-      <button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button>
-      <div id="modal-profile-content"></div>
+      <div class="modal-header">
+        <h2 class="modal-title">User Profile</h2>
+        <button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-profile-content"></div>
+      </div>
     </div>
   </div>
 
   <!-- Messages Modal -->
   <div class="modal" id="messages-modal">
     <div class="modal-content" style="max-width: 1000px; max-height: 80vh;">
-      <button class="modal-close" onclick="closeMessagesModal()"><i class="fas fa-times"></i></button>
-
-      <!-- Container for messaging.js to render into -->
-      <div id="messages-container"></div>
+      <div class="modal-header">
+        <h2 class="modal-title">Messages</h2>
+        <button class="modal-close" onclick="closeMessagesModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <!-- Container for messaging.js to render into -->
+        <div id="messages-container"></div>
+      </div>
     </div>
   </div>
 
   <!-- Projects Modal -->
   <div class="modal" id="projects-modal">
     <div class="modal-content" style="max-width: 800px;">
-      <button class="modal-close" onclick="closeProjectsModal()"><i class="fas fa-times"></i></button>
-      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-lightbulb"></i> Projects</h2>
-
-      <div style="margin-bottom:1.5rem;">
-        <button onclick="showCreateProjectForm()" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
-        <button onclick="showEnhancedProjectCreation()" class="btn btn-primary" style="margin-left: 0.5rem; background: linear-gradient(135deg, rgba(0,224,255,0.3), rgba(0,224,255,0.2)); border-color: rgba(0,224,255,0.5);"><i class="fas fa-rocket"></i> Enhanced Creation</button>
+      <div class="modal-header">
+        <h2 class="modal-title"><i class="fas fa-lightbulb"></i> Projects</h2>
+        <button class="modal-close" onclick="closeProjectsModal()"><i class="fas fa-times"></i></button>
       </div>
+      <div class="modal-body">
+        <div style="margin-bottom:1.5rem;">
+          <button onclick="showCreateProjectForm()" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
+          <button onclick="showEnhancedProjectCreation()" class="btn btn-primary" style="margin-left: 0.5rem; background: linear-gradient(135deg, rgba(0,224,255,0.3), rgba(0,224,255,0.2)); border-color: rgba(0,224,255,0.5);"><i class="fas fa-rocket"></i> Enhanced Creation</button>
+        </div>
 
       <div id="project-form" style="display:none; background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
           border-radius:12px; padding:1.5rem; margin-bottom:1.5rem;">
@@ -922,6 +938,9 @@
   <script src="assets/js/video-chat-engine.js?v=video-chat-2026-01-20"></script>
   <script src="assets/js/call-management.js?v=video-chat-2026-01-20"></script>
   <script src="assets/js/video-chat-integration.js?v=video-chat-2026-01-20"></script>
+  
+  <!-- UI Enhancement System -->
+  <script src="assets/js/ui-enhancements.js?v=ui-enhancements-2026-01-20"></script>
   
   <script type="module" src="assets/js/daily-engagement.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
   <script type="module" src="assets/js/connectionRequests.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
