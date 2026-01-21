@@ -969,6 +969,11 @@ window.toggleQuickFilters = function() {
   }
 };
 
+window.applySearchFilters = function() {
+  // Apply current filter values and re-run search
+  performEnhancedSearch();
+};
+
 window.clearSearchFilters = function() {
   // Clear filter inputs
   const filters = ['availability-filter', 'role-filter', 'skill-category-filter'];
