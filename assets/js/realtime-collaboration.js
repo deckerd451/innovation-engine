@@ -932,18 +932,120 @@ function playNotificationSound() {
   }
 }
 
-// Placeholder functions for future implementation
+// Send direct message to user
+export async function sendDirectMessage(userId, message) {
+  console.log('📨 Sending direct message to:', userId, message);
+  
+  if (!currentUserProfile || !userId || !message) {
+    console.error('❌ Missing required parameters for direct message');
+    return;
+  }
+
+  try {
+    // Create or find conversation
+    await createNewMessage(userId, 'Direct Message');
+    
+    // The message will be sent through the normal messaging interface
+    console.log('✅ Direct message initiated');
+    
+  } catch (error) {
+    console.error('❌ Error sending direct message:', error);
+    if (window.showSynapseNotification) {
+      window.showSynapseNotification('Failed to send direct message', 'error');
+    }
+  }
+}
+
+// Load active conversations for current user
 async function loadActiveConversations() {
   console.log('📋 Loading active conversations...');
+  
+  if (!currentUserProfile || !supabase) {
+    console.log('📋 No user profile or supabase client available yet');
+    return;
+  }
+
+  try {
+    const { data: conversations, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`)
+      .order('updated_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.warn('📋 Could not load active conversations:', error);
+      return;
+    }
+
+    if (conversations && conversations.length > 0) {
+      console.log(`📋 Found ${conversations.length} active conversations`);
+      
+      // Store conversation IDs for real-time updates
+      conversations.forEach(conv => {
+        activeConversations.set(conv.id, true);
+      });
+    } else {
+      console.log('📋 No active conversations found');
+    }
+
+  } catch (error) {
+    console.error('❌ Error loading active conversations:', error);
+  }
 }
 
+// Load unread message counts
 async function loadUnreadCounts() {
   console.log('📊 Loading unread counts...');
+  
+  if (!currentUserProfile || !supabase) {
+    console.log('📊 No user profile or supabase client available yet');
+    return;
+  }
+
+  try {
+    // Get conversations for current user
+    const { data: conversations, error: convError } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`);
+
+    if (convError || !conversations) {
+      console.warn('📊 Could not load conversations for unread counts:', convError);
+      return;
+    }
+
+    // Get unread message counts for each conversation
+    for (const conv of conversations) {
+      try {
+        const { count, error: countError } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('conversation_id', conv.id)
+          .neq('sender_id', currentUserProfile.user_id)
+          .is('read_at', null);
+
+        if (!countError && count > 0) {
+          unreadCounts.set(conv.id, count);
+          console.log(`📊 Conversation ${conv.id}: ${count} unread messages`);
+        }
+      } catch (error) {
+        console.warn('📊 Error counting unread messages for conversation:', conv.id, error);
+      }
+    }
+
+    console.log(`📊 Loaded unread counts for ${conversations.length} conversations`);
+
+  } catch (error) {
+    console.error('❌ Error loading unread counts:', error);
+  }
 }
 
+// Update unread count for a conversation
 function updateUnreadCount(conversationId, increment) {
   const current = unreadCounts.get(conversationId) || 0;
   unreadCounts.set(conversationId, current + increment);
+  console.log(`📊 Updated unread count for ${conversationId}: ${current + increment}`);
 }
 
 function refreshConversationList() {
