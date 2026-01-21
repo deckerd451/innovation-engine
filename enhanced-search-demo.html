@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Search & Discovery Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27, #1a1a2e);
+            color: white;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .demo-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .demo-header h1 {
+            color: #00e0ff;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .demo-header p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .demo-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .demo-button {
+            background: rgba(0, 224, 255, 0.1);
+            border: 2px solid rgba(0, 224, 255, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .demo-button:hover {
+            border-color: rgba(0, 224, 255, 0.6);
+            background: rgba(0, 224, 255, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 224, 255, 0.2);
+        }
+
+        .demo-button i {
+            font-size: 3rem;
+            color: #00e0ff;
+            margin-bottom: 1rem;
+        }
+
+        .demo-button h3 {
+            color: #00e0ff;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+
+        .demo-button p {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.5;
+        }
+
+        .features-showcase {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .features-showcase h3 {
+            color: #00e0ff;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            background: rgba(0, 224, 255, 0.05);
+            border: 1px solid rgba(0, 224, 255, 0.2);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .feature-card h4 {
+            color: #00e0ff;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-card p {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.5;
+        }
+
+        .search-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .category-card {
+            background: rgba(0, 224, 255, 0.05);
+            border: 1px solid rgba(0, 224, 255, 0.2);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .category-card:hover {
+            border-color: rgba(0, 224, 255, 0.4);
+            background: rgba(0, 224, 255, 0.1);
+        }
+
+        .category-card i {
+            font-size: 2rem;
+            color: #00e0ff;
+            margin-bottom: 0.75rem;
+        }
+
+        .category-card h4 {
+            color: #00e0ff;
+            margin-bottom: 0.5rem;
+        }
+
+        .category-card p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+
+        .status-ready {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.4);
+        }
+
+        .status-demo {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffaa00;
+            border: 1px solid rgba(255, 170, 0, 0.4);
+        }
+
+        .keyboard-shortcuts {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .shortcut-item:last-child {
+            border-bottom: none;
+        }
+
+        .shortcut-key {
+            font-family: monospace;
+            background: rgba(0, 224, 255, 0.2);
+            color: #00e0ff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1><i class="fas fa-search"></i> Enhanced Search & Discovery</h1>
+            <p>Comprehensive search across people, projects, themes, and skills with intelligent filtering and advanced discovery features.</p>
+        </div>
+
+        <div class="demo-buttons">
+            <div class="demo-button" onclick="openEnhancedSearch()">
+                <i class="fas fa-search-plus"></i>
+                <h3>Full Search Interface</h3>
+                <p>Complete search experience with multi-category results, advanced filters, and intelligent ranking.</p>
+                <div class="status-indicator status-ready">Ready to Use</div>
+            </div>
+
+            <div class="demo-button" onclick="openEnhancedSearch('React', 'people')">
+                <i class="fas fa-users"></i>
+                <h3>People Search</h3>
+                <p>Find community members by skills, name, role, or availability with smart filtering.</p>
+                <div class="status-indicator status-ready">Ready to Use</div>
+            </div>
+
+            <div class="demo-button" onclick="openEnhancedSearch('AI', 'projects')">
+                <i class="fas fa-lightbulb"></i>
+                <h3>Project Discovery</h3>
+                <p>Explore active projects, find collaboration opportunities, and discover innovative ideas.</p>
+                <div class="status-indicator status-ready">Ready to Use</div>
+            </div>
+
+            <div class="demo-button" onclick="openEnhancedSearch('', 'themes')">
+                <i class="fas fa-bullseye"></i>
+                <h3>Theme Exploration</h3>
+                <p>Browse theme circles, find focused discussions, and join relevant communities.</p>
+                <div class="status-indicator status-ready">Ready to Use</div>
+            </div>
+
+            <div class="demo-button" onclick="openEnhancedSearch('Python', 'skills')">
+                <i class="fas fa-code"></i>
+                <h3>Skill-Based Search</h3>
+                <p>Discover expertise areas, find skill matches, and explore technical capabilities.</p>
+                <div class="status-indicator status-ready">Ready to Use</div>
+            </div>
+
+            <div class="demo-button" onclick="showSearchAnalytics()">
+                <i class="fas fa-chart-line"></i>
+                <h3>Search Analytics</h3>
+                <p>Track search patterns, popular queries, and discovery insights for platform optimization.</p>
+                <div class="status-indicator status-demo">Demo Mode</div>
+            </div>
+        </div>
+
+        <div class="features-showcase">
+            <h3><i class="fas fa-star"></i> Search Categories</h3>
+            <div class="search-categories">
+                <div class="category-card" onclick="openEnhancedSearch('', 'all')">
+                    <i class="fas fa-search"></i>
+                    <h4>All Results</h4>
+                    <p>Search across all content types with unified results</p>
+                </div>
+                <div class="category-card" onclick="openEnhancedSearch('', 'people')">
+                    <i class="fas fa-users"></i>
+                    <h4>People</h4>
+                    <p>Find community members by name, skills, or interests</p>
+                </div>
+                <div class="category-card" onclick="openEnhancedSearch('', 'projects')">
+                    <i class="fas fa-lightbulb"></i>
+                    <h4>Projects</h4>
+                    <p>Discover active projects and collaboration opportunities</p>
+                </div>
+                <div class="category-card" onclick="openEnhancedSearch('', 'themes')">
+                    <i class="fas fa-bullseye"></i>
+                    <h4>Themes</h4>
+                    <p>Explore theme circles and focused discussions</p>
+                </div>
+                <div class="category-card" onclick="openEnhancedSearch('', 'skills')">
+                    <i class="fas fa-code"></i>
+                    <h4>Skills</h4>
+                    <p>Browse by technical skills and expertise areas</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="features-showcase">
+            <h3><i class="fas fa-cogs"></i> Advanced Features</h3>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h4><i class="fas fa-brain"></i> Intelligent Ranking</h4>
+                    <p>Results ranked by relevance using multi-factor scoring algorithm considering name matches, skill alignment, and content quality.</p>
+                </div>
+                <div class="feature-card">
+                    <h4><i class="fas fa-filter"></i> Advanced Filtering</h4>
+                    <p>Filter by availability, role, skill categories, project status, and time frames for precise discovery.</p>
+                </div>
+                <div class="feature-card">
+                    <h4><i class="fas fa-bolt"></i> Real-time Search</h4>
+                    <p>Instant results as you type with intelligent debouncing and cached data for optimal performance.</p>
+                </div>
+                <div class="feature-card">
+                    <h4><i class="fas fa-tags"></i> Multi-Category Results</h4>
+                    <p>Unified search across people, projects, themes, and skills with categorized result sections.</p>
+                </div>
+                <div class="feature-card">
+                    <h4><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h4>
+                    <p>Efficient navigation with Ctrl/Cmd+K to open search, Tab to navigate, and Escape to close.</p>
+                </div>
+                <div class="feature-card">
+                    <h4><i class="fas fa-link"></i> Deep Integration</h4>
+                    <p>Seamlessly connects with existing node panels, project modals, and connection systems.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="keyboard-shortcuts">
+            <h4 style="color: #00e0ff; margin-bottom: 1rem;">
+                <i class="fas fa-keyboard"></i> Keyboard Shortcuts
+            </h4>
+            <div class="shortcut-item">
+                <span class="shortcut-key">Ctrl/Cmd + K</span>
+                <span>Open enhanced search</span>
+            </div>
+            <div class="shortcut-item">
+                <span class="shortcut-key">Escape</span>
+                <span>Close search modal</span>
+            </div>
+            <div class="shortcut-item">
+                <span class="shortcut-key">Tab</span>
+                <span>Navigate between categories</span>
+            </div>
+            <div class="shortcut-item">
+                <span class="shortcut-key">Enter</span>
+                <span>Execute search</span>
+            </div>
+            <div class="shortcut-item">
+                <span class="shortcut-key">↑ ↓</span>
+                <span>Navigate search results</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mock Data and Functions -->
+    <script>
+        // Mock Supabase for demo
+        window.supabase = {
+            from: (table) => ({
+                select: (columns) => ({
+                    order: (column, options) => ({
+                        data: getMockData(table),
+                        error: null
+                    }),
+                    neq: (column, value) => ({
+                        limit: (count) => ({
+                            data: getMockData(table),
+                            error: null
+                        })
+                    }),
+                    gt: (column, value) => ({
+                        order: (column, options) => ({
+                            data: getMockData(table),
+                            error: null
+                        })
+                    })
+                })
+            })
+        };
+
+        function getMockData(table) {
+            switch (table) {
+                case 'community':
+                    return [
+                        {
+                            id: 'user-1',
+                            name: 'Alex Smith',
+                            skills: 'React, Node.js, TypeScript, AWS',
+                            bio: 'Full-stack developer passionate about building scalable web applications',
+                            user_role: 'Senior Developer',
+                            availability: 'Available',
+                            image_url: null,
+                            connection_count: 15
+                        },
+                        {
+                            id: 'user-2',
+                            name: 'Maria Johnson',
+                            skills: 'UI/UX Design, Figma, React, CSS',
+                            bio: 'Product designer focused on creating intuitive user experiences',
+                            user_role: 'Product Designer',
+                            availability: 'Open to opportunities',
+                            image_url: null,
+                            connection_count: 23
+                        },
+                        {
+                            id: 'user-3',
+                            name: 'David Lee',
+                            skills: 'Python, Machine Learning, Data Science, TensorFlow',
+                            bio: 'Data scientist working on AI solutions for healthcare',
+                            user_role: 'Data Scientist',
+                            availability: 'Busy',
+                            image_url: null,
+                            connection_count: 31
+                        }
+                    ];
+                case 'projects':
+                    return [
+                        {
+                            id: 'project-1',
+                            title: 'AI Healthcare Assistant',
+                            description: 'Building an AI-powered healthcare assistant to help patients manage their health',
+                            required_skills: ['Python', 'Machine Learning', 'Healthcare', 'NLP'],
+                            status: 'active',
+                            creator: { name: 'David Lee', image_url: null },
+                            theme: { title: 'AI Healthcare', tags: ['AI', 'Healthcare'] }
+                        },
+                        {
+                            id: 'project-2',
+                            title: 'React Component Library',
+                            description: 'Open-source React component library for rapid prototyping',
+                            required_skills: ['React', 'TypeScript', 'Storybook', 'CSS'],
+                            status: 'active',
+                            creator: { name: 'Alex Smith', image_url: null },
+                            theme: null
+                        }
+                    ];
+                case 'theme_circles':
+                    return [
+                        {
+                            id: 'theme-1',
+                            title: 'AI Healthcare',
+                            description: 'Exploring AI applications in healthcare and medical technology',
+                            tags: ['AI', 'Healthcare', 'Machine Learning'],
+                            expires_at: '2025-12-31T23:59:59Z'
+                        },
+                        {
+                            id: 'theme-2',
+                            title: 'Sustainable Tech',
+                            description: 'Technology solutions for environmental sustainability',
+                            tags: ['Sustainability', 'Green Tech', 'Environment'],
+                            expires_at: '2025-12-31T23:59:59Z'
+                        }
+                    ];
+                default:
+                    return [];
+            }
+        }
+
+        // Mock current user profile
+        window.currentUserProfile = {
+            id: 'current-user',
+            name: 'Demo User',
+            skills: 'JavaScript, React, Python, Machine Learning',
+            user_role: 'Software Engineer'
+        };
+
+        // Mock functions
+        window.showSearchAnalytics = function() {
+            alert(`Search Analytics Demo:
+
+Popular Searches:
+1. "React" - 45 searches this week
+2. "AI" - 38 searches this week  
+3. "Design" - 32 searches this week
+4. "Python" - 29 searches this week
+5. "Machine Learning" - 24 searches this week
+
+Search Categories:
+• People: 52% of searches
+• Projects: 28% of searches
+• Skills: 15% of searches
+• Themes: 5% of searches
+
+Average Results per Search: 12.3
+Search Success Rate: 87%`);
+        };
+
+        // Mock notification system
+        window.showSynapseNotification = function(message, type) {
+            console.log(`${type.toUpperCase()}: ${message}`);
+        };
+
+        // Global search shortcut
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                if (typeof window.openEnhancedSearch === 'function') {
+                    window.openEnhancedSearch();
+                }
+            }
+        });
+    </script>
+
+    <!-- Enhanced Search System -->
+    <script type="module" src="assets/js/enhanced-search-discovery.js"></script>
+    <script type="module" src="assets/js/search-integration.js"></script>
+</body>
+</html>
