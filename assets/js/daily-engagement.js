@@ -220,6 +220,17 @@ const DailyEngagement = (function () {
     updateXPDisplay();
     showXPNotification(amount, reason);
 
+    // Track XP award event for analytics
+    if (window.trackEvent) {
+      window.trackEvent('xp_awarded', {
+        amount: amount,
+        reason: reason,
+        total_xp: state.xp,
+        level: state.level,
+        did_level_up: didLevelUp
+      });
+    }
+
     return { didLevelUp, newLevel: state.level, totalXP: state.xp };
   }
 
@@ -279,6 +290,15 @@ const DailyEngagement = (function () {
 
     await resetDailyQuests();
     showDailyCheckInModal();
+
+    // Track daily check-in event for analytics
+    if (window.trackEvent) {
+      window.trackEvent('daily_checkin', {
+        streak: newStreak,
+        xp_awarded: XP_REWARDS.DAILY_LOGIN,
+        is_consecutive: lastLogin && new Date(lastLogin).toDateString() === yesterdayStr
+      });
+    }
   }
 
   // ============================================================

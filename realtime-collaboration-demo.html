@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time Collaboration Demo</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+    }
+
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .demo-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .demo-header h1 {
+      color: #00e0ff;
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .demo-card {
+      background: rgba(0, 224, 255, 0.05);
+      border: 2px solid rgba(0, 224, 255, 0.3);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .demo-card:hover {
+      border-color: rgba(0, 224, 255, 0.6);
+      background: rgba(0, 224, 255, 0.1);
+      transform: translateY(-4px);
+    }
+
+    .demo-card i {
+      font-size: 3rem;
+      color: #00e0ff;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .demo-card h3 {
+      color: #00e0ff;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .demo-card p {
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .demo-button {
+      background: linear-gradient(135deg, #00e0ff, #0080ff);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .demo-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 224, 255, 0.3);
+    }
+
+    .status-indicator {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+
+    .status-ready {
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+      border: 1px solid rgba(0, 255, 136, 0.4);
+    }
+
+    .status-demo {
+      background: rgba(255, 170, 0, 0.2);
+      color: #ffaa00;
+      border: 1px solid rgba(255, 170, 0, 0.4);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .feature-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .feature-item i {
+      font-size: 2rem;
+      color: #00e0ff;
+      margin-bottom: 1rem;
+    }
+
+    .feature-item h4 {
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-item p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .demo-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+
+    .stat-card {
+      background: rgba(0, 224, 255, 0.1);
+      border: 1px solid rgba(0, 224, 255, 0.3);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #00e0ff;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-header">
+      <h1><i class="fas fa-broadcast-tower"></i> Real-time Collaboration Demo</h1>
+      <p style="color: rgba(255, 255, 255, 0.7); font-size: 1.2rem;">
+        Experience live messaging, notifications, and community activity feeds
+      </p>
+    </div>
+
+    <!-- Demo Stats -->
+    <div class="demo-stats">
+      <div class="stat-card">
+        <div class="stat-number" id="online-users">12</div>
+        <div class="stat-label">Users Online</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="active-conversations">8</div>
+        <div class="stat-label">Active Conversations</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="recent-activities">24</div>
+        <div class="stat-label">Recent Activities</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="notifications-sent">156</div>
+        <div class="stat-label">Notifications Today</div>
+      </div>
+    </div>
+
+    <!-- Main Demo Cards -->
+    <div class="demo-grid">
+      <div class="demo-card" onclick="openMessagingInterface()">
+        <i class="fas fa-comments"></i>
+        <h3>Real-time Messaging</h3>
+        <p>
+          Experience live messaging with typing indicators, read receipts, 
+          and instant message delivery. Connect with team members and 
+          collaborators in real-time.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-comment"></i> Open Messaging
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="openNotificationCenter()">
+        <i class="fas fa-bell"></i>
+        <h3>Smart Notifications</h3>
+        <p>
+          Intelligent notification system with customizable settings, 
+          priority levels, and multiple delivery methods including 
+          desktop notifications and sound alerts.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-cog"></i> Notification Settings
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="openActivityFeed()">
+        <i class="fas fa-stream"></i>
+        <h3>Live Activity Feed</h3>
+        <p>
+          Stay updated with real-time community activity including 
+          new connections, project updates, achievements, and 
+          collaborative milestones.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-stream"></i> View Activity
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="demoPresenceSystem()">
+        <i class="fas fa-users"></i>
+        <h3>Presence & Status</h3>
+        <p>
+          See who's online, track user presence, and get real-time 
+          status updates. Know when team members are available 
+          for collaboration.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-eye"></i> Demo Presence
+        </button>
+        <div class="status-indicator status-demo">🚧 Demo Mode</div>
+      </div>
+
+      <div class="demo-card" onclick="demoCollaborativeFeatures()">
+        <i class="fas fa-handshake"></i>
+        <h3>Collaborative Tools</h3>
+        <p>
+          Advanced collaboration features including shared workspaces, 
+          real-time document editing, and synchronized project 
+          management tools.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-tools"></i> Explore Tools
+        </button>
+        <div class="status-indicator status-demo">🚧 Coming Soon</div>
+      </div>
+
+      <div class="demo-card" onclick="demoNotificationTypes()">
+        <i class="fas fa-bullhorn"></i>
+        <h3>Notification Types</h3>
+        <p>
+          Experience different notification types including success, 
+          error, warning, and info messages with various priority 
+          levels and interaction options.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-play"></i> Demo Notifications
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+    </div>
+
+    <!-- Feature Highlights -->
+    <div style="background: rgba(0, 224, 255, 0.05); border-radius: 12px; padding: 2rem; margin-top: 3rem;">
+      <h3 style="color: #00e0ff; text-align: center; margin-bottom: 2rem;">
+        <i class="fas fa-star"></i> Key Features
+      </h3>
+      
+      <div class="features-grid">
+        <div class="feature-item">
+          <i class="fas fa-bolt"></i>
+          <h4>Real-time Updates</h4>
+          <p>Instant message delivery and live activity updates</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-shield-alt"></i>
+          <h4>Secure Communication</h4>
+          <p>End-to-end encrypted messaging and secure channels</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-mobile-alt"></i>
+          <h4>Cross-platform</h4>
+          <p>Works seamlessly across desktop and mobile devices</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-cogs"></i>
+          <h4>Customizable</h4>
+          <p>Personalized notification settings and preferences</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-chart-line"></i>
+          <h4>Analytics</h4>
+          <p>Track engagement and collaboration metrics</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-plug"></i>
+          <h4>Integrations</h4>
+          <p>Connect with external tools and services</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Demo Information -->
+    <div style="text-align: center; margin-top: 3rem; padding: 2rem; background: rgba(0, 224, 255, 0.05); border-radius: 12px; border: 1px solid rgba(0, 224, 255, 0.2);">
+      <h3 style="color: #00e0ff; margin-bottom: 1rem;">
+        <i class="fas fa-info-circle"></i> Demo Information
+      </h3>
+      <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 1rem;">
+        This demonstration showcases the real-time collaboration system with live messaging, 
+        smart notifications, and community activity feeds.
+      </p>
+      <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">
+        Note: This is a demonstration environment with mock data. Full functionality requires 
+        database setup and real-time infrastructure.
+      </p>
+    </div>
+  </div>
+
+  <!-- Mock Supabase for demo -->
+  <script>
+    // Mock Supabase client for demo purposes
+    window.supabase = {
+      channel: (name) => ({
+        on: () => ({ subscribe: () => Promise.resolve() }),
+        subscribe: (callback) => {
+          if (callback) callback('SUBSCRIBED');
+          return Promise.resolve();
+        },
+        track: () => Promise.resolve()
+      }),
+      from: (table) => ({
+        select: () => ({
+          eq: () => ({
+            order: () => ({
+              limit: () => Promise.resolve({ data: [], error: null })
+            })
+          }),
+          or: () => ({
+            order: () => Promise.resolve({ data: [], error: null })
+          }),
+          single: () => Promise.resolve({ data: null, error: null })
+        }),
+        insert: () => Promise.resolve({ data: null, error: null }),
+        update: () => ({
+          eq: () => Promise.resolve({ data: null, error: null })
+        })
+      }),
+      auth: {
+        getUser: () => Promise.resolve({ 
+          data: { user: { id: 'demo-user', email: 'demo@example.com' } }, 
+          error: null 
+        })
+      }
+    };
+
+    // Mock current user profile
+    window.currentUserProfile = {
+      id: 'demo-user',
+      name: 'Demo User',
+      email: 'demo@example.com',
+      image_url: null
+    };
+
+    // Demo functions
+    function demoPresenceSystem() {
+      showNotification({
+        type: 'info',
+        title: 'Presence System Demo',
+        message: 'This would show real-time user presence and online status indicators.',
+        duration: 4000
+      });
+      
+      // Simulate presence updates
+      setTimeout(() => {
+        showNotification({
+          type: 'success',
+          message: 'Sarah Johnson came online',
+          duration: 3000
+        });
+      }, 1000);
+      
+      setTimeout(() => {
+        showNotification({
+          type: 'info',
+          message: 'Mike Rodriguez is typing...',
+          duration: 2000
+        });
+      }, 3000);
+    }
+
+    function demoCollaborativeFeatures() {
+      showNotification({
+        type: 'info',
+        title: 'Collaborative Tools',
+        message: 'Advanced collaboration features are coming soon! This will include shared workspaces, real-time editing, and more.',
+        duration: 5000
+      });
+    }
+
+    function demoNotificationTypes() {
+      const notifications = [
+        { type: 'success', message: 'Project created successfully!' },
+        { type: 'error', message: 'Failed to send message. Please try again.' },
+        { type: 'warning', message: 'Your session will expire in 5 minutes.' },
+        { type: 'info', message: 'New team invitation received.' }
+      ];
+
+      notifications.forEach((notif, index) => {
+        setTimeout(() => {
+          showNotification({
+            type: notif.type,
+            title: `${notif.type.charAt(0).toUpperCase() + notif.type.slice(1)} Notification`,
+            message: notif.message,
+            duration: 4000
+          });
+        }, index * 1500);
+      });
+    }
+
+    // Animate stats
+    function animateStats() {
+      const stats = [
+        { id: 'online-users', target: 12, current: 0 },
+        { id: 'active-conversations', target: 8, current: 0 },
+        { id: 'recent-activities', target: 24, current: 0 },
+        { id: 'notifications-sent', target: 156, current: 0 }
+      ];
+
+      stats.forEach(stat => {
+        const element = document.getElementById(stat.id);
+        const increment = stat.target / 30;
+        
+        const timer = setInterval(() => {
+          stat.current += increment;
+          if (stat.current >= stat.target) {
+            stat.current = stat.target;
+            clearInterval(timer);
+          }
+          element.textContent = Math.floor(stat.current);
+        }, 50);
+      });
+    }
+
+    // Initialize demo
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Real-time Collaboration Demo Ready');
+      
+      // Dispatch profile loaded event
+      window.dispatchEvent(new CustomEvent('profile-loaded', {
+        detail: { 
+          user: { id: 'demo-user', email: 'demo@example.com' },
+          profile: window.currentUserProfile 
+        }
+      }));
+
+      // Animate stats after a short delay
+      setTimeout(animateStats, 500);
+
+      // Show welcome notification
+      setTimeout(() => {
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'success',
+            title: 'Welcome to Real-time Collaboration!',
+            message: 'Explore the features by clicking on the demo cards above.',
+            duration: 5000
+          });
+        }
+      }, 1000);
+    });
+  </script>
+
+  <!-- Real-time Collaboration Scripts -->
+  <script src="assets/js/notification-system.js"></script>
+  <script src="assets/js/live-activity-feed.js"></script>
+  <script src="assets/js/realtime-collaboration.js"></script>
+</body>
+</html>
+</content>
+</invoke>

@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Analytics & Insights Demo</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+    }
+
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .demo-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .demo-header h1 {
+      color: #00e0ff;
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .demo-card {
+      background: rgba(0, 224, 255, 0.05);
+      border: 2px solid rgba(0, 224, 255, 0.3);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .demo-card:hover {
+      border-color: rgba(0, 224, 255, 0.6);
+      background: rgba(0, 224, 255, 0.1);
+      transform: translateY(-4px);
+    }
+
+    .demo-card i {
+      font-size: 3rem;
+      color: #00e0ff;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .demo-card h3 {
+      color: #00e0ff;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .demo-card p {
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .demo-button {
+      background: linear-gradient(135deg, #00e0ff, #0080ff);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .demo-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 224, 255, 0.3);
+    }
+
+    .status-indicator {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+
+    .status-ready {
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+      border: 1px solid rgba(0, 255, 136, 0.4);
+    }
+
+    .status-demo {
+      background: rgba(255, 170, 0, 0.2);
+      color: #ffaa00;
+      border: 1px solid rgba(255, 170, 0, 0.4);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+
+    .metric-card {
+      background: rgba(0, 224, 255, 0.1);
+      border: 1px solid rgba(0, 224, 255, 0.3);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .metric-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #00e0ff;
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .feature-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .feature-item i {
+      font-size: 2rem;
+      color: #00e0ff;
+      margin-bottom: 1rem;
+    }
+
+    .feature-item h4 {
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-item p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .analytics-preview {
+      background: rgba(0, 224, 255, 0.05);
+      border: 1px solid rgba(0, 224, 255, 0.2);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+
+    .chart-placeholder {
+      height: 200px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.6);
+      margin: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-header">
+      <h1><i class="fas fa-chart-line"></i> Advanced Analytics & Insights Demo</h1>
+      <p style="color: rgba(255, 255, 255, 0.7); font-size: 1.2rem;">
+        Comprehensive analytics, performance monitoring, and AI-powered insights
+      </p>
+    </div>
+
+    <!-- Live Metrics Preview -->
+    <div class="analytics-preview">
+      <h3 style="color: #00e0ff; margin-bottom: 1rem; text-align: center;">
+        <i class="fas fa-tachometer-alt"></i> Live Analytics Dashboard Preview
+      </h3>
+      
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-value" id="active-users">1,247</div>
+          <div class="metric-label">Active Users</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="projects-created">89</div>
+          <div class="metric-label">Projects Created</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="connections-made">456</div>
+          <div class="metric-label">Connections Made</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="engagement-rate">78%</div>
+          <div class="metric-label">Engagement Rate</div>
+        </div>
+      </div>
+
+      <div class="chart-placeholder">
+        <div style="text-align: center;">
+          <i class="fas fa-chart-area" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+          <p>Interactive analytics charts would be rendered here</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Demo Cards -->
+    <div class="demo-grid">
+      <div class="demo-card" onclick="openAnalyticsDashboard()">
+        <i class="fas fa-chart-line"></i>
+        <h3>Analytics Dashboard</h3>
+        <p>
+          Comprehensive analytics dashboard with user engagement metrics, 
+          project analytics, social network insights, and AI-generated 
+          recommendations for community growth.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-chart-bar"></i> Open Dashboard
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="openPerformanceMonitor()">
+        <i class="fas fa-tachometer-alt"></i>
+        <h3>Performance Monitor</h3>
+        <p>
+          Real-time performance monitoring with Core Web Vitals tracking, 
+          memory usage analysis, network performance metrics, and 
+          optimization recommendations.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-tachometer-alt"></i> Monitor Performance
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="demoEventTracking()">
+        <i class="fas fa-crosshairs"></i>
+        <h3>Event Tracking</h3>
+        <p>
+          Automatic user interaction tracking, custom event logging, 
+          session analysis, and behavioral pattern recognition for 
+          data-driven decision making.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-mouse-pointer"></i> Demo Tracking
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="demoInsightsEngine()">
+        <i class="fas fa-brain"></i>
+        <h3>AI Insights Engine</h3>
+        <p>
+          Machine learning-powered insights generation, predictive 
+          analytics, trend analysis, and personalized recommendations 
+          for users and community managers.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-lightbulb"></i> Generate Insights
+        </button>
+        <div class="status-indicator status-demo">🚧 Demo Mode</div>
+      </div>
+
+      <div class="demo-card" onclick="demoReportingTools()">
+        <i class="fas fa-file-chart"></i>
+        <h3>Reporting & Export</h3>
+        <p>
+          Automated report generation, data export capabilities, 
+          scheduled analytics reports, and customizable dashboards 
+          for stakeholders and administrators.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-download"></i> Export Data
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+
+      <div class="demo-card" onclick="demoRealTimeAnalytics()">
+        <i class="fas fa-broadcast-tower"></i>
+        <h3>Real-time Analytics</h3>
+        <p>
+          Live data streaming, real-time metric updates, instant 
+          alert notifications, and dynamic dashboard updates for 
+          immediate insights and rapid response.
+        </p>
+        <button class="demo-button">
+          <i class="fas fa-satellite-dish"></i> Live Stream
+        </button>
+        <div class="status-indicator status-ready">✅ Ready</div>
+      </div>
+    </div>
+
+    <!-- Feature Highlights -->
+    <div style="background: rgba(0, 224, 255, 0.05); border-radius: 12px; padding: 2rem; margin-top: 3rem;">
+      <h3 style="color: #00e0ff; text-align: center; margin-bottom: 2rem;">
+        <i class="fas fa-star"></i> Analytics Features
+      </h3>
+      
+      <div class="feature-grid">
+        <div class="feature-item">
+          <i class="fas fa-users"></i>
+          <h4>User Analytics</h4>
+          <p>Track user behavior, engagement patterns, and journey analysis</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-project-diagram"></i>
+          <h4>Project Insights</h4>
+          <p>Monitor project success rates, team dynamics, and collaboration metrics</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-network-wired"></i>
+          <h4>Network Analysis</h4>
+          <p>Analyze social connections, influence patterns, and community growth</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-rocket"></i>
+          <h4>Performance Optimization</h4>
+          <p>Real-time performance monitoring and optimization recommendations</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-robot"></i>
+          <h4>AI-Powered Insights</h4>
+          <p>Machine learning algorithms for predictive analytics and recommendations</p>
+        </div>
+        
+        <div class="feature-item">
+          <i class="fas fa-chart-pie"></i>
+          <h4>Custom Dashboards</h4>
+          <p>Personalized analytics views and interactive data visualizations</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Demo Information -->
+    <div style="text-align: center; margin-top: 3rem; padding: 2rem; background: rgba(0, 224, 255, 0.05); border-radius: 12px; border: 1px solid rgba(0, 224, 255, 0.2);">
+      <h3 style="color: #00e0ff; margin-bottom: 1rem;">
+        <i class="fas fa-info-circle"></i> Demo Information
+      </h3>
+      <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 1rem;">
+        This demonstration showcases the advanced analytics and insights system with 
+        comprehensive user tracking, performance monitoring, and AI-powered recommendations.
+      </p>
+      <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">
+        Note: This is a demonstration environment with simulated data. Full functionality 
+        requires analytics infrastructure and data collection setup.
+      </p>
+    </div>
+  </div>
+
+  <!-- Mock Supabase for demo -->
+  <script>
+    // Mock Supabase client for demo purposes
+    window.supabase = {
+      from: (table) => ({
+        select: () => ({
+          eq: () => ({
+            order: () => ({
+              limit: () => Promise.resolve({ data: [], error: null })
+            })
+          })
+        }),
+        insert: () => Promise.resolve({ data: null, error: null })
+      })
+    };
+
+    // Mock current user profile
+    window.currentUserProfile = {
+      id: 'demo-user',
+      name: 'Demo User',
+      email: 'demo@example.com'
+    };
+
+    // Demo functions
+    function demoEventTracking() {
+      // Simulate event tracking
+      if (window.trackEvent) {
+        window.trackEvent('demo_interaction', {
+          action: 'button_click',
+          element: 'event_tracking_demo',
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      showNotification({
+        type: 'success',
+        title: 'Event Tracked!',
+        message: 'User interaction has been logged to the analytics system.',
+        duration: 3000
+      });
+
+      // Show some tracking examples
+      setTimeout(() => {
+        showNotification({
+          type: 'info',
+          message: 'Page view event tracked',
+          duration: 2000
+        });
+      }, 1000);
+
+      setTimeout(() => {
+        showNotification({
+          type: 'info',
+          message: 'User engagement event tracked',
+          duration: 2000
+        });
+      }, 2000);
+    }
+
+    function demoInsightsEngine() {
+      showNotification({
+        type: 'info',
+        title: 'AI Insights Engine',
+        message: 'Generating personalized insights based on community data...',
+        duration: 3000
+      });
+
+      setTimeout(() => {
+        showNotification({
+          type: 'success',
+          title: 'Insight Generated',
+          message: 'Peak collaboration hours: 2-4 PM EST. Schedule important announcements during this time.',
+          duration: 5000
+        });
+      }, 2000);
+
+      setTimeout(() => {
+        showNotification({
+          type: 'success',
+          title: 'Recommendation',
+          message: 'Consider hosting a virtual hackathon to boost engagement by 35%.',
+          duration: 5000
+        });
+      }, 4000);
+    }
+
+    function demoReportingTools() {
+      if (window.exportAnalyticsData) {
+        window.exportAnalyticsData();
+      } else {
+        showNotification({
+          type: 'info',
+          title: 'Report Generation',
+          message: 'Analytics export functionality is now available!',
+          duration: 4000
+        });
+      }
+    }
+
+    function demoRealTimeAnalytics() {
+      showNotification({
+        type: 'success',
+        title: 'Real-time Analytics Active',
+        message: 'Live data streaming and real-time updates are now enabled!',
+        duration: 4000
+      });
+
+      // Simulate real-time updates
+      setTimeout(() => {
+        const activeUsers = document.getElementById('active-users');
+        if (activeUsers) {
+          const currentValue = parseInt(activeUsers.textContent);
+          activeUsers.textContent = currentValue + Math.floor(Math.random() * 10);
+        }
+      }, 1000);
+
+      setTimeout(() => {
+        const projectsCreated = document.getElementById('projects-created');
+        if (projectsCreated) {
+          const currentValue = parseInt(projectsCreated.textContent);
+          projectsCreated.textContent = currentValue + 1;
+        }
+      }, 2000);
+    }
+
+    // Animate metrics
+    function animateMetrics() {
+      const metrics = [
+        { id: 'active-users', target: 1247, current: 0 },
+        { id: 'projects-created', target: 89, current: 0 },
+        { id: 'connections-made', target: 456, current: 0 },
+        { id: 'engagement-rate', target: 78, current: 0, suffix: '%' }
+      ];
+
+      metrics.forEach(metric => {
+        const element = document.getElementById(metric.id);
+        const increment = metric.target / 50;
+        
+        const timer = setInterval(() => {
+          metric.current += increment;
+          if (metric.current >= metric.target) {
+            metric.current = metric.target;
+            clearInterval(timer);
+          }
+          element.textContent = Math.floor(metric.current) + (metric.suffix || '');
+        }, 30);
+      });
+    }
+
+    // Initialize demo
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Advanced Analytics Demo Ready');
+      
+      // Dispatch profile loaded event
+      window.dispatchEvent(new CustomEvent('profile-loaded', {
+        detail: { 
+          user: { id: 'demo-user', email: 'demo@example.com' },
+          profile: window.currentUserProfile 
+        }
+      }));
+
+      // Animate metrics after a short delay
+      setTimeout(animateMetrics, 500);
+
+      // Show welcome notification
+      setTimeout(() => {
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'success',
+            title: 'Welcome to Advanced Analytics!',
+            message: 'Explore comprehensive analytics and performance monitoring features.',
+            duration: 5000
+          });
+        }
+      }, 1000);
+
+      // Simulate some tracking events
+      setTimeout(() => {
+        if (window.trackEvent) {
+          window.trackEvent('page_view', { page: 'analytics_demo' });
+        }
+      }, 2000);
+    });
+  </script>
+
+  <!-- Analytics Scripts -->
+  <script src="assets/js/notification-system.js"></script>
+  <script src="assets/js/advanced-analytics.js"></script>
+  <script src="assets/js/performance-monitor.js"></script>
+</body>
+</html>
+</content>
+</invoke>

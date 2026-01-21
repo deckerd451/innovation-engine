@@ -254,7 +254,56 @@
       <div id="engagement-displays" style="display: flex; align-items: center; gap: 0.75rem;"></div>
 
       <div class="header-actions">
-        <div class="header-notification" id="notifications-bell" style="cursor:pointer;" title="View pending requests">
+        <!-- Real-time Collaboration Buttons -->
+        <button onclick="openMessagingInterface()" 
+                style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #00e0ff; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Real-time Messaging"
+                onmouseover="this.style.background='rgba(0,224,255,0.2)'; this.style.borderColor='rgba(0,224,255,0.5)'"
+                onmouseout="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
+          <i class="fas fa-comments"></i>
+          <span style="margin-left: 0.5rem;">Messages</span>
+        </button>
+
+        <button onclick="openActivityFeed()" 
+                style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #ff6b6b; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Live Activity Feed"
+                onmouseover="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
+                onmouseout="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'">
+          <i class="fas fa-stream"></i>
+          <span style="margin-left: 0.5rem;">Activity</span>
+        </button>
+
+        <button onclick="openAnalyticsDashboard()" 
+                style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #00ff88; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Analytics & Insights Dashboard"
+                onmouseover="this.style.background='rgba(0,255,136,0.2)'; this.style.borderColor='rgba(0,255,136,0.5)'"
+                onmouseout="this.style.background='rgba(0,255,136,0.1)'; this.style.borderColor='rgba(0,255,136,0.3)'">
+          <i class="fas fa-chart-line"></i>
+          <span style="margin-left: 0.5rem;">Analytics</span>
+        </button>
+
+        <!-- Team Builder Button -->
+        <button onclick="openCollaborationHub()" 
+                style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); 
+                       border-radius: 8px; padding: 0.5rem 1rem; color: #00e0ff; cursor: pointer; 
+                       font-weight: 600; margin-right: 0.75rem; transition: all 0.2s;"
+                title="Team Building & Collaboration Hub"
+                onmouseover="this.style.background='rgba(0,224,255,0.2)'; this.style.borderColor='rgba(0,224,255,0.5)'"
+                onmouseout="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
+          <i class="fas fa-users-cog"></i>
+          <span style="margin-left: 0.5rem;">Teams</span>
+        </button>
+
+        <div class="header-notification" id="notifications-bell" 
+             style="cursor:pointer;" 
+             title="View notifications and settings"
+             onclick="openNotificationCenter()">
           <i class="fas fa-bell"></i>
           <span class="notification-badge hidden" id="notif-count">0</span>
         </div>
@@ -707,6 +756,39 @@
           <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Meet people nearby</div>
           <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">People worth knowing</div>
         </button>
+
+        <button id="start-btn-teams" class="start-nav-btn"
+          onclick="openTeamBuilder()"
+          style="background:linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.1)); border:2px solid rgba(0,255,136,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#00ff88; margin-bottom:0.75rem;">
+            <i class="fas fa-users-cog"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Build Teams</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">AI-powered team formation</div>
+        </button>
+
+        <button id="start-btn-collaborate" class="start-nav-btn"
+          onclick="openMessagingInterface()"
+          style="background:linear-gradient(135deg, rgba(138,43,226,0.15), rgba(138,43,226,0.1)); border:2px solid rgba(138,43,226,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#8a2be2; margin-bottom:0.75rem;">
+            <i class="fas fa-comments"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Collaborate</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">Real-time messaging & activity</div>
+        </button>
+
+        <button id="start-btn-analytics" class="start-nav-btn"
+          onclick="openAnalyticsDashboard()"
+          style="background:linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,224,255,0.1)); border:2px solid rgba(0,255,136,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#00ff88; margin-bottom:0.75rem;">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Analytics</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">Insights & performance metrics</div>
+        </button>
       </div>
     </div>
 
@@ -811,6 +893,20 @@
   <script type="module" src="assets/js/enhanced-connection-discovery.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
   <script type="module" src="assets/js/enhanced-search-discovery.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
   <script type="module" src="assets/js/search-integration.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
+  
+  <!-- Enhanced Team Building System -->
+  <script src="assets/js/enhanced-team-builder.js?v=team-building-2026-01-20"></script>
+  <script src="assets/js/collaboration-tools.js?v=team-building-2026-01-20"></script>
+  
+  <!-- Real-time Collaboration System -->
+  <script src="assets/js/notification-system.js?v=realtime-collab-2026-01-20"></script>
+  <script src="assets/js/live-activity-feed.js?v=realtime-collab-2026-01-20"></script>
+  <script src="assets/js/realtime-collaboration.js?v=realtime-collab-2026-01-20"></script>
+  
+  <!-- Advanced Analytics & Insights System -->
+  <script src="assets/js/advanced-analytics.js?v=analytics-2026-01-20"></script>
+  <script src="assets/js/performance-monitor.js?v=analytics-2026-01-20"></script>
+  
   <script type="module" src="assets/js/daily-engagement.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
   <script type="module" src="assets/js/connectionRequests.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292"></script>
 
