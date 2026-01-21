@@ -532,14 +532,10 @@ async function loadConversationsList() {
   try {
     console.log('📋 Loading conversations for user:', currentUserProfile.id);
 
-    // Query conversations using the existing schema
+    // Query conversations using the existing schema - simplified approach
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        participant1:community!participant_1_id(id, name, image_url),
-        participant2:community!participant_2_id(id, name, image_url)
-      `)
+      .select('*')
       .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`)
       .order('updated_at', { ascending: false });
 
@@ -588,6 +584,29 @@ async function loadConversationsList() {
 
     console.log(`📋 Loaded ${conversations.length} conversations`);
 
+    // Get participant details separately to avoid foreign key issues
+    const participantIds = new Set();
+    conversations.forEach(conv => {
+      participantIds.add(conv.participant_1_id);
+      participantIds.add(conv.participant_2_id);
+    });
+
+    let participantDetails = new Map();
+    if (participantIds.size > 0) {
+      try {
+        const { data: participants } = await supabase
+          .from('community')
+          .select('id, name, image_url')
+          .in('id', Array.from(participantIds));
+        
+        if (participants) {
+          participants.forEach(p => participantDetails.set(p.id, p));
+        }
+      } catch (participantError) {
+        console.warn('📋 Could not load participant details:', participantError);
+      }
+    }
+
     // Get last messages for each conversation
     const conversationIds = conversations.map(c => c.id);
     let lastMessages = new Map();
@@ -615,9 +634,11 @@ async function loadConversationsList() {
 
     let html = '';
     conversations.forEach(conversation => {
-      const otherUser = conversation.participant_1_id === currentUserProfile.id 
-        ? conversation.participant2 
-        : conversation.participant1;
+      const otherUserId = conversation.participant_1_id === currentUserProfile.id 
+        ? conversation.participant_2_id 
+        : conversation.participant_1_id;
+      
+      const otherUser = participantDetails.get(otherUserId);
       
       if (!otherUser) {
         console.warn('📋 Skipping conversation with missing user data:', conversation.id);
@@ -716,22 +737,27 @@ async function loadConversationMessages(conversationId) {
   if (!messagesArea) return;
 
   try {
-    // Get conversation details
+    // Get conversation details - simplified approach
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        participant1:community!participant_1_id(id, name, image_url),
-        participant2:community!participant_2_id(id, name, image_url)
-      `)
+      .select('*')
       .eq('id', conversationId)
       .single();
 
     if (convError) throw convError;
 
-    const otherUser = conversation.participant_1_id === currentUserProfile.id 
-      ? conversation.participant2 
-      : conversation.participant1;
+    // Get participant details separately
+    const otherUserId = conversation.participant_1_id === currentUserProfile.id 
+      ? conversation.participant_2_id 
+      : conversation.participant_1_id;
+
+    const { data: otherUser, error: userError } = await supabase
+      .from('community')
+      .select('id, name, image_url')
+      .eq('id', otherUserId)
+      .single();
+
+    if (userError) throw userError;
 
     // Update chat header
     const chatHeader = document.getElementById('chat-header');
