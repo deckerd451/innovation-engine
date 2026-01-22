@@ -254,6 +254,68 @@
     .bottom-stats-bar::-webkit-scrollbar-thumb:hover { background: rgba(0,224,255,0.5); }
 
     .bottom-stats-bar > div { flex: 0 0 auto; min-width: 150px; }
+
+    /* Dropdown menu styles */
+    .dropdown-container {
+      position: relative;
+    }
+
+    .dropdown-menu {
+      animation: dropdownSlide 0.2s ease-out;
+    }
+
+    @keyframes dropdownSlide {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .dropdown-item:hover {
+      background: rgba(0,224,255,0.15) !important;
+      color: #00e0ff !important;
+    }
+
+    #connect-dropdown-btn:hover {
+      background: rgba(0,224,255,0.2) !important;
+      border-color: rgba(0,224,255,0.5) !important;
+    }
+
+    #tools-dropdown-btn:hover {
+      background: rgba(0,255,136,0.2) !important;
+      border-color: rgba(0,255,136,0.5) !important;
+    }
+
+    /* Responsive dropdown styles */
+    @media (max-width: 768px) {
+      .dropdown-container button span {
+        display: none;
+      }
+
+      .dropdown-container button {
+        padding: 0.5rem 0.75rem !important;
+      }
+
+      .dropdown-menu {
+        right: auto;
+        left: 0;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dropdown-menu {
+        min-width: 180px;
+        font-size: 0.85rem;
+      }
+
+      .dropdown-item {
+        padding: 0.5rem 0.6rem !important;
+      }
+    }
   </style>
 </head>
 
@@ -358,57 +420,97 @@
       <div id="engagement-displays" style="display: flex; align-items: center; gap: 0.75rem;"></div>
 
       <div class="header-actions" style="display: flex; align-items: center; gap: 0.5rem;">
-        <!-- Primary Actions Group -->
+        <!-- Dropdown Menus Group -->
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-right: 1rem;">
-          <button onclick="openMessagingInterface()" 
-                  style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #00e0ff; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Messages"
-                  onmouseover="this.style.background='rgba(0,224,255,0.2)'; this.style.borderColor='rgba(0,224,255,0.5)'"
-                  onmouseout="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
-            <i class="fas fa-comments"></i>
-          </button>
+          <!-- Connect Dropdown -->
+          <div class="dropdown-container" style="position: relative;">
+            <button id="connect-dropdown-btn" onclick="toggleDropdown('connect-dropdown')"
+                    style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3);
+                           border-radius: 8px; padding: 0.5rem 0.85rem; color: #00e0ff; cursor: pointer;
+                           font-weight: 600; transition: all 0.2s; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;"
+                    title="Connect">
+              <i class="fas fa-users"></i>
+              <span>Connect</span>
+              <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
+            </button>
+            <div id="connect-dropdown" class="dropdown-menu" style="display: none; position: absolute; top: calc(100% + 0.5rem); right: 0;
+                 background: rgba(10,14,39,0.98); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px;
+                 padding: 0.5rem; min-width: 200px; backdrop-filter: blur(10px); z-index: 1000;
+                 box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+              <div onclick="openMessagingInterface(); toggleDropdown('connect-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #00e0ff;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-comments" style="width: 20px;"></i>
+                <span>Messages</span>
+              </div>
+              <div onclick="openVideoCallInterface(); toggleDropdown('connect-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-video" style="width: 20px;"></i>
+                <span>Video Call</span>
+              </div>
+              <div onclick="openQuickConnect(); toggleDropdown('connect-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-user-plus" style="width: 20px;"></i>
+                <span>Quick Connect</span>
+              </div>
+              <div onclick="openCollaborationHub(); toggleDropdown('connect-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-users-cog" style="width: 20px;"></i>
+                <span>Collaboration Hub</span>
+              </div>
+              <div onclick="openBBS(); toggleDropdown('connect-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-comments" style="width: 20px;"></i>
+                <span>Community Chat</span>
+              </div>
+            </div>
+          </div>
 
-          <button onclick="openActivityFeed()" 
-                  style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #ff6b6b; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Activity"
-                  onmouseover="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
-                  onmouseout="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'">
-            <i class="fas fa-stream"></i>
-          </button>
-
-          <button onclick="openAnalyticsDashboard()" 
-                  style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #00ff88; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Analytics"
-                  onmouseover="this.style.background='rgba(0,255,136,0.2)'; this.style.borderColor='rgba(0,255,136,0.5)'"
-                  onmouseout="this.style.background='rgba(0,255,136,0.1)'; this.style.borderColor='rgba(0,255,136,0.3)'">
-            <i class="fas fa-chart-line"></i>
-          </button>
-
-          <button onclick="openVideoCallInterface()" 
-                  style="background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #ffaa00; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Video"
-                  onmouseover="this.style.background='rgba(255,170,0,0.2)'; this.style.borderColor='rgba(255,170,0,0.5)'"
-                  onmouseout="this.style.background='rgba(255,170,0,0.1)'; this.style.borderColor='rgba(255,170,0,0.3)'">
-            <i class="fas fa-video"></i>
-          </button>
-
-          <button onclick="openCollaborationHub()" 
-                  style="background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); 
-                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #8a2be2; cursor: pointer; 
-                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
-                  title="Teams"
-                  onmouseover="this.style.background='rgba(138,43,226,0.2)'; this.style.borderColor='rgba(138,43,226,0.5)'"
-                  onmouseout="this.style.background='rgba(138,43,226,0.1)'; this.style.borderColor='rgba(138,43,226,0.3)'">
-            <i class="fas fa-users-cog"></i>
-          </button>
+          <!-- Tools Dropdown -->
+          <div class="dropdown-container" style="position: relative;">
+            <button id="tools-dropdown-btn" onclick="toggleDropdown('tools-dropdown')"
+                    style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);
+                           border-radius: 8px; padding: 0.5rem 0.85rem; color: #00ff88; cursor: pointer;
+                           font-weight: 600; transition: all 0.2s; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;"
+                    title="Tools">
+              <i class="fas fa-tools"></i>
+              <span>Tools</span>
+              <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
+            </button>
+            <div id="tools-dropdown" class="dropdown-menu" style="display: none; position: absolute; top: calc(100% + 0.5rem); right: 0;
+                 background: rgba(10,14,39,0.98); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px;
+                 padding: 0.5rem; min-width: 200px; backdrop-filter: blur(10px); z-index: 1000;
+                 box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+              <div onclick="openAnalyticsDashboard(); toggleDropdown('tools-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #00ff88;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-chart-line" style="width: 20px;"></i>
+                <span>Analytics</span>
+              </div>
+              <div onclick="openPerformanceMonitor(); toggleDropdown('tools-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-tachometer-alt" style="width: 20px;"></i>
+                <span>Performance</span>
+              </div>
+              <div onclick="openDiagnostics(); toggleDropdown('tools-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-stethoscope" style="width: 20px;"></i>
+                <span>Diagnostics</span>
+              </div>
+              <div onclick="openLanguageSwitcher(); toggleDropdown('tools-dropdown')" class="dropdown-item"
+                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
+                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-globe" style="width: 20px;"></i>
+                <span>Language</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Secondary Actions Group -->
@@ -479,40 +581,19 @@
       <i class="fas fa-chevron-down"></i>
     </button>
 
-    <!-- Bottom Bar - Expanded Actions -->
+    <!-- Bottom Bar - Simplified Core Actions -->
     <div class="bottom-stats-bar" id="bottom-stats-bar" data-animate="slideInUp"
       style="position:absolute; bottom:8px; left:0; right:0; background:rgba(10,14,39,0.95);
       border-top:2px solid rgba(0,224,255,0.3); height:82px; display:flex; align-items:center; justify-content:center;
-      gap:0.75rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
+      gap:0.85rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
 
-      <!-- START Button (per yellow instructions) -->
+      <!-- START Button -->
       <div class="stat-card-mini" id="btn-start"
         style="cursor:pointer; background:linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,224,255,0.15));
         border:2px solid rgba(0,255,136,0.5); border-radius:8px; padding:0.5rem 1.5rem; text-align:center;
         transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:110px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#00ff88;"><i class="fas fa-play-circle"></i></div>
         <div class="label" style="font-size:0.7rem; color:#00ff88; text-transform:uppercase; font-weight:700; white-space:nowrap;">START</div>
-      </div>
-
-      <!-- Quick Connect -->
-      <div class="stat-card-mini" id="btn-quickconnect"
-        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,128,255,0.1));
-        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
-        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-user-plus"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Connect</div>
-      </div>
-
-      <!-- Messages -->
-      <div class="stat-card-mini" id="btn-messages"
-        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-envelope"></i></div>
-        <div style="display:flex; flex-direction:column; align-items:center;">
-          <div class="value" id="unread-messages" style="font-size:1rem; font-weight:bold; color:white; line-height:1;">0</div>
-          <div class="label" style="font-size:0.65rem; color:#aaa; text-transform:uppercase; line-height:1;">Messages</div>
-        </div>
       </div>
 
       <!-- Projects -->
@@ -537,71 +618,26 @@
       <div class="stat-card-mini" id="btn-endorsements"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
         border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        align-items:center; justify-content:center; gap:0.25rem; min-width:100px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-star"></i></div>
         <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Endorse</div>
-      </div>
-
-      <!-- Community Chat (BBS) -->
-      <div class="stat-card-mini" id="btn-bbs"
-        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-comments"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Chat</div>
-      </div>
-
-      <!-- Admin (Manage Themes) - Only visible to admins -->
-      <div class="stat-card-mini" id="btn-admin" style="cursor:pointer; background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:none; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-crown"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Admin</div>
-      </div>
-
-      <!-- Analytics Dashboard -->
-      <div class="stat-card-mini" id="btn-analytics-dashboard"
-        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,255,136,0.15),rgba(0,224,255,0.1));
-        border:2px solid rgba(0,255,136,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
-        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00ff88;"><i class="fas fa-chart-bar"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00ff88; text-transform:uppercase; font-weight:700; white-space:nowrap;">Analytics</div>
       </div>
 
       <!-- Activity Feed -->
       <div class="stat-card-mini" id="btn-activity-feed"
         style="cursor:pointer; background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.25);
         border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        align-items:center; justify-content:center; gap:0.25rem; min-width:100px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#ff6b6b;"><i class="fas fa-stream"></i></div>
         <div class="label" style="font-size:0.7rem; color:#ff6b6b; text-transform:uppercase; font-weight:600; white-space:nowrap;">Activity</div>
       </div>
 
-      <!-- Performance Monitor -->
-      <div class="stat-card-mini" id="btn-performance"
-        style="cursor:pointer; background:rgba(138,43,226,0.08); border:1px solid rgba(138,43,226,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#8a2be2;"><i class="fas fa-tachometer-alt"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#8a2be2; text-transform:uppercase; font-weight:600; white-space:nowrap;">Performance</div>
-      </div>
-
-      <!-- System Diagnostics -->
-      <div class="stat-card-mini" id="btn-diagnostics"
-        style="cursor:pointer; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-stethoscope"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Diagnostics</div>
-      </div>
-
-      <!-- Language Switcher -->
-      <div class="stat-card-mini" id="btn-language"
-        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-globe"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Language</div>
+      <!-- Admin (Manage Themes) - Only visible to admins -->
+      <div class="stat-card-mini" id="btn-admin" style="cursor:pointer; background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:none; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:100px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-crown"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Admin</div>
       </div>
 
       <!-- Organizations -->
@@ -1042,6 +1078,36 @@
   <!-- START Modal Backdrop -->
   <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3);
     backdrop-filter:blur(2px); z-index:10001;" onclick="closeStartModal()"></div>
+
+  <!-- Dropdown Toggle Script -->
+  <script>
+    // Toggle dropdown menus
+    function toggleDropdown(dropdownId) {
+      const dropdown = document.getElementById(dropdownId);
+      const allDropdowns = document.querySelectorAll('.dropdown-menu');
+
+      // Close all other dropdowns
+      allDropdowns.forEach(dd => {
+        if (dd.id !== dropdownId) {
+          dd.style.display = 'none';
+        }
+      });
+
+      // Toggle current dropdown
+      if (dropdown) {
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(event) {
+      if (!event.target.closest('.dropdown-container')) {
+        document.querySelectorAll('.dropdown-menu').forEach(dd => {
+          dd.style.display = 'none';
+        });
+      }
+    });
+  </script>
 
    <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
