@@ -259,6 +259,18 @@
       console.log('Opening messaging...');
       if (typeof window.openMessagingInterface === 'function') {
         window.openMessagingInterface();
+      } else if (typeof window.initSimpleMessaging === 'function') {
+        // Try to initialize messaging if not already done
+        window.initSimpleMessaging();
+        setTimeout(() => {
+          if (typeof window.openMessagingInterface === 'function') {
+            window.openMessagingInterface();
+          } else {
+            alert('Messaging system is loading. Please try again in a moment.');
+          }
+        }, 500);
+      } else {
+        alert('Messaging system not available');
       }
     }
 
