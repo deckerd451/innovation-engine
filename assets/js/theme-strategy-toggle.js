@@ -78,6 +78,22 @@ async function toggleThemeStrategy() {
     }
     button.style.pointerEvents = 'none';
 
+    // Reset the current view's state before switching
+    console.log('🔄 Resetting current view state before switch...');
+    try {
+      if (currentStrategy === 'new') {
+        // We're in cards mode, reset cards before switching to circles
+        const { resetSynapseView } = await import('./synapse/core-cards.js');
+        resetSynapseView();
+      } else {
+        // We're in circles mode, reset circles before switching to cards
+        const { resetSynapseView } = await import('./synapse/core.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292');
+        resetSynapseView();
+      }
+    } catch (resetError) {
+      console.warn('⚠️ Failed to reset current view:', resetError);
+    }
+
     // Clear current synapse
     const synapseContainer = document.getElementById('synapse-svg')?.parentElement;
     if (synapseContainer) {
@@ -86,10 +102,10 @@ async function toggleThemeStrategy() {
 
     // Switch strategy
     currentStrategy = currentStrategy === 'old' ? 'new' : 'old';
-    
+
     // Update global reference
     window.currentStrategy = currentStrategy;
-    
+
     // Dynamically import and initialize the appropriate strategy
     if (currentStrategy === 'new') {
       // Import new cards strategy

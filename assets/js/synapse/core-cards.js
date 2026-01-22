@@ -107,6 +107,22 @@ export async function refreshSynapseConnections() {
   await rebuildInterface();
 }
 
+export function resetSynapseView() {
+  console.log("🔄 Resetting Synapse Cards view state");
+  initialized = false;
+
+  // Clear simulation if it exists
+  if (simulation) {
+    simulation.stop();
+    simulation = null;
+  }
+
+  // Clear any running animations
+  if (window.PathwayAnimations) {
+    window.PathwayAnimations.stopAll?.();
+  }
+}
+
 export function getSynapseStats() {
   const peopleCount = nodes.filter((n) => n.type === "person").length;
   const projectCount = nodes.filter((n) => n.type === "project").length;
