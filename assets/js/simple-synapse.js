@@ -30,7 +30,13 @@ function initSimpleSynapse() {
 async function loadSynapseData() {
   try {
     const profile = window.getCurrentProfile();
-    if (!profile) return;
+    console.log('Current profile:', profile);
+    
+    if (!profile) {
+      console.warn('No profile available, showing empty state');
+      showEmptyState();
+      return;
+    }
 
     console.log('Loading synapse data...');
 
@@ -42,6 +48,14 @@ async function loadSynapseData() {
       window.supabase.from('connections').select('*').eq('status', 'accepted'),
       window.supabase.from('theme_participants').select('*')
     ]);
+
+    console.log('Database results:', {
+      themes: themesResult.data?.length || 0,
+      projects: projectsResult.data?.length || 0,
+      people: peopleResult.data?.length || 0,
+      connections: connectionsResult.data?.length || 0,
+      participants: participantsResult.data?.length || 0
+    });
 
     synapseData = {
       themes: themesResult.data || [],
@@ -126,13 +140,54 @@ function renderThemeCards() {
   
   addViewToggle();
 
-  if (!synapseData || synapseData.themes.length === 0) {
+  if (!synapseData) {
+    showEmptyState();
+    return;
+  }
+
+  if (synapseData.themes.length === 0) {
     container.innerHTML += `
-      <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
-        <div style="text-align: center;">
-          <i class="fas fa-lightbulb" style="font-size: 3rem; margin-bottom: 20px;"></i><br>
-          <h3>No Active Themes</h3>
-          <p>Themes will appear here when available</p>
+      <div style="padding: 20px; padding-top: 60px;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 400px; color: #666;">
+          <div style="text-align: center; max-width: 500px;">
+            <i class="fas fa-lightbulb" style="font-size: 4rem; margin-bottom: 30px; color: #00e0ff;"></i><br>
+            <h2 style="color: #00e0ff; margin-bottom: 20px;">Welcome to the Innovation Engine!</h2>
+            <p style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 30px;">
+              This is where innovation themes will appear. Themes are collaborative spaces where community members work together on exciting projects and ideas.
+            </p>
+            <div style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; padding: 20px; margin-bottom: 30px; text-align: left;">
+              <h4 style="color: #00e0ff; margin-bottom: 15px;">What you can do here:</h4>
+              <div style="margin-bottom: 10px;"><i class="fas fa-check" style="color: #4caf50; margin-right: 10px;"></i> Explore innovation themes</div>
+              <div style="margin-bottom: 10px;"><i class="fas fa-check" style="color: #4caf50; margin-right: 10px;"></i> Join collaborative projects</div>
+              <div style="margin-bottom: 10px;"><i class="fas fa-check" style="color: #4caf50; margin-right: 10px;"></i> Connect with like-minded innovators</div>
+              <div><i class="fas fa-check" style="color: #4caf50; margin-right: 10px;"></i> Switch between Cards and Network views</div>
+            </div>
+            <p style="color: #999; margin-bottom: 20px;">
+              Themes will be added by community administrators. Check back soon!
+            </p>
+            <button onclick="switchToNetworkView()" style="
+              background: #00e0ff;
+              border: none;
+              color: black;
+              padding: 12px 24px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              margin-right: 10px;
+            ">
+              <i class="fas fa-project-diagram"></i> Try Network View
+            </button>
+            <button onclick="loadSynapseData()" style="
+              background: rgba(0,224,255,0.2);
+              border: 1px solid rgba(0,224,255,0.5);
+              color: #00e0ff;
+              padding: 12px 24px;
+              border-radius: 6px;
+              cursor: pointer;
+            ">
+              <i class="fas fa-redo"></i> Refresh
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -206,11 +261,55 @@ function renderNetworkView() {
   addViewToggle();
 
   if (!synapseData) {
+    showEmptyState();
+    return;
+  }
+
+  // Check if we have any data to visualize
+  const hasData = synapseData.themes.length > 0 || synapseData.projects.length > 0 || synapseData.people.length > 0;
+  
+  if (!hasData) {
     container.innerHTML += `
-      <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
-        <div style="text-align: center;">
-          <i class="fas fa-spinner fa-spin" style="font-size: 3rem; margin-bottom: 20px;"></i><br>
-          <h3>Loading Network...</h3>
+      <div style="padding: 20px; padding-top: 60px;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 400px; color: #666;">
+          <div style="text-align: center; max-width: 500px;">
+            <i class="fas fa-project-diagram" style="font-size: 4rem; margin-bottom: 30px; color: #00e0ff;"></i><br>
+            <h2 style="color: #00e0ff; margin-bottom: 20px;">Network Visualization</h2>
+            <p style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 30px;">
+              The network view shows connections between themes, projects, and people in the innovation community. When data is available, you'll see an interactive network with:
+            </p>
+            <div style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; padding: 20px; margin-bottom: 30px; text-align: left;">
+              <div style="margin-bottom: 10px;"><i class="fas fa-lightbulb" style="color: #00e0ff; margin-right: 10px;"></i> <strong>Blue nodes:</strong> Innovation themes</div>
+              <div style="margin-bottom: 10px;"><i class="fas fa-project-diagram" style="color: #ff6b35; margin-right: 10px;"></i> <strong>Orange nodes:</strong> Active projects</div>
+              <div style="margin-bottom: 10px;"><i class="fas fa-user" style="color: #4caf50; margin-right: 10px;"></i> <strong>Green nodes:</strong> Community members</div>
+              <div><i class="fas fa-arrows-alt" style="color: #999; margin-right: 10px;"></i> <strong>Interactive:</strong> Drag nodes and click for details</div>
+            </div>
+            <p style="color: #999; margin-bottom: 20px;">
+              Data will appear here as the community grows and themes are added.
+            </p>
+            <button onclick="switchToCardsView()" style="
+              background: #00e0ff;
+              border: none;
+              color: black;
+              padding: 12px 24px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              margin-right: 10px;
+            ">
+              <i class="fas fa-th-large"></i> Try Cards View
+            </button>
+            <button onclick="loadSynapseData()" style="
+              background: rgba(0,224,255,0.2);
+              border: 1px solid rgba(0,224,255,0.5);
+              color: #00e0ff;
+              padding: 12px 24px;
+              border-radius: 6px;
+              cursor: pointer;
+            ">
+              <i class="fas fa-redo"></i> Refresh
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -663,6 +762,58 @@ function showError(message) {
   `;
 }
 
+// Show empty state when no profile is available
+function showEmptyState() {
+  const container = document.getElementById('synapse-container');
+  container.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+      <div style="text-align: center; max-width: 500px; padding: 40px;">
+        <i class="fas fa-user-clock" style="font-size: 4rem; margin-bottom: 30px; color: #00e0ff;"></i><br>
+        <h2 style="color: #00e0ff; margin-bottom: 20px;">Setting Up Your Profile</h2>
+        <p style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 30px;">
+          We're preparing your innovation dashboard. This usually takes just a moment while we set up your profile and load the community data.
+        </p>
+        <div style="margin-bottom: 30px;">
+          <div style="display: inline-block; width: 40px; height: 4px; background: rgba(0,224,255,0.3); border-radius: 2px; margin: 0 2px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: #00e0ff; animation: loading 2s infinite;"></div>
+          </div>
+          <div style="display: inline-block; width: 40px; height: 4px; background: rgba(0,224,255,0.3); border-radius: 2px; margin: 0 2px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: #00e0ff; animation: loading 2s infinite 0.3s;"></div>
+          </div>
+          <div style="display: inline-block; width: 40px; height: 4px; background: rgba(0,224,255,0.3); border-radius: 2px; margin: 0 2px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: #00e0ff; animation: loading 2s infinite 0.6s;"></div>
+          </div>
+        </div>
+        <button onclick="loadSynapseData()" style="
+          background: rgba(0,224,255,0.2);
+          border: 1px solid rgba(0,224,255,0.5);
+          color: #00e0ff;
+          padding: 12px 24px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: bold;
+        ">
+          <i class="fas fa-redo"></i> Refresh
+        </button>
+      </div>
+    </div>
+    <style>
+      @keyframes loading {
+        0% { left: -100%; }
+        100% { left: 100%; }
+      }
+    </style>
+  `;
+  
+  // Try to reload after a delay
+  setTimeout(() => {
+    const profile = window.getCurrentProfile();
+    if (profile) {
+      loadSynapseData();
+    }
+  }, 3000);
+}
+
 // Expose globally
 window.initSimpleSynapse = initSimpleSynapse;
 window.selectTheme = selectTheme;
@@ -672,5 +823,7 @@ window.switchToCardsView = switchToCardsView;
 window.switchToNetworkView = switchToNetworkView;
 window.closeNodeDetails = closeNodeDetails;
 window.viewProject = viewProject;
+window.loadSynapseData = loadSynapseData;
+window.showEmptyState = showEmptyState;
 
 console.log('✅ Simple Synapse Loaded');
