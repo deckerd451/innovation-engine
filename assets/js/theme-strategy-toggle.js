@@ -54,7 +54,12 @@ function updateButtonText(button) {
     }
   };
 
-  const strategy = strategies[currentStrategy];
+  // Show the NEXT strategy, not the current one
+  // This makes the button more intuitive - clicking "Cards" will take you to Cards view
+  const strategyList = ['circles', 'cards', 'sidebar'];
+  const currentIndex = strategyList.indexOf(currentStrategy);
+  const nextStrategy = strategyList[(currentIndex + 1) % strategyList.length];
+  const strategy = strategies[nextStrategy];
 
   // Update the button to match bottom bar style
   const iconDiv = button.querySelector('.icon');
