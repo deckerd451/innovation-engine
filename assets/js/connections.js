@@ -80,7 +80,7 @@ function normalizeConnectionType(t) {
 // ========================
 // INIT / CURRENT USER
 // ========================
-async functioninitConnections(supabaseClient) {
+async function initConnections(supabaseClient) {
   supabase = supabaseClient;
   await refreshCurrentUser();
 
@@ -93,7 +93,7 @@ async functioninitConnections(supabaseClient) {
   return { currentUserId, currentUserCommunityId };
 }
 
-async functionrefreshCurrentUser() {
+async function refreshCurrentUser() {
   try {
     if (!supabase?.auth?.getSession) return null;
 
@@ -132,7 +132,7 @@ async functionrefreshCurrentUser() {
   }
 }
 
-functiongetCurrentUserCommunityId() {
+function getCurrentUserCommunityId() {
   return currentUserCommunityId;
 }
 
@@ -143,7 +143,7 @@ functiongetCurrentUserCommunityId() {
  * Get connection between two community IDs (either direction).
  * Returns most recent connection if duplicates exist.
  */
-async functiongetConnectionBetween(id1, id2) {
+async function getConnectionBetween(id1, id2) {
   if (!supabase || !id1 || !id2) return null;
 
   // Supabase `.or(...)` expects comma-separated expressions:
@@ -172,7 +172,7 @@ async functiongetConnectionBetween(id1, id2) {
  * - isSender / isReceiver (relative to current user)
  * - canConnect (true when none/declined/withdrawn/canceled)
  */
-async functiongetConnectionStatus(targetCommunityId) {
+async function getConnectionStatus(targetCommunityId) {
   if (!currentUserCommunityId || !targetCommunityId) {
     return { status: "none", canConnect: true };
   }
@@ -204,7 +204,7 @@ async functiongetConnectionStatus(targetCommunityId) {
 /**
  * Used by Synapse to draw all edges.
  */
-async functiongetAllConnectionsForSynapse() {
+async function getAllConnectionsForSynapse() {
   if (!supabase) return [];
   const { data, error } = await supabase.from("connections").select("*");
   if (error) {
@@ -218,7 +218,7 @@ async functiongetAllConnectionsForSynapse() {
  * Utility: can current user see email of target?
  * (Your logic: accepted connection required.)
  */
-async functioncanSeeEmail(targetCommunityId) {
+async function canSeeEmail(targetCommunityId) {
   if (!currentUserCommunityId || !targetCommunityId) return false;
   if (targetCommunityId === currentUserCommunityId) return true;
 
@@ -235,7 +235,7 @@ async functioncanSeeEmail(targetCommunityId) {
 /**
  * Accepted connections for the current user (either direction).
  */
-async functiongetAcceptedConnections() {
+async function getAcceptedConnections() {
   if (!supabase || !currentUserCommunityId) return [];
 
   const { data, error } = await supabase
@@ -258,7 +258,7 @@ async functiongetAcceptedConnections() {
  * Pending requests RECEIVED by the current user (they are the recipient).
  * someone else -> you, status=pending
  */
-async functiongetPendingRequestsReceived() {
+async function getPendingRequestsReceived() {
   if (!supabase || !currentUserCommunityId) return [];
 
   const { data, error } = await supabase
@@ -280,7 +280,7 @@ async functiongetPendingRequestsReceived() {
  * Pending requests SENT by the current user (they are the sender).
  * you -> someone else, status=pending
  */
-async functiongetPendingRequestsSent() {
+async function getPendingRequestsSent() {
   if (!supabase || !currentUserCommunityId) return [];
 
   const { data, error } = await supabase
@@ -301,7 +301,7 @@ async functiongetPendingRequestsSent() {
 // ========================
 // MUTATIONS
 // ========================
-async functionsendConnectionRequest(
+async function sendConnectionRequest(
   recipientCommunityId,
   targetName = "User",
   type = "generic"
@@ -374,7 +374,7 @@ async functionsendConnectionRequest(
   }
 }
 
-async functionacceptConnectionRequest(connectionId) {
+async function acceptConnectionRequest(connectionId) {
   if (!supabase || !connectionId) return { success: false };
 
   const { error } = await supabase
@@ -409,7 +409,7 @@ async functionacceptConnectionRequest(connectionId) {
  *
  * If we can't read the row (RLS), fallback to 'declined'.
  */
-async functiondeclineConnectionRequest(connectionId) {
+async function declineConnectionRequest(connectionId) {
   if (!supabase || !connectionId) return { success: false };
 
   let nextStatus = "declined";
@@ -460,7 +460,7 @@ async functiondeclineConnectionRequest(connectionId) {
  *  - If current user is the sender and status is pending -> set status='withdrawn'
  *  - If not sender -> set status='canceled'
  */
-async functioncancelConnectionRequest(connectionIdOrTargetCommunityId) {
+async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
   if (!supabase) return { success: false, error: "Supabase not initialized" };
   if (!currentUserCommunityId) return { success: false, error: "Profile not found" };
   if (!connectionIdOrTargetCommunityId) return { success: false, error: "Missing id" };
@@ -553,7 +553,7 @@ async functioncancelConnectionRequest(connectionIdOrTargetCommunityId) {
  *  - connection row id, OR
  *  - target community id (fallback)
  */
-async functionremoveConnection(connectionIdOrTargetCommunityId) {
+async function removeConnection(connectionIdOrTargetCommunityId) {
   if (!supabase || !currentUserCommunityId || !connectionIdOrTargetCommunityId) {
     return { success: false };
   }
@@ -615,7 +615,7 @@ function updateConnectionUI(targetId) {
 }
 
 // Keep an export named formatTimeAgo for compatibility.
-functionformatTimeAgo(ts) {
+function formatTimeAgo(ts) {
   if (!ts) return "---";
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "---";
