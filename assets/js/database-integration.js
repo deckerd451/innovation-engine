@@ -144,7 +144,6 @@ function setupEnhancedFunctions() {
       }
     }
   };
-}
 
 // ================================================================
 // ENHANCED PROJECT SYSTEM INTEGRATION

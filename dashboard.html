@@ -1,331 +1,1519 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Cache refresh: 2026-01-18 FORCE DEPLOYMENT -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CharlestonHacks Innovation Engine</title>
   <link rel="icon" href="favicon.ico"/>
 
-  <!-- Essential CSS Only -->
+  <!-- Core CSS -->
   <link rel="stylesheet" href="assets/css/base.css" />
   <link rel="stylesheet" href="assets/css/engine.css" />
+  <link rel="stylesheet" href="assets/css/overlays.css" />
   <link rel="stylesheet" href="assets/css/connections.css" />
+  <link rel="stylesheet" href="assets/css/cynq.css" />
   <link rel="stylesheet" href="assets/css/messaging.css" />
   <link rel="stylesheet" href="dashboard.css" />
+
+  <!-- Enhanced UI System -->
+  <link rel="stylesheet" href="assets/css/enhanced-ui.css" />
+  <link rel="stylesheet" href="assets/css/animations.css" />
+  <link rel="stylesheet" href="assets/css/mobile-optimized.css" />
 
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
   <style>
-    body { 
-      overflow: hidden; 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    body { overflow: hidden; }
+
+    /* Mentor Navigation Styling */
+    .mentor-nav-btn:hover {
+      background: rgba(0,224,255,0.12) !important;
+      border-color: rgba(0,224,255,0.3) !important;
+      color: rgba(255,255,255,0.95) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,224,255,0.2);
     }
 
-    /* Simplified styling */
-    .btn {
-      padding: 8px 16px;
-      border: 1px solid #333;
-      background: rgba(0,0,0,0.7);
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s ease;
+    .mentor-nav-btn.active-mentor {
+      animation: softGlow 2s ease-in-out infinite;
     }
 
-    .btn:hover {
-      background: rgba(0,224,255,0.2);
-      border-color: rgba(0,224,255,0.5);
+    @keyframes softGlow {
+      0%, 100% {
+        box-shadow: 0 0 8px rgba(0,224,255,0.2), inset 0 0 8px rgba(0,224,255,0.05);
+      }
+      50% {
+        box-shadow: 0 0 16px rgba(0,224,255,0.3), inset 0 0 12px rgba(0,224,255,0.08);
+      }
     }
 
-    /* Clean header */
-    .header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 60px;
-      background: rgba(0,0,0,0.9);
-      backdrop-filter: blur(10px);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px;
-      z-index: 1000;
+    .mentor-panel-close:hover {
+      background: rgba(255,255,255,0.15) !important;
+      border-color: rgba(255,255,255,0.3) !important;
+      color: rgba(255,255,255,1) !important;
     }
 
-    .logo {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: #00e0ff;
+    .mentor-panel {
+      animation: mentorPanelSlide 0.3s ease-out;
     }
 
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    @keyframes mentorPanelSlide {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -45%);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+      }
     }
 
-    /* Main content area */
-    .main-content {
-      margin-top: 60px;
-      height: calc(100vh - 60px);
-      display: flex;
-    }
-
-    /* Sidebar */
-    .sidebar {
-      width: 250px;
-      background: rgba(0,0,0,0.8);
-      padding: 20px;
-      overflow-y: auto;
-    }
-
-    .sidebar h3 {
-      color: #00e0ff;
-      margin-bottom: 15px;
-      font-size: 1rem;
-    }
-
-    .sidebar ul {
-      list-style: none;
-      padding: 0;
-      margin: 0 0 30px 0;
-    }
-
-    .sidebar li {
-      margin-bottom: 8px;
-    }
-
-    .sidebar a {
-      color: #ccc;
-      text-decoration: none;
-      padding: 8px 12px;
-      display: block;
-      border-radius: 4px;
-      transition: all 0.2s ease;
-    }
-
-    .sidebar a:hover {
-      background: rgba(0,224,255,0.1);
-      color: white;
-    }
-
-    /* Content area */
-    .content {
-      flex: 1;
-      padding: 20px;
-      overflow-y: auto;
-    }
-
-    /* Synapse container */
-    #synapse-container {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      background: radial-gradient(circle at center, rgba(0,224,255,0.05) 0%, rgba(0,0,0,0.8) 100%);
-      border-radius: 8px;
-    }
-
-    /* Loading state */
-    .loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 200px;
-      color: #666;
-    }
-
-    /* Mobile responsive */
+    /* Responsive mentor nav */
     @media (max-width: 768px) {
-      .sidebar {
-        width: 200px;
+      #mentor-nav {
+        bottom: 98px !important;
+        width: 95vw !important;
+        padding: 0.4rem !important;
+        gap: 0.3rem !important;
       }
-      
-      .header {
-        padding: 0 15px;
+
+      .mentor-nav-btn {
+        font-size: 0.75rem !important;
+        padding: 0 0.3rem !important;
       }
-      
-      .content {
-        padding: 15px;
+
+      .mentor-nav-btn i {
+        font-size: 0.9rem !important;
+      }
+
+      .mentor-nav-btn span {
+        display: none;
+      }
+
+      #mentor-nav.compact {
+        height: 40px !important;
+      }
+
+      /* Responsive mentor panels for mobile */
+      .mentor-panel {
+        width: 95vw !important;
+        max-height: 90vh !important;
+        padding: 1rem !important;
+        border-radius: 12px !important;
+      }
+
+      .mentor-panel h2 {
+        font-size: 1.2rem !important;
+      }
+
+      .mentor-panel p {
+        font-size: 0.9rem !important;
+      }
+
+      .mentor-panel-close {
+        width: 32px !important;
+        height: 32px !important;
+        top: 0.5rem !important;
+        right: 0.5rem !important;
       }
     }
 
-    @media (max-width: 600px) {
-      .main-content {
-        flex-direction: column;
+    .stat-card-mini:hover {
+      transform: translateY(-3px);
+      background: rgba(0,224,255,0.15) !important;
+      border-color: rgba(0,224,255,0.5) !important;
+      box-shadow: 0 4px 12px rgba(0,224,255,0.3);
+    }
+
+    /* Engagement system animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(100px);
       }
-      
-      .sidebar {
-        width: 100%;
-        height: auto;
-        max-height: 200px;
+      to {
+        opacity: 1;
+        transform: translateX(0);
       }
     }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-30px); }
+      60% { transform: translateY(-15px); }
+    }
+
+    @media (max-width: 768px) {
+      .bottom-stats-bar { gap: 0.25rem; padding: 0.5rem; }
+      .stat-card-mini { padding: 0.5rem !important; }
+      .stat-card-mini .label { font-size: 0.65rem !important; }
+      .stat-card-mini .value { font-size: 1.25rem !important; }
+      
+      /* Clean up header on mobile */
+      .header-actions { 
+        flex-wrap: wrap; 
+        gap: 0.25rem !important; 
+      }
+      
+      .header-actions > div:first-child {
+        margin-right: 0.5rem !important;
+      }
+      
+      .header-actions button {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.8rem !important;
+      }
+      
+      #user-name-header {
+        display: none !important;
+      }
+      
+      #engagement-displays {
+        gap: 0.5rem !important;
+      }
+      
+      .header-search {
+        max-width: 200px !important;
+      }
+      
+      .header-search input {
+        font-size: 0.8rem !important;
+        padding: 0.4rem 2.5rem 0.4rem 2rem !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header-actions > div:first-child {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+      }
+      
+      .header-actions button {
+        padding: 0.35rem 0.5rem !important;
+        min-width: auto !important;
+      }
+      
+      #engagement-displays {
+        flex-wrap: wrap;
+        gap: 0.25rem !important;
+      }
+      
+      .header-search {
+        max-width: 150px !important;
+      }
+      
+      .header-search input::placeholder {
+        content: "Search...";
+      }
+    }
+
+    /* Header layout improvements */
+    .app-header {
+      padding: 0.75rem 1rem !important;
+      min-height: 60px;
+    }
+    
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+    }
+    
+    .header-logo {
+      flex-shrink: 0;
+    }
+    
+    .header-search {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    #engagement-displays {
+      flex-shrink: 0;
+    }
+    
+    .header-actions {
+      flex-shrink: 0;
+    }
+
+    .bottom-stats-bar::-webkit-scrollbar { height: 6px; }
+    .bottom-stats-bar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+    .bottom-stats-bar::-webkit-scrollbar-thumb { background: rgba(0,224,255,0.3); border-radius: 3px; }
+    .bottom-stats-bar::-webkit-scrollbar-thumb:hover { background: rgba(0,224,255,0.5); }
+
+    .bottom-stats-bar > div { flex: 0 0 auto; min-width: 150px; }
   </style>
 </head>
 
 <body>
-  <!-- Header -->
-  <div class="header">
-    <div class="logo">
-      <i class="fas fa-brain"></i> CharlestonHacks
-    </div>
-    <div class="user-info">
-      <span id="user-name">Loading...</span>
-      <button class="btn" onclick="logout()">
-        <i class="fas fa-sign-out-alt"></i> Logout
-      </button>
+  <!-- Neural Background -->
+  <canvas id="neural-bg"
+    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+    background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"></canvas>
+
+  <!-- Login -->
+  <div id="login-section"
+    style="position: fixed; inset: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center;
+    z-index: 9999; overflow: hidden; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);">
+    <div class="login-container">
+      <img src="ieheader.webp"
+           alt="CharlestonHacks Innovation Engine"
+           style="max-width: 100%; height: auto; margin-bottom: 1rem;"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <h1 style="display:none; color:#00e0ff; font-size:2rem; margin-bottom:1rem;">CharlestonHacks Innovation Engine</h1>
+
+      <h2 style="color:#00e0ff; font-size:1.5rem; font-weight:bold; margin-bottom:0.75rem;">
+        Making Invisible Networks Visible
+      </h2>
+
+      <p style="color:#ddd; font-size:1.1rem; line-height:1.6; margin-bottom:2rem; max-width:520px;">
+        Discover people, skills, and collaboration opportunities in your innovation ecosystem.
+        Connect with the right people, join projects, and build something amazing together.
+      </p>
+
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem; margin-bottom:2rem; max-width:620px;">
+        <div style="text-align:center;">
+          <i class="fas fa-network-wired" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
+          <div style="color:#ddd; font-size:0.9rem;">Visualize Your Network</div>
+        </div>
+        <div style="text-align:center;">
+          <i class="fas fa-search" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
+          <div style="color:#ddd; font-size:0.9rem;">Find Skills & People</div>
+        </div>
+        <div style="text-align:center;">
+          <i class="fas fa-users" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
+          <div style="color:#ddd; font-size:0.9rem;">Build Together</div>
+        </div>
+      </div>
+
+      <div class="oauth-buttons">
+        <button id="github-login" class="oauth-btn">
+          <span class="oauth-icon-circle">
+            <i class="fab fa-github"></i>
+          </span>
+          Continue with GitHub
+        </button>
+        <button id="google-login" class="oauth-btn">
+          <span class="oauth-icon-circle">
+            <i class="fab fa-google"></i>
+          </span>
+          Continue with Google
+        </button>
+      </div>
+
+      <div id="login-hint" style="margin-top: 1rem; color: #aaa; font-size: 0.9rem;"></div>
     </div>
   </div>
 
-  <!-- Main Content -->
-  <div class="main-content">
-    <!-- Sidebar Navigation -->
-    <div class="sidebar">
-      <h3><i class="fas fa-network-wired"></i> Network</h3>
-      <ul>
-        <li><a href="#" onclick="showThemes()"><i class="fas fa-lightbulb"></i> Themes</a></li>
-        <li><a href="#" onclick="showProjects()"><i class="fas fa-project-diagram"></i> Projects</a></li>
-        <li><a href="#" onclick="showPeople()"><i class="fas fa-users"></i> People</a></li>
-      </ul>
+  <!-- Header -->
+  <header class="unified-header app-header hidden" id="main-header" data-animate="slideInDown"
+    style="position: fixed; top:0; left:0; right:0; z-index:1000; background:rgba(10,14,39,0.95);
+    backdrop-filter: blur(10px); border-bottom:2px solid rgba(0,224,255,0.3);">
+    <div class="header-content">
+      <div class="header-logo">
+        <a href="https://charlestonhacks.com/" style="display:flex; align-items:center; text-decoration:none;">
+          <img src="charlestonhackslogo.svg" alt="CharlestonHacks"
+               style="height:40px; width:auto; cursor:pointer;"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <span style="display:none; color:#00e0ff; font-size:1.5rem; font-weight:bold;">CharlestonHacks</span>
+        </a>
+      </div>
 
-      <h3><i class="fas fa-tools"></i> Tools</h3>
-      <ul>
-        <li><a href="#" onclick="openMessaging()"><i class="fas fa-comments"></i> Messages</a></li>
-        <li><a href="#" onclick="showProfile()"><i class="fas fa-user"></i> Profile</a></li>
-        <li><a href="#" onclick="showConnections()"><i class="fas fa-handshake"></i> Connections</a></li>
-      </ul>
+      <div class="header-search" style="position: relative; flex: 1; max-width: 350px;">
+        <i class="fas fa-search"
+           style="position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; font-size:0.9rem;"></i>
+        <input type="text" id="global-search" placeholder="Search..." 
+               style="width: 100%; padding: 0.5rem 3rem 0.5rem 2.25rem; border: 1px solid rgba(0,224,255,0.3);
+                      border-radius: 8px; background: rgba(0,224,255,0.05); color: white; font-size: 0.9rem;
+                      outline: none; transition: all 0.2s;"
+               onfocus="this.style.borderColor='rgba(0,224,255,0.6)'; this.style.background='rgba(0,224,255,0.1)'"
+               onblur="this.style.borderColor='rgba(0,224,255,0.3)'; this.style.background='rgba(0,224,255,0.05)'"
+               onclick="openEnhancedSearch(this.value)"
+               onfocus="openEnhancedSearch(this.value)">
+        <button id="search-button"
+          onclick="openEnhancedSearch(document.getElementById('global-search').value)"
+          style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+                 background: linear-gradient(135deg,#00e0ff,#0080ff); border: none; padding: 0.35rem 0.6rem; 
+                 border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 0.8rem;
+                 transition: all 0.2s;"
+          onmouseover="this.style.transform='translateY(-50%) scale(1.05)'"
+          onmouseout="this.style.transform='translateY(-50%) scale(1)'">
+          <i class="fas fa-search"></i>
+        </button>
+      </div>
 
-      <h3><i class="fas fa-plus"></i> Create</h3>
-      <ul>
-        <li><a href="#" onclick="createProject()"><i class="fas fa-plus-circle"></i> New Project</a></li>
-        <li><a href="#" onclick="joinTheme()"><i class="fas fa-star"></i> Join Theme</a></li>
-      </ul>
+      <!-- Engagement displays will be injected here by daily-engagement.js -->
+      <div id="engagement-displays" style="display: flex; align-items: center; gap: 0.75rem;"></div>
+
+      <div class="header-actions" style="display: flex; align-items: center; gap: 0.5rem;">
+        <!-- Primary Actions Group -->
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-right: 1rem;">
+          <button onclick="openMessagingInterface()" 
+                  style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); 
+                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #00e0ff; cursor: pointer; 
+                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
+                  title="Messages"
+                  onmouseover="this.style.background='rgba(0,224,255,0.2)'; this.style.borderColor='rgba(0,224,255,0.5)'"
+                  onmouseout="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
+            <i class="fas fa-comments"></i>
+          </button>
+
+          <button onclick="openActivityFeed()" 
+                  style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); 
+                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #ff6b6b; cursor: pointer; 
+                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
+                  title="Activity"
+                  onmouseover="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
+                  onmouseout="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'">
+            <i class="fas fa-stream"></i>
+          </button>
+
+          <button onclick="openAnalyticsDashboard()" 
+                  style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); 
+                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #00ff88; cursor: pointer; 
+                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
+                  title="Analytics"
+                  onmouseover="this.style.background='rgba(0,255,136,0.2)'; this.style.borderColor='rgba(0,255,136,0.5)'"
+                  onmouseout="this.style.background='rgba(0,255,136,0.1)'; this.style.borderColor='rgba(0,255,136,0.3)'">
+            <i class="fas fa-chart-line"></i>
+          </button>
+
+          <button onclick="openVideoCallInterface()" 
+                  style="background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); 
+                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #ffaa00; cursor: pointer; 
+                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
+                  title="Video"
+                  onmouseover="this.style.background='rgba(255,170,0,0.2)'; this.style.borderColor='rgba(255,170,0,0.5)'"
+                  onmouseout="this.style.background='rgba(255,170,0,0.1)'; this.style.borderColor='rgba(255,170,0,0.3)'">
+            <i class="fas fa-video"></i>
+          </button>
+
+          <button onclick="openCollaborationHub()" 
+                  style="background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); 
+                         border-radius: 8px; padding: 0.5rem 0.75rem; color: #8a2be2; cursor: pointer; 
+                         font-weight: 600; transition: all 0.2s; font-size: 0.9rem;"
+                  title="Teams"
+                  onmouseover="this.style.background='rgba(138,43,226,0.2)'; this.style.borderColor='rgba(138,43,226,0.5)'"
+                  onmouseout="this.style.background='rgba(138,43,226,0.1)'; this.style.borderColor='rgba(138,43,226,0.3)'">
+            <i class="fas fa-users-cog"></i>
+          </button>
+        </div>
+
+        <!-- Secondary Actions Group -->
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div class="header-notification" id="notifications-bell" 
+               style="cursor:pointer; padding: 0.5rem; border-radius: 8px; 
+                      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                      color: #ddd; transition: all 0.2s;" 
+               title="Notifications"
+               onclick="openNotificationCenter()"
+               onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'"
+               onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
+            <i class="fas fa-bell"></i>
+            <span class="notification-badge hidden" id="notif-count">0</span>
+          </div>
+
+          <div class="user-menu" id="user-menu" 
+               style="cursor:pointer; display: flex; align-items: center; gap: 0.5rem; 
+                      padding: 0.5rem 0.75rem; border-radius: 8px; 
+                      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                      transition: all 0.2s;" 
+               title="Profile"
+               onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'"
+               onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
+            <div class="user-avatar" id="user-avatar-header" style="width: 24px; height: 24px;">
+              <span id="user-initials-header" style="font-size: 0.8rem;">?</span>
+            </div>
+            <span id="user-name-header" style="font-size: 0.9rem; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Loading...</span>
+          </div>
+
+          <button id="logout-btn"
+            style="background: rgba(255, 59, 48, 0.15);
+                   border: 1px solid rgba(255, 59, 48, 0.3);
+                   color: #ff3b30;
+                   padding: 0.5rem 0.75rem;
+                   border-radius: 8px;
+                   cursor: pointer;
+                   font-size: 0.9rem;
+                   font-weight: 600;
+                   transition: all 0.2s ease;"
+            onmouseover="this.style.background='rgba(255, 59, 48, 0.25)'; this.style.borderColor='rgba(255, 59, 48, 0.5)';"
+            onmouseout="this.style.background='rgba(255, 59, 48, 0.15)'; this.style.borderColor='rgba(255, 59, 48, 0.3)';"
+            title="Logout">
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="unified-main hidden" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000;">
+    <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000;">
+      <svg id="synapse-svg" style="width:100%; height:100%; background: #000000;"></svg>
     </div>
 
-    <!-- Content Area -->
-    <div class="content">
-      <div id="synapse-container">
-        <div class="loading">
-          <i class="fas fa-spinner fa-spin"></i> Loading Innovation Engine...
+    <!-- START Button (per yellow instructions: moved to bottom bar area) -->
+    <!-- This button opens the START screen which contains all navigation options -->
+    <!-- Hidden after first daily use and minimized to bottom bar -->
+
+    <!-- Collapse/Expand Arrow Button -->
+    <button id="bottom-bar-toggle"
+      style="position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
+      background:rgba(10,14,39,0.95); border:2px solid rgba(0,224,255,0.3); border-bottom:none;
+      border-radius:8px 8px 0 0; padding:0.25rem 1rem; cursor:pointer; z-index:101;
+      backdrop-filter:blur(10px); color:#00e0ff; font-size:1rem; transition:all 0.3s;
+      box-shadow:0 -2px 10px rgba(0,224,255,0.2);">
+      <i class="fas fa-chevron-down"></i>
+    </button>
+
+    <!-- Bottom Bar - Expanded Actions -->
+    <div class="bottom-stats-bar" id="bottom-stats-bar" data-animate="slideInUp"
+      style="position:absolute; bottom:8px; left:0; right:0; background:rgba(10,14,39,0.95);
+      border-top:2px solid rgba(0,224,255,0.3); height:82px; display:flex; align-items:center; justify-content:center;
+      gap:0.75rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
+
+      <!-- START Button (per yellow instructions) -->
+      <div class="stat-card-mini" id="btn-start"
+        style="cursor:pointer; background:linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,224,255,0.15));
+        border:2px solid rgba(0,255,136,0.5); border-radius:8px; padding:0.5rem 1.5rem; text-align:center;
+        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:110px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00ff88;"><i class="fas fa-play-circle"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00ff88; text-transform:uppercase; font-weight:700; white-space:nowrap;">START</div>
+      </div>
+
+      <!-- Quick Connect -->
+      <div class="stat-card-mini" id="btn-quickconnect"
+        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,128,255,0.1));
+        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
+        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-user-plus"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Connect</div>
+      </div>
+
+      <!-- Messages -->
+      <div class="stat-card-mini" id="btn-messages"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-envelope"></i></div>
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <div class="value" id="unread-messages" style="font-size:1rem; font-weight:bold; color:white; line-height:1;">0</div>
+          <div class="label" style="font-size:0.65rem; color:#aaa; text-transform:uppercase; line-height:1;">Messages</div>
+        </div>
+      </div>
+
+      <!-- Projects -->
+      <div class="stat-card-mini" id="btn-projects"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-lightbulb"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Projects</div>
+      </div>
+
+      <!-- Themes -->
+      <div class="stat-card-mini" id="btn-themes"
+        style="cursor:pointer; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-bullseye"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Themes</div>
+      </div>
+
+      <!-- Endorsements -->
+      <div class="stat-card-mini" id="btn-endorsements"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-star"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Endorse</div>
+      </div>
+
+      <!-- Community Chat (BBS) -->
+      <div class="stat-card-mini" id="btn-bbs"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-comments"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Chat</div>
+      </div>
+
+      <!-- Admin (Manage Themes) - Only visible to admins -->
+      <div class="stat-card-mini" id="btn-admin" style="cursor:pointer; background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:none; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-crown"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Admin</div>
+      </div>
+
+      <!-- Analytics Dashboard -->
+      <div class="stat-card-mini" id="btn-analytics-dashboard"
+        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,255,136,0.15),rgba(0,224,255,0.1));
+        border:2px solid rgba(0,255,136,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
+        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00ff88;"><i class="fas fa-chart-bar"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00ff88; text-transform:uppercase; font-weight:700; white-space:nowrap;">Analytics</div>
+      </div>
+
+      <!-- Activity Feed -->
+      <div class="stat-card-mini" id="btn-activity-feed"
+        style="cursor:pointer; background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ff6b6b;"><i class="fas fa-stream"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ff6b6b; text-transform:uppercase; font-weight:600; white-space:nowrap;">Activity</div>
+      </div>
+
+      <!-- Performance Monitor -->
+      <div class="stat-card-mini" id="btn-performance"
+        style="cursor:pointer; background:rgba(138,43,226,0.08); border:1px solid rgba(138,43,226,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#8a2be2;"><i class="fas fa-tachometer-alt"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#8a2be2; text-transform:uppercase; font-weight:600; white-space:nowrap;">Performance</div>
+      </div>
+
+      <!-- System Diagnostics -->
+      <div class="stat-card-mini" id="btn-diagnostics"
+        style="cursor:pointer; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-stethoscope"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Diagnostics</div>
+      </div>
+
+      <!-- Language Switcher -->
+      <div class="stat-card-mini" id="btn-language"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-globe"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Language</div>
+      </div>
+
+      <!-- Organizations -->
+      <div class="stat-card-mini" id="btn-organizations"
+        style="cursor:pointer; background:linear-gradient(135deg,rgba(138,43,226,0.15),rgba(186,127,245,0.1));
+        border:2px solid rgba(138,43,226,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
+        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ba7ff5;"><i class="fas fa-building"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ba7ff5; text-transform:uppercase; font-weight:700; white-space:nowrap;">Orgs</div>
+      </div>
+
+      <!-- Opportunities -->
+      <div class="stat-card-mini" id="btn-opportunities"
+        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,168,255,0.1));
+        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
+        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-briefcase"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Jobs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compatibility trigger for legacy BBS -->
+  <button id="fab-bbs-trigger" style="display:none;"></button>
+
+  <!-- Profile Modal -->
+  <div class="modal" id="profile-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">User Profile</h2>
+        <button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-profile-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages Modal -->
+  <div class="modal" id="messages-modal">
+    <div class="modal-content" style="max-width: 1000px; max-height: 80vh;">
+      <div class="modal-header">
+        <h2 class="modal-title">Messages</h2>
+        <button class="modal-close" onclick="closeMessagesModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <!-- Container for messaging.js to render into -->
+        <div id="messages-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Projects Modal -->
+  <div class="modal" id="projects-modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2 class="modal-title"><i class="fas fa-lightbulb"></i> Projects</h2>
+        <button class="modal-close" onclick="closeProjectsModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:1.5rem;">
+          <button onclick="showCreateProjectForm()" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
+          <button onclick="showEnhancedProjectCreation()" class="btn btn-primary" style="margin-left: 0.5rem; background: linear-gradient(135deg, rgba(0,224,255,0.3), rgba(0,224,255,0.2)); border-color: rgba(0,224,255,0.5);"><i class="fas fa-rocket"></i> Enhanced Creation</button>
+        </div>
+
+      <div id="project-form" style="display:none; background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
+          border-radius:12px; padding:1.5rem; margin-bottom:1.5rem;">
+        <h3 style="color:#00e0ff; margin-bottom:1rem;">Create New Project</h3>
+        <form onsubmit="createProject(event)">
+          <div style="margin-bottom:1rem;">
+            <label style="display:block; color:#aaa; margin-bottom:0.5rem;">Project Name *</label>
+            <input type="text" id="project-name" required
+                   style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
+                   border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
+          </div>
+
+          <div style="margin-bottom:1rem;">
+            <label style="display:block; color:#aaa; margin-bottom:0.5rem;">Description *</label>
+            <textarea id="project-description" rows="3" required
+              style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
+              border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit; resize:vertical;"></textarea>
+          </div>
+
+          <div style="margin-bottom:1rem;">
+            <label style="display:block; color:#aaa; margin-bottom:0.5rem;">Required Skills (comma-separated)</label>
+            <input type="text" id="project-skills" placeholder="e.g., JavaScript, React, Design"
+                   style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
+                   border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
+          </div>
+
+          <div style="margin-bottom:1rem;">
+            <label style="display:block; color:#aaa; margin-bottom:0.5rem;">
+              <i class="fas fa-bullseye" style="color:#00e0ff;"></i> Associate with Theme Circle (optional)
+            </label>
+            <select id="project-theme"
+                    style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
+                    border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
+              <option value="">No theme (standalone project)</option>
+            </select>
+            <small style="color:#888; display:block; margin-top:0.3rem;">
+              Link this project to an active theme to help others find it
+            </small>
+          </div>
+
+          <div style="display:flex; gap:0.5rem;">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Create Project</button>
+            <button type="button" onclick="hideCreateProjectForm()" class="btn" style="background:rgba(255,255,255,0.1);">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="projects-list" style="max-height: 400px; overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- Endorsements Modal -->
+  <div class="modal" id="endorsements-modal">
+    <div class="modal-content" style="max-width: 700px;">
+      <button class="modal-close" onclick="closeEndorsementsModal()"><i class="fas fa-times"></i></button>
+      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-star"></i> Endorsements</h2>
+
+      <div style="margin-bottom:2rem;">
+        <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+          <button onclick="showEndorsementsTab('received')" id="endorsements-tab-received"
+                  style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#00e0ff,#0080ff);
+                  border:none; border-radius:8px; color:white; cursor:pointer; font-weight:bold;">Received</button>
+          <button onclick="showEndorsementsTab('given')" id="endorsements-tab-given"
+                  style="flex:1; padding:0.75rem; background:rgba(255,255,255,0.1); border:1px solid rgba(0,224,255,0.2);
+                  border-radius:8px; color:white; cursor:pointer;">Given</button>
+        </div>
+
+        <div id="endorsements-received" style="max-height:400px; overflow-y:auto;"></div>
+        <div id="endorsements-given" style="display:none; max-height:400px; overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Network Stats Modal -->
+  <div class="modal" id="network-stats-modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <button class="modal-close" onclick="closeNetworkStatsModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 style="color: #00e0ff; margin-bottom: 1.5rem;">
+        <i class="fas fa-users"></i> Your Network Stats
+      </h2>
+
+      <div id="network-stats-content" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div style="text-align: center; color: #aaa; padding: 3rem;">
+          <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #00e0ff;"></i>
+          <p style="margin-top: 1rem;">Loading network stats...</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Essential Scripts Only -->
+  <!-- Quick Connect Modal -->
+  <div class="modal" id="quick-connect-modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <button class="modal-close" onclick="closeQuickConnectModal()"><i class="fas fa-times"></i></button>
+      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-user-plus"></i> Quick Connect</h2>
+      <p style="color:#aaa; margin-bottom:1.5rem;">Connect with people who share your interests and skills</p>
+      <div id="quick-connect-list" style="max-height: 500px; overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- BBS Modal -->
+  <div id="bbs-modal"></div>
+
+  <!-- Mentor Panels - Daily Briefing Contextual Overlays -->
+
+  <!-- Panel 1: Your Focus Today -->
+  <div id="mentor-panel-focus" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(650px, 92vw); max-height:85vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border:2px solid rgba(0,224,255,0.35); border-radius:16px; padding:2rem; z-index:10001; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(0,224,255,0.15); backdrop-filter:blur(20px);">
+
+    <button class="mentor-panel-close" onclick="closeMentorPanel('focus')"
+      style="position:absolute; top:1rem; right:1rem; width:36px; height:36px; background:rgba(255,255,255,0.1);
+      border:1px solid rgba(255,255,255,0.2); border-radius:50%; color:rgba(255,255,255,0.7); cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <h2 style="color:#00e0ff; margin-bottom:0.5rem; font-size:1.5rem; font-weight:600;">
+      <i class="fas fa-compass" style="margin-right:0.5rem;"></i>
+      Your focus today
+    </h2>
+    <p style="color:rgba(255,255,255,0.5); margin-bottom:2rem; font-size:0.9rem;">
+      Where your interests and activity currently overlap
+    </p>
+
+    <div id="mentor-focus-content"></div>
+  </div>
+
+  <!-- Panel 2: Projects Gaining Momentum -->
+  <div id="mentor-panel-projects" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(650px, 92vw); max-height:85vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border:2px solid rgba(0,224,255,0.35); border-radius:16px; padding:2rem; z-index:10001; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(0,224,255,0.15); backdrop-filter:blur(20px);">
+
+    <button class="mentor-panel-close" onclick="closeMentorPanel('projects')"
+      style="position:absolute; top:1rem; right:1rem; width:36px; height:36px; background:rgba(255,255,255,0.1);
+      border:1px solid rgba(255,255,255,0.2); border-radius:50%; color:rgba(255,255,255,0.7); cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <h2 style="color:#00e0ff; margin-bottom:0.5rem; font-size:1.5rem; font-weight:600;">
+      <i class="fas fa-rocket" style="margin-right:0.5rem;"></i>
+      Projects gaining momentum
+    </h2>
+    <p style="color:rgba(255,255,255,0.5); margin-bottom:2rem; font-size:0.9rem;">
+      Places where people are already building
+    </p>
+
+    <div id="mentor-projects-content"></div>
+  </div>
+
+  <!-- Panel 3: People Worth Knowing -->
+  <div id="mentor-panel-people" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(650px, 92vw); max-height:85vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border:2px solid rgba(0,224,255,0.35); border-radius:16px; padding:2rem; z-index:10001; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(0,224,255,0.15); backdrop-filter:blur(20px);">
+
+    <button class="mentor-panel-close" onclick="closeMentorPanel('people')"
+      style="position:absolute; top:1rem; right:1rem; width:36px; height:36px; background:rgba(255,255,255,0.1);
+      border:1px solid rgba(255,255,255,0.2); border-radius:50%; color:rgba(255,255,255,0.7); cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <h2 style="color:#00e0ff; margin-bottom:0.5rem; font-size:1.5rem; font-weight:600;">
+      <i class="fas fa-users" style="margin-right:0.5rem;"></i>
+      People worth knowing
+    </h2>
+    <p style="color:rgba(255,255,255,0.5); margin-bottom:2rem; font-size:0.9rem;">
+      Connected through your projects and themes
+    </p>
+
+    <div id="mentor-people-content"></div>
+  </div>
+
+  <!-- Mentor Panel Backdrop -->
+  <div id="mentor-panel-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
+    backdrop-filter:blur(4px); z-index:10000;" onclick="closeAllMentorPanels()"></div>
+
+  <!-- START Modal (per yellow instructions: side panel that shares screen) -->
+  <div id="start-modal" class="mentor-panel" style="display:none; position:fixed; top:0; right:0; bottom:0;
+    width:min(500px, 45vw); max-height:100vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border-left:3px solid rgba(0,255,136,0.5); padding:2rem; z-index:10002; overflow-y:auto;
+    box-shadow:-10px 0 50px rgba(0,0,0,0.7); backdrop-filter:blur(25px);">
+
+    <button class="mentor-panel-close" onclick="closeStartModal()"
+      style="position:absolute; top:1rem; right:1rem; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.3);
+      border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff;
+      font-size:1.25rem; transition:all 0.2s;">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <div style="text-align:center; margin-bottom:2rem;">
+      <div style="font-size:3rem; color:#00ff88; margin-bottom:0.5rem;">
+        <i class="fas fa-play-circle"></i>
+      </div>
+      <h2 style="color:#00ff88; font-size:2rem; margin:0 0 0.5rem 0; font-weight:700;">Your focus today</h2>
+      <p style="color:rgba(255,255,255,0.6); font-size:1rem; margin:0;">Based on your activity and interests, here's the best place to start today</p>
+    </div>
+
+    <!-- Enhanced START Flow - Dynamic Recommendations Container -->
+    <div id="start-options-container" style="display:flex; flex-direction:column; gap:1.5rem; margin-bottom:2rem;">
+      <!-- Populated dynamically by start-flow-integration.js -->
+    </div>
+
+    <!-- Escape Hatch -->
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <button id="explore-freely-btn" onclick="clearSessionFocus(); closeStartModal();" style="
+        background: transparent;
+        border: none;
+        color: rgba(255,255,255,0.5);
+        font-size: 0.9rem;
+        cursor: pointer;
+        text-decoration: underline;
+        padding: 0.5rem;
+        transition: color 0.2s;
+      ">
+        I just want to explore freely
+      </button>
+    </div>
+
+    <!-- Dynamic content area (shown when user clicks a button) -->
+    <div id="start-dynamic-content" style="display:none;"></div>
+
+    <!-- Button sections (hidden when content is shown) - LEGACY FALLBACK -->
+    <div id="start-button-section" style="display:none;">
+
+    <!-- Mentor Panel Buttons -->
+    <div style="margin-bottom:2.5rem;">
+      <h3 style="color:rgba(0,224,255,0.9); font-size:0.95rem; margin-bottom:1rem; text-transform:uppercase; letter-spacing:1px; font-weight:600;">
+        <i class="fas fa-compass" style="margin-right:0.5rem;"></i>Explore Your Network
+      </h3>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:1rem;">
+        <button id="start-btn-focus" class="start-nav-btn"
+          style="background:linear-gradient(135deg, rgba(0,224,255,0.15), rgba(0,128,255,0.1)); border:2px solid rgba(0,224,255,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#00e0ff; margin-bottom:0.75rem;">
+            <i class="fas fa-compass"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Start with this focus</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">Where your interests and activity overlap</div>
+        </button>
+
+        <button id="start-btn-projects" class="start-nav-btn"
+          style="background:linear-gradient(135deg, rgba(255,107,107,0.15), rgba(255,128,128,0.1)); border:2px solid rgba(255,107,107,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#ff6b6b; margin-bottom:0.75rem;">
+            <i class="fas fa-rocket"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">See active projects</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">Projects gaining momentum</div>
+        </button>
+
+        <button id="start-btn-people" class="start-nav-btn"
+          style="background:linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,235,100,0.1)); border:2px solid rgba(255,215,0,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#ffd700; margin-bottom:0.75rem;">
+            <i class="fas fa-users"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Meet people nearby</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">People worth knowing</div>
+        </button>
+
+        <button id="start-btn-teams" class="start-nav-btn"
+          onclick="openTeamBuilder()"
+          style="background:linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.1)); border:2px solid rgba(0,255,136,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#00ff88; margin-bottom:0.75rem;">
+            <i class="fas fa-users-cog"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Build Teams</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">AI-powered team formation</div>
+        </button>
+
+        <button id="start-btn-collaborate" class="start-nav-btn"
+          onclick="openMessagingInterface()"
+          style="background:linear-gradient(135deg, rgba(138,43,226,0.15), rgba(138,43,226,0.1)); border:2px solid rgba(138,43,226,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#8a2be2; margin-bottom:0.75rem;">
+            <i class="fas fa-comments"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Collaborate</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">Real-time messaging & activity</div>
+        </button>
+
+        <button id="start-btn-analytics" class="start-nav-btn"
+          onclick="openAnalyticsDashboard()"
+          style="background:linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,224,255,0.1)); border:2px solid rgba(0,255,136,0.4);
+          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
+          <div style="font-size:2rem; color:#00ff88; margin-bottom:0.75rem;">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Analytics</div>
+          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">Insights & performance metrics</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom Bar Action Buttons -->
+    <div style="margin-bottom:1.5rem;">
+      <h3 style="color:rgba(0,224,255,0.9); font-size:0.95rem; margin-bottom:1rem; text-transform:uppercase; letter-spacing:1px; font-weight:600;">
+        <i class="fas fa-bolt" style="margin-right:0.5rem;"></i>Quick Actions
+      </h3>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
+        <button id="start-action-connect" class="start-action-btn"
+          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
+          padding:1rem; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+          <div style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-user-plus"></i></div>
+          <div style="text-align:left;">
+            <div style="color:#fff; font-size:0.9rem; font-weight:600;">Connect</div>
+            <div style="color:rgba(255,255,255,0.5); font-size:0.75rem;">Find people to connect with</div>
+          </div>
+        </button>
+
+        <button id="start-action-messages" class="start-action-btn"
+          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
+          padding:1rem; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+          <div style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-envelope"></i></div>
+          <div style="text-align:left;">
+            <div style="color:#fff; font-size:0.9rem; font-weight:600;">Messages</div>
+            <div style="color:rgba(255,255,255,0.5); font-size:0.75rem;">Check your conversations</div>
+          </div>
+        </button>
+
+        <button id="start-action-projects" class="start-action-btn"
+          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
+          padding:1rem; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+          <div style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-lightbulb"></i></div>
+          <div style="text-align:left;">
+            <div style="color:#fff; font-size:0.9rem; font-weight:600;">Projects</div>
+            <div style="color:rgba(255,255,255,0.5); font-size:0.75rem;">Browse and join projects</div>
+          </div>
+        </button>
+
+        <button id="start-action-endorsements" class="start-action-btn"
+          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
+          padding:1rem; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+          <div style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-star"></i></div>
+          <div style="text-align:left;">
+            <div style="color:#fff; font-size:0.9rem; font-weight:600;">Endorse</div>
+            <div style="color:rgba(255,255,255,0.5); font-size:0.75rem;">Give and receive endorsements</div>
+          </div>
+        </button>
+
+        <button id="start-action-chat" class="start-action-btn"
+          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
+          padding:1rem; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+          <div style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-comments"></i></div>
+          <div style="text-align:left;">
+            <div style="color:#fff; font-size:0.9rem; font-weight:600;">Chat</div>
+            <div style="color:rgba(255,255,255,0.5); font-size:0.75rem;">Community discussions</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Close button sections wrapper -->
+    </div>
+
+    <!-- Done button - LEGACY FALLBACK (hidden by default, shown if enhanced flow fails) -->
+    <div id="start-done-button" style="display:none; text-align:center; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1);">
+      <button onclick="closeStartModal()" style="padding:1rem 2.5rem; background:linear-gradient(135deg, #00ff88, #00e0ff);
+        border:none; border-radius:10px; color:#000; font-weight:700; cursor:pointer; font-size:1rem; transition:all 0.2s;
+        box-shadow:0 4px 15px rgba(0,255,136,0.3);">
+        <i class="fas fa-check" style="margin-right:0.5rem;"></i>Done - Explore Network
+      </button>
+    </div>
+  </div>
+
+  <!-- START Modal Backdrop -->
+  <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3);
+    backdrop-filter:blur(2px); z-index:10001;" onclick="closeStartModal()"></div>
+
+   <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+  <!-- Required base modules -->
+  <!-- Event Deduplication System (MUST LOAD FIRST) -->
+  <script src="assets/js/event-deduplication.js?v=deduplication-2026-01-20"></script>
   
-  <!-- Core functionality -->
-  <script type="module" src="assets/js/supabaseClient.js"></script>
-  <script src="assets/js/simple-auth.js"></script>
-  <script src="assets/js/simple-messaging.js"></script>
-  <script src="assets/js/simple-synapse.js"></script>
-  <script src="assets/js/simple-dashboard.js"></script>
+  <!-- Cache-busting using git commit hash - changes on every deploy -->
+  <script type="module" src="assets/js/supabaseClient.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  
+  <!-- Enhanced Database Integration -->
+  <script src="assets/js/database-config.js?v=fix-sendDirectMessage-2026-01-21"></script>
+  <script src="assets/js/database-integration.js?v=fix-sendDirectMessage-2026-01-21"></script>
+  <script src="assets/js/database-integration-fix.js?v=fix-sendDirectMessage-2026-01-21"></script>
 
+  <!-- Non-module scripts with commit-based cache-busting -->
+  <script src="assets/js/ecosystem-connector.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/cynq.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/neuralBackground.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Feature modules with commit-based cache-busting -->
+  <script type="module" src="assets/js/onboarding.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/node-panel.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/network-filters.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/graph-legend.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/admin-analytics.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/theme-admin.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/theme-discovery.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/enhanced-project-creation.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/project-creation-integration.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/smart-connection-suggestions.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/enhanced-connection-discovery.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/enhanced-search-discovery.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/search-integration.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  
+  <!-- Enhanced Team Building System -->
+  <script type="module" src="assets/js/enhanced-team-builder.js?v=team-building-2026-01-20"></script>
+  <script type="module" src="assets/js/collaboration-tools.js?v=team-building-2026-01-20"></script>
+  
+  <!-- Real-time Collaboration System -->
+  <script type="module" src="assets/js/notification-system.js?v=realtime-collab-2026-01-20"></script>
+  <script type="module" src="assets/js/live-activity-feed.js?v=realtime-collab-2026-01-20"></script>
+  <script type="module" src="assets/js/realtime-collaboration.js?v=realtime-collab-2026-01-20"></script>
+  
+  <!-- Advanced Analytics & Insights System -->
+  <script type="module" src="assets/js/advanced-analytics.js?v=analytics-2026-01-20"></script>
+  <script type="module" src="assets/js/performance-monitor.js?v=analytics-2026-01-20"></script>
+  
+  <!-- Video Chat Integration System -->
+  <script type="module" src="assets/js/video-chat-engine.js?v=video-chat-2026-01-20"></script>
+  <script src="assets/js/call-management.js?v=video-chat-2026-01-20"></script>
+  <script type="module" src="assets/js/video-chat-integration.js?v=video-chat-2026-01-20"></script>
+  
+  <!-- UI Enhancement System -->
+  <script type="module" src="assets/js/ui-enhancements.js?v=ui-enhancements-2026-01-20"></script>
+  
+  <script type="module" src="assets/js/daily-engagement.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/connectionRequests.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Messaging with commit-based cache-busting -->
+  <script src="assets/js/messaging.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Auth + profile with commit-based cache-busting for auth fix -->
+  <script type="module" src="auth.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="profile.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Synapse initialization helper with commit-based cache-busting -->
+  <script src="assets/js/synapse-init-helper.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Connection status indicator with commit-based cache-busting -->
+  <script src="assets/js/connection-status.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Synapse boot with commit-based cache-busting -->
+  <script type="module" src="assets/js/synapse.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Theme Strategy Toggle (for testing both old and new systems) -->
+  <script src="assets/js/theme-strategy-toggle.js?v=1ed978ffb3963"></script>
+
+  <!-- Main app boot with commit-based cache-busting -->
+  <script type="module" src="main.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Dashboard controller with commit-based cache-busting -->
+  <script type="module" src="assets/js/dashboardPane.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Enhanced Onboarding System -->
+  <script src="assets/js/enhanced-onboarding.js?v=onboarding-2026-01-20"></script>
+  <script src="assets/js/profile-completion-helper.js?v=onboarding-2026-01-20"></script>
+  <script src="assets/js/contextual-tooltips.js?v=onboarding-2026-01-20"></script>
+
+  <!-- START Flow System - Redesigned and Complete -->
+  <script src="assets/js/start-flow-redesigned.js?v=redesigned-2026-01-20"></script>
+  <script src="assets/js/start-flow-ui-redesigned.js?v=redesigned-2026-01-20"></script>
+  <script src="assets/js/organizations-manager.js?v=redesigned-2026-01-20"></script>
+  <script src="assets/js/start-flow-complete-integration.js?v=redesigned-2026-01-20"></script>
+
+  <!-- Legacy START Flow (for fallback) -->
+  <script src="assets/js/start-flow.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/start-flow-enhanced.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/start-flow-phase2.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/start-flow-integration.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Mentor Guide System with commit-based cache-busting -->
+  <script src="assets/js/mentor-guide.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+
+  <!-- Logout Button Handler -->
   <script>
-    // Simple initialization
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('🚀 Simple Dashboard Loading...');
-      
-      // Initialize core systems
-      if (typeof initSimpleAuth === 'function') {
-        initSimpleAuth();
-      }
-      
-      if (typeof initSimpleSynapse === 'function') {
-        initSimpleSynapse();
-      }
-      
-      console.log('✅ Simple Dashboard Ready');
-    });
+    document.addEventListener('DOMContentLoaded', () => {
+      const logoutBtn = document.getElementById('logout-btn');
+      if (!logoutBtn) return;
 
-    // Simple navigation functions
-    function showThemes() {
-      console.log('Showing themes...');
-      if (typeof window.showThemes === 'function') {
-        window.showThemes();
-      }
-    }
-
-    function showProjects() {
-      console.log('Showing projects...');
-      if (typeof window.showProjects === 'function') {
-        window.showProjects();
-      }
-    }
-
-    function showPeople() {
-      console.log('Showing people...');
-      if (typeof window.showPeople === 'function') {
-        window.showPeople();
-      }
-    }
-
-    function openMessaging() {
-      console.log('Opening messaging...');
-      if (typeof window.openMessagingInterface === 'function') {
-        window.openMessagingInterface();
-      } else if (typeof window.initSimpleMessaging === 'function') {
-        // Try to initialize messaging if not already done
-        window.initSimpleMessaging();
-        setTimeout(() => {
-          if (typeof window.openMessagingInterface === 'function') {
-            window.openMessagingInterface();
-          } else {
-            alert('Messaging system is loading. Please try again in a moment.');
-          }
-        }, 500);
-      } else {
-        alert('Messaging system not available');
-      }
-    }
-
-    function showProfile() {
-      console.log('Showing profile...');
-      if (typeof window.showProfile === 'function') {
-        window.showProfile();
-      }
-    }
-
-    function showConnections() {
-      console.log('Showing connections...');
-      if (typeof window.showConnections === 'function') {
-        window.showConnections();
-      }
-    }
-
-    function createProject() {
-      console.log('Creating project...');
-      if (typeof window.createProject === 'function') {
-        window.createProject();
-      }
-    }
-
-    function joinTheme() {
-      console.log('Joining theme...');
-      if (typeof window.joinTheme === 'function') {
-        window.joinTheme();
-      }
-    }
-
-    function logout() {
-      if (typeof window.supabase !== 'undefined') {
-        window.supabase.auth.signOut();
-      }
-      window.location.href = '/';
-    }
-
-    // Add keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-      // Close messaging with Escape key
-      if (e.key === 'Escape') {
-        if (typeof window.closeMessaging === 'function') {
-          window.closeMessaging();
+      logoutBtn.addEventListener('click', async () => {
+        if (!window.handleLogout) {
+          console.error('❌ Logout function not available');
+          return;
         }
-      }
+
+        console.log('🚪 Logging out...');
+        await window.handleLogout();
+
+        console.log('🧹 Clearing cached state...');
+        localStorage.removeItem('start_flow_state');
+        localStorage.removeItem('chs_splash_seen_v2');
+
+        setTimeout(() => {
+          window.location.href = '/index.html';
+        }, 500);
+      });
+
+      // Add handlers for new integrated features
+      setupIntegratedFeatureHandlers();
     });
+
+    // Setup handlers for newly integrated features
+    function setupIntegratedFeatureHandlers() {
+      // Analytics Dashboard
+      const analyticsBtn = document.getElementById('btn-analytics-dashboard');
+      if (analyticsBtn) {
+        analyticsBtn.addEventListener('click', () => {
+          if (typeof window.openAnalyticsDashboard === 'function') {
+            window.openAnalyticsDashboard();
+          } else {
+            console.warn('Analytics dashboard not available');
+          }
+        });
+      }
+
+      // Activity Feed
+      const activityBtn = document.getElementById('btn-activity-feed');
+      if (activityBtn) {
+        activityBtn.addEventListener('click', () => {
+          if (typeof window.openActivityFeed === 'function') {
+            window.openActivityFeed();
+          } else {
+            console.warn('Activity feed not available');
+          }
+        });
+      }
+
+      // Performance Monitor
+      const performanceBtn = document.getElementById('btn-performance');
+      if (performanceBtn) {
+        performanceBtn.addEventListener('click', () => {
+          if (typeof window.openPerformanceMonitor === 'function') {
+            window.openPerformanceMonitor();
+          } else {
+            // Fallback: open system diagnostics page
+            window.open('system-diagnostics.html', '_blank');
+          }
+        });
+      }
+
+      // System Diagnostics
+      const diagnosticsBtn = document.getElementById('btn-diagnostics');
+      if (diagnosticsBtn) {
+        diagnosticsBtn.addEventListener('click', () => {
+          window.open('system-diagnostics.html', '_blank');
+        });
+      }
+
+      // Language Switcher
+      const languageBtn = document.getElementById('btn-language');
+      if (languageBtn) {
+        languageBtn.addEventListener('click', () => {
+          openLanguageSwitcher();
+        });
+      }
+
+      // Enhanced existing buttons
+      enhanceExistingButtons();
+    }
+
+    // Enhance existing button functionality
+    function enhanceExistingButtons() {
+      // Enhanced Connect button
+      const connectBtn = document.getElementById('btn-quickconnect');
+      if (connectBtn) {
+        connectBtn.addEventListener('click', () => {
+          if (typeof window.openConnectionDiscovery === 'function') {
+            window.openConnectionDiscovery();
+          } else if (typeof window.openQuickConnectModal === 'function') {
+            window.openQuickConnectModal();
+          }
+        });
+      }
+
+      // Enhanced Themes button
+      const themesBtn = document.getElementById('btn-themes');
+      if (themesBtn) {
+        themesBtn.addEventListener('click', () => {
+          if (typeof window.openThemeDiscoveryModal === 'function') {
+            window.openThemeDiscoveryModal();
+          }
+        });
+      }
+    }
+
+    // Language switcher modal
+    function openLanguageSwitcher() {
+      // Remove existing modal
+      const existing = document.getElementById('language-switcher-modal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'language-switcher-modal';
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 1rem;
+      `;
+
+      modal.innerHTML = `
+        <div style="
+          background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
+          border: 2px solid rgba(0, 224, 255, 0.5);
+          border-radius: 16px;
+          backdrop-filter: blur(10px);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+          max-width: 500px;
+          width: 100%;
+          padding: 2rem;
+          position: relative;
+        ">
+          <button onclick="this.parentElement.parentElement.remove()" style="
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+          ">
+            <i class="fas fa-times"></i>
+          </button>
+
+          <h2 style="color: #00e0ff; margin-bottom: 1.5rem; text-align: center;">
+            <i class="fas fa-globe"></i> Choose Language
+          </h2>
+
+          <div style="display: grid; gap: 1rem;">
+            <button onclick="selectLanguage('en')" style="
+              background: rgba(0, 224, 255, 0.1);
+              border: 2px solid rgba(0, 224, 255, 0.3);
+              border-radius: 8px;
+              padding: 1rem;
+              color: white;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
+              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇺🇸</div>
+              <div style="font-weight: 600;">English</div>
+              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Default language</div>
+            </button>
+
+            <button onclick="selectLanguage('es')" style="
+              background: rgba(0, 224, 255, 0.1);
+              border: 2px solid rgba(0, 224, 255, 0.3);
+              border-radius: 8px;
+              padding: 1rem;
+              color: white;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
+              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇪🇸</div>
+              <div style="font-weight: 600;">Español</div>
+              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Spanish</div>
+            </button>
+
+            <button onclick="selectLanguage('fr')" style="
+              background: rgba(0, 224, 255, 0.1);
+              border: 2px solid rgba(0, 224, 255, 0.3);
+              border-radius: 8px;
+              padding: 1rem;
+              color: white;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
+              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇫🇷</div>
+              <div style="font-weight: 600;">Français</div>
+              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">French</div>
+            </button>
+
+            <div style="text-align: center; margin-top: 1rem; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
+              More languages coming soon...
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      // Close on backdrop click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    }
+
+    // Language selection handler
+    function selectLanguage(languageCode) {
+      console.log('🌍 Language selected:', languageCode);
+      
+      if (typeof window.setLanguage === 'function') {
+        window.setLanguage(languageCode);
+      }
+      
+      // Close modal
+      const modal = document.getElementById('language-switcher-modal');
+      if (modal) modal.remove();
+      
+      // Show confirmation
+      if (typeof window.createToast === 'function') {
+        const languageNames = {
+          en: 'English',
+          es: 'Español', 
+          fr: 'Français'
+        };
+        window.createToast(`Language changed to ${languageNames[languageCode]}`, 'success');
+      }
+    }
   </script>
-</body>
+
+  <!-- Session Restoration Handler - Fixes tab switching issues -->
+  <script>
+    (function() {
+      let lastActiveTime = Date.now();
+      let restoreInFlight = false;
+
+      document.addEventListener('visibilitychange', async () => {
+        if (document.hidden) return;
+
+        const timeSinceActive = Date.now() - lastActiveTime;
+        console.log(`👁️ Tab visible again (was away for ${Math.floor(timeSinceActive / 1000)}s)`);
+
+        // Do not collide with auth boot
+        if (!window.__authReady) {
+          lastActiveTime = Date.now();
+          return;
+        }
+
+        // Single-flight: never overlap getSession calls
+        if (restoreInFlight) {
+          lastActiveTime = Date.now();
+          return;
+        }
+
+        if (timeSinceActive > 30000 && window.supabase) {
+          restoreInFlight = true;
+          console.log('🔄 Checking session after being away...');
+
+          try {
+            const { data: { session }, error } = await window.supabase.auth.getSession();
+
+            if (error) {
+              console.error('❌ Session check error:', error);
+              return;
+            }
+
+            if (session?.user) {
+              console.log('✅ Session valid for:', session.user.email);
+
+              const loginSection = document.getElementById('login-section');
+              const mainContent = document.getElementById('main-content');
+
+              if (loginSection && !loginSection.classList.contains('hidden')) {
+                console.log('🔧 Fixing UI - showing app instead of login');
+                loginSection.classList.add('hidden');
+                loginSection.classList.remove('active-tab-pane');
+
+                if (mainContent) mainContent.classList.remove('hidden');
+
+                const mainHeader = document.getElementById('main-header');
+                if (mainHeader) mainHeader.classList.remove('hidden');
+
+                document.body.style.overflow = 'auto';
+
+                if (!window.currentUserProfile) {
+                  console.log('📋 Reloading user profile...');
+                  try {
+                    const { data: profile } = await window.supabase
+                      .from('community')
+                      .select('*')
+                      .eq('user_id', session.user.id)
+                      .limit(1);
+
+                    if (profile && profile.length > 0) {
+                      window.currentUserProfile = profile[0];
+                      window.dispatchEvent(
+                        new CustomEvent('profile-loaded', {
+                          detail: { user: session.user, profile: profile[0] }
+                        })
+                      );
+                      console.log('✅ Profile reloaded:', profile[0].name);
+                    }
+                  } catch (e) {
+                    console.error('❌ Error reloading profile:', e);
+                  }
+                }
+              }
+            } else {
+              console.log('⚠️ No active session found');
+
+              const loginSection = document.getElementById('login-section');
+              if (loginSection && loginSection.classList.contains('hidden')) {
+                console.log('🔒 Showing login screen');
+                loginSection.classList.remove('hidden');
+                loginSection.classList.add('active-tab-pane');
+
+                const mainContent = document.getElementById('main-content');
+                if (mainContent) mainContent.classList.add('hidden');
+
+                const mainHeader = document.getElementById('main-header');
+                if (mainHeader) mainHeader.classList.add('hidden');
+
+                document.body.style.overflow = 'hidden';
+              }
+            }
+          } catch (e) {
+            console.error('❌ Error checking session:', e);
+          } finally {
+            restoreInFlight = false;
+          }
+        }
+
+        lastActiveTime = Date.now();
+      });
+
+      setInterval(() => {
+        if (!document.hidden) lastActiveTime = Date.now();
+      }, 5000);
+
+      console.log('✅ Session restoration handler initialized');
+    })();
+  </script>
+
+  <!-- Profile Editor Extension -->
+  </body>
 </html>
