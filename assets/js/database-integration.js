@@ -430,4 +430,5 @@ if (!window.originalSendDirectMessage && window.sendDirectMessage) {
   window.originalSendDirectMessage = window.sendDirectMessage;
 }
 
-console.log('✅ Database integration completed - all systems wired');}
+console.log('✅ Database integration completed - all systems wired');
+}
