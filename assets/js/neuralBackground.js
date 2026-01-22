@@ -96,6 +96,18 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-// Initialize nodes and start animation
-for (let i = 0; i < 80; i++) nodes.push(new Node(i + 1));
-animate();
+// Initialize nodes with reduced count for better performance
+// Start with fewer nodes and gradually add more if needed
+const nodeCount = window.innerWidth < 768 ? 30 : 50; // Reduced from 80
+for (let i = 0; i < nodeCount; i++) nodes.push(new Node(i + 1));
+
+// Delay animation start to prioritize page content loading
+const startAnimation = () => {
+  animate();
+  // Fade in canvas after first frame is ready
+  requestAnimationFrame(() => {
+    canvas.style.opacity = '1';
+  });
+};
+
+requestIdleCallback ? requestIdleCallback(startAnimation) : setTimeout(startAnimation, 100);
