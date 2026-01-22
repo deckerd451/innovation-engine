@@ -1,9 +1,9 @@
 // assets/js/theme-strategy-toggle.js
-// Toggle between old SVG circles and new theme cards strategy
+// Toggle between old SVG circles, new theme cards, and sidebar strategies
 
 console.log("🎯 Theme Strategy Toggle loaded");
 
-let currentStrategy = 'new'; // Start with new strategy
+let currentStrategy = 'cards'; // Start with cards strategy ('circles', 'cards', 'sidebar')
 let isToggling = false;
 
 // Add toggle button to the page
@@ -37,15 +37,20 @@ function addThemeStrategyToggle() {
 
 function updateButtonText(button) {
   const strategies = {
-    old: {
+    circles: {
+      icon: 'fa-circle-notch',  // Circles icon
+      text: 'Circles',
+      fullText: 'Switch to Circles'
+    },
+    cards: {
       icon: 'fa-th-large',  // Cards icon
       text: 'Cards',
       fullText: 'Switch to Cards'
     },
-    new: {
-      icon: 'fa-circle-notch',  // Circles icon
-      text: 'Circles',
-      fullText: 'Switch to Circles'
+    sidebar: {
+      icon: 'fa-bars',  // Sidebar icon
+      text: 'Sidebar',
+      fullText: 'Switch to Sidebar'
     }
   };
 
@@ -81,13 +86,13 @@ async function toggleThemeStrategy() {
     // Reset the current view's state before switching
     console.log('🔄 Resetting current view state before switch...');
     try {
-      if (currentStrategy === 'new') {
-        // We're in cards mode, reset cards before switching to circles
-        const { resetSynapseView } = await import('./synapse/core-cards.js');
+      if (currentStrategy === 'circles') {
+        // We're in circles mode, reset circles before switching
+        const { resetSynapseView } = await import('./synapse/core.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292');
         resetSynapseView();
       } else {
-        // We're in circles mode, reset circles before switching to cards
-        const { resetSynapseView } = await import('./synapse/core.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292');
+        // We're in cards/sidebar mode, reset before switching
+        const { resetSynapseView } = await import('./synapse/core-cards.js');
         resetSynapseView();
       }
     } catch (resetError) {
@@ -100,44 +105,55 @@ async function toggleThemeStrategy() {
       synapseContainer.innerHTML = '';
     }
 
-    // Switch strategy
-    currentStrategy = currentStrategy === 'old' ? 'new' : 'old';
+    // Cycle through strategies: circles -> cards -> sidebar -> circles
+    const strategies = ['circles', 'cards', 'sidebar'];
+    const currentIndex = strategies.indexOf(currentStrategy);
+    currentStrategy = strategies[(currentIndex + 1) % strategies.length];
 
     // Update global reference
     window.currentStrategy = currentStrategy;
 
     // Dynamically import and initialize the appropriate strategy
-    if (currentStrategy === 'new') {
-      // Import new cards strategy
-      const { initSynapseView } = await import('./synapse/core-cards.js');
-      
-      // Setup container for cards
-      setupCardsContainer();
-      
-      // Initialize new system
-      await initSynapseView();
-      
-      showNotification('🎯 Switched to Theme Cards Strategy!', 'success');
-      
-    } else {
+    if (currentStrategy === 'circles') {
       // Import old circles strategy
       const { initSynapseView } = await import('./synapse/core.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292');
-      
+
       // Setup container for SVG
       setupSVGContainer();
-      
+
       // Initialize old system
       await initSynapseView();
-      
-      showNotification('🔄 Switched to SVG Circles Strategy', 'info');
+
+      showNotification('🔄 Switched to Circles View', 'info');
+
+    } else {
+      // Import new cards strategy for both cards and sidebar modes
+      const { initSynapseView, toggleThemeDisplayMode } = await import('./synapse/core-cards.js');
+
+      // Setup container for cards
+      setupCardsContainer();
+
+      // Initialize new system
+      await initSynapseView();
+
+      // Set the appropriate display mode
+      if (currentStrategy === 'cards') {
+        toggleThemeDisplayMode('cards');
+        showNotification('🎯 Switched to Cards View', 'success');
+      } else if (currentStrategy === 'sidebar') {
+        toggleThemeDisplayMode('sidebar');
+        showNotification('📱 Switched to Sidebar View', 'success');
+      }
     }
 
   } catch (error) {
     console.error('❌ Failed to switch theme strategy:', error);
     showNotification('Failed to switch strategy: ' + error.message, 'error');
-    
+
     // Revert strategy on error
-    currentStrategy = currentStrategy === 'old' ? 'new' : 'old';
+    const strategies = ['circles', 'cards', 'sidebar'];
+    const currentIndex = strategies.indexOf(currentStrategy);
+    currentStrategy = strategies[(currentIndex - 1 + strategies.length) % strategies.length];
   } finally {
     isToggling = false;
     button.style.pointerEvents = 'auto';
