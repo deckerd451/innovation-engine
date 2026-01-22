@@ -10,7 +10,8 @@ console.log('🔌 Database integration initializing...');
 // INITIALIZE DATABASE HELPER
 // ================================================================
 
-let dbHelper = null;
+// Use the global dbHelper declared in database-config.js (loaded first)
+// No need to redeclare - it causes "Identifier 'dbHelper' has already been declared" error
 
 // Wait for supabaseClient to be available
 function initializeDatabaseIntegration() {
@@ -27,12 +28,12 @@ function initializeDatabaseIntegration() {
   }
 
   try {
-    dbHelper = window.initializeDatabaseHelper(window.supabase);
+    window.dbHelper = window.initializeDatabaseHelper(window.supabase);
     console.log('✅ Database helper integrated with Supabase client');
-    
+
     // Initialize enhanced functions
     setupEnhancedFunctions();
-    
+
   } catch (error) {
     console.error('❌ Failed to initialize database helper:', error);
   }
@@ -51,14 +52,14 @@ function setupEnhancedFunctions() {
     console.log('📨 Enhanced sendDirectMessage called:', userId, message);
     
     try {
-      if (!dbHelper) throw new Error('Database helper not initialized');
-      
+      if (!window.dbHelper) throw new Error('Database helper not initialized');
+
       // Create or get conversation
-      const conversation = await dbHelper.createConversation(userId);
-      
+      const conversation = await window.dbHelper.createConversation(userId);
+
       // Send message if provided
       if (message && message.trim()) {
-        await dbHelper.sendMessage(conversation.id, message.trim());
+        await window.dbHelper.sendMessage(conversation.id, message.trim());
       }
       
       // Open messaging interface
@@ -87,10 +88,10 @@ function setupEnhancedFunctions() {
     console.log('💬 Enhanced messaging interface opening...');
     
     try {
-      if (!dbHelper) throw new Error('Database helper not initialized');
-      
+      if (!window.dbHelper) throw new Error('Database helper not initialized');
+
       // Load conversations using database helper
-      const conversations = await dbHelper.getConversations();
+      const conversations = await window.dbHelper.getConversations();
       
       // Call original messaging interface with enhanced data
       if (typeof window.openMessagingInterface === 'function') {
@@ -110,9 +111,9 @@ function setupEnhancedFunctions() {
     console.log('🤝 Enhanced connection request:', toCommunityId, targetName, type);
     
     try {
-      if (!dbHelper) throw new Error('Database helper not initialized');
-      
-      const result = await dbHelper.sendConnectionRequest(toCommunityId, type);
+      if (!window.dbHelper) throw new Error('Database helper not initialized');
+
+      const result = await window.dbHelper.sendConnectionRequest(toCommunityId, type);
       
       console.log('✅ Enhanced connection request sent:', result);
       
@@ -153,9 +154,9 @@ window.createEnhancedProject = async function(projectData) {
   console.log('💡 Enhanced project creation:', projectData);
   
   try {
-    if (!dbHelper) throw new Error('Database helper not initialized');
+    if (!window.dbHelper) throw new Error('Database helper not initialized');
     
-    const project = await dbHelper.createProject(projectData);
+    const project = await window.dbHelper.createProject(projectData);
     
     console.log('✅ Enhanced project created:', project);
     
@@ -191,9 +192,9 @@ window.enhancedCommunitySearch = async function(query, limit = 20) {
   console.log('🔍 Enhanced community search:', query);
   
   try {
-    if (!dbHelper) throw new Error('Database helper not initialized');
+    if (!window.dbHelper) throw new Error('Database helper not initialized');
     
-    const results = await dbHelper.searchCommunity(query, limit);
+    const results = await window.dbHelper.searchCommunity(query, limit);
     
     console.log(`✅ Enhanced search found ${results.length} results`);
     
@@ -213,9 +214,9 @@ window.joinEnhancedTheme = async function(themeId, engagementLevel = 'interested
   console.log('🎯 Enhanced theme joining:', themeId, engagementLevel);
   
   try {
-    if (!dbHelper) throw new Error('Database helper not initialized');
+    if (!window.dbHelper) throw new Error('Database helper not initialized');
     
-    const participation = await dbHelper.joinTheme(themeId, engagementLevel, signals);
+    const participation = await window.dbHelper.joinTheme(themeId, engagementLevel, signals);
     
     console.log('✅ Enhanced theme joined:', participation);
     
@@ -247,9 +248,9 @@ window.getEnhancedNetworkStats = async function() {
   console.log('📊 Getting enhanced network stats...');
   
   try {
-    if (!dbHelper) throw new Error('Database helper not initialized');
+    if (!window.dbHelper) throw new Error('Database helper not initialized');
     
-    const stats = await dbHelper.getNetworkStats();
+    const stats = await window.dbHelper.getNetworkStats();
     
     console.log('✅ Enhanced network stats loaded:', stats);
     
@@ -271,7 +272,7 @@ window.subscribeToEnhancedMessages = function(conversationId, callback) {
   console.log('🔄 Subscribing to enhanced messages:', conversationId);
   
   try {
-    if (!dbHelper) throw new Error('Database helper not initialized');
+    if (!window.dbHelper) throw new Error('Database helper not initialized');
     
     // Unsubscribe from existing subscription
     if (activeSubscriptions.has(`messages:${conversationId}`)) {
@@ -280,7 +281,7 @@ window.subscribeToEnhancedMessages = function(conversationId, callback) {
     }
     
     // Create new subscription
-    const subscription = dbHelper.subscribeToMessages(conversationId, callback);
+    const subscription = window.dbHelper.subscribeToMessages(conversationId, callback);
     activeSubscriptions.set(`messages:${conversationId}`, subscription);
     
     console.log('✅ Enhanced message subscription created');
@@ -297,7 +298,7 @@ window.subscribeToEnhancedConnections = function(callback) {
   console.log('🔄 Subscribing to enhanced connections...');
   
   try {
-    if (!dbHelper) throw new Error('Database helper not initialized');
+    if (!window.dbHelper) throw new Error('Database helper not initialized');
     
     // Unsubscribe from existing subscription
     if (activeSubscriptions.has('connections')) {
@@ -306,7 +307,7 @@ window.subscribeToEnhancedConnections = function(callback) {
     }
     
     // Create new subscription
-    const subscription = dbHelper.subscribeToConnections(callback);
+    const subscription = window.dbHelper.subscribeToConnections(callback);
     activeSubscriptions.set('connections', subscription);
     
     console.log('✅ Enhanced connections subscription created');
@@ -327,9 +328,9 @@ window.testDatabaseConnection = async function() {
   console.log('🔍 Testing database connection...');
   
   try {
-    if (!dbHelper) throw new Error('Database helper not initialized');
+    if (!window.dbHelper) throw new Error('Database helper not initialized');
     
-    const result = await dbHelper.testConnection();
+    const result = await window.dbHelper.testConnection();
     
     if (result.success) {
       console.log('✅ Database connection test passed');
@@ -400,9 +401,9 @@ window.addEventListener('user-logged-out', () => {
   activeSubscriptions.clear();
   
   // Reset database helper
-  if (dbHelper) {
-    dbHelper.currentUser = null;
-    dbHelper.currentCommunityProfile = null;
+  if (window.dbHelper) {
+    window.dbHelper.currentUser = null;
+    window.dbHelper.currentCommunityProfile = null;
   }
   
   console.log('✅ Database cleanup completed');
@@ -412,10 +413,8 @@ window.addEventListener('user-logged-out', () => {
 // EXPOSE ENHANCED FUNCTIONS GLOBALLY
 // ================================================================
 
-// Make enhanced functions available globally
-window.dbHelper = dbHelper;
-window.DATABASE_SCHEMA = DATABASE_SCHEMA;
-window.COLUMN_MAPPINGS = COLUMN_MAPPINGS;
+// Note: window.dbHelper is already set by database-config.js
+// Note: window.DATABASE_SCHEMA and window.COLUMN_MAPPINGS are already set by database-config.js
 
 // Enhanced function aliases
 window.sendDirectMessage = window.sendDirectMessage; // Already overridden above
