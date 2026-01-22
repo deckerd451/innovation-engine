@@ -533,7 +533,6 @@
                       background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
                       transition: all 0.2s;"
                title="Profile"
-               onclick="openProfileModal()"
                onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'"
                onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
             <div class="user-avatar" id="user-avatar-header" style="width: 24px; height: 24px;">
@@ -1207,6 +1206,33 @@
         window.showActivityFeed();
       } else {
         document.getElementById('btn-activity-feed')?.click();
+      }
+    };
+
+    // Override profile modal to use the fallback modal directly
+    const originalOpenProfileModal = window.openProfileModal;
+    window.openProfileModal = function() {
+      console.log('Opening profile modal (safe version)...');
+      // Try the original function first
+      if (originalOpenProfileModal && typeof originalOpenProfileModal === 'function') {
+        try {
+          originalOpenProfileModal();
+        } catch (error) {
+          console.warn('Error calling original openProfileModal, using fallback:', error);
+          // Fallback: just try to open the modal element directly
+          const modal = document.getElementById('profile-modal');
+          if (modal) {
+            modal.style.display = 'flex';
+          }
+        }
+      } else {
+        // No original function, try opening modal directly
+        const modal = document.getElementById('profile-modal');
+        if (modal) {
+          modal.style.display = 'flex';
+        } else {
+          alert('Profile feature is loading...');
+        }
       }
     };
   </script>
