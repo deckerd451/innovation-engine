@@ -6,56 +6,61 @@
 
 console.log("%c🔧 Event Deduplication Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
 
-// Global registry to track bound event listeners
-window.__CH_EVENT_REGISTRY__ = window.__CH_EVENT_REGISTRY__ || new Map();
+// Global registry to track bound event listeners (WeakMap to allow garbage collection)
+window.__CH_EVENT_REGISTRY__ = window.__CH_EVENT_REGISTRY__ || new WeakMap();
+window.__CH_EVENT_COUNTER__ = window.__CH_EVENT_COUNTER__ || 0;
 
 // Enhanced addEventListener that prevents duplicates
 const originalAddEventListener = EventTarget.prototype.addEventListener;
 
 EventTarget.prototype.addEventListener = function(type, listener, options) {
-  // Generate a unique key for this event binding
-  const key = `${this.constructor.name || 'Unknown'}-${type}-${listener.toString().slice(0, 100)}`;
-  
-  // Check if this exact listener is already bound
-  if (window.__CH_EVENT_REGISTRY__.has(key)) {
-    console.warn(`⚠️ Duplicate event listener prevented: ${type} on ${this.constructor.name || 'element'}`);
+  // Get or create a unique ID for this element
+  if (!this.__ch_element_id__) {
+    this.__ch_element_id__ = ++window.__CH_EVENT_COUNTER__;
+  }
+
+  // Get or create the event map for this element
+  if (!window.__CH_EVENT_REGISTRY__.has(this)) {
+    window.__CH_EVENT_REGISTRY__.set(this, new Map());
+  }
+
+  const elementRegistry = window.__CH_EVENT_REGISTRY__.get(this);
+
+  // Generate a unique key for this event binding on THIS specific element
+  const listenerKey = listener.toString().slice(0, 100);
+  const key = `${type}-${listenerKey}`;
+
+  // Check if this exact listener is already bound to THIS element
+  if (elementRegistry.has(key)) {
+    console.warn(`⚠️ Duplicate event listener prevented: ${type} on ${this.constructor.name || 'element'}#${this.__ch_element_id__}`);
     return;
   }
-  
-  // Register this listener
-  window.__CH_EVENT_REGISTRY__.set(key, {
-    target: this,
+
+  // Register this listener for this element
+  elementRegistry.set(key, {
     type: type,
     listener: listener,
     options: options,
     timestamp: Date.now()
   });
-  
+
   // Call original addEventListener
   return originalAddEventListener.call(this, type, listener, options);
 };
 
 // Function to clear duplicate listeners (useful for debugging)
 window.clearDuplicateListeners = function() {
-  const registry = window.__CH_EVENT_REGISTRY__;
-  const cleared = registry.size;
-  registry.clear();
-  console.log(`🧹 Cleared ${cleared} registered event listeners`);
+  // WeakMap doesn't support iteration or size, so we reset it
+  window.__CH_EVENT_REGISTRY__ = new WeakMap();
+  console.log(`🧹 Event listener registry cleared`);
 };
 
-// Function to show current listener stats
+// Function to show current listener stats (limited with WeakMap)
 window.showListenerStats = function() {
-  const registry = window.__CH_EVENT_REGISTRY__;
-  const stats = {};
-  
-  for (const [key, info] of registry.entries()) {
-    const eventType = info.type;
-    stats[eventType] = (stats[eventType] || 0) + 1;
-  }
-  
-  console.log("📊 Current Event Listener Stats:", stats);
-  console.log(`📊 Total registered listeners: ${registry.size}`);
-  return stats;
+  console.log("📊 Event Listener Stats:");
+  console.log("Note: Using WeakMap for memory efficiency - detailed stats not available");
+  console.log(`📊 Total elements tracked: ${window.__CH_EVENT_COUNTER__ || 0}`);
+  return { elementsTracked: window.__CH_EVENT_COUNTER__ || 0 };
 };
 
 // Initialization guard system for modules
@@ -124,7 +129,8 @@ window.trackInitialization = function(moduleName) {
 
 // Cleanup function for page unload
 window.addEventListener('beforeunload', () => {
-  window.__CH_EVENT_REGISTRY__.clear();
+  window.__CH_EVENT_REGISTRY__ = new WeakMap();
+  window.__CH_EVENT_COUNTER__ = 0;
   profileLoadedFired = false;
   profileLoadedData = null;
   initializationCounts = {};
