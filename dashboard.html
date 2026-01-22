@@ -244,15 +244,23 @@
     // Simple navigation functions
     function showThemes() {
       console.log('Showing themes...');
-      // Implementation will be in simple-dashboard.js
+      if (typeof window.showThemes === 'function') {
+        window.showThemes();
+      }
     }
 
     function showProjects() {
       console.log('Showing projects...');
+      if (typeof window.showProjects === 'function') {
+        window.showProjects();
+      }
     }
 
     function showPeople() {
       console.log('Showing people...');
+      if (typeof window.showPeople === 'function') {
+        window.showPeople();
+      }
     }
 
     function openMessaging() {
@@ -276,18 +284,30 @@
 
     function showProfile() {
       console.log('Showing profile...');
+      if (typeof window.showProfile === 'function') {
+        window.showProfile();
+      }
     }
 
     function showConnections() {
       console.log('Showing connections...');
+      if (typeof window.showConnections === 'function') {
+        window.showConnections();
+      }
     }
 
     function createProject() {
       console.log('Creating project...');
+      if (typeof window.createProject === 'function') {
+        window.createProject();
+      }
     }
 
     function joinTheme() {
       console.log('Joining theme...');
+      if (typeof window.joinTheme === 'function') {
+        window.joinTheme();
+      }
     }
 
     function logout() {
@@ -296,6 +316,16 @@
       }
       window.location.href = '/';
     }
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      // Close messaging with Escape key
+      if (e.key === 'Escape') {
+        if (typeof window.closeMessaging === 'function') {
+          window.closeMessaging();
+        }
+      }
+    });
   </script>
 </body>
 </html>

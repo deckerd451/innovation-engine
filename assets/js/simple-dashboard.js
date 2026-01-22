@@ -20,12 +20,27 @@ function initSimpleDashboard() {
     initSimpleSynapse();
   }
   
+  // Close any messaging panels that might be open
+  setTimeout(() => {
+    if (typeof window.closeMessaging === 'function') {
+      window.closeMessaging();
+    }
+    // Ensure themes are shown by default
+    if (typeof window.renderCurrentView === 'function') {
+      window.renderCurrentView();
+    }
+  }, 1000);
+  
   console.log('✅ Simple Dashboard Ready');
 }
 
 // Navigation functions
 window.showThemes = function() {
   console.log('Showing themes...');
+  // Close any open messaging panels first
+  if (typeof window.closeMessaging === 'function') {
+    window.closeMessaging();
+  }
   if (typeof window.renderCurrentView === 'function') {
     window.renderCurrentView();
   } else {
@@ -35,31 +50,55 @@ window.showThemes = function() {
 
 window.showProjects = function() {
   console.log('Showing projects...');
+  // Close any open messaging panels first
+  if (typeof window.closeMessaging === 'function') {
+    window.closeMessaging();
+  }
   showProjectsView();
 };
 
 window.showPeople = function() {
   console.log('Showing people...');
+  // Close any open messaging panels first
+  if (typeof window.closeMessaging === 'function') {
+    window.closeMessaging();
+  }
   showPeopleView();
 };
 
 window.showProfile = function() {
   console.log('Showing profile...');
+  // Close any open messaging panels first
+  if (typeof window.closeMessaging === 'function') {
+    window.closeMessaging();
+  }
   showProfileView();
 };
 
 window.showConnections = function() {
   console.log('Showing connections...');
+  // Close any open messaging panels first
+  if (typeof window.closeMessaging === 'function') {
+    window.closeMessaging();
+  }
   showConnectionsView();
 };
 
 window.createProject = function() {
   console.log('Creating project...');
+  // Close any open messaging panels first
+  if (typeof window.closeMessaging === 'function') {
+    window.closeMessaging();
+  }
   showProjectCreator();
 };
 
 window.joinTheme = function() {
   console.log('Joining theme...');
+  // Close any open messaging panels first
+  if (typeof window.closeMessaging === 'function') {
+    window.closeMessaging();
+  }
   showThemeBrowser();
 };
 
