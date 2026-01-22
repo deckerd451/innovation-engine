@@ -89,7 +89,6 @@ async function initConnections(supabaseClient) {
     window.sendConnectionRequest = sendConnectionRequest;
   }
 
-  console.log("%c✓ Connections module initialized", "color: #0f0");
   return { currentUserId, currentUserCommunityId };
 }
 

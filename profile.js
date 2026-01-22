@@ -20,7 +20,6 @@
 
   const GUARD = "__CH_IE_PROFILE_V2__";
   if (window[GUARD]) {
-    console.log("⚠️ profile.js already initialized — skipping duplicate init.");
     return;
   }
   window[GUARD] = true;
@@ -803,6 +802,4 @@
   } else {
     bindUI();
   }
-
-  console.log("✅ profile.js loaded (v2)");
 })();

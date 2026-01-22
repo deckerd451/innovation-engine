@@ -20,7 +20,6 @@ let supabaseInstance;
 if (window.supabase) {
   // Reuse existing client if module is imported multiple times
   supabaseInstance = window.supabase;
-  console.log("♻️ Reusing existing Supabase client");
 } else {
   // Create new client only if one doesn't exist
   try {
@@ -45,7 +44,6 @@ if (window.supabase) {
       }
     );
     window.supabase = supabaseInstance;
-    console.log("✅ Supabase client initialized");
   } catch (error) {
     console.error("❌ Failed to initialize Supabase client:", error);
     throw error;

@@ -17,8 +17,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   window.__IE_MAIN_INIT_DONE__ = true;
 
-  console.log("🎨 DOM ready, initializing systems...");
-
   // Wait for required globals from other scripts
   await waitForGlobals();
 
@@ -32,7 +30,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (typeof window.initConnections === 'function' && window.supabase) {
     try {
       await window.initConnections(window.supabase);
-      console.log("✅ Connections module initialized");
     } catch (error) {
       console.error("❌ Error initializing connections:", error);
     }

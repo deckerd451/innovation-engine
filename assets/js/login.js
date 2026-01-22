@@ -42,8 +42,6 @@ export function setupLoginDOM() {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", handleLogout);
   }
-
-  console.log("🎨 Login DOM setup complete (OAuth mode)");
 }
 
 // ======================================================================
@@ -61,11 +59,9 @@ function showLoginUI() {
   // Hide user badge and logout
   if (userBadge) userBadge.classList.add("hidden");
   if (logoutBtn) logoutBtn.classList.add("hidden");
-  
+
   // Clear profile form
   clearProfileForm();
-  
-  console.log("🔒 Showing login UI");
 }
 
 // Helper function to clear all profile form fields
@@ -97,8 +93,6 @@ if (previewImg) {
   const submitButton = document.querySelector("#skills-form button[type='submit']");
   if (profileTitle) profileTitle.textContent = "Your Profile";
   if (submitButton) submitButton.textContent = "Save Profile";
-  
-  console.log("🧹 Profile form cleared");
 }
 
 function showProfileUI(user) {
@@ -126,16 +120,12 @@ function showProfileUI(user) {
   if (logoutBtn) {
     logoutBtn.classList.remove("hidden");
   }
-  
-  console.log("✅ Showing profile UI for:", user?.email);
 }
 
 // ======================================================================
 // 3. START OAUTH LOGIN (REDIRECT FLOW)
 // ======================================================================
 async function oauthLogin(provider) {
-  console.log(`🔐 Starting OAuth login with ${provider}...`);
-
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
@@ -175,8 +165,6 @@ async function handleOAuthCallback() {
     return;
   }
 
-  console.log("🔄 Processing OAuth callback (code flow)…");
-
   const { data, error } = await supabase.auth.exchangeCodeForSession(
     window.location.href
   );
@@ -187,8 +175,6 @@ async function handleOAuthCallback() {
     return;
   }
 
-  console.log("🔓 OAuth SIGNED_IN via redirect:", data.user?.email);
-
   // Clean URL after successful login
   url.search = "";
   window.history.replaceState({}, document.title, url.toString());
@@ -198,19 +184,15 @@ async function handleOAuthCallback() {
 // 5. HANDLE LOGOUT
 // ======================================================================
 async function handleLogout() {
-  console.log("👋 Logging out...");
-  
   const { error } = await supabase.auth.signOut();
-  
+
   if (error) {
     console.error("❌ Logout error:", error);
     showNotification("Logout failed. Please try again.", "error");
   } else {
-    console.log("✅ Logged out successfully");
-    
     // Dispatch logout event for profile.js to clear its state
     window.dispatchEvent(new CustomEvent('user-logged-out'));
-    
+
     showNotification("Logged out successfully", "success");
     showLoginUI();
   }
@@ -220,66 +202,49 @@ async function handleLogout() {
 // 6. LOAD USER PROFILE DATA (AFTER LOGIN) - FIXED VERSION
 // ======================================================================
 async function loadUserProfile(user) {
-  console.log("👤 Loading profile for:", user.email);
-  console.log("🔍 User ID:", user.id);
-  
   try {
     // Fetch from community table with ALL columns explicitly
     const { data: profiles, error } = await supabase
       .from('community')
       .select('*')
       .eq('user_id', user.id);
-    
-    console.log("📊 Query result:", { profiles, error });
-    
+
     if (error) {
       console.error('❌ Error fetching profile:', error);
-      
+
       // Still fire new user event if query fails
-      console.log('🆕 Treating as new user due to query error');
-      window.dispatchEvent(new CustomEvent('profile-new', { 
-        detail: { user } 
+      window.dispatchEvent(new CustomEvent('profile-new', {
+        detail: { user }
       }));
       return null;
     }
-    
+
     // Check if we got results
     if (profiles && profiles.length > 0) {
       const profile = profiles[0];
-      console.log('📋 Existing profile found:', profile);
-      console.log('📝 Profile details:', {
-        name: profile.name,
-        skills: profile.skills,
-        bio: profile.bio,
-        interests: profile.interests,
-        availability: profile.availability,
-        image_url: profile.image_url
-      });
-      
+
       // Trigger profile form population
-      window.dispatchEvent(new CustomEvent('profile-loaded', { 
-        detail: { profile, user } 
+      window.dispatchEvent(new CustomEvent('profile-loaded', {
+        detail: { profile, user }
       }));
-      
+
       return profile;
     } else {
-      console.log('🆕 New user - no profile rows found');
-      
       // Trigger new user flow
-      window.dispatchEvent(new CustomEvent('profile-new', { 
-        detail: { user } 
+      window.dispatchEvent(new CustomEvent('profile-new', {
+        detail: { user }
       }));
-      
+
       return null;
     }
   } catch (err) {
     console.error('❌ Exception loading profile:', err);
-    
+
     // Fire new user event on exception
-    window.dispatchEvent(new CustomEvent('profile-new', { 
-      detail: { user } 
+    window.dispatchEvent(new CustomEvent('profile-new', {
+      detail: { user }
     }));
-    
+
     return null;
   }
 }
@@ -288,8 +253,6 @@ async function loadUserProfile(user) {
 // 7. MAIN INIT – SMART AUTO LOGIN
 // ======================================================================
 export async function initLoginSystem() {
-  console.log("🚀 Initializing login system (OAuth)…");
-
   // Step A – Handle OAuth callback if present
   await handleOAuthCallback();
 
@@ -297,26 +260,21 @@ export async function initLoginSystem() {
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
-    console.log("🟢 Already logged in as:", session.user.email);
     showProfileUI(session.user);
-    
+
     // IMPORTANT: Add a small delay to ensure profile.js listeners are ready
     setTimeout(async () => {
       await loadUserProfile(session.user);
     }, 100);
   } else {
-    console.log("🟡 No active session");
     showLoginUI();
   }
 
   // Step C – Listen for auth state changes (single listener)
   supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("⚡ Auth event:", event);
-
     if (event === "SIGNED_IN" && session?.user) {
-      console.log("🟢 User authenticated:", session.user.email);
       showProfileUI(session.user);
-      
+
       // Add delay for event listeners
       setTimeout(async () => {
         await loadUserProfile(session.user);
@@ -324,10 +282,7 @@ export async function initLoginSystem() {
     }
 
     if (event === "SIGNED_OUT") {
-      console.log("🟡 User signed out");
       showLoginUI();
     }
   });
-
-  console.log("✅ Login system initialized (OAuth)");
 }
