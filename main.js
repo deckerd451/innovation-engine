@@ -28,7 +28,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 2) Initialize login system (idempotent in rewritten auth.js)
   await window.initLoginSystem?.();
 
-  // 3) Profile + dashboard modules listen for:
+  // 3) Initialize connections module if available
+  if (typeof window.initConnections === 'function' && window.supabase) {
+    try {
+      await window.initConnections(window.supabase);
+      console.log("✅ Connections module initialized");
+    } catch (error) {
+      console.error("❌ Error initializing connections:", error);
+    }
+  }
+
+  // 4) Profile + dashboard modules listen for:
   //    - 'profile-loaded'
   //    - 'profile-new'
   //    - 'user-logged-out'
