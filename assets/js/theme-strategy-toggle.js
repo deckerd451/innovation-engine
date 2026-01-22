@@ -8,109 +8,74 @@ let isToggling = false;
 
 // Add toggle button to the page
 function addThemeStrategyToggle() {
-  // Remove existing button
-  const existing = document.getElementById('theme-strategy-toggle');
-  if (existing) existing.remove();
-
-  const button = document.createElement('button');
-  button.id = 'theme-strategy-toggle';
-  button.style.cssText = `
-    position: fixed;
-    top: 80px;
-    right: 20px;
-    background: linear-gradient(135deg, rgba(0, 224, 255, 0.2), rgba(0, 224, 255, 0.1));
-    border: 2px solid #00e0ff;
-    border-radius: 8px;
-    color: #00e0ff;
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    font-weight: bold;
-    z-index: 1500;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  `;
-
-  // Add responsive positioning
-  const mediaQuery = window.matchMedia('(max-width: 768px)');
-  function updateButtonPosition() {
-    if (mediaQuery.matches) {
-      // On mobile, move button lower to avoid header
-      button.style.top = '120px';
-      button.style.right = '10px';
-      button.style.padding = '0.5rem 0.75rem';
-      button.style.fontSize = '0.8rem';
-    } else {
-      // On desktop, use normal position
-      button.style.top = '80px';
-      button.style.right = '20px';
-      button.style.padding = '0.75rem 1rem';
-      button.style.fontSize = '0.9rem';
-    }
+  // Use the bottom bar button instead of creating a floating button
+  const button = document.getElementById('btn-view-toggle');
+  if (!button) {
+    console.warn('⚠️ Bottom bar view toggle button not found');
+    return;
   }
 
-  updateButtonPosition();
-  mediaQuery.addListener(updateButtonPosition);
-
+  // Update button content to reflect current strategy
   updateButtonText(button);
 
+  // Add click listener
   button.addEventListener('click', toggleThemeStrategy);
-  
+
+  // Add hover effects
   button.addEventListener('mouseenter', () => {
-    button.style.background = 'linear-gradient(135deg, rgba(0, 224, 255, 0.3), rgba(0, 224, 255, 0.2))';
+    button.style.background = 'rgba(0, 224, 255, 0.15)';
     button.style.transform = 'translateY(-2px)';
     button.style.boxShadow = '0 6px 20px rgba(0, 224, 255, 0.3)';
   });
 
   button.addEventListener('mouseleave', () => {
-    button.style.background = 'linear-gradient(135deg, rgba(0, 224, 255, 0.2), rgba(0, 224, 255, 0.1))';
+    button.style.background = 'rgba(0, 224, 255, 0.08)';
     button.style.transform = 'translateY(0)';
-    button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+    button.style.boxShadow = 'none';
   });
-
-  document.body.appendChild(button);
 }
 
 function updateButtonText(button) {
   const strategies = {
     old: {
-      icon: '🔄',
-      text: 'Switch to Cards',
-      description: 'Currently: SVG Circles'
+      icon: 'fa-th-large',  // Cards icon
+      text: 'Cards',
+      fullText: 'Switch to Cards'
     },
     new: {
-      icon: '🎯',
-      text: 'Switch to Circles', 
-      description: 'Currently: Theme Cards'
+      icon: 'fa-circle-notch',  // Circles icon
+      text: 'Circles',
+      fullText: 'Switch to Circles'
     }
   };
 
   const strategy = strategies[currentStrategy];
-  button.innerHTML = `
-    <span style="font-size: 1.2rem;">${strategy.icon}</span>
-    <div style="display: flex; flex-direction: column; align-items: flex-start;">
-      <span style="font-size: 0.9rem; font-weight: bold;">${strategy.text}</span>
-      <span style="font-size: 0.7rem; opacity: 0.7;">${strategy.description}</span>
-    </div>
-  `;
+
+  // Update the button to match bottom bar style
+  const iconDiv = button.querySelector('.icon');
+  const labelDiv = button.querySelector('.label');
+
+  if (iconDiv && labelDiv) {
+    iconDiv.innerHTML = `<i class="fas ${strategy.icon}"></i>`;
+    labelDiv.textContent = strategy.text;
+  }
 }
 
 async function toggleThemeStrategy() {
   if (isToggling) return;
-  
+
   isToggling = true;
-  const button = document.getElementById('theme-strategy-toggle');
-  
+  const button = document.getElementById('btn-view-toggle');
+
   try {
     // Show loading state
-    button.innerHTML = `
-      <i class="fas fa-spinner fa-spin"></i>
-      <span>Switching...</span>
-    `;
+    const iconDiv = button.querySelector('.icon');
+    const labelDiv = button.querySelector('.label');
+
+    if (iconDiv && labelDiv) {
+      iconDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      labelDiv.textContent = 'Loading...';
+    }
     button.style.pointerEvents = 'none';
 
     // Clear current synapse
