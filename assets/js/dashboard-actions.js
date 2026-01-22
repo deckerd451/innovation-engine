@@ -748,21 +748,8 @@ function applyVisualizationFilters(filterState) {
   });
 }
 
-// Initialize legend when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  // Wait a bit for synapse to load
-  setTimeout(createSynapseLegend, 1000);
-});
-
-// Also create legend when profile is loaded
-window.addEventListener('profile-loaded', () => {
-  // Prevent duplicate legend creation
-  if (window.__LEGEND_PROFILE_LISTENER_ADDED__) return;
-  window.__LEGEND_PROFILE_LISTENER_ADDED__ = true;
-  
-  setTimeout(createSynapseLegend, 500);
-
-  // Show admin button if user is admin
+// Function to show admin button if user is admin
+function checkAndShowAdminButton() {
   if (isAdminUser()) {
     const adminBtn = document.getElementById('btn-admin');
     if (adminBtn) {
@@ -770,6 +757,27 @@ window.addEventListener('profile-loaded', () => {
       console.log('👑 Admin button shown');
     }
   }
+}
+
+// Initialize legend when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  // Wait a bit for synapse to load
+  setTimeout(createSynapseLegend, 1000);
+
+  // Show admin button if user is admin
+  checkAndShowAdminButton();
+});
+
+// Also create legend when profile is loaded
+window.addEventListener('profile-loaded', () => {
+  // Prevent duplicate legend creation
+  if (window.__LEGEND_PROFILE_LISTENER_ADDED__) return;
+  window.__LEGEND_PROFILE_LISTENER_ADDED__ = true;
+
+  setTimeout(createSynapseLegend, 500);
+
+  // Show admin button if user is admin
+  checkAndShowAdminButton();
 });
 
 // -----------------------------
