@@ -23,23 +23,16 @@ async function initMain() {
   }
   window.__IE_ASSETS_MAIN_INIT_DONE__ = true;
 
-  console.log("⏳ Waiting for Supabase...");
   const supabase = await waitForSupabase();
-  console.log("✅ Supabase ready");
-  console.log("📦 Supabase object:", supabase);
-
-  console.log("🔌 Main Controller Loaded");
 
   // ------------------------------------------------------------------
   // 1) GLOBALS FIRST — must be loaded before login, search, profile
   // ------------------------------------------------------------------
   const { registerDomElement } = await import("./globals.js");
-  console.log("✅ Globals loaded");
 
   // ------------------------------------------------------------------
   // 2) LOGIN MODULE
   // ------------------------------------------------------------------
-  console.log("🔥 Importing login module...");
   const loginModule = await import("./login.js");
 
   const { setupLoginDOM, initLoginSystem } = loginModule;
@@ -50,13 +43,10 @@ async function initMain() {
 
   setupLoginDOM();
   await initLoginSystem();
-  console.log("✅ Login system initialized");
 
   // ------------------------------------------------------------------
   // 3) REGISTER ALL DOM ELEMENTS
   // ------------------------------------------------------------------
-  console.log("📋 Registering DOM elements...");
-
   // Search elements
   registerDomElement("teamSkillsInput", document.getElementById("teamSkillsInput"));
   registerDomElement("autocompleteTeamSkills", document.getElementById("autocomplete-team-skills"));
@@ -91,17 +81,13 @@ async function initMain() {
   registerDomElement("profileBar", document.querySelector(".profile-bar-inner"));
   registerDomElement("profileProgressMsg", document.getElementById("profile-progress-msg"));
 
-  console.log("✅ DOM elements registered");
-
   // ------------------------------------------------------------------
   // 4) INITIALIZE SEARCH ENGINE
   // ------------------------------------------------------------------
   try {
-    console.log("🔍 Initializing search engine...");
     const searchModule = await import("./searchEngine.js");
     if (searchModule.initSearchEngine) {
       await searchModule.initSearchEngine();
-      console.log("✅ Search engine initialized");
     } else {
       console.warn("⚠️ searchEngine.js missing initSearchEngine export");
     }
@@ -113,11 +99,9 @@ async function initMain() {
   // 5) INITIALIZE TEAM BUILDER
   // ------------------------------------------------------------------
   try {
-    console.log("👥 Initializing team builder...");
     const teamBuilderModule = await import("./teamBuilder.js");
     if (teamBuilderModule.initTeamBuilder) {
       await teamBuilderModule.initTeamBuilder();
-      console.log("✅ Team builder initialized");
     } else {
       console.warn("⚠️ teamBuilder.js missing initTeamBuilder export");
     }
@@ -129,11 +113,9 @@ async function initMain() {
   // 6) INITIALIZE LEADERBOARD
   // ------------------------------------------------------------------
   try {
-    console.log("🏆 Initializing leaderboard...");
     const leaderboardModule = await import("./leaderboard.js");
     if (leaderboardModule.initLeaderboard) {
       await leaderboardModule.initLeaderboard();
-      console.log("✅ Leaderboard initialized");
     } else {
       console.warn("⚠️ leaderboard.js missing initLeaderboard export");
     }
@@ -145,11 +127,9 @@ async function initMain() {
   // 7) INITIALIZE PROFILE SYSTEM (CRITICAL - Must call initProfileForm)
   // ------------------------------------------------------------------
   try {
-    console.log("👤 Initializing profile system...");
     const profileModule = await import("./profile.js");
     if (profileModule.initProfileForm) {
       await profileModule.initProfileForm();
-      console.log("✅ Profile system initialized");
     } else {
       console.error("❌ profile.js missing initProfileForm export");
     }
@@ -161,9 +141,7 @@ async function initMain() {
   // 8) LOAD SYNAPSE (visualization system)
   // ------------------------------------------------------------------
   try {
-    console.log("🕸️ Loading synapse module...");
     await import("./synapse.js");
-    console.log("✅ Synapse module loaded");
   } catch (err) {
     console.error("❌ Synapse load failed:", err);
   }
@@ -186,21 +164,12 @@ async function initMain() {
       };
       reader.readAsDataURL(file);
     });
-    console.log("✅ Photo preview handler attached");
   }
 
   // ------------------------------------------------------------------
   // 10) ALL SYSTEMS READY
   // ------------------------------------------------------------------
   console.log("🎉 All systems ready!");
-  console.log("📊 Initialized modules:");
-  console.log("  ✓ Globals");
-  console.log("  ✓ Login");
-  console.log("  ✓ Search Engine");
-  console.log("  ✓ Team Builder");
-  console.log("  ✓ Leaderboard");
-  console.log("  ✓ Profile");
-  console.log("  ✓ Synapse");
 }
 
 // ------------------------------------------------------------------

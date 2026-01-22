@@ -15,12 +15,10 @@ let synapseInitPromise = null;
 // Ensure synapse is initialized (idempotent)
 window.ensureSynapseInitialized = async function() {
   if (synapseInitialized) {
-    console.log("✅ Synapse already initialized");
     return;
   }
 
   if (synapseInitPromise) {
-    console.log("⏳ Synapse initialization in progress, waiting...");
     return synapseInitPromise;
   }
 
@@ -29,8 +27,6 @@ window.ensureSynapseInitialized = async function() {
 };
 
 async function initializeSynapse() {
-  console.log("🧠 Starting reliable synapse initialization...");
-
   // Wait for required dependencies
   const dependencies = await waitForDependencies();
   if (!dependencies.success) {
@@ -44,12 +40,10 @@ async function initializeSynapse() {
 
     // Path 1: Direct module import (preferred)
     try {
-      console.log("🔄 Attempting synapse init via module import...");
       const mod = await import("./synapse.js");
       if (typeof mod.initSynapseView === "function") {
         await mod.initSynapseView();
         initialized = true;
-        console.log("✅ Synapse initialized via module import");
       }
     } catch (e) {
       console.warn("⚠️ Module import failed:", e);
@@ -57,18 +51,14 @@ async function initializeSynapse() {
 
     // Path 2: Global function (fallback)
     if (!initialized && typeof window.initSynapseView === "function") {
-      console.log("🔄 Attempting synapse init via global function...");
       await window.initSynapseView();
       initialized = true;
-      console.log("✅ Synapse initialized via global function");
     }
 
     // Path 3: Dashboard pane initialization (last resort)
     if (!initialized && window.dashboardPane?.initSynapseOnce) {
-      console.log("🔄 Attempting synapse init via dashboard pane...");
       await window.dashboardPane.initSynapseOnce();
       initialized = true;
-      console.log("✅ Synapse initialized via dashboard pane");
     }
 
     if (initialized) {
@@ -200,12 +190,8 @@ const fallbackTimer = setInterval(() => {
 
   // Only try if we have basic requirements
   if (window.supabase && window.d3 && document.getElementById('synapse-svg')) {
-    console.log(`🔄 Fallback synapse init attempt ${fallbackAttempts}/${maxFallbackAttempts}`);
     window.ensureSynapseInitialized();
   }
 }, 2000);
-
-console.log("✅ Synapse initialization helper loaded");
-console.log("✅ Synapse initialization helper ready");
 
 } // End of initialization guard

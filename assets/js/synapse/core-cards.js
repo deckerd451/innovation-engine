@@ -1,8 +1,6 @@
 // assets/js/synapse/core-cards.js
 // New Theme Strategy Implementation - Card-based approach
 
-console.log("🎯 NEW CORE-CARDS STRATEGY LOADED");
-
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
 import * as PathwayAnimations from "../pathway-animations.js";
@@ -73,8 +71,6 @@ export async function initSynapseView() {
     initialized = false;
     return;
   }
-
-  console.log("%c🎯 NEW Synapse Core (Cards Strategy) booting...", "color:#0ff; font-weight:bold;");
 
   // Connection system gives us currentUserCommunityId reliably
   const userInfo = await initConnections(supabase);

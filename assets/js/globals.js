@@ -81,5 +81,3 @@ export function showNotification(message, type = "info") {
     box.style.opacity = "0";
   }, 2400);
 }
-
-console.log("⚙️ globals.js loaded successfully");
