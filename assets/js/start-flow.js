@@ -138,6 +138,7 @@ async function openStartModal() {
     setTimeout(() => {
       modal.style.opacity = '1';
       modal.style.transform = 'translateX(0)';
+      backdrop.style.opacity = '1';
     }, 10);
   }
 }
@@ -570,6 +571,7 @@ function closeStartModal() {
     // Animate out (slide to right)
     modal.style.opacity = '0';
     modal.style.transform = 'translateX(100%)';
+    backdrop.style.opacity = '0';
 
     setTimeout(() => {
       modal.style.display = 'none';

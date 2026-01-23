@@ -28,11 +28,12 @@ async function openRedesignedStartModal() {
   // Show modal
   modal.style.display = 'block';
   backdrop.style.display = 'block';
-  
+
   // Animate in
   setTimeout(() => {
     modal.style.opacity = '1';
     modal.style.transform = 'translateX(0)';
+    backdrop.style.opacity = '1';
   }, 10);
   
   // Load and display comprehensive recommendations
