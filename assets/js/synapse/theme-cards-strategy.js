@@ -378,6 +378,26 @@ function addThemeCardsCSS() {
   const style = document.createElement('style');
   style.id = 'theme-cards-styles';
   style.textContent = `
+    /* Sidebar scrollbar styling */
+    .themes-sidebar::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .themes-sidebar::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+    }
+
+    .themes-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(0, 224, 255, 0.4);
+      border-radius: 4px;
+    }
+
+    .themes-sidebar::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 224, 255, 0.6);
+    }
+
+    /* Theme cards animations */
     .theme-cards-grid {
       animation: fadeInUp 0.6s ease-out;
     }
@@ -482,26 +502,33 @@ export function renderThemesSidebar(container, themeNodes, { onThemeClick, curre
 
   const sidebar = document.createElement('div');
   sidebar.className = 'themes-sidebar';
+
+  // Responsive sidebar styling with proper z-index and spacing
+  const isMobile = window.innerWidth <= 768;
+
   sidebar.style.cssText = `
     position: fixed;
-    top: 80px;
-    right: 20px;
-    width: 320px;
-    max-height: calc(100vh - 100px);
-    background: rgba(0, 0, 0, 0.9);
-    border: 2px solid rgba(0, 224, 255, 0.3);
+    top: ${isMobile ? '70px' : '90px'};
+    right: ${isMobile ? '10px' : '20px'};
+    width: ${isMobile ? 'calc(100% - 20px)' : '320px'};
+    max-width: ${isMobile ? '400px' : '320px'};
+    max-height: calc(100vh - ${isMobile ? '180px' : '200px'});
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid rgba(0, 224, 255, 0.4);
     border-radius: 12px;
-    backdrop-filter: blur(10px);
-    z-index: 1000;
+    backdrop-filter: blur(15px);
+    z-index: 999;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1rem;
+    box-shadow: 0 8px 32px rgba(0, 224, 255, 0.2);
   `;
 
   // Header
   const header = document.createElement('div');
   header.innerHTML = `
-    <h3 style="color: #00e0ff; margin: 0 0 1rem 0; font-size: 1.2rem; font-weight: 700;">
-      🌟 Active Themes
+    <h3 style="color: #00e0ff; margin: 0 0 1rem 0; font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+      <i class="fas fa-layer-group"></i> Active Themes
     </h3>
   `;
   sidebar.appendChild(header);
@@ -513,6 +540,19 @@ export function renderThemesSidebar(container, themeNodes, { onThemeClick, curre
   });
 
   container.appendChild(sidebar);
+
+  // Add responsive resize listener
+  const handleResize = () => {
+    const mobile = window.innerWidth <= 768;
+    sidebar.style.top = mobile ? '70px' : '90px';
+    sidebar.style.right = mobile ? '10px' : '20px';
+    sidebar.style.width = mobile ? 'calc(100% - 20px)' : '320px';
+    sidebar.style.maxWidth = mobile ? '400px' : '320px';
+    sidebar.style.maxHeight = `calc(100vh - ${mobile ? '180px' : '200px'})`;
+  };
+
+  window.addEventListener('resize', handleResize);
+
   return sidebar;
 }
 
@@ -523,78 +563,101 @@ function createCompactThemeCard(theme, { onThemeClick, currentUserCommunityId })
 
   const themeColor = getThemeColor(theme.theme_id);
   const isUserParticipant = theme.user_is_participant;
+  const rgb = hexToRgb(themeColor);
 
   card.style.cssText = `
-    background: linear-gradient(135deg, 
-      rgba(${hexToRgb(themeColor).r}, ${hexToRgb(themeColor).g}, ${hexToRgb(themeColor).b}, 0.1),
-      rgba(0, 0, 0, 0.3)
+    background: linear-gradient(135deg,
+      rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.12),
+      rgba(0, 0, 0, 0.4)
     );
-    border: 1px solid ${isUserParticipant ? themeColor : `rgba(${hexToRgb(themeColor).r}, ${hexToRgb(themeColor).g}, ${hexToRgb(themeColor).b}, 0.3)`};
-    border-radius: 8px;
+    border: ${isUserParticipant ? '2px' : '1px'} solid ${isUserParticipant ? themeColor : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`};
+    border-radius: 10px;
     padding: 1rem;
     margin-bottom: 0.75rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   `;
 
   card.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-      <h4 style="color: ${themeColor}; margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.2;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem;">
+      <h4 style="color: ${themeColor}; margin: 0; font-size: 1rem; font-weight: 700; line-height: 1.3; flex: 1; padding-right: 0.5rem;">
         ${escapeHtml(theme.title)}
       </h4>
-      <div style="font-size: 1.2rem; opacity: 0.7;">
+      <div style="font-size: 1.3rem; opacity: 0.8; flex-shrink: 0;">
         ${["🚀", "💡", "🎨", "🔬", "🌟", "⚡"][Math.abs(theme.theme_id?.charCodeAt?.(0) || 0) % 6]}
       </div>
     </div>
-    
-    <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;">
-      <span style="color: rgba(255, 255, 255, 0.7);">
-        👥 ${theme.participant_count || 0}
+
+    <div style="display: flex; gap: 1.2rem; margin-bottom: 0.6rem; font-size: 0.85rem;">
+      <span style="color: rgba(255, 255, 255, 0.8); display: flex; align-items: center; gap: 0.3rem;">
+        <i class="fas fa-users" style="font-size: 0.75rem;"></i> ${theme.participant_count || 0}
       </span>
-      <span style="color: rgba(255, 255, 255, 0.7);">
-        💡 ${theme.project_count || 0}
+      <span style="color: rgba(255, 255, 255, 0.8); display: flex; align-items: center; gap: 0.3rem;">
+        <i class="fas fa-lightbulb" style="font-size: 0.75rem;"></i> ${theme.project_count || 0}
       </span>
     </div>
 
     ${isUserParticipant ? `
-      <div style="background: rgba(0, 255, 136, 0.2); 
-                  border: 1px solid rgba(0, 255, 136, 0.4); 
-                  padding: 0.25rem 0.5rem; 
-                  border-radius: 4px; 
-                  font-size: 0.75rem; 
-                  color: #00ff88; 
-                  text-align: center;">
-        ✅ Joined
+      <div style="background: rgba(0, 255, 136, 0.25);
+                  border: 1px solid rgba(0, 255, 136, 0.5);
+                  padding: 0.4rem 0.6rem;
+                  border-radius: 6px;
+                  font-size: 0.75rem;
+                  font-weight: 600;
+                  color: #00ff88;
+                  text-align: center;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 0.3rem;">
+        <i class="fas fa-check-circle"></i> Joined
       </div>
     ` : `
-      <div style="background: rgba(0, 224, 255, 0.1); 
-                  border: 1px solid rgba(0, 224, 255, 0.3); 
-                  padding: 0.25rem 0.5rem; 
-                  border-radius: 4px; 
-                  font-size: 0.75rem; 
-                  color: #00e0ff; 
-                  text-align: center;">
-        Click to Join
+      <div style="background: rgba(0, 224, 255, 0.15);
+                  border: 1px solid rgba(0, 224, 255, 0.4);
+                  padding: 0.4rem 0.6rem;
+                  border-radius: 6px;
+                  font-size: 0.75rem;
+                  font-weight: 600;
+                  color: #00e0ff;
+                  text-align: center;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 0.3rem;">
+        <i class="fas fa-plus-circle"></i> Click to Join
       </div>
     `}
   `;
 
-  // Hover effects
+  // Enhanced hover effects
   card.addEventListener('mouseenter', () => {
     card.style.borderColor = themeColor;
-    card.style.transform = 'translateX(-4px)';
+    card.style.transform = 'translateX(-6px) scale(1.02)';
+    card.style.boxShadow = `0 6px 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`;
+    card.style.background = `linear-gradient(135deg,
+      rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.2),
+      rgba(0, 0, 0, 0.5)
+    )`;
   });
 
   card.addEventListener('mouseleave', () => {
-    card.style.borderColor = isUserParticipant ? themeColor : `rgba(${hexToRgb(themeColor).r}, ${hexToRgb(themeColor).g}, ${hexToRgb(themeColor).b}, 0.3)`;
-    card.style.transform = 'translateX(0)';
+    card.style.borderColor = isUserParticipant ? themeColor : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`;
+    card.style.transform = 'translateX(0) scale(1)';
+    card.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+    card.style.background = `linear-gradient(135deg,
+      rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.12),
+      rgba(0, 0, 0, 0.4)
+    )`;
   });
 
   // Click handler
   card.addEventListener('click', (event) => {
     event.preventDefault();
+    event.stopPropagation();
     console.log("🎯 Compact theme card clicked:", theme.title);
-    
+
     if (onThemeClick) {
       onThemeClick(event, theme);
     }
