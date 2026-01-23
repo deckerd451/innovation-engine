@@ -50,19 +50,39 @@ async function openRedesignedStartModal() {
   modal.style.display = 'block';
   backdrop.style.display = 'block';
 
+  // TEMPORARY: Remove transform to test if transform is the issue
+  modal.style.transform = 'none';
+
   // Animate in
   setTimeout(() => {
     modal.style.opacity = '1';
-    modal.style.transform = 'translateX(0)';
+    // modal.style.transform = 'translateX(0)';  // Disabled for testing
     backdrop.style.opacity = '1';
+
+    const rect = modal.getBoundingClientRect();
+    const computed = window.getComputedStyle(modal);
 
     console.log('✅ Modal animation complete, modal should be visible');
     console.log('📐 Modal final state:', {
       display: modal.style.display,
       opacity: modal.style.opacity,
       transform: modal.style.transform,
-      zIndex: window.getComputedStyle(modal).zIndex,
-      visible: modal.offsetHeight > 0
+      zIndex: computed.zIndex,
+      visible: modal.offsetHeight > 0,
+      position: computed.position,
+      right: computed.right,
+      width: computed.width,
+      height: modal.offsetHeight + 'px',
+      rect: {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height
+      },
+      isInViewport: rect.right > 0 && rect.left < window.innerWidth && rect.bottom > 0 && rect.top < window.innerHeight,
+      containerHasContent: document.getElementById('start-options-container')?.innerHTML?.length || 0
     });
 
     isModalOpen = true;
@@ -86,7 +106,7 @@ function closeRedesignedStartModal() {
 
   if (modal) {
     modal.style.opacity = '0';
-    modal.style.transform = 'translateX(100%)';
+    // modal.style.transform = 'translateX(100%)';  // Disabled for testing
     setTimeout(() => {
       modal.style.display = 'none';
       isModalOpen = false;
