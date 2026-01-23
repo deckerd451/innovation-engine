@@ -920,13 +920,31 @@ function loadAdminTabContent(tabName) {
       </div>
     `;
 
-    document.getElementById('admin-toggle-view-btn')?.addEventListener('click', () => {
+    document.getElementById('admin-toggle-view-btn')?.addEventListener('click', async () => {
+      console.log('🔍 Admin toggle view button clicked');
+      console.log('🔍 toggleFullCommunityView available:', typeof window.toggleFullCommunityView);
+
       if (typeof window.toggleFullCommunityView === 'function') {
-        window.toggleFullCommunityView(true);
-        document.getElementById('admin-panel')?.remove();
-        if (typeof window.showNotification === 'function') {
-          window.showNotification('Showing full community view', 'success');
+        try {
+          console.log('🔍 Calling toggleFullCommunityView(true)...');
+          await window.toggleFullCommunityView(true);
+          console.log('✅ Successfully toggled to full community view');
+
+          document.getElementById('admin-panel')?.remove();
+
+          if (typeof window.showNotification === 'function') {
+            window.showNotification('Showing full community view', 'success');
+          } else {
+            alert('✅ Now showing full community view');
+          }
+        } catch (error) {
+          console.error('❌ Error toggling community view:', error);
+          alert('Error: ' + error.message);
         }
+      } else {
+        console.error('❌ toggleFullCommunityView function not available');
+        console.log('Available window functions:', Object.keys(window).filter(k => k.includes('toggle')));
+        alert('Error: Community view toggle function not available. Please wait for the page to fully load.');
       }
     });
   } else if (tabName === 'themes') {
