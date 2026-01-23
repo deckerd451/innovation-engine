@@ -538,8 +538,8 @@ async function buildInterface() {
     themeArea.appendChild(compactGrid);
   }
 
-  // Add mode toggle button
-  addModeToggleButton();
+  // Add mode toggle button - DISABLED: Using bottom bar button instead
+  // addModeToggleButton();
 }
 
 async function rebuildInterface() {
