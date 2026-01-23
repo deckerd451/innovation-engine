@@ -11,10 +11,21 @@ console.log("%c🎨 START Flow UI Redesigned - Loading", "color:#0f8; font-weigh
 // MAIN START MODAL INTERFACE
 // ================================================================
 
+// Guard to prevent double-opening
+let isModalOpen = false;
+let isModalOpening = false;
+
 /**
  * Open the redesigned START modal with comprehensive recommendations
  */
 async function openRedesignedStartModal() {
+  // Prevent double-opening
+  if (isModalOpen || isModalOpening) {
+    console.warn('⚠️ Modal already open or opening, ignoring duplicate call');
+    return;
+  }
+
+  isModalOpening = true;
   console.log('🚀 Opening redesigned START modal');
   console.trace('📍 Modal opened from:');
 
@@ -23,10 +34,17 @@ async function openRedesignedStartModal() {
 
   if (!modal || !backdrop) {
     console.error('START modal elements not found');
+    isModalOpening = false;
     return;
   }
 
   console.log('✅ Modal elements found, showing...');
+  console.log('📐 Modal initial state:', {
+    display: modal.style.display,
+    opacity: modal.style.opacity,
+    transform: modal.style.transform,
+    zIndex: window.getComputedStyle(modal).zIndex
+  });
 
   // Show modal
   modal.style.display = 'block';
@@ -37,13 +55,51 @@ async function openRedesignedStartModal() {
     modal.style.opacity = '1';
     modal.style.transform = 'translateX(0)';
     backdrop.style.opacity = '1';
+
     console.log('✅ Modal animation complete, modal should be visible');
+    console.log('📐 Modal final state:', {
+      display: modal.style.display,
+      opacity: modal.style.opacity,
+      transform: modal.style.transform,
+      zIndex: window.getComputedStyle(modal).zIndex,
+      visible: modal.offsetHeight > 0
+    });
+
+    isModalOpen = true;
+    isModalOpening = false;
   }, 10);
 
   // Load and display comprehensive recommendations
   console.log('📊 Loading recommendations...');
   await populateRedesignedRecommendations();
   console.log('✅ Recommendations loaded');
+}
+
+/**
+ * Close the redesigned START modal
+ */
+function closeRedesignedStartModal() {
+  console.log('🚪 Closing redesigned START modal');
+
+  const modal = document.getElementById('start-modal');
+  const backdrop = document.getElementById('start-modal-backdrop');
+
+  if (modal) {
+    modal.style.opacity = '0';
+    modal.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      modal.style.display = 'none';
+      isModalOpen = false;
+      console.log('✅ Modal closed');
+    }, 300);
+  }
+
+  if (backdrop) {
+    backdrop.style.opacity = '0';
+    setTimeout(() => {
+      backdrop.style.display = 'none';
+    }, 300);
+  }
 }
 
 /**
@@ -1050,6 +1106,7 @@ if (!document.getElementById('start-redesigned-styles')) {
 // ================================================================
 
 window.openRedesignedStartModal = openRedesignedStartModal;
+window.closeRedesignedStartModal = closeRedesignedStartModal;
 window.populateRedesignedRecommendations = populateRedesignedRecommendations;
 window.switchTab = switchTab;
 window.handleRecommendationAction = handleRecommendationAction;
@@ -1057,5 +1114,10 @@ window.switchToSynapseView = switchToSynapseView;
 window.highlightRecommendationInSynapse = highlightRecommendationInSynapse;
 window.showSynapseGuidanceOverlay = showSynapseGuidanceOverlay;
 window.continueNavigation = continueNavigation;
+
+// Backward compatibility - closeStartModal should call our close function
+if (!window.closeStartModal) {
+  window.closeStartModal = closeRedesignedStartModal;
+}
 
 console.log('✅ START Flow UI Redesigned ready');
