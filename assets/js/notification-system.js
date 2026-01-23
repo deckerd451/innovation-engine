@@ -68,6 +68,12 @@ export function initNotificationSystem() {
 
 // Create notification container
 function createNotificationContainer() {
+  // Check if container already exists
+  if (document.getElementById('notification-container')) {
+    console.log('ℹ️ Notification container already exists');
+    return;
+  }
+
   const container = document.createElement('div');
   container.id = 'notification-container';
   container.style.cssText = `
@@ -81,9 +87,11 @@ function createNotificationContainer() {
   `;
   document.body.appendChild(container);
 
-  // Add styles
-  const style = document.createElement('style');
-  style.textContent = `
+  // Add styles (only if not already added)
+  if (!document.getElementById('notification-system-styles')) {
+    const style = document.createElement('style');
+    style.id = 'notification-system-styles';
+    style.textContent = `
     .notification-item {
       background: linear-gradient(135deg, rgba(10, 14, 39, 0.95), rgba(26, 26, 46, 0.95));
       border: 1px solid rgba(0, 224, 255, 0.4);
@@ -205,7 +213,8 @@ function createNotificationContainer() {
       }
     }
   `;
-  document.head.appendChild(style);
+    document.head.appendChild(style);
+  }
 }
 
 // Show notification
@@ -230,11 +239,19 @@ export function showNotification(options) {
   }
 
   const notificationId = generateNotificationId();
-  const container = document.getElementById('notification-container');
-  
+  let container = document.getElementById('notification-container');
+
+  // Create container if it doesn't exist
   if (!container) {
-    console.error('❌ Notification container not found');
-    return null;
+    console.log('🔧 Notification container not found, creating it now');
+    createNotificationContainer();
+    container = document.getElementById('notification-container');
+
+    // If still not found after creation attempt, return null
+    if (!container) {
+      console.error('❌ Failed to create notification container');
+      return null;
+    }
   }
 
   // Create notification element
