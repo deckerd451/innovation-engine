@@ -18,7 +18,10 @@ EventTarget.prototype.addEventListener = function(type, listener, options) {
   
   // Check if this exact listener is already bound
   if (window.__CH_EVENT_REGISTRY__.has(key)) {
-    console.warn(`⚠️ Duplicate event listener prevented: ${type} on ${this.constructor.name || 'element'}`);
+    // Silently prevent duplicates - only log in verbose mode
+    if (window.CH_VERBOSE_EVENTS) {
+      console.warn(`⚠️ Duplicate event listener prevented: ${type} on ${this.constructor.name || 'element'}`);
+    }
     return;
   }
   
@@ -89,7 +92,9 @@ EventTarget.prototype.dispatchEvent = function(event) {
   // Deduplicate profile-loaded events
   if (event.type === 'profile-loaded') {
     if (profileLoadedFired) {
-      console.warn("⚠️ Duplicate profile-loaded event prevented");
+      if (window.CH_VERBOSE_EVENTS) {
+        console.warn("⚠️ Duplicate profile-loaded event prevented");
+      }
       return true;
     }
     profileLoadedFired = true;
