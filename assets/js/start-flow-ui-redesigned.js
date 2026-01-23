@@ -752,6 +752,7 @@ function continueNavigation(type, recommendation) {
   }
 
   console.log('✅ Focus set and modal closed - user can now interact with synapse');
+}
 
 /**
  * Get the appropriate synapse mode for a recommendation type
