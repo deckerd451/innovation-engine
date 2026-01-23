@@ -420,99 +420,6 @@
       <div id="engagement-displays" style="display: flex; align-items: center; gap: 0.75rem;"></div>
 
       <div class="header-actions" style="display: flex; align-items: center; gap: 0.5rem;">
-        <!-- Dropdown Menus Group -->
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-right: 1rem;">
-          <!-- Connect Dropdown -->
-          <div class="dropdown-container" style="position: relative;">
-            <button id="connect-dropdown-btn" onclick="toggleDropdown('connect-dropdown')"
-                    style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3);
-                           border-radius: 8px; padding: 0.5rem 0.85rem; color: #00e0ff; cursor: pointer;
-                           font-weight: 600; transition: all 0.2s; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;"
-                    title="Connect">
-              <i class="fas fa-users"></i>
-              <span>Connect</span>
-              <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
-            </button>
-            <div id="connect-dropdown" class="dropdown-menu" style="display: none; position: absolute; top: calc(100% + 0.5rem); right: 0;
-                 background: rgba(10,14,39,0.98); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px;
-                 padding: 0.5rem; min-width: 200px; backdrop-filter: blur(10px); z-index: 1000;
-                 box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
-              <div onclick="openMessagingInterface(); toggleDropdown('connect-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #00e0ff;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-comments" style="width: 20px;"></i>
-                <span>Messages</span>
-              </div>
-              <div onclick="openVideoCallInterface(); toggleDropdown('connect-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-video" style="width: 20px;"></i>
-                <span>Video Call</span>
-              </div>
-              <div onclick="openQuickConnect(); toggleDropdown('connect-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-user-plus" style="width: 20px;"></i>
-                <span>Quick Connect</span>
-              </div>
-              <div onclick="openCollaborationHub(); toggleDropdown('connect-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-users-cog" style="width: 20px;"></i>
-                <span>Collaboration Hub</span>
-              </div>
-              <div onclick="openBBS(); toggleDropdown('connect-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-comments" style="width: 20px;"></i>
-                <span>Community Chat</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tools Dropdown -->
-          <div class="dropdown-container" style="position: relative;">
-            <button id="tools-dropdown-btn" onclick="toggleDropdown('tools-dropdown')"
-                    style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);
-                           border-radius: 8px; padding: 0.5rem 0.85rem; color: #00ff88; cursor: pointer;
-                           font-weight: 600; transition: all 0.2s; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;"
-                    title="Tools">
-              <i class="fas fa-tools"></i>
-              <span>Tools</span>
-              <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
-            </button>
-            <div id="tools-dropdown" class="dropdown-menu" style="display: none; position: absolute; top: calc(100% + 0.5rem); right: 0;
-                 background: rgba(10,14,39,0.98); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px;
-                 padding: 0.5rem; min-width: 200px; backdrop-filter: blur(10px); z-index: 1000;
-                 box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
-              <div onclick="openAnalyticsDashboard(); toggleDropdown('tools-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #00ff88;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-chart-line" style="width: 20px;"></i>
-                <span>Analytics</span>
-              </div>
-              <div onclick="openPerformanceMonitor(); toggleDropdown('tools-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-tachometer-alt" style="width: 20px;"></i>
-                <span>Performance</span>
-              </div>
-              <div onclick="openDiagnostics(); toggleDropdown('tools-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-stethoscope" style="width: 20px;"></i>
-                <span>Diagnostics</span>
-              </div>
-              <div onclick="openLanguageSwitcher(); toggleDropdown('tools-dropdown')" class="dropdown-item"
-                   style="padding: 0.6rem 0.8rem; border-radius: 6px; cursor: pointer; color: #ddd;
-                          transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fas fa-globe" style="width: 20px;"></i>
-                <span>Language</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Secondary Actions Group -->
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <div class="header-notification" id="notifications-bell" 
@@ -631,13 +538,60 @@
         <div class="label" style="font-size:0.7rem; color:#ffd700; text-transform:uppercase; font-weight:700; white-space:nowrap;">View</div>
       </div>
 
-      <!-- Opportunities -->
-      <div class="stat-card-mini" id="btn-opportunities" onclick="window.location.href='/opportunities.html'"
-        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,168,255,0.1));
-        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
-        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-briefcase"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Jobs</div>
+      <!-- Admin -->
+      <div class="stat-card-mini" id="btn-admin" onclick="toggleDropdown('admin-dropdown')"
+        style="cursor:pointer; background:rgba(255,170,0,0.1); border:2px solid rgba(255,170,0,0.5);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:100px; height:60px; position:relative;">
+        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-cog"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:700; white-space:nowrap;">Admin</div>
+
+        <!-- Admin Dropdown Menu -->
+        <div id="admin-dropdown" class="dropdown-menu" style="display:none; position:absolute; bottom:calc(100% + 0.5rem); right:0;
+             background:rgba(10,14,39,0.98); border:2px solid rgba(255,170,0,0.5); border-radius:12px;
+             padding:0.75rem; min-width:220px; backdrop-filter:blur(10px); z-index:10000;
+             box-shadow:0 8px 24px rgba(0,0,0,0.6);">
+
+          <div style="color:#ffa500; font-size:0.7rem; text-transform:uppercase; font-weight:700; padding:0.5rem 0.75rem; margin-bottom:0.5rem; border-bottom:1px solid rgba(255,170,0,0.3);">Connect</div>
+
+          <div onclick="openMessagingInterface(); toggleDropdown('admin-dropdown')" class="dropdown-item"
+               style="padding:0.6rem 0.8rem; border-radius:6px; cursor:pointer; color:#ddd; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+            <i class="fas fa-comments" style="width:20px; color:#00e0ff;"></i>
+            <span>Messages</span>
+          </div>
+
+          <div onclick="openVideoCallInterface(); toggleDropdown('admin-dropdown')" class="dropdown-item"
+               style="padding:0.6rem 0.8rem; border-radius:6px; cursor:pointer; color:#ddd; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+            <i class="fas fa-video" style="width:20px; color:#00e0ff;"></i>
+            <span>Video Call</span>
+          </div>
+
+          <div onclick="openQuickConnect(); toggleDropdown('admin-dropdown')" class="dropdown-item"
+               style="padding:0.6rem 0.8rem; border-radius:6px; cursor:pointer; color:#ddd; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+            <i class="fas fa-user-plus" style="width:20px; color:#00e0ff;"></i>
+            <span>Quick Connect</span>
+          </div>
+
+          <div style="color:#ffa500; font-size:0.7rem; text-transform:uppercase; font-weight:700; padding:0.5rem 0.75rem; margin:0.5rem 0; border-bottom:1px solid rgba(255,170,0,0.3);">Tools</div>
+
+          <div onclick="openAnalyticsDashboard(); toggleDropdown('admin-dropdown')" class="dropdown-item"
+               style="padding:0.6rem 0.8rem; border-radius:6px; cursor:pointer; color:#ddd; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+            <i class="fas fa-chart-line" style="width:20px; color:#00ff88;"></i>
+            <span>Analytics</span>
+          </div>
+
+          <div onclick="if(window.openThemeAdmin) window.openThemeAdmin(); toggleDropdown('admin-dropdown')" class="dropdown-item"
+               style="padding:0.6rem 0.8rem; border-radius:6px; cursor:pointer; color:#ddd; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+            <i class="fas fa-crown" style="width:20px; color:#00ff88;"></i>
+            <span>Manage Themes</span>
+          </div>
+
+          <div onclick="window.location.href='/system-diagnostics.html'; toggleDropdown('admin-dropdown')" class="dropdown-item"
+               style="padding:0.6rem 0.8rem; border-radius:6px; cursor:pointer; color:#ddd; transition:all 0.2s; display:flex; align-items:center; gap:0.75rem;">
+            <i class="fas fa-heartbeat" style="width:20px; color:#00ff88;"></i>
+            <span>System Status</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
