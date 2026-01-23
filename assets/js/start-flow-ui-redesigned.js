@@ -16,27 +16,34 @@ console.log("%c🎨 START Flow UI Redesigned - Loading", "color:#0f8; font-weigh
  */
 async function openRedesignedStartModal() {
   console.log('🚀 Opening redesigned START modal');
-  
+  console.trace('📍 Modal opened from:');
+
   const modal = document.getElementById('start-modal');
   const backdrop = document.getElementById('start-modal-backdrop');
-  
+
   if (!modal || !backdrop) {
     console.error('START modal elements not found');
     return;
   }
-  
+
+  console.log('✅ Modal elements found, showing...');
+
   // Show modal
   modal.style.display = 'block';
   backdrop.style.display = 'block';
-  
+
   // Animate in
   setTimeout(() => {
     modal.style.opacity = '1';
     modal.style.transform = 'translateX(0)';
+    backdrop.style.opacity = '1';
+    console.log('✅ Modal animation complete, modal should be visible');
   }, 10);
-  
+
   // Load and display comprehensive recommendations
+  console.log('📊 Loading recommendations...');
   await populateRedesignedRecommendations();
+  console.log('✅ Recommendations loaded');
 }
 
 /**
@@ -625,22 +632,25 @@ function handleRecommendationAction(type, id, recommendations) {
     return;
   }
   
+  console.log('🎯 User clicked recommendation:', { type, title: recommendation.title });
+
   // Set session focus
   if (window.setSessionFocus) {
     window.setSessionFocus(type, recommendation.data);
   }
-  
+
   // Track action
   if (window.trackAction) {
     window.trackAction(type);
   }
-  
+
   // Close modal
+  console.log('🚪 Closing START modal after user selection');
   closeStartModal();
-  
+
   // Show success message
   showActionSuccess(type, recommendation.title);
-  
+
   // Navigate to appropriate view
   navigateToRecommendation(type, recommendation);
 }
@@ -712,35 +722,36 @@ function continueNavigation(type, recommendation) {
     }
   }, 2000); // Longer delay to allow for strategy switching
   
-  // Legacy navigation as fallback
+  // Legacy navigation as fallback - only for specific types
+  // Note: This runs AFTER modal closes, so it won't interfere with modal display
   switch (type) {
     case 'theme':
-      if (window.openThemeCard) {
-        setTimeout(() => window.openThemeCard(recommendation.data), 1500);
-      }
+      // Theme navigation handled by synapse integration above
+      console.log('🎯 Theme navigation handled by synapse integration');
       break;
-      
+
     case 'project':
       if (window.openProjectsModal) {
         setTimeout(() => window.openProjectsModal(), 1500);
       }
       break;
-      
+
     case 'person':
       if (window.openQuickConnectModal) {
         setTimeout(() => window.openQuickConnectModal(), 1500);
       }
       break;
-      
+
     case 'organization':
       console.log('🏢 Navigate to organization:', recommendation.data);
       break;
-      
+
     case 'opportunity':
       console.log('💼 Navigate to opportunity:', recommendation.data);
       break;
   }
-}
+
+  console.log('✅ Focus set and modal closed - user can now interact with synapse');
 
 /**
  * Get the appropriate synapse mode for a recommendation type

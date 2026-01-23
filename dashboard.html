@@ -897,7 +897,8 @@
   <div id="start-modal" class="mentor-panel" style="display:none; position:fixed; top:0; right:0; bottom:0;
     width:min(500px, 45vw); max-height:100vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
     border-left:3px solid rgba(0,255,136,0.5); padding:2rem; z-index:10002; overflow-y:auto;
-    box-shadow:-10px 0 50px rgba(0,0,0,0.7); backdrop-filter:blur(25px);">
+    box-shadow:-10px 0 50px rgba(0,0,0,0.7); backdrop-filter:blur(25px);
+    opacity:0; transform:translateX(100%); transition:opacity 0.3s ease, transform 0.3s ease;">
 
     <button class="mentor-panel-close" onclick="closeStartModal()"
       style="position:absolute; top:1rem; right:1rem; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.3);
@@ -1085,7 +1086,7 @@
 
   <!-- START Modal Backdrop -->
   <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3);
-    backdrop-filter:blur(2px); z-index:10001;" onclick="closeStartModal()"></div>
+    backdrop-filter:blur(2px); z-index:10001; opacity:0; transition:opacity 0.3s ease;" onclick="closeStartModal()"></div>
 
   <!-- Dropdown Toggle Script -->
   <script>
