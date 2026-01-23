@@ -3,7 +3,7 @@
 
 console.log("🎯 Theme Strategy Toggle loaded");
 
-let currentStrategy = 'cards'; // Start with cards strategy ('circles', 'cards', 'sidebar')
+let currentStrategy = 'circles'; // Start with synapse/circles strategy ('circles', 'cards', 'sidebar')
 let isToggling = false;
 
 // Add toggle button to the page

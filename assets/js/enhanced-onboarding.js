@@ -158,20 +158,18 @@ class EnhancedOnboarding {
    */
   async startOnboarding() {
     console.log('🚀 Starting enhanced onboarding...');
-    
+
     // Show welcome message first
     await this.showWelcomeMessage();
-    
+
     // Then guide through profile completion
     if (this.state.profileCompleteness < 60) {
       await this.guideProfileCompletion();
     }
-    
-    // Introduce START flow
-    if (!this.state.hasSeenStartFlow) {
-      setTimeout(() => this.introduceStartFlow(), 3000);
-    }
-    
+
+    // Auto-open START flow on every login
+    setTimeout(() => this.autoOpenStartModal(), 2000);
+
     // Enable spatial discovery
     this.enableSpatialDiscovery();
   }
@@ -515,13 +513,11 @@ class EnhancedOnboarding {
       this.showProfileCompletionPrompt();
       this.markProfilePromptShown();
     }
-    
-    if (!this.state.hasSeenStartFlow && !this.hasShownStartPrompt()) {
-      setTimeout(() => {
-        this.introduceStartFlow();
-        this.markStartPromptShown();
-      }, 2000);
-    }
+
+    // Auto-open START modal on every login
+    setTimeout(() => {
+      this.autoOpenStartModal();
+    }, 2000);
   }
 
   /**
@@ -554,6 +550,37 @@ class EnhancedOnboarding {
    */
   markStartPromptShown() {
     localStorage.setItem('start_prompt_shown', 'true');
+  }
+
+  /**
+   * Auto-open START modal on login
+   */
+  autoOpenStartModal() {
+    console.log('🎯 Auto-opening START modal...');
+
+    // Try to open the redesigned START modal first
+    if (typeof window.openRedesignedStartModal === 'function') {
+      console.log('✅ Opening redesigned START modal');
+      window.openRedesignedStartModal();
+      return;
+    }
+
+    // Fallback to clicking the START button
+    const startBtn = document.getElementById('btn-start');
+    if (startBtn) {
+      console.log('✅ Clicking START button');
+      startBtn.click();
+      return;
+    }
+
+    // Final fallback to legacy START modal
+    if (typeof window.openStartModal === 'function') {
+      console.log('✅ Opening legacy START modal');
+      window.openStartModal();
+      return;
+    }
+
+    console.warn('⚠️ No START modal function available');
   }
 
   /**
