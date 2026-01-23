@@ -110,8 +110,8 @@ async function toggleThemeStrategy() {
       synapseContainer.innerHTML = '';
     }
 
-    // Cycle through strategies: circles -> cards -> sidebar -> circles
-    const strategies = ['circles', 'cards', 'sidebar'];
+    // Toggle between circles and cards only
+    const strategies = ['circles', 'cards'];
     const currentIndex = strategies.indexOf(currentStrategy);
     currentStrategy = strategies[(currentIndex + 1) % strategies.length];
 
@@ -141,14 +141,9 @@ async function toggleThemeStrategy() {
       // Initialize new system
       await initSynapseView();
 
-      // Set the appropriate display mode
-      if (currentStrategy === 'cards') {
-        toggleThemeDisplayMode('cards');
-        showNotification('🎯 Switched to Cards View', 'success');
-      } else if (currentStrategy === 'sidebar') {
-        toggleThemeDisplayMode('sidebar');
-        showNotification('📱 Switched to Sidebar View', 'success');
-      }
+      // Set cards display mode
+      toggleThemeDisplayMode('cards');
+      showNotification('🎯 Switched to Cards View', 'success');
     }
 
   } catch (error) {
@@ -156,7 +151,7 @@ async function toggleThemeStrategy() {
     showNotification('Failed to switch strategy: ' + error.message, 'error');
 
     // Revert strategy on error
-    const strategies = ['circles', 'cards', 'sidebar'];
+    const strategies = ['circles', 'cards'];
     const currentIndex = strategies.indexOf(currentStrategy);
     currentStrategy = strategies[(currentIndex - 1 + strategies.length) % strategies.length];
   } finally {
