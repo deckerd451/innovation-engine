@@ -36,38 +36,14 @@ function addThemeStrategyToggle() {
 }
 
 function updateButtonText(button) {
-  const strategies = {
-    circles: {
-      icon: 'fa-circle-notch',  // Circles icon
-      text: 'Circles',
-      fullText: 'Switch to Circles'
-    },
-    cards: {
-      icon: 'fa-th-large',  // Cards icon
-      text: 'Cards',
-      fullText: 'Switch to Cards'
-    },
-    sidebar: {
-      icon: 'fa-bars',  // Sidebar icon
-      text: 'Sidebar',
-      fullText: 'Switch to Sidebar'
-    }
-  };
-
-  // Show the NEXT strategy, not the current one
-  // This makes the button more intuitive - clicking "Cards" will take you to Cards view
-  const strategyList = ['circles', 'cards', 'sidebar'];
-  const currentIndex = strategyList.indexOf(currentStrategy);
-  const nextStrategy = strategyList[(currentIndex + 1) % strategyList.length];
-  const strategy = strategies[nextStrategy];
-
-  // Update the button to match bottom bar style
+  // Always show "Views" label - button toggles between view modes
   const iconDiv = button.querySelector('.icon');
   const labelDiv = button.querySelector('.label');
 
   if (iconDiv && labelDiv) {
-    iconDiv.innerHTML = `<i class="fas ${strategy.icon}"></i>`;
-    labelDiv.textContent = strategy.text;
+    // Use eye icon to represent "views"
+    iconDiv.innerHTML = '<i class="fas fa-eye"></i>';
+    labelDiv.textContent = 'Views';
   }
 }
 
@@ -129,7 +105,7 @@ async function toggleThemeStrategy() {
       // Initialize old system
       await initSynapseView();
 
-      showNotification('🔄 Switched to Circles View', 'info');
+      showNotification('🔄 Switched to Synapse View', 'info');
 
     } else {
       // Import new cards strategy for both cards and sidebar modes
@@ -143,7 +119,7 @@ async function toggleThemeStrategy() {
 
       // Set cards display mode
       toggleThemeDisplayMode('cards');
-      showNotification('🎯 Switched to Cards View', 'success');
+      showNotification('🎯 Switched to Theme Cards View', 'success');
     }
 
   } catch (error) {
