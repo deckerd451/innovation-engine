@@ -671,3 +671,25 @@ if (typeof window !== "undefined") {
   window.removeConnection = removeConnection;
   window.formatTimeAgo = formatTimeAgo;
 }
+
+// ========================
+// ES6 MODULE EXPORTS
+// ========================
+export {
+  initConnections,
+  refreshCurrentUser,
+  getCurrentUserCommunityId,
+  getConnectionBetween,
+  getConnectionStatus,
+  getAllConnectionsForSynapse,
+  canSeeEmail,
+  getAcceptedConnections,
+  getPendingRequestsReceived,
+  getPendingRequestsSent,
+  sendConnectionRequest,
+  acceptConnectionRequest,
+  declineConnectionRequest,
+  cancelConnectionRequest,
+  removeConnection,
+  formatTimeAgo,
+};
