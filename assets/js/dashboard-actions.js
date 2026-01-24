@@ -409,6 +409,11 @@ function createSynapseLegend() {
         <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Themes</span>
         <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
       </div>
+      <div id="legend-organizations" data-filter="organizations" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3);">
+        <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(168,85,247,0.3); border: 2px solid #a855f7; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px;">🏢</div>
+        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Orgs</span>
+        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+      </div>
       <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
         <div style="width: 30px; height: 2px; background: #00e0ff; flex-shrink: 0;"></div>
         <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Connections</span>
@@ -583,11 +588,12 @@ function createSynapseLegend() {
     people: true,
     projects: true,
     themes: true,
+    organizations: true,
     connections: true
   };
 
   // Add click handlers for each filter
-  ['people', 'projects', 'themes', 'connections'].forEach(filterType => {
+  ['people', 'projects', 'themes', 'organizations', 'connections'].forEach(filterType => {
     const element = document.getElementById(`legend-${filterType}`);
     if (!element) return;
 
@@ -712,37 +718,47 @@ function createSynapseLegend() {
 // Apply filters to the synapse visualization
 function applyVisualizationFilters(filterState) {
   console.log('🔍 Applying visualization filters:', filterState);
-  
-  // Filter people nodes (they use class 'synapse-node' and have type 'person')
+
+  // Filter people and organization nodes (they use class 'synapse-node')
   const allNodes = document.querySelectorAll('.synapse-node');
   allNodes.forEach(node => {
     const nodeData = node.__data__; // D3 stores data on DOM elements
     if (nodeData && nodeData.type === 'person') {
       node.style.display = filterState.people ? 'block' : 'none';
     }
+    if (nodeData && nodeData.type === 'organization') {
+      node.style.display = filterState.organizations ? 'block' : 'none';
+    }
   });
-  
+
   // Filter theme nodes
   const themeNodes = document.querySelectorAll('.theme-container');
   themeNodes.forEach(node => {
     node.style.display = filterState.themes ? 'block' : 'none';
   });
-  
+
+  // Also filter theme hit detection areas
+  const themeHitAreas = document.querySelectorAll('.theme-hit-area');
+  themeHitAreas.forEach(node => {
+    node.style.display = filterState.themes ? 'block' : 'none';
+  });
+
   // Filter project overlays
   const projectNodes = document.querySelectorAll('.project-overlay');
   projectNodes.forEach(node => {
     node.style.display = filterState.projects ? 'block' : 'none';
   });
-  
+
   // Filter connection lines
   const connectionLines = document.querySelectorAll('.links line');
   connectionLines.forEach(line => {
     line.style.display = filterState.connections ? 'block' : 'none';
   });
-  
+
   console.log('✅ Filters applied:', {
     people: Array.from(allNodes).filter(n => n.__data__?.type === 'person').length,
-    themes: themeNodes.length, 
+    organizations: Array.from(allNodes).filter(n => n.__data__?.type === 'organization').length,
+    themes: themeNodes.length,
     projects: projectNodes.length,
     connections: connectionLines.length
   });

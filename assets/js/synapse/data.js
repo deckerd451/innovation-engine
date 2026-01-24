@@ -30,6 +30,24 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     console.warn("⚠️ Error loading projects:", projectsError);
   }
 
+  // Load organizations
+  const { data: organizations, error: orgsError } = await supabase
+    .from('organizations')
+    .select('id, name, slug, description, website, industry, size, location, logo_url, verified');
+
+  if (orgsError) {
+    console.warn('⚠️ Error loading organizations:', orgsError);
+  }
+
+  // Load organization members (to link people to orgs)
+  const { data: orgMembers, error: orgMembersError } = await supabase
+    .from('organization_members')
+    .select('organization_id, community_id, role');
+
+  if (orgMembersError) {
+    console.warn('⚠️ Error loading organization members:', orgMembersError);
+  }
+
   // Load theme circles (active only, not expired)
   const { data: themes, error: themesError } = await supabase
     .from('theme_circles')
@@ -60,6 +78,8 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     members: members?.length || 0,
     projects: projects?.length || 0,
     themes: themes?.length || 0,
+    organizations: organizations?.length || 0,
+    orgMembers: orgMembers?.length || 0,
     themeParticipants: themeParticipants?.length || 0,
     connections: connectionsData?.length || 0,
     projectMembers: projectMembersData?.length || 0
@@ -303,6 +323,55 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     }
   }
 
+  // 3b. Create organization nodes
+  if (organizations?.length) {
+    const orgNodes = organizations.map(org => {
+      const memberCount = (orgMembers || []).filter(m => m.organization_id === org.id).length;
+      return {
+        id: `org:${org.id}`,
+        org_id: org.id,
+        type: 'organization',
+        name: org.name,
+        description: org.description,
+        website: org.website,
+        industry: org.industry,
+        size: org.size,
+        location: org.location,
+        logo_url: org.logo_url,
+        verified: org.verified,
+        slug: org.slug,
+        member_count: memberCount,
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight
+      };
+    });
+
+    nodes = [...nodes, ...orgNodes];
+    console.log("🏢 Created organization nodes:", orgNodes.length);
+  }
+
+  // 3c. Create org membership links (people → organizations)
+  if (orgMembers?.length) {
+    const orgLinks = orgMembers
+      .filter(om => {
+        const orgNodeId = `org:${om.organization_id}`;
+        const userNodeExists = nodes.some(n => n.id === om.community_id);
+        const orgNodeExists = nodes.some(n => n.id === orgNodeId);
+        return userNodeExists && orgNodeExists;
+      })
+      .map(om => ({
+        id: `org-member-${om.organization_id}-${om.community_id}`,
+        source: om.community_id,
+        target: `org:${om.organization_id}`,
+        status: "org-member",
+        type: "organization",
+        role: om.role
+      }));
+
+    links = [...links, ...orgLinks];
+    console.log("🏢 Created organization membership links:", orgLinks.length);
+  }
+
   // 4. Create links: People → Themes (primary connection model)
   if (themeParticipants?.length) {
     const themeLinks = themeParticipants
@@ -413,7 +482,9 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     themes: nodes.filter(n => n.type === 'theme').length,
     projects: nodes.filter(n => n.type === 'project').length,
     people: nodes.filter(n => n.type === 'person').length,
-    themeConnections: links.filter(l => l.type === 'theme').length
+    organizations: nodes.filter(n => n.type === 'organization').length,
+    themeConnections: links.filter(l => l.type === 'theme').length,
+    orgConnections: links.filter(l => l.type === 'organization').length
   });
 
   return {
@@ -422,7 +493,8 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     connectionsData: connectionsData || [], // Person-to-person connections
     projectMembersData,
     projects: projects || [],
-    themes: themes || []
+    themes: themes || [],
+    organizations: organizations || []
   };
 }
 

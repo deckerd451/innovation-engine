@@ -1,6 +1,6 @@
 // assets/js/synapse/core.js
 // Synapse Core — init, svg, simulation wiring (modularized)
-// Version: 6.0 - Fixed theme click handler null safety (2026-01-13)
+// Version: 7.0 - Independent theme nodes, clickable people, org nodes (2026-01-24)
 
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
@@ -97,8 +97,6 @@ export async function initSynapseView() {
   }
 
   console.log("%c🧠 Synapse Core booting...", "color:#0ff; font-weight:bold;");
-console.log("🔥 CORE.JS CACHE BUSTER - TIMESTAMP:", Date.now());
-console.log("🔥 IMPORTING FROM: render-hit-detection.js");
 
   // Initialize adaptive configuration system
   console.log("⚙️ Initializing adaptive configuration...");
@@ -235,6 +233,7 @@ export function getSynapseStats() {
   const peopleCount = nodes.filter((n) => n.type === "person").length;
   const projectCount = nodes.filter((n) => n.type === "project").length;
   const themeCount = nodes.filter((n) => n.type === "theme").length;
+  const orgCount = nodes.filter((n) => n.type === "organization").length;
 
   const acceptedSet = new Set(["accepted", "active", "connected", "approved"]);
   const myConns = (connectionsData || []).filter(
@@ -253,6 +252,7 @@ export function getSynapseStats() {
     peopleCount,
     projectCount,
     themeCount,
+    orgCount,
     myConnectionCount: myAccepted.length || myConns.length || 0,
     currentUserCommunityId,
   };
@@ -399,10 +399,10 @@ async function reloadAllData() {
 }
 
 /* ==========================================================================
-   NESTED THEME LAYOUT
-   - Themes you're associated with => concentric wells at center
-   - All other themes => orbit around (do NOT share center)
-   - Uses LINKS to infer your themes (doesn't rely on node.themes/projects)
+   THEME LAYOUT
+   - Themes you're associated with => independent nodes orbiting center
+   - Discovery themes => further orbit (larger radius)
+   - Organizations => outer ring
    ========================================================================== */
 
 function findMostActiveTheme(allNodes, currentUserCommunityId) {
@@ -543,7 +543,7 @@ function calculateNestedPosition(
     }
 
     if (shouldShowTheme) {
-      // User's themes - concentric around center
+      // User's themes - independent nodes spread around center
       const myThemes = themes
         .filter((t) => {
           const hasThemeParticipation = userThemes.includes(t.theme_id);
@@ -553,10 +553,9 @@ function calculateNestedPosition(
         .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
 
       const myIndex = myThemes.findIndex((t) => t.id === node.id);
-      
+
       // Use adaptive configuration for theme radius
-      const baseThemeRadius = getConfig('synapse', 'baseThemeRadius') || 220;
-      const themeRadiusIncrement = getConfig('synapse', 'themeRadiusIncrement') || 140;
+      const baseThemeRadius = getConfig('synapse', 'baseThemeRadius') || 180;
 
       // Find most active theme (most projects or participants)
       const mostActiveThemeId = themes.reduce((max, theme) => {
@@ -567,10 +566,17 @@ function calculateNestedPosition(
 
       const isUserTheme = node.theme_id === mostActiveThemeId;
 
+      // Position themes as independent nodes in a circle around the user
+      const themeCount = Math.max(1, myThemes.length);
+      const orbitDistance = baseThemeRadius * 1.8 + (themeCount > 3 ? themeCount * 20 : 0);
+      const angleStep = (2 * Math.PI) / themeCount;
+      const startAngle = -Math.PI / 2; // Start from top
+      const angle = startAngle + myIndex * angleStep;
+
       return {
-        x: centerX, // All user themes centered on user
-        y: centerY,
-        themeRadius: baseThemeRadius + Math.max(0, myIndex) * themeRadiusIncrement,
+        x: centerX + Math.cos(angle) * orbitDistance,
+        y: centerY + Math.sin(angle) * orbitDistance,
+        themeRadius: baseThemeRadius,
         parentTheme: null,
         isUserTheme,
         hidden: false,
@@ -653,6 +659,26 @@ function calculateNestedPosition(
     return {
       x: centerX + (Math.random() - 0.5) * 1400,
       y: centerY + (Math.random() - 0.5) * 1400,
+      parentTheme: null,
+      hidden: false,
+    };
+  }
+
+  // ----------------------------
+  // ORGANIZATIONS - Position in outer ring
+  // ----------------------------
+  if (node.type === "organization") {
+    const orgs = allNodes.filter((n) => n.type === "organization");
+    const orgIndex = orgs.findIndex((o) => o.id === node.id);
+    const orgCount = Math.max(1, orgs.length);
+    const orgOrbitRadius = 500 + orgCount * 30;
+    const angleStep = (2 * Math.PI) / orgCount;
+    const startAngle = Math.PI / 4; // Start from 45 degrees
+    const angle = startAngle + orgIndex * angleStep;
+
+    return {
+      x: centerX + Math.cos(angle) * orgOrbitRadius,
+      y: centerY + Math.sin(angle) * orgOrbitRadius,
       parentTheme: null,
       hidden: false,
     };
@@ -987,9 +1013,9 @@ async function buildGraph() {
     projectOverlayEls = renderThemeProjectsOverlay(container, visibleThemeNodes);
   }
 
-  // 4. People nodes only (foreground layer) - render LAST so they appear on top
-  const visiblePeopleNodes = visibleNodes.filter((n) => n.type === "person");
-  nodeEls = renderNodes(container, visiblePeopleNodes, { onNodeClick });
+  // 4. People and organization nodes (foreground layer) - render LAST so they appear on top
+  const visibleInteractiveNodes = visibleNodes.filter((n) => n.type === "person" || n.type === "organization");
+  nodeEls = renderNodes(container, visibleInteractiveNodes, { onNodeClick });
 
   // Drag for nodes
   nodeEls.call(
@@ -1281,6 +1307,29 @@ function onNodeClick(event, d) {
 
   if (d.type === "theme") {
     openThemeCard(d);
+    return;
+  }
+
+  if (d.type === "organization") {
+    try {
+      openNodePanel({
+        id: d.org_id || d.id,
+        name: d.name,
+        type: "organization",
+        description: d.description,
+        website: d.website,
+        industry: d.industry,
+        size: d.size,
+        location: d.location,
+        logo_url: d.logo_url,
+        verified: d.verified,
+        slug: d.slug,
+        member_count: d.member_count,
+        ...d,
+      });
+    } catch (e) {
+      console.warn("openNodePanel for organization failed:", e);
+    }
     return;
   }
 

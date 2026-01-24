@@ -1,9 +1,7 @@
 // assets/js/synapse/render.js
 // Rendering helpers for links/nodes + project circles
 
-console.log("🔥 RENDER-HIT-DETECTION.JS LOADED - TIMESTAMP:", Date.now());
-console.log("🔥 CACHE BUSTER: This should appear if new file loads - ID:", Math.random());
-console.log("🔥 FILE: assets/js/synapse/render-hit-detection.js");
+// assets/js/synapse/render-hit-detection.js - Node and link rendering with hit detection
 
 import { getInitials, truncateName } from "./ui.js";
 
@@ -107,6 +105,8 @@ export function getLinkColor(link) {
       return COLORS.edgeSuggested;
     case "project-member":
       return "#ff6b6b";
+    case "org-member":
+      return "rgba(168, 85, 247, 0.5)";
     case "theme-participant":
       // Per yellow instructions: Use theme color for visual relationship
       // Get the theme color from the source node (theme)
@@ -199,15 +199,52 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
     .enter()
     .append("g")
     .attr("class", "synapse-node")
-    .style("pointer-events", "none") // Let hit detection handle all clicks
+    .style("cursor", "pointer")
     .on("click", (event, d) => {
-      // This won't fire due to pointer-events: none, but keeping for reference
       event.stopPropagation();
       onNodeClick?.(event, d);
     });
 
   nodeEls.each(function (d) {
     const node = d3.select(this);
+
+    if (d.type === "organization") {
+      const radius = 28;
+      const orgColor = "#a855f7"; // Purple for organizations
+
+      // Outer ring
+      node
+        .append("circle")
+        .attr("r", radius + 5)
+        .attr("fill", "none")
+        .attr("stroke", orgColor)
+        .attr("stroke-width", 2)
+        .attr("stroke-opacity", 0.5)
+        .attr("stroke-dasharray", "6,3")
+        .attr("class", "org-outer-ring");
+
+      // Main circle
+      node
+        .append("circle")
+        .attr("r", radius)
+        .attr("fill", `rgba(168, 85, 247, 0.3)`)
+        .attr("stroke", orgColor)
+        .attr("stroke-width", 2.5)
+        .attr("filter", "url(#glow)")
+        .attr("class", "node-circle");
+
+      // Organization icon
+      node
+        .append("text")
+        .attr("text-anchor", "middle")
+        .attr("dy", "0.35em")
+        .attr("fill", orgColor)
+        .attr("font-size", "18px")
+        .attr("pointer-events", "none")
+        .text("🏢");
+
+      return;
+    }
 
     if (d.type === "project") {
       const size = Math.max(35, Math.min(60, 30 + (d.team_size * 4)));
@@ -326,12 +363,12 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
   // Labels
   nodeEls
     .append("text")
-    .attr("dy", (d) => (d.type === "project" ? 40 : d.isCurrentUser ? 60 : 35))
+    .attr("dy", (d) => (d.type === "organization" ? 42 : d.type === "project" ? 40 : d.isCurrentUser ? 60 : 35))
     .attr("text-anchor", "middle")
-    .attr("fill", (d) => (d.type === "project" ? "#ff6b6b" : "#fff"))
-    .attr("font-size", (d) => (d.type === "project" ? "12px" : d.isCurrentUser ? "14px" : "11px"))
+    .attr("fill", (d) => (d.type === "organization" ? "#a855f7" : d.type === "project" ? "#ff6b6b" : "#fff"))
+    .attr("font-size", (d) => (d.type === "organization" ? "11px" : d.type === "project" ? "12px" : d.isCurrentUser ? "14px" : "11px"))
     .attr("font-family", "system-ui, sans-serif")
-    .attr("font-weight", (d) => (d.type === "project" ? "bold" : d.isCurrentUser ? "bold" : "normal"))
+    .attr("font-weight", (d) => (d.type === "organization" ? "600" : d.type === "project" ? "bold" : d.isCurrentUser ? "bold" : "normal"))
     .attr("pointer-events", "none")
     .text((d) => truncateName(d.name));
 
@@ -522,6 +559,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .style("pointer-events", "all");
 
     // Create individual hit detection circles for each theme
+    // Use a smaller hit area (center label region only) to avoid blocking person node clicks
     const hitDetectionAreas = hitDetectionGroup
       .selectAll("circle.theme-hit-area")
       .data(themeNodes, d => d.theme_id)
@@ -530,9 +568,9 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       .attr("class", d => `theme-hit-area theme-hit-${d.theme_id}`)
       .attr("cx", d => d.x || 0)
       .attr("cy", d => d.y || 0)
-      .attr("r", d => (d.themeRadius || 250))
+      .attr("r", 75) // Fixed small radius covering just the label area
       .attr("fill", "transparent") // Invisible but clickable
-      .attr("stroke", "none") // Remove debug stroke for production
+      .attr("stroke", "none")
       .style("cursor", "pointer")
       .style("pointer-events", "all");
 
