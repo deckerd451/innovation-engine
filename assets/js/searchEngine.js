@@ -31,16 +31,20 @@ export async function initSearchEngine(supabaseClient) {
   // Setup event listeners
   setupSearchListeners();
   setupAutocomplete();
+  
+  console.log('%c✓ Search Engine initialized', 'color: #0f0');
 }
 
 // Load community members with retry logic
 async function loadCommunityData() {
   if (isLoading) {
+    console.log('🔄 Already loading community data...');
     return;
   }
-
+  
   isLoading = true;
-
+  console.log('%c🔍 Loading community for search...', 'color: #0ff');
+  
   // Ensure supabase is available
   if (!supabase) {
     supabase = window.supabase;
@@ -61,8 +65,9 @@ async function loadCommunityData() {
     isLoading = false;
     return;
   }
-
+  
   try {
+    console.log('📡 Fetching community data...');
     const { data, error } = await supabase
       .from('community')
       .select('id, name, email, image_url, skills, bio, availability, user_id, connection_count')
@@ -72,13 +77,14 @@ async function loadCommunityData() {
       console.error('❌ Supabase query error:', error);
       throw error;
     }
-
+    
     allMembers = (data || []).map(m => ({
       ...m,
       skills: parseSkills(m.skills)
     }));
-
+    
     isDataLoaded = true;
+    console.log(`✅ Loaded ${allMembers.length} members for search`);
   } catch (err) {
     console.error('❌ Error loading community:', err);
     isDataLoaded = false;

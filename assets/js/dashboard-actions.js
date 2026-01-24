@@ -74,16 +74,6 @@ document.getElementById('btn-admin')?.addEventListener('click', () => {
   openAdminPanel();
 });
 
-// Wire up Organizations button
-document.getElementById('btn-organizations')?.addEventListener('click', () => {
-  window.location.href = '/organizations.html';
-});
-
-// Wire up Opportunities button
-document.getElementById('btn-opportunities')?.addEventListener('click', () => {
-  window.location.href = '/opportunities.html';
-});
-
 // Wire up View Controls button (backward compatibility if it exists)
 document.getElementById('btn-view-controls')?.addEventListener('click', () => {
   toggleViewControls();
@@ -409,11 +399,6 @@ function createSynapseLegend() {
         <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Themes</span>
         <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
       </div>
-      <div id="legend-organizations" data-filter="organizations" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3);">
-        <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(168,85,247,0.3); border: 2px solid #a855f7; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px;">🏢</div>
-        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Orgs</span>
-        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
-      </div>
       <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
         <div style="width: 30px; height: 2px; background: #00e0ff; flex-shrink: 0;"></div>
         <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Connections</span>
@@ -588,12 +573,11 @@ function createSynapseLegend() {
     people: true,
     projects: true,
     themes: true,
-    organizations: true,
     connections: true
   };
 
   // Add click handlers for each filter
-  ['people', 'projects', 'themes', 'organizations', 'connections'].forEach(filterType => {
+  ['people', 'projects', 'themes', 'connections'].forEach(filterType => {
     const element = document.getElementById(`legend-${filterType}`);
     if (!element) return;
 
@@ -718,70 +702,46 @@ function createSynapseLegend() {
 // Apply filters to the synapse visualization
 function applyVisualizationFilters(filterState) {
   console.log('🔍 Applying visualization filters:', filterState);
-
-  // Filter people and organization nodes (they use class 'synapse-node')
+  
+  // Filter people nodes (they use class 'synapse-node' and have type 'person')
   const allNodes = document.querySelectorAll('.synapse-node');
   allNodes.forEach(node => {
     const nodeData = node.__data__; // D3 stores data on DOM elements
     if (nodeData && nodeData.type === 'person') {
       node.style.display = filterState.people ? 'block' : 'none';
     }
-    if (nodeData && nodeData.type === 'organization') {
-      node.style.display = filterState.organizations ? 'block' : 'none';
-    }
   });
-
+  
   // Filter theme nodes
   const themeNodes = document.querySelectorAll('.theme-container');
   themeNodes.forEach(node => {
     node.style.display = filterState.themes ? 'block' : 'none';
   });
-
-  // Also filter theme hit detection areas
-  const themeHitAreas = document.querySelectorAll('.theme-hit-area');
-  themeHitAreas.forEach(node => {
-    node.style.display = filterState.themes ? 'block' : 'none';
-  });
-
+  
   // Filter project overlays
   const projectNodes = document.querySelectorAll('.project-overlay');
   projectNodes.forEach(node => {
     node.style.display = filterState.projects ? 'block' : 'none';
   });
-
+  
   // Filter connection lines
   const connectionLines = document.querySelectorAll('.links line');
   connectionLines.forEach(line => {
     line.style.display = filterState.connections ? 'block' : 'none';
   });
-
+  
   console.log('✅ Filters applied:', {
     people: Array.from(allNodes).filter(n => n.__data__?.type === 'person').length,
-    organizations: Array.from(allNodes).filter(n => n.__data__?.type === 'organization').length,
-    themes: themeNodes.length,
+    themes: themeNodes.length, 
     projects: projectNodes.length,
     connections: connectionLines.length
   });
-}
-
-// Function to show admin button if user is admin
-function checkAndShowAdminButton() {
-  if (isAdminUser()) {
-    const adminBtn = document.getElementById('btn-admin');
-    if (adminBtn) {
-      adminBtn.style.display = 'flex';
-      console.log('👑 Admin button shown');
-    }
-  }
 }
 
 // Initialize legend when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   // Wait a bit for synapse to load
   setTimeout(createSynapseLegend, 1000);
-
-  // Show admin button if user is admin
-  checkAndShowAdminButton();
 });
 
 // Also create legend when profile is loaded
@@ -789,11 +749,17 @@ window.addEventListener('profile-loaded', () => {
   // Prevent duplicate legend creation
   if (window.__LEGEND_PROFILE_LISTENER_ADDED__) return;
   window.__LEGEND_PROFILE_LISTENER_ADDED__ = true;
-
+  
   setTimeout(createSynapseLegend, 500);
 
   // Show admin button if user is admin
-  checkAndShowAdminButton();
+  if (isAdminUser()) {
+    const adminBtn = document.getElementById('btn-admin');
+    if (adminBtn) {
+      adminBtn.style.display = 'flex';
+      console.log('👑 Admin button shown');
+    }
+  }
 });
 
 // -----------------------------
@@ -936,31 +902,13 @@ function loadAdminTabContent(tabName) {
       </div>
     `;
 
-    document.getElementById('admin-toggle-view-btn')?.addEventListener('click', async () => {
-      console.log('🔍 Admin toggle view button clicked');
-      console.log('🔍 toggleFullCommunityView available:', typeof window.toggleFullCommunityView);
-
+    document.getElementById('admin-toggle-view-btn')?.addEventListener('click', () => {
       if (typeof window.toggleFullCommunityView === 'function') {
-        try {
-          console.log('🔍 Calling toggleFullCommunityView(true)...');
-          await window.toggleFullCommunityView(true);
-          console.log('✅ Successfully toggled to full community view');
-
-          document.getElementById('admin-panel')?.remove();
-
-          if (typeof window.showNotification === 'function') {
-            window.showNotification('Showing full community view', 'success');
-          } else {
-            alert('✅ Now showing full community view');
-          }
-        } catch (error) {
-          console.error('❌ Error toggling community view:', error);
-          alert('Error: ' + error.message);
+        window.toggleFullCommunityView(true);
+        document.getElementById('admin-panel')?.remove();
+        if (typeof window.showNotification === 'function') {
+          window.showNotification('Showing full community view', 'success');
         }
-      } else {
-        console.error('❌ toggleFullCommunityView function not available');
-        console.log('Available window functions:', Object.keys(window).filter(k => k.includes('toggle')));
-        alert('Error: Community view toggle function not available. Please wait for the page to fully load.');
       }
     });
   } else if (tabName === 'themes') {

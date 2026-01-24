@@ -364,10 +364,7 @@ function closeStartModal() {
   }
 
   if (backdrop) {
-    backdrop.style.opacity = '0';
-    setTimeout(() => {
-      backdrop.style.display = 'none';
-    }, 300);
+    backdrop.style.display = 'none';
   }
 }
 

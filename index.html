@@ -25,13 +25,6 @@
   </script>
 
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-
-  <!-- Performance: Preconnect to external resources -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-  <link rel="dns-prefetch" href="https://www.googletagmanager.com">
-
   <title>CharlestonHacks - Portal to Innovation</title>
   <meta name="description" content="CharlestonHacks — Making Invisible Networks Visible. Explore 9 interactive portals to innovation, community, and collaboration."/>
   <meta property="og:image" content="images/websitepanel.webp"/>
@@ -40,9 +33,6 @@
   <link rel="icon" href="favicon.ico" type="image/x-icon"/>
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
   <link rel="manifest" href="/manifest.json"/>
-
-  <!-- Optimized font loading with display swap to prevent blocking -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="styles.css"/>
 
@@ -750,7 +740,7 @@ button:focus { outline: 2px solid var(--cyan); outline-offset: 4px; }
 </head>
 
 <body>
-  <canvas id="neural-bg" style="opacity: 0; transition: opacity 0.5s ease-in;"></canvas>
+  <canvas id="neural-bg"></canvas>
 
   <!-- Enhanced Splash Screen -->
   <div id="splash-overlay" role="dialog" aria-modal="true" aria-labelledby="splash-title">
@@ -808,10 +798,10 @@ button:focus { outline: 2px solid var(--cyan); outline-offset: 4px; }
     <p class="portals-found"><span id="portals-count">0</span>/9 Portals Discovered</p>
   </div>
 
-  <!-- Sounds (lazy loaded on demand) -->
-  <audio id="cardflipSound" src="assets/atmospherel.m4a" preload="none"></audio>
-  <audio id="chimeSound" src="assets/chime.mp3" preload="none"></audio>
-  <audio id="keysSound" src="assets/keys.m4a" preload="none"></audio>
+  <!-- Sounds -->
+  <audio id="cardflipSound" src="assets/atmospherel.m4a" preload="auto"></audio>
+  <audio id="chimeSound" src="assets/chime.mp3" preload="auto"></audio>
+  <audio id="keysSound" src="assets/keys.m4a" preload="auto"></audio>
 
   <!-- Main Content -->
   <main>
@@ -934,12 +924,6 @@ button:focus { outline: 2px solid var(--cyan); outline-offset: 4px; }
       </a>
       <a href="dashboard.html" title="Community Hub" aria-label="Community Hub">
         <i class="fas fa-people-arrows"></i>
-      </a>
-      <a href="organizations.html" title="Organizations" aria-label="Organizations">
-        <i class="fas fa-building"></i>
-      </a>
-      <a href="opportunities.html" title="Opportunities" aria-label="Opportunities">
-        <i class="fas fa-briefcase"></i>
       </a>
       <a href="subscribe.html" title="Subscribe to Updates" aria-label="Subscribe">
         <i class="fas fa-bell"></i>
@@ -1331,65 +1315,46 @@ button:focus { outline: 2px solid var(--cyan); outline-offset: 4px; }
 
   <!-- Core modules + Auth gate (prevents refresh redirect to dashboard by persisting intent) -->
   <script type="module">
-    // Initialize auth as not ready to prevent race conditions
+    import "/assets/js/neuralBackground.js";
+    import { supabase } from "/assets/js/supabaseClient.js";
+
+    // Gate: prevent auth overlay/routing race on refresh
     window.__CH_AUTH_READY__ = false;
 
-    // Load modules asynchronously without blocking page render
-    Promise.all([
-      import("/assets/js/neuralBackground.js"),
-      import("/assets/js/supabaseClient.js")
-    ]).then(async ([neuralBg, { supabase }]) => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
 
-        // Persist the current page as "lastScreen" so a global router can honor it.
-        // (This solves: refresh on screen 1 -> stay on screen 1, instead of bouncing to screen 2.)
-        localStorage.setItem("ch:lastScreen", "index");
+      // Persist the current page as "lastScreen" so a global router can honor it.
+      // (This solves: refresh on screen 1 -> stay on screen 1, instead of bouncing to screen 2.)
+      localStorage.setItem("ch:lastScreen", "index");
 
-        // Mark ready either way (session or no session)
-        window.__CH_AUTH_READY__ = true;
-
-        // Optional: expose session for debugging
-        window.__CH_SESSION__ = session || null;
-      } catch (e) {
-        console.warn("Auth gate session check failed:", e);
-        window.__CH_AUTH_READY__ = true;
-      }
-    }).catch(err => {
-      console.error("Failed to load core modules:", err);
+      // Mark ready either way (session or no session)
       window.__CH_AUTH_READY__ = true;
-    });
+
+      // Optional: expose session for debugging
+      window.__CH_SESSION__ = session || null;
+    } catch (e) {
+      console.warn("Auth gate session check failed:", e);
+      window.__CH_AUTH_READY__ = true;
+    }
   </script>
 
-  <!-- EventsFeed loader (optimized for lazy loading) -->
+  <!-- EventsFeed loader (keeps your improved async import pattern) -->
   <script type="module">
-    // Lazy load events feed only when needed (on user interaction or idle time)
-    let eventsFeedLoaded = false;
-
-    async function loadEventsFeed() {
-      if (eventsFeedLoaded) return;
-      eventsFeedLoaded = true;
+    async function loadEventsFeedWhenReady() {
+      while (!document.getElementById("events-list")) {
+        await new Promise(r => setTimeout(r, 40));
+      }
 
       try {
         const module = await import("/assets/js/eventsFeed.js");
         if (module.loadEvents) window.loadEvents = module.loadEvents;
       } catch (error) {
         console.error("Failed to import eventsFeed.js:", error);
-        eventsFeedLoaded = false; // Allow retry on error
       }
     }
 
-    // Load on idle time or when calendar is opened
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => loadEventsFeed(), { timeout: 2000 });
-    } else {
-      setTimeout(() => loadEventsFeed(), 1000);
-    }
-
-    // Also ensure it's loaded when calendar button is clicked
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("open-calendar")?.addEventListener("click", loadEventsFeed, { once: true });
-    });
+    window.addEventListener("DOMContentLoaded", loadEventsFeedWhenReady);
   </script>
 
   <!-- Modal Controls -->

@@ -143,8 +143,7 @@ function showError(message, details = null) {
 // Listen for various events to update status
 document.addEventListener('DOMContentLoaded', () => {
   updateStatus('initializing');
-  console.log("✅ Connection status indicator initialized");
-}, { once: true });
+});
 
 window.addEventListener('beforeunload', () => {
   hideStatusIndicator();
@@ -153,18 +152,15 @@ window.addEventListener('beforeunload', () => {
 // Auth events
 window.addEventListener('profile-loaded', () => {
   updateStatus('loading_network');
-  console.log("✅ Connection status: Profile loaded, loading network");
-}, { once: true });
+});
 
 window.addEventListener('app-ready', () => {
   updateStatus('loading_network');
-  console.log("✅ Connection status: App ready");
-}, { once: true });
+});
 
 window.addEventListener('synapse-ready', () => {
   updateStatus('ready');
-  console.log("✅ Connection status: Synapse ready");
-}, { once: true });
+});
 
 window.addEventListener('user-logged-out', () => {
   hideStatusIndicator();

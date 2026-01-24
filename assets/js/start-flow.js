@@ -138,7 +138,6 @@ async function openStartModal() {
     setTimeout(() => {
       modal.style.opacity = '1';
       modal.style.transform = 'translateX(0)';
-      backdrop.style.opacity = '1';
     }, 10);
   }
 }
@@ -571,7 +570,6 @@ function closeStartModal() {
     // Animate out (slide to right)
     modal.style.opacity = '0';
     modal.style.transform = 'translateX(100%)';
-    backdrop.style.opacity = '0';
 
     setTimeout(() => {
       modal.style.display = 'none';
@@ -718,10 +716,8 @@ function resetStartFlow() {
 window.resetStartFlow = resetStartFlow;
 
 // Add CSS for pulse animation
-if (!document.getElementById('start-flow-pulse-styles')) {
-  const style = document.createElement('style');
-  style.id = 'start-flow-pulse-styles';
-  style.textContent = `
+const style = document.createElement('style');
+style.textContent = `
   @keyframes pulse {
     0%, 100% {
       box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7);
@@ -748,7 +744,6 @@ if (!document.getElementById('start-flow-pulse-styles')) {
     transition: opacity 0.3s ease, transform 0.3s ease;
   }
 `;
-  document.head.appendChild(style);
-}
+document.head.appendChild(style);
 
 console.log("✅ START Flow ready");
