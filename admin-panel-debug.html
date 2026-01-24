@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel Debug - Theme Assignment</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        .debug-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .debug-section {
+            background: rgba(0,224,255,0.05);
+            border: 1px solid rgba(0,224,255,0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .status-good { color: #00ff88; }
+        .status-warning { color: #ffaa00; }
+        .status-error { color: #ff6b6b; }
+        .status-info { color: #00e0ff; }
+        
+        .debug-button {
+            background: linear-gradient(135deg, #00ff88, #00e0ff);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            padding: 1rem 2rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            transition: all 0.2s;
+        }
+        
+        .debug-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+        }
+        
+        .debug-button.secondary {
+            background: rgba(0,224,255,0.1);
+            border: 1px solid rgba(0,224,255,0.3);
+            color: #00e0ff;
+        }
+        
+        .log-output {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        
+        .issue-item {
+            background: rgba(255,107,107,0.1);
+            border-left: 3px solid #ff6b6b;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .fix-item {
+            background: rgba(0,255,136,0.1);
+            border-left: 3px solid #00ff88;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1 class="status-error">🐛 Admin Panel Debug - Missing Theme Assignment</h1>
+        <p>The admin panel is showing projects but missing the theme assignment functionality. Let's debug this issue.</p>
+        
+        <div class="debug-section">
+            <h2 class="status-info">🔍 Issue Analysis</h2>
+            
+            <div class="issue-item">
+                <h3><i class="fas fa-exclamation-triangle"></i> Missing Theme Assignment UI</h3>
+                <p><strong>Problem:</strong> The "Manage Projects" tab shows projects but no theme assignment dropdowns</p>
+                <p><strong>Expected:</strong> Each project should have a theme assignment section with dropdown and buttons</p>
+                <p><strong>Likely Cause:</strong> Updated dashboard-actions.js not loading or cache issue</p>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <h2 class="status-warning">🔧 Debugging Steps</h2>
+            
+            <button class="debug-button" onclick="checkDashboardActions()">
+                <i class="fas fa-search"></i> Check Dashboard Actions
+            </button>
+            
+            <button class="debug-button secondary" onclick="checkThemeFunctions()">
+                <i class="fas fa-cog"></i> Check Theme Functions
+            </button>
+            
+            <button class="debug-button secondary" onclick="forceReloadScript()">
+                <i class="fas fa-sync-alt"></i> Force Reload Script
+            </button>
+            
+            <button class="debug-button secondary" onclick="testThemeAssignment()">
+                <i class="fas fa-flask"></i> Test Assignment Functions
+            </button>
+            
+            <div id="debug-output" class="log-output" style="display: none;"></div>
+        </div>
+
+        <div class="debug-section">
+            <h2 class="status-good">🛠️ Quick Fixes</h2>
+            
+            <div class="fix-item">
+                <h3>1. Hard Refresh Browser</h3>
+                <p>Press <strong>Ctrl+Shift+R</strong> (or <strong>Cmd+Shift+R</strong> on Mac) to force reload all scripts</p>
+                <button onclick="location.reload(true)" class="debug-button secondary">
+                    <i class="fas fa-sync-alt"></i> Hard Refresh This Page
+                </button>
+            </div>
+            
+            <div class="fix-item">
+                <h3>2. Clear Browser Cache</h3>
+                <p>Clear browser cache completely and reload the dashboard</p>
+                <button onclick="clearCacheAndReload()" class="debug-button secondary">
+                    <i class="fas fa-trash"></i> Clear Cache & Reload
+                </button>
+            </div>
+            
+            <div class="fix-item">
+                <h3>3. Check File Timestamp</h3>
+                <p>Verify that dashboard-actions.js has been updated with our changes</p>
+                <button onclick="checkFileTimestamp()" class="debug-button secondary">
+                    <i class="fas fa-clock"></i> Check File Timestamp
+                </button>
+            </div>
+            
+            <div class="fix-item">
+                <h3>4. Manual Function Injection</h3>
+                <p>Temporarily inject the theme assignment functions directly</p>
+                <button onclick="injectThemeFunctions()" class="debug-button secondary">
+                    <i class="fas fa-syringe"></i> Inject Functions
+                </button>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <h2 class="status-info">📋 Expected Admin Panel Structure</h2>
+            <p>Here's what the "Manage Projects" tab should look like with theme assignment:</p>
+            
+            <div class="code-block">
+Project: Healthcare AI Platform
+Status: open | Created: 1/13/2026
+Description: Building AI tools for healthcare...
+
+┌─ Theme Assignment ─────────────────┐
+│ 📍 Current: AI in Healthcare       │
+│ [Select Theme ▼] [Assign] [Remove] │
+└────────────────────────────────────┘
+            </div>
+            
+            <p>Each project should have:</p>
+            <ul>
+                <li>✅ Current theme assignment indicator</li>
+                <li>✅ Theme selection dropdown</li>
+                <li>✅ Assign button</li>
+                <li>✅ Remove button (if assigned)</li>
+            </ul>
+        </div>
+
+        <div class="debug-section">
+            <h2 class="status-warning">⚠️ Troubleshooting Checklist</h2>
+            
+            <div id="troubleshooting-checklist">
+                <div style="margin: 0.5rem 0;">
+                    <input type="checkbox" id="check1"> 
+                    <label for="check1">Hard refreshed the dashboard page (Ctrl+Shift+R)</label>
+                </div>
+                <div style="margin: 0.5rem 0;">
+                    <input type="checkbox" id="check2"> 
+                    <label for="check2">Cleared browser cache completely</label>
+                </div>
+                <div style="margin: 0.5rem 0;">
+                    <input type="checkbox" id="check3"> 
+                    <label for="check3">Verified admin access is working (admin button visible)</label>
+                </div>
+                <div style="margin: 0.5rem 0;">
+                    <input type="checkbox" id="check4"> 
+                    <label for="check4">Checked browser console for JavaScript errors</label>
+                </div>
+                <div style="margin: 0.5rem 0;">
+                    <input type="checkbox" id="check5"> 
+                    <label for="check5">Confirmed dashboard-actions.js is loading</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let debugOutput = null;
+
+        function log(message, type = 'info') {
+            if (!debugOutput) {
+                debugOutput = document.getElementById('debug-output');
+                debugOutput.style.display = 'block';
+            }
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: '#00e0ff',
+                success: '#00ff88',
+                warning: '#ffaa00',
+                error: '#ff6b6b'
+            };
+            
+            debugOutput.innerHTML += `<div style="color: ${colors[type] || colors.info};">[${timestamp}] ${message}</div>`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+
+        function checkDashboardActions() {
+            log('🔍 Checking dashboard-actions.js status...', 'info');
+            
+            // Check if the functions exist
+            if (typeof window.assignProjectToTheme === 'function') {
+                log('✅ assignProjectToTheme function found', 'success');
+            } else {
+                log('❌ assignProjectToTheme function missing', 'error');
+            }
+            
+            if (typeof window.removeProjectFromTheme === 'function') {
+                log('✅ removeProjectFromTheme function found', 'success');
+            } else {
+                log('❌ removeProjectFromTheme function missing', 'error');
+            }
+            
+            if (typeof window.loadProjectsList === 'function') {
+                log('✅ loadProjectsList function found', 'success');
+            } else {
+                log('❌ loadProjectsList function missing', 'error');
+            }
+            
+            // Check initialization status
+            if (window.__DASHBOARD_ACTIONS_INITIALIZED__) {
+                log('✅ Dashboard Actions initialized', 'success');
+            } else {
+                log('❌ Dashboard Actions not initialized', 'error');
+            }
+        }
+
+        function checkThemeFunctions() {
+            log('🔍 Testing theme assignment functions...', 'info');
+            
+            if (typeof window.assignProjectToTheme === 'function') {
+                log('✅ Theme assignment functions available', 'success');
+                log('💡 Try opening admin panel and checking "Manage Projects" tab', 'info');
+            } else {
+                log('❌ Theme assignment functions not available', 'error');
+                log('💡 This indicates dashboard-actions.js is not loading properly', 'warning');
+            }
+        }
+
+        function forceReloadScript() {
+            log('🔄 Attempting to force reload dashboard-actions.js...', 'info');
+            
+            // Remove existing script
+            const existingScript = document.querySelector('script[src*="dashboard-actions.js"]');
+            if (existingScript) {
+                existingScript.remove();
+                log('🗑️ Removed existing script', 'info');
+            }
+            
+            // Add new script with cache-busting timestamp
+            const script = document.createElement('script');
+            script.src = `https://charlestonhacks.com/assets/js/dashboard-actions.js?t=${Date.now()}`;
+            script.onload = () => {
+                log('✅ Script reloaded successfully', 'success');
+                log('🔄 Try opening the admin panel again', 'info');
+            };
+            script.onerror = () => {
+                log('❌ Failed to reload script', 'error');
+            };
+            document.head.appendChild(script);
+        }
+
+        function testThemeAssignment() {
+            log('🧪 Testing theme assignment functionality...', 'info');
+            
+            // This test would need to be run from the dashboard page
+            log('⚠️ This test needs to be run from the dashboard page', 'warning');
+            log('💡 Steps to test:', 'info');
+            log('1. Open dashboard.html', 'info');
+            log('2. Click Admin button (gold crown)', 'info');
+            log('3. Go to "Manage Projects" tab', 'info');
+            log('4. Look for theme assignment dropdowns under each project', 'info');
+        }
+
+        function clearCacheAndReload() {
+            log('🧹 Clearing cache and reloading...', 'info');
+            
+            // Clear various storage
+            if (typeof localStorage !== 'undefined') {
+                localStorage.clear();
+                log('🗑️ Cleared localStorage', 'info');
+            }
+            
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.clear();
+                log('🗑️ Cleared sessionStorage', 'info');
+            }
+            
+            // Reload with cache bypass
+            setTimeout(() => {
+                window.location.href = 'https://charlestonhacks.com/dashboard.html?' + Date.now();
+            }, 1000);
+        }
+
+        function checkFileTimestamp() {
+            log('🕐 Checking file timestamp...', 'info');
+            
+            fetch('https://charlestonhacks.com/assets/js/dashboard-actions.js', { 
+                method: 'HEAD',
+                cache: 'no-cache'
+            })
+            .then(response => {
+                const lastModified = response.headers.get('last-modified');
+                if (lastModified) {
+                    log(`📅 File last modified: ${lastModified}`, 'info');
+                } else {
+                    log('⚠️ Could not determine file timestamp', 'warning');
+                }
+            })
+            .catch(error => {
+                log(`❌ Error checking file: ${error.message}`, 'error');
+            });
+        }
+
+        function injectThemeFunctions() {
+            log('💉 Injecting theme assignment functions...', 'info');
+            
+            // This is a temporary workaround
+            window.assignProjectToTheme = function(projectId) {
+                alert(`Theme assignment function called for project: ${projectId}\n\nThis is a temporary injection. The real function should be in dashboard-actions.js`);
+            };
+            
+            window.removeProjectFromTheme = function(projectId) {
+                alert(`Theme removal function called for project: ${projectId}\n\nThis is a temporary injection. The real function should be in dashboard-actions.js`);
+            };
+            
+            log('✅ Temporary functions injected', 'success');
+            log('⚠️ These are placeholder functions - you need the real dashboard-actions.js to load', 'warning');
+        }
+
+        // Show initial status
+        setTimeout(() => {
+            log('🚀 Admin panel debug tool loaded', 'success');
+            log('🔍 Use the buttons above to diagnose the theme assignment issue', 'info');
+            log('💡 Most likely cause: Browser cache or script loading issue', 'warning');
+        }, 500);
+    </script>
+</body>
+</html>

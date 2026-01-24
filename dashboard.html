@@ -19,11 +19,6 @@
   <link rel="stylesheet" href="assets/css/messaging.css" />
   <link rel="stylesheet" href="dashboard.css" />
 
-  <!-- Enhanced UI System -->
-  <link rel="stylesheet" href="assets/css/enhanced-ui.css" />
-  <link rel="stylesheet" href="assets/css/animations.css" />
-  <link rel="stylesheet" href="assets/css/mobile-optimized.css" />
-
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
@@ -158,94 +153,6 @@
       .stat-card-mini { padding: 0.5rem !important; }
       .stat-card-mini .label { font-size: 0.65rem !important; }
       .stat-card-mini .value { font-size: 1.25rem !important; }
-      
-      /* Clean up header on mobile */
-      .header-actions { 
-        flex-wrap: wrap; 
-        gap: 0.25rem !important; 
-      }
-      
-      .header-actions > div:first-child {
-        margin-right: 0.5rem !important;
-      }
-      
-      .header-actions button {
-        padding: 0.4rem 0.6rem !important;
-        font-size: 0.8rem !important;
-      }
-      
-      #user-name-header {
-        display: none !important;
-      }
-      
-      #engagement-displays {
-        gap: 0.5rem !important;
-      }
-      
-      .header-search {
-        max-width: 200px !important;
-      }
-      
-      .header-search input {
-        font-size: 0.8rem !important;
-        padding: 0.4rem 2.5rem 0.4rem 2rem !important;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .header-actions > div:first-child {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem;
-      }
-      
-      .header-actions button {
-        padding: 0.35rem 0.5rem !important;
-        min-width: auto !important;
-      }
-      
-      #engagement-displays {
-        flex-wrap: wrap;
-        gap: 0.25rem !important;
-      }
-      
-      .header-search {
-        max-width: 150px !important;
-      }
-      
-      .header-search input::placeholder {
-        content: "Search...";
-      }
-    }
-
-    /* Header layout improvements */
-    .app-header {
-      padding: 0.75rem 1rem !important;
-      min-height: 60px;
-    }
-    
-    .header-content {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      width: 100%;
-    }
-    
-    .header-logo {
-      flex-shrink: 0;
-    }
-    
-    .header-search {
-      flex: 1;
-      min-width: 200px;
-    }
-    
-    #engagement-displays {
-      flex-shrink: 0;
-    }
-    
-    .header-actions {
-      flex-shrink: 0;
     }
 
     .bottom-stats-bar::-webkit-scrollbar { height: 6px; }
@@ -254,68 +161,6 @@
     .bottom-stats-bar::-webkit-scrollbar-thumb:hover { background: rgba(0,224,255,0.5); }
 
     .bottom-stats-bar > div { flex: 0 0 auto; min-width: 150px; }
-
-    /* Dropdown menu styles */
-    .dropdown-container {
-      position: relative;
-    }
-
-    .dropdown-menu {
-      animation: dropdownSlide 0.2s ease-out;
-    }
-
-    @keyframes dropdownSlide {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .dropdown-item:hover {
-      background: rgba(0,224,255,0.15) !important;
-      color: #00e0ff !important;
-    }
-
-    #connect-dropdown-btn:hover {
-      background: rgba(0,224,255,0.2) !important;
-      border-color: rgba(0,224,255,0.5) !important;
-    }
-
-    #tools-dropdown-btn:hover {
-      background: rgba(0,255,136,0.2) !important;
-      border-color: rgba(0,255,136,0.5) !important;
-    }
-
-    /* Responsive dropdown styles */
-    @media (max-width: 768px) {
-      .dropdown-container button span {
-        display: none;
-      }
-
-      .dropdown-container button {
-        padding: 0.5rem 0.75rem !important;
-      }
-
-      .dropdown-menu {
-        right: auto;
-        left: 0;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .dropdown-menu {
-        min-width: 180px;
-        font-size: 0.85rem;
-      }
-
-      .dropdown-item {
-        padding: 0.5rem 0.6rem !important;
-      }
-    }
   </style>
 </head>
 
@@ -380,7 +225,7 @@
   </div>
 
   <!-- Header -->
-  <header class="unified-header app-header hidden" id="main-header" data-animate="slideInDown"
+  <header class="unified-header hidden" id="main-header"
     style="position: fixed; top:0; left:0; right:0; z-index:1000; background:rgba(10,14,39,0.95);
     backdrop-filter: blur(10px); border-bottom:2px solid rgba(0,224,255,0.3);">
     <div class="header-content">
@@ -393,25 +238,14 @@
         </a>
       </div>
 
-      <div class="header-search" style="position: relative; flex: 1; max-width: 350px;">
+      <div class="header-search" style="position: relative;">
         <i class="fas fa-search"
-           style="position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; font-size:0.9rem;"></i>
-        <input type="text" id="global-search" placeholder="Search..." 
-               style="width: 100%; padding: 0.5rem 3rem 0.5rem 2.25rem; border: 1px solid rgba(0,224,255,0.3);
-                      border-radius: 8px; background: rgba(0,224,255,0.05); color: white; font-size: 0.9rem;
-                      outline: none; transition: all 0.2s;"
-               onfocus="this.style.borderColor='rgba(0,224,255,0.6)'; this.style.background='rgba(0,224,255,0.1)'"
-               onblur="this.style.borderColor='rgba(0,224,255,0.3)'; this.style.background='rgba(0,224,255,0.05)'"
-               onclick="openEnhancedSearch(this.value)"
-               onfocus="openEnhancedSearch(this.value)">
+           style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none;"></i>
+        <input type="text" id="global-search" placeholder="Search people, skills, projects..." style="padding-left:2.5rem; padding-right:4rem;">
         <button id="search-button"
-          onclick="openEnhancedSearch(document.getElementById('global-search').value)"
-          style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
-                 background: linear-gradient(135deg,#00e0ff,#0080ff); border: none; padding: 0.35rem 0.6rem; 
-                 border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 0.8rem;
-                 transition: all 0.2s;"
-          onmouseover="this.style.transform='translateY(-50%) scale(1.05)'"
-          onmouseout="this.style.transform='translateY(-50%) scale(1)'">
+          style="position:absolute; right:0.25rem; top:50%; transform:translateY(-50%);
+          background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.4rem 0.75rem; border-radius:6px;
+          color:white; cursor:pointer; font-weight:600; font-size:0.85rem;">
           <i class="fas fa-search"></i>
         </button>
       </div>
@@ -419,50 +253,38 @@
       <!-- Engagement displays will be injected here by daily-engagement.js -->
       <div id="engagement-displays" style="display: flex; align-items: center; gap: 0.75rem;"></div>
 
-      <div class="header-actions" style="display: flex; align-items: center; gap: 0.5rem;">
-        <!-- Secondary Actions Group -->
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <div class="header-notification" id="notifications-bell"
-               style="cursor:pointer; padding: 0.5rem; border-radius: 8px;
-                      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                      color: #ddd; transition: all 0.2s; position: relative;"
-               title="Notifications"
-               onclick="openNotificationCenter()"
-               onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'"
-               onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
-            <i class="fas fa-bell"></i>
-            <span class="notification-badge hidden" id="notif-count" style="position: absolute; top: -4px; right: -4px;">0</span>
-          </div>
+      <div class="header-actions">
+        <div class="header-notification" id="notifications-bell" style="cursor:pointer;" title="View pending requests">
+          <i class="fas fa-bell"></i>
+          <span class="notification-badge hidden" id="notif-count">0</span>
+        </div>
 
-          <div class="user-menu" id="user-menu"
-               style="cursor:pointer; display: flex; align-items: center; gap: 0.5rem;
-                      padding: 0.5rem 0.75rem; border-radius: 8px;
-                      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                      transition: all 0.2s;"
-               title="Profile"
-               onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'"
-               onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
-            <div class="user-avatar" id="user-avatar-header" style="width: 24px; height: 24px;">
-              <span id="user-initials-header" style="font-size: 0.8rem;">?</span>
-            </div>
-            <span id="user-name-header" style="font-size: 0.9rem; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Loading...</span>
-          </div>
+        <button id="logout-btn"
+          style="background: rgba(255, 59, 48, 0.15);
+                 border: 1px solid rgba(255, 59, 48, 0.3);
+                 color: #ff3b30;
+                 padding: 0.5rem 1rem;
+                 border-radius: 8px;
+                 cursor: pointer;
+                 font-size: 0.9rem;
+                 font-weight: 600;
+                 transition: all 0.2s ease;
+                 display: flex;
+                 align-items: center;
+                 gap: 0.5rem;"
+          onmouseover="this.style.background='rgba(255, 59, 48, 0.25)'; this.style.borderColor='rgba(255, 59, 48, 0.5)';"
+          onmouseout="this.style.background='rgba(255, 59, 48, 0.15)'; this.style.borderColor='rgba(255, 59, 48, 0.3)';"
+          title="Logout">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </button>
 
-          <button id="logout-btn"
-            style="background: rgba(255, 59, 48, 0.15);
-                   border: 1px solid rgba(255, 59, 48, 0.3);
-                   color: #ff3b30;
-                   padding: 0.5rem 0.75rem;
-                   border-radius: 8px;
-                   cursor: pointer;
-                   font-size: 0.9rem;
-                   font-weight: 600;
-                   transition: all 0.2s ease;"
-            onmouseover="this.style.background='rgba(255, 59, 48, 0.25)'; this.style.borderColor='rgba(255, 59, 48, 0.5)';"
-            onmouseout="this.style.background='rgba(255, 59, 48, 0.15)'; this.style.borderColor='rgba(255, 59, 48, 0.3)';"
-            title="Logout">
-            <i class="fas fa-sign-out-alt"></i>
-          </button>
+        <div class="user-menu" id="user-menu" style="cursor:pointer;" title="View your profile">
+          <div class="user-avatar" id="user-avatar-header">
+            <span id="user-initials-header">?</span>
+          </div>
+          <span id="user-name-header">Loading...</span>
+          <i class="fas fa-user-circle"></i>
         </div>
       </div>
     </div>
@@ -473,6 +295,7 @@
     <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000;">
       <svg id="synapse-svg" style="width:100%; height:100%; background: #000000;"></svg>
     </div>
+
     <!-- START Button (per yellow instructions: moved to bottom bar area) -->
     <!-- This button opens the START screen which contains all navigation options -->
     <!-- Hidden after first daily use and minimized to bottom bar -->
@@ -487,19 +310,40 @@
       <i class="fas fa-chevron-down"></i>
     </button>
 
-    <!-- Bottom Bar - Simplified Core Actions -->
-    <div class="bottom-stats-bar" id="bottom-stats-bar" data-animate="slideInUp"
+    <!-- Bottom Bar - Expanded Actions -->
+    <div class="bottom-stats-bar" id="bottom-stats-bar"
       style="position:absolute; bottom:8px; left:0; right:0; background:rgba(10,14,39,0.95);
       border-top:2px solid rgba(0,224,255,0.3); height:82px; display:flex; align-items:center; justify-content:center;
-      gap:0.85rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
+      gap:0.75rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
 
-      <!-- START Button -->
-      <div class="stat-card-mini" id="btn-start" onclick="window.openStartModal?.()"
+      <!-- START Button (per yellow instructions) -->
+      <div class="stat-card-mini" id="btn-start"
         style="cursor:pointer; background:linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,224,255,0.15));
         border:2px solid rgba(0,255,136,0.5); border-radius:8px; padding:0.5rem 1.5rem; text-align:center;
         transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:110px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#00ff88;"><i class="fas fa-play-circle"></i></div>
         <div class="label" style="font-size:0.7rem; color:#00ff88; text-transform:uppercase; font-weight:700; white-space:nowrap;">START</div>
+      </div>
+
+      <!-- Quick Connect -->
+      <div class="stat-card-mini" id="btn-quickconnect"
+        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,128,255,0.1));
+        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
+        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-user-plus"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Connect</div>
+      </div>
+
+      <!-- Messages -->
+      <div class="stat-card-mini" id="btn-messages"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-envelope"></i></div>
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <div class="value" id="unread-messages" style="font-size:1rem; font-weight:bold; color:white; line-height:1;">0</div>
+          <div class="label" style="font-size:0.65rem; color:#aaa; text-transform:uppercase; line-height:1;">Messages</div>
+        </div>
       </div>
 
       <!-- Projects -->
@@ -524,36 +368,26 @@
       <div class="stat-card-mini" id="btn-endorsements"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
         border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:100px; height:60px;">
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-star"></i></div>
         <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Endorse</div>
       </div>
 
-      <!-- Organizations -->
-      <div class="stat-card-mini" id="btn-organizations"
-        style="cursor:pointer; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25);
+      <!-- Community Chat (BBS) -->
+      <div class="stat-card-mini" id="btn-bbs"
+        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
         border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
         align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#a855f7;"><i class="fas fa-building"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#a855f7; text-transform:uppercase; font-weight:600; white-space:nowrap;">Orgs</div>
+        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-comments"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Chat</div>
       </div>
 
-      <!-- View Toggle - Switch between Circles and Cards -->
-      <div class="stat-card-mini" id="btn-view-toggle" onclick="window.toggleThemeStrategy?.()"
-        style="cursor:pointer; background:rgba(255,215,0,0.08); border:2px solid rgba(255,215,0,0.5);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:100px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#ffd700;"><i class="fas fa-th-large"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#ffd700; text-transform:uppercase; font-weight:700; white-space:nowrap;">View</div>
-      </div>
-
-      <!-- Admin -->
-      <div class="stat-card-mini" id="btn-admin"
-        style="cursor:pointer; background:rgba(255,170,0,0.1); border:2px solid rgba(255,170,0,0.5);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:100px; height:60px; position:relative;">
-        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-cog"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:700; white-space:nowrap;">Admin</div>
+      <!-- Admin (Manage Themes) - Only visible to admins -->
+      <div class="stat-card-mini" id="btn-admin" style="cursor:pointer; background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:none; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-crown"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Admin</div>
       </div>
     </div>
   </div>
@@ -564,42 +398,30 @@
   <!-- Profile Modal -->
   <div class="modal" id="profile-modal">
     <div class="modal-content">
-      <div class="modal-header">
-        <h2 class="modal-title">User Profile</h2>
-        <button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal-body">
-        <div id="modal-profile-content"></div>
-      </div>
+      <button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button>
+      <div id="modal-profile-content"></div>
     </div>
   </div>
 
   <!-- Messages Modal -->
   <div class="modal" id="messages-modal">
     <div class="modal-content" style="max-width: 1000px; max-height: 80vh;">
-      <div class="modal-header">
-        <h2 class="modal-title">Messages</h2>
-        <button class="modal-close" onclick="closeMessagesModal()"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal-body">
-        <!-- Container for messaging.js to render into -->
-        <div id="messages-container"></div>
-      </div>
+      <button class="modal-close" onclick="closeMessagesModal()"><i class="fas fa-times"></i></button>
+
+      <!-- Container for messaging.js to render into -->
+      <div id="messages-container"></div>
     </div>
   </div>
 
   <!-- Projects Modal -->
   <div class="modal" id="projects-modal">
     <div class="modal-content" style="max-width: 800px;">
-      <div class="modal-header">
-        <h2 class="modal-title"><i class="fas fa-lightbulb"></i> Projects</h2>
-        <button class="modal-close" onclick="closeProjectsModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" onclick="closeProjectsModal()"><i class="fas fa-times"></i></button>
+      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-lightbulb"></i> Projects</h2>
+
+      <div style="margin-bottom:1.5rem;">
+        <button onclick="showCreateProjectForm()" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
       </div>
-      <div class="modal-body">
-        <div style="margin-bottom:1.5rem;">
-          <button onclick="showCreateProjectForm()" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
-          <button onclick="showEnhancedProjectCreation()" class="btn btn-primary" style="margin-left: 0.5rem; background: linear-gradient(135deg, rgba(0,224,255,0.3), rgba(0,224,255,0.2)); border-color: rgba(0,224,255,0.5);"><i class="fas fa-rocket"></i> Enhanced Creation</button>
-        </div>
 
       <div id="project-form" style="display:none; background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
           border-radius:12px; padding:1.5rem; margin-bottom:1.5rem;">
@@ -787,8 +609,7 @@
   <div id="start-modal" class="mentor-panel" style="display:none; position:fixed; top:0; right:0; bottom:0;
     width:min(500px, 45vw); max-height:100vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
     border-left:3px solid rgba(0,255,136,0.5); padding:2rem; z-index:10002; overflow-y:auto;
-    box-shadow:-10px 0 50px rgba(0,0,0,0.7); backdrop-filter:blur(25px);
-    opacity:0; transition:opacity 0.3s ease;">
+    box-shadow:-10px 0 50px rgba(0,0,0,0.7); backdrop-filter:blur(25px);">
 
     <button class="mentor-panel-close" onclick="closeStartModal()"
       style="position:absolute; top:1rem; right:1rem; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.3);
@@ -867,39 +688,6 @@
           <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Meet people nearby</div>
           <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">People worth knowing</div>
         </button>
-
-        <button id="start-btn-teams" class="start-nav-btn"
-          onclick="openTeamBuilder()"
-          style="background:linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.1)); border:2px solid rgba(0,255,136,0.4);
-          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
-          <div style="font-size:2rem; color:#00ff88; margin-bottom:0.75rem;">
-            <i class="fas fa-users-cog"></i>
-          </div>
-          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Build Teams</div>
-          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">AI-powered team formation</div>
-        </button>
-
-        <button id="start-btn-collaborate" class="start-nav-btn"
-          onclick="openMessagingInterface()"
-          style="background:linear-gradient(135deg, rgba(138,43,226,0.15), rgba(138,43,226,0.1)); border:2px solid rgba(138,43,226,0.4);
-          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
-          <div style="font-size:2rem; color:#8a2be2; margin-bottom:0.75rem;">
-            <i class="fas fa-comments"></i>
-          </div>
-          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Collaborate</div>
-          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">Real-time messaging & activity</div>
-        </button>
-
-        <button id="start-btn-analytics" class="start-nav-btn"
-          onclick="openAnalyticsDashboard()"
-          style="background:linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,224,255,0.1)); border:2px solid rgba(0,255,136,0.4);
-          border-radius:12px; padding:1.5rem; cursor:pointer; transition:all 0.2s; text-align:left;">
-          <div style="font-size:2rem; color:#00ff88; margin-bottom:0.75rem;">
-            <i class="fas fa-chart-line"></i>
-          </div>
-          <div style="color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Analytics</div>
-          <div style="color:rgba(255,255,255,0.6); font-size:0.85rem;">Insights & performance metrics</div>
-        </button>
       </div>
     </div>
 
@@ -976,263 +764,62 @@
 
   <!-- START Modal Backdrop -->
   <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3);
-    backdrop-filter:blur(2px); z-index:10001; opacity:0; transition:opacity 0.3s ease;" onclick="closeStartModal()"></div>
-
-  <!-- Dropdown Toggle Script -->
-  <script>
-    // Toggle dropdown menus
-    function toggleDropdown(dropdownId) {
-      const dropdown = document.getElementById(dropdownId);
-      const allDropdowns = document.querySelectorAll('.dropdown-menu');
-
-      // Close all other dropdowns
-      allDropdowns.forEach(dd => {
-        if (dd.id !== dropdownId) {
-          dd.style.display = 'none';
-        }
-      });
-
-      // Toggle current dropdown
-      if (dropdown) {
-        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-      }
-    }
-
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(event) {
-      if (!event.target.closest('.dropdown-container')) {
-        document.querySelectorAll('.dropdown-menu').forEach(dd => {
-          dd.style.display = 'none';
-        });
-      }
-    });
-
-    // Wrapper functions for dropdown menu items
-    // These ensure all menu items have handlers even if the underlying functions don't exist yet
-
-    // Connect dropdown functions
-    window.openMessagingInterface = window.openMessagingInterface || function() {
-      console.log('Opening messaging interface...');
-      if (typeof openMessages === 'function') {
-        openMessages();
-      } else {
-        document.getElementById('btn-messages')?.click();
-      }
-    };
-
-    window.openVideoCallInterface = window.openVideoCallInterface || function() {
-      console.log('Opening video call interface...');
-      if (typeof window.showVideoCallInterface === 'function') {
-        window.showVideoCallInterface();
-      } else {
-        alert('Video call feature coming soon!');
-      }
-    };
-
-    window.openQuickConnect = window.openQuickConnect || function() {
-      console.log('Opening quick connect...');
-      if (typeof openQuickConnectModal === 'function') {
-        openQuickConnectModal();
-      } else {
-        document.getElementById('btn-quickconnect')?.click();
-      }
-    };
-
-    window.openCollaborationHub = window.openCollaborationHub || function() {
-      console.log('Opening collaboration hub...');
-      alert('Collaboration hub feature coming soon!');
-    };
-
-    window.openBBS = window.openBBS || function() {
-      console.log('Opening community chat...');
-      document.getElementById('fab-bbs-trigger')?.click();
-    };
-
-    // Tools dropdown functions
-    window.openAnalyticsDashboard = window.openAnalyticsDashboard || function() {
-      console.log('Opening analytics dashboard...');
-      if (typeof window.showAnalyticsDashboard === 'function') {
-        window.showAnalyticsDashboard();
-      } else {
-        document.getElementById('btn-analytics-dashboard')?.click();
-      }
-    };
-
-    window.openPerformanceMonitor = window.openPerformanceMonitor || function() {
-      console.log('Opening performance monitor...');
-      if (typeof window.showPerformanceMonitor === 'function') {
-        window.showPerformanceMonitor();
-      } else {
-        alert('Performance monitor feature coming soon!');
-      }
-    };
-
-    window.openDiagnostics = window.openDiagnostics || function() {
-      console.log('Opening diagnostics...');
-      if (typeof window.showDiagnostics === 'function') {
-        window.showDiagnostics();
-      } else {
-        alert('System diagnostics feature coming soon!');
-      }
-    };
-
-    window.openLanguageSwitcher = window.openLanguageSwitcher || function() {
-      console.log('Opening language switcher...');
-      if (typeof window.showLanguageSelector === 'function') {
-        window.showLanguageSelector();
-      } else {
-        alert('Language switcher feature coming soon!');
-      }
-    };
-
-    // Activity feed function
-    window.openActivityFeed = window.openActivityFeed || function() {
-      console.log('Opening activity feed...');
-      if (typeof window.showActivityFeed === 'function') {
-        window.showActivityFeed();
-      } else {
-        document.getElementById('btn-activity-feed')?.click();
-      }
-    };
-
-    // Override profile modal to use the fallback modal directly
-    const originalOpenProfileModal = window.openProfileModal;
-    window.openProfileModal = function() {
-      console.log('Opening profile modal (safe version)...');
-      // Try the original function first
-      if (originalOpenProfileModal && typeof originalOpenProfileModal === 'function') {
-        try {
-          originalOpenProfileModal();
-        } catch (error) {
-          console.warn('Error calling original openProfileModal, using fallback:', error);
-          // Fallback: just try to open the modal element directly
-          const modal = document.getElementById('profile-modal');
-          if (modal) {
-            modal.style.display = 'flex';
-          }
-        }
-      } else {
-        // No original function, try opening modal directly
-        const modal = document.getElementById('profile-modal');
-        if (modal) {
-          modal.style.display = 'flex';
-        } else {
-          alert('Profile feature is loading...');
-        }
-      }
-    };
-  </script>
+    backdrop-filter:blur(2px); z-index:10001;" onclick="closeStartModal()"></div>
 
    <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
   <!-- Required base modules -->
-  <!-- Event Deduplication System (MUST LOAD FIRST) -->
-  <script src="assets/js/event-deduplication.js?v=deduplication-2026-01-20"></script>
-  
   <!-- Cache-busting using git commit hash - changes on every deploy -->
-  <script type="module" src="assets/js/supabaseClient.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  
-  <!-- Enhanced Database Integration -->
-  <script src="assets/js/database-config.js?v=fix-sendDirectMessage-2026-01-21"></script>
-  <script src="assets/js/database-integration.js?v=fix-sendDirectMessage-2026-01-21"></script>
-  <script src="assets/js/database-integration-fix.js?v=fix-sendDirectMessage-2026-01-21"></script>
-
-  <!-- Connection Management System (REQUIRED FOR BUTTON FUNCTIONALITY) -->
-  <script type="module" src="assets/js/connections.js?v=button-fix-2026-01-22"></script>
+  <script type="module" src="assets/js/supabaseClient.js?v=e829b2ff916933b2da"></script>
 
   <!-- Non-module scripts with commit-based cache-busting -->
-  <script src="assets/js/ecosystem-connector.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/cynq.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/neuralBackground.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/ecosystem-connector.js?v=e829b2ff916933b2da"></script>
+  <script src="assets/js/cynq.js?v=e829b2ff916933b2da"></script>
+  <script src="assets/js/neuralBackground.js?v=e829b2ff916933b2da"></script>
 
   <!-- Feature modules with commit-based cache-busting -->
-  <script type="module" src="assets/js/onboarding.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/node-panel.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/network-filters.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/graph-legend.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/admin-analytics.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/theme-admin.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/theme-discovery.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/enhanced-project-creation.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/project-creation-integration.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/smart-connection-suggestions.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/enhanced-connection-discovery.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/enhanced-search-discovery.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/search-integration.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  
-  <!-- Enhanced Team Building System -->
-  <script type="module" src="assets/js/enhanced-team-builder.js?v=team-building-2026-01-20"></script>
-  <script type="module" src="assets/js/collaboration-tools.js?v=team-building-2026-01-20"></script>
-  
-  <!-- Real-time Collaboration System -->
-  <script type="module" src="assets/js/notification-system.js?v=realtime-collab-2026-01-20"></script>
-  <script type="module" src="assets/js/notification-integration.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/live-activity-feed.js?v=realtime-collab-2026-01-20"></script>
-  <script type="module" src="assets/js/realtime-collaboration.js?v=realtime-collab-2026-01-20"></script>
-  
-  <!-- Advanced Analytics & Insights System -->
-  <script type="module" src="assets/js/advanced-analytics.js?v=analytics-2026-01-20"></script>
-  <script type="module" src="assets/js/performance-monitor.js?v=analytics-2026-01-20"></script>
-  
-  <!-- Video Chat Integration System -->
-  <script type="module" src="assets/js/video-chat-engine.js?v=video-chat-2026-01-20"></script>
-  <script src="assets/js/call-management.js?v=video-chat-2026-01-20"></script>
-  <script type="module" src="assets/js/video-chat-integration.js?v=video-chat-2026-01-20"></script>
-  
-  <!-- UI Enhancement System -->
-  <script type="module" src="assets/js/ui-enhancements.js?v=ui-enhancements-2026-01-20"></script>
-  
-  <script type="module" src="assets/js/daily-engagement.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="assets/js/connectionRequests.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/onboarding.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="assets/js/node-panel.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="assets/js/network-filters.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="assets/js/graph-legend.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="assets/js/admin-analytics.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="assets/js/theme-admin.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="assets/js/theme-discovery.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="assets/js/daily-engagement.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="assets/js/connectionRequests.js?v=e829b2ff916933b2da"></script>
 
   <!-- Messaging with commit-based cache-busting -->
-  <script src="assets/js/messaging.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/messaging.js?v=e829b2ff916933b2da"></script>
 
   <!-- Auth + profile with commit-based cache-busting for auth fix -->
-  <script type="module" src="auth.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script type="module" src="profile.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="auth.js?v=e829b2ff916933b2da"></script>
+  <script type="module" src="profile.js?v=e829b2ff916933b2da"></script>
 
   <!-- Synapse initialization helper with commit-based cache-busting -->
-  <script src="assets/js/synapse-init-helper.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/synapse-init-helper.js?v=e829b2ff916933b2da"></script>
 
   <!-- Connection status indicator with commit-based cache-busting -->
-  <script src="assets/js/connection-status.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/connection-status.js?v=e829b2ff916933b2da"></script>
 
   <!-- Synapse boot with commit-based cache-busting -->
-  <script type="module" src="assets/js/synapse.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-
-  <!-- Theme Strategy Toggle (for testing both old and new systems) -->
-  <script src="assets/js/theme-strategy-toggle.js?v=1ed978ffb3963"></script>
+  <script type="module" src="assets/js/synapse.js?v=e829b2ff916933b2da"></script>
 
   <!-- Main app boot with commit-based cache-busting -->
-  <script type="module" src="main.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="main.js?v=e829b2ff916933b2da"></script>
 
   <!-- Dashboard controller with commit-based cache-busting -->
-  <script type="module" src="assets/js/dashboardPane.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script type="module" src="assets/js/dashboardPane.js?v=e829b2ff916933b2da"></script>
 
-  <!-- Dashboard Actions - Wire up bottom bar and admin functionality -->
-  <script src="assets/js/dashboard-actions.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-
-  <!-- Enhanced Onboarding System -->
-  <script src="assets/js/enhanced-onboarding.js?v=onboarding-2026-01-20"></script>
-  <script src="assets/js/profile-completion-helper.js?v=onboarding-2026-01-20"></script>
-  <script src="assets/js/contextual-tooltips.js?v=onboarding-2026-01-20"></script>
-
-  <!-- START Flow System - Redesigned and Complete -->
-  <script src="assets/js/start-flow-redesigned.js?v=redesigned-2026-01-20"></script>
-  <script src="assets/js/start-flow-ui-redesigned.js?v=redesigned-2026-01-20"></script>
-  <script src="assets/js/organizations-manager.js?v=redesigned-2026-01-20"></script>
-  <script src="assets/js/start-flow-complete-integration.js?v=redesigned-2026-01-20"></script>
-
-  <!-- Legacy START Flow (for fallback) -->
-  <script src="assets/js/start-flow.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/start-flow-enhanced.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/start-flow-phase2.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
-  <script src="assets/js/start-flow-integration.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <!-- Non-module controllers with commit-based cache-busting -->
+  <script src="assets/js/dashboard-actions.js?v=e829b2ff916933b2da"></script>
+  <script src="assets/js/start-flow.js?v=e829b2ff916933b2da"></script>
+  <script src="assets/js/start-flow-enhanced.js?v=e829b2ff916933b2da"></script>
+  <script src="assets/js/start-flow-phase2.js?v=e829b2ff916933b2da"></script>
+  <script src="assets/js/start-flow-integration.js?v=e829b2ff916933b2da"></script>
 
   <!-- Mentor Guide System with commit-based cache-busting -->
-  <script src="assets/js/mentor-guide.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
+  <script src="assets/js/mentor-guide.js?v=e829b2ff916933b2da"></script>
 
   <!-- Logout Button Handler -->
   <script>
@@ -1257,235 +844,7 @@
           window.location.href = '/index.html';
         }, 500);
       });
-
-      // Add handlers for new integrated features
-      setupIntegratedFeatureHandlers();
     });
-
-    // Setup handlers for newly integrated features
-    function setupIntegratedFeatureHandlers() {
-      // Analytics Dashboard
-      const analyticsBtn = document.getElementById('btn-analytics-dashboard');
-      if (analyticsBtn) {
-        analyticsBtn.addEventListener('click', () => {
-          if (typeof window.openAnalyticsDashboard === 'function') {
-            window.openAnalyticsDashboard();
-          } else {
-            console.warn('Analytics dashboard not available');
-          }
-        });
-      }
-
-      // Activity Feed
-      const activityBtn = document.getElementById('btn-activity-feed');
-      if (activityBtn) {
-        activityBtn.addEventListener('click', () => {
-          if (typeof window.openActivityFeed === 'function') {
-            window.openActivityFeed();
-          } else {
-            console.warn('Activity feed not available');
-          }
-        });
-      }
-
-      // Performance Monitor
-      const performanceBtn = document.getElementById('btn-performance');
-      if (performanceBtn) {
-        performanceBtn.addEventListener('click', () => {
-          if (typeof window.openPerformanceMonitor === 'function') {
-            window.openPerformanceMonitor();
-          } else {
-            // Fallback: open system diagnostics page
-            window.open('system-diagnostics.html', '_blank');
-          }
-        });
-      }
-
-      // System Diagnostics
-      const diagnosticsBtn = document.getElementById('btn-diagnostics');
-      if (diagnosticsBtn) {
-        diagnosticsBtn.addEventListener('click', () => {
-          window.open('system-diagnostics.html', '_blank');
-        });
-      }
-
-      // Language Switcher
-      const languageBtn = document.getElementById('btn-language');
-      if (languageBtn) {
-        languageBtn.addEventListener('click', () => {
-          openLanguageSwitcher();
-        });
-      }
-
-      // Enhanced existing buttons
-      enhanceExistingButtons();
-    }
-
-    // Enhance existing button functionality
-    function enhanceExistingButtons() {
-      // Enhanced Connect button
-      const connectBtn = document.getElementById('btn-quickconnect');
-      if (connectBtn) {
-        connectBtn.addEventListener('click', () => {
-          if (typeof window.openConnectionDiscovery === 'function') {
-            window.openConnectionDiscovery();
-          } else if (typeof window.openQuickConnectModal === 'function') {
-            window.openQuickConnectModal();
-          }
-        });
-      }
-
-      // Enhanced Themes button
-      const themesBtn = document.getElementById('btn-themes');
-      if (themesBtn) {
-        themesBtn.addEventListener('click', () => {
-          if (typeof window.openThemeDiscoveryModal === 'function') {
-            window.openThemeDiscoveryModal();
-          }
-        });
-      }
-    }
-
-    // Language switcher modal
-    function openLanguageSwitcher() {
-      // Remove existing modal
-      const existing = document.getElementById('language-switcher-modal');
-      if (existing) existing.remove();
-
-      const modal = document.createElement('div');
-      modal.id = 'language-switcher-modal';
-      modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-        padding: 1rem;
-      `;
-
-      modal.innerHTML = `
-        <div style="
-          background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
-          border: 2px solid rgba(0, 224, 255, 0.5);
-          border-radius: 16px;
-          backdrop-filter: blur(10px);
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
-          max-width: 500px;
-          width: 100%;
-          padding: 2rem;
-          position: relative;
-        ">
-          <button onclick="this.parentElement.parentElement.remove()" style="
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.2rem;
-          ">
-            <i class="fas fa-times"></i>
-          </button>
-
-          <h2 style="color: #00e0ff; margin-bottom: 1.5rem; text-align: center;">
-            <i class="fas fa-globe"></i> Choose Language
-          </h2>
-
-          <div style="display: grid; gap: 1rem;">
-            <button onclick="selectLanguage('en')" style="
-              background: rgba(0, 224, 255, 0.1);
-              border: 2px solid rgba(0, 224, 255, 0.3);
-              border-radius: 8px;
-              padding: 1rem;
-              color: white;
-              cursor: pointer;
-              text-align: left;
-              transition: all 0.2s;
-            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
-              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇺🇸</div>
-              <div style="font-weight: 600;">English</div>
-              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Default language</div>
-            </button>
-
-            <button onclick="selectLanguage('es')" style="
-              background: rgba(0, 224, 255, 0.1);
-              border: 2px solid rgba(0, 224, 255, 0.3);
-              border-radius: 8px;
-              padding: 1rem;
-              color: white;
-              cursor: pointer;
-              text-align: left;
-              transition: all 0.2s;
-            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
-              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇪🇸</div>
-              <div style="font-weight: 600;">Español</div>
-              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Spanish</div>
-            </button>
-
-            <button onclick="selectLanguage('fr')" style="
-              background: rgba(0, 224, 255, 0.1);
-              border: 2px solid rgba(0, 224, 255, 0.3);
-              border-radius: 8px;
-              padding: 1rem;
-              color: white;
-              cursor: pointer;
-              text-align: left;
-              transition: all 0.2s;
-            " onmouseover="this.style.borderColor='rgba(0,224,255,0.6)'" onmouseout="this.style.borderColor='rgba(0,224,255,0.3)'">
-              <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🇫🇷</div>
-              <div style="font-weight: 600;">Français</div>
-              <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">French</div>
-            </button>
-
-            <div style="text-align: center; margin-top: 1rem; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
-              More languages coming soon...
-            </div>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-
-      // Close on backdrop click
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          modal.remove();
-        }
-      });
-    }
-
-    // Language selection handler
-    function selectLanguage(languageCode) {
-      console.log('🌍 Language selected:', languageCode);
-      
-      if (typeof window.setLanguage === 'function') {
-        window.setLanguage(languageCode);
-      }
-      
-      // Close modal
-      const modal = document.getElementById('language-switcher-modal');
-      if (modal) modal.remove();
-      
-      // Show confirmation
-      if (typeof window.createToast === 'function') {
-        const languageNames = {
-          en: 'English',
-          es: 'Español', 
-          fr: 'Français'
-        };
-        window.createToast(`Language changed to ${languageNames[languageCode]}`, 'success');
-      }
-    }
   </script>
 
   <!-- Session Restoration Handler - Fixes tab switching issues -->

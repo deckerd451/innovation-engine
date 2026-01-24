@@ -184,6 +184,8 @@ function makeRisingStars(data) {
 // 5) INIT LEADERBOARD
 // ======================================================================
 export async function initLeaderboard() {
+  console.log("🏆 Initializing Leaderboard…");
+
   const tabs = document.querySelectorAll(".lb-tab");
   if (!tabs.length) {
     console.error("❌ No .lb-tab buttons found.");
@@ -236,4 +238,6 @@ export async function initLeaderboard() {
   if (firstTab) {
     firstTab.click();
   }
+
+  console.log("🏆 Leaderboard ready");
 }

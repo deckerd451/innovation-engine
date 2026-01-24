@@ -439,10 +439,10 @@ async function loadProjectsContent(contentDiv) {
           ${teamSize > 0 ? `<p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1rem;"><i class="fas fa-users" style="margin-right:0.5rem;"></i>${teamSize} ${teamSize === 1 ? 'person' : 'people'} involved</p>` : ''}
 
           <div style="display:flex; gap:0.5rem;">
-            <button onclick="if(typeof openProjectModal === 'function') openProjectModal('${project.id}'); else if(typeof window.openNodePanel === 'function') window.openNodePanel({id: '${project.id}', type: 'project', name: '${project.title}', description: '${project.description}'}); else console.warn('Project details not available');" style="padding:0.6rem 1.25rem; background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3); border-radius:6px; color:#00e0ff; font-weight:600; cursor:pointer; font-size:0.85rem; transition:all 0.2s;">
+            <button onclick="if(typeof openProjectModal === 'function') openProjectModal('${project.id}'); else alert('Project details coming soon');" style="padding:0.6rem 1.25rem; background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3); border-radius:6px; color:#00e0ff; font-weight:600; cursor:pointer; font-size:0.85rem; transition:all 0.2s;">
               <i class="fas fa-eye" style="margin-right:0.5rem;"></i>View project
             </button>
-            <button onclick="if(typeof window.openTeamBuilder === 'function') window.openTeamBuilder('${project.id}'); else if(typeof window.openMessagingInterface === 'function') window.openMessagingInterface(); else console.warn('Get involved feature not available');" style="padding:0.6rem 1.25rem; background:rgba(0,255,136,0.1); border:1px solid rgba(0,255,136,0.3); border-radius:6px; color:#0f8; font-weight:600; cursor:pointer; font-size:0.85rem; transition:all 0.2s;">
+            <button onclick="alert('Get involved feature coming soon!');" style="padding:0.6rem 1.25rem; background:rgba(0,255,136,0.1); border:1px solid rgba(0,255,136,0.3); border-radius:6px; color:#0f8; font-weight:600; cursor:pointer; font-size:0.85rem; transition:all 0.2s;">
               <i class="fas fa-hand-point-right" style="margin-right:0.5rem;"></i>Get involved
             </button>
           </div>
@@ -548,10 +548,10 @@ async function loadPeopleContent(contentDiv) {
           </div>
 
           <div style="display:flex; gap:0.5rem;">
-            <button onclick="if(typeof openProfile === 'function') openProfile('${person.id}'); else if(typeof window.openNodePanel === 'function') window.openNodePanel({id: '${person.id}', type: 'person', name: '${person.name}', image_url: '${person.image_url}'}); else console.warn('Profile viewing not available');" style="flex:1; padding:0.6rem 1rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.25); border-radius:6px; color:#00e0ff; font-weight:600; cursor:pointer; font-size:0.85rem; transition:all 0.2s;">
+            <button onclick="if(typeof openProfile === 'function') openProfile('${person.id}'); else alert('Profile coming soon');" style="flex:1; padding:0.6rem 1rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.25); border-radius:6px; color:#00e0ff; font-weight:600; cursor:pointer; font-size:0.85rem; transition:all 0.2s;">
               <i class="fas fa-user" style="margin-right:0.5rem;"></i>View profile
             </button>
-            <button onclick="if(typeof sendConnectionRequest === 'function') sendConnectionRequest('${person.id}'); else if(typeof window.openMessagingInterface === 'function') window.openMessagingInterface(); else console.warn('Connection feature not available');" style="flex:1; padding:0.6rem 1rem; background:rgba(0,255,136,0.1); border:1px solid rgba(0,255,136,0.25); border-radius:6px; color:#0f8; font-weight:600; cursor:pointer; font-size:0.85rem; transition:all 0.2s;">
+            <button onclick="if(typeof sendConnectionRequest === 'function') sendConnectionRequest('${person.id}'); else alert('Connect feature coming soon');" style="flex:1; padding:0.6rem 1rem; background:rgba(0,255,136,0.1); border:1px solid rgba(0,255,136,0.25); border-radius:6px; color:#0f8; font-weight:600; cursor:pointer; font-size:0.85rem; transition:all 0.2s;">
               <i class="fas fa-user-plus" style="margin-right:0.5rem;"></i>Connect
             </button>
           </div>

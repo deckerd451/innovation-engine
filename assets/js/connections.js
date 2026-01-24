@@ -80,7 +80,7 @@ function normalizeConnectionType(t) {
 // ========================
 // INIT / CURRENT USER
 // ========================
-async function initConnections(supabaseClient) {
+export async function initConnections(supabaseClient) {
   supabase = supabaseClient;
   await refreshCurrentUser();
 
@@ -89,10 +89,11 @@ async function initConnections(supabaseClient) {
     window.sendConnectionRequest = sendConnectionRequest;
   }
 
+  console.log("%c✓ Connections module initialized", "color: #0f0");
   return { currentUserId, currentUserCommunityId };
 }
 
-async function refreshCurrentUser() {
+export async function refreshCurrentUser() {
   try {
     if (!supabase?.auth?.getSession) return null;
 
@@ -131,7 +132,7 @@ async function refreshCurrentUser() {
   }
 }
 
-function getCurrentUserCommunityId() {
+export function getCurrentUserCommunityId() {
   return currentUserCommunityId;
 }
 
@@ -142,7 +143,7 @@ function getCurrentUserCommunityId() {
  * Get connection between two community IDs (either direction).
  * Returns most recent connection if duplicates exist.
  */
-async function getConnectionBetween(id1, id2) {
+export async function getConnectionBetween(id1, id2) {
   if (!supabase || !id1 || !id2) return null;
 
   // Supabase `.or(...)` expects comma-separated expressions:
@@ -171,7 +172,7 @@ async function getConnectionBetween(id1, id2) {
  * - isSender / isReceiver (relative to current user)
  * - canConnect (true when none/declined/withdrawn/canceled)
  */
-async function getConnectionStatus(targetCommunityId) {
+export async function getConnectionStatus(targetCommunityId) {
   if (!currentUserCommunityId || !targetCommunityId) {
     return { status: "none", canConnect: true };
   }
@@ -203,7 +204,7 @@ async function getConnectionStatus(targetCommunityId) {
 /**
  * Used by Synapse to draw all edges.
  */
-async function getAllConnectionsForSynapse() {
+export async function getAllConnectionsForSynapse() {
   if (!supabase) return [];
   const { data, error } = await supabase.from("connections").select("*");
   if (error) {
@@ -217,7 +218,7 @@ async function getAllConnectionsForSynapse() {
  * Utility: can current user see email of target?
  * (Your logic: accepted connection required.)
  */
-async function canSeeEmail(targetCommunityId) {
+export async function canSeeEmail(targetCommunityId) {
   if (!currentUserCommunityId || !targetCommunityId) return false;
   if (targetCommunityId === currentUserCommunityId) return true;
 
@@ -234,7 +235,7 @@ async function canSeeEmail(targetCommunityId) {
 /**
  * Accepted connections for the current user (either direction).
  */
-async function getAcceptedConnections() {
+export async function getAcceptedConnections() {
   if (!supabase || !currentUserCommunityId) return [];
 
   const { data, error } = await supabase
@@ -257,7 +258,7 @@ async function getAcceptedConnections() {
  * Pending requests RECEIVED by the current user (they are the recipient).
  * someone else -> you, status=pending
  */
-async function getPendingRequestsReceived() {
+export async function getPendingRequestsReceived() {
   if (!supabase || !currentUserCommunityId) return [];
 
   const { data, error } = await supabase
@@ -279,7 +280,7 @@ async function getPendingRequestsReceived() {
  * Pending requests SENT by the current user (they are the sender).
  * you -> someone else, status=pending
  */
-async function getPendingRequestsSent() {
+export async function getPendingRequestsSent() {
   if (!supabase || !currentUserCommunityId) return [];
 
   const { data, error } = await supabase
@@ -300,7 +301,7 @@ async function getPendingRequestsSent() {
 // ========================
 // MUTATIONS
 // ========================
-async function sendConnectionRequest(
+export async function sendConnectionRequest(
   recipientCommunityId,
   targetName = "User",
   type = "generic"
@@ -373,7 +374,7 @@ async function sendConnectionRequest(
   }
 }
 
-async function acceptConnectionRequest(connectionId) {
+export async function acceptConnectionRequest(connectionId) {
   if (!supabase || !connectionId) return { success: false };
 
   const { error } = await supabase
@@ -408,7 +409,7 @@ async function acceptConnectionRequest(connectionId) {
  *
  * If we can't read the row (RLS), fallback to 'declined'.
  */
-async function declineConnectionRequest(connectionId) {
+export async function declineConnectionRequest(connectionId) {
   if (!supabase || !connectionId) return { success: false };
 
   let nextStatus = "declined";
@@ -459,7 +460,7 @@ async function declineConnectionRequest(connectionId) {
  *  - If current user is the sender and status is pending -> set status='withdrawn'
  *  - If not sender -> set status='canceled'
  */
-async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
+export async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
   if (!supabase) return { success: false, error: "Supabase not initialized" };
   if (!currentUserCommunityId) return { success: false, error: "Profile not found" };
   if (!connectionIdOrTargetCommunityId) return { success: false, error: "Missing id" };
@@ -552,7 +553,7 @@ async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
  *  - connection row id, OR
  *  - target community id (fallback)
  */
-async function removeConnection(connectionIdOrTargetCommunityId) {
+export async function removeConnection(connectionIdOrTargetCommunityId) {
   if (!supabase || !currentUserCommunityId || !connectionIdOrTargetCommunityId) {
     return { success: false };
   }
@@ -614,7 +615,7 @@ function updateConnectionUI(targetId) {
 }
 
 // Keep an export named formatTimeAgo for compatibility.
-function formatTimeAgo(ts) {
+export function formatTimeAgo(ts) {
   if (!ts) return "---";
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "---";
@@ -622,74 +623,31 @@ function formatTimeAgo(ts) {
 }
 
 // ========================
-// GLOBAL EXPORTS (compat with non-module scripts)
+// DEFAULT EXPORT (compat)
 // ========================
-// Expose all functions to window object for global access
-if (typeof window !== "undefined") {
-  window.Connections = {
-    initConnections,
-    refreshCurrentUser,
-    getCurrentUserCommunityId,
-
-    // Queries / status
-    getConnectionBetween,
-    getConnectionStatus,
-    getAllConnectionsForSynapse,
-    canSeeEmail,
-
-    // Lists for requests UI
-    getAcceptedConnections,
-    getPendingRequestsReceived,
-    getPendingRequestsSent,
-
-    // Mutations
-    sendConnectionRequest,
-    acceptConnectionRequest,
-    declineConnectionRequest,
-    cancelConnectionRequest,
-    removeConnection,
-
-    // Utils
-    formatTimeAgo,
-  };
-
-  // Also expose individual functions for direct access
-  window.initConnections = initConnections;
-  window.refreshCurrentUser = refreshCurrentUser;
-  window.getCurrentUserCommunityId = getCurrentUserCommunityId;
-  window.getConnectionBetween = getConnectionBetween;
-  window.getConnectionStatus = getConnectionStatus;
-  window.getAllConnectionsForSynapse = getAllConnectionsForSynapse;
-  window.canSeeEmail = canSeeEmail;
-  window.getAcceptedConnections = getAcceptedConnections;
-  window.getPendingRequestsReceived = getPendingRequestsReceived;
-  window.getPendingRequestsSent = getPendingRequestsSent;
-  window.sendConnectionRequest = sendConnectionRequest;
-  window.acceptConnectionRequest = acceptConnectionRequest;
-  window.declineConnectionRequest = declineConnectionRequest;
-  window.cancelConnectionRequest = cancelConnectionRequest;
-  window.removeConnection = removeConnection;
-  window.formatTimeAgo = formatTimeAgo;
-}
-
-// ========================
-// ES6 MODULE EXPORTS
-// ========================
-export {
+export default {
   initConnections,
   refreshCurrentUser,
   getCurrentUserCommunityId,
+
+  // Queries / status
   getConnectionBetween,
   getConnectionStatus,
   getAllConnectionsForSynapse,
   canSeeEmail,
+
+  // Lists for requests UI
   getAcceptedConnections,
   getPendingRequestsReceived,
   getPendingRequestsSent,
+
+  // Mutations
   sendConnectionRequest,
   acceptConnectionRequest,
   declineConnectionRequest,
   cancelConnectionRequest,
   removeConnection,
+
+  // Utils
   formatTimeAgo,
 };

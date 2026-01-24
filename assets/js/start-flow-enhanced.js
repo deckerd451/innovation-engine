@@ -317,55 +317,11 @@ function generatePreviewHTML(option) {
 // NETWORK ANIMATION
 // ================================================================
 
-/**
- * Check if synapse is ready for animation
- */
-function isSynapseReady() {
-  // Check D3 library
-  if (!window.d3) {
-    console.warn('⚠️ D3 library not loaded');
-    return false;
-  }
-
-  // Check SVG element
-  const synapseElement = document.getElementById('synapse-svg');
-  if (!synapseElement) {
-    console.warn('⚠️ Synapse SVG element not found');
-    return false;
-  }
-
-  // Check if parent container is visible
-  const mainContent = document.getElementById('main-content');
-  if (mainContent && mainContent.classList.contains('hidden')) {
-    console.warn('⚠️ Main content is hidden - synapse not visible');
-    return false;
-  }
-
-  // Check if synapse has been initialized with nodes
-  const svg = window.d3.select('#synapse-svg');
-  const nodeCount = svg.selectAll('.synapse-node, .theme-container').size();
-  if (nodeCount === 0) {
-    console.warn('⚠️ Synapse network not initialized yet (no nodes found)');
-    return false;
-  }
-
-  return true;
-}
-
 function animateNetworkForChoice(choiceType, choiceData) {
   console.log('🎨 Animating network for choice:', choiceType, choiceData);
 
-  if (!isSynapseReady()) {
-    console.warn('⚠️ Synapse not ready for animation - will try again when network is loaded');
-    
-    // Try again after a short delay if synapse might be loading
-    setTimeout(() => {
-      if (isSynapseReady()) {
-        console.log('🔄 Synapse now ready - retrying animation');
-        animateNetworkForChoice(choiceType, choiceData);
-      }
-    }, 2000);
-    
+  if (!window.d3 || !document.getElementById('synapse-svg')) {
+    console.warn('⚠️ D3 or synapse SVG not available for animation');
     return;
   }
 
@@ -486,6 +442,5 @@ if (!document.getElementById('network-overlay-animation')) {
 window.calculateRecommendedFocus = calculateRecommendedFocus;
 window.generatePreviewHTML = generatePreviewHTML;
 window.animateNetworkForChoice = animateNetworkForChoice;
-window.isSynapseReady = isSynapseReady;
 
 console.log('✅ START Flow Enhanced ready');

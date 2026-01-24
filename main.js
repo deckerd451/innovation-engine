@@ -17,6 +17,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   window.__IE_MAIN_INIT_DONE__ = true;
 
+  console.log("🎨 DOM ready, initializing systems...");
+
   // Wait for required globals from other scripts
   await waitForGlobals();
 
@@ -26,16 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 2) Initialize login system (idempotent in rewritten auth.js)
   await window.initLoginSystem?.();
 
-  // 3) Initialize connections module if available
-  if (typeof window.initConnections === 'function' && window.supabase) {
-    try {
-      await window.initConnections(window.supabase);
-    } catch (error) {
-      console.error("❌ Error initializing connections:", error);
-    }
-  }
-
-  // 4) Profile + dashboard modules listen for:
+  // 3) Profile + dashboard modules listen for:
   //    - 'profile-loaded'
   //    - 'profile-new'
   //    - 'user-logged-out'

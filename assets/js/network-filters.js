@@ -34,7 +34,7 @@ let state = {
   // availability tags (e.g., "Available now", "Weekends", etc.)
   availability: [],
   // node types: person/project/theme/you
-  types: ["person", "project", "theme", "organization", "you"],
+  types: ["person", "project", "theme", "you"],
 };
 
 function cssEscapeSafe(s) {
@@ -227,7 +227,7 @@ function renderAll() {
 
   renderToggleChips(
     "#ch-type-chips",
-    ["Person", "Project", "Theme", "Organization", "You"],
+    ["Person", "Project", "Theme", "You"],
     () => state.types,
     (v) => (state.types = v)
   );
@@ -309,7 +309,6 @@ export function initNetworkFilters(filterChangeCallback) {
 
   if (!initialized) {
     initialized = true;
-    console.log("✅ Network filters initialized");
     console.log("✅ Network filters ready");
   }
 

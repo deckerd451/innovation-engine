@@ -11,13 +11,6 @@ let currentUserProfile = null;
 
 // Initialize analytics
 export function initAdminAnalytics() {
-  // Prevent duplicate initialization
-  if (window.__ADMIN_ANALYTICS_INITIALIZED__) {
-    console.log("📊 Admin analytics already initialized, skipping");
-    return;
-  }
-  window.__ADMIN_ANALYTICS_INITIALIZED__ = true;
-
   supabase = window.supabase;
 
   window.addEventListener('profile-loaded', (e) => {
@@ -26,9 +19,8 @@ export function initAdminAnalytics() {
     // Only show admin button if user is admin
     if (currentUserProfile.role === 'admin') {
       createAdminButton();
-      console.log('📊 Admin access granted');
     }
-  }, { once: true }); // Ensure this only fires once
+  });
 
   createAnalyticsModal();
 
@@ -513,11 +505,7 @@ window.closeAnalyticsModal = closeAnalyticsModal;
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
-  // Prevent duplicate initialization
-  if (window.__ADMIN_ANALYTICS_DOM_INITIALIZED__) return;
-  window.__ADMIN_ANALYTICS_DOM_INITIALIZED__ = true;
-  
   initAdminAnalytics();
-}, { once: true });
+});
 
 console.log('✅ Admin analytics ready');

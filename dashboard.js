@@ -420,7 +420,7 @@ async function loadSuggestedConnections() {
   const container = document.getElementById('suggested-connections');
   if (!container) return;
   
-  container.innerHTML = '<div class="loading">Loading smart suggestions...</div>';
+  container.innerHTML = '<div class="loading">Loading...</div>';
   
   try {
     if (!currentUserProfile) {
@@ -428,92 +428,6 @@ async function loadSuggestedConnections() {
       return;
     }
     
-    // Try to use smart suggestions if available
-    if (typeof window.getSmartConnectionSuggestions === 'function') {
-      console.log('✅ Using smart connection suggestions');
-      
-      const smartSuggestions = await window.getSmartConnectionSuggestions(4);
-      
-      if (smartSuggestions.length > 0) {
-        let html = `
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h4 style="color: #00e0ff; margin: 0; font-size: 0.9rem;">
-              <i class="fas fa-magic"></i> Smart Suggestions
-            </h4>
-            <button onclick="openConnectionDiscovery()" style="
-              background: rgba(0, 224, 255, 0.1);
-              border: 1px solid rgba(0, 224, 255, 0.3);
-              color: #00e0ff;
-              padding: 0.25rem 0.75rem;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 0.8rem;
-              font-weight: 600;
-            ">
-              <i class="fas fa-search"></i> Discover More
-            </button>
-          </div>
-          <div class="suggestions-grid">
-        `;
-        
-        smartSuggestions.forEach(user => {
-          const initials = getInitials(user.name);
-          const imageHTML = user.image_url 
-            ? `<img src="${user.image_url}" alt="${user.name}">`
-            : `<div class="avatar-placeholder">${initials}</div>`;
-          
-          const matchScore = Math.round(user.score * 100);
-          const topReason = user.reasons?.[0] || 'Good match';
-          
-          html += `
-            <div class="suggestion-card smart-suggestion">
-              <div class="suggestion-avatar">
-                ${imageHTML}
-              </div>
-              <div class="suggestion-info">
-                <div class="suggestion-name">${user.name}</div>
-                <div class="match-indicator" style="
-                  color: #ffd700;
-                  font-size: 0.75rem;
-                  font-weight: 600;
-                  margin: 0.25rem 0;
-                ">
-                  <i class="fas fa-star"></i> ${matchScore}% match
-                </div>
-                <div class="suggestion-reason" style="
-                  color: rgba(255, 255, 255, 0.7);
-                  font-size: 0.75rem;
-                  margin-bottom: 0.5rem;
-                ">
-                  ${topReason}
-                </div>
-              </div>
-              <button class="btn-connect" onclick="sendRequest('${user.id}')">
-                <i class="fas fa-user-plus"></i> Connect
-              </button>
-            </div>
-          `;
-        });
-        
-        html += '</div>';
-        container.innerHTML = html;
-        return;
-      }
-    }
-    
-    // Fallback to basic suggestions
-    console.log('⚠️ Using basic connection suggestions');
-    await loadBasicSuggestions(container);
-    
-  } catch (err) {
-    console.error('Error in loadSuggestedConnections:', err);
-    await loadBasicSuggestions(container);
-  }
-}
-
-// Fallback basic suggestions (original implementation)
-async function loadBasicSuggestions(container) {
-  try {
     // Get all users except current user
     const { data: users, error } = await window.supabase
       .from('community')
@@ -522,7 +436,7 @@ async function loadBasicSuggestions(container) {
       .limit(6);
     
     if (error) {
-      console.error('Error loading basic suggestions:', error);
+      console.error('Error loading suggested connections:', error);
       container.innerHTML = '<div class="empty-state"><p>Unable to load suggestions</p></div>';
       return;
     }
@@ -547,26 +461,7 @@ async function loadBasicSuggestions(container) {
       return;
     }
     
-    let html = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h4 style="color: #00e0ff; margin: 0; font-size: 0.9rem;">
-          <i class="fas fa-users"></i> People You May Know
-        </h4>
-        <button onclick="openConnectionDiscovery()" style="
-          background: rgba(0, 224, 255, 0.1);
-          border: 1px solid rgba(0, 224, 255, 0.3);
-          color: #00e0ff;
-          padding: 0.25rem 0.75rem;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 0.8rem;
-          font-weight: 600;
-        ">
-          <i class="fas fa-search"></i> Discover More
-        </button>
-      </div>
-      <div class="suggestions-grid">
-    `;
+    let html = '<div class="suggestions-grid">';
     
     suggestions.forEach(user => {
       const initials = getInitials(user.name);
@@ -599,7 +494,7 @@ async function loadBasicSuggestions(container) {
     container.innerHTML = html;
     
   } catch (err) {
-    console.error('Error in loadBasicSuggestions:', err);
+    console.error('Error in loadSuggestedConnections:', err);
     container.innerHTML = '<div class="empty-state"><p>Unable to load suggestions</p></div>';
   }
 }

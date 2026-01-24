@@ -109,6 +109,8 @@ function renderTeam(team) {
 // Initialize Team Builder
 // ======================================================================
 export function initTeamBuilder() {
+  console.log("🤝 Initializing Team Builder…");
+
   const input = DOMElements.teamBuilderInput;
   const sizeInput = DOMElements.teamSize;
   const btn = DOMElements.buildTeamBtn;
@@ -127,4 +129,6 @@ export function initTeamBuilder() {
     const team = buildBestTeam(communityCache, requiredSkills, teamSize);
     renderTeam(team);
   });
+
+  console.log("🤝 TeamBuilder initialized");
 }

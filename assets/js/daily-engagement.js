@@ -60,9 +60,6 @@ const DailyEngagement = (function () {
     WEEKLY_QUEST: 100,
     COMPLETE_PROFILE: 50,
     ADD_PHOTO: 25,
-    VIDEO_CALL_STARTED: 15,
-    VIDEO_CALL_COMPLETED: 25,
-    SCREEN_SHARE_USED: 10,
   };
 
   const LEVEL_THRESHOLDS = [
@@ -223,17 +220,6 @@ const DailyEngagement = (function () {
     updateXPDisplay();
     showXPNotification(amount, reason);
 
-    // Track XP award event for analytics
-    if (window.trackEvent) {
-      window.trackEvent('xp_awarded', {
-        amount: amount,
-        reason: reason,
-        total_xp: state.xp,
-        level: state.level,
-        did_level_up: didLevelUp
-      });
-    }
-
     return { didLevelUp, newLevel: state.level, totalXP: state.xp };
   }
 
@@ -293,15 +279,6 @@ const DailyEngagement = (function () {
 
     await resetDailyQuests();
     showDailyCheckInModal();
-
-    // Track daily check-in event for analytics
-    if (window.trackEvent) {
-      window.trackEvent('daily_checkin', {
-        streak: newStreak,
-        xp_awarded: XP_REWARDS.DAILY_LOGIN,
-        is_consecutive: lastLogin && new Date(lastLogin).toDateString() === yesterdayStr
-      });
-    }
   }
 
   // ============================================================
@@ -746,7 +723,6 @@ window.DailyEngagement = DailyEngagement;
     console.log(`🎯 Daily Engagement: Initializing (${why})`);
     try {
       await DailyEngagement.init();
-      console.log(`✅ Daily Engagement: Successfully initialized via ${why}`);
     } catch (_) {
       // errors already logged inside init()
     }
