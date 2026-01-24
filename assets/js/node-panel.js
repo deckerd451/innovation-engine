@@ -105,11 +105,11 @@ async function loadNodeDetails(nodeData) {
       return;
     }
 
-    // Determine if this is a person or project
-    const isProject = nodeData.type === 'project';
-
-    if (isProject) {
+    // Route to the correct panel renderer based on type
+    if (nodeData.type === 'project') {
       await renderProjectPanel(nodeData);
+    } else if (nodeData.type === 'organization') {
+      await renderOrganizationPanel(nodeData);
     } else {
       await renderPersonPanel(nodeData);
     }
@@ -253,6 +253,102 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Render organization panel
+async function renderOrganizationPanel(nodeData) {
+  const orgId = nodeData.org_id || nodeData.id;
+
+  // Try to load full org data from database
+  let org = nodeData;
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', orgId)
+      .single();
+    if (data && !error) org = { ...nodeData, ...data };
+  } catch (e) {
+    console.warn('Could not load full org data:', e);
+  }
+
+  // Load members
+  let members = [];
+  try {
+    const { data, error } = await supabase
+      .from('organization_members')
+      .select('community_id, role, organization_members_community_id_fkey(name, image_url)')
+      .eq('organization_id', orgId);
+    if (data && !error) members = data;
+  } catch (e) {
+    // Try simpler query if foreign key fails
+    try {
+      const { data } = await supabase
+        .from('organization_members')
+        .select('community_id, role')
+        .eq('organization_id', orgId);
+      if (data) members = data;
+    } catch (_) {}
+  }
+
+  panelElement.innerHTML = `
+    <div class="node-panel-header" style="background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(168,85,247,0.05)); padding: 1.5rem; border-bottom: 1px solid rgba(168,85,247,0.3);">
+      <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          ${org.logo_url
+            ? `<img src="${escapeHtml(org.logo_url)}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover; border: 2px solid rgba(168,85,247,0.4);" onerror="this.style.display='none'">`
+            : `<div style="width: 48px; height: 48px; border-radius: 8px; background: rgba(168,85,247,0.3); border: 2px solid rgba(168,85,247,0.4); display: flex; align-items: center; justify-content: center; font-size: 24px;">🏢</div>`
+          }
+          <div>
+            <h2 style="color: #a855f7; margin: 0 0 0.25rem 0; font-size: 1.3rem;">
+              ${escapeHtml(org.name)}
+              ${org.verified ? '<i class="fas fa-check-circle" style="color: #00ff88; font-size: 0.9rem; margin-left: 0.25rem;" title="Verified"></i>' : ''}
+            </h2>
+            <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+              ${org.industry ? escapeHtml(org.industry) : 'Organization'}
+              ${org.location ? ' • ' + escapeHtml(org.location) : ''}
+            </div>
+          </div>
+        </div>
+        <button onclick="window.closeNodePanel?.()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <div style="padding: 1.5rem;">
+      ${org.description ? `
+        <p style="color: rgba(255,255,255,0.8); line-height: 1.5; margin-bottom: 1.5rem;">
+          ${escapeHtml(org.description)}
+        </p>
+      ` : ''}
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem;">
+        ${org.size ? `
+          <div style="background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; padding: 0.75rem; text-align: center;">
+            <div style="color: #a855f7; font-weight: 700; font-size: 1.1rem;">${escapeHtml(org.size)}</div>
+            <div style="color: rgba(255,255,255,0.6); font-size: 0.75rem;">Size</div>
+          </div>
+        ` : ''}
+        <div style="background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; padding: 0.75rem; text-align: center;">
+          <div style="color: #a855f7; font-weight: 700; font-size: 1.1rem;">${members.length || org.member_count || 0}</div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 0.75rem;">Members</div>
+        </div>
+      </div>
+
+      ${org.website ? `
+        <a href="${escapeHtml(org.website)}" target="_blank" rel="noopener" style="display: block; padding: 0.75rem; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px; color: #a855f7; text-decoration: none; text-align: center; font-weight: 600; margin-bottom: 1rem;">
+          <i class="fas fa-external-link-alt"></i> Visit Website
+        </a>
+      ` : ''}
+
+      ${org.slug ? `
+        <a href="/organizations.html#${escapeHtml(org.slug)}" style="display: block; padding: 0.75rem; background: linear-gradient(135deg, rgba(168,85,247,0.2), rgba(168,85,247,0.1)); border: 1px solid rgba(168,85,247,0.4); border-radius: 8px; color: #a855f7; text-decoration: none; text-align: center; font-weight: 700; margin-bottom: 1rem;">
+          <i class="fas fa-building"></i> View Full Profile
+        </a>
+      ` : ''}
+    </div>
+  `;
 }
 
 // Render person profile panel

@@ -34,7 +34,7 @@ let state = {
   // availability tags (e.g., "Available now", "Weekends", etc.)
   availability: [],
   // node types: person/project/theme/you
-  types: ["person", "project", "theme", "you"],
+  types: ["person", "project", "theme", "organization", "you"],
 };
 
 function cssEscapeSafe(s) {
@@ -227,7 +227,7 @@ function renderAll() {
 
   renderToggleChips(
     "#ch-type-chips",
-    ["Person", "Project", "Theme", "You"],
+    ["Person", "Project", "Theme", "Organization", "You"],
     () => state.types,
     (v) => (state.types = v)
   );
