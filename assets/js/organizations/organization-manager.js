@@ -181,18 +181,32 @@ export async function createOrganization(organizationData) {
       throw new Error(errors.join(", "));
     }
 
-    // Generate slug if not provided
-    const slug = organizationData.slug || generateSlug(organizationData.name);
+    // Generate a unique slug
+    let slug = organizationData.slug || generateSlug(organizationData.name);
 
-    // Check if slug already exists
+    // Check if slug already exists and append suffix if needed
     const { data: existingOrg } = await supabase
       .from("organizations")
       .select("id")
       .eq("slug", slug)
-      .single();
+      .maybeSingle();
 
     if (existingOrg) {
-      throw new Error("An organization with this name already exists");
+      // Find a unique slug by appending a number
+      let suffix = 2;
+      let uniqueSlug = `${slug}-${suffix}`;
+      while (true) {
+        const { data: check } = await supabase
+          .from("organizations")
+          .select("id")
+          .eq("slug", uniqueSlug)
+          .maybeSingle();
+        if (!check) break;
+        suffix++;
+        uniqueSlug = `${slug}-${suffix}`;
+        if (suffix > 20) throw new Error("Could not generate a unique slug");
+      }
+      slug = uniqueSlug;
     }
 
     // Create organization
