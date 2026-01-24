@@ -94,15 +94,15 @@ async function getConnectionRequestsCount() {
   try {
     if (!supabase || !currentUserId) return 0;
 
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from('connections')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id_b', currentUserId)
+      .select('*', { count: 'exact', head: true })
+      .eq('to_user_id', currentUserId)  // Correct column: to_user_id, not user_id_b
       .eq('status', 'pending');
 
     if (error) throw error;
 
-    return data?.length || 0;
+    return count || 0;
   } catch (error) {
     console.error('Error getting connection requests:', error);
     return 0;
@@ -208,14 +208,14 @@ function setupRealtimeNotifications() {
         event: 'INSERT',
         schema: 'public',
         table: 'connections',
-        filter: `user_id_b=eq.${currentUserId}`
+        filter: `to_user_id=eq.${currentUserId}`  // Correct: to_user_id, not user_id_b
       },
       async (payload) => {
         console.log('🆕 New connection request received:', payload);
 
         // Show notification
         if (typeof window.showNotification === 'function') {
-          const requester = await getUserName(payload.new.user_id_a);
+          const requester = await getUserName(payload.new.from_user_id);  // Correct: from_user_id, not user_id_a
 
           window.showNotification({
             type: 'connection_request',
@@ -240,7 +240,7 @@ function setupRealtimeNotifications() {
         event: 'UPDATE',
         schema: 'public',
         table: 'connections',
-        filter: `user_id_a=eq.${currentUserId}`
+        filter: `from_user_id=eq.${currentUserId}`  // Correct: from_user_id, not user_id_a
       },
       async (payload) => {
         // Connection request accepted/declined
@@ -248,7 +248,7 @@ function setupRealtimeNotifications() {
           console.log('🔄 Connection status changed:', payload.new.status);
 
           if (payload.new.status === 'accepted' && typeof window.showNotification === 'function') {
-            const accepter = await getUserName(payload.new.user_id_b);
+            const accepter = await getUserName(payload.new.to_user_id);  // Correct: to_user_id, not user_id_b
 
             window.showNotification({
               type: 'success',

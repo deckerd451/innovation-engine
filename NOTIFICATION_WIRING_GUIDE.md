@@ -99,7 +99,15 @@ async function getUnreadMessagesCount() {
 
 **Database Schema Needed:**
 ```sql
--- Already exists based on messaging.js:
+-- Already exists:
+CREATE TABLE connections (
+  id UUID PRIMARY KEY,
+  from_user_id UUID REFERENCES community(id),
+  to_user_id UUID REFERENCES community(id),
+  status TEXT,  -- 'pending', 'accepted', 'declined'
+  created_at TIMESTAMP
+);
+
 CREATE TABLE conversations (
   id UUID PRIMARY KEY,
   participant_1_id UUID REFERENCES community(id),
