@@ -21,12 +21,15 @@ export async function initNotificationIntegration() {
   await waitForDependencies();
 
   supabase = window.supabase;
-  currentUserId = window.currentUserProfile?.user_id;
+  // Use community profile ID (not auth user_id) - connections table uses community.id
+  currentUserId = window.currentUserProfile?.id;
 
   if (!currentUserId) {
-    console.warn('⚠️ No user ID available for notifications');
+    console.warn('⚠️ No community profile ID available for notifications');
     return;
   }
+
+  console.log('🔔 Notification integration using community ID:', currentUserId);
 
   // Load initial notification counts
   await updateNotificationCounts();
@@ -264,13 +267,13 @@ function setupRealtimeNotifications() {
     });
 }
 
-// Get user name by ID
-async function getUserName(userId) {
+// Get user name by ID (expects community.id, not user_id)
+async function getUserName(communityId) {
   try {
     const { data, error } = await supabase
       .from('community')
       .select('name')
-      .eq('user_id', userId)
+      .eq('id', communityId)  // Use community.id not user_id
       .single();
 
     if (error) throw error;
