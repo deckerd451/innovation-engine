@@ -675,45 +675,6 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     `;
     document.head.appendChild(style);
   }
-        transform: scale(1.3) !important;
-        filter: drop-shadow(0 0 8px rgba(255,255,255,0.3));
-      }
-      
-      .project-shape {
-        transition: all 0.2s ease;
-      }
-      
-      .project-glow {
-        transition: all 0.2s ease;
-      }
-      
-      .project-title {
-        transition: opacity 0.2s ease;
-        filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
-      }
-      
-      .theme-interactive-border {
-        transition: stroke-opacity 0.15s ease, stroke-width 0.15s ease;
-      }
-      
-      /* Animation for projects appearing */
-      @keyframes projectAppear {
-        from {
-          opacity: 0;
-          transform: scale(0.5);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
-      }
-      
-      .project-indicator {
-        animation: projectAppear 0.3s ease-out;
-      }
-    `;
-    document.head.appendChild(style);
-  }
 
   return d3.select(themesGroup.node());
 }
