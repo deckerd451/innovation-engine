@@ -422,16 +422,16 @@
       <div class="header-actions" style="display: flex; align-items: center; gap: 0.5rem;">
         <!-- Secondary Actions Group -->
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <div class="header-notification" id="notifications-bell" 
-               style="cursor:pointer; padding: 0.5rem; border-radius: 8px; 
+          <div class="header-notification" id="notifications-bell"
+               style="cursor:pointer; padding: 0.5rem; border-radius: 8px;
                       background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                      color: #ddd; transition: all 0.2s;" 
+                      color: #ddd; transition: all 0.2s; position: relative;"
                title="Notifications"
                onclick="openNotificationCenter()"
                onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'"
                onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
             <i class="fas fa-bell"></i>
-            <span class="notification-badge hidden" id="notif-count">0</span>
+            <span class="notification-badge hidden" id="notif-count" style="position: absolute; top: -4px; right: -4px;">0</span>
           </div>
 
           <div class="user-menu" id="user-menu"
@@ -1158,6 +1158,7 @@
   
   <!-- Real-time Collaboration System -->
   <script type="module" src="assets/js/notification-system.js?v=realtime-collab-2026-01-20"></script>
+  <script type="module" src="assets/js/notification-integration.js?v=1ed978ffb3cc6e615869bc4682741e11e2bcf047292"></script>
   <script type="module" src="assets/js/live-activity-feed.js?v=realtime-collab-2026-01-20"></script>
   <script type="module" src="assets/js/realtime-collaboration.js?v=realtime-collab-2026-01-20"></script>
   
