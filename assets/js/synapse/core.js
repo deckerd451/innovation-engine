@@ -1017,10 +1017,11 @@ async function buildGraph() {
   const visibleInteractiveNodes = visibleNodes.filter((n) => n.type === "person" || n.type === "organization");
   nodeEls = renderNodes(container, visibleInteractiveNodes, { onNodeClick });
 
-  // Drag for nodes
+  // Drag for nodes - use clickDistance to allow click events to fire
   nodeEls.call(
     d3
       .drag()
+      .clickDistance(5)
       .on("start", dragStarted)
       .on("drag", dragged)
       .on("end", dragEnded)
@@ -1349,13 +1350,17 @@ function onNodeClick(event, d) {
    DRAG
    ========================================================================== */
 
+let dragMoved = false;
+
 function dragStarted(event, d) {
+  dragMoved = false;
   if (!event.active) simulation.alphaTarget(0.3).restart();
   d.fx = d.x;
   d.fy = d.y;
 }
 
 function dragged(event, d) {
+  dragMoved = true;
   d.fx = event.x;
   d.fy = event.y;
 }
@@ -1364,6 +1369,11 @@ function dragEnded(event, d) {
   if (!event.active) simulation.alphaTarget(0);
   d.fx = null;
   d.fy = null;
+
+  // If the user didn't actually drag, treat as a click
+  if (!dragMoved) {
+    onNodeClick(event.sourceEvent, d);
+  }
 }
 
 /* ==========================================================================
