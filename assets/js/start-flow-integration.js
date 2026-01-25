@@ -26,10 +26,10 @@ window.addEventListener('profile-loaded', (e) => {
 });
 
 /**
- * Enhanced openStartModal with recommendations
+ * Enhanced openStartModal with sequential wizard
  */
 async function openEnhancedStartModal() {
-  console.log('🚀 Opening enhanced START modal');
+  console.log('🚀 Opening enhanced START modal (sequential mode)');
 
   const modal = document.getElementById('start-modal');
   const backdrop = document.getElementById('start-modal-backdrop');
@@ -49,8 +49,22 @@ async function openEnhancedStartModal() {
     modal.style.transform = 'translateX(0)';
   }, 10);
 
-  // Load and display recommendations
-  await populateRecommendations();
+  // Initialize sequential wizard
+  if (window.startFlowSequential && typeof window.startFlowSequential.init === 'function') {
+    const userData = cachedUserProfile;
+    const supabase = cachedSupabase || window.supabase;
+
+    if (!userData) {
+      console.warn('⚠️ User profile not yet available, waiting...');
+      setTimeout(() => populateRecommendations(), 500);
+      return;
+    }
+
+    window.startFlowSequential.init(userData, supabase);
+  } else {
+    // Fallback to old flow
+    await populateRecommendations();
+  }
 }
 
 /**
@@ -383,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Remove existing listeners
     const newBtn = startBtn.cloneNode(true);
     startBtn.parentNode.replaceChild(newBtn, startBtn);
-    
+
     // Add new enhanced handler
     newBtn.addEventListener('click', openEnhancedStartModal);
   }
@@ -394,32 +408,47 @@ document.addEventListener('DOMContentLoaded', () => {
     style.id = 'start-integration-styles';
     style.textContent = `
       @keyframes recommendedPulse {
-        0%, 100% { 
+        0%, 100% {
           box-shadow: 0 0 30px rgba(0,224,255,0.25);
         }
-        50% { 
+        50% {
           box-shadow: 0 0 40px rgba(0,224,255,0.4);
         }
       }
-      
+
       .start-option {
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      
+
       .start-option:hover {
         transform: translateY(-4px);
       }
-      
+
       .select-option-btn:hover {
         transform: translateY(-2px) scale(1.02);
       }
-      
+
       .why-this-btn:hover {
         transform: scale(1.1);
+      }
+
+      .start-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       }
     `;
     document.head.appendChild(style);
   }
+
+  // Auto-open START modal on first load or new day
+  window.addEventListener('profile-loaded', () => {
+    if (window.startFlowSequential && window.startFlowSequential.shouldAutoOpen()) {
+      console.log('🚀 Auto-opening START modal for first-time or new day');
+      setTimeout(() => {
+        openEnhancedStartModal();
+      }, 1500); // Delay to let the app fully initialize
+    }
+  });
 });
 
 // Export functions
