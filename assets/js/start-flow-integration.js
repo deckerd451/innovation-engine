@@ -39,9 +39,11 @@ async function openEnhancedStartModal() {
     return;
   }
 
-  // Show modal
+  // Show modal with semi-transparent backdrop to keep synapse visible
   modal.style.display = 'block';
   backdrop.style.display = 'block';
+  backdrop.style.background = 'rgba(0,0,0,0.2)'; // More transparent
+  backdrop.style.backdropFilter = 'blur(2px)'; // Less blur
 
   // Animate in
   setTimeout(() => {
@@ -382,6 +384,9 @@ function closeStartModal() {
 
   if (backdrop) {
     backdrop.style.display = 'none';
+    // Reset backdrop to default
+    backdrop.style.background = 'rgba(0,0,0,0.3)';
+    backdrop.style.backdropFilter = 'blur(2px)';
   }
 }
 
