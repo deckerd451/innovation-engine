@@ -166,13 +166,15 @@ function generateOptionHTML(option, isRecommended, currentUser) {
   const colors = {
     focus: { primary: '#00e0ff', secondary: 'rgba(0,224,255,0.15)' },
     projects: { primary: '#00ff88', secondary: 'rgba(0,255,136,0.15)' },
-    people: { primary: '#ffd700', secondary: 'rgba(255,215,0,0.15)' }
+    people: { primary: '#ffd700', secondary: 'rgba(255,215,0,0.15)' },
+    organizations: { primary: '#a855f7', secondary: 'rgba(168,85,247,0.15)' }
   };
 
   const icons = {
     focus: 'compass',
     projects: 'rocket',
-    people: 'users'
+    people: 'users',
+    organizations: 'building'
   };
 
   const color = colors[option.type] || colors.focus;
@@ -262,7 +264,8 @@ function getOptionDescription(type) {
   const descriptions = {
     focus: 'Dive into the theme where your interests and activity overlap most',
     projects: 'Explore active projects that match your skills and interests',
-    people: 'Connect with people who share your interests and goals'
+    people: 'Connect with people who share your interests and goals',
+    organizations: 'Discover organizations and opportunities in your field'
   };
   return descriptions[type] || '';
 }
