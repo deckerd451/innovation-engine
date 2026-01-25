@@ -398,105 +398,6 @@ function resetQuickActionLabels() {
 }
 
 // ================================================================
-// SESSION MEMORY
-// ================================================================
-
-/**
- * Ask user if they want to start with same focus next time
- */
-function offerSessionMemory() {
-  if (!sessionFocus.active) return;
-
-  // Check if user has taken meaningful action
-  if (sessionFocus.actions.length === 0) return;
-
-  // Don't ask if already saved
-  const savedFocus = localStorage.getItem('preferred_start_focus');
-  if (savedFocus === sessionFocus.type) return;
-
-  // Show prompt
-  const prompt = document.createElement('div');
-  prompt.style.cssText = `
-    position: fixed;
-    bottom: 100px;
-    right: 20px;
-    background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
-    border: 2px solid rgba(0,224,255,0.4);
-    border-radius: 12px;
-    padding: 1.5rem;
-    max-width: 350px;
-    z-index: 10004;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-    animation: slideInRight 0.3s ease-out;
-  `;
-
-  prompt.innerHTML = `
-    <div style="color: #00e0ff; font-weight: 600; margin-bottom: 0.75rem; font-size: 1rem;">
-      <i class="fas fa-bookmark"></i> Remember this focus?
-    </div>
-    <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.5;">
-      Want to start here next time?
-    </div>
-    <div style="display: flex; gap: 0.75rem;">
-      <button onclick="savePreferredFocus('${sessionFocus.type}')" style="
-        flex: 1;
-        padding: 0.6rem;
-        background: linear-gradient(135deg, #00ff88, #00e0ff);
-        border: none;
-        border-radius: 8px;
-        color: #000;
-        font-weight: 600;
-        cursor: pointer;
-      ">
-        Yes
-      </button>
-      <button onclick="this.closest('div[style*=fixed]').remove()" style="
-        flex: 1;
-        padding: 0.6rem;
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 8px;
-        color: white;
-        cursor: pointer;
-      ">
-        No thanks
-      </button>
-    </div>
-  `;
-
-  document.body.appendChild(prompt);
-
-  // Auto-dismiss after 10 seconds
-  setTimeout(() => {
-    if (prompt.parentElement) prompt.remove();
-  }, 10000);
-}
-
-window.savePreferredFocus = function(focusType) {
-  localStorage.setItem('preferred_start_focus', focusType);
-  
-  const prompt = document.querySelector('div[style*="Remember this focus"]')?.closest('div[style*=fixed]');
-  if (prompt) prompt.remove();
-
-  if (typeof window.showToastNotification === 'function') {
-    window.showToastNotification('Preference saved! We\'ll start here next time.', 'success');
-  }
-};
-
-/**
- * Load preferred focus on startup
- */
-function loadPreferredFocus() {
-  const preferred = localStorage.getItem('preferred_start_focus');
-  if (preferred) {
-    console.log('📌 User has preferred focus:', preferred);
-    // This will be used by the recommendation engine to boost the score
-    return preferred;
-  }
-  return null;
-}
-
-// ================================================================
 // SUCCESS SIGNALS
 // ================================================================
 
@@ -514,9 +415,6 @@ function trackAction(actionType) {
   // Show success signal on first action
   if (sessionFocus.actions.length === 1) {
     showSuccessSignal(actionType);
-    
-    // Offer to save preference after first action
-    setTimeout(offerSessionMemory, 2000);
   }
 }
 
@@ -599,7 +497,6 @@ window.clearSessionFocus = clearSessionFocus;
 window.showWhyThisModal = showWhyThisModal;
 window.generateWhyThisExplanation = generateWhyThisExplanation;
 window.trackAction = trackAction;
-window.loadPreferredFocus = loadPreferredFocus;
 window.sessionFocus = sessionFocus;
 
 // Restore session focus if page was refreshed
