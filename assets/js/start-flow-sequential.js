@@ -127,6 +127,10 @@ async function renderSelectionStep(container, stepType) {
         break;
     }
 
+    // Store items for later reference in summary
+    wizardState.availableItems = wizardState.availableItems || {};
+    wizardState.availableItems[stepType] = items;
+
     // Render step UI
     container.innerHTML = generateStepHTML(stepType, items, config);
 
@@ -262,24 +266,30 @@ function generateStepHTML(stepType, items, config) {
 
 function renderSummaryStep(container) {
   const summary = generateSummary();
+  const userName = wizardState.userData?.name || 'there';
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   container.innerHTML = `
     <div style="padding: 0 0.5rem;">
       <!-- Completion header -->
-      <div style="text-align: center; margin-bottom: 2rem;">
-        <div style="font-size: 4rem; color: #00ff88; margin-bottom: 1rem;">
+      <div style="text-align: center; margin-bottom: 2rem; padding: 1.5rem; background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,224,255,0.1)); border-radius: 12px; border: 2px solid rgba(0,255,136,0.3);">
+        <div style="font-size: 4rem; color: #00ff88; margin-bottom: 1rem; animation: celebration 0.6s ease-out;">
           <i class="fas fa-check-circle"></i>
         </div>
-        <h2 style="color: white; font-size: 2rem; margin: 0 0 0.5rem 0; font-weight: 700;">
-          Great Start!
+        <h2 style="color: white; font-size: 2rem; margin: 0 0 0.5rem 0; font-weight: 700; letter-spacing: 0.5px;">
+          Excellent Work, ${userName.split(' ')[0]}!
         </h2>
-        <p style="color: rgba(255,255,255,0.7); font-size: 1rem; margin: 0;">
-          Here's what you've discovered
+        <p style="color: rgba(255,255,255,0.8); font-size: 1.05rem; margin: 0 0 0.5rem 0;">
+          You've completed your network discovery journey
         </p>
+        <div style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">
+          <i class="fas fa-clock"></i> Completed at ${timeStr}
+        </div>
       </div>
 
       <!-- Summary content -->
-      <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+      <div style="max-height: 400px; overflow-y: auto; margin-bottom: 2rem; padding-right: 0.5rem;">
         ${summary.html}
       </div>
 
@@ -287,31 +297,33 @@ function renderSummaryStep(container) {
       <div style="display: flex; flex-direction: column; gap: 1rem;">
         <button id="save-summary-btn" style="
           width: 100%;
-          padding: 1rem;
+          padding: 1.25rem;
           background: linear-gradient(135deg, #00ff88, #00e0ff);
           border: none;
-          border-radius: 10px;
+          border-radius: 12px;
           color: #000;
           font-weight: 700;
           cursor: pointer;
           font-size: 1.1rem;
-          transition: all 0.2s;
-          box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+          transition: all 0.3s;
+          box-shadow: 0 6px 20px rgba(0,255,136,0.4);
+          position: relative;
+          overflow: hidden;
         ">
-          <i class="fas fa-download"></i> Save Summary
+          <i class="fas fa-download"></i> Download Your Summary
         </button>
         <button id="close-summary-btn" style="
           width: 100%;
           padding: 1rem;
           background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.3);
-          border-radius: 10px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-radius: 12px;
           color: white;
           font-weight: 600;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.3s;
         ">
-          Close
+          <i class="fas fa-times-circle"></i> Close and Start Exploring
         </button>
       </div>
     </div>
@@ -654,73 +666,285 @@ function completeStartFlow() {
 // ================================================================
 
 function generateSummary() {
-  const parts = [];
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const userName = wizardState.userData?.name || 'Community Member';
+
+  let textParts = [];
   let htmlParts = [];
+
+  // Header
+  textParts.push('═══════════════════════════════════════════════════════');
+  textParts.push('        CHARLESTON HACKS - YOUR START JOURNEY');
+  textParts.push('═══════════════════════════════════════════════════════');
+  textParts.push('');
+  textParts.push(`Name: ${userName}`);
+  textParts.push(`Date: ${dateStr}`);
+  textParts.push(`Time: ${timeStr}`);
+  textParts.push('');
+  textParts.push('───────────────────────────────────────────────────────');
+  textParts.push('');
+
+  let totalSelections = 0;
+  const items = wizardState.availableItems || {};
 
   // Focus/Theme
   if (wizardState.selections.focus?.id) {
-    parts.push(`FOCUS: Selected theme`);
-    htmlParts.push(`
-      <div style="margin-bottom: 1rem;">
-        <div style="color: #00e0ff; font-weight: 600; margin-bottom: 0.5rem;">
-          <i class="fas fa-compass"></i> Your Focus
+    const focusId = wizardState.selections.focus.id;
+    const theme = items.focus?.find(t => t.id === focusId);
+    totalSelections++;
+
+    if (theme) {
+      textParts.push('🎯 YOUR FOCUS AREA');
+      textParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      textParts.push(`Theme: ${theme.name || theme.title}`);
+      if (theme.description) {
+        textParts.push(`Description: ${theme.description}`);
+      }
+      if (theme.participant_count) {
+        textParts.push(`Active Participants: ${theme.participant_count} people`);
+      }
+      textParts.push('');
+      textParts.push('Next Steps:');
+      textParts.push('  • Explore projects within this theme');
+      textParts.push('  • Connect with other participants');
+      textParts.push('  • Share your expertise and interests');
+      textParts.push('');
+
+      htmlParts.push(`
+        <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(0,224,255,0.1), rgba(0,224,255,0.05)); border-left: 4px solid #00e0ff; border-radius: 8px;">
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <div style="font-size: 1.5rem; color: #00e0ff;">
+              <i class="fas fa-compass"></i>
+            </div>
+            <div style="color: #00e0ff; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px;">
+              YOUR FOCUS AREA
+            </div>
+          </div>
+          <div style="color: white; font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem;">
+            ${theme.name || theme.title}
+          </div>
+          ${theme.description ? `
+            <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.5; margin-bottom: 0.75rem;">
+              ${theme.description}
+            </div>
+          ` : ''}
+          ${theme.participant_count ? `
+            <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+              <i class="fas fa-users"></i> ${theme.participant_count} active participants
+            </div>
+          ` : ''}
         </div>
-        <div style="color: rgba(255,255,255,0.8);">Theme selected</div>
-      </div>
-    `);
+      `);
+    }
   }
 
   // Organizations
   if (wizardState.selections.organizations.length > 0) {
-    parts.push(`ORGANIZATIONS: ${wizardState.selections.organizations.length} selected`);
+    const orgIds = wizardState.selections.organizations;
+    const orgs = items.organizations?.filter(o => orgIds.includes(o.id)) || [];
+    totalSelections += orgs.length;
+
+    textParts.push('🏢 ORGANIZATIONS TO EXPLORE');
+    textParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    textParts.push(`Total Selected: ${orgs.length}`);
+    textParts.push('');
+
     htmlParts.push(`
-      <div style="margin-bottom: 1rem;">
-        <div style="color: #a855f7; font-weight: 600; margin-bottom: 0.5rem;">
-          <i class="fas fa-building"></i> Organizations
+      <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(168,85,247,0.1), rgba(168,85,247,0.05)); border-left: 4px solid #a855f7; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+          <div style="font-size: 1.5rem; color: #a855f7;">
+            <i class="fas fa-building"></i>
+          </div>
+          <div style="color: #a855f7; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px;">
+            ORGANIZATIONS TO EXPLORE
+          </div>
         </div>
-        <div style="color: rgba(255,255,255,0.8);">${wizardState.selections.organizations.length} organizations to explore</div>
-      </div>
     `);
+
+    orgs.forEach((org, index) => {
+      textParts.push(`${index + 1}. ${org.name}`);
+      if (org.description) {
+        textParts.push(`   ${org.description.substring(0, 100)}${org.description.length > 100 ? '...' : ''}`);
+      }
+      if (org.industry || org.location) {
+        const details = [org.industry, org.location].filter(Boolean).join(' • ');
+        textParts.push(`   ${details}`);
+      }
+      textParts.push('');
+
+      htmlParts.push(`
+        <div style="padding: 0.75rem; margin-bottom: 0.75rem; background: rgba(0,0,0,0.2); border-radius: 6px;">
+          <div style="color: white; font-weight: 600; margin-bottom: 0.25rem;">
+            ${org.name}
+          </div>
+          ${org.description ? `
+            <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.5rem;">
+              ${org.description.substring(0, 120)}${org.description.length > 120 ? '...' : ''}
+            </div>
+          ` : ''}
+          ${org.industry || org.location ? `
+            <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">
+              ${[org.industry, org.location].filter(Boolean).join(' • ')}
+            </div>
+          ` : ''}
+        </div>
+      `);
+    });
+
+    htmlParts.push('</div>');
   }
 
   // Projects
   if (wizardState.selections.projects.length > 0) {
-    parts.push(`PROJECTS: ${wizardState.selections.projects.length} selected`);
+    const projectIds = wizardState.selections.projects;
+    const projects = items.projects?.filter(p => projectIds.includes(p.id)) || [];
+    totalSelections += projects.length;
+
+    textParts.push('🚀 PROJECTS TO JOIN');
+    textParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    textParts.push(`Total Selected: ${projects.length}`);
+    textParts.push('');
+
     htmlParts.push(`
-      <div style="margin-bottom: 1rem;">
-        <div style="color: #ff6b6b; font-weight: 600; margin-bottom: 0.5rem;">
-          <i class="fas fa-rocket"></i> Projects
+      <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(255,107,107,0.1), rgba(255,107,107,0.05)); border-left: 4px solid #ff6b6b; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+          <div style="font-size: 1.5rem; color: #ff6b6b;">
+            <i class="fas fa-rocket"></i>
+          </div>
+          <div style="color: #ff6b6b; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px;">
+            PROJECTS TO JOIN
+          </div>
         </div>
-        <div style="color: rgba(255,255,255,0.8);">${wizardState.selections.projects.length} projects to join</div>
-      </div>
     `);
+
+    projects.forEach((project, index) => {
+      textParts.push(`${index + 1}. ${project.name}`);
+      if (project.description) {
+        textParts.push(`   ${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}`);
+      }
+      textParts.push('');
+
+      htmlParts.push(`
+        <div style="padding: 0.75rem; margin-bottom: 0.75rem; background: rgba(0,0,0,0.2); border-radius: 6px;">
+          <div style="color: white; font-weight: 600; margin-bottom: 0.25rem;">
+            ${project.name}
+          </div>
+          ${project.description ? `
+            <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+              ${project.description.substring(0, 120)}${project.description.length > 120 ? '...' : ''}
+            </div>
+          ` : ''}
+        </div>
+      `);
+    });
+
+    htmlParts.push('</div>');
   }
 
   // People
   if (wizardState.selections.people.length > 0) {
-    parts.push(`PEOPLE: ${wizardState.selections.people.length} selected`);
+    const peopleIds = wizardState.selections.people;
+    const people = items.people?.filter(p => peopleIds.includes(p.id)) || [];
+    totalSelections += people.length;
+
+    textParts.push('👥 PEOPLE TO CONNECT WITH');
+    textParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    textParts.push(`Total Selected: ${people.length}`);
+    textParts.push('');
+
     htmlParts.push(`
-      <div style="margin-bottom: 1rem;">
-        <div style="color: #ffd700; font-weight: 600; margin-bottom: 0.5rem;">
-          <i class="fas fa-users"></i> People
+      <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,215,0,0.05)); border-left: 4px solid #ffd700; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+          <div style="font-size: 1.5rem; color: #ffd700;">
+            <i class="fas fa-users"></i>
+          </div>
+          <div style="color: #ffd700; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px;">
+            PEOPLE TO CONNECT WITH
+          </div>
         </div>
-        <div style="color: rgba(255,255,255,0.8);">${wizardState.selections.people.length} people to connect with</div>
+    `);
+
+    people.forEach((person, index) => {
+      textParts.push(`${index + 1}. ${person.name}`);
+      if (person.bio) {
+        textParts.push(`   ${person.bio.substring(0, 100)}${person.bio.length > 100 ? '...' : ''}`);
+      }
+      textParts.push('');
+
+      htmlParts.push(`
+        <div style="padding: 0.75rem; margin-bottom: 0.75rem; background: rgba(0,0,0,0.2); border-radius: 6px;">
+          <div style="color: white; font-weight: 600; margin-bottom: 0.25rem;">
+            ${person.name}
+          </div>
+          ${person.bio ? `
+            <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+              ${person.bio.substring(0, 120)}${person.bio.length > 120 ? '...' : ''}
+            </div>
+          ` : ''}
+        </div>
+      `);
+    });
+
+    htmlParts.push('</div>');
+  }
+
+  // Summary footer
+  if (totalSelections === 0) {
+    textParts.push('You explored the Charleston Hacks network!');
+    textParts.push('Come back anytime to discover and connect.');
+
+    htmlParts.push(`
+      <div style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.7);">
+        <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;">
+          <i class="fas fa-compass"></i>
+        </div>
+        <div style="font-size: 1.1rem;">
+          You explored the Charleston Hacks network!
+        </div>
+        <div style="font-size: 0.9rem; margin-top: 0.5rem;">
+          Come back anytime to discover and connect.
+        </div>
+      </div>
+    `);
+  } else {
+    textParts.push('───────────────────────────────────────────────────────');
+    textParts.push('');
+    textParts.push('📊 SUMMARY');
+    textParts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    textParts.push(`Total Discoveries: ${totalSelections}`);
+    textParts.push('');
+    textParts.push('🎯 NEXT STEPS:');
+    textParts.push('  1. Follow up on your selections in the dashboard');
+    textParts.push('  2. Send connection requests to people you selected');
+    textParts.push('  3. Join projects that match your interests');
+    textParts.push('  4. Engage with organizations in your field');
+    textParts.push('');
+    textParts.push('💡 Pro Tip: The more active you are, the more opportunities');
+    textParts.push('   you\'ll discover in the network!');
+
+    htmlParts.push(`
+      <div style="margin-top: 1.5rem; padding: 1.25rem; background: rgba(0,255,136,0.05); border: 2px solid rgba(0,255,136,0.2); border-radius: 8px;">
+        <div style="color: #00ff88; font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; text-align: center;">
+          <i class="fas fa-chart-line"></i> ${totalSelections} TOTAL DISCOVERIES
+        </div>
+        <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem; text-align: center; line-height: 1.6;">
+          You've made a great start! Follow up on your selections in the dashboard and start building meaningful connections.
+        </div>
       </div>
     `);
   }
 
-  if (parts.length === 0) {
-    parts.push('You explored the network!');
-    htmlParts.push(`
-      <div style="color: rgba(255,255,255,0.7); text-align: center;">
-        You took a tour of the network. Great start!
-      </div>
-    `);
-  }
+  textParts.push('');
+  textParts.push('═══════════════════════════════════════════════════════');
+  textParts.push('         Thank you for using Charleston Hacks!');
+  textParts.push('         https://charlestonhacks.github.io');
+  textParts.push('═══════════════════════════════════════════════════════');
 
   return {
-    text: `Charleston Hacks - Your Start Summary\n\n${parts.join('\n')}\n\nDate: ${new Date().toLocaleDateString()}`,
-    html: htmlParts.join('')
+    text: textParts.join('\n'),
+    html: htmlParts.join('\n')
   };
 }
 
