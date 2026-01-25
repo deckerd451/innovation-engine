@@ -1484,7 +1484,21 @@ async function loadOrgsTabContent(tabName) {
         .select('organization_id, role')
         .eq('community_id', currentUser.id);
 
-      if (membershipsError) throw membershipsError;
+      if (membershipsError) {
+        // Handle table not exists error
+        if (membershipsError.code === '42P01' || membershipsError.message?.includes('does not exist') ||
+            membershipsError.code === 'PGRST116' || String(membershipsError.code) === '500') {
+          content.innerHTML = `
+            <div style="text-align: center; padding: 3rem;">
+              <i class="fas fa-tools" style="font-size: 3rem; color: rgba(168,85,247,0.3); margin-bottom: 1rem;"></i>
+              <p style="color: rgba(255,255,255,0.5);">Organization membership is being set up</p>
+              <p style="color: rgba(255,255,255,0.3); font-size: 0.9rem;">Please check back later or contact an administrator.</p>
+            </div>
+          `;
+          return;
+        }
+        throw membershipsError;
+      }
 
       if (!memberships || memberships.length === 0) {
         content.innerHTML = `
@@ -1649,20 +1663,26 @@ async function createOrganization() {
 
     if (orgError) throw orgError;
 
-    // Add creator as owner
-    const { error: memberError } = await supabase
-      .from('organization_members')
-      .insert([{
-        organization_id: org.id,
-        community_id: currentUser.id,
-        role: 'owner'
-      }]);
+    // Add creator as owner (this may fail if organization_members table doesn't exist)
+    try {
+      const { error: memberError } = await supabase
+        .from('organization_members')
+        .insert([{
+          organization_id: org.id,
+          community_id: currentUser.id,
+          role: 'owner'
+        }]);
 
-    if (memberError) {
-      console.error('Error adding owner membership:', memberError);
+      if (memberError) {
+        console.warn('Could not add owner membership (table may not exist):', memberError.message);
+        // Don't fail the whole operation - org was created successfully
+      }
+    } catch (memberErr) {
+      console.warn('Exception adding owner membership:', memberErr.message);
     }
 
-    alert('Organization created successfully!');
+    alert('Organization created successfully!' +
+      (await checkOrgMembersTableExists(supabase) ? '' : '\n\nNote: Membership features are being set up.'));
 
     // Refresh the organizations list
     loadOrgsTabContent('browse');
@@ -1693,12 +1713,24 @@ async function joinOrganization(orgId) {
 
   try {
     // Check if already a member
-    const { data: existing } = await supabase
+    const { data: existing, error: checkError } = await supabase
       .from('organization_members')
       .select('id')
       .eq('organization_id', orgId)
       .eq('community_id', currentUser.id)
       .maybeSingle();
+
+    // Handle case where table might not exist (500 error or PGRST116)
+    if (checkError) {
+      console.error('Error checking membership:', checkError);
+      if (checkError.code === '42P01' || checkError.message?.includes('does not exist') ||
+          checkError.code === 'PGRST116' || checkError.message?.includes('relation') ||
+          String(checkError.code) === '500') {
+        alert('Organization membership feature is being set up. Please try again later or contact an administrator.');
+        return;
+      }
+      // For other errors, continue to try joining
+    }
 
     if (existing) {
       alert('You are already a member of this organization');
@@ -1714,9 +1746,20 @@ async function joinOrganization(orgId) {
         role: 'member'
       }]);
 
-    if (error) throw error;
+    if (error) {
+      // Handle specific error codes
+      if (error.code === '42P01' || error.message?.includes('does not exist') ||
+          error.code === 'PGRST116' || String(error.code) === '500') {
+        alert('Organization membership feature is being set up. Please try again later or contact an administrator.');
+        return;
+      }
+      throw error;
+    }
 
     alert('You have joined the organization!');
+
+    // Refresh the list
+    loadOrgsTabContent('browse');
 
     // Refresh synapse view
     if (typeof window.refreshSynapseConnections === 'function') {
@@ -1753,7 +1796,15 @@ async function leaveOrganization(orgId) {
       .eq('organization_id', orgId)
       .eq('community_id', currentUser.id);
 
-    if (error) throw error;
+    if (error) {
+      // Handle table not exists error
+      if (error.code === '42P01' || error.message?.includes('does not exist') ||
+          error.code === 'PGRST116' || String(error.code) === '500') {
+        alert('Organization membership feature is being set up. Please try again later.');
+        return;
+      }
+      throw error;
+    }
 
     alert('You have left the organization');
 
@@ -1777,6 +1828,19 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Helper to check if organization_members table exists
+async function checkOrgMembersTableExists(supabase) {
+  try {
+    const { error } = await supabase
+      .from('organization_members')
+      .select('id')
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
 }
 
 // Make organization functions globally available

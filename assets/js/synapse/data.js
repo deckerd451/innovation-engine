@@ -51,12 +51,25 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   }
 
   // Load organization members (to link people to orgs)
-  const { data: orgMembers, error: orgMembersError } = await supabase
-    .from('organization_members')
-    .select('organization_id, community_id, role');
+  // Note: This table may not exist or have RLS policies that block access
+  let orgMembers = [];
+  try {
+    const { data: orgMembersData, error: orgMembersError } = await supabase
+      .from('organization_members')
+      .select('organization_id, community_id, role');
 
-  if (orgMembersError) {
-    console.warn('⚠️ Error loading organization members:', orgMembersError);
+    if (orgMembersError) {
+      // 500 errors often mean table doesn't exist or RLS issue
+      if (orgMembersError.code === 'PGRST116' || orgMembersError.message?.includes('does not exist')) {
+        console.warn('⚠️ organization_members table does not exist - skipping org membership loading');
+      } else {
+        console.warn('⚠️ Error loading organization members:', orgMembersError.message || orgMembersError);
+      }
+    } else {
+      orgMembers = orgMembersData || [];
+    }
+  } catch (err) {
+    console.warn('⚠️ Exception loading organization members:', err.message);
   }
 
   // Load theme participants (people connected to themes)
