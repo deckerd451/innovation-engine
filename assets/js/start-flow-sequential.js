@@ -51,8 +51,12 @@ function renderCurrentStep() {
 
   if (step === 'summary') {
     renderSummaryStep(container);
+    resetSynapseView();
   } else {
     renderSelectionStep(container, step);
+    // Update synapse view to highlight relevant nodes
+    updateSynapseForStep(step);
+    showSynapseProgress();
   }
 }
 
@@ -382,7 +386,7 @@ function wireStepHandlers(stepType, multiSelect) {
       const id = item.dataset.id;
       handleItemSelection(stepType, id, multiSelect);
 
-      // Update visual state
+      // Update visual state in modal
       if (multiSelect) {
         const isNowSelected = wizardState.selections[stepType].includes(id);
         item.style.background = isNowSelected ? 'rgba(0,224,255,0.15)' : 'rgba(0,0,0,0.3)';
@@ -396,6 +400,9 @@ function wireStepHandlers(stepType, multiSelect) {
         item.style.background = 'rgba(0,224,255,0.15)';
         item.style.borderColor = getStepColor(stepType);
       }
+
+      // Update synapse visualization
+      updateSynapseForSelection(stepType, id);
     });
   });
 
@@ -437,6 +444,177 @@ function getStepColor(stepType) {
 }
 
 // ================================================================
+// SYNAPSE VISUALIZATION INTEGRATION
+// ================================================================
+
+function updateSynapseForStep(stepType) {
+  console.log('🎨 Updating synapse view for step:', stepType);
+
+  // Get all nodes in the synapse
+  const svg = window.d3?.select('#synapse-svg') || window.d3?.select('#synapse-network-svg');
+  if (!svg || svg.empty()) {
+    console.warn('⚠️ Synapse SVG not found');
+    return;
+  }
+
+  // Reset all nodes to default state first
+  svg.selectAll('.synapse-node, .theme-card, .start-item')
+    .transition()
+    .duration(400)
+    .style('opacity', 0.3)
+    .style('filter', 'none');
+
+  // Highlight nodes based on current step
+  const color = getStepColor(stepType);
+
+  switch (stepType) {
+    case 'focus':
+      // Highlight theme circles
+      svg.selectAll('.theme-container, [data-type="theme"]')
+        .transition()
+        .duration(600)
+        .style('opacity', 1)
+        .style('filter', `drop-shadow(0 0 10px ${color})`);
+      break;
+
+    case 'organizations':
+      // Highlight organization nodes
+      svg.selectAll('[data-type="organization"], .org-node')
+        .transition()
+        .duration(600)
+        .style('opacity', 1)
+        .style('filter', `drop-shadow(0 0 10px ${color})`);
+      break;
+
+    case 'projects':
+      // Highlight project nodes
+      svg.selectAll('[data-type="project"], .project-node')
+        .transition()
+        .duration(600)
+        .style('opacity', 1)
+        .style('filter', `drop-shadow(0 0 10px ${color})`);
+      break;
+
+    case 'people':
+      // Highlight person nodes
+      svg.selectAll('[data-type="person"], .person-node')
+        .transition()
+        .duration(600)
+        .style('opacity', 1)
+        .style('filter', `drop-shadow(0 0 10px ${color})`);
+      break;
+  }
+}
+
+function updateSynapseForSelection(stepType, itemId) {
+  console.log('✨ Highlighting selection in synapse:', stepType, itemId);
+
+  const svg = window.d3?.select('#synapse-svg') || window.d3?.select('#synapse-network-svg');
+  if (!svg || svg.empty()) return;
+
+  const color = getStepColor(stepType);
+  const isSelected = wizardState.selections[stepType]?.includes?.(itemId) ||
+                     wizardState.selections[stepType]?.id === itemId;
+
+  // Find and highlight/unhighlight the specific node
+  const selector = `[data-id="${itemId}"], [data-node-id="${itemId}"], [data-theme-id="${itemId}"]`;
+  const node = svg.select(selector);
+
+  if (!node.empty()) {
+    if (isSelected) {
+      // Highlight selected node
+      node
+        .transition()
+        .duration(300)
+        .style('opacity', 1)
+        .style('filter', `drop-shadow(0 0 15px ${color})`)
+        .style('transform', 'scale(1.1)');
+    } else {
+      // Unhighlight deselected node
+      node
+        .transition()
+        .duration(300)
+        .style('opacity', 0.3)
+        .style('filter', 'none')
+        .style('transform', 'scale(1)');
+    }
+  }
+}
+
+function showSynapseProgress() {
+  // Show overlay message indicating current step
+  const step = wizardState.steps[wizardState.currentStep];
+  const messages = {
+    focus: 'Select a theme that matches your interests',
+    organizations: 'Discover organizations in your field',
+    projects: 'Find projects that need your skills',
+    people: 'Connect with people nearby'
+  };
+
+  const message = messages[step];
+  if (!message) return;
+
+  // Create or update overlay
+  let overlay = document.getElementById('synapse-step-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'synapse-step-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, rgba(10,14,39,0.95), rgba(26,26,46,0.95));
+      border: 2px solid ${getStepColor(step)};
+      border-radius: 12px;
+      padding: 1rem 2rem;
+      color: ${getStepColor(step)};
+      font-size: 1rem;
+      font-weight: 600;
+      z-index: 9999;
+      pointer-events: none;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      opacity: 0;
+      transition: all 0.3s ease;
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  overlay.textContent = message;
+  overlay.style.borderColor = getStepColor(step);
+  overlay.style.color = getStepColor(step);
+
+  // Fade in
+  setTimeout(() => {
+    overlay.style.opacity = '1';
+  }, 100);
+
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+  }, 3000);
+}
+
+function resetSynapseView() {
+  console.log('🔄 Resetting synapse view');
+
+  const svg = window.d3?.select('#synapse-svg') || window.d3?.select('#synapse-network-svg');
+  if (!svg || svg.empty()) return;
+
+  // Reset all nodes to full opacity
+  svg.selectAll('.synapse-node, .theme-container, .theme-card')
+    .transition()
+    .duration(600)
+    .style('opacity', 1)
+    .style('filter', 'none')
+    .style('transform', 'scale(1)');
+
+  // Remove overlay
+  const overlay = document.getElementById('synapse-step-overlay');
+  if (overlay) overlay.remove();
+}
+
+// ================================================================
 // NAVIGATION
 // ================================================================
 
@@ -454,6 +632,9 @@ function nextStep() {
 function completeStartFlow() {
   localStorage.setItem('start_flow_completed', 'true');
   localStorage.setItem('start_flow_last_date', new Date().toDateString());
+
+  // Reset synapse view to normal
+  resetSynapseView();
 
   // Close modal
   if (typeof window.closeStartModal === 'function') {
@@ -573,6 +754,9 @@ function initSequentialFlow(userData, supabase) {
     projects: [],
     people: []
   };
+
+  // Prepare synapse view for guided flow
+  console.log('🎨 Preparing synapse view for START flow');
 
   renderCurrentStep();
 }
