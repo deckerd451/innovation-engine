@@ -1,17 +1,13 @@
-// assets/js/connections.js
-// Connections — lightweight connection management (robust status-safe writes)
-// Key rules (matches your DB):
-// - connections.status allowed: 'pending' | 'accepted' | 'rejected' | 'canceled'
-// - Sender can cancel only their own pending requests -> status 'canceled'
-// - Receiver can accept/reject only requests sent to them
+// /assets/js/connections.js
+// Connection management (schema-aligned + request panel compatible)
 //
-// Also:
-// - Always attaches `.community` to rows returned for request lists,
-//   so UI can show names without relying on embedded relationship joins.
+// DB schema expectations:
+// - connections(from_user_id -> community.id, to_user_id -> community.id)
+// - connections.status CHECK: ('pending','accepted','rejected')
+// - Emails are only shown after acceptance (you said this is fine)
 
 function showToast(message, type = "info") {
   if (typeof document === "undefined") return;
-
   const toast = document.createElement("div");
   toast.className = `connection-toast toast-${type}`;
   toast.innerHTML = `
@@ -24,7 +20,6 @@ function showToast(message, type = "info") {
     }"></i>
     <span>${message}</span>
   `;
-
   toast.style.cssText = `
     position: fixed;
     bottom: 2rem;
@@ -44,40 +39,30 @@ function showToast(message, type = "info") {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     min-width: 260px;
   `;
-
   document.body.appendChild(toast);
   setTimeout(() => {
     toast.style.animation = "slideOutRight 0.3s ease";
     setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  }, 2500);
 }
 
-// ------------------
-// Module state
-// ------------------
 let supabase = null;
-let currentUserId = null; // auth.users.id
-let currentUserCommunityId = null; // community.id
+let currentAuthUserId = null; // auth.users.id
+let currentCommunityId = null; // community.id
 
-// ------------------
-// DB-safe type normalization (if you enforce a check on type)
-// ------------------
-const ALLOWED_CONNECTION_TYPES = new Set([
-  "generic",
-  "friend",
-  "mentor",
-  "collaborator",
-  "follower",
-]);
-
-function normalizeConnectionType(t) {
-  const v = String(t ?? "").toLowerCase().trim();
-  return ALLOWED_CONNECTION_TYPES.has(v) ? v : "generic";
+const ALLOWED_TYPES = new Set(["generic", "friend", "mentor", "collaborator", "follower"]);
+function normalizeType(v) {
+  const t = String(v ?? "").toLowerCase().trim();
+  return ALLOWED_TYPES.has(t) ? t : "generic";
 }
 
-// ------------------
-// Init / current user resolution
-// ------------------
+// Allowed by your DB constraint
+const STATUS = Object.freeze({
+  PENDING: "pending",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected",
+});
+
 export async function initConnections(supabaseClient) {
   supabase = supabaseClient;
   await refreshCurrentUser();
@@ -86,41 +71,32 @@ export async function initConnections(supabaseClient) {
     window.sendConnectionRequest = sendConnectionRequest;
   }
 
-  console.log("%c✓ Connections module initialized", "color: #0f0");
-  return { currentUserId, currentUserCommunityId };
+  console.log("%c✓ Connections module initialized", "color:#0f0");
+  return { currentAuthUserId, currentCommunityId };
 }
 
 export async function refreshCurrentUser() {
   try {
     if (!supabase?.auth?.getSession) return null;
 
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession();
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session?.user) return null;
 
-    if (error) {
-      console.warn("refreshCurrentUser session error:", error);
-      return null;
-    }
-
-    if (!session?.user) return null;
-
-    currentUserId = session.user.id;
+    currentAuthUserId = session.user.id;
 
     const { data: profile, error: pErr } = await supabase
       .from("community")
       .select("id")
-      .eq("user_id", currentUserId)
+      .eq("user_id", currentAuthUserId)
       .single();
 
-    if (pErr) {
-      currentUserCommunityId = null;
-      return { currentUserId, currentUserCommunityId: null };
+    if (pErr || !profile?.id) {
+      currentCommunityId = null;
+      return { currentAuthUserId, currentCommunityId: null };
     }
 
-    currentUserCommunityId = profile?.id || null;
-    return { currentUserId, currentUserCommunityId };
+    currentCommunityId = profile.id;
+    return { currentAuthUserId, currentCommunityId };
   } catch (e) {
     console.warn("refreshCurrentUser error:", e);
     return null;
@@ -128,50 +104,17 @@ export async function refreshCurrentUser() {
 }
 
 export function getCurrentUserCommunityId() {
-  return currentUserCommunityId;
+  return currentCommunityId;
 }
 
-// ------------------
-// Helpers: fetch community rows and attach to connections
-// ------------------
-function uniq(arr) {
-  return Array.from(new Set((arr || []).filter(Boolean)));
-}
+// ---------- Core helpers ----------
 
-async function getCommunityByIds(ids) {
-  if (!supabase) return new Map();
-  const uniqueIds = uniq(ids);
-  if (uniqueIds.length === 0) return new Map();
-
-  const { data, error } = await supabase
-    .from("community")
-    .select("id, name, image_url")
-    .in("id", uniqueIds);
-
-  if (error) {
-    console.warn("getCommunityByIds error:", error);
-    return new Map();
-  }
-
-  const map = new Map();
-  (data || []).forEach((row) => map.set(row.id, row));
-  return map;
-}
-
-function attachCommunity(rows, pickCommunityIdFn, communityMap) {
-  return (rows || []).map((row) => {
-    const cid = pickCommunityIdFn(row);
-    return { ...row, community: communityMap.get(cid) || null };
-  });
-}
-
-// ------------------
-// Core: get connection between two community IDs
-// ------------------
 export async function getConnectionBetween(id1, id2) {
   if (!supabase || !id1 || !id2) return null;
 
-  const filter = `and(from_user_id.eq.${id1},to_user_id.eq.${id2}),and(from_user_id.eq.${id2},to_user_id.eq.${id1})`;
+  const filter =
+    `and(from_user_id.eq.${id1},to_user_id.eq.${id2}),` +
+    `and(from_user_id.eq.${id2},to_user_id.eq.${id1})`;
 
   const { data, error } = await supabase
     .from("connections")
@@ -185,31 +128,28 @@ export async function getConnectionBetween(id1, id2) {
     return null;
   }
 
-  return data && data.length ? data[0] : null;
+  return data?.[0] || null;
 }
 
-// Status helper compatible with existing UI expectations
 export async function getConnectionStatus(targetCommunityId) {
-  if (!currentUserCommunityId || !targetCommunityId) {
+  if (!currentCommunityId || !targetCommunityId) {
     return { status: "none", canConnect: true };
   }
 
-  const conn = await getConnectionBetween(currentUserCommunityId, targetCommunityId);
+  const conn = await getConnectionBetween(currentCommunityId, targetCommunityId);
   if (!conn) return { status: "none", canConnect: true };
 
-  const status = String(conn.status || "pending").toLowerCase();
-  const isSender = conn.from_user_id === currentUserCommunityId;
-  const isReceiver = conn.to_user_id === currentUserCommunityId;
-
-  const canConnect = status === "rejected" || status === "canceled";
+  const status = String(conn.status || STATUS.PENDING).toLowerCase();
+  const isSender = conn.from_user_id === currentCommunityId;
+  const isReceiver = conn.to_user_id === currentCommunityId;
 
   return {
     status,
-    id: conn.id, // legacy
+    id: conn.id,
     connectionId: conn.id,
     isSender,
     isReceiver,
-    canConnect,
+    canConnect: status === STATUS.REJECTED, // rejected can be re-requested
   };
 }
 
@@ -223,27 +163,82 @@ export async function getAllConnectionsForSynapse() {
   return data || [];
 }
 
-// If you still use this in node panel, keep it strict on DB truth:
 export async function canSeeEmail(targetCommunityId) {
-  if (!currentUserCommunityId || !targetCommunityId) return false;
-  if (targetCommunityId === currentUserCommunityId) return true;
+  if (!currentCommunityId || !targetCommunityId) return false;
+  if (targetCommunityId === currentCommunityId) return true;
 
-  const conn = await getConnectionBetween(currentUserCommunityId, targetCommunityId);
-  return String(conn?.status || "").toLowerCase() === "accepted";
+  const conn = await getConnectionBetween(currentCommunityId, targetCommunityId);
+  return String(conn?.status || "").toLowerCase() === STATUS.ACCEPTED;
 }
 
-// ------------------
-// Lists for connectionRequests UI
-// Always return rows with `.community`
-// ------------------
-export async function getAcceptedConnections() {
-  if (!supabase || !currentUserCommunityId) return [];
+// ---------- Lists for connectionRequests.js (MUST include `community`) ----------
+
+// Sent: join the recipient (to_user_id) as `community`
+export async function getPendingRequestsSent() {
+  if (!supabase || !currentCommunityId) return [];
 
   const { data, error } = await supabase
     .from("connections")
-    .select("id, from_user_id, to_user_id, created_at, status, type")
+    .select(`
+      id, from_user_id, to_user_id, created_at, status, type,
+      community:to_user_id ( id, name, image_url, email )
+    `)
+    .eq("from_user_id", currentCommunityId)
+    .eq("status", STATUS.PENDING)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("getPendingRequestsSent error:", error);
+    return [];
+  }
+
+  // For pending, we do NOT expose email in the UI layer
+  return (data || []).map((r) => ({
+    ...r,
+    community: r.community ? { ...r.community, email: null } : null,
+  }));
+}
+
+// Received: join the sender (from_user_id) as `community`
+export async function getPendingRequestsReceived() {
+  if (!supabase || !currentCommunityId) return [];
+
+  const { data, error } = await supabase
+    .from("connections")
+    .select(`
+      id, from_user_id, to_user_id, created_at, status, type,
+      community:from_user_id ( id, name, image_url, email )
+    `)
+    .eq("to_user_id", currentCommunityId)
+    .eq("status", STATUS.PENDING)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("getPendingRequestsReceived error:", error);
+    return [];
+  }
+
+  // For pending, we do NOT expose email in the UI layer
+  return (data || []).map((r) => ({
+    ...r,
+    community: r.community ? { ...r.community, email: null } : null,
+  }));
+}
+
+// Accepted: join both sides; then choose the "other" person as `.community`
+export async function getAcceptedConnections() {
+  if (!supabase || !currentCommunityId) return [];
+
+  const { data, error } = await supabase
+    .from("connections")
+    .select(`
+      id, from_user_id, to_user_id, created_at, status, type,
+      from_profile:from_user_id ( id, name, image_url, email ),
+      to_profile:to_user_id ( id, name, image_url, email )
+    `)
     .or(
-      `and(from_user_id.eq.${currentUserCommunityId},status.eq.accepted),and(to_user_id.eq.${currentUserCommunityId},status.eq.accepted)`
+      `and(from_user_id.eq.${currentCommunityId},status.eq.${STATUS.ACCEPTED}),` +
+      `and(to_user_id.eq.${currentCommunityId},status.eq.${STATUS.ACCEPTED})`
     )
     .order("created_at", { ascending: false });
 
@@ -252,281 +247,162 @@ export async function getAcceptedConnections() {
     return [];
   }
 
-  const rows = data || [];
-  const otherIds = rows.map((r) =>
-    r.from_user_id === currentUserCommunityId ? r.to_user_id : r.from_user_id
-  );
-  const map = await getCommunityByIds(otherIds);
+  return (data || []).map((row) => {
+    const other =
+      row.from_user_id === currentCommunityId ? row.to_profile : row.from_profile;
 
-  return attachCommunity(
-    rows,
-    (r) => (r.from_user_id === currentUserCommunityId ? r.to_user_id : r.from_user_id),
-    map
-  );
+    return {
+      ...row,
+      community: other || null, // connectionRequests.js expects this
+    };
+  });
 }
 
-export async function getPendingRequestsReceived() {
-  if (!supabase || !currentUserCommunityId) return [];
+// ---------- Mutations ----------
 
-  const { data, error } = await supabase
-    .from("connections")
-    .select("id, from_user_id, to_user_id, created_at, status, type")
-    .eq("to_user_id", currentUserCommunityId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.warn("getPendingRequestsReceived error:", error);
-    return [];
-  }
-
-  const rows = data || [];
-  const fromIds = rows.map((r) => r.from_user_id);
-  const map = await getCommunityByIds(fromIds);
-
-  return attachCommunity(rows, (r) => r.from_user_id, map);
-}
-
-export async function getPendingRequestsSent() {
-  if (!supabase || !currentUserCommunityId) return [];
-
-  const { data, error } = await supabase
-    .from("connections")
-    .select("id, from_user_id, to_user_id, created_at, status, type")
-    .eq("from_user_id", currentUserCommunityId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.warn("getPendingRequestsSent error:", error);
-    return [];
-  }
-
-  const rows = data || [];
-  const toIds = rows.map((r) => r.to_user_id);
-  const map = await getCommunityByIds(toIds);
-
-  return attachCommunity(rows, (r) => r.to_user_id, map);
-}
-
-// ------------------
-// Mutations
-// ------------------
-export async function sendConnectionRequest(
-  recipientCommunityId,
-  targetName = "User",
-  type = "generic"
-) {
+export async function sendConnectionRequest(recipientCommunityId, targetName = "User", type = "generic") {
   try {
-    if (!supabase) return { success: false };
-    if (!currentUserCommunityId) {
+    if (!supabase) return { success: false, error: "Supabase not initialized" };
+    if (!currentCommunityId) {
       showToast("Profile not found", "error");
-      return { success: false };
+      return { success: false, error: "Profile not found" };
     }
-    if (!recipientCommunityId) {
+    if (!recipientCommunityId || recipientCommunityId === currentCommunityId) {
       showToast("Invalid recipient", "error");
-      return { success: false };
-    }
-    if (recipientCommunityId === currentUserCommunityId) {
-      showToast("You can't connect to yourself", "info");
-      return { success: false };
+      return { success: false, error: "Invalid recipient" };
     }
 
-    const safeType = normalizeConnectionType(type);
-
-    // Prevent duplicate pending requests to same person.
-    // Note: this is client-side protection; you can also add a DB unique index later.
-    const existing = await getConnectionBetween(currentUserCommunityId, recipientCommunityId);
+    const existing = await getConnectionBetween(currentCommunityId, recipientCommunityId);
     const existingStatus = String(existing?.status || "").toLowerCase();
-    if (existing && (existingStatus === "pending" || existingStatus === "accepted")) {
+
+    if (existing && (existingStatus === STATUS.PENDING || existingStatus === STATUS.ACCEPTED)) {
       showToast(`Request already ${existingStatus}`, "info");
-      return { success: false };
+      return { success: false, error: `Already ${existingStatus}` };
     }
 
-    showToast(`Connecting with ${targetName}...`, "info");
+    const safeType = normalizeType(type);
 
     const { error } = await supabase.from("connections").insert({
-      from_user_id: currentUserCommunityId,
+      from_user_id: currentCommunityId,
       to_user_id: recipientCommunityId,
-      status: "pending",
+      status: STATUS.PENDING,
       type: safeType,
     });
 
     if (error) {
-      if (error.code === "23505") showToast("Already exists", "info");
-      else showToast(error.message || "Failed to connect", "error");
+      showToast(error.message || "Failed to connect", "error");
       return { success: false, error };
     }
 
-    showToast(`✓ Request sent to ${targetName}!`, "success");
-    updateConnectionUI(recipientCommunityId);
+    showToast(`✓ Request sent to ${targetName}`, "success");
 
-    if (window.DailyEngagement) {
-      await window.DailyEngagement.awardXP(
-        window.DailyEngagement.XP_REWARDS.SEND_CONNECTION,
-        `Sent connection to ${targetName}`
-      );
-      await window.DailyEngagement.updateQuestProgress("send_connection", 1);
-    }
-
-    if (window.refreshSynapseConnections) {
+    // Best-effort refresh hooks
+    if (typeof window.refreshSynapseConnections === "function") {
       await window.refreshSynapseConnections();
     }
+    window.dispatchEvent(new CustomEvent("connections-updated"));
 
     return { success: true };
-  } catch (e) {
-    console.error("sendConnectionRequest error:", e);
+  } catch (err) {
+    console.error("sendConnectionRequest error:", err);
     showToast("Failed to send request", "error");
-    return { success: false, error: e };
+    return { success: false, error: err };
   }
 }
 
 export async function acceptConnectionRequest(connectionId) {
   if (!supabase || !connectionId) return { success: false };
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("connections")
-    .update({ status: "accepted" })
-    .eq("id", connectionId)
-    .eq("to_user_id", currentUserCommunityId)
-    .eq("status", "pending")
-    .select("id,status");
+    .update({ status: STATUS.ACCEPTED })
+    .eq("id", connectionId);
 
   if (error) {
     showToast(error.message || "Failed to accept", "error");
     return { success: false, error };
   }
 
-  if (!data || data.length === 0) {
-    showToast("Nothing to accept (already processed)", "info");
-    return { success: false, noOp: true };
-  }
-
   showToast("Accepted!", "success");
 
-  if (window.DailyEngagement) {
-    await window.DailyEngagement.awardXP(
-      window.DailyEngagement.XP_REWARDS.ACCEPT_CONNECTION,
-      "Accepted connection request"
-    );
-  }
-
-  if (window.refreshSynapseConnections) {
+  if (typeof window.refreshSynapseConnections === "function") {
     await window.refreshSynapseConnections();
   }
+  window.dispatchEvent(new CustomEvent("connections-updated"));
 
   return { success: true };
 }
 
-// Recipient rejects (DB uses 'rejected')
+// Receiver declines -> REJECTED (fits DB constraint + your UPDATE policy)
 export async function declineConnectionRequest(connectionId) {
   if (!supabase || !connectionId) return { success: false };
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("connections")
-    .update({ status: "rejected" })
-    .eq("id", connectionId)
-    .eq("to_user_id", currentUserCommunityId)
-    .eq("status", "pending")
-    .select("id,status");
+    .update({ status: STATUS.REJECTED })
+    .eq("id", connectionId);
 
   if (error) {
-    showToast(error.message || "Failed to reject", "error");
+    showToast(error.message || "Failed to decline", "error");
     return { success: false, error };
   }
 
-  if (!data || data.length === 0) {
-    showToast("Nothing to reject (already processed)", "info");
-    return { success: false, noOp: true };
-  }
+  showToast("Request declined.", "info");
 
-  showToast("Request rejected.", "info");
-
-  if (window.refreshSynapseConnections) {
+  if (typeof window.refreshSynapseConnections === "function") {
     await window.refreshSynapseConnections();
   }
+  window.dispatchEvent(new CustomEvent("connections-updated"));
 
   return { success: true };
 }
 
-// Sender cancels pending (DB uses 'canceled')
+// Sender cancels a pending request -> DELETE the row
+// This avoids status values your DB disallows and works with your DELETE policy.
 export async function cancelConnectionRequest(connectionId) {
-  if (!supabase) return { success: false, error: "Supabase not initialized" };
-  if (!currentUserCommunityId) return { success: false, error: "Profile not found" };
-  if (!connectionId) return { success: false, error: "Missing connection id" };
+  if (!supabase || !connectionId) return { success: false };
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("connections")
-    .update({ status: "canceled" })
-    .eq("id", connectionId)
-    .eq("from_user_id", currentUserCommunityId)
-    .eq("status", "pending")
-    .select("id,status");
+    .delete()
+    .eq("id", connectionId);
 
-  if (error) return { success: false, error: error.message };
-
-  if (!data || data.length === 0) {
-    return { success: false, error: "No pending request updated (already processed or not permitted)" };
+  if (error) {
+    showToast(error.message || "Failed to cancel request", "error");
+    return { success: false, error };
   }
 
-  return { success: true, id: data[0].id, status: data[0].status };
+  showToast("Request cancelled.", "info");
+
+  if (typeof window.refreshSynapseConnections === "function") {
+    await window.refreshSynapseConnections();
+  }
+  window.dispatchEvent(new CustomEvent("connections-updated"));
+
+  return { success: true };
 }
 
-export async function removeConnection(connectionIdOrTargetCommunityId) {
-  if (!supabase || !currentUserCommunityId || !connectionIdOrTargetCommunityId) {
-    return { success: false };
-  }
+export async function removeConnection(connectionId) {
+  if (!supabase || !connectionId) return { success: false };
 
-  const candidate = String(connectionIdOrTargetCommunityId);
-  let idToDelete = null;
-
-  // Treat as row id first
-  try {
-    const { data: row } = await supabase
-      .from("connections")
-      .select("id")
-      .eq("id", candidate)
-      .maybeSingle?.();
-
-    if (row?.id) idToDelete = row.id;
-  } catch (_) {}
-
-  // Fallback: treat as target community id
-  if (!idToDelete) {
-    const conn = await getConnectionBetween(currentUserCommunityId, candidate);
-    idToDelete = conn?.id || null;
-  }
-
-  if (!idToDelete) return { success: true, noOp: true };
-
-  const { error } = await supabase.from("connections").delete().eq("id", idToDelete);
+  const { error } = await supabase.from("connections").delete().eq("id", connectionId);
 
   if (error) {
     showToast(error.message || "Failed to remove connection", "error");
-    return { success: false, error: error.message };
+    return { success: false, error };
   }
 
   showToast("Connection removed.", "success");
 
-  if (window.refreshSynapseConnections) {
+  if (typeof window.refreshSynapseConnections === "function") {
     await window.refreshSynapseConnections();
   }
+  window.dispatchEvent(new CustomEvent("connections-updated"));
 
   return { success: true };
 }
 
-// ------------------
-// UI hooks (best-effort)
-// ------------------
-function updateConnectionUI(targetId) {
-  if (typeof document === "undefined") return;
-  const buttons = document.querySelectorAll(`[onclick*="${targetId}"]`);
-  buttons.forEach((btn) => {
-    btn.disabled = true;
-    btn.innerHTML = "✓ Sent";
-  });
-}
-
+// Compatibility utility expected by connectionRequests.js
 export function formatTimeAgo(ts) {
   if (!ts) return "---";
   const d = new Date(ts);
@@ -534,9 +410,6 @@ export function formatTimeAgo(ts) {
   return d.toLocaleDateString();
 }
 
-// ------------------
-// Default export (compat)
-// ------------------
 export default {
   initConnections,
   refreshCurrentUser,
