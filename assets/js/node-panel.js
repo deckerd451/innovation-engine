@@ -105,11 +105,11 @@ async function loadNodeDetails(nodeData) {
       return;
     }
 
-    // Determine if this is a person or project
-    const isProject = nodeData.type === 'project';
-
-    if (isProject) {
+    // Determine node type and render appropriate panel
+    if (nodeData.type === 'project') {
       await renderProjectPanel(nodeData);
+    } else if (nodeData.type === 'organization') {
+      await renderOrganizationPanel(nodeData);
     } else {
       await renderPersonPanel(nodeData);
     }
@@ -253,6 +253,158 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Render organization panel
+async function renderOrganizationPanel(nodeData) {
+  // Extract the actual organization ID (remove 'org:' prefix if present)
+  const orgId = nodeData.id?.startsWith('org:') ? nodeData.id.replace('org:', '') : nodeData.id;
+
+  // Fetch organization data from organizations table
+  const { data: org, error } = await supabase
+    .from('organizations')
+    .select('*')
+    .eq('id', orgId)
+    .single();
+
+  if (error || !org) {
+    console.error('Error loading organization:', error);
+    // Use node data as fallback
+    const fallbackOrg = {
+      name: nodeData.name || 'Unknown Organization',
+      description: nodeData.description || '',
+      industry: nodeData.industry || '',
+      location: nodeData.location || '',
+      website: nodeData.website || '',
+      logo_url: nodeData.logo_url || ''
+    };
+    renderOrganizationContent(fallbackOrg, []);
+    return;
+  }
+
+  // Try to load members (may fail if table doesn't exist or has RLS issues)
+  let members = [];
+  try {
+    const { data: memberData, error: membersError } = await supabase
+      .from('organization_members')
+      .select(`
+        role,
+        community:community_id(id, name, image_url)
+      `)
+      .eq('organization_id', orgId);
+
+    if (!membersError && memberData) {
+      members = memberData;
+    }
+  } catch (e) {
+    console.warn('Could not load organization members:', e);
+  }
+
+  renderOrganizationContent(org, members);
+}
+
+function renderOrganizationContent(org, members) {
+  const initials = org.name ? org.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'ORG';
+
+  let html = `
+    <div style="padding: 2rem; padding-bottom: 100px;">
+      <!-- Close Button -->
+      <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <!-- Organization Header -->
+      <div style="margin-bottom: 2rem; text-align: center;">
+        <div style="width: 80px; height: 80px; border-radius: 16px; background: linear-gradient(135deg, #a855f7, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; margin: 0 auto 1rem; border: 3px solid #a855f7; overflow: hidden;">
+          ${org.logo_url ?
+            `<img src="${escapeHtml(org.logo_url)}" style="width: 100%; height: 100%; object-fit: cover;">` :
+            `<i class="fas fa-building"></i>`
+          }
+        </div>
+
+        <h2 style="color: #a855f7; font-size: 1.75rem; margin-bottom: 0.5rem;">${escapeHtml(org.name)}</h2>
+
+        ${org.industry ? `
+          <div style="margin-bottom: 0.5rem;">
+            <span style="background: rgba(168,85,247,0.2); color: #a855f7; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem;">
+              <i class="fas fa-tag"></i> ${escapeHtml(org.industry)}
+            </span>
+          </div>
+        ` : ''}
+
+        ${org.location ? `
+          <div style="color: #aaa; font-size: 0.9rem;">
+            <i class="fas fa-map-marker-alt"></i> ${escapeHtml(org.location)}
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Description -->
+      ${org.description ? `
+        <div style="margin-bottom: 2rem;">
+          <h3 style="color: #a855f7; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
+            <i class="fas fa-info-circle"></i> About
+          </h3>
+          <p style="color: #ddd; line-height: 1.6;">${escapeHtml(org.description)}</p>
+        </div>
+      ` : ''}
+
+      <!-- Website -->
+      ${org.website ? `
+        <div style="margin-bottom: 2rem;">
+          <h3 style="color: #a855f7; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
+            <i class="fas fa-globe"></i> Website
+          </h3>
+          <a href="${escapeHtml(org.website)}" target="_blank" rel="noopener noreferrer"
+             style="color: #a855f7; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
+            ${escapeHtml(org.website)}
+            <i class="fas fa-external-link-alt" style="font-size: 0.8rem;"></i>
+          </a>
+        </div>
+      ` : ''}
+
+      <!-- Members -->
+      ${members.length > 0 ? `
+        <div style="margin-bottom: 2rem;">
+          <h3 style="color: #a855f7; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
+            <i class="fas fa-users"></i> Members (${members.length})
+          </h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+            ${members.map(member => {
+              const user = member.community;
+              if (!user) return '';
+              const memberInitials = user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
+              const roleLabel = member.role === 'owner' ? '(Owner)' : member.role === 'admin' ? '(Admin)' : '';
+              return `
+                <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(168,85,247,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(168,85,247,0.2);">
+                  ${user.image_url ?
+                    `<img src="${escapeHtml(user.image_url)}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
+                    `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #a855f7, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${memberInitials}</div>`
+                  }
+                  <span style="color: white; font-size: 0.85rem;">${escapeHtml(user.name)} ${roleLabel}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      ` : `
+        <div style="margin-bottom: 2rem; text-align: center; padding: 2rem; background: rgba(168,85,247,0.05); border-radius: 12px; border: 1px dashed rgba(168,85,247,0.3);">
+          <i class="fas fa-users" style="font-size: 2rem; color: rgba(168,85,247,0.3); margin-bottom: 0.75rem;"></i>
+          <p style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">No members yet or membership data unavailable</p>
+        </div>
+      `}
+
+      <!-- Join Button -->
+      <div style="position: fixed; bottom: 0; left: 0; right: 0; padding: 1rem; background: linear-gradient(to top, rgba(10,14,39,1), rgba(10,14,39,0.9)); border-top: 1px solid rgba(168,85,247,0.3);">
+        <button onclick="if(typeof joinOrganization === 'function') joinOrganization('${escapeHtml(org.id)}'); else if(typeof window.joinOrganization === 'function') window.joinOrganization('${escapeHtml(org.id)}'); else alert('Join feature unavailable');"
+          style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          <i class="fas fa-plus"></i> Join Organization
+        </button>
+      </div>
+    </div>
+  `;
+
+  panelElement.innerHTML = html;
 }
 
 // Render person profile panel
