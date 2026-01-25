@@ -53,7 +53,7 @@ let currentUserCommunityId = null;
 
 let initialized = false;
 let projectCircles = null;
-let showFullCommunity = true; // Default to Discovery Mode (show full community)
+let showFullCommunity = false; // Default to My Network (not Discovery Mode)
 let userManuallyToggledMode = false; // Track if user manually changed the mode
 
 /* ==========================================================================
@@ -893,26 +893,10 @@ async function buildGraph() {
     console.log("🔍 All nodes:", nodes.map(n => ({ id: n.id, type: n.type, hidden: n.hidden })));
   }
 
-  // If no visible nodes, automatically enable discovery mode for new users
-  // BUT only if user hasn't manually toggled the mode
-  if (visibleNodes.length <= 10 && !userManuallyToggledMode) { // Limited content - enable discovery
-    console.log("🔍 Limited content found, enabling discovery mode...");
-    if (!showFullCommunity) {
-      showFullCommunity = true;
-      window.synapseShowFullCommunity = showFullCommunity; // Update global state
-      console.log("🌐 Discovery mode enabled - reloading data...");
-      
-      // Update button if it exists
-      if (typeof window.updateDiscoveryButtonState === 'function') {
-        window.updateDiscoveryButtonState();
-      }
-      
-      await reloadAllData();
-      await rebuildGraph();
-      return;
-    }
-  } else if (visibleNodes.length <= 10 && userManuallyToggledMode) {
-    console.log("🔍 Limited content found, but user manually toggled mode - respecting user choice");
+  // Auto-enable Discovery Mode is now disabled - users must manually click the button
+  // This respects user preference to start with "My Network" view
+  if (visibleNodes.length <= 10 && !userManuallyToggledMode) {
+    console.log("🔍 Limited content found. Discovery Mode available via button.");
   }
 
   // ✅ Use only visible nodes and links for simulation
