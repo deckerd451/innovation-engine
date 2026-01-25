@@ -1,362 +1,211 @@
-// connectionRequests.js - Pending connection requests panel
-// Features: view received/sent requests, accept/decline, notifications
+// assets/js/connections.js
+// Canonical connection manager — DB + RLS aligned
+// Statuses: pending | accepted | rejected | canceled
 
-import {
-  getPendingRequestsReceived,
+let supabase = null;
+let currentAuthUserId = null;
+let currentCommunityId = null;
+
+/* -------------------------------------
+   INIT / CURRENT USER
+------------------------------------- */
+export async function initConnections(sb) {
+  supabase = sb;
+  await refreshCurrentUser();
+  console.log("✓ Connections module initialized");
+}
+
+async function refreshCurrentUser() {
+  const { data } = await supabase.auth.getSession();
+  const user = data?.session?.user;
+  if (!user) return null;
+
+  currentAuthUserId = user.id;
+
+  const { data: profile } = await supabase
+    .from("community")
+    .select("id")
+    .eq("user_id", currentAuthUserId)
+    .single();
+
+  currentCommunityId = profile?.id || null;
+  return currentCommunityId;
+}
+
+export function getCurrentUserCommunityId() {
+  return currentCommunityId;
+}
+
+/* -------------------------------------
+   CORE QUERIES
+------------------------------------- */
+export async function getConnectionBetween(a, b) {
+  if (!a || !b) return null;
+
+  const filter = `
+    and(from_user_id.eq.${a},to_user_id.eq.${b}),
+    and(from_user_id.eq.${b},to_user_id.eq.${a})
+  `;
+
+  const { data } = await supabase
+    .from("connections")
+    .select("*")
+    .or(filter)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  return data?.[0] || null;
+}
+
+export async function getConnectionStatus(targetCommunityId) {
+  if (!currentCommunityId || !targetCommunityId) {
+    return { status: "none", canConnect: true };
+  }
+
+  const conn = await getConnectionBetween(
+    currentCommunityId,
+    targetCommunityId
+  );
+
+  if (!conn) return { status: "none", canConnect: true };
+
+  const status = conn.status;
+  const isSender = conn.from_user_id === currentCommunityId;
+  const isReceiver = conn.to_user_id === currentCommunityId;
+
+  const canConnect =
+    status === "rejected" || status === "canceled";
+
+  return {
+    status,
+    connectionId: conn.id,
+    isSender,
+    isReceiver,
+    canConnect,
+  };
+}
+
+/* -------------------------------------
+   LISTS FOR UI
+------------------------------------- */
+export async function getPendingRequestsSent() {
+  if (!currentCommunityId) return [];
+
+  const { data } = await supabase
+    .from("connections")
+    .select("*")
+    .eq("from_user_id", currentCommunityId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  return data || [];
+}
+
+export async function getPendingRequestsReceived() {
+  if (!currentCommunityId) return [];
+
+  const { data } = await supabase
+    .from("connections")
+    .select("*")
+    .eq("to_user_id", currentCommunityId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  return data || [];
+}
+
+export async function getAcceptedConnections() {
+  if (!currentCommunityId) return [];
+
+  const { data } = await supabase
+    .from("connections")
+    .select("*")
+    .or(
+      `and(from_user_id.eq.${currentCommunityId},status.eq.accepted),
+       and(to_user_id.eq.${currentCommunityId},status.eq.accepted)`
+    );
+
+  return data || [];
+}
+
+/* -------------------------------------
+   MUTATIONS
+------------------------------------- */
+export async function sendConnectionRequest(targetCommunityId) {
+  if (!currentCommunityId || !targetCommunityId) return;
+
+  const existing = await getConnectionBetween(
+    currentCommunityId,
+    targetCommunityId
+  );
+
+  if (existing && existing.status === "pending") return;
+
+  await supabase.from("connections").insert({
+    from_user_id: currentCommunityId,
+    to_user_id: targetCommunityId,
+    status: "pending",
+    type: "generic",
+  });
+
+  refreshUI();
+}
+
+export async function acceptConnectionRequest(id) {
+  await supabase
+    .from("connections")
+    .update({ status: "accepted" })
+    .eq("id", id);
+
+  refreshUI();
+}
+
+export async function declineConnectionRequest(id) {
+  await supabase
+    .from("connections")
+    .update({ status: "rejected" })
+    .eq("id", id);
+
+  refreshUI();
+}
+
+export async function cancelConnectionRequest(id) {
+  await supabase
+    .from("connections")
+    .update({ status: "canceled" })
+    .eq("id", id);
+
+  refreshUI();
+}
+
+export async function removeConnection(id) {
+  await supabase.from("connections").delete().eq("id", id);
+  refreshUI();
+}
+
+/* -------------------------------------
+   HELPERS
+------------------------------------- */
+function refreshUI() {
+  if (window.refreshPendingCount) window.refreshPendingCount();
+  if (window.refreshSynapseConnections) window.refreshSynapseConnections();
+}
+
+export function formatTimeAgo(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleDateString();
+}
+
+export default {
+  initConnections,
   getPendingRequestsSent,
+  getPendingRequestsReceived,
   getAcceptedConnections,
+  sendConnectionRequest,
   acceptConnectionRequest,
   declineConnectionRequest,
   cancelConnectionRequest,
   removeConnection,
-  formatTimeAgo
-} from './connections.js';
-
-let supabase = null;
-let panelElement = null;
-let notificationBadge = null;
-
-// Initialize the connection requests module
-export async function initConnectionRequests(supabaseClient) {
-  supabase = supabaseClient;
-  
-  createRequestsPanel();
-  createNotificationBadge();
-  await refreshPendingCount();
-  
-  console.log('%c✓ Connection Requests module initialized', 'color: #0f0');
-}
-
-// Create the floating notification badge
-function createNotificationBadge() {
-  // Add badge to connections button if it exists
-  const connectionsTab = document.querySelector('[data-tab="connections"]');
-  if (connectionsTab) {
-    notificationBadge = document.createElement('span');
-    notificationBadge.className = 'connection-badge hidden';
-    notificationBadge.textContent = '0';
-    connectionsTab.appendChild(notificationBadge);
-  }
-}
-
-// Update pending count badge
-export async function refreshPendingCount() {
-  try {
-    const received = await getPendingRequestsReceived();
-    const count = received.length;
-    
-    if (notificationBadge) {
-      notificationBadge.textContent = count;
-      notificationBadge.classList.toggle('hidden', count === 0);
-    }
-    
-    // Also update any other badges
-    const badges = document.querySelectorAll('.pending-count-badge');
-    badges.forEach(badge => {
-      badge.textContent = count;
-      badge.classList.toggle('hidden', count === 0);
-    });
-    
-    return count;
-  } catch (err) {
-    console.warn('Could not refresh pending count:', err);
-    return 0;
-  }
-}
-
-// Create the requests panel
-function createRequestsPanel() {
-  // Check if panel already exists
-  if (document.getElementById('connection-requests-panel')) return;
-  
-  panelElement = document.createElement('div');
-  panelElement.id = 'connection-requests-panel';
-  panelElement.className = 'connection-requests-panel hidden';
-  
-  panelElement.innerHTML = `
-    <div class="crp-header">
-      <h3><i class="fas fa-user-friends"></i> Connections</h3>
-      <button class="crp-close" onclick="toggleConnectionsPanel()">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-    <div class="crp-tabs">
-      <button class="crp-tab active" data-tab="received">
-        Received <span class="pending-count-badge hidden">0</span>
-      </button>
-      <button class="crp-tab" data-tab="sent">Sent</button>
-      <button class="crp-tab" data-tab="connected">Connected</button>
-    </div>
-    <div class="crp-content">
-      <div id="crp-received" class="crp-section active"></div>
-      <div id="crp-sent" class="crp-section"></div>
-      <div id="crp-connected" class="crp-section"></div>
-    </div>
-  `;
-  
-  document.body.appendChild(panelElement);
-  
-  // Setup tab switching
-  panelElement.querySelectorAll('.crp-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      panelElement.querySelectorAll('.crp-tab').forEach(t => t.classList.remove('active'));
-      panelElement.querySelectorAll('.crp-section').forEach(s => s.classList.remove('active'));
-      
-      tab.classList.add('active');
-      document.getElementById(`crp-${tab.dataset.tab}`).classList.add('active');
-    });
-  });
-}
-
-// Toggle panel visibility
-window.toggleConnectionsPanel = async function() {
-  if (!panelElement) return;
-  
-  const isHidden = panelElement.classList.contains('hidden');
-  
-  if (isHidden) {
-    panelElement.classList.remove('hidden');
-    await loadAllSections();
-  } else {
-    panelElement.classList.add('hidden');
-  }
+  getConnectionStatus,
+  formatTimeAgo,
 };
-
-// Load all sections
-async function loadAllSections() {
-  await Promise.all([
-    loadReceivedRequests(),
-    loadSentRequests(),
-    loadConnectedUsers()
-  ]);
-}
-
-// Load received requests
-async function loadReceivedRequests() {
-  const container = document.getElementById('crp-received');
-  if (!container) return;
-  
-  container.innerHTML = '<div class="crp-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-  
-  try {
-    const requests = await getPendingRequestsReceived();
-    
-    if (requests.length === 0) {
-      container.innerHTML = '<div class="crp-empty">No pending requests</div>';
-      return;
-    }
-    
-    container.innerHTML = requests.map(req => {
-      const user = req.community || {};
-      return `
-        <div class="crp-item" data-id="${req.id}">
-          <div class="crp-item-avatar">
-            ${user.image_url 
-              ? `<img src="${user.image_url}" alt="${user.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%2300e0ff%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2250%22 dy=%22.35em%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2240%22>${getInitials(user.name)}</text></svg>'">` 
-              : `<div class="crp-avatar-fallback">${getInitials(user.name)}</div>`
-            }
-          </div>
-          <div class="crp-item-info">
-            <div class="crp-item-name">${user.name || 'Unknown'}</div>
-            <div class="crp-item-meta">${formatTimeAgo(req.created_at)}</div>
-          </div>
-          <div class="crp-item-actions">
-            <button class="crp-accept" data-id="${req.id}" title="Accept">
-              <i class="fas fa-check"></i>
-            </button>
-            <button class="crp-decline" data-id="${req.id}" title="Decline">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
-    
-    // Attach listeners
-    container.querySelectorAll('.crp-accept').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        try {
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          await acceptConnectionRequest(btn.dataset.id);
-          showPanelNotification('Connection accepted!', 'success');
-          await loadAllSections();
-          await refreshPendingCount();
-        } catch (err) {
-          showPanelNotification(err.message, 'error');
-        }
-      });
-    });
-    
-    container.querySelectorAll('.crp-decline').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        try {
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          await declineConnectionRequest(btn.dataset.id);
-          showPanelNotification('Request declined.', 'info');
-          await loadAllSections();
-          await refreshPendingCount();
-        } catch (err) {
-          showPanelNotification(err.message, 'error');
-        }
-      });
-    });
-    
-  } catch (err) {
-    console.error('Error loading received requests:', err);
-    container.innerHTML = '<div class="crp-error">Error loading requests</div>';
-  }
-}
-
-// Load sent requests
-async function loadSentRequests() {
-  const container = document.getElementById('crp-sent');
-  if (!container) return;
-  
-  container.innerHTML = '<div class="crp-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-  
-  try {
-    const requests = await getPendingRequestsSent();
-    
-    if (requests.length === 0) {
-      container.innerHTML = '<div class="crp-empty">No pending requests</div>';
-      return;
-    }
-    
-    container.innerHTML = requests.map(req => {
-      const user = req.community || {};
-      return `
-        <div class="crp-item" data-id="${req.id}">
-          <div class="crp-item-avatar">
-            ${user.image_url 
-              ? `<img src="${user.image_url}" alt="${user.name}" onerror="this.src='data:image/svg+xml,...'">` 
-              : `<div class="crp-avatar-fallback">${getInitials(user.name)}</div>`
-            }
-          </div>
-          <div class="crp-item-info">
-            <div class="crp-item-name">${user.name || 'Unknown'}</div>
-            <div class="crp-item-meta">Sent ${formatTimeAgo(req.created_at)}</div>
-          </div>
-          <div class="crp-item-actions">
-            <button class="crp-cancel" data-id="${req.id}" title="Cancel request">
-              <i class="fas fa-times"></i> Cancel
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
-    
-    // Attach cancel listeners
-    container.querySelectorAll('.crp-cancel').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        try {
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          await cancelConnectionRequest(btn.dataset.id);
-          showPanelNotification('Request cancelled.', 'info');
-          await loadSentRequests();
-        } catch (err) {
-          showPanelNotification(err.message, 'error');
-        }
-      });
-    });
-    
-  } catch (err) {
-    console.error('Error loading sent requests:', err);
-    container.innerHTML = '<div class="crp-error">Error loading requests</div>';
-  }
-}
-
-// Load connected users
-async function loadConnectedUsers() {
-  const container = document.getElementById('crp-connected');
-  if (!container) return;
-  
-  container.innerHTML = '<div class="crp-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-  
-  try {
-    const connections = await getAcceptedConnections();
-    
-    if (connections.length === 0) {
-      container.innerHTML = '<div class="crp-empty">No connections yet</div>';
-      return;
-    }
-    
-    container.innerHTML = connections.map(conn => {
-      const user = conn.community || {};
-      return `
-        <div class="crp-item connected" data-id="${conn.id}">
-          <div class="crp-item-avatar">
-            ${user.image_url 
-              ? `<img src="${user.image_url}" alt="${user.name}" onerror="this.src='data:image/svg+xml,...'">` 
-              : `<div class="crp-avatar-fallback">${getInitials(user.name)}</div>`
-            }
-          </div>
-          <div class="crp-item-info">
-            <div class="crp-item-name">${user.name || 'Unknown'}</div>
-            <div class="crp-item-email">${user.email || ''}</div>
-          </div>
-          <div class="crp-item-actions">
-            <button class="crp-remove" data-id="${conn.id}" title="Remove connection">
-              <i class="fas fa-user-minus"></i>
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
-    
-    // Attach remove listeners
-    container.querySelectorAll('.crp-remove').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Remove this connection?')) return;
-        
-        try {
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          await removeConnection(btn.dataset.id);
-          showPanelNotification('Connection removed.', 'info');
-          await loadConnectedUsers();
-        } catch (err) {
-          showPanelNotification(err.message, 'error');
-        }
-      });
-    });
-    
-  } catch (err) {
-    console.error('Error loading connections:', err);
-    container.innerHTML = '<div class="crp-error">Error loading connections</div>';
-  }
-}
-
-// Helper functions
-function getInitials(name) {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-  }
-  return parts[0].charAt(0).toUpperCase();
-}
-
-function showPanelNotification(message, type = 'info') {
-  const existing = document.querySelector('.crp-notification');
-  if (existing) existing.remove();
-  
-  const notif = document.createElement('div');
-  notif.className = `crp-notification ${type}`;
-  notif.textContent = message;
-  
-  panelElement?.appendChild(notif);
-  setTimeout(() => notif.remove(), 2500);
-}
-
-// Export
-export default {
-  initConnectionRequests,
-  refreshPendingCount,
-  toggleConnectionsPanel: window.toggleConnectionsPanel
-};
-
-// Auto-initialize on profile load
-window.addEventListener('profile-loaded', async () => {
-  if (!supabase && window.supabase) {
-    await initConnectionRequests(window.supabase);
-  }
-}, { once: true });
