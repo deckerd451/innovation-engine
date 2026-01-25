@@ -1443,18 +1443,26 @@ window.deleteOrganization = async function(orgId) {
       console.warn('Could not delete member associations (table may not exist):', e);
     }
 
-    // Delete the organization
-    const { error } = await supabase
+    // Delete the organization and return the deleted row to verify it worked
+    const { data: deleted, error } = await supabase
       .from('organizations')
       .delete()
-      .eq('id', orgId);
+      .eq('id', orgId)
+      .select();
 
     if (error) {
       console.error('❌ Delete error:', error);
       throw error;
     }
 
-    console.log('✅ Organization deleted successfully');
+    // Check if any rows were actually deleted
+    if (!deleted || deleted.length === 0) {
+      console.error('❌ No rows deleted - RLS policy may be blocking');
+      alert("Could not delete organization. You may not have permission to delete this organization.");
+      return;
+    }
+
+    console.log('✅ Organization deleted successfully:', deleted);
     alert("Organization deleted successfully!");
 
     // Refresh the organizations list
@@ -1578,13 +1586,22 @@ window.editOrganization = async function(orgId) {
     }
 
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('organizations')
         .update(updates)
-        .eq('id', orgId);
+        .eq('id', orgId)
+        .select();
 
       if (error) throw error;
 
+      // Check if any rows were actually updated
+      if (!updated || updated.length === 0) {
+        console.error('❌ No rows updated - RLS policy may be blocking');
+        alert('Could not update organization. You may not have permission to edit this organization.');
+        return;
+      }
+
+      console.log('✅ Organization updated:', updated);
       alert('Organization updated successfully!');
       modal.remove();
       loadOrganizationsList();
