@@ -872,6 +872,9 @@ function openAdminPanel() {
       <button class="admin-tab" data-tab="projects" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
         <i class="fas fa-rocket"></i> Manage Projects
       </button>
+      <button class="admin-tab" data-tab="organizations" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <i class="fas fa-building"></i> Manage Orgs
+      </button>
     </div>
 
     <!-- Tab Content -->
@@ -956,6 +959,18 @@ function loadAdminTabContent(tabName) {
       </div>
     `;
     loadProjectsList();
+  } else if (tabName === 'organizations') {
+    content.innerHTML = `
+      <div style="margin-bottom: 2rem;">
+        <button onclick="if(typeof showOrganizationsPanel === 'function') { document.getElementById('admin-panel')?.remove(); showOrganizationsPanel(); }" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
+          <i class="fas fa-plus"></i> Create New Organization
+        </button>
+      </div>
+      <div id="admin-orgs-list" style="color: rgba(255,255,255,0.7);">
+        Loading organizations...
+      </div>
+    `;
+    loadOrganizationsList();
   }
 }
 
@@ -1308,6 +1323,281 @@ window.testDeleteProject = function(projectId) {
   } else {
     console.log('💡 Usage: window.testDeleteProject("project-id-here")');
   }
+};
+
+// -----------------------------
+// Admin: Organizations Management
+// -----------------------------
+async function loadOrganizationsList() {
+  const listEl = document.getElementById('admin-orgs-list');
+  if (!listEl) return;
+
+  // Show loading state
+  listEl.innerHTML = '<div style="text-align: center; padding: 2rem; color: #a855f7;"><i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i><br><br>Loading organizations...</div>';
+
+  try {
+    const supabase = window.supabase;
+    if (!supabase) {
+      listEl.innerHTML = '<p style="color: #ff6b6b;"><i class="fas fa-exclamation-triangle"></i> Supabase client not available</p>';
+      return;
+    }
+
+    const { data: organizations, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!organizations || organizations.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align: center; padding: 3rem;">
+          <i class="fas fa-building" style="font-size: 3rem; color: rgba(168,85,247,0.3); margin-bottom: 1rem;"></i>
+          <p style="color: rgba(255,255,255,0.5);">No organizations found</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Try to get member counts (may fail if table has issues)
+    let memberCounts = {};
+    try {
+      const { data: counts } = await supabase
+        .from('organization_members')
+        .select('organization_id');
+
+      if (counts) {
+        counts.forEach(m => {
+          memberCounts[m.organization_id] = (memberCounts[m.organization_id] || 0) + 1;
+        });
+      }
+    } catch (e) {
+      console.warn('Could not load member counts:', e);
+    }
+
+    let html = '<div style="display: grid; gap: 1rem;">';
+    organizations.forEach(org => {
+      const memberCount = memberCounts[org.id] || 0;
+      html += `
+        <div style="background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="display: flex; gap: 1rem; flex: 1;">
+              <div style="width: 50px; height: 50px; border-radius: 10px; background: rgba(168,85,247,0.2); border: 2px solid rgba(168,85,247,0.4); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
+                ${org.logo_url ? `<img src="${escapeHtml(org.logo_url)}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">` : '<i class="fas fa-building" style="color: #a855f7;"></i>'}
+              </div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${escapeHtml(org.name)}</div>
+                <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+                  ${org.industry ? `<span style="color: #a855f7;"><i class="fas fa-tag"></i> ${escapeHtml(org.industry)}</span> | ` : ''}
+                  ${org.location ? `<i class="fas fa-map-marker-alt"></i> ${escapeHtml(org.location)} | ` : ''}
+                  <i class="fas fa-users"></i> ${memberCount} member${memberCount !== 1 ? 's' : ''}
+                </div>
+                ${org.description ? `<div style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-top: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(org.description)}</div>` : ''}
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+              <button onclick="window.editOrganization('${org.id}')" style="background: rgba(168,85,247,0.2); border: 1px solid rgba(168,85,247,0.4); border-radius: 6px; padding: 0.5rem 0.75rem; color: #a855f7; font-weight: 600; cursor: pointer;" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button onclick="window.deleteOrganization('${org.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 6px; padding: 0.5rem 0.75rem; color: #ff6b6b; font-weight: 600; cursor: pointer;" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+  } catch (error) {
+    console.error('Error loading organizations:', error);
+    listEl.innerHTML = '<p style="color: #ff6b6b;"><i class="fas fa-exclamation-triangle"></i> Error loading organizations</p>';
+  }
+}
+
+window.deleteOrganization = async function(orgId) {
+  console.log('🗑️ Delete organization called with ID:', orgId);
+
+  if (!confirm("Are you sure you want to delete this organization? This will also remove all member associations.")) {
+    console.log('🗑️ Delete cancelled by user');
+    return;
+  }
+
+  const supabase = window.supabase;
+  if (!supabase) {
+    console.error('❌ Supabase not available');
+    alert('Database connection not available');
+    return;
+  }
+
+  try {
+    console.log('🗑️ Attempting to delete organization:', orgId);
+
+    // First try to delete member associations (may fail if table doesn't exist)
+    try {
+      await supabase
+        .from('organization_members')
+        .delete()
+        .eq('organization_id', orgId);
+    } catch (e) {
+      console.warn('Could not delete member associations (table may not exist):', e);
+    }
+
+    // Delete the organization
+    const { error } = await supabase
+      .from('organizations')
+      .delete()
+      .eq('id', orgId);
+
+    if (error) {
+      console.error('❌ Delete error:', error);
+      throw error;
+    }
+
+    console.log('✅ Organization deleted successfully');
+    alert("Organization deleted successfully!");
+
+    // Refresh the organizations list
+    if (typeof loadOrganizationsList === 'function') {
+      loadOrganizationsList();
+    }
+
+    // Refresh synapse view
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
+    }
+  } catch (error) {
+    console.error("❌ Error deleting organization:", error);
+    alert("Failed to delete organization: " + (error.message || 'Unknown error'));
+  }
+};
+
+window.editOrganization = async function(orgId) {
+  console.log('✏️ Edit organization called with ID:', orgId);
+
+  const supabase = window.supabase;
+  if (!supabase) {
+    alert('Database connection not available');
+    return;
+  }
+
+  // Load current org data
+  const { data: org, error } = await supabase
+    .from('organizations')
+    .select('*')
+    .eq('id', orgId)
+    .single();
+
+  if (error || !org) {
+    alert('Could not load organization data');
+    return;
+  }
+
+  // Create edit modal
+  const modal = document.createElement('div');
+  modal.id = 'edit-org-modal';
+  modal.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10010;
+  `;
+
+  modal.innerHTML = `
+    <div style="background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98)); border: 2px solid rgba(168,85,247,0.5); border-radius: 16px; padding: 2rem; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="color: #a855f7; margin: 0;"><i class="fas fa-edit"></i> Edit Organization</h3>
+        <button onclick="document.getElementById('edit-org-modal').remove()" style="background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <form id="edit-org-form">
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Organization Name *</label>
+          <input type="text" id="edit-org-name" value="${escapeHtml(org.name || '')}" required
+            style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Description</label>
+          <textarea id="edit-org-description" rows="3"
+            style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit; resize: vertical;">${escapeHtml(org.description || '')}</textarea>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Industry</label>
+          <input type="text" id="edit-org-industry" value="${escapeHtml(org.industry || '')}"
+            style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Location</label>
+          <input type="text" id="edit-org-location" value="${escapeHtml(org.location || '')}"
+            style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Website</label>
+          <input type="url" id="edit-org-website" value="${escapeHtml(org.website || '')}"
+            style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+          <button type="submit" style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer;">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+          <button type="button" onclick="document.getElementById('edit-org-modal').remove()" style="padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; cursor: pointer;">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Handle form submission
+  document.getElementById('edit-org-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const updates = {
+      name: document.getElementById('edit-org-name').value.trim(),
+      description: document.getElementById('edit-org-description').value.trim() || null,
+      industry: document.getElementById('edit-org-industry').value.trim() || null,
+      location: document.getElementById('edit-org-location').value.trim() || null,
+      website: document.getElementById('edit-org-website').value.trim() || null
+    };
+
+    if (!updates.name) {
+      alert('Organization name is required');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .update(updates)
+        .eq('id', orgId);
+
+      if (error) throw error;
+
+      alert('Organization updated successfully!');
+      modal.remove();
+      loadOrganizationsList();
+
+      // Refresh synapse view
+      if (typeof window.refreshSynapseConnections === 'function') {
+        window.refreshSynapseConnections();
+      }
+    } catch (err) {
+      console.error('Error updating organization:', err);
+      alert('Failed to update organization: ' + (err.message || 'Unknown error'));
+    }
+  });
 };
 
 console.log("✅ Dashboard Actions ready");
