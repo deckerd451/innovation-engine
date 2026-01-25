@@ -632,12 +632,8 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
     style.id = 'theme-interaction-styles';
     style.textContent = `
       .theme-container {
-        transition: transform 0.2s ease;
-        will-change: transform;
-      }
-      
-      .theme-container:hover {
-        transform: scale(1.02);
+        /* Removed transform on hover to prevent flickering */
+        will-change: opacity;
       }
       
       .theme-hit-area {
