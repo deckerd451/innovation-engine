@@ -41,7 +41,7 @@ let projectMembersData = [];
 let currentUserCommunityId = null;
 
 let initialized = false;
-let showFullCommunity = true;
+let showFullCommunity = false;
 let userManuallyToggledMode = false;
 
 // New: Theme display mode

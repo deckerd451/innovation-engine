@@ -18,7 +18,7 @@ console.log("%c🚀 START Flow Phase 2 Loading", "color:#0f8; font-weight:bold;"
 
 const sessionFocus = {
   active: false,
-  type: null, // 'focus', 'projects', 'people'
+  type: null, // 'focus', 'projects', 'people', 'organizations'
   data: null,
   startTime: null,
   actions: []
@@ -107,7 +107,8 @@ function addFocusIndicator() {
   const focusLabels = {
     focus: '🎯 Focus Mode',
     projects: '🚀 Project Mode',
-    people: '👥 Connect Mode'
+    people: '👥 Connect Mode',
+    organizations: '🏢 Organization Mode'
   };
 
   indicator.textContent = focusLabels[sessionFocus.type] || '🎯 Active Focus';
@@ -121,7 +122,8 @@ function showFocusConfirmation(focusType) {
   const messages = {
     focus: 'Focus locked in. Network adjusted to show relevant connections.',
     projects: 'Project mode active. Showing active projects that need your skills.',
-    people: 'Connect mode active. Highlighting people you should meet.'
+    people: 'Connect mode active. Highlighting people you should meet.',
+    organizations: 'Organization mode active. Showing relevant organizations and opportunities.'
   };
 
   if (typeof window.showToastNotification === 'function') {
@@ -173,6 +175,16 @@ function generateWhyThisExplanation(option, currentUser, activityData) {
     }
     if (option.data.people?.length > 10) {
       reasons.push(`${option.data.people.length} people share your interests`);
+    }
+  } else if (option.type === 'organizations') {
+    if (activityData.recentOrgViews > 0) {
+      reasons.push(`You viewed ${activityData.recentOrgViews} organization${activityData.recentOrgViews > 1 ? 's' : ''} recently`);
+    }
+    if (option.data.memberships?.length < 2) {
+      reasons.push(`Joining organizations opens doors to new opportunities`);
+    }
+    if (option.data.organizations?.length > 5) {
+      reasons.push(`${option.data.organizations.length} organizations match your interests`);
     }
   }
 
@@ -286,6 +298,11 @@ function contextualizeQuickActions() {
       connect: { label: 'Send connection requests', icon: 'user-plus' },
       projects: { label: 'See their projects', icon: 'lightbulb' },
       messages: { label: 'Start conversations', icon: 'comments' }
+    },
+    organizations: {
+      connect: { label: 'Follow organizations', icon: 'bookmark' },
+      projects: { label: 'Explore opportunities', icon: 'briefcase' },
+      messages: { label: 'Contact representatives', icon: 'envelope' }
     }
   };
 

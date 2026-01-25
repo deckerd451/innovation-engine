@@ -24,10 +24,11 @@ async function calculateRecommendedFocus(supabase, currentUser) {
 
   try {
     // Load all data in parallel
-    const [themesData, projectsData, peopleData, activityData] = await Promise.all([
+    const [themesData, projectsData, peopleData, organizationsData, activityData] = await Promise.all([
       loadThemesWithScore(supabase, currentUser),
       loadProjectsWithScore(supabase, currentUser),
       loadPeopleWithScore(supabase, currentUser),
+      loadOrganizationsWithScore(supabase, currentUser),
       loadRecentActivity(supabase, currentUser)
     ]);
 
@@ -35,6 +36,7 @@ async function calculateRecommendedFocus(supabase, currentUser) {
     const themeScore = calculateThemeScore(themesData, activityData, currentUser);
     const projectScore = calculateProjectScore(projectsData, activityData, currentUser);
     const peopleScore = calculatePeopleScore(peopleData, activityData, currentUser);
+    const organizationScore = calculateOrganizationScore(organizationsData, activityData, currentUser);
 
     options.push({
       type: 'focus',
@@ -61,6 +63,15 @@ async function calculateRecommendedFocus(supabase, currentUser) {
       data: peopleScore,
       icon: 'users',
       color: '#ffd700'
+    });
+
+    options.push({
+      type: 'organizations',
+      title: 'Discover organizations',
+      score: organizationScore.score,
+      data: organizationScore,
+      icon: 'building',
+      color: '#a855f7'
     });
 
     // Sort by score (highest first)
@@ -184,6 +195,36 @@ function calculatePeopleScore(peopleData, activityData, currentUser) {
   };
 }
 
+function calculateOrganizationScore(organizationsData, activityData, currentUser) {
+  let score = 35; // Base score
+
+  const { organizations, following, memberships } = organizationsData;
+
+  if (organizations.length === 0) {
+    return { score: 0, organizations: [], preview: null };
+  }
+
+  // Boost score based on:
+  // - User has few organization memberships (needs to join)
+  if (memberships.length < 2) score += 20;
+  // - Many active organizations available
+  if (organizations.length > 5) score += 15;
+  // - Recent organization activity
+  if (activityData.recentOrgViews > 0) score += 25;
+
+  const preview = {
+    activeCount: organizations.length,
+    relevantCount: Math.min(organizations.length, 5),
+    opportunities: Math.floor(organizations.length * 0.4)
+  };
+
+  return {
+    score,
+    organizations: organizations.slice(0, 5),
+    preview
+  };
+}
+
 // ================================================================
 // DATA LOADERS
 // ================================================================
@@ -252,6 +293,35 @@ async function loadPeopleWithScore(supabase, currentUser) {
   };
 }
 
+async function loadOrganizationsWithScore(supabase, currentUser) {
+  const { data: organizations } = await supabase
+    .from('organizations')
+    .select('id, name, slug, description, logo_url, industry, size, location, verified')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  const { data: following } = await supabase
+    .from('organization_followers')
+    .select('organization_id')
+    .eq('community_id', currentUser.id);
+
+  const { data: memberships } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('community_id', currentUser.id)
+    .eq('status', 'active');
+
+  const followingIds = new Set((following || []).map(f => f.organization_id));
+  const membershipIds = new Set((memberships || []).map(m => m.organization_id));
+
+  return {
+    organizations: (organizations || []).filter(o => !membershipIds.has(o.id)),
+    following: following || [],
+    memberships: memberships || []
+  };
+}
+
 async function loadRecentActivity(supabase, currentUser) {
   // TODO: Implement activity tracking
   // For now, return mock data
@@ -259,6 +329,7 @@ async function loadRecentActivity(supabase, currentUser) {
     recentThemeViews: 0,
     recentProjectViews: 0,
     recentConnections: 0,
+    recentOrgViews: 0,
     userProjects: []
   };
 }
@@ -305,6 +376,16 @@ function generatePreviewHTML(option) {
           <div><strong>${preview.relevantCount}</strong> relevant people</div>
           <div><strong>${preview.sharedInterests}</strong> shared interests</div>
           <div><strong>${preview.newConnections}</strong> potential connections</div>
+        </div>
+      </div>
+    `;
+  } else if (option.type === 'organizations') {
+    return `
+      <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+          <div><strong>${preview.activeCount}</strong> active organizations</div>
+          <div><strong>${preview.relevantCount}</strong> relevant to you</div>
+          <div><strong>${preview.opportunities}</strong> opportunities</div>
         </div>
       </div>
     `;
