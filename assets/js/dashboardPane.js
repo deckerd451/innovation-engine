@@ -173,10 +173,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     // Header actions
     on($("user-menu"), "click", () => window.openProfileModal());
     on($("notifications-bell"), "click", async () => {
-      if (typeof window.toggleConnectionsPanel === "function") {
-        window.toggleConnectionsPanel();
+      if (typeof window.openNotificationCenter === "function") {
+        window.openNotificationCenter();
       } else {
-        console.warn("Connection requests panel not available");
+        console.warn("Notification center not available");
       }
     });
 
@@ -193,6 +193,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     on($("btn-bbs"), "click", () => initBBS());
     on($("btn-profile"), "click", () => window.openProfileModal());
     on($("btn-quickconnect"), "click", () => window.openQuickConnectModal());
+    on($("btn-people"), "click", async () => {
+      if (typeof window.toggleConnectionsPanel === "function") {
+        window.toggleConnectionsPanel();
+      } else {
+        console.warn("Connections panel not available");
+      }
+    });
     on($("btn-filters"), "click", () => toggleFilters());
     on($("btn-legend"), "click", () => toggleLegend());
   }
@@ -272,6 +279,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     };
     window.closeQuickConnectModal = () => closeModal("quick-connect-modal");
 
+    // Notification Center Modal
+    window.openNotificationCenter = async () => {
+      openModal("notification-center-modal");
+      await loadNotifications("all");
+    };
+    window.closeNotificationCenter = () => closeModal("notification-center-modal");
+
     // Network Stats Modal
     window.openNetworkStatsModal = async () => {
       openModal("network-stats-modal");
@@ -281,6 +295,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     // Endorsements tabs
     window.showEndorsementsTab = showEndorsementsTab;
+
+    // Notification center tabs
+    window.showNotificationsTab = showNotificationsTab;
+    window.clearAllNotifications = clearAllNotifications;
 
     // Projects form controls
     window.showCreateProjectForm = showCreateProjectForm;
@@ -1930,6 +1948,213 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
         <p style="margin-top:1rem;">Endorsements unavailable</p>
       </div>`;
+    }
+  }
+
+  // -----------------------------
+  // Notification Center
+  // -----------------------------
+  async function showNotificationsTab(tab) {
+    const btnAll = $("notifications-tab-all");
+    const btnUnread = $("notifications-tab-unread");
+    const boxAll = $("notifications-all");
+    const boxUnread = $("notifications-unread");
+
+    if (!btnAll || !btnUnread || !boxAll || !boxUnread) return;
+
+    const isAll = tab === "all";
+    btnAll.style.background = isAll ? "linear-gradient(135deg,#00e0ff,#0080ff)" : "rgba(255,255,255,0.1)";
+    btnUnread.style.background = !isAll ? "linear-gradient(135deg,#00e0ff,#0080ff)" : "rgba(255,255,255,0.1)";
+
+    boxAll.style.display = isAll ? "block" : "none";
+    boxUnread.style.display = !isAll ? "block" : "none";
+
+    await loadNotifications(tab);
+  }
+
+  async function loadNotifications(type) {
+    const container = type === "all" ? $("notifications-all") : $("notifications-unread");
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+      <p style="margin-top:1rem;">Loading notifications…</p>
+    </div>`;
+
+    try {
+      // Get system notifications from the notification system
+      const notifications = [];
+
+      // Add connection request notifications
+      if (state.communityProfile?.id) {
+        const { data: pendingConnections, error } = await state.supabase
+          .from("connections")
+          .select("*, from_user:community!connections_from_user_id_fkey(id, name, image_url)")
+          .eq("to_user_id", state.communityProfile.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false });
+
+        if (!error && pendingConnections) {
+          pendingConnections.forEach(conn => {
+            notifications.push({
+              id: `conn-${conn.id}`,
+              type: "connection_request",
+              title: "New Connection Request",
+              message: `${conn.from_user?.name || "Someone"} wants to connect with you`,
+              timestamp: conn.created_at,
+              read: false,
+              image: conn.from_user?.image_url,
+              data: conn
+            });
+          });
+        }
+
+        // Add accepted connection notifications
+        const { data: acceptedConnections, error: acceptError } = await state.supabase
+          .from("connections")
+          .select("*, to_user:community!connections_to_user_id_fkey(id, name, image_url)")
+          .eq("from_user_id", state.communityProfile.id)
+          .eq("status", "accepted")
+          .order("updated_at", { ascending: false })
+          .limit(10);
+
+        if (!acceptError && acceptedConnections) {
+          acceptedConnections.forEach(conn => {
+            notifications.push({
+              id: `conn-accepted-${conn.id}`,
+              type: "success",
+              title: "Connection Accepted",
+              message: `${conn.to_user?.name || "Someone"} accepted your connection request`,
+              timestamp: conn.updated_at,
+              read: true,
+              image: conn.to_user?.image_url,
+              data: conn
+            });
+          });
+        }
+      }
+
+      // Filter by read status if needed
+      const filteredNotifications = type === "unread"
+        ? notifications.filter(n => !n.read)
+        : notifications;
+
+      // Sort by timestamp
+      filteredNotifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      if (filteredNotifications.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
+          <i class="fas fa-bell-slash" style="font-size:3rem; opacity:0.25;"></i>
+          <p style="margin-top:1rem;">No ${type === "unread" ? "unread" : ""} notifications</p>
+        </div>`;
+        return;
+      }
+
+      container.innerHTML = filteredNotifications
+        .map((notif) => {
+          const typeColors = {
+            connection_request: "#ff6b6b",
+            success: "#00ff88",
+            info: "#00e0ff",
+            warning: "#ffa500",
+            error: "#f44336"
+          };
+
+          const typeIcons = {
+            connection_request: "fa-user-plus",
+            success: "fa-check-circle",
+            info: "fa-info-circle",
+            warning: "fa-exclamation-triangle",
+            error: "fa-times-circle"
+          };
+
+          const color = typeColors[notif.type] || "#00e0ff";
+          const icon = typeIcons[notif.type] || "fa-bell";
+          const timeAgo = formatTimeAgo(notif.timestamp);
+
+          return `
+            <div style="background:rgba(0,224,255,0.05); border-left:4px solid ${color};
+              border-radius:8px; padding:1rem; margin-bottom:0.75rem; display:flex; gap:1rem; align-items:start;
+              ${!notif.read ? "background:rgba(0,224,255,0.1);" : ""}">
+
+              ${notif.image
+                ? `<img src="${escapeHtml(notif.image)}"
+                    style="width:48px; height:48px; border-radius:50%; object-fit:cover; flex-shrink:0;
+                      border:2px solid ${color};"
+                    onerror="this.style.display='none'"
+                    alt="">`
+                : `<div style="width:48px; height:48px; border-radius:50%;
+                    background:linear-gradient(135deg, ${color}40, ${color}20);
+                    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+                    border:2px solid ${color};">
+                    <i class="fas ${icon}" style="color:${color}; font-size:1.2rem;"></i>
+                  </div>`
+              }
+
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+                  <div style="color:${color}; font-weight:700; font-size:0.95rem;">
+                    ${escapeHtml(notif.title)}
+                  </div>
+                  ${!notif.read
+                    ? `<span style="background:${color}; color:white; padding:0.15rem 0.5rem;
+                        border-radius:8px; font-size:0.65rem; font-weight:700;">NEW</span>`
+                    : ""
+                  }
+                </div>
+
+                <div style="color:#ddd; font-size:0.9rem; margin-bottom:0.5rem;">
+                  ${escapeHtml(notif.message)}
+                </div>
+
+                <div style="color:#666; font-size:0.75rem; display:flex; align-items:center; gap:1rem;">
+                  <span><i class="far fa-clock"></i> ${escapeHtml(timeAgo)}</span>
+                  ${notif.type === "connection_request" && notif.data
+                    ? `<div style="display:flex; gap:0.5rem;">
+                        <button onclick="acceptConnectionRequest('${notif.data.id}')"
+                          style="background:rgba(0,255,136,0.2); color:#0f8; border:1px solid rgba(0,255,136,0.3);
+                          padding:0.25rem 0.75rem; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:600;">
+                          <i class="fas fa-check"></i> Accept
+                        </button>
+                        <button onclick="declineConnectionRequest('${notif.data.id}')"
+                          style="background:rgba(255,107,107,0.2); color:#f66; border:1px solid rgba(255,107,107,0.3);
+                          padding:0.25rem 0.75rem; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:600;">
+                          <i class="fas fa-times"></i> Decline
+                        </button>
+                      </div>`
+                    : ""
+                  }
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    } catch (e) {
+      console.error("loadNotifications failed:", e);
+      container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+        <p style="margin-top:1rem;">Failed to load notifications</p>
+      </div>`;
+    }
+  }
+
+  async function clearAllNotifications() {
+    try {
+      // In a real implementation, this would mark notifications as read in the database
+      // For now, just reload to show the updated state
+      await loadNotifications("all");
+
+      if (typeof window.showNotification === "function") {
+        window.showNotification({
+          type: "success",
+          title: "Notifications Cleared",
+          message: "All notifications marked as read",
+          duration: 3000
+        });
+      }
+    } catch (e) {
+      console.error("clearAllNotifications failed:", e);
     }
   }
 

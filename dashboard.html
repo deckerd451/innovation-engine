@@ -373,6 +373,15 @@
         <div class="label" style="font-size:0.7rem; color:#a855f7; text-transform:uppercase; font-weight:600; white-space:nowrap;">Orgs</div>
       </div>
 
+      <!-- People -->
+      <div class="stat-card-mini" id="btn-people"
+        style="cursor:pointer; background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#ff6b6b;"><i class="fas fa-users"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#ff6b6b; text-transform:uppercase; font-weight:600; white-space:nowrap;">People</div>
+      </div>
+
       <!-- Endorsements -->
       <div class="stat-card-mini" id="btn-endorsements"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
@@ -530,6 +539,35 @@
       <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-user-plus"></i> Quick Connect</h2>
       <p style="color:#aaa; margin-bottom:1.5rem;">Connect with people who share your interests and skills</p>
       <div id="quick-connect-list" style="max-height: 500px; overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- Notification Center Modal -->
+  <div class="modal" id="notification-center-modal">
+    <div class="modal-content" style="max-width: 700px;">
+      <button class="modal-close" onclick="closeNotificationCenter()"><i class="fas fa-times"></i></button>
+      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-bell"></i> Notifications</h2>
+
+      <div style="margin-bottom:1.5rem;">
+        <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+          <button onclick="showNotificationsTab('all')" id="notifications-tab-all"
+                  style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#00e0ff,#0080ff);
+                  border:none; border-radius:8px; color:white; cursor:pointer; font-weight:bold;">All</button>
+          <button onclick="showNotificationsTab('unread')" id="notifications-tab-unread"
+                  style="flex:1; padding:0.75rem; background:rgba(255,255,255,0.1); border:1px solid rgba(0,224,255,0.2);
+                  border-radius:8px; color:white; cursor:pointer;">Unread</button>
+        </div>
+
+        <div id="notifications-all" style="max-height:400px; overflow-y:auto;"></div>
+        <div id="notifications-unread" style="display:none; max-height:400px; overflow-y:auto;"></div>
+      </div>
+
+      <div style="text-align:center; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.1);">
+        <button onclick="clearAllNotifications()" style="padding:0.5rem 1.5rem; background:rgba(255,255,255,0.1);
+          border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:#00e0ff; cursor:pointer;">
+          <i class="fas fa-check-double"></i> Mark All as Read
+        </button>
+      </div>
     </div>
   </div>
 
