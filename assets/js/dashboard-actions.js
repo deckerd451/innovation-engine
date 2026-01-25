@@ -1537,9 +1537,10 @@ window.editOrganization = async function(orgId) {
         </div>
 
         <div style="margin-bottom: 1rem;">
-          <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Industry</label>
-          <input type="text" id="edit-org-industry" value="${escapeHtml(org.industry || '')}"
-            style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Industry (comma-separated)</label>
+          <input type="text" id="edit-org-industry" value="${escapeHtml(Array.isArray(org.industry) ? org.industry.join(', ') : (org.industry || ''))}"
+            style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;"
+            placeholder="e.g., Technology, Education">
         </div>
 
         <div style="margin-bottom: 1rem;">
@@ -1572,12 +1573,36 @@ window.editOrganization = async function(orgId) {
   document.getElementById('edit-org-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    // Get raw values
+    const name = document.getElementById('edit-org-name').value.trim();
+    const description = document.getElementById('edit-org-description').value.trim();
+    const industryRaw = document.getElementById('edit-org-industry').value.trim();
+    const location = document.getElementById('edit-org-location').value.trim();
+    const website = document.getElementById('edit-org-website').value.trim();
+
+    // Convert industry to array if it's a comma-separated string
+    let industry = null;
+    if (industryRaw) {
+      // Check if it looks like an array already or needs to be split
+      if (industryRaw.startsWith('[') || industryRaw.startsWith('{')) {
+        // Try to parse as JSON array
+        try {
+          industry = JSON.parse(industryRaw.replace(/^\{|\}$/g, '[').replace(/\}$/, ']'));
+        } catch {
+          industry = industryRaw.split(',').map(s => s.trim()).filter(s => s);
+        }
+      } else {
+        // Split by comma
+        industry = industryRaw.split(',').map(s => s.trim()).filter(s => s);
+      }
+    }
+
     const updates = {
-      name: document.getElementById('edit-org-name').value.trim(),
-      description: document.getElementById('edit-org-description').value.trim() || null,
-      industry: document.getElementById('edit-org-industry').value.trim() || null,
-      location: document.getElementById('edit-org-location').value.trim() || null,
-      website: document.getElementById('edit-org-website').value.trim() || null
+      name,
+      description: description || null,
+      industry: industry,
+      location: location || null,
+      website: website || null
     };
 
     if (!updates.name) {
