@@ -441,6 +441,22 @@ document.addEventListener('DOMContentLoaded', () => {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       }
+
+      @keyframes celebration {
+        0% { transform: scale(0.5) rotate(-10deg); opacity: 0; }
+        50% { transform: scale(1.2) rotate(10deg); }
+        100% { transform: scale(1) rotate(0deg); opacity: 1; }
+      }
+
+      #save-summary-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,255,136,0.5);
+      }
+
+      #close-summary-btn:hover {
+        background: rgba(255,255,255,0.15);
+        border-color: rgba(255,255,255,0.5);
+      }
     `;
     document.head.appendChild(style);
   }
