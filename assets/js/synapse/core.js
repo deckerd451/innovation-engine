@@ -520,7 +520,7 @@ function calculateNestedPosition(
     }
 
     if (shouldShowTheme) {
-      // User's themes - concentric around center
+      // User's themes - independent nodes spread around center
       const myThemes = themes
         .filter((t) => {
           const hasThemeParticipation = userThemes.includes(t.theme_id);
@@ -530,8 +530,7 @@ function calculateNestedPosition(
         .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
 
       const myIndex = myThemes.findIndex((t) => t.id === node.id);
-      const baseThemeRadius = 220;
-      const themeRadiusIncrement = 140;
+      const baseThemeRadius = 180;
 
       // Find most active theme (most projects or participants)
       const mostActiveThemeId = themes.reduce((max, theme) => {
@@ -542,10 +541,17 @@ function calculateNestedPosition(
 
       const isUserTheme = node.theme_id === mostActiveThemeId;
 
+      // Position themes as independent nodes in a circle around the user
+      const themeCount = Math.max(1, myThemes.length);
+      const orbitDistance = baseThemeRadius * 1.8 + (themeCount > 3 ? themeCount * 20 : 0);
+      const angleStep = (2 * Math.PI) / themeCount;
+      const startAngle = -Math.PI / 2; // Start from top
+      const angle = startAngle + myIndex * angleStep;
+
       return {
-        x: centerX, // All user themes centered on user
-        y: centerY,
-        themeRadius: baseThemeRadius + Math.max(0, myIndex) * themeRadiusIncrement,
+        x: centerX + Math.cos(angle) * orbitDistance,
+        y: centerY + Math.sin(angle) * orbitDistance,
+        themeRadius: baseThemeRadius,
         parentTheme: null,
         isUserTheme,
         hidden: false,
@@ -626,6 +632,26 @@ function calculateNestedPosition(
     return {
       x: centerX + (Math.random() - 0.5) * 1400,
       y: centerY + (Math.random() - 0.5) * 1400,
+      parentTheme: null,
+      hidden: false,
+    };
+  }
+
+  // ----------------------------
+  // ORGANIZATIONS - Position in outer ring
+  // ----------------------------
+  if (node.type === "organization") {
+    const orgs = allNodes.filter((n) => n.type === "organization");
+    const orgIndex = orgs.findIndex((o) => o.id === node.id);
+    const orgCount = Math.max(1, orgs.length);
+    const orgOrbitRadius = 550 + orgCount * 25;
+    const angleStep = (2 * Math.PI) / orgCount;
+    const startAngle = Math.PI / 4; // Start from 45 degrees
+    const angle = startAngle + orgIndex * angleStep;
+
+    return {
+      x: centerX + Math.cos(angle) * orgOrbitRadius,
+      y: centerY + Math.sin(angle) * orgOrbitRadius,
       parentTheme: null,
       hidden: false,
     };
@@ -960,14 +986,15 @@ async function buildGraph() {
     projectOverlayEls = renderThemeProjectsOverlay(container, visibleThemeNodes);
   }
 
-  // 4. People nodes only (foreground layer) - render LAST so they appear on top
-  const visiblePeopleNodes = visibleNodes.filter((n) => n.type === "person");
-  nodeEls = renderNodes(container, visiblePeopleNodes, { onNodeClick });
+  // 4. People and organization nodes (foreground layer) - render LAST so they appear on top
+  const visibleInteractiveNodes = visibleNodes.filter((n) => n.type === "person" || n.type === "organization");
+  nodeEls = renderNodes(container, visibleInteractiveNodes, { onNodeClick });
 
-  // Drag for nodes
+  // Drag for nodes - use clickDistance to allow click events to fire
   nodeEls.call(
     d3
       .drag()
+      .clickDistance(5)
       .on("start", dragStarted)
       .on("drag", dragged)
       .on("end", dragEnded)
@@ -1215,6 +1242,29 @@ function onNodeClick(event, d) {
     return;
   }
 
+  if (d.type === "organization") {
+    try {
+      openNodePanel({
+        id: d.org_id || d.id,
+        name: d.name,
+        type: "organization",
+        description: d.description,
+        website: d.website,
+        industry: d.industry,
+        size: d.size,
+        location: d.location,
+        logo_url: d.logo_url,
+        verified: d.verified,
+        slug: d.slug,
+        member_count: d.member_count,
+        ...d,
+      });
+    } catch (e) {
+      console.warn("openNodePanel for organization failed:", e);
+    }
+    return;
+  }
+
   try {
     openNodePanel({
       id: d.id,
@@ -1231,13 +1281,17 @@ function onNodeClick(event, d) {
    DRAG
    ========================================================================== */
 
+let dragMoved = false;
+
 function dragStarted(event, d) {
+  dragMoved = false;
   if (!event.active) simulation.alphaTarget(0.3).restart();
   d.fx = d.x;
   d.fy = d.y;
 }
 
 function dragged(event, d) {
+  dragMoved = true;
   d.fx = event.x;
   d.fy = event.y;
 }
@@ -1246,6 +1300,11 @@ function dragEnded(event, d) {
   if (!event.active) simulation.alphaTarget(0);
   d.fx = null;
   d.fy = null;
+
+  // If the user didn't actually drag, treat as a click
+  if (!dragMoved) {
+    onNodeClick(event.sourceEvent, d);
+  }
 }
 
 /* ==========================================================================
