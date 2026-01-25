@@ -103,6 +103,8 @@ export function getLinkColor(link) {
       return COLORS.edgeSuggested;
     case "project-member":
       return "#ff6b6b";
+    case "org-member":
+      return "rgba(168, 85, 247, 0.5)";
     case "theme-participant":
       // Per yellow instructions: Use theme color for visual relationship
       // Get the theme color from the source node (theme)
@@ -202,6 +204,44 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
 
   nodeEls.each(function (d) {
     const node = d3.select(this);
+
+    if (d.type === "organization") {
+      const radius = 28;
+      const orgColor = "#a855f7"; // Purple for organizations
+
+      // Outer ring
+      node
+        .append("circle")
+        .attr("r", radius + 5)
+        .attr("fill", "none")
+        .attr("stroke", orgColor)
+        .attr("stroke-width", 2)
+        .attr("stroke-opacity", 0.5)
+        .attr("stroke-dasharray", "6,3")
+        .attr("class", "org-outer-ring");
+
+      // Main circle
+      node
+        .append("circle")
+        .attr("r", radius)
+        .attr("fill", "rgba(168, 85, 247, 0.3)")
+        .attr("stroke", orgColor)
+        .attr("stroke-width", 2.5)
+        .attr("filter", "url(#glow)")
+        .attr("class", "node-circle");
+
+      // Organization icon
+      node
+        .append("text")
+        .attr("text-anchor", "middle")
+        .attr("dy", "0.35em")
+        .attr("fill", orgColor)
+        .attr("font-size", "18px")
+        .attr("pointer-events", "none")
+        .text("🏢");
+
+      return;
+    }
 
     if (d.type === "project") {
       const size = Math.max(35, Math.min(60, 30 + (d.team_size * 4)));
@@ -320,12 +360,12 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
   // Labels
   nodeEls
     .append("text")
-    .attr("dy", (d) => (d.type === "project" ? 40 : d.isCurrentUser ? 60 : 35))
+    .attr("dy", (d) => (d.type === "organization" ? 42 : d.type === "project" ? 40 : d.isCurrentUser ? 60 : 35))
     .attr("text-anchor", "middle")
-    .attr("fill", (d) => (d.type === "project" ? "#ff6b6b" : "#fff"))
-    .attr("font-size", (d) => (d.type === "project" ? "12px" : d.isCurrentUser ? "14px" : "11px"))
+    .attr("fill", (d) => (d.type === "organization" ? "#a855f7" : d.type === "project" ? "#ff6b6b" : "#fff"))
+    .attr("font-size", (d) => (d.type === "organization" ? "11px" : d.type === "project" ? "12px" : d.isCurrentUser ? "14px" : "11px"))
     .attr("font-family", "system-ui, sans-serif")
-    .attr("font-weight", (d) => (d.type === "project" ? "bold" : d.isCurrentUser ? "bold" : "normal"))
+    .attr("font-weight", (d) => (d.type === "organization" ? "600" : d.type === "project" ? "bold" : d.isCurrentUser ? "bold" : "normal"))
     .attr("pointer-events", "none")
     .text((d) => truncateName(d.name));
 
