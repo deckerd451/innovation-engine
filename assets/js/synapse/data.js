@@ -12,13 +12,41 @@ export function parseSkills(skills) {
 
 export async function loadSynapseData({ supabase, currentUserCommunityId, showFullCommunity = false }) {
   console.log("🔄 Loading synapse data with new theme-centric model...");
+  console.log("🔍 showFullCommunity (Discovery Mode):", showFullCommunity);
 
   // Load all data first
-  const { data: members, error } = await supabase
+  const { data: allMembers, error } = await supabase
     .from("community")
     .select("id, name, email, image_url, skills, interests, bio, availability, x, y, connection_count")
     .order("created_at", { ascending: false });
   if (error) throw error;
+
+  // Filter members based on Discovery Mode setting
+  let members = allMembers;
+  if (showFullCommunity && currentUserCommunityId) {
+    // Discovery Mode: Show only suggested connections (not already connected)
+    console.log("🌐 Discovery Mode: Loading suggested connections only...");
+
+    // Get existing connections and pending requests
+    const { data: connections } = await supabase
+      .from('connections')
+      .select('from_user_id, to_user_id, status')
+      .or(`from_user_id.eq.${currentUserCommunityId},to_user_id.eq.${currentUserCommunityId}`);
+
+    const connectedIds = new Set();
+    connectedIds.add(currentUserCommunityId); // Exclude self
+    connections?.forEach(conn => {
+      connectedIds.add(conn.from_user_id);
+      connectedIds.add(conn.to_user_id);
+    });
+
+    // Filter to only suggested connections (not already connected)
+    members = allMembers?.filter(user => !connectedIds.has(user.id)) || [];
+
+    console.log(`📊 Discovery Mode: Showing ${members.length} suggested connections out of ${allMembers?.length || 0} total members`);
+  } else {
+    console.log(`📊 My Network: Loading all ${members?.length || 0} members for filtering`);
+  }
 
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
