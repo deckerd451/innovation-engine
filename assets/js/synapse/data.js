@@ -416,32 +416,39 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   });
 
   if (connectionsData?.length) {
-    const connectionLinks = connectionsData
-      .filter(conn => {
-        // Only show connections involving users in the graph
-        const user1Exists = nodes.some(n => n.id === conn.from_user_id);
-        const user2Exists = nodes.some(n => n.id === conn.to_user_id);
+const connectionLinks = connectionsData
+  .filter(conn => {
+    const status = String(conn.status || "").toLowerCase();
 
-        if (!user1Exists || !user2Exists) {
-          console.log("⚠️ Filtering out connection:", {
-            from_user: conn.from_user_id,
-            from_user_exists: user1Exists,
-            to_user: conn.to_user_id,
-            to_user_exists: user2Exists,
-            status: conn.status
-          });
-        }
+    // ✅ Only draw links that belong on the graph
+    if (status !== "pending" && status !== "accepted") return false;
 
-        return user1Exists && user2Exists;
-      })
-      .map(conn => ({
-        id: `connection-${conn.from_user_id}-${conn.to_user_id}`,
-        source: conn.from_user_id,
-        target: conn.to_user_id,
-        status: conn.status, // 'accepted' or 'pending'
-        type: "connection",
-        created_at: conn.created_at
-      }));
+    // Only show connections involving users in the graph
+    const user1Exists = nodes.some(n => n.id === conn.from_user_id);
+    const user2Exists = nodes.some(n => n.id === conn.to_user_id);
+
+    if (!user1Exists || !user2Exists) {
+      console.log("⚠️ Filtering out connection:", {
+        from_user: conn.from_user_id,
+        from_user_exists: user1Exists,
+        to_user: conn.to_user_id,
+        to_user_exists: user2Exists,
+        status: conn.status
+      });
+    }
+
+    return user1Exists && user2Exists;
+  })
+  .map(conn => ({
+    // ✅ Use row id to avoid collisions across time for same pair
+    id: `connection:${conn.id}`,
+    source: conn.from_user_id,
+    target: conn.to_user_id,
+    status: String(conn.status || "").toLowerCase(), // pending | accepted
+    type: "connection",
+    created_at: conn.created_at
+  }));
+
 
     links = [...links, ...connectionLinks];
     console.log("🤝 Created connection links:", connectionLinks.length);
