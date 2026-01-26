@@ -1339,6 +1339,20 @@
         font-size: 0.85rem !important;
       }
 
+      /* START button in header mobile adjustments */
+      #btn-start-header {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.85rem !important;
+      }
+
+      #btn-start-header span {
+        display: none;
+      }
+
+      #btn-start-header i {
+        font-size: 1.1rem !important;
+      }
+
       .header-actions {
         gap: 0.5rem;
       }
