@@ -598,26 +598,57 @@ function createSynapseLegend() {
     connections: true
   };
 
-  // Add click handlers for each filter
+  // Function to toggle a specific filter (called from bottom buttons or legend)
+  const toggleFilter = (filterType) => {
+    if (!filterState.hasOwnProperty(filterType)) return;
+
+    filterState[filterType] = !filterState[filterType];
+
+    // Update legend visual state if legend exists
+    const legendElement = document.getElementById(`legend-${filterType}`);
+    if (legendElement) {
+      const checkIcon = legendElement.querySelector('.fa-check');
+      if (checkIcon) {
+        if (filterState[filterType]) {
+          checkIcon.style.display = 'block';
+          legendElement.style.opacity = '1';
+        } else {
+          checkIcon.style.display = 'none';
+          legendElement.style.opacity = '0.4';
+        }
+      }
+    }
+
+    // Update bottom button visual state
+    const bottomButton = document.getElementById(`btn-${filterType === 'organizations' ? 'orgs' : filterType}`);
+    if (bottomButton) {
+      if (filterState[filterType]) {
+        bottomButton.style.opacity = '1';
+        bottomButton.style.transform = 'scale(1)';
+      } else {
+        bottomButton.style.opacity = '0.5';
+        bottomButton.style.transform = 'scale(0.95)';
+      }
+    }
+
+    // Apply filter to synapse visualization
+    applyVisualizationFilters(filterState);
+
+    // Show notification
+    const status = filterState[filterType] ? 'shown' : 'hidden';
+    console.log(`✅ ${filterType} filter toggled: ${status}`);
+  };
+
+  // Expose toggle function globally for bottom buttons
+  window.toggleSynapseFilter = toggleFilter;
+
+  // Add click handlers for legend filter items
   ['people', 'projects', 'themes', 'organizations', 'connections'].forEach(filterType => {
     const element = document.getElementById(`legend-${filterType}`);
     if (!element) return;
 
     element.addEventListener('click', () => {
-      filterState[filterType] = !filterState[filterType];
-
-      // Update visual state
-      const checkIcon = element.querySelector('.fa-check');
-      if (filterState[filterType]) {
-        checkIcon.style.display = 'block';
-        element.style.opacity = '1';
-      } else {
-        checkIcon.style.display = 'none';
-        element.style.opacity = '0.4';
-      }
-
-      // Apply filter to synapse visualization
-      applyVisualizationFilters(filterState);
+      toggleFilter(filterType);
     });
   });
 

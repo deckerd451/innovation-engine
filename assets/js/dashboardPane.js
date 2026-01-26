@@ -186,18 +186,48 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (e.key === "Enter") handleSearch();
     });
 
-    // Bottom bar buttons
+    // Bottom bar buttons - modals
     on($("btn-messages"), "click", () => window.openMessagesModal());
-    on($("btn-projects"), "click", () => window.openProjectsModal());
     on($("btn-endorsements"), "click", () => window.openEndorsementsModal());
     on($("btn-bbs"), "click", () => initBBS());
     on($("btn-profile"), "click", () => window.openProfileModal());
     on($("btn-quickconnect"), "click", () => window.openQuickConnectModal());
-    on($("btn-people"), "click", async () => {
+
+    // Bottom bar buttons - filter toggles
+    on($("btn-people"), "click", () => {
+      if (typeof window.toggleSynapseFilter === "function") {
+        window.toggleSynapseFilter('people');
+      }
+    });
+    on($("btn-themes"), "click", () => {
+      if (typeof window.toggleSynapseFilter === "function") {
+        window.toggleSynapseFilter('themes');
+      }
+    });
+    on($("btn-orgs"), "click", () => {
+      if (typeof window.toggleSynapseFilter === "function") {
+        window.toggleSynapseFilter('organizations');
+      }
+    });
+    on($("btn-projects"), "click", () => {
+      if (typeof window.toggleSynapseFilter === "function") {
+        window.toggleSynapseFilter('projects');
+      }
+    });
+    // CONNECTIONS button opens the connections panel
+    on($("btn-connections"), "click", async () => {
       if (typeof window.toggleConnectionsPanel === "function") {
         window.toggleConnectionsPanel();
       } else {
         console.warn("Connections panel not available");
+      }
+    });
+    // START button in header
+    on($("btn-start-header"), "click", () => {
+      if (typeof window.openStartModal === "function") {
+        window.openStartModal();
+      } else if (typeof openStartModal === "function") {
+        openStartModal();
       }
     });
     on($("btn-filters"), "click", () => toggleFilters());
