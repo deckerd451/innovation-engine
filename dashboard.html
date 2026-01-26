@@ -36,10 +36,20 @@
     }
 
     /* START button hover */
-    #btn-start-fullwidth:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 30px rgba(0,255,136,0.5);
-      filter: brightness(1.2);
+    #btn-start-center:hover {
+      transform: scale(1.1);
+      box-shadow: 0 12px 40px rgba(0,255,136,0.6);
+      filter: brightness(1.3);
+    }
+
+    #btn-start-center:active {
+      transform: scale(1.05);
+    }
+
+    #btn-explore-cancel:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.5);
+      color: rgba(255,255,255,0.9);
     }
 
     /* Mentor Navigation Styling */
@@ -243,21 +253,85 @@
 
   <!-- Main -->
   <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000;">
+    <!-- Header Elements (No Background Bar) -->
+    <div style="position:absolute; top:20px; left:20px; z-index:1000;">
+      <a href="https://charlestonhacks.com/" style="display:flex; align-items:center; text-decoration:none;">
+        <img src="charlestonhackslogo.svg" alt="CharlestonHacks"
+             style="height:55px; width:auto; cursor:pointer;"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <span style="display:none; color:#00e0ff; font-size:1.5rem; font-weight:bold;">CharlestonHacks</span>
+      </a>
+    </div>
+
+    <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
+      <!-- Level Badge -->
+      <div style="padding:0.75rem 1.5rem; background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3);
+        border-radius:8px; display:flex; flex-direction:column; align-items:center;">
+        <div style="color:#00e0ff; font-size:0.8rem; font-weight:600;">Level 6</div>
+        <div style="color:#aaa; font-size:0.7rem;">Leader</div>
+        <div style="color:#888; font-size:0.65rem; margin-top:0.25rem;" id="user-xp">2173 / 5000 XP</div>
+      </div>
+
+      <!-- Streak Badge -->
+      <div style="padding:0.75rem 1.5rem; background:rgba(255,59,48,0.15); border:1px solid rgba(255,59,48,0.3);
+        border-radius:8px; display:flex; align-items:center; gap:0.5rem;">
+        <i class="fas fa-fire" style="color:#ff3b30; font-size:1.2rem;"></i>
+        <div style="display:flex; flex-direction:column;">
+          <div style="color:#ff3b30; font-size:1rem; font-weight:700;">25 Day Streak</div>
+          <div style="color:#ff8a80; font-size:0.65rem;">Keep it going!</div>
+        </div>
+      </div>
+
+      <!-- Notification Bell -->
+      <div id="notifications-bell" style="cursor:pointer; padding:0.75rem; background:rgba(0,224,255,0.1);
+        border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:48px; height:48px;
+        display:flex; align-items:center; justify-content:center; position:relative;"
+        title="View messages">
+        <i class="fas fa-bell" style="color:#00e0ff; font-size:1.2rem;"></i>
+        <span class="notification-badge hidden" id="notif-count"
+          style="position:absolute; top:-5px; right:-5px; background:#ff3b30; color:white;
+          font-size:0.7rem; font-weight:bold; padding:2px 6px; border-radius:10px; min-width:18px; text-align:center;">0</span>
+      </div>
+
+      <!-- User Profile -->
+      <div id="user-menu" style="cursor:pointer; padding:0.5rem 1rem; background:rgba(0,224,255,0.1);
+        border:1px solid rgba(0,224,255,0.3); border-radius:25px; display:flex; align-items:center; gap:0.75rem;"
+        title="View your profile">
+        <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff);
+          display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem;" id="user-avatar-header">
+          <span id="user-initials-header">?</span>
+        </div>
+        <span id="user-name-header" style="color:#fff; font-weight:600;">Loading...</span>
+        <i class="fas fa-user-circle" style="color:#00e0ff; font-size:1.1rem;"></i>
+      </div>
+    </div>
+
     <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000;">
       <svg id="synapse-svg" style="width:100%; height:100%; background: #000000;"></svg>
     </div>
 
-    <!-- Full Width START Button (Desktop) -->
-    <button id="btn-start-fullwidth"
-      style="position:absolute; top:20px; left:20px; right:20px;
-      background:linear-gradient(135deg, rgba(0,255,136,0.25), rgba(0,224,255,0.2));
-      border:2px solid rgba(0,255,136,0.5); border-radius:12px; color:#00ff88; font-weight:700; font-size:1.1rem;
-      cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:0.75rem;
-      box-shadow:0 4px 20px rgba(0,255,136,0.3); padding:1rem 2rem; z-index:1000;"
-      title="Open START menu">
-      <i class="fas fa-play-circle" style="font-size:1.5rem;"></i>
-      <span>START</span>
-    </button>
+    <!-- Centered Round START Button -->
+    <div id="start-button-container" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
+      z-index:1000; display:flex; flex-direction:column; align-items:center; gap:1.5rem;">
+      <button id="btn-start-center"
+        style="background:linear-gradient(135deg, rgba(0,255,136,0.3), rgba(0,224,255,0.25));
+        border:3px solid rgba(0,255,136,0.6); border-radius:50%; color:#00ff88; font-weight:700; font-size:1.5rem;
+        cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.5rem;
+        box-shadow:0 8px 30px rgba(0,255,136,0.4); padding:0; width:200px; height:200px;"
+        title="Start your journey">
+        <i class="fas fa-play-circle" style="font-size:3rem;"></i>
+        <span style="font-size:1.5rem;">START</span>
+      </button>
+
+      <!-- "I just want to explore" cancel button -->
+      <button id="btn-explore-cancel"
+        style="background:transparent; border:1px solid rgba(255,255,255,0.3); border-radius:8px;
+        color:rgba(255,255,255,0.6); font-size:0.9rem; padding:0.75rem 1.5rem; cursor:pointer;
+        transition:all 0.2s;"
+        title="Skip the start sequence">
+        I just want to explore
+      </button>
+    </div>
 
     <!-- Bottom Action Buttons (Floating) -->
     <div id="bottom-action-buttons"
@@ -333,10 +407,9 @@
 
   <!--Hidden elements for compatibility -->
   <div id="main-header" class="hidden"></div>
-  <div id="notifications-bell" class="hidden"></div>
-  <div id="user-menu" class="hidden"></div>
   <button id="logout-btn" style="display:none;"></button>
   <button id="btn-start-header" style="display:none;"></button>
+  <button id="btn-start-fullwidth" style="display:none;"></button>
   <button id="btn-messages" style="display:none;"></button>
   <button id="btn-projects-modal" style="display:none;"></button>
   <button id="btn-endorsements" style="display:none;"></button>
@@ -931,6 +1004,94 @@
       }, 5000);
 
       console.log('✅ Session restoration handler initialized');
+    })();
+  </script>
+
+  <!-- START Button Logic -->
+  <script>
+    (function() {
+      const startContainer = document.getElementById('start-button-container');
+      const startBtn = document.getElementById('btn-start-center');
+      const exploreBtn = document.getElementById('btn-explore-cancel');
+
+      // Check if START should be shown (first login or new session)
+      function shouldShowStart() {
+        const lastStartUsed = localStorage.getItem('chs_start_last_used');
+        const currentSession = sessionStorage.getItem('chs_session_started');
+
+        // Show START if:
+        // 1. Never used before, OR
+        // 2. New session (app reopened)
+        if (!lastStartUsed || !currentSession) {
+          return true;
+        }
+        return false;
+      }
+
+      // Hide START button and show user node
+      function hideStartButton() {
+        if (startContainer) {
+          startContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+          startContainer.style.opacity = '0';
+          startContainer.style.transform = 'translate(-50%, -50%) scale(0.5)';
+
+          setTimeout(() => {
+            startContainer.style.display = 'none';
+          }, 500);
+        }
+
+        // Mark session as started
+        sessionStorage.setItem('chs_session_started', 'true');
+        localStorage.setItem('chs_start_last_used', Date.now());
+      }
+
+      // START button click handler
+      if (startBtn) {
+        startBtn.addEventListener('click', () => {
+          console.log('🚀 START button clicked');
+
+          // Hide START button
+          hideStartButton();
+
+          // Open START modal/sequence
+          if (typeof window.openStartModal === 'function') {
+            setTimeout(() => {
+              window.openStartModal();
+            }, 500);
+          } else {
+            console.warn('START modal function not available');
+          }
+        });
+      }
+
+      // "I just want to explore" button click handler
+      if (exploreBtn) {
+        exploreBtn.addEventListener('click', () => {
+          console.log('🔍 User wants to explore freely');
+
+          // Hide START button
+          hideStartButton();
+
+          // Don't open any modals, just let user see their node
+          console.log('✅ Showing user node only');
+        });
+      }
+
+      // Check if START should be shown on page load
+      window.addEventListener('profile-loaded', () => {
+        if (!shouldShowStart() && startContainer) {
+          startContainer.style.display = 'none';
+        }
+      });
+
+      // Show START if needed
+      if (shouldShowStart() && startContainer) {
+        startContainer.style.display = 'flex';
+      } else if (startContainer) {
+        startContainer.style.display = 'none';
+      }
+
+      console.log('✅ START button logic initialized');
     })();
   </script>
 

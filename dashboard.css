@@ -1314,7 +1314,45 @@
       }
 
       .header-logo img {
-        height: 45px;
+        height: 40px;
+      }
+
+      /* Mobile: Stack header badges vertically */
+      #main-content > div:first-child {
+        top: 10px !important;
+        left: 10px !important;
+      }
+
+      #main-content > div:first-child img {
+        height: 40px !important;
+      }
+
+      #main-content > div:nth-child(2) {
+        top: 10px !important;
+        right: 10px !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+        align-items: flex-end !important;
+      }
+
+      #main-content > div:nth-child(2) > div {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.8rem !important;
+      }
+
+      /* START button mobile */
+      #btn-start-center {
+        width: 160px !important;
+        height: 160px !important;
+        font-size: 1.2rem !important;
+      }
+
+      #btn-start-center i {
+        font-size: 2.5rem !important;
+      }
+
+      #btn-start-center span {
+        font-size: 1.2rem !important;
       }
 
       .header-search {
