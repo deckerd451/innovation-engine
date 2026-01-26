@@ -1308,7 +1308,7 @@
       }
 
       .header-logo img {
-        height: 30px;
+        height: 45px;
       }
 
       .header-search {
@@ -1323,10 +1323,20 @@
         padding: 0.5rem 1rem 0.5rem 2.5rem;
       }
 
-      /* Centered search field mobile adjustments */
+      /* Centered search field mobile adjustments - now at bottom */
       #centered-search-container {
         width: 90vw !important;
-        bottom: 100px !important;
+        bottom: 8px !important;
+      }
+
+      /* Bottom bar buttons - now higher up */
+      .bottom-stats-bar {
+        bottom: 78px !important;
+      }
+
+      /* Toggle button position adjustment */
+      #bottom-bar-toggle {
+        bottom: 160px !important;
       }
 
       #centered-search-container input {

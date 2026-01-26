@@ -232,7 +232,7 @@
       <div class="header-logo">
         <a href="https://charlestonhacks.com/" style="display:flex; align-items:center; text-decoration:none;">
           <img src="charlestonhackslogo.svg" alt="CharlestonHacks"
-               style="height:40px; width:auto; cursor:pointer;"
+               style="height:55px; width:auto; cursor:pointer;"
                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
           <span style="display:none; color:#00e0ff; font-size:1.5rem; font-weight:bold;">CharlestonHacks</span>
         </a>
@@ -301,29 +301,9 @@
     <!-- This button opens the START screen which contains all navigation options -->
     <!-- Hidden after first daily use and minimized to bottom bar -->
 
-    <!-- Centered Search Field Above Bottom Buttons -->
-    <div id="centered-search-container"
-      style="position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
-      width:min(600px, 80vw); z-index:102; display:flex; align-items:center; justify-content:center;">
-      <div style="position: relative; width:100%; background:rgba(10,14,39,0.95); padding:0.75rem 1rem; border-radius:12px;
-        border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
-        <i class="fas fa-search"
-           style="position:absolute; left:1.5rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; z-index:1;"></i>
-        <input type="text" id="global-search" placeholder="Search people, skills, projects..."
-          style="width:100%; padding:0.75rem 5rem 0.75rem 3rem; background:rgba(0,0,0,0.4);
-          border:1px solid rgba(0,224,255,0.3); border-radius:8px; color:#fff; font-size:0.95rem; outline:none;">
-        <button id="search-button"
-          style="position:absolute; right:1.25rem; top:50%; transform:translateY(-50%);
-          background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.6rem 1rem; border-radius:8px;
-          color:white; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; z-index:1;">
-          <i class="fas fa-search"></i>
-        </button>
-      </div>
-    </div>
-
     <!-- Collapse/Expand Arrow Button -->
     <button id="bottom-bar-toggle"
-      style="position:absolute; bottom:90px; left:20px;
+      style="position:absolute; bottom:160px; left:20px;
       background:rgba(10,14,39,0.95); border:2px solid rgba(0,224,255,0.3); border-bottom:none;
       border-radius:8px 8px 0 0; padding:0.25rem 1rem; cursor:pointer; z-index:101;
       backdrop-filter:blur(10px); color:#00e0ff; font-size:1rem; transition:all 0.3s;
@@ -331,9 +311,9 @@
       <i class="fas fa-chevron-down"></i>
     </button>
 
-    <!-- Bottom Bar - Expanded Actions -->
+    <!-- Bottom Bar - Expanded Actions (moved above search) -->
     <div class="bottom-stats-bar" id="bottom-stats-bar"
-      style="position:absolute; bottom:8px; left:0; right:0; background:rgba(10,14,39,0.95);
+      style="position:absolute; bottom:78px; left:0; right:0; background:rgba(10,14,39,0.95);
       border-top:2px solid rgba(0,224,255,0.3); height:82px; display:flex; align-items:center; justify-content:center;
       gap:0.75rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
 
@@ -358,7 +338,16 @@
         </div>
       </div>
 
-      <!-- Projects -->
+      <!-- Projects Modal Button -->
+      <div class="stat-card-mini" id="btn-projects-modal"
+        style="cursor:pointer; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25);
+        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        <div class="icon" style="font-size:1.5rem; color:#00ff88;"><i class="fas fa-rocket"></i></div>
+        <div class="label" style="font-size:0.7rem; color:#00ff88; text-transform:uppercase; font-weight:600; white-space:nowrap;">Projects</div>
+      </div>
+
+      <!-- Projects Filter (renamed) -->
       <div class="stat-card-mini" id="btn-projects"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
         border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
@@ -427,6 +416,26 @@
         align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-crown"></i></div>
         <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Admin</div>
+      </div>
+    </div>
+
+    <!-- Centered Search Field Below Bottom Buttons -->
+    <div id="centered-search-container"
+      style="position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+      width:min(600px, 80vw); z-index:102; display:flex; align-items:center; justify-content:center;">
+      <div style="position: relative; width:100%; background:rgba(10,14,39,0.95); padding:0.75rem 1rem; border-radius:12px;
+        border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
+        <i class="fas fa-search"
+           style="position:absolute; left:1.5rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; z-index:1;"></i>
+        <input type="text" id="global-search" placeholder="Search people, skills, projects, organizations..."
+          style="width:100%; padding:0.75rem 5rem 0.75rem 3rem; background:rgba(0,0,0,0.4);
+          border:1px solid rgba(0,224,255,0.3); border-radius:8px; color:#fff; font-size:0.95rem; outline:none;">
+        <button id="search-button"
+          style="position:absolute; right:1.25rem; top:50%; transform:translateY(-50%);
+          background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.6rem 1rem; border-radius:8px;
+          color:white; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; z-index:1;">
+          <i class="fas fa-search"></i>
+        </button>
       </div>
     </div>
   </div>
