@@ -317,15 +317,6 @@
       border-top:2px solid rgba(0,224,255,0.3); height:82px; display:flex; align-items:center; justify-content:center;
       gap:0.75rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
 
-      <!-- Quick Connect -->
-      <div class="stat-card-mini" id="btn-quickconnect"
-        style="cursor:pointer; background:linear-gradient(135deg,rgba(0,224,255,0.15),rgba(0,128,255,0.1));
-        border:2px solid rgba(0,224,255,0.4); border-radius:8px; padding:0.5rem 1rem; text-align:center;
-        transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-user-plus"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:700; white-space:nowrap;">Connect</div>
-      </div>
-
       <!-- Messages -->
       <div class="stat-card-mini" id="btn-messages"
         style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
@@ -374,22 +365,14 @@
         <div class="label" style="font-size:0.7rem; color:#a855f7; text-transform:uppercase; font-weight:600; white-space:nowrap;">Orgs</div>
       </div>
 
-      <!-- People -->
+      <!-- People (combined with connections functionality) -->
       <div class="stat-card-mini" id="btn-people"
         style="cursor:pointer; background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.25);
         border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
+        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;"
+        title="Toggle people visibility and view connections">
         <div class="icon" style="font-size:1.5rem; color:#ff6b6b;"><i class="fas fa-users"></i></div>
         <div class="label" style="font-size:0.7rem; color:#ff6b6b; text-transform:uppercase; font-weight:600; white-space:nowrap;">People</div>
-      </div>
-
-      <!-- Connections -->
-      <div class="stat-card-mini" id="btn-connections"
-        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-link"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Connect</div>
       </div>
 
       <!-- Endorsements -->
@@ -399,15 +382,6 @@
         align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
         <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-star"></i></div>
         <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Endorse</div>
-      </div>
-
-      <!-- Community Chat (BBS) -->
-      <div class="stat-card-mini" id="btn-bbs"
-        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-comments"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Chat</div>
       </div>
 
       <!-- Admin (Manage Themes) - Only visible to admins -->
@@ -423,7 +397,7 @@
     <div id="centered-search-container"
       style="position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
       width:min(600px, 80vw); z-index:102; display:flex; align-items:center; justify-content:center;">
-      <div style="position: relative; width:100%; background:rgba(10,14,39,0.95); padding:0.75rem 1rem; border-radius:12px;
+      <div style="position: relative; width:100%; background:rgba(10,14,39,0.6); padding:0.75rem 1rem; border-radius:12px;
         border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
         <i class="fas fa-search"
            style="position:absolute; left:1.5rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; z-index:1;"></i>
