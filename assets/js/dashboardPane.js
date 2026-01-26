@@ -290,7 +290,16 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         }
       });
     }
-    // START button in header
+    // START button (full width)
+    on($("btn-start-fullwidth"), "click", () => {
+      if (typeof window.openStartModal === "function") {
+        window.openStartModal();
+      } else if (typeof openStartModal === "function") {
+        openStartModal();
+      }
+    });
+
+    // Wire up old START button ID for compatibility
     on($("btn-start-header"), "click", () => {
       if (typeof window.openStartModal === "function") {
         window.openStartModal();
