@@ -290,8 +290,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         }
       });
     }
-    // START button (full width)
-    on($("btn-start-fullwidth"), "click", () => {
+    // START button (centered - main logic in HTML inline script)
+    on($("btn-start-center"), "click", () => {
       if (typeof window.openStartModal === "function") {
         window.openStartModal();
       } else if (typeof openStartModal === "function") {
@@ -299,8 +299,16 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
     });
 
-    // Wire up old START button ID for compatibility
+    // Compatibility wiring for legacy START button references
     on($("btn-start-header"), "click", () => {
+      if (typeof window.openStartModal === "function") {
+        window.openStartModal();
+      } else if (typeof openStartModal === "function") {
+        openStartModal();
+      }
+    });
+
+    on($("btn-start-fullwidth"), "click", () => {
       if (typeof window.openStartModal === "function") {
         window.openStartModal();
       } else if (typeof openStartModal === "function") {
