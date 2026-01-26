@@ -25,6 +25,23 @@
   <style>
     body { overflow: hidden; }
 
+    /* Hover effects for action buttons */
+    .action-btn:hover {
+      transform: translateY(-5px) scale(1.1);
+      filter: brightness(1.3);
+    }
+
+    .action-btn:active {
+      transform: translateY(-2px) scale(1.05);
+    }
+
+    /* START button hover */
+    #btn-start-fullwidth:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(0,255,136,0.5);
+      filter: brightness(1.2);
+    }
+
     /* Mentor Navigation Styling */
     .mentor-nav-btn:hover {
       background: rgba(0,224,255,0.12) !important;
@@ -171,7 +188,7 @@
     background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"></canvas>
 
   <!-- Login -->
-  <div id="login-section"
+  <div id="login-section" class="active-tab-pane"
     style="position: fixed; inset: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center;
     z-index: 9999; overflow: hidden; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);">
     <div class="login-container">
@@ -224,179 +241,79 @@
     </div>
   </div>
 
-  <!-- Header -->
-  <header class="unified-header hidden" id="main-header"
-    style="position: fixed; top:0; left:0; right:0; z-index:1000; background:rgba(10,14,39,0.95);
-    backdrop-filter: blur(10px); border-bottom:2px solid rgba(0,224,255,0.3);">
-    <div class="header-content">
-      <div class="header-logo">
-        <a href="https://charlestonhacks.com/" style="display:flex; align-items:center; text-decoration:none;">
-          <img src="charlestonhackslogo.svg" alt="CharlestonHacks"
-               style="height:55px; width:auto; cursor:pointer;"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-          <span style="display:none; color:#00e0ff; font-size:1.5rem; font-weight:bold;">CharlestonHacks</span>
-        </a>
-      </div>
-
-      <!-- Search moved to bottom above buttons -->
-
-      <!-- START Button (moved to header for better balance) -->
-      <button id="btn-start-header"
-        style="padding:0.75rem 1.5rem; background:linear-gradient(135deg, rgba(0,255,136,0.25), rgba(0,224,255,0.2));
-        border:2px solid rgba(0,255,136,0.5); border-radius:10px; color:#00ff88; font-weight:700; font-size:1rem;
-        cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem;
-        box-shadow:0 2px 10px rgba(0,255,136,0.2);"
-        title="Open START menu">
-        <i class="fas fa-play-circle" style="font-size:1.2rem;"></i>
-        <span>START</span>
-      </button>
-
-      <!-- Engagement displays will be injected here by daily-engagement.js -->
-      <div id="engagement-displays" style="display: flex; align-items: center; gap: 0.75rem;"></div>
-
-      <div class="header-actions">
-        <div class="header-notification" id="notifications-bell" style="cursor:pointer;" title="View pending requests">
-          <i class="fas fa-bell"></i>
-          <span class="notification-badge hidden" id="notif-count">0</span>
-        </div>
-
-        <button id="logout-btn"
-          style="background: rgba(255, 59, 48, 0.15);
-                 border: 1px solid rgba(255, 59, 48, 0.3);
-                 color: #ff3b30;
-                 padding: 0.5rem 1rem;
-                 border-radius: 8px;
-                 cursor: pointer;
-                 font-size: 0.9rem;
-                 font-weight: 600;
-                 transition: all 0.2s ease;
-                 display: flex;
-                 align-items: center;
-                 gap: 0.5rem;"
-          onmouseover="this.style.background='rgba(255, 59, 48, 0.25)'; this.style.borderColor='rgba(255, 59, 48, 0.5)';"
-          onmouseout="this.style.background='rgba(255, 59, 48, 0.15)'; this.style.borderColor='rgba(255, 59, 48, 0.3)';"
-          title="Logout">
-          <i class="fas fa-sign-out-alt"></i>
-          <span>Logout</span>
-        </button>
-
-        <div class="user-menu" id="user-menu" style="cursor:pointer;" title="View your profile">
-          <div class="user-avatar" id="user-avatar-header">
-            <span id="user-initials-header">?</span>
-          </div>
-          <span id="user-name-header">Loading...</span>
-          <i class="fas fa-user-circle"></i>
-        </div>
-      </div>
-    </div>
-  </header>
-
   <!-- Main -->
-  <div class="unified-main hidden" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000;">
+  <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000;">
     <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000;">
       <svg id="synapse-svg" style="width:100%; height:100%; background: #000000;"></svg>
     </div>
 
-    <!-- START Button (per yellow instructions: moved to bottom bar area) -->
-    <!-- This button opens the START screen which contains all navigation options -->
-    <!-- Hidden after first daily use and minimized to bottom bar -->
-
-    <!-- Collapse/Expand Arrow Button -->
-    <button id="bottom-bar-toggle"
-      style="position:absolute; bottom:160px; left:20px;
-      background:rgba(10,14,39,0.95); border:2px solid rgba(0,224,255,0.3); border-bottom:none;
-      border-radius:8px 8px 0 0; padding:0.25rem 1rem; cursor:pointer; z-index:101;
-      backdrop-filter:blur(10px); color:#00e0ff; font-size:1rem; transition:all 0.3s;
-      box-shadow:0 -2px 10px rgba(0,224,255,0.2);">
-      <i class="fas fa-chevron-down"></i>
+    <!-- Full Width START Button (Desktop) -->
+    <button id="btn-start-fullwidth"
+      style="position:absolute; top:20px; left:20px; right:20px;
+      background:linear-gradient(135deg, rgba(0,255,136,0.25), rgba(0,224,255,0.2));
+      border:2px solid rgba(0,255,136,0.5); border-radius:12px; color:#00ff88; font-weight:700; font-size:1.1rem;
+      cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:0.75rem;
+      box-shadow:0 4px 20px rgba(0,255,136,0.3); padding:1rem 2rem; z-index:1000;"
+      title="Open START menu">
+      <i class="fas fa-play-circle" style="font-size:1.5rem;"></i>
+      <span>START</span>
     </button>
 
-    <!-- Bottom Bar - Expanded Actions (moved above search) -->
-    <div class="bottom-stats-bar" id="bottom-stats-bar"
-      style="position:absolute; bottom:78px; left:0; right:0; background:rgba(10,14,39,0.95);
-      border-top:2px solid rgba(0,224,255,0.3); height:82px; display:flex; align-items:center; justify-content:center;
-      gap:0.75rem; padding:0 1rem; backdrop-filter:blur(10px); z-index:100; transition:transform 0.3s ease, opacity 0.3s ease;">
+    <!-- Bottom Action Buttons (Floating) -->
+    <div id="bottom-action-buttons"
+      style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
+      display:flex; align-items:center; justify-content:center; gap:0.75rem; z-index:1000;">
 
-      <!-- Messages -->
-      <div class="stat-card-mini" id="btn-messages"
-        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-envelope"></i></div>
-        <div style="display:flex; flex-direction:column; align-items:center;">
-          <div class="value" id="unread-messages" style="font-size:1rem; font-weight:bold; color:white; line-height:1;">0</div>
-          <div class="label" style="font-size:0.65rem; color:#aaa; text-transform:uppercase; line-height:1;">Messages</div>
-        </div>
-      </div>
-
-      <!-- Projects Modal Button -->
-      <div class="stat-card-mini" id="btn-projects-modal"
-        style="cursor:pointer; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00ff88;"><i class="fas fa-rocket"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00ff88; text-transform:uppercase; font-weight:600; white-space:nowrap;">Projects</div>
-      </div>
-
-      <!-- Projects Filter (renamed) -->
-      <div class="stat-card-mini" id="btn-projects"
-        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-lightbulb"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Projects</div>
-      </div>
+      <!-- Projects -->
+      <button class="action-btn" id="btn-projects"
+        style="background:rgba(0,255,136,0.15); border:2px solid rgba(0,255,136,0.4); border-radius:50%;
+        width:64px; height:64px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+        transition:all 0.3s; box-shadow:0 4px 12px rgba(0,255,136,0.2);"
+        title="Toggle Projects">
+        <i class="fas fa-lightbulb" style="font-size:1.5rem; color:#00ff88;"></i>
+      </button>
 
       <!-- Themes -->
-      <div class="stat-card-mini" id="btn-themes"
-        style="cursor:pointer; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-bullseye"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Themes</div>
-      </div>
+      <button class="action-btn" id="btn-themes"
+        style="background:rgba(255,170,0,0.15); border:2px solid rgba(255,170,0,0.4); border-radius:50%;
+        width:64px; height:64px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+        transition:all 0.3s; box-shadow:0 4px 12px rgba(255,170,0,0.2);"
+        title="Toggle Themes">
+        <i class="fas fa-bullseye" style="font-size:1.5rem; color:#ffa500;"></i>
+      </button>
 
       <!-- Organizations -->
-      <div class="stat-card-mini" id="btn-orgs"
-        style="cursor:pointer; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#a855f7;"><i class="fas fa-building"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#a855f7; text-transform:uppercase; font-weight:600; white-space:nowrap;">Orgs</div>
-      </div>
+      <button class="action-btn" id="btn-orgs"
+        style="background:rgba(168,85,247,0.15); border:2px solid rgba(168,85,247,0.4); border-radius:50%;
+        width:64px; height:64px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+        transition:all 0.3s; box-shadow:0 4px 12px rgba(168,85,247,0.2);"
+        title="Toggle Organizations">
+        <i class="fas fa-building" style="font-size:1.5rem; color:#a855f7;"></i>
+      </button>
 
-      <!-- People (combined with connections functionality) -->
-      <div class="stat-card-mini" id="btn-people"
-        style="cursor:pointer; background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;"
-        title="Toggle people visibility and view connections">
-        <div class="icon" style="font-size:1.5rem; color:#ff6b6b;"><i class="fas fa-users"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#ff6b6b; text-transform:uppercase; font-weight:600; white-space:nowrap;">People</div>
-      </div>
+      <!-- People -->
+      <button class="action-btn" id="btn-people"
+        style="background:rgba(255,107,107,0.15); border:2px solid rgba(255,107,107,0.4); border-radius:50%;
+        width:64px; height:64px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+        transition:all 0.3s; box-shadow:0 4px 12px rgba(255,107,107,0.2);"
+        title="Toggle People">
+        <i class="fas fa-users" style="font-size:1.5rem; color:#ff6b6b;"></i>
+      </button>
 
-      <!-- Endorsements -->
-      <div class="stat-card-mini" id="btn-endorsements"
-        style="cursor:pointer; background:rgba(0,224,255,0.08); border:1px solid rgba(0,224,255,0.25);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:flex; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#00e0ff;"><i class="fas fa-star"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#00e0ff; text-transform:uppercase; font-weight:600; white-space:nowrap;">Endorse</div>
-      </div>
-
-      <!-- Admin (Manage Themes) - Only visible to admins -->
-      <div class="stat-card-mini" id="btn-admin" style="cursor:pointer; background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3);
-        border-radius:8px; padding:0.5rem 1rem; text-align:center; transition:all 0.2s; display:none; flex-direction:column;
-        align-items:center; justify-content:center; gap:0.25rem; min-width:90px; height:60px;">
-        <div class="icon" style="font-size:1.5rem; color:#ffa500;"><i class="fas fa-crown"></i></div>
-        <div class="label" style="font-size:0.7rem; color:#ffa500; text-transform:uppercase; font-weight:600; white-space:nowrap;">Admin</div>
-      </div>
+      <!-- Admin (Hidden by default) -->
+      <button class="action-btn" id="btn-admin"
+        style="background:rgba(255,170,0,0.2); border:2px solid rgba(255,170,0,0.5); border-radius:50%;
+        width:64px; height:64px; display:none; align-items:center; justify-content:center; cursor:pointer;
+        transition:all 0.3s; box-shadow:0 4px 12px rgba(255,170,0,0.3);"
+        title="Admin Panel">
+        <i class="fas fa-crown" style="font-size:1.5rem; color:#ffa500;"></i>
+      </button>
     </div>
 
-    <!-- Centered Search Field Below Bottom Buttons -->
+    <!-- Search Field (Bottom Center) -->
     <div id="centered-search-container"
-      style="position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
-      width:min(600px, 80vw); z-index:102; display:flex; align-items:center; justify-content:center;">
+      style="position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+      width:min(600px, 80vw); z-index:1000; display:flex; align-items:center; justify-content:center;">
       <div style="position: relative; width:100%; background:rgba(10,14,39,0.6); padding:0.75rem 1rem; border-radius:12px;
         border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
         <i class="fas fa-search"
@@ -414,7 +331,15 @@
     </div>
   </div>
 
-  <!-- Compatibility trigger for legacy BBS -->
+  <!--Hidden elements for compatibility -->
+  <div id="main-header" class="hidden"></div>
+  <div id="notifications-bell" class="hidden"></div>
+  <div id="user-menu" class="hidden"></div>
+  <button id="logout-btn" style="display:none;"></button>
+  <button id="btn-start-header" style="display:none;"></button>
+  <button id="btn-messages" style="display:none;"></button>
+  <button id="btn-projects-modal" style="display:none;"></button>
+  <button id="btn-endorsements" style="display:none;"></button>
   <button id="fab-bbs-trigger" style="display:none;"></button>
 
   <!-- Profile Modal -->

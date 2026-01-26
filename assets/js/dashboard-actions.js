@@ -589,14 +589,23 @@ function createSynapseLegend() {
     document.head.appendChild(style);
   }
 
-  // Track filter state
+  // Track filter state - Default all OFF except user
   const filterState = {
-    people: true,
-    projects: true,
-    themes: true,
-    organizations: true,
-    connections: true
+    people: false,
+    projects: false,
+    themes: false,
+    organizations: false,
+    connections: false
   };
+
+  // On initial load, apply the default (all filters off)
+  window.addEventListener('profile-loaded', () => {
+    setTimeout(() => {
+      applyVisualizationFilters(filterState);
+      // Update button visual states
+      updateAllButtonStates();
+    }, 500);
+  }, { once: true });
 
   // Function to toggle a specific filter (called from bottom buttons or legend)
   const toggleFilter = (filterType) => {
@@ -639,8 +648,25 @@ function createSynapseLegend() {
     console.log(`✅ ${filterType} filter toggled: ${status}`);
   };
 
+  // Function to update all button visual states based on filter state
+  const updateAllButtonStates = () => {
+    Object.keys(filterState).forEach(filterType => {
+      const bottomButton = document.getElementById(`btn-${filterType === 'organizations' ? 'orgs' : filterType}`);
+      if (bottomButton) {
+        if (filterState[filterType]) {
+          bottomButton.style.opacity = '1';
+          bottomButton.style.transform = 'scale(1)';
+        } else {
+          bottomButton.style.opacity = '0.5';
+          bottomButton.style.transform = 'scale(0.95)';
+        }
+      }
+    });
+  };
+
   // Expose toggle function globally for bottom buttons
   window.toggleSynapseFilter = toggleFilter;
+  window.updateAllButtonStates = updateAllButtonStates;
 
   // Add click handlers for legend filter items
   ['people', 'projects', 'themes', 'organizations', 'connections'].forEach(filterType => {
