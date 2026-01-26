@@ -51,6 +51,42 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   const openModal = (id) => $(id)?.classList.add("active");
   const closeModal = (id) => $(id)?.classList.remove("active");
 
+  // -----------------------------
+  // Message Notification Chime
+  // -----------------------------
+  function playMessageChime() {
+    try {
+      // Create a simple notification sound using Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = 800; // High pitch for notification
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+
+      // Animate notification bell
+      const bell = $("notifications-bell");
+      if (bell) {
+        bell.style.animation = "bellRing 0.5s ease-in-out 3";
+        setTimeout(() => {
+          bell.style.animation = "";
+        }, 1500);
+      }
+    } catch (e) {
+      console.warn("Could not play notification chime:", e);
+    }
+  }
+
+  // Expose globally for message handlers
+  window.playMessageChime = playMessageChime;
+
   const on = (el, evt, fn, opts) => {
     if (el && typeof el.addEventListener === "function") {
       el.addEventListener(evt, fn, opts);
@@ -172,11 +208,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     // Header actions
     on($("user-menu"), "click", () => window.openProfileModal());
+    // Notification bell now opens messages modal
     on($("notifications-bell"), "click", async () => {
-      if (typeof window.openNotificationCenter === "function") {
-        window.openNotificationCenter();
+      if (typeof window.openMessagesModal === "function") {
+        window.openMessagesModal();
       } else {
-        console.warn("Notification center not available");
+        console.warn("Messages modal not available");
       }
     });
 
@@ -190,16 +227,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     on($("btn-messages"), "click", () => window.openMessagesModal());
     on($("btn-projects-modal"), "click", () => window.openProjectsModal());
     on($("btn-endorsements"), "click", () => window.openEndorsementsModal());
-    on($("btn-bbs"), "click", () => initBBS());
     on($("btn-profile"), "click", () => window.openProfileModal());
-    on($("btn-quickconnect"), "click", () => window.openQuickConnectModal());
 
     // Bottom bar buttons - filter toggles
-    on($("btn-people"), "click", () => {
-      if (typeof window.toggleSynapseFilter === "function") {
-        window.toggleSynapseFilter('people');
-      }
-    });
     on($("btn-themes"), "click", () => {
       if (typeof window.toggleSynapseFilter === "function") {
         window.toggleSynapseFilter('themes');
@@ -215,14 +245,51 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         window.toggleSynapseFilter('projects');
       }
     });
-    // CONNECTIONS button opens the connections panel
-    on($("btn-connections"), "click", async () => {
-      if (typeof window.toggleConnectionsPanel === "function") {
-        window.toggleConnectionsPanel();
-      } else {
-        console.warn("Connections panel not available");
-      }
-    });
+
+    // PEOPLE button - dual functionality: toggle filter on click, show connections on long press
+    let peopleButtonPressTimer = null;
+    const peopleBtn = $("btn-people");
+    if (peopleBtn) {
+      // Regular click - toggle filter
+      on(peopleBtn, "click", (e) => {
+        if (peopleButtonPressTimer) return; // Was a long press, ignore click
+        if (typeof window.toggleSynapseFilter === "function") {
+          window.toggleSynapseFilter('people');
+        }
+      });
+
+      // Long press - show connections panel
+      on(peopleBtn, "mousedown", (e) => {
+        peopleButtonPressTimer = setTimeout(() => {
+          if (typeof window.toggleConnectionsPanel === "function") {
+            window.toggleConnectionsPanel();
+          }
+          peopleButtonPressTimer = null;
+        }, 500); // 500ms = long press
+      });
+
+      on(peopleBtn, "mouseup", () => {
+        if (peopleButtonPressTimer) {
+          clearTimeout(peopleButtonPressTimer);
+          peopleButtonPressTimer = null;
+        }
+      });
+
+      on(peopleBtn, "mouseleave", () => {
+        if (peopleButtonPressTimer) {
+          clearTimeout(peopleButtonPressTimer);
+          peopleButtonPressTimer = null;
+        }
+      });
+
+      // Context menu (right-click) - show connections panel
+      on(peopleBtn, "contextmenu", (e) => {
+        e.preventDefault();
+        if (typeof window.toggleConnectionsPanel === "function") {
+          window.toggleConnectionsPanel();
+        }
+      });
+    }
     // START button in header
     on($("btn-start-header"), "click", () => {
       if (typeof window.openStartModal === "function") {
