@@ -350,6 +350,12 @@ function toggleViewControls() {
 let legendCollapsed = true; // Start collapsed to give more space to synapse view
 
 function createSynapseLegend() {
+  // ADMIN ONLY: Filter View is restricted to administrators
+  if (!isAdminUser()) {
+    console.log('⚠️ Filter View is admin-only');
+    return;
+  }
+
   // Remove existing legend if present
   const existingLegend = document.getElementById('synapse-legend-overlay');
   if (existingLegend) return; // Already exists
