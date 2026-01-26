@@ -188,6 +188,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     // Bottom bar buttons - modals
     on($("btn-messages"), "click", () => window.openMessagesModal());
+    on($("btn-projects-modal"), "click", () => window.openProjectsModal());
     on($("btn-endorsements"), "click", () => window.openEndorsementsModal());
     on($("btn-bbs"), "click", () => initBBS());
     on($("btn-profile"), "click", () => window.openProfileModal());
