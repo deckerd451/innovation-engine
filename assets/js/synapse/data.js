@@ -508,8 +508,26 @@ const connectionLinks = connectionsData
     console.warn("⚠️ No connections data loaded from database");
   }
 
-  // 5. NO direct project-member links (projects are embedded within themes)
-  // Projects are now visual sub-elements of themes, not separate connected nodes
+  // 5. Add project-member links (people → projects with dotted lines for pending)
+  if (projectMembersData?.length) {
+    const projectMemberLinks = projectMembersData
+      .filter(pm => {
+        const userNodeExists = nodes.some(n => n.id === pm.user_id);
+        const projectNodeExists = nodes.some(n => n.id === pm.project_id);
+        return userNodeExists && projectNodeExists;
+      })
+      .map(pm => ({
+        id: `project-member-${pm.project_id}-${pm.user_id}`,
+        source: pm.user_id, // Person
+        target: pm.project_id, // Project
+        status: pm.role === 'pending' ? 'pending' : 'accepted', // Dotted line for pending, solid for accepted
+        type: "project-member",
+        role: pm.role
+      }));
+
+    links = [...links, ...projectMemberLinks];
+    console.log("💼 Created project-member links:", projectMemberLinks.length);
+  }
 
   // 6. Add suggested theme connections for discovery
   if (currentUserCommunityId) {

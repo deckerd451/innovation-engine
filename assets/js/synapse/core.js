@@ -682,6 +682,7 @@ function calculateNestedPosition(
 /**
  * ✅ FIXED:
  * containment measures from the *parent theme position* (not from center)
+ * Projects are NOT contained - they can move freely to connect with users
  */
 function createContainmentForce(simulationNodes, allNodes) {
   return function containmentForce(alpha) {
@@ -689,6 +690,7 @@ function createContainmentForce(simulationNodes, allNodes) {
 
     simulationNodes.forEach((node) => {
       if (node.type === "theme") return;
+      if (node.type === "project") return; // ✅ Projects are free to move
       if (node.x == null || node.y == null || !node.parentTheme) return;
       if (node.isUserCenter) return;
 
@@ -702,10 +704,7 @@ function createContainmentForce(simulationNodes, allNodes) {
       const dy = node.y - parentTheme.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      const maxRadius =
-        node.type === "project"
-          ? parentTheme.themeRadius * 0.75
-          : parentTheme.themeRadius * 0.9;
+      const maxRadius = parentTheme.themeRadius * 0.9;
 
       if (distance > maxRadius) {
         const overflow = distance - maxRadius;
@@ -718,35 +717,9 @@ function createContainmentForce(simulationNodes, allNodes) {
   };
 }
 
-function createProjectContainmentForce(allNodes) {
-  return function projectContainmentForce(alpha) {
-    const strength = 0.6;
-    const projectCircleRadius = 35;
-
-    allNodes.forEach((node) => {
-      if (node.type !== "person" || node.x == null || node.y == null) return;
-      if (node.isUserCenter) return;
-      if (!node.projects || node.projects.length === 0) return;
-
-      const project = allNodes.find(
-        (n) => n.type === "project" && n.id === node.projects[0]
-      );
-      if (!project || project.x == null || project.y == null) return;
-
-      const dx = node.x - project.x;
-      const dy = node.y - project.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance > projectCircleRadius) {
-        const overflow = distance - projectCircleRadius;
-        const force = (overflow * strength * alpha) / (distance || 1);
-
-        node.vx -= (dx / distance) * force;
-        node.vy -= (dy / distance) * force;
-      }
-    });
-  };
-}
+// ✅ REMOVED: Project containment force
+// Projects now connect to users via links, not containment
+// This allows the force-directed layout to position projects naturally
 
 /* ==========================================================================
    GRAPH BUILD / REBUILD
