@@ -1893,6 +1893,63 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     }
   };
 
+  // Helper function to open theme details from search results
+  window.openThemeDetails = async function(themeId) {
+    try {
+      // Close the search modal
+      closeModal('quick-connect-modal');
+      
+      // Switch to synapse view if not already there
+      const synapseBtn = document.querySelector('[data-view="synapse"]');
+      if (synapseBtn && !synapseBtn.classList.contains('active')) {
+        synapseBtn.click();
+        // Wait for synapse to initialize
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Check if openThemeCard is available
+      if (typeof window.openThemeCard !== 'function') {
+        console.warn('openThemeCard not available yet, waiting for synapse initialization...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      if (typeof window.openThemeCard === 'function') {
+        // Fetch the full theme data
+        const { data: theme, error } = await state.supabase
+          .from('theme_circles')
+          .select('*')
+          .eq('id', themeId)
+          .single();
+        
+        if (error) throw error;
+        
+        // Create a theme node object that matches the synapse format
+        const themeNode = {
+          id: `theme:${theme.id}`,
+          theme_id: theme.id,
+          type: 'theme',
+          title: theme.title,
+          name: theme.title,
+          description: theme.description,
+          tags: theme.tags || [],
+          expires_at: theme.expires_at,
+          projects: [], // Will be populated by openThemeCard
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2
+        };
+        
+        // Call the synapse function
+        window.openThemeCard(themeNode);
+      } else {
+        console.error('openThemeCard function not available');
+        alert('Please wait for the synapse view to load, then try again.');
+      }
+    } catch (error) {
+      console.error('Error opening theme details:', error);
+      alert('Failed to open theme details: ' + error.message);
+    }
+  };
+
   // Helper function to render theme cards
   function themeCard(theme) {
     return `<div class="result-card" style="padding:1rem; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openThemeDetails('${theme.id}')">

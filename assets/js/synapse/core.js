@@ -131,6 +131,7 @@ export async function initSynapseView() {
   window.refreshSynapseConnections = refreshSynapseConnections;
   window.refreshSynapseProjectCircles = refreshSynapseProjectCircles;
   window.toggleFullCommunityView = toggleFullCommunityView;
+  window.openThemeCard = openThemeCard; // Expose for search results
 
   // Expose theme selection functions for debugging
   window.highlightSelectedTheme = highlightSelectedTheme;
@@ -946,14 +947,22 @@ async function buildGraph() {
         .forceLink(simulationLinks)
         .id((d) => d.id)
         .distance((d) => {
-          // Only theme participation links now
+          // Project-member links should pull projects toward users
+          if (d.type === "project-member") return 120;
+          // Theme participation links
           if (d.type === "theme" || d.status === "theme-participant") return 40;
+          // Connection links between people
+          if (d.type === "connection") return 80;
           if (d.status === "suggested") return 100;
           return 80;
         })
         .strength((d) => {
+          // Strong pull for project-member links so projects move toward users
+          if (d.type === "project-member") return 0.4;
           // Stronger attraction to themes
           if (d.type === "theme" || d.status === "theme-participant") return 0.3;
+          // Weaker for person-to-person connections
+          if (d.type === "connection") return 0.2;
           if (d.status === "suggested") return 0.1;
           return 0.05;
         })
@@ -966,6 +975,7 @@ async function buildGraph() {
         .forceCollide()
         .radius((d) => {
           if (d.type === "theme") return 0; // themes are separate visuals; keep collision out of it
+          if (d.type === "project") return 30; // Projects need collision radius
           if (d.isCurrentUser) return 35;
           return 25;
         })

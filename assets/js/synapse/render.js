@@ -85,6 +85,21 @@ export function setupDefs(svg) {
 }
 
 export function getLinkColor(link) {
+  // Check type first, then status
+  
+  // Project-member links (person → project)
+  if (link.type === "project-member") {
+    if (link.status === "pending") {
+      return "rgba(255, 107, 107, 0.4)"; // Light red for pending project requests
+    }
+    return "#ff6b6b"; // Red for approved project members
+  }
+
+  // Organization member links
+  if (link.type === "organization") {
+    return "rgba(168, 85, 247, 0.5)"; // Purple for org membership
+  }
+
   // Handle person-to-person connection links
   if (link.type === "connection") {
     if (link.status === "accepted") {
@@ -94,6 +109,33 @@ export function getLinkColor(link) {
     }
   }
 
+  // Theme participation links
+  if (link.status === "theme-participant") {
+    // Per yellow instructions: Use theme color for visual relationship
+    // Get the theme color from the source node (theme)
+    const themeId = typeof link.source === 'object' && link.source.theme_id
+      ? link.source.theme_id
+      : (typeof link.source === 'string' && link.source.startsWith('theme:'))
+        ? link.source.replace('theme:', '')
+        : null;
+
+    if (themeId) {
+      const themeColor = getThemeColor(themeId);
+      // Opacity based on engagement level
+      const alpha = link.engagement_level === "leading" ? 0.9 :
+                    link.engagement_level === "active" ? 0.7 : 0.5;
+      return themeColor.replace(')', `, ${alpha})`).replace('#', 'rgba(').replace(/^rgba\(([\da-f]{2})([\da-f]{2})([\da-f]{2})/, (_, r, g, b) => {
+        return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}`;
+      });
+    }
+
+    // Fallback to engagement-based colors
+    if (link.engagement_level === "leading") return "rgba(255, 215, 0, 0.7)";
+    if (link.engagement_level === "active") return "rgba(0, 224, 255, 0.7)";
+    return "rgba(0, 224, 255, 0.4)";
+  }
+
+  // Legacy status-based colors (fallback)
   switch (link.status) {
     case "accepted":
       return COLORS.edgeAccepted;
@@ -101,39 +143,27 @@ export function getLinkColor(link) {
       return COLORS.edgePending;
     case "suggested":
       return COLORS.edgeSuggested;
-    case "project-member":
-      return "#ff6b6b";
-    case "org-member":
-      return "rgba(168, 85, 247, 0.5)";
-    case "theme-participant":
-      // Per yellow instructions: Use theme color for visual relationship
-      // Get the theme color from the source node (theme)
-      const themeId = typeof link.source === 'object' && link.source.theme_id
-        ? link.source.theme_id
-        : (typeof link.source === 'string' && link.source.startsWith('theme:'))
-          ? link.source.replace('theme:', '')
-          : null;
-
-      if (themeId) {
-        const themeColor = getThemeColor(themeId);
-        // Opacity based on engagement level
-        const alpha = link.engagement_level === "leading" ? 0.9 :
-                      link.engagement_level === "active" ? 0.7 : 0.5;
-        return themeColor.replace(')', `, ${alpha})`).replace('#', 'rgba(').replace(/^rgba\(([\da-f]{2})([\da-f]{2})([\da-f]{2})/, (_, r, g, b) => {
-          return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}`;
-        });
-      }
-
-      // Fallback to engagement-based colors
-      if (link.engagement_level === "leading") return "rgba(255, 215, 0, 0.7)";
-      if (link.engagement_level === "active") return "rgba(0, 224, 255, 0.7)";
-      return "rgba(0, 224, 255, 0.4)";
     default:
       return COLORS.edgeDefault;
   }
 }
 
 export function getLinkWidth(link) {
+  // Check type first
+  
+  // Project-member links
+  if (link.type === "project-member") {
+    if (link.status === "pending") {
+      return 1.5; // Thinner for pending project requests
+    }
+    return 2.5; // Medium thickness for approved project members
+  }
+
+  // Organization member links
+  if (link.type === "organization") {
+    return 2;
+  }
+
   // Handle person-to-person connection links
   if (link.type === "connection") {
     if (link.status === "accepted") {
@@ -143,6 +173,15 @@ export function getLinkWidth(link) {
     }
   }
 
+  // Theme participation links
+  if (link.status === "theme-participant") {
+    // Width based on engagement level
+    if (link.engagement_level === "leading") return 3;
+    if (link.engagement_level === "active") return 2;
+    return 1.5; // interested/observer
+  }
+
+  // Legacy status-based widths (fallback)
   switch (link.status) {
     case "accepted":
       return 3;
@@ -150,11 +189,6 @@ export function getLinkWidth(link) {
       return 2;
     case "suggested":
       return 1;
-    case "theme-participant":
-      // Width based on engagement level
-      if (link.engagement_level === "leading") return 3;
-      if (link.engagement_level === "active") return 2;
-      return 1.5; // interested/observer
     default:
       return 1;
   }
@@ -174,6 +208,13 @@ export function renderLinks(container, links) {
     .attr("stroke-width", d => getLinkWidth(d))
     .attr("stroke-dasharray", d => d.status === "pending" ? "4,4" : "none")
     .attr("opacity", d => {
+      // Project-member links
+      if (d.type === "project-member") {
+        if (d.status === "pending") return 0.5; // Semi-transparent for pending
+        return 0.8; // More visible for approved
+      }
+      // Organization member links
+      if (d.type === "organization") return 0.6;
       // Connection links (person-to-person)
       if (d.type === "connection") {
         if (d.status === "accepted") return 0.8; // More visible for accepted
