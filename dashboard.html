@@ -78,16 +78,19 @@
       transform: scale(1.1);
       box-shadow: 0 12px 40px rgba(0,255,136,0.6);
       filter: brightness(1.3);
+      opacity: 0.75;
     }
 
     #btn-start-center:active {
       transform: scale(1.05);
+      opacity: 0.75;
     }
 
     #btn-explore-cancel:hover {
       background: rgba(255,255,255,0.1);
       border-color: rgba(255,255,255,0.5);
       color: rgba(255,255,255,0.9);
+      opacity: 0.75;
     }
 
     /* Mentor Navigation Styling */
@@ -356,27 +359,34 @@
       <svg id="synapse-svg" style="width:100%; height:100%; background: #000000;"></svg>
     </div>
 
-    <!-- Centered Round START Button -->
-    <div id="start-button-container" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
-      z-index:1000; display:flex; flex-direction:column; align-items:center; gap:1.5rem; opacity:0.75;">
-      <button id="btn-start-center"
-        style="background:linear-gradient(135deg, rgba(0,255,136,0.3), rgba(0,224,255,0.25));
-        border:3px solid rgba(0,255,136,0.6); border-radius:50%; color:#00ff88; font-weight:700; font-size:1.5rem;
-        cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.5rem;
-        box-shadow:0 8px 30px rgba(0,255,136,0.4); padding:0; width:200px; height:200px;"
-        title="Start your journey">
-        <i class="fas fa-play-circle" style="font-size:3rem;"></i>
-        <span style="font-size:1.5rem;">START</span>
-      </button>
+    <!-- Centered Round START Button with Background Panel -->
+    <div id="start-button-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh;
+      z-index:1000; display:flex; align-items:center; justify-content:center;">
+      
+      <!-- Background Panel with 75% opacity -->
+      <div style="position:absolute; inset:0; background:rgba(10,14,39,0.75); backdrop-filter:blur(10px);"></div>
+      
+      <!-- Content Container -->
+      <div style="position:relative; display:flex; flex-direction:column; align-items:center; gap:1.5rem;">
+        <button id="btn-start-center"
+          style="background:linear-gradient(135deg, rgba(0,255,136,0.3), rgba(0,224,255,0.25));
+          border:3px solid rgba(0,255,136,0.6); border-radius:50%; color:#00ff88; font-weight:700; font-size:1.5rem;
+          cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.5rem;
+          box-shadow:0 8px 30px rgba(0,255,136,0.4); padding:0; width:200px; height:200px; opacity:0.75;"
+          title="Start your journey">
+          <i class="fas fa-play-circle" style="font-size:3rem;"></i>
+          <span style="font-size:1.5rem;">START</span>
+        </button>
 
-      <!-- "I just want to explore" cancel button -->
-      <button id="btn-explore-cancel"
-        style="background:transparent; border:1px solid rgba(255,255,255,0.3); border-radius:8px;
-        color:rgba(255,255,255,0.6); font-size:0.9rem; padding:0.75rem 1.5rem; cursor:pointer;
-        transition:all 0.2s;"
-        title="Skip the start sequence">
-        I just want to explore
-      </button>
+        <!-- "I just want to explore" cancel button -->
+        <button id="btn-explore-cancel"
+          style="background:transparent; border:1px solid rgba(255,255,255,0.3); border-radius:8px;
+          color:rgba(255,255,255,0.6); font-size:0.9rem; padding:0.75rem 1.5rem; cursor:pointer;
+          transition:all 0.2s; opacity:0.75;"
+          title="Skip the start sequence">
+          I just want to explore
+        </button>
+      </div>
     </div>
 
     <!-- Search Field (Bottom Center) -->
