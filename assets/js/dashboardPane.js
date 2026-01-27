@@ -978,26 +978,30 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // Setup category filter buttons
   function setupCategoryButtons() {
     const buttons = document.querySelectorAll(".search-category-btn");
+    
+    // Function to update button styles
+    const updateButtonStyles = () => {
+      buttons.forEach((b) => {
+        if (b.dataset.category === activeSearchCategory) {
+          // Active state
+          const color = getCategoryColor(activeSearchCategory);
+          b.style.background = `linear-gradient(135deg, ${color.gradient})`;
+          b.style.border = "none";
+          b.style.color = "white";
+        } else {
+          // Inactive state
+          const color = getCategoryColor(b.dataset.category);
+          b.style.background = color.bg;
+          b.style.border = color.border;
+          b.style.color = color.text;
+        }
+      });
+    };
+    
     buttons.forEach((btn) => {
       btn.addEventListener("click", () => {
         activeSearchCategory = btn.dataset.category;
-
-        // Update button styles
-        buttons.forEach((b) => {
-          if (b.dataset.category === activeSearchCategory) {
-            // Active state
-            const color = getCategoryColor(activeSearchCategory);
-            b.style.background = `linear-gradient(135deg, ${color.gradient})`;
-            b.style.border = "none";
-            b.style.color = "white";
-          } else {
-            // Inactive state
-            const color = getCategoryColor(b.dataset.category);
-            b.style.background = color.bg;
-            b.style.border = color.border;
-            b.style.color = color.text;
-          }
-        });
+        updateButtonStyles();
 
         // Update placeholder
         const searchInput = $("global-search");
@@ -1006,6 +1010,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         }
       });
     });
+    
+    // Initialize button styles on load
+    updateButtonStyles();
   }
 
   function getCategoryColor(category) {
