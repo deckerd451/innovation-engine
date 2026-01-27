@@ -654,20 +654,21 @@
   <div id="mentor-panel-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
     backdrop-filter:blur(4px); z-index:10000;" onclick="closeAllMentorPanels()"></div>
 
-  <!-- START Modal (per yellow instructions: side panel that shares screen) -->
-  <div id="start-modal" class="mentor-panel" style="display:none; position:fixed; top:0; right:0; bottom:0;
-    width:min(500px, 45vw); max-height:100vh; background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
-    border-left:3px solid rgba(0,255,136,0.5); padding:2rem; z-index:10002; overflow-y:auto;
-    box-shadow:-10px 0 50px rgba(0,0,0,0.7); backdrop-filter:blur(25px);">
+  <!-- START Modal (floating over synapse view with no background) -->
+  <div id="start-modal" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:auto; max-width:90vw; max-height:90vh; background:transparent;
+    border:none; padding:2rem; z-index:10002; overflow-y:auto;
+    box-shadow:none; backdrop-filter:none; pointer-events:auto;">
 
     <button class="mentor-panel-close" onclick="closeStartModal()"
-      style="position:absolute; top:1rem; right:1rem; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.3);
-      border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff;
-      font-size:1.25rem; transition:all 0.2s;">
+      style="position:absolute; top:-1rem; right:-1rem; background:rgba(0,0,0,0.8); border:2px solid rgba(0,255,136,0.5);
+      border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#00ff88;
+      font-size:1.25rem; transition:all 0.2s; box-shadow:0 0 15px rgba(0,255,136,0.3);">
       <i class="fas fa-times"></i>
     </button>
 
-    <div style="text-align:center; margin-bottom:2rem;">
+    <div style="text-align:center; margin-bottom:2rem; background:rgba(0,0,0,0.85); padding:2rem; border-radius:15px;
+      border:2px solid rgba(0,255,136,0.3); box-shadow:0 0 30px rgba(0,255,136,0.2);">
       <div style="font-size:3rem; color:#00ff88; margin-bottom:0.5rem;">
         <i class="fas fa-play-circle"></i>
       </div>
@@ -683,16 +684,18 @@
     <!-- Escape Hatch -->
     <div style="text-align:center; margin-bottom:1.5rem;">
       <button id="explore-freely-btn" onclick="clearSessionFocus(); closeStartModal();" style="
-        background: transparent;
-        border: none;
-        color: rgba(255,255,255,0.5);
-        font-size: 0.9rem;
+        background: rgba(0,224,255,0.15);
+        border: 2px solid rgba(0,224,255,0.5);
+        border-radius: 10px;
+        color: #00e0ff;
+        font-size: 1.1rem;
+        font-weight: 600;
         cursor: pointer;
-        text-decoration: underline;
-        padding: 0.5rem;
-        transition: color 0.2s;
+        padding: 1rem 2rem;
+        transition: all 0.3s;
+        box-shadow: 0 0 20px rgba(0,224,255,0.2);
       ">
-        I just want to explore freely
+        <i class="fas fa-compass" style="margin-right:0.5rem;"></i>I just want to explore freely
       </button>
     </div>
 
@@ -811,9 +814,9 @@
     </div>
   </div>
 
-  <!-- START Modal Backdrop -->
-  <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3);
-    backdrop-filter:blur(2px); z-index:10001;" onclick="closeStartModal()"></div>
+  <!-- START Modal Backdrop (no blur, transparent to allow synapse interaction) -->
+  <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:transparent;
+    backdrop-filter:none; z-index:10001; pointer-events:none;"></div>
 
    <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
