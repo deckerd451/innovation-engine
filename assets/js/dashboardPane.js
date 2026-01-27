@@ -1082,7 +1082,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           .or(`name.ilike.%${q}%,description.ilike.%${q}%,skills_needed.ilike.%${q}%`)
           .limit(10);
         if (error) console.warn("Projects search error:", error);
-        else projects = data;
+        else {
+          projects = data;
+          // Debug: log first project to see structure
+          if (projects && projects.length > 0) {
+            console.log('Sample project data:', projects[0]);
+          }
+        }
       }
 
       if (category === "all" || category === "themes") {
@@ -1520,15 +1526,25 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // Helper function to render project cards
   function projectCard(proj) {
-    return `<div class="result-card" style="padding:1rem; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openProjectDetails('${proj.id}')">
+    // Debug: log project data to see what we're getting
+    if (!proj.id) {
+      console.warn('Project missing id:', proj);
+    }
+    
+    const projectId = proj.id || proj.project_id || '';
+    const projectName = proj.name || proj.title || 'Untitled Project';
+    const projectDesc = proj.description || '';
+    const projectSkills = proj.skills_needed || proj.skills || '';
+    
+    return `<div class="result-card" style="padding:1rem; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openProjectDetails('${projectId}')">
       <div style="display:flex; align-items:center; gap:1rem;">
         <div style="width:48px; height:48px; background:rgba(0,255,136,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
           <i class="fas fa-lightbulb" style="color:#00ff88;"></i>
         </div>
         <div style="flex:1;">
-          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(proj.name)}</div>
-          <div style="color:#aaa; font-size:0.85rem; margin-bottom:0.25rem;">${escapeHtml(proj.description || "").slice(0, 80)}${(proj.description || "").length > 80 ? "..." : ""}</div>
-          ${proj.skills_needed ? `<div style="color:#00ff88; font-size:0.75rem;"><i class="fas fa-code"></i> ${escapeHtml(proj.skills_needed)}</div>` : ""}
+          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(projectName)}</div>
+          <div style="color:#aaa; font-size:0.85rem; margin-bottom:0.25rem;">${escapeHtml(projectDesc).slice(0, 80)}${projectDesc.length > 80 ? "..." : ""}</div>
+          ${projectSkills ? `<div style="color:#00ff88; font-size:0.75rem;"><i class="fas fa-code"></i> ${escapeHtml(projectSkills)}</div>` : ""}
         </div>
       </div>
     </div>`;
