@@ -223,6 +223,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (e.key === "Enter") handleSearch();
     });
 
+    // Setup category filter buttons
+    setupCategoryButtons();
+
     // Bottom bar buttons - modals
     on($("btn-messages"), "click", () => window.openMessagesModal());
     on($("btn-projects-modal"), "click", () => window.openProjectsModal());
@@ -970,14 +973,73 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // -----------------------------
   // Search + Quick Connect
   // -----------------------------
+  let activeSearchCategory = "all"; // Track active search category
+
+  // Setup category filter buttons
+  function setupCategoryButtons() {
+    const buttons = document.querySelectorAll(".search-category-btn");
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeSearchCategory = btn.dataset.category;
+
+        // Update button styles
+        buttons.forEach((b) => {
+          if (b.dataset.category === activeSearchCategory) {
+            // Active state
+            const color = getCategoryColor(activeSearchCategory);
+            b.style.background = `linear-gradient(135deg, ${color.gradient})`;
+            b.style.border = "none";
+            b.style.color = "white";
+          } else {
+            // Inactive state
+            const color = getCategoryColor(b.dataset.category);
+            b.style.background = color.bg;
+            b.style.border = color.border;
+            b.style.color = color.text;
+          }
+        });
+
+        // Update placeholder
+        const searchInput = $("global-search");
+        if (searchInput) {
+          searchInput.placeholder = getPlaceholderText(activeSearchCategory);
+        }
+      });
+    });
+  }
+
+  function getCategoryColor(category) {
+    const colors = {
+      all: { gradient: "#00e0ff, #0080ff", bg: "rgba(0,224,255,0.15)", border: "1px solid rgba(0,224,255,0.3)", text: "#00e0ff" },
+      people: { gradient: "#00e0ff, #0080ff", bg: "rgba(0,224,255,0.15)", border: "1px solid rgba(0,224,255,0.3)", text: "#00e0ff" },
+      organizations: { gradient: "#a855f7, #8b3fd9", bg: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", text: "#a855f7" },
+      projects: { gradient: "#00ff88, #00cc6a", bg: "rgba(0,255,136,0.15)", border: "1px solid rgba(0,255,136,0.3)", text: "#00ff88" },
+      themes: { gradient: "#ffaa00, #ff8800", bg: "rgba(255,170,0,0.15)", border: "1px solid rgba(255,170,0,0.3)", text: "#ffaa00" },
+      skills: { gradient: "#ff6b6b, #ee5555", bg: "rgba(255,107,107,0.15)", border: "1px solid rgba(255,107,107,0.3)", text: "#ff6b6b" }
+    };
+    return colors[category] || colors.all;
+  }
+
+  function getPlaceholderText(category) {
+    const placeholders = {
+      all: "Search everything...",
+      people: "Search people by name or bio...",
+      organizations: "Search organizations...",
+      projects: "Search projects...",
+      themes: "Search themes...",
+      skills: "Search by skill name..."
+    };
+    return placeholders[category] || placeholders.all;
+  }
+
   async function handleSearch() {
     const q = $("global-search")?.value?.trim();
     if (!q) return;
     openModal("quick-connect-modal");
-    await renderSearchResults(q);
+    await renderSearchResults(q, activeSearchCategory);
   }
 
-  async function renderSearchResults(query) {
+  async function renderSearchResults(query, category = "all") {
     const list = $("quick-connect-list");
     if (!list) return;
 
@@ -988,42 +1050,63 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     try {
       const q = query.toLowerCase();
+      let people = null, organizations = null, projects = null, themes = null, skillMatches = null;
 
-      // Search people
-      const { data: people, error: peopleError } = await state.supabase
-        .from("community")
-        .select("*")
-        .or(`name.ilike.%${q}%,skills.ilike.%${q}%,bio.ilike.%${q}%`)
-        .limit(25);
+      // Search based on category
+      if (category === "all" || category === "people") {
+        const { data, error } = await state.supabase
+          .from("community")
+          .select("*")
+          .or(`name.ilike.%${q}%,bio.ilike.%${q}%`)
+          .limit(25);
+        if (error) console.warn("People search error:", error);
+        else people = data;
+      }
 
-      // Search organizations
-      const { data: organizations, error: orgsError } = await state.supabase
-        .from("organizations")
-        .select("*")
-        .or(`name.ilike.%${q}%,description.ilike.%${q}%,tags.ilike.%${q}%`)
-        .limit(10);
+      if (category === "all" || category === "organizations") {
+        const { data, error } = await state.supabase
+          .from("organizations")
+          .select("*")
+          .or(`name.ilike.%${q}%,description.ilike.%${q}%,tags.ilike.%${q}%`)
+          .limit(10);
+        if (error) console.warn("Organizations search error:", error);
+        else organizations = data;
+      }
 
-      // Search projects
-      const { data: projects, error: projectsError } = await state.supabase
-        .from("projects")
-        .select("*")
-        .or(`name.ilike.%${q}%,description.ilike.%${q}%,skills_needed.ilike.%${q}%`)
-        .limit(10);
+      if (category === "all" || category === "projects") {
+        const { data, error } = await state.supabase
+          .from("projects")
+          .select("*")
+          .or(`name.ilike.%${q}%,description.ilike.%${q}%,skills_needed.ilike.%${q}%`)
+          .limit(10);
+        if (error) console.warn("Projects search error:", error);
+        else projects = data;
+      }
 
-      // Search themes
-      const { data: themes, error: themesError } = await state.supabase
-        .from("themes")
-        .select("*")
-        .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
-        .limit(10);
+      if (category === "all" || category === "themes") {
+        const { data, error } = await state.supabase
+          .from("themes")
+          .select("*")
+          .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+          .limit(10);
+        if (error) console.warn("Themes search error:", error);
+        else themes = data;
+      }
 
-      if (peopleError) console.warn("People search error:", peopleError);
-      if (orgsError) console.warn("Organizations search error:", orgsError);
-      if (projectsError) console.warn("Projects search error:", projectsError);
-      if (themesError) console.warn("Themes search error:", themesError);
+      // Search for skills (search within people's skills field)
+      if (category === "all" || category === "skills") {
+        const { data, error } = await state.supabase
+          .from("community")
+          .select("*")
+          .ilike("skills", `%${q}%`)
+          .limit(25);
+        if (error) console.warn("Skills search error:", error);
+        else skillMatches = data;
+      }
 
       const filteredPeople = (people || []).filter((p) => p.id !== state.communityProfile?.id);
-      const totalResults = filteredPeople.length + (organizations?.length || 0) + (projects?.length || 0) + (themes?.length || 0);
+      const filteredSkillMatches = (skillMatches || []).filter((p) => p.id !== state.communityProfile?.id);
+      const totalResults = filteredPeople.length + filteredSkillMatches.length + (organizations?.length || 0) + (projects?.length || 0) + (themes?.length || 0);
 
       if (totalResults === 0) {
         list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
@@ -1072,6 +1155,16 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
             <i class="fas fa-palette"></i> Themes (${themes.length})
           </h3>
           ${themes.map((theme) => themeCard(theme)).join("")}
+        </div>`;
+      }
+
+      // Render Skills section (people with matching skills)
+      if (filteredSkillMatches && filteredSkillMatches.length > 0) {
+        html += `<div style="margin-bottom:2rem;">
+          <h3 style="color:#ff6b6b; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-code"></i> People with Skill: "${escapeHtml(query)}" (${filteredSkillMatches.length})
+          </h3>
+          ${filteredSkillMatches.map((p) => personCard(p)).join("")}
         </div>`;
       }
 
