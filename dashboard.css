@@ -1964,3 +1964,12 @@ button,
     grid-template-columns: 1fr !important;
   }
 }
+
+/* START Modal - Explore Freely Button Hover Effect */
+#explore-freely-btn:hover {
+  background: rgba(0,224,255,0.25);
+  border-color: #00e0ff;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(0,224,255,0.4);
+}

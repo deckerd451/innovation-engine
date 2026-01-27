@@ -39,16 +39,17 @@ async function openEnhancedStartModal() {
     return;
   }
 
-  // Show modal with semi-transparent backdrop to keep synapse visible
+  // Show modal with no backdrop effects to allow synapse interaction
   modal.style.display = 'block';
   backdrop.style.display = 'block';
-  backdrop.style.background = 'rgba(0,0,0,0.2)'; // More transparent
-  backdrop.style.backdropFilter = 'blur(2px)'; // Less blur
+  backdrop.style.background = 'transparent';
+  backdrop.style.backdropFilter = 'none';
+  backdrop.style.pointerEvents = 'none';
 
   // Animate in
   setTimeout(() => {
     modal.style.opacity = '1';
-    modal.style.transform = 'translateX(0)';
+    modal.style.transform = 'translate(-50%, -50%)';
   }, 10);
 
   // Initialize sequential wizard
@@ -376,7 +377,7 @@ function closeStartModal() {
 
   if (modal) {
     modal.style.opacity = '0';
-    modal.style.transform = 'translateX(100%)';
+    modal.style.transform = 'translate(-50%, -50%) scale(0.9)';
     setTimeout(() => {
       modal.style.display = 'none';
     }, 300);
@@ -384,9 +385,9 @@ function closeStartModal() {
 
   if (backdrop) {
     backdrop.style.display = 'none';
-    // Reset backdrop to default
-    backdrop.style.background = 'rgba(0,0,0,0.3)';
-    backdrop.style.backdropFilter = 'blur(2px)';
+    // Keep backdrop transparent and non-interactive
+    backdrop.style.background = 'transparent';
+    backdrop.style.backdropFilter = 'none';
   }
 }
 
