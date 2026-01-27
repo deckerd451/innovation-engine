@@ -1213,14 +1213,50 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         </div>`;
       }
 
-      // Render Themes section
-      if (themes && themes.length > 0) {
+      // Render Themes section with tabs (similar to organizations)
+      if (category === "all" || category === "themes") {
+        const themeCards = themes && themes.length > 0 
+          ? themes.map((theme) => themeCard(theme))
+          : [];
+        
         html += `<div style="margin-bottom:2rem;">
-          <h3 style="color:#ffaa00; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-            <i class="fas fa-palette"></i> Themes (${themes.length})
+          <h3 style="color:#ffaa00; font-size:1.1rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-palette"></i> Themes
           </h3>
-          ${themes.map((theme) => themeCard(theme)).join("")}
+          
+          <!-- Theme Tabs -->
+          <div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid rgba(255,170,0,0.2); padding-bottom:0.5rem;">
+            <button class="theme-search-tab active-theme-tab" data-theme-tab="search" 
+              style="padding:0.6rem 1.2rem; background:rgba(255,170,0,0.15); border:none; border-bottom:3px solid #ffaa00; 
+              color:#ffaa00; cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
+              <i class="fas fa-search"></i> Search Results ${themeCards.length > 0 ? `(${themeCards.length})` : ''}
+            </button>
+            <button class="theme-search-tab" data-theme-tab="discover" 
+              style="padding:0.6rem 1.2rem; background:transparent; border:none; border-bottom:3px solid transparent; 
+              color:rgba(255,170,0,0.7); cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
+              <i class="fas fa-compass"></i> Discover Themes
+            </button>
+            <button class="theme-search-tab" data-theme-tab="my-themes" 
+              style="padding:0.6rem 1.2rem; background:transparent; border:none; border-bottom:3px solid transparent; 
+              color:rgba(255,170,0,0.7); cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
+              <i class="fas fa-user-tag"></i> My Themes
+            </button>
+          </div>
+          
+          <!-- Tab Content -->
+          <div id="theme-tab-content-search">
+            ${themeCards.length > 0 
+              ? themeCards.join("") 
+              : `<div style="text-align:center; padding:2rem; color:#888;">
+                  <i class="fas fa-search" style="font-size:2rem; opacity:0.3; margin-bottom:0.5rem;"></i>
+                  <p>No themes found matching "${escapeHtml(query)}"</p>
+                </div>`
+            }
+          </div>
         </div>`;
+        
+        // Setup tab switching after rendering
+        setTimeout(() => setupThemeSearchTabs(), 100);
       }
 
       // Render Skills section (people with matching skills)
@@ -1462,6 +1498,120 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // Create organization from search interface
   window.createOrganizationFromSearch = async function(event) {
+
+  // Setup theme search tabs
+  function setupThemeSearchTabs() {
+    const tabs = document.querySelectorAll('.theme-search-tab');
+    if (!tabs.length) return;
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', async () => {
+        // Update tab styles
+        tabs.forEach(t => {
+          t.style.background = 'transparent';
+          t.style.borderBottomColor = 'transparent';
+          t.style.color = 'rgba(255,170,0,0.7)';
+          t.classList.remove('active-theme-tab');
+        });
+        tab.style.background = 'rgba(255,170,0,0.15)';
+        tab.style.borderBottomColor = '#ffaa00';
+        tab.style.color = '#ffaa00';
+        tab.classList.add('active-theme-tab');
+        
+        // Load tab content
+        const tabName = tab.dataset.themeTab;
+        await loadThemeSearchTabContent(tabName);
+      });
+    });
+  }
+
+  // Load theme tab content
+  async function loadThemeSearchTabContent(tabName) {
+    const content = $('theme-tab-content-search');
+    if (!content) return;
+    
+    if (tabName === 'search') {
+      // Search results are already loaded, just show them
+      return;
+    }
+    
+    content.innerHTML = `<div style="text-align:center; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem; color:#ffaa00;"></i>
+      <p style="color:#aaa; margin-top:1rem;">Loading...</p>
+    </div>`;
+    
+    try {
+      if (tabName === 'discover') {
+        // Load all active themes
+        const { data: themes, error } = await state.supabase
+          .from('theme_circles')
+          .select('*')
+          .eq('status', 'active')
+          .gt('expires_at', new Date().toISOString())
+          .order('activity_score', { ascending: false })
+          .limit(20);
+        
+        if (error) throw error;
+        
+        if (!themes || themes.length === 0) {
+          content.innerHTML = `<div style="text-align:center; padding:3rem;">
+            <i class="fas fa-compass" style="font-size:3rem; color:rgba(255,170,0,0.3); margin-bottom:1rem;"></i>
+            <p style="color:#888;">No active themes available</p>
+          </div>`;
+          return;
+        }
+        
+        const themeCards = themes.map(theme => themeCard(theme));
+        content.innerHTML = themeCards.join('');
+        
+      } else if (tabName === 'my-themes') {
+        if (!state.communityProfile) {
+          content.innerHTML = `<div style="text-align:center; padding:3rem;">
+            <i class="fas fa-user-tag" style="font-size:3rem; color:rgba(255,170,0,0.3); margin-bottom:1rem;"></i>
+            <p style="color:#888;">Please log in to see your themes</p>
+          </div>`;
+          return;
+        }
+        
+        // Get user's theme participations
+        const { data: participations, error: partError } = await state.supabase
+          .from('theme_participants')
+          .select('theme_id')
+          .eq('community_id', state.communityProfile.id);
+        
+        if (partError) throw partError;
+        
+        if (!participations || participations.length === 0) {
+          content.innerHTML = `<div style="text-align:center; padding:3rem;">
+            <i class="fas fa-user-tag" style="font-size:3rem; color:rgba(255,170,0,0.3); margin-bottom:1rem;"></i>
+            <p style="color:#888;">You haven't joined any themes yet</p>
+            <p style="color:#666; font-size:0.9rem;">Discover themes to find ones to join!</p>
+          </div>`;
+          return;
+        }
+        
+        const themeIds = participations.map(p => p.theme_id);
+        const { data: themes, error: themesError } = await state.supabase
+          .from('theme_circles')
+          .select('*')
+          .in('id', themeIds);
+        
+        if (themesError) throw themesError;
+        
+        const themeCards = themes.map(theme => themeCard(theme));
+        content.innerHTML = themeCards.join('');
+      }
+      
+    } catch (error) {
+      console.error('Error loading theme tab content:', error);
+      content.innerHTML = `<div style="text-align:center; padding:2rem; color:#ff6b6b;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem; margin-bottom:0.5rem;"></i>
+        <p>Error loading content</p>
+        <p style="font-size:0.85rem; opacity:0.8;">${escapeHtml(error.message || String(error))}</p>
+      </div>`;
+    }
+  }
+
     event.preventDefault();
     
     if (!state.supabase || !state.communityProfile) {

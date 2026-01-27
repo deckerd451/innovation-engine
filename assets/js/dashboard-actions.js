@@ -78,9 +78,8 @@ document.getElementById('btn-orgs')?.addEventListener('click', () => {
   }
 });
 
-// Wire up Admin button
-// Per yellow instructions: Admin button shows full community view AND allows theme/project management
-document.getElementById('btn-admin')?.addEventListener('click', () => {
+// Wire up Admin button (now at top)
+document.getElementById('btn-admin-top')?.addEventListener('click', () => {
   openAdminPanel();
 });
 
@@ -836,9 +835,9 @@ window.addEventListener('profile-loaded', () => {
   
   setTimeout(createSynapseLegend, 500);
 
-  // Show admin button if user is admin
+  // Show admin button if user is admin (now at top)
   if (isAdminUser()) {
-    const adminBtn = document.getElementById('btn-admin');
+    const adminBtn = document.getElementById('btn-admin-top');
     if (adminBtn) {
       adminBtn.style.display = 'flex';
       console.log('👑 Admin button shown');

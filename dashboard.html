@@ -331,6 +331,14 @@
           font-size:0.7rem; font-weight:bold; padding:2px 6px; border-radius:10px; min-width:18px; text-align:center;">0</span>
       </div>
 
+      <!-- Admin Panel Button (Hidden by default, same size as bell) -->
+      <div id="btn-admin-top" style="cursor:pointer; padding:0.75rem; background:rgba(255,170,0,0.1);
+        border:1px solid rgba(255,170,0,0.3); border-radius:50%; width:48px; height:48px;
+        display:none; align-items:center; justify-content:center;"
+        title="Admin Panel">
+        <i class="fas fa-crown" style="color:#ffa500; font-size:1.2rem;"></i>
+      </div>
+
       <!-- User Profile -->
       <div id="user-menu" style="cursor:pointer; padding:0.5rem 1rem; background:rgba(0,224,255,0.1);
         border:1px solid rgba(0,224,255,0.3); border-radius:25px; display:flex; align-items:center; gap:0.75rem;"
@@ -368,48 +376,6 @@
         transition:all 0.2s;"
         title="Skip the start sequence">
         I just want to explore
-      </button>
-    </div>
-
-    <!-- Bottom Action Buttons (Floating) -->
-    <div id="bottom-action-buttons"
-      style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
-      display:flex; align-items:center; justify-content:center; gap:0.75rem; z-index:1000;">
-
-      <!-- Projects -->
-      <button class="action-btn" id="btn-projects"
-        style="background:rgba(0,255,136,0.15); border:2px solid rgba(0,255,136,0.4); border-radius:50%;
-        width:64px; height:64px; display:flex; align-items:center; justify-content:center; cursor:pointer;
-        transition:all 0.3s; box-shadow:0 4px 12px rgba(0,255,136,0.2);"
-        title="Toggle Projects">
-        <i class="fas fa-lightbulb" style="font-size:1.5rem; color:#00ff88;"></i>
-      </button>
-
-      <!-- Themes -->
-      <button class="action-btn" id="btn-themes"
-        style="background:rgba(255,170,0,0.15); border:2px solid rgba(255,170,0,0.4); border-radius:50%;
-        width:64px; height:64px; display:flex; align-items:center; justify-content:center; cursor:pointer;
-        transition:all 0.3s; box-shadow:0 4px 12px rgba(255,170,0,0.2);"
-        title="Toggle Themes">
-        <i class="fas fa-bullseye" style="font-size:1.5rem; color:#ffa500;"></i>
-      </button>
-
-      <!-- People -->
-      <button class="action-btn" id="btn-people"
-        style="background:rgba(255,107,107,0.15); border:2px solid rgba(255,107,107,0.4); border-radius:50%;
-        width:64px; height:64px; display:flex; align-items:center; justify-content:center; cursor:pointer;
-        transition:all 0.3s; box-shadow:0 4px 12px rgba(255,107,107,0.2);"
-        title="Toggle People">
-        <i class="fas fa-users" style="font-size:1.5rem; color:#ff6b6b;"></i>
-      </button>
-
-      <!-- Admin (Hidden by default) -->
-      <button class="action-btn" id="btn-admin"
-        style="background:rgba(255,170,0,0.2); border:2px solid rgba(255,170,0,0.5); border-radius:50%;
-        width:64px; height:64px; display:none; align-items:center; justify-content:center; cursor:pointer;
-        transition:all 0.3s; box-shadow:0 4px 12px rgba(255,170,0,0.3);"
-        title="Admin Panel">
-        <i class="fas fa-crown" style="font-size:1.5rem; color:#ffa500;"></i>
       </button>
     </div>
 
