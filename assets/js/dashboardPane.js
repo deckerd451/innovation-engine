@@ -1037,6 +1037,20 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   async function handleSearch() {
     const q = $("global-search")?.value?.trim();
     if (!q) return;
+    
+    // Update modal title
+    const title = $("quick-connect-title");
+    const subtitle = $("quick-connect-subtitle");
+    if (title) {
+      const categoryName = activeSearchCategory === "all" ? "All Categories" : 
+        activeSearchCategory.charAt(0).toUpperCase() + activeSearchCategory.slice(1);
+      title.innerHTML = `<i class="fas fa-search"></i> Search Results: "${escapeHtml(q)}"`;
+    }
+    if (subtitle) {
+      const categoryName = activeSearchCategory === "all" ? "all categories" : activeSearchCategory;
+      subtitle.textContent = `Searching in ${categoryName}`;
+    }
+    
     openModal("quick-connect-modal");
     await renderSearchResults(q, activeSearchCategory);
   }
@@ -1194,7 +1208,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           <h3 style="color:#00ff88; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
             <i class="fas fa-lightbulb"></i> Projects (${projects.length})
           </h3>
-          ${projects.map((proj) => projectCard(proj)).join("")}
+          ${projects.map((proj) => projectCard(proj, expandedProjectId === proj.id)).join("")}
         </div>`;
       }
 
@@ -1526,25 +1540,67 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // Store projects data for click handlers
   let searchProjectsCache = {};
+  let expandedProjectId = null;
 
   // Helper function to render project cards
-  function projectCard(proj) {
+  function projectCard(proj, isExpanded = false) {
     // Debug: log project data to see what we're getting
     if (!proj.id) {
       console.warn('Project missing id:', proj);
     }
     
     const projectId = proj.id || proj.project_id || '';
-    const projectName = proj.name || proj.title || 'Untitled Project';
+    const projectName = proj.title || proj.name || 'Untitled Project';
     const projectDesc = proj.description || '';
     const projectSkills = proj.skills_needed || proj.skills || '';
+    const projectTags = proj.tags && Array.isArray(proj.tags) ? proj.tags.join(', ') : '';
+    const projectStatus = proj.status || 'active';
     
     // Cache the project data for the click handler
     if (projectId) {
       searchProjectsCache[projectId] = proj;
     }
     
-    return `<div class="result-card" style="padding:1rem; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25); border-radius:12px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openProjectFromSearch('${projectId}')">
+    if (isExpanded) {
+      return `<div class="result-card" style="padding:1.5rem; background:rgba(0,255,136,0.12); border:2px solid rgba(0,255,136,0.4); border-radius:12px; margin-bottom:0.75rem; transition:all 0.2s;">
+        <div style="display:flex; align-items:start; gap:1rem; margin-bottom:1rem;">
+          <div style="width:64px; height:64px; background:rgba(0,255,136,0.3); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:2rem;">
+            <i class="fas fa-lightbulb" style="color:#00ff88;"></i>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+              <h3 style="color:#00ff88; margin:0; font-size:1.3rem;">${escapeHtml(projectName)}</h3>
+              <button onclick="toggleProjectExpansion('${projectId}')" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:white; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                <i class="fas fa-compress-alt"></i> Collapse
+              </button>
+            </div>
+            <div style="color:#aaa; font-size:0.95rem; line-height:1.6; margin-bottom:1rem;">${escapeHtml(projectDesc)}</div>
+            
+            ${projectSkills ? `<div style="margin-bottom:1rem;">
+              <div style="color:#00ff88; font-size:0.85rem; font-weight:600; margin-bottom:0.5rem;"><i class="fas fa-code"></i> Required Skills:</div>
+              <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                ${projectSkills.split(',').map(skill => `<span style="background:rgba(0,255,136,0.15); border:1px solid rgba(0,255,136,0.3); color:#00ff88; padding:0.3rem 0.7rem; border-radius:6px; font-size:0.8rem;">${escapeHtml(skill.trim())}</span>`).join('')}
+              </div>
+            </div>` : ''}
+            
+            ${projectTags ? `<div style="margin-bottom:1rem;">
+              <div style="color:#888; font-size:0.75rem;"><i class="fas fa-tags"></i> ${escapeHtml(projectTags)}</div>
+            </div>` : ''}
+            
+            <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+              <button onclick="joinProjectFromSearch('${projectId}')" style="background:linear-gradient(135deg,#00ff88,#00cc6a); border:none; padding:0.6rem 1.2rem; border-radius:8px; color:white; font-weight:600; cursor:pointer; font-size:0.9rem;">
+                <i class="fas fa-user-plus"></i> Join Project
+              </button>
+              <button onclick="viewProjectInSynapse('${projectId}')" style="background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3); padding:0.6rem 1.2rem; border-radius:8px; color:#00e0ff; font-weight:600; cursor:pointer; font-size:0.9rem;">
+                <i class="fas fa-project-diagram"></i> View in Synapse
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
+    
+    return `<div class="result-card" style="padding:1rem; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25); border-radius:12px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="toggleProjectExpansion('${projectId}')">
       <div style="display:flex; align-items:center; gap:1rem;">
         <div style="width:48px; height:48px; background:rgba(0,255,136,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
           <i class="fas fa-lightbulb" style="color:#00ff88;"></i>
@@ -1552,24 +1608,40 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         <div style="flex:1;">
           <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(projectName)}</div>
           <div style="color:#aaa; font-size:0.85rem; margin-bottom:0.25rem;">${escapeHtml(projectDesc).slice(0, 80)}${projectDesc.length > 80 ? "..." : ""}</div>
-          ${projectSkills ? `<div style="color:#00ff88; font-size:0.75rem;"><i class="fas fa-code"></i> ${escapeHtml(projectSkills)}</div>` : ""}
+          ${projectSkills ? `<div style="color:#00ff88; font-size:0.75rem;"><i class="fas fa-code"></i> ${escapeHtml(projectSkills.split(',').slice(0, 3).join(', '))}${projectSkills.split(',').length > 3 ? '...' : ''}</div>` : ""}
         </div>
+        <i class="fas fa-chevron-right" style="color:#00ff88; font-size:1.2rem;"></i>
       </div>
     </div>`;
   }
 
-  // Open project from search results
-  window.openProjectFromSearch = function(projectId) {
-    const project = searchProjectsCache[projectId];
-    if (!project) {
-      console.error('Project not found in cache:', projectId);
-      return;
+  // Toggle project expansion in search results
+  window.toggleProjectExpansion = function(projectId) {
+    expandedProjectId = expandedProjectId === projectId ? null : projectId;
+    // Re-render search results with the expanded state
+    const query = $("global-search")?.value?.trim();
+    if (query) {
+      renderSearchResults(query, activeSearchCategory);
     }
+  };
+
+  // Join project from search
+  window.joinProjectFromSearch = async function(projectId) {
+    const project = searchProjectsCache[projectId];
+    if (!project) return;
     
-    if (typeof window.openProjectDetails === 'function') {
-      window.openProjectDetails(project);
-    } else {
-      console.error('openProjectDetails function not available');
+    // Implement join logic here
+    alert(`Joining project: ${project.title || project.name}\n\nThis feature will be implemented to send a join request.`);
+  };
+
+  // View project in synapse
+  window.viewProjectInSynapse = function(projectId) {
+    // Close the search modal
+    closeModal('quick-connect-modal');
+    
+    // Focus on the project in the synapse
+    if (typeof window.focusOnNode === 'function') {
+      window.focusOnNode(projectId, 'project');
     }
   };
 
