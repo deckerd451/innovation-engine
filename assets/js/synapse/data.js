@@ -245,7 +245,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   if (members?.length) {
     let filteredMembers = members;
     
-    // Filter members based on theme participation AND direct connections
+    // Filter members based on theme participation AND direct connections (including pending)
     if (!showFullCommunity && currentUserCommunityId) {
       console.log("🔍 Filtering members. Current user ID:", currentUserCommunityId);
       console.log("🔍 Connections available:", connectionsData?.length || 0);
@@ -257,16 +257,17 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       filteredMembers = members.filter(member => {
         if (member.id === currentUserCommunityId) return true;
 
-        // Check if there's an ACCEPTED direct connection
-        const hasAcceptedConnection = (connectionsData || []).some(conn => {
+        // Check if there's an ACCEPTED or PENDING direct connection
+        const hasConnection = (connectionsData || []).some(conn => {
           const match = (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
                         (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id);
 
-          // Only count accepted connections
-          const isAccepted = String(conn.status || "").toLowerCase() === "accepted";
+          // Count both accepted AND pending connections
+          const status = String(conn.status || "").toLowerCase();
+          const isActiveConnection = status === "accepted" || status === "pending";
 
-          if (match && isAccepted) {
-            console.log("🎯 Found accepted connection!", {
+          if (match && isActiveConnection) {
+            console.log("🎯 Found connection!", {
               conn,
               currentUser: currentUserCommunityId,
               member: member.id,
@@ -275,11 +276,11 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
             });
           }
 
-          return match && isAccepted;
+          return match && isActiveConnection;
         });
 
-        if (hasAcceptedConnection) {
-          console.log("✅ Including user due to accepted connection:", member.name, member.id);
+        if (hasConnection) {
+          console.log("✅ Including user due to connection:", member.name, member.id);
           return true;
         }
 
@@ -310,13 +311,14 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       const userProjects = projectMembersData.filter(pm => pm.user_id === member.id);
       const projectIds = userProjects.map(pm => pm.project_id);
 
-      // Check if this person is connected to the current user
-      const isConnectedToCurrentUser = (connectionsData || []).some(conn => {
-        const isConnected = (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
-                           (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id);
-        const isAccepted = String(conn.status || "").toLowerCase() === "accepted";
-        return isConnected && isAccepted;
+      // Check if this person is connected to the current user (accepted or pending)
+      const connectionToCurrentUser = (connectionsData || []).find(conn => {
+        return (conn.from_user_id === currentUserCommunityId && conn.to_user_id === member.id) ||
+               (conn.to_user_id === currentUserCommunityId && conn.from_user_id === member.id);
       });
+      
+      const connectionStatus = connectionToCurrentUser ? String(connectionToCurrentUser.status || "").toLowerCase() : null;
+      const isConnectedToCurrentUser = connectionStatus === "accepted" || connectionStatus === "pending";
 
       return {
         id: member.id,
