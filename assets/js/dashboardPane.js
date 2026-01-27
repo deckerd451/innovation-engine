@@ -988,26 +988,94 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     try {
       const q = query.toLowerCase();
-      const { data: people, error } = await state.supabase
+
+      // Search people
+      const { data: people, error: peopleError } = await state.supabase
         .from("community")
         .select("*")
         .or(`name.ilike.%${q}%,skills.ilike.%${q}%,bio.ilike.%${q}%`)
         .limit(25);
 
-      if (error) throw error;
+      // Search organizations
+      const { data: organizations, error: orgsError } = await state.supabase
+        .from("organizations")
+        .select("*")
+        .or(`name.ilike.%${q}%,description.ilike.%${q}%,tags.ilike.%${q}%`)
+        .limit(10);
 
-      if (!people || people.length === 0) {
+      // Search projects
+      const { data: projects, error: projectsError } = await state.supabase
+        .from("projects")
+        .select("*")
+        .or(`name.ilike.%${q}%,description.ilike.%${q}%,skills_needed.ilike.%${q}%`)
+        .limit(10);
+
+      // Search themes
+      const { data: themes, error: themesError } = await state.supabase
+        .from("themes")
+        .select("*")
+        .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+        .limit(10);
+
+      if (peopleError) console.warn("People search error:", peopleError);
+      if (orgsError) console.warn("Organizations search error:", orgsError);
+      if (projectsError) console.warn("Projects search error:", projectsError);
+      if (themesError) console.warn("Themes search error:", themesError);
+
+      const filteredPeople = (people || []).filter((p) => p.id !== state.communityProfile?.id);
+      const totalResults = filteredPeople.length + (organizations?.length || 0) + (projects?.length || 0) + (themes?.length || 0);
+
+      if (totalResults === 0) {
         list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
           <i class="fas fa-search" style="font-size:3rem; opacity:0.25;"></i>
-          <p style="margin-top:1rem;">No results for “${escapeHtml(query)}”</p>
+          <p style="margin-top:1rem;">No results for "${escapeHtml(query)}"</p>
         </div>`;
         return;
       }
 
-      list.innerHTML = people
-        .filter((p) => p.id !== state.communityProfile?.id)
-        .map((p) => personCard(p))
-        .join("");
+      let html = "";
+
+      // Render People section
+      if (filteredPeople.length > 0) {
+        html += `<div style="margin-bottom:2rem;">
+          <h3 style="color:#00e0ff; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-users"></i> People (${filteredPeople.length})
+          </h3>
+          ${filteredPeople.map((p) => personCard(p)).join("")}
+        </div>`;
+      }
+
+      // Render Organizations section
+      if (organizations && organizations.length > 0) {
+        html += `<div style="margin-bottom:2rem;">
+          <h3 style="color:#a855f7; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-building"></i> Organizations (${organizations.length})
+          </h3>
+          ${organizations.map((org) => organizationCard(org)).join("")}
+        </div>`;
+      }
+
+      // Render Projects section
+      if (projects && projects.length > 0) {
+        html += `<div style="margin-bottom:2rem;">
+          <h3 style="color:#00ff88; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-lightbulb"></i> Projects (${projects.length})
+          </h3>
+          ${projects.map((proj) => projectCard(proj)).join("")}
+        </div>`;
+      }
+
+      // Render Themes section
+      if (themes && themes.length > 0) {
+        html += `<div style="margin-bottom:2rem;">
+          <h3 style="color:#ffaa00; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-palette"></i> Themes (${themes.length})
+          </h3>
+          ${themes.map((theme) => themeCard(theme)).join("")}
+        </div>`;
+      }
+
+      list.innerHTML = html;
     } catch (e) {
       console.error("Search failed:", e);
       list.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
@@ -1016,6 +1084,53 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         <p style="opacity:0.85;">${escapeHtml(e.message || String(e))}</p>
       </div>`;
     }
+  }
+
+  // Helper function to render organization cards
+  function organizationCard(org) {
+    return `<div class="result-card" style="padding:1rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openOrganizationProfile('${org.id}')">
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <div style="width:48px; height:48px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
+          <i class="fas fa-building" style="color:#a855f7;"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(org.name)}</div>
+          <div style="color:#aaa; font-size:0.85rem; margin-bottom:0.25rem;">${escapeHtml(org.description || "").slice(0, 80)}${(org.description || "").length > 80 ? "..." : ""}</div>
+          ${org.tags ? `<div style="color:#a855f7; font-size:0.75rem;"><i class="fas fa-tags"></i> ${escapeHtml(org.tags)}</div>` : ""}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Helper function to render project cards
+  function projectCard(proj) {
+    return `<div class="result-card" style="padding:1rem; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openProjectDetails('${proj.id}')">
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <div style="width:48px; height:48px; background:rgba(0,255,136,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
+          <i class="fas fa-lightbulb" style="color:#00ff88;"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(proj.name)}</div>
+          <div style="color:#aaa; font-size:0.85rem; margin-bottom:0.25rem;">${escapeHtml(proj.description || "").slice(0, 80)}${(proj.description || "").length > 80 ? "..." : ""}</div>
+          ${proj.skills_needed ? `<div style="color:#00ff88; font-size:0.75rem;"><i class="fas fa-code"></i> ${escapeHtml(proj.skills_needed)}</div>` : ""}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Helper function to render theme cards
+  function themeCard(theme) {
+    return `<div class="result-card" style="padding:1rem; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openThemeDetails('${theme.id}')">
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <div style="width:48px; height:48px; background:rgba(255,170,0,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
+          <i class="fas fa-palette" style="color:#ffaa00;"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(theme.name)}</div>
+          <div style="color:#aaa; font-size:0.85rem;">${escapeHtml(theme.description || "").slice(0, 100)}${(theme.description || "").length > 100 ? "..." : ""}</div>
+        </div>
+      </div>
+    </div>`;
   }
 
   async function loadSuggestedConnections() {
