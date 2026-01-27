@@ -87,7 +87,44 @@ export function setupDefs(svg) {
 }
 
 export function getLinkColor(link) {
-  // Handle person-to-person connection links
+  // Check type first, then status
+  
+  // Project-member links (person → project)
+  if (link.type === "project-member") {
+    if (link.status === "pending") {
+      return "rgba(255, 107, 107, 0.4)"; // Light red for pending project requests
+    }
+    return "#ff6b6b"; // Red for approved project members
+  }
+
+  // Organization member links
+  if (link.type === "org-member") {
+    return "rgba(168, 85, 247, 0.5)"; // Purple for org members
+  }
+
+  // Theme participant links
+  if (link.type === "theme" || link.type === "theme-participant") {
+    const themeId = typeof link.source === 'object' && link.source.theme_id
+      ? link.source.theme_id
+      : (typeof link.source === 'string' && link.source.startsWith('theme:'))
+        ? link.source.replace('theme:', '')
+        : null;
+
+    if (themeId) {
+      const themeColor = getThemeColor(themeId);
+      const alpha = link.engagement_level === "leading" ? 0.9 :
+                    link.engagement_level === "active" ? 0.7 : 0.5;
+      return themeColor.replace(')', `, ${alpha})`).replace('#', 'rgba(').replace(/^rgba\(([\da-f]{2})([\da-f]{2})([\da-f]{2})/, (_, r, g, b) => {
+        return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}`;
+      });
+    }
+
+    if (link.engagement_level === "leading") return "rgba(255, 215, 0, 0.7)";
+    if (link.engagement_level === "active") return "rgba(255, 170, 0, 0.6)";
+    return "rgba(255, 170, 0, 0.4)";
+  }
+
+  // Person-to-person connection links
   if (link.type === "connection") {
     if (link.status === "accepted") {
       return COLORS.edgeAccepted; // Green for accepted connections
@@ -96,6 +133,7 @@ export function getLinkColor(link) {
     }
   }
 
+  // Fallback based on status
   switch (link.status) {
     case "accepted":
       return COLORS.edgeAccepted;
@@ -103,31 +141,10 @@ export function getLinkColor(link) {
       return COLORS.edgePending;
     case "suggested":
       return COLORS.edgeSuggested;
-    case "project-member":
-      return "#ff6b6b";
-    case "org-member":
-      return "rgba(168, 85, 247, 0.5)";
-    case "theme-participant":
-      // Per yellow instructions: Use theme color for visual relationship
-      // Get the theme color from the source node (theme)
-      const themeId = typeof link.source === 'object' && link.source.theme_id
-        ? link.source.theme_id
-        : (typeof link.source === 'string' && link.source.startsWith('theme:'))
-          ? link.source.replace('theme:', '')
-          : null;
-
-      if (themeId) {
-        const themeColor = getThemeColor(themeId);
-        // Opacity based on engagement level
-        const alpha = link.engagement_level === "leading" ? 0.9 :
-                      link.engagement_level === "active" ? 0.7 : 0.5;
-        return themeColor.replace(')', `, ${alpha})`).replace('#', 'rgba(').replace(/^rgba\(([\da-f]{2})([\da-f]{2})([\da-f]{2})/, (_, r, g, b) => {
-          return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}`;
-        });
-      }
-
-      // Fallback to engagement-based colors
-      if (link.engagement_level === "leading") return "rgba(255, 215, 0, 0.7)";
+    default:
+      return "rgba(255, 255, 255, 0.2)";
+  }
+}
       if (link.engagement_level === "active") return "rgba(0, 224, 255, 0.7)";
       return "rgba(0, 224, 255, 0.4)";
     default:

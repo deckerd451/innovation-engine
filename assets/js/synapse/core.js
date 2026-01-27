@@ -653,6 +653,42 @@ function calculateNestedPosition(
   }
 
   // ----------------------------
+  // PROJECTS - Position freely, not contained in themes
+  // ----------------------------
+  if (node.type === "project") {
+    // Projects should be positioned based on their connections to users
+    // Start them near their theme for initial layout, but let forces move them
+    if (node.theme_id) {
+      const parentTheme = allNodes.find(
+        (n) => n.type === "theme" && n.theme_id === node.theme_id
+      );
+      
+      if (parentTheme && !parentTheme.hidden) {
+        // Start near theme but don't set parentTheme (so no containment)
+        const angle = Math.random() * 2 * Math.PI;
+        const distance = (parentTheme.themeRadius || 180) * 0.6;
+        
+        return {
+          x: parentTheme.x + Math.cos(angle) * distance,
+          y: parentTheme.y + Math.sin(angle) * distance,
+          parentTheme: null, // ✅ No parentTheme = no containment
+          hidden: false,
+        };
+      }
+    }
+    
+    // If no theme or theme is hidden, position randomly around center
+    const angle = Math.random() * 2 * Math.PI;
+    const distance = 300 + Math.random() * 200;
+    return {
+      x: centerX + Math.cos(angle) * distance,
+      y: centerY + Math.sin(angle) * distance,
+      parentTheme: null, // ✅ No parentTheme = no containment
+      hidden: false,
+    };
+  }
+
+  // ----------------------------
   // ORGANIZATIONS - Position in outer ring
   // ----------------------------
   if (node.type === "organization") {
