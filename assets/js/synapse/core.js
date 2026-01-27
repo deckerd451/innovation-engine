@@ -618,7 +618,22 @@ function calculateNestedPosition(
       }
     }
 
-    // If person has no theme participation, hide them (unless in discovery mode)
+    // ✅ CRITICAL FIX: Show people with connections even if they have no themes
+    // Check if this person is connected to the current user (accepted or pending)
+    if (node.isConnectedToCurrentUser) {
+      console.log(`✅ Showing connected person without themes: ${node.name}`);
+      // Position near center since they have no theme
+      const angle = Math.random() * 2 * Math.PI;
+      const distance = 300 + Math.random() * 200;
+      return {
+        x: centerX + Math.cos(angle) * distance,
+        y: centerY + Math.sin(angle) * distance,
+        parentTheme: null,
+        hidden: false,
+      };
+    }
+
+    // If person has no theme participation AND no connection, hide them (unless in discovery mode)
     if (!showFullCommunity) {
       return {
         x: centerX + 10000, // Off-screen
