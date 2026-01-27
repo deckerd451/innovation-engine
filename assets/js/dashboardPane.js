@@ -1074,7 +1074,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         const { data, error } = await state.supabase
           .from("organizations")
           .select("*")
-          .or(`name.ilike.%${q}%,description.ilike.%${q}%,tags.ilike.%${q}%`)
+          .or(`name.ilike.%${q}%,description.ilike.%${q}%,location.ilike.%${q}%`)
           .limit(10);
         if (error) console.warn("Organizations search error:", error);
         else organizations = data;
@@ -1188,6 +1188,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // Helper function to render organization cards
   function organizationCard(org) {
+    const industryText = org.industry && Array.isArray(org.industry) && org.industry.length > 0 
+      ? org.industry.join(', ') 
+      : '';
+    const locationText = org.location || '';
+    const metaText = [industryText, locationText].filter(Boolean).join(' • ');
+    
     return `<div class="result-card" style="padding:1rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openOrganizationProfile('${org.id}')">
       <div style="display:flex; align-items:center; gap:1rem;">
         <div style="width:48px; height:48px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
@@ -1196,7 +1202,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         <div style="flex:1;">
           <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(org.name)}</div>
           <div style="color:#aaa; font-size:0.85rem; margin-bottom:0.25rem;">${escapeHtml(org.description || "").slice(0, 80)}${(org.description || "").length > 80 ? "..." : ""}</div>
-          ${org.tags ? `<div style="color:#a855f7; font-size:0.75rem;"><i class="fas fa-tags"></i> ${escapeHtml(org.tags)}</div>` : ""}
+          ${metaText ? `<div style="color:#a855f7; font-size:0.75rem;"><i class="fas fa-info-circle"></i> ${escapeHtml(metaText)}</div>` : ""}
         </div>
       </div>
     </div>`;
