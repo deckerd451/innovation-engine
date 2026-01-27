@@ -37,7 +37,7 @@ function createPanelElement() {
     right: -450px;
     width: 420px;
     height: 100vh;
-    background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
+    background: linear-gradient(135deg, rgba(10, 14, 39, 0.73), rgba(26, 26, 46, 0.73));
     border-left: 2px solid rgba(0, 224, 255, 0.5);
     backdrop-filter: blur(10px);
     z-index: 2000;
@@ -47,7 +47,7 @@ function createPanelElement() {
     box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
   `;
 
-  // Custom scrollbar
+  // Custom scrollbar and collapsible section styles
   const style = document.createElement('style');
   style.textContent = `
     #node-side-panel::-webkit-scrollbar {
@@ -63,11 +63,83 @@ function createPanelElement() {
     #node-side-panel::-webkit-scrollbar-thumb:hover {
       background: rgba(0, 224, 255, 0.5);
     }
+    
+    /* Collapsible section styles */
+    .panel-section {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .panel-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      cursor: pointer;
+      background: rgba(0, 224, 255, 0.05);
+      transition: background 0.2s;
+    }
+    
+    .panel-section-header:hover {
+      background: rgba(0, 224, 255, 0.1);
+    }
+    
+    .panel-section-title {
+      color: #00e0ff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .panel-section-toggle {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.9rem;
+      transition: transform 0.3s;
+    }
+    
+    .panel-section-toggle.collapsed {
+      transform: rotate(-90deg);
+    }
+    
+    .panel-section-content {
+      max-height: 1000px;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+      opacity: 1;
+    }
+    
+    .panel-section-content.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+    
+    .panel-section-inner {
+      padding: 1rem 1.5rem;
+    }
   `;
   document.head.appendChild(style);
 
   document.body.appendChild(panelElement);
 }
+
+// Toggle collapsible section
+window.togglePanelSection = function(sectionId) {
+  const content = document.getElementById(`${sectionId}-content`);
+  const toggle = document.getElementById(`${sectionId}-toggle`);
+  
+  if (!content || !toggle) return;
+  
+  const isCollapsed = content.classList.contains('collapsed');
+  
+  if (isCollapsed) {
+    content.classList.remove('collapsed');
+    toggle.classList.remove('collapsed');
+  } else {
+    content.classList.add('collapsed');
+    toggle.classList.add('collapsed');
+  }
+};
 
 // Open panel with node data
 export async function openNodePanel(nodeData) {
@@ -465,14 +537,14 @@ async function renderPersonPanel(nodeData) {
   const initials = profile.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
   let html = `
-    <div style="padding: 2rem; padding-bottom: 100px;">
+    <div style="padding-bottom: 100px;">
       <!-- Close Button -->
-      <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; transition: all 0.2s;">
+      <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; transition: all 0.2s; z-index: 10;">
         <i class="fas fa-times"></i>
       </button>
 
       <!-- Profile Header -->
-      <div style="text-align: center; margin-bottom: 2rem;">
+      <div style="text-align: center; padding: 2rem; padding-bottom: 1.5rem;">
         ${profile.image_url ?
           `<img src="${profile.image_url}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff; margin-bottom: 1rem;">` :
           `<div style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; color: white; margin: 0 auto 1rem; border: 3px solid #00e0ff;">${initials}</div>`
@@ -500,92 +572,127 @@ async function renderPersonPanel(nodeData) {
         </div>
       </div>
 
-      <!-- Bio -->
+      <!-- Bio Section (Collapsible) -->
       ${profile.bio ? `
-        <div style="margin-bottom: 2rem;">
-          <h3 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
-            <i class="fas fa-user"></i> About
-          </h3>
-          <p style="color: #ddd; line-height: 1.6;">${profile.bio}</p>
+        <div class="panel-section">
+          <div class="panel-section-header" onclick="togglePanelSection('bio')">
+            <div class="panel-section-title">
+              <i class="fas fa-user"></i> ABOUT
+            </div>
+            <i class="fas fa-chevron-down panel-section-toggle" id="bio-toggle"></i>
+          </div>
+          <div class="panel-section-content" id="bio-content">
+            <div class="panel-section-inner">
+              <p style="color: #ddd; line-height: 1.6; margin: 0;">${profile.bio}</p>
+            </div>
+          </div>
         </div>
       ` : ''}
 
-      <!-- Skills -->
+      <!-- Skills Section (Collapsible) -->
       ${profile.skills ? `
-        <div style="margin-bottom: 2rem;">
-          <h3 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
-            <i class="fas fa-code"></i> Skills
-          </h3>
-          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-            ${profile.skills.split(',').map(skill => `
-              <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">
-                ${skill.trim()}
-              </span>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- Endorsements -->
-      ${endorsements && endorsements.length > 0 ? `
-        <div style="margin-bottom: 2rem;">
-          <h3 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
-            <i class="fas fa-star"></i> Top Endorsements
-          </h3>
-          ${endorsements.slice(0, 3).map(e => `
-            <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
-              <div style="color: #00e0ff; font-weight: bold; margin-bottom: 0.25rem;">${e.skill}</div>
-              <div style="color: #aaa; font-size: 0.85rem;">Endorsed by ${e.endorser?.name || 'Unknown'}</div>
+        <div class="panel-section">
+          <div class="panel-section-header" onclick="togglePanelSection('skills')">
+            <div class="panel-section-title">
+              <i class="fas fa-code"></i> SKILLS
             </div>
-          `).join('')}
-        </div>
-      ` : ''}
-
-      <!-- Mutual Connections -->
-      ${mutualConnections.length > 0 ? `
-        <div style="margin-bottom: 2rem;">
-          <h3 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
-            <i class="fas fa-user-friends"></i> ${mutualConnections.length} Mutual Connection${mutualConnections.length !== 1 ? 's' : ''}
-          </h3>
-          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-            ${mutualConnections.slice(0, 5).map(conn => {
-              const connInitials = conn.name.split(' ').map(n => n[0]).join('').toUpperCase();
-              return `
-                <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(0,224,255,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(0,224,255,0.2);">
-                  ${conn.image_url ?
-                    `<img src="${conn.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
-                    `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${connInitials}</div>`
-                  }
-                  <span style="color: white; font-size: 0.85rem;">${conn.name}</span>
-                </div>
-              `;
-            }).join('')}
-            ${mutualConnections.length > 5 ? `
-              <div style="color: #aaa; font-size: 0.85rem; padding: 0.5rem;">
-                +${mutualConnections.length - 5} more
+            <i class="fas fa-chevron-down panel-section-toggle" id="skills-toggle"></i>
+          </div>
+          <div class="panel-section-content" id="skills-content">
+            <div class="panel-section-inner">
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                ${profile.skills.split(',').map(skill => `
+                  <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">
+                    ${skill.trim()}
+                  </span>
+                `).join('')}
               </div>
-            ` : ''}
+            </div>
           </div>
         </div>
       ` : ''}
 
-      <!-- Shared Projects -->
-      ${sharedProjects.length > 0 ? `
-        <div style="margin-bottom: 2rem;">
-          <h3 style="color: #00e0ff; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
-            <i class="fas fa-project-diagram"></i> Shared Projects
-          </h3>
-          ${sharedProjects.map(proj => `
-            <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
-              <div style="color: #00e0ff; font-weight: bold;">${proj.title}</div>
+      <!-- Endorsements Section (Collapsible) -->
+      ${endorsements && endorsements.length > 0 ? `
+        <div class="panel-section">
+          <div class="panel-section-header" onclick="togglePanelSection('endorsements')">
+            <div class="panel-section-title">
+              <i class="fas fa-star"></i> TOP ENDORSEMENTS
             </div>
-          `).join('')}
+            <i class="fas fa-chevron-down panel-section-toggle" id="endorsements-toggle"></i>
+          </div>
+          <div class="panel-section-content" id="endorsements-content">
+            <div class="panel-section-inner">
+              ${endorsements.slice(0, 3).map(e => `
+                <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
+                  <div style="color: #00e0ff; font-weight: bold; margin-bottom: 0.25rem;">${e.skill}</div>
+                  <div style="color: #aaa; font-size: 0.85rem;">Endorsed by ${e.endorser?.name || 'Unknown'}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Mutual Connections Section (Collapsible) -->
+      ${mutualConnections.length > 0 ? `
+        <div class="panel-section">
+          <div class="panel-section-header" onclick="togglePanelSection('mutual')">
+            <div class="panel-section-title">
+              <i class="fas fa-user-friends"></i> ${mutualConnections.length} MUTUAL CONNECTION${mutualConnections.length !== 1 ? 'S' : ''}
+            </div>
+            <i class="fas fa-chevron-down panel-section-toggle" id="mutual-toggle"></i>
+          </div>
+          <div class="panel-section-content" id="mutual-content">
+            <div class="panel-section-inner">
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                ${mutualConnections.slice(0, 5).map(conn => {
+                  const connInitials = conn.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                  return `
+                    <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(0,224,255,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(0,224,255,0.2);">
+                      ${conn.image_url ?
+                        `<img src="${conn.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
+                        `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${connInitials}</div>`
+                      }
+                      <span style="color: white; font-size: 0.85rem;">${conn.name}</span>
+                    </div>
+                  `;
+                }).join('')}
+                ${mutualConnections.length > 5 ? `
+                  <div style="color: #aaa; font-size: 0.85rem; padding: 0.5rem;">
+                    +${mutualConnections.length - 5} more
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Shared Projects Section (Collapsible) -->
+      ${sharedProjects.length > 0 ? `
+        <div class="panel-section">
+          <div class="panel-section-header" onclick="togglePanelSection('projects')">
+            <div class="panel-section-title">
+              <i class="fas fa-project-diagram"></i> SHARED PROJECTS
+            </div>
+            <i class="fas fa-chevron-down panel-section-toggle" id="projects-toggle"></i>
+          </div>
+          <div class="panel-section-content" id="projects-content">
+            <div class="panel-section-inner">
+              ${sharedProjects.map(proj => `
+                <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
+                  <div style="color: #00e0ff; font-weight: bold;">${proj.title}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
         </div>
       ` : ''}
     </div>
 
     <!-- Action Bar (Fixed at Bottom) -->
-    <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1.5rem; backdrop-filter: blur(10px);">
+    <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.95), rgba(26, 26, 46, 0.95)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1.5rem; backdrop-filter: blur(10px);">
       ${profile.id === currentUserProfile?.id ? `
         <!-- Own Profile -->
         <button onclick="closeNodePanel(); window.openProfileEditor?.();" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
@@ -626,7 +733,6 @@ async function renderPersonPanel(nodeData) {
 
   panelElement.innerHTML = html;
 }
-
 // Render project panel
 async function renderProjectPanel(nodeData) {
   // Fetch full project data
