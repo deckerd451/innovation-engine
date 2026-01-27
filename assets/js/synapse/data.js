@@ -113,7 +113,15 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   const projectMembersData = await getAllProjectMembers();
 
   // Load person-to-person connections
+  // Note: getAllConnectionsForSynapse uses module-level supabase from connections.js
+  // Make sure connections.js is initialized before calling this
   const connectionsData = await getAllConnectionsForSynapse();
+  
+  console.log("🔍 DEBUG: Connections loaded:", {
+    count: connectionsData?.length || 0,
+    sample: connectionsData?.[0],
+    currentUser: currentUserCommunityId
+  });
 
   console.log("📊 Raw data loaded:", {
     members: members?.length || 0,
@@ -247,11 +255,17 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     
     // Filter members based on theme participation AND direct connections (including pending)
     if (!showFullCommunity && currentUserCommunityId) {
-      console.log("🔍 Filtering members. Current user ID:", currentUserCommunityId);
-      console.log("🔍 Connections available:", connectionsData?.length || 0);
+      console.log("🔍 Filtering members for My Network mode:");
+      console.log("  - Current user ID:", currentUserCommunityId);
+      console.log("  - Total members before filter:", members.length);
+      console.log("  - Connections available:", connectionsData?.length || 0);
+      console.log("  - Theme participants available:", themeParticipants?.length || 0);
+      
       if (connectionsData && connectionsData.length > 0) {
-        console.log("🔍 Sample connection:", connectionsData[0]);
-        console.log("🔍 Connection field names:", Object.keys(connectionsData[0]));
+        console.log("  - Sample connection:", connectionsData[0]);
+        console.log("  - All connections:", connectionsData);
+      } else {
+        console.warn("  ⚠️ NO CONNECTIONS DATA - users won't see connected people!");
       }
 
       filteredMembers = members.filter(member => {
@@ -267,12 +281,12 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
           const isActiveConnection = status === "accepted" || status === "pending";
 
           if (match && isActiveConnection) {
-            console.log("🎯 Found connection!", {
-              conn,
-              currentUser: currentUserCommunityId,
-              member: member.id,
+            console.log("  🎯 Found connection!", {
               memberName: member.name,
-              status: conn.status
+              memberId: member.id,
+              status: conn.status,
+              from: conn.from_user_id,
+              to: conn.to_user_id
             });
           }
 
@@ -280,7 +294,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         });
 
         if (hasConnection) {
-          console.log("✅ Including user due to connection:", member.name, member.id);
+          console.log("  ✅ Including user due to connection:", member.name, member.id);
           return true;
         }
 
@@ -293,9 +307,17 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
           .filter(tp => tp.community_id === member.id)
           .map(tp => tp.theme_id);
 
+        const hasSharedTheme = userThemes.some(themeId => memberThemes.includes(themeId));
+        
+        if (hasSharedTheme) {
+          console.log("  ✅ Including user due to shared theme:", member.name, member.id);
+        }
+
         // Show if they share at least one theme
-        return userThemes.some(themeId => memberThemes.includes(themeId));
+        return hasSharedTheme;
       });
+      
+      console.log("  📊 After filtering: " + filteredMembers.length + " members will be shown");
     }
 
     const peopleNodes = filteredMembers.map((member) => {
