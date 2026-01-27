@@ -1170,7 +1170,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.9);
+      background: #000;
       z-index: 10000;
       align-items: center;
       justify-content: center;
@@ -1220,7 +1220,7 @@
     #synapse-container {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.95);
+      background: #000;
       display: none;
       z-index: 9999;
     }
@@ -1266,7 +1266,7 @@
     #bbs-modal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.95);
+      background: #000;
       display: none;
       z-index: 12000;
       overflow-y: auto;
