@@ -29,6 +29,10 @@ export function setupSynapseRealtime(sb, onRefresh) {
     // Theme circles (new)
     .on("postgres_changes", { event: "*", schema: "public", table: "theme_circles" }, scheduleRefresh)
     .on("postgres_changes", { event: "*", schema: "public", table: "theme_participants" }, scheduleRefresh)
+    // Organizations
+    .on("postgres_changes", { event: "*", schema: "public", table: "organizations" }, scheduleRefresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "organization_followers" }, scheduleRefresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "organization_members" }, scheduleRefresh)
     .subscribe();
 
   // Store channel globally to prevent duplication
