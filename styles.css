@@ -1190,7 +1190,7 @@ footer,
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(ellipse at center, #000 60%, #001b1b 100%);
+  background: #000;
   z-index: 100;
   overflow: hidden;
   display: none;
