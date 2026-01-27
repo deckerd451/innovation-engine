@@ -357,8 +357,8 @@
     </div>
 
     <!-- Centered Round START Button -->
-    <div id="start-button-container" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
-      z-index:1000; display:flex; flex-direction:column; align-items:center; gap:1.5rem;">
+    <div id="start-button-container" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+      z-index:1000; display:flex; flex-direction:column; align-items:center; gap:1.5rem; opacity:0.75;">
       <button id="btn-start-center"
         style="background:linear-gradient(135deg, rgba(0,255,136,0.3), rgba(0,224,255,0.25));
         border:3px solid rgba(0,255,136,0.6); border-radius:50%; color:#00ff88; font-weight:700; font-size:1.5rem;
@@ -1053,18 +1053,10 @@
       const startBtn = document.getElementById('btn-start-center');
       const exploreBtn = document.getElementById('btn-explore-cancel');
 
-      // Check if START should be shown (first login or new session)
+      // Always show START on app open (removed session check)
       function shouldShowStart() {
-        const lastStartUsed = localStorage.getItem('chs_start_last_used');
-        const currentSession = sessionStorage.getItem('chs_session_started');
-
-        // Show START if:
-        // 1. Never used before, OR
-        // 2. New session (app reopened)
-        if (!lastStartUsed || !currentSession) {
-          return true;
-        }
-        return false;
+        // Always return true to show START every time
+        return true;
       }
 
       // Hide START button and show user node
@@ -1079,7 +1071,7 @@
           }, 500);
         }
 
-        // Mark session as started
+        // Mark that START was used this session (for reference only)
         sessionStorage.setItem('chs_session_started', 'true');
         localStorage.setItem('chs_start_last_used', Date.now());
       }
@@ -1116,21 +1108,19 @@
         });
       }
 
-      // Check if START should be shown on page load
+      // Always show START on page load
       window.addEventListener('profile-loaded', () => {
-        if (!shouldShowStart() && startContainer) {
-          startContainer.style.display = 'none';
+        if (startContainer) {
+          startContainer.style.display = 'flex';
         }
       });
 
-      // Show START if needed
-      if (shouldShowStart() && startContainer) {
+      // Show START immediately if container exists
+      if (startContainer) {
         startContainer.style.display = 'flex';
-      } else if (startContainer) {
-        startContainer.style.display = 'none';
       }
 
-      console.log('✅ START button logic initialized');
+      console.log('✅ START button logic initialized - will show on every app open');
     })();
   </script>
 
