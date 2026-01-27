@@ -23,6 +23,34 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
   <style>
+    /* NUCLEAR OPTION: Force black backgrounds everywhere */
+    html,
+    body,
+    #main-content,
+    #synapse-main-view,
+    #synapse-svg,
+    .unified-main {
+      background: #000 !important;
+      background-color: #000 !important;
+    }
+
+    /* Ensure full coverage with no gaps */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      overflow: hidden !important;
+    }
+
+    /* Override any pseudo-elements */
+    body::before,
+    body::after,
+    html::before,
+    html::after {
+      display: none !important;
+    }
+
     body { overflow: hidden; }
 
     /* Hover effects for action buttons */
