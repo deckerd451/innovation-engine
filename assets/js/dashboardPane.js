@@ -1087,9 +1087,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       if (category === "all" || category === "themes") {
         const { data, error } = await state.supabase
-          .from("themes")
+          .from("theme_circles")
           .select("*")
-          .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+          .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
           .limit(10);
         if (error) console.warn("Themes search error:", error);
         else themes = data;
@@ -1234,13 +1234,17 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     // Check if user is already following this organization
     let isFollowing = false;
     if (state.communityProfile) {
-      const { data } = await state.supabase
-        .from('organization_followers')
-        .select('id')
-        .eq('organization_id', org.id)
-        .eq('community_id', state.communityProfile.id)
-        .single();
-      isFollowing = !!data;
+      try {
+        const { data } = await state.supabase
+          .from('organization_followers')
+          .select('id')
+          .eq('organization_id', org.id)
+          .eq('community_id', state.communityProfile.id)
+          .maybeSingle();
+        isFollowing = !!data;
+      } catch (err) {
+        console.warn('Error checking follow status:', err);
+      }
     }
     
     const followButtonId = `follow-org-${org.id}`;
@@ -1538,7 +1542,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           <i class="fas fa-palette" style="color:#ffaa00;"></i>
         </div>
         <div style="flex:1;">
-          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(theme.name)}</div>
+          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(theme.title || theme.name || "Untitled Theme")}</div>
           <div style="color:#aaa; font-size:0.85rem;">${escapeHtml(theme.description || "").slice(0, 100)}${(theme.description || "").length > 100 ? "..." : ""}</div>
         </div>
       </div>
@@ -1713,7 +1717,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         .select('id')
         .eq('organization_id', organizationId)
         .eq('community_id', communityId)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         // Unfollow
@@ -1730,7 +1734,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         button.style.border = 'none';
         button.style.color = 'white';
         
-        showToast('Unfollowed organization', 'info');
+        if (typeof showToast === 'function') {
+          showToast('Unfollowed organization', 'info');
+        }
       } else {
         // Follow
         const { error } = await state.supabase
@@ -1748,7 +1754,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         button.style.border = '1px solid rgba(168,85,247,0.4)';
         button.style.color = '#a855f7';
         
-        showToast('Now following organization', 'success');
+        if (typeof showToast === 'function') {
+          showToast('Now following organization', 'success');
+        }
       }
 
       // Re-enable button
@@ -1763,7 +1771,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     } catch (e) {
       console.error("toggleOrganizationFollow failed:", e);
-      showToast(`Error: ${e?.message || e}`, 'error');
+      if (typeof showToast === 'function') {
+        showToast(`Error: ${e?.message || e}`, 'error');
+      } else {
+        alert(`Error: ${e?.message || e}`);
+      }
       
       // Re-enable button on error
       const button = document.getElementById(buttonId);
