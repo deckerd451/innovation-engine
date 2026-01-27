@@ -238,11 +238,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         window.toggleSynapseFilter('themes');
       }
     });
-    on($("btn-orgs"), "click", () => {
-      if (typeof window.toggleSynapseFilter === "function") {
-        window.toggleSynapseFilter('organizations');
-      }
-    });
     on($("btn-projects"), "click", () => {
       if (typeof window.toggleSynapseFilter === "function") {
         window.toggleSynapseFilter('projects');
@@ -1135,14 +1130,56 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         </div>`;
       }
 
-      // Render Organizations section
-      if (organizations && organizations.length > 0) {
+      // Render Organizations section with tabs
+      if (category === "all" || category === "organizations") {
+        // Always show the organizations section with tabs when searching organizations
+        const orgCards = organizations && organizations.length > 0 
+          ? await Promise.all(organizations.map((org) => organizationCard(org)))
+          : [];
+        
         html += `<div style="margin-bottom:2rem;">
-          <h3 style="color:#a855f7; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-            <i class="fas fa-building"></i> Organizations (${organizations.length})
+          <h3 style="color:#a855f7; font-size:1.1rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-building"></i> Organizations
           </h3>
-          ${organizations.map((org) => organizationCard(org)).join("")}
+          
+          <!-- Organization Tabs -->
+          <div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid rgba(168,85,247,0.2); padding-bottom:0.5rem;">
+            <button class="org-search-tab active-org-tab" data-org-tab="search" 
+              style="padding:0.6rem 1.2rem; background:rgba(168,85,247,0.15); border:none; border-bottom:3px solid #a855f7; 
+              color:#a855f7; cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
+              <i class="fas fa-search"></i> Search Results ${orgCards.length > 0 ? `(${orgCards.length})` : ''}
+            </button>
+            <button class="org-search-tab" data-org-tab="browse" 
+              style="padding:0.6rem 1.2rem; background:transparent; border:none; border-bottom:3px solid transparent; 
+              color:rgba(168,85,247,0.7); cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
+              <i class="fas fa-globe"></i> Browse Orgs
+            </button>
+            <button class="org-search-tab" data-org-tab="my-orgs" 
+              style="padding:0.6rem 1.2rem; background:transparent; border:none; border-bottom:3px solid transparent; 
+              color:rgba(168,85,247,0.7); cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
+              <i class="fas fa-user-tag"></i> My Orgs
+            </button>
+            <button class="org-search-tab" data-org-tab="create" 
+              style="padding:0.6rem 1.2rem; background:transparent; border:none; border-bottom:3px solid transparent; 
+              color:rgba(168,85,247,0.7); cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
+              <i class="fas fa-plus"></i> Create Org
+            </button>
+          </div>
+          
+          <!-- Tab Content -->
+          <div id="org-tab-content-search">
+            ${orgCards.length > 0 
+              ? orgCards.join("") 
+              : `<div style="text-align:center; padding:2rem; color:#888;">
+                  <i class="fas fa-search" style="font-size:2rem; opacity:0.3; margin-bottom:0.5rem;"></i>
+                  <p>No organizations found matching "${escapeHtml(query)}"</p>
+                </div>`
+            }
+          </div>
         </div>`;
+        
+        // Setup tab switching after rendering
+        setTimeout(() => setupOrgSearchTabs(), 100);
       }
 
       // Render Projects section
@@ -1187,26 +1224,295 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   }
 
   // Helper function to render organization cards
-  function organizationCard(org) {
+  async function organizationCard(org) {
     const industryText = org.industry && Array.isArray(org.industry) && org.industry.length > 0 
-      ? org.industry.join(', ') 
+      ? org.industry.slice(0, 3).join(', ') 
       : '';
     const locationText = org.location || '';
     const metaText = [industryText, locationText].filter(Boolean).join(' • ');
     
-    return `<div class="result-card" style="padding:1rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openOrganizationProfile('${org.id}')">
-      <div style="display:flex; align-items:center; gap:1rem;">
-        <div style="width:48px; height:48px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
-          <i class="fas fa-building" style="color:#a855f7;"></i>
-        </div>
-        <div style="flex:1;">
-          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(org.name)}</div>
-          <div style="color:#aaa; font-size:0.85rem; margin-bottom:0.25rem;">${escapeHtml(org.description || "").slice(0, 80)}${(org.description || "").length > 80 ? "..." : ""}</div>
-          ${metaText ? `<div style="color:#a855f7; font-size:0.75rem;"><i class="fas fa-info-circle"></i> ${escapeHtml(metaText)}</div>` : ""}
+    // Check if user is already following this organization
+    let isFollowing = false;
+    if (state.communityProfile) {
+      const { data } = await state.supabase
+        .from('organization_followers')
+        .select('id')
+        .eq('organization_id', org.id)
+        .eq('community_id', state.communityProfile.id)
+        .single();
+      isFollowing = !!data;
+    }
+    
+    const followButtonId = `follow-org-${org.id}`;
+    const buttonStyle = isFollowing
+      ? `background:rgba(168,85,247,0.2); border:1px solid rgba(168,85,247,0.4); color:#a855f7;`
+      : `background:linear-gradient(135deg,#a855f7,#8b3fd9); border:none; color:white;`;
+    const buttonText = isFollowing ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-plus"></i> Follow';
+    
+    return `<div class="result-card" style="padding:1.25rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; margin-bottom:0.75rem; transition:all 0.2s;">
+      <div style="display:flex; align-items:start; gap:1rem;">
+        ${org.logo_url 
+          ? `<img src="${org.logo_url}" alt="${escapeHtml(org.name)}" style="width:56px; height:56px; border-radius:8px; object-fit:cover; background:rgba(168,85,247,0.1);" onerror="this.outerHTML='<div style=\\'width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;\\'><i class=\\'fas fa-building\\' style=\\'color:#a855f7;\\'></i></div>'">` 
+          : `<div style="width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;">
+              <i class="fas fa-building" style="color:#a855f7;"></i>
+            </div>`
+        }
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+            <div style="color:#fff; font-weight:700; font-size:1.05rem; cursor:pointer;" onclick="openOrganizationProfile('${org.id}')">${escapeHtml(org.name)}</div>
+            ${org.verified ? '<i class="fas fa-check-circle" style="color:#00e0ff; font-size:0.9rem;" title="Verified Organization"></i>' : ''}
+          </div>
+          <div style="color:#aaa; font-size:0.85rem; line-height:1.4; margin-bottom:0.5rem;">${escapeHtml(org.description || "No description available").slice(0, 120)}${(org.description || "").length > 120 ? "..." : ""}</div>
+          ${metaText ? `<div style="color:#a855f7; font-size:0.75rem; margin-bottom:0.75rem;"><i class="fas fa-info-circle"></i> ${escapeHtml(metaText)}</div>` : ''}
+          <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            <button id="${followButtonId}" 
+              onclick="toggleOrganizationFollow('${org.id}', '${followButtonId}')" 
+              style="${buttonStyle} padding:0.5rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.85rem; transition:all 0.2s; display:flex; align-items:center; gap:0.4rem;">
+              ${buttonText}
+            </button>
+            ${org.follower_count > 0 ? `<span style="color:#888; font-size:0.75rem;"><i class="fas fa-users"></i> ${org.follower_count} follower${org.follower_count !== 1 ? 's' : ''}</span>` : ''}
+            ${org.website ? `<a href="${org.website}" target="_blank" rel="noopener noreferrer" style="color:#a855f7; font-size:0.75rem; text-decoration:none;" onclick="event.stopPropagation();"><i class="fas fa-external-link-alt"></i> Website</a>` : ''}
+          </div>
         </div>
       </div>
     </div>`;
   }
+
+  // Setup organization search tabs
+  function setupOrgSearchTabs() {
+    const tabs = document.querySelectorAll('.org-search-tab');
+    if (!tabs.length) return;
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', async () => {
+        // Update tab styles
+        tabs.forEach(t => {
+          t.style.background = 'transparent';
+          t.style.borderBottomColor = 'transparent';
+          t.style.color = 'rgba(168,85,247,0.7)';
+          t.classList.remove('active-org-tab');
+        });
+        tab.style.background = 'rgba(168,85,247,0.15)';
+        tab.style.borderBottomColor = '#a855f7';
+        tab.style.color = '#a855f7';
+        tab.classList.add('active-org-tab');
+        
+        // Load tab content
+        const tabName = tab.dataset.orgTab;
+        await loadOrgSearchTabContent(tabName);
+      });
+    });
+  }
+
+  // Load organization tab content
+  async function loadOrgSearchTabContent(tabName) {
+    const content = $('org-tab-content-search');
+    if (!content) return;
+    
+    if (tabName === 'search') {
+      // Search results are already loaded, just show them
+      return;
+    }
+    
+    content.innerHTML = `<div style="text-align:center; padding:2rem;">
+      <i class="fas fa-spinner fa-spin" style="font-size:2rem; color:#a855f7;"></i>
+      <p style="color:#aaa; margin-top:1rem;">Loading...</p>
+    </div>`;
+    
+    try {
+      if (tabName === 'browse') {
+        const { data: organizations, error } = await state.supabase
+          .from('organizations')
+          .select('*')
+          .order('name', { ascending: true })
+          .limit(50);
+        
+        if (error) throw error;
+        
+        if (!organizations || organizations.length === 0) {
+          content.innerHTML = `<div style="text-align:center; padding:3rem;">
+            <i class="fas fa-building" style="font-size:3rem; color:rgba(168,85,247,0.3); margin-bottom:1rem;"></i>
+            <p style="color:#888;">No organizations yet</p>
+            <p style="color:#666; font-size:0.9rem;">Be the first to create one!</p>
+          </div>`;
+          return;
+        }
+        
+        const orgCards = await Promise.all(organizations.map(org => organizationCard(org)));
+        content.innerHTML = orgCards.join('');
+        
+      } else if (tabName === 'my-orgs') {
+        if (!state.communityProfile) {
+          content.innerHTML = `<div style="text-align:center; padding:3rem;">
+            <i class="fas fa-user-tag" style="font-size:3rem; color:rgba(168,85,247,0.3); margin-bottom:1rem;"></i>
+            <p style="color:#888;">Please log in to see your organizations</p>
+          </div>`;
+          return;
+        }
+        
+        // Get user's followed organizations
+        const { data: followers, error: followError } = await state.supabase
+          .from('organization_followers')
+          .select('organization_id')
+          .eq('community_id', state.communityProfile.id);
+        
+        if (followError) throw followError;
+        
+        if (!followers || followers.length === 0) {
+          content.innerHTML = `<div style="text-align:center; padding:3rem;">
+            <i class="fas fa-user-tag" style="font-size:3rem; color:rgba(168,85,247,0.3); margin-bottom:1rem;"></i>
+            <p style="color:#888;">You haven't followed any organizations yet</p>
+            <p style="color:#666; font-size:0.9rem;">Browse organizations to find ones to follow!</p>
+          </div>`;
+          return;
+        }
+        
+        const orgIds = followers.map(f => f.organization_id);
+        const { data: organizations, error: orgsError } = await state.supabase
+          .from('organizations')
+          .select('*')
+          .in('id', orgIds);
+        
+        if (orgsError) throw orgsError;
+        
+        const orgCards = await Promise.all(organizations.map(org => organizationCard(org)));
+        content.innerHTML = orgCards.join('');
+        
+      } else if (tabName === 'create') {
+        content.innerHTML = `<div style="max-width:500px; margin:0 auto; padding:1rem;">
+          <h3 style="color:#a855f7; margin-bottom:1.5rem;"><i class="fas fa-plus-circle"></i> Create New Organization</h3>
+          <form id="create-org-form-search" onsubmit="createOrganizationFromSearch(event); return false;">
+            <div style="margin-bottom:1rem;">
+              <label style="display:block; color:#aaa; margin-bottom:0.5rem; font-size:0.9rem;">Organization Name *</label>
+              <input type="text" id="org-name-search" required
+                style="width:100%; padding:0.75rem; background:rgba(168,85,247,0.05);
+                border:1px solid rgba(168,85,247,0.2); border-radius:8px; color:white; font-family:inherit;">
+            </div>
+            
+            <div style="margin-bottom:1rem;">
+              <label style="display:block; color:#aaa; margin-bottom:0.5rem; font-size:0.9rem;">Description</label>
+              <textarea id="org-description-search" rows="3"
+                style="width:100%; padding:0.75rem; background:rgba(168,85,247,0.05);
+                border:1px solid rgba(168,85,247,0.2); border-radius:8px; color:white; font-family:inherit; resize:vertical;"></textarea>
+            </div>
+            
+            <div style="margin-bottom:1rem;">
+              <label style="display:block; color:#aaa; margin-bottom:0.5rem; font-size:0.9rem;">Industry (comma-separated)</label>
+              <input type="text" id="org-industry-search" placeholder="e.g., Technology, Healthcare, Education"
+                style="width:100%; padding:0.75rem; background:rgba(168,85,247,0.05);
+                border:1px solid rgba(168,85,247,0.2); border-radius:8px; color:white; font-family:inherit;">
+            </div>
+            
+            <div style="margin-bottom:1rem;">
+              <label style="display:block; color:#aaa; margin-bottom:0.5rem; font-size:0.9rem;">Location</label>
+              <input type="text" id="org-location-search" placeholder="e.g., Charleston, SC"
+                style="width:100%; padding:0.75rem; background:rgba(168,85,247,0.05);
+                border:1px solid rgba(168,85,247,0.2); border-radius:8px; color:white; font-family:inherit;">
+            </div>
+            
+            <div style="margin-bottom:1rem;">
+              <label style="display:block; color:#aaa; margin-bottom:0.5rem; font-size:0.9rem;">Website</label>
+              <input type="url" id="org-website-search" placeholder="https://..."
+                style="width:100%; padding:0.75rem; background:rgba(168,85,247,0.05);
+                border:1px solid rgba(168,85,247,0.2); border-radius:8px; color:white; font-family:inherit;">
+            </div>
+            
+            <button type="submit" style="width:100%; padding:0.75rem; background:linear-gradient(135deg,#a855f7,#8b5cf6); 
+              border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer; font-size:0.95rem;">
+              <i class="fas fa-plus"></i> Create Organization
+            </button>
+          </form>
+        </div>`;
+      }
+      
+    } catch (error) {
+      console.error('Error loading org tab content:', error);
+      content.innerHTML = `<div style="text-align:center; padding:2rem; color:#ff6b6b;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem; margin-bottom:0.5rem;"></i>
+        <p>Error loading content</p>
+        <p style="font-size:0.85rem; opacity:0.8;">${escapeHtml(error.message || String(error))}</p>
+      </div>`;
+    }
+  }
+
+  // Create organization from search interface
+  window.createOrganizationFromSearch = async function(event) {
+    event.preventDefault();
+    
+    if (!state.supabase || !state.communityProfile) {
+      alert('Please log in to create an organization');
+      return;
+    }
+    
+    const name = $('org-name-search')?.value?.trim();
+    const description = $('org-description-search')?.value?.trim();
+    const industryRaw = $('org-industry-search')?.value?.trim();
+    const industry = industryRaw ? industryRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
+    const location = $('org-location-search')?.value?.trim();
+    const website = $('org-website-search')?.value?.trim();
+    
+    if (!name) {
+      alert('Organization name is required');
+      return;
+    }
+    
+    try {
+      // Generate slug
+      let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      
+      // Check if slug exists
+      const { data: existing } = await state.supabase
+        .from('organizations')
+        .select('slug')
+        .eq('slug', slug)
+        .maybeSingle();
+      
+      if (existing) {
+        slug = `${slug}-${Date.now().toString(36)}`;
+      }
+      
+      // Create organization
+      const { data: org, error } = await state.supabase
+        .from('organizations')
+        .insert([{
+          name,
+          slug,
+          description: description || null,
+          industry: industry && industry.length ? industry : null,
+          location: location || null,
+          website: website || null,
+          created_by: state.communityProfile.id
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Auto-follow the created organization
+      await state.supabase
+        .from('organization_followers')
+        .insert([{
+          organization_id: org.id,
+          community_id: state.communityProfile.id
+        }]);
+      
+      alert('Organization created successfully!');
+      
+      // Refresh synapse
+      if (typeof window.refreshSynapse === 'function') {
+        await window.refreshSynapse();
+      }
+      
+      // Switch to browse tab to show the new org
+      await loadOrgSearchTabContent('browse');
+      const browseTab = document.querySelector('[data-org-tab="browse"]');
+      if (browseTab) browseTab.click();
+      
+    } catch (error) {
+      console.error('Error creating organization:', error);
+      alert('Failed to create organization: ' + (error.message || 'Unknown error'));
+    }
+  };
 
   // Helper function to render project cards
   function projectCard(proj) {
@@ -1380,6 +1686,92 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     } catch (e) {
       console.error("sendConnectionRequest failed:", e);
       alert(`Could not send request: ${e?.message || e}`);
+    }
+  };
+
+  // ================================================================
+  // Organization Follow/Unfollow
+  // ================================================================
+  window.toggleOrganizationFollow = async function (organizationId, buttonId) {
+    try {
+      if (!state.supabase) throw new Error("Supabase not initialized.");
+      if (!state.communityProfile?.id) throw new Error("No profile loaded.");
+
+      const communityId = state.communityProfile.id;
+      const button = document.getElementById(buttonId);
+      
+      if (!button) return;
+      
+      // Disable button during operation
+      button.disabled = true;
+      button.style.opacity = '0.6';
+      button.style.cursor = 'wait';
+
+      // Check current follow status
+      const { data: existing } = await state.supabase
+        .from('organization_followers')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('community_id', communityId)
+        .single();
+
+      if (existing) {
+        // Unfollow
+        const { error } = await state.supabase
+          .from('organization_followers')
+          .delete()
+          .eq('id', existing.id);
+
+        if (error) throw error;
+
+        // Update button
+        button.innerHTML = '<i class="fas fa-plus"></i> Follow';
+        button.style.background = 'linear-gradient(135deg,#a855f7,#8b3fd9)';
+        button.style.border = 'none';
+        button.style.color = 'white';
+        
+        showToast('Unfollowed organization', 'info');
+      } else {
+        // Follow
+        const { error } = await state.supabase
+          .from('organization_followers')
+          .insert({
+            organization_id: organizationId,
+            community_id: communityId
+          });
+
+        if (error) throw error;
+
+        // Update button
+        button.innerHTML = '<i class="fas fa-check"></i> Following';
+        button.style.background = 'rgba(168,85,247,0.2)';
+        button.style.border = '1px solid rgba(168,85,247,0.4)';
+        button.style.color = '#a855f7';
+        
+        showToast('Now following organization', 'success');
+      }
+
+      // Re-enable button
+      button.disabled = false;
+      button.style.opacity = '1';
+      button.style.cursor = 'pointer';
+
+      // Refresh synapse view to show new connection
+      if (typeof window.refreshSynapse === 'function') {
+        await window.refreshSynapse();
+      }
+
+    } catch (e) {
+      console.error("toggleOrganizationFollow failed:", e);
+      showToast(`Error: ${e?.message || e}`, 'error');
+      
+      // Re-enable button on error
+      const button = document.getElementById(buttonId);
+      if (button) {
+        button.disabled = false;
+        button.style.opacity = '1';
+        button.style.cursor = 'pointer';
+      }
     }
   };
 
