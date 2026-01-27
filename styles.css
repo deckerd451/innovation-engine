@@ -91,7 +91,7 @@ body {
   overflow-x: hidden;
   color: var(--text-color);
   font-family: var(--font-primary);
-  background: transparent;
+  background: #000;
   position: relative;
   z-index: 1;
 }
