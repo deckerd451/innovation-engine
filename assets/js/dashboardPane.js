@@ -1204,11 +1204,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       // Render Projects section
       if (projects && projects.length > 0) {
+        const projectCards = await Promise.all(projects.map((proj) => projectCard(proj, expandedProjectId === proj.id)));
         html += `<div style="margin-bottom:2rem;">
           <h3 style="color:#00ff88; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
             <i class="fas fa-lightbulb"></i> Projects (${projects.length})
           </h3>
-          ${projects.map((proj) => projectCard(proj, expandedProjectId === proj.id)).join("")}
+          ${projectCards.join("")}
         </div>`;
       }
 
@@ -1543,7 +1544,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   let expandedProjectId = null;
 
   // Helper function to render project cards
-  function projectCard(proj, isExpanded = false) {
+  async function projectCard(proj, isExpanded = false) {
     // Debug: log project data to see what we're getting
     if (!proj.id) {
       console.warn('Project missing id:', proj);
@@ -1561,7 +1562,38 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       searchProjectsCache[projectId] = proj;
     }
     
+    // Check if user is already a member or has pending request
+    let membershipStatus = null;
+    if (state.communityProfile && projectId) {
+      try {
+        const { data } = await state.supabase
+          .from('project_members')
+          .select('role')
+          .eq('project_id', projectId)
+          .eq('user_id', state.communityProfile.id)
+          .maybeSingle();
+        membershipStatus = data?.role || null;
+      } catch (err) {
+        console.warn('Error checking membership:', err);
+      }
+    }
+    
     if (isExpanded) {
+      let joinButtonHTML = '';
+      if (membershipStatus === 'pending') {
+        joinButtonHTML = `<button disabled style="background:rgba(255,170,0,0.3); border:1px solid rgba(255,170,0,0.5); padding:0.6rem 1.2rem; border-radius:8px; color:#ffaa00; font-weight:600; cursor:not-allowed; font-size:0.9rem;">
+          <i class="fas fa-clock"></i> Request Pending
+        </button>`;
+      } else if (membershipStatus && membershipStatus !== 'pending') {
+        joinButtonHTML = `<button disabled style="background:rgba(0,255,136,0.3); border:1px solid rgba(0,255,136,0.5); padding:0.6rem 1.2rem; border-radius:8px; color:#00ff88; font-weight:600; cursor:not-allowed; font-size:0.9rem;">
+          <i class="fas fa-check"></i> Already a Member
+        </button>`;
+      } else {
+        joinButtonHTML = `<button onclick="joinProjectFromSearch('${projectId}')" style="background:linear-gradient(135deg,#00ff88,#00cc6a); border:none; padding:0.6rem 1.2rem; border-radius:8px; color:white; font-weight:600; cursor:pointer; font-size:0.9rem;">
+          <i class="fas fa-user-plus"></i> Join Project
+        </button>`;
+      }
+      
       return `<div class="result-card" style="padding:1.5rem; background:rgba(0,255,136,0.12); border:2px solid rgba(0,255,136,0.4); border-radius:12px; margin-bottom:0.75rem; transition:all 0.2s;">
         <div style="display:flex; align-items:start; gap:1rem; margin-bottom:1rem;">
           <div style="width:64px; height:64px; background:rgba(0,255,136,0.3); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:2rem;">
@@ -1588,12 +1620,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
             </div>` : ''}
             
             <div style="display:flex; gap:0.75rem; margin-top:1rem;">
-              <button onclick="joinProjectFromSearch('${projectId}')" style="background:linear-gradient(135deg,#00ff88,#00cc6a); border:none; padding:0.6rem 1.2rem; border-radius:8px; color:white; font-weight:600; cursor:pointer; font-size:0.9rem;">
-                <i class="fas fa-user-plus"></i> Join Project
-              </button>
-              <button onclick="viewProjectInSynapse('${projectId}')" style="background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3); padding:0.6rem 1.2rem; border-radius:8px; color:#00e0ff; font-weight:600; cursor:pointer; font-size:0.9rem;">
-                <i class="fas fa-project-diagram"></i> View in Synapse
-              </button>
+              ${joinButtonHTML}
             </div>
           </div>
         </div>
@@ -1630,18 +1657,89 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     const project = searchProjectsCache[projectId];
     if (!project) return;
     
-    // Implement join logic here
-    alert(`Joining project: ${project.title || project.name}\n\nThis feature will be implemented to send a join request.`);
-  };
+    try {
+      if (!state.supabase || !state.communityProfile) {
+        alert('Please log in to join a project');
+        return;
+      }
 
-  // View project in synapse
-  window.viewProjectInSynapse = function(projectId) {
-    // Close the search modal
-    closeModal('quick-connect-modal');
-    
-    // Focus on the project in the synapse
-    if (typeof window.focusOnNode === 'function') {
-      window.focusOnNode(projectId, 'project');
+      // Check if already a member or has pending request
+      const { data: existingMember } = await state.supabase
+        .from('project_members')
+        .select('id, role')
+        .eq('project_id', projectId)
+        .eq('user_id', state.communityProfile.id)
+        .maybeSingle();
+
+      if (existingMember) {
+        if (existingMember.role === 'pending') {
+          if (typeof showToastNotification === 'function') {
+            showToastNotification('Your join request is pending approval', 'info');
+          } else {
+            alert('Your join request is pending approval');
+          }
+        } else {
+          if (typeof showToastNotification === 'function') {
+            showToastNotification('You are already a member of this project!', 'info');
+          } else {
+            alert('You are already a member of this project!');
+          }
+        }
+        return;
+      }
+
+      // Send join request with role='pending'
+      const { error } = await state.supabase
+        .from('project_members')
+        .insert({
+          project_id: projectId,
+          user_id: state.communityProfile.id,
+          role: 'pending'
+        });
+
+      if (error) {
+        // Handle duplicate key error gracefully
+        if (error.code === '23505') {
+          if (typeof showToastNotification === 'function') {
+            showToastNotification('You already have a pending request!', 'info');
+          } else {
+            alert('You already have a pending request!');
+          }
+          return;
+        }
+        throw error;
+      }
+
+      if (typeof showToastNotification === 'function') {
+        showToastNotification('Join request sent! Awaiting approval.', 'success');
+      } else {
+        alert('Join request sent! Awaiting approval.');
+      }
+
+      // Refresh synapse view to show pending connection with dotted line
+      if (typeof window.refreshSynapse === 'function') {
+        await window.refreshSynapse();
+      }
+
+      // Award XP for joining a project
+      if (window.DailyEngagement) {
+        try {
+          await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.JOIN_PROJECT, 'Requested to join project');
+        } catch (err) {
+          console.warn('Could not award XP:', err);
+        }
+      }
+
+      // Re-render the search results to update the button state
+      expandedProjectId = projectId; // Keep it expanded
+      const query = $("global-search")?.value?.trim();
+      if (query) {
+        await renderSearchResults(query, activeSearchCategory);
+      }
+
+    } catch (error) {
+      console.error('Error sending join request:', error);
+      alert('Failed to send join request: ' + error.message);
     }
   };
 
