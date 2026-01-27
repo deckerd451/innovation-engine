@@ -46,6 +46,7 @@ let links = [];
 let nodeEls = null;
 let linkEls = null;
 let themeEls = null;
+let projectEls = null;
 
 let connectionsData = [];
 let projectMembersData = [];
@@ -988,10 +989,10 @@ async function buildGraph() {
   // 2. Links (middle layer) - connection links and theme participation links
   linkEls = renderLinks(container, simulationLinks);
 
-  // 3. Project overlays (on top of themes, clickable layer)
-  let projectOverlayEls = null;
-  if (visibleThemeNodes.length > 0) {
-    projectOverlayEls = renderThemeProjectsOverlay(container, visibleThemeNodes);
+  // 3. Project nodes (independent, not overlays) - render as actual nodes
+  const visibleProjectNodes = visibleNodes.filter((n) => n.type === "project");
+  if (visibleProjectNodes.length > 0) {
+    projectEls = renderNodes(container, visibleProjectNodes, { onNodeClick });
   }
 
   // 4. People and organization nodes (foreground layer) - render LAST so they appear on top
@@ -1057,31 +1058,9 @@ async function buildGraph() {
 
     nodeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
 
-    // Update project overlay positions (they should move with their parent themes)
-    if (projectOverlayEls) {
-      projectOverlayEls.selectAll(".project-overlay").attr("transform", function(d) {
-        if (d && d.theme_x !== undefined && d.theme_y !== undefined) {
-          // Find the current position of the parent theme
-          const theme = visibleThemes.find(t => t.theme_id === d.theme_id);
-          if (theme) {
-            const baseDistance = Math.min((theme.themeRadius || 250) * 0.35, 80);
-            const maxProjectsPerRing = 8;
-            const ring = d.ring || 0;
-            const positionInRing = d.positionInRing || 0;
-            const projectsInThisRing = d.projectsInThisRing || 1;
-
-            const angleStep = (2 * Math.PI) / projectsInThisRing;
-            const projectAngle = positionInRing * angleStep;
-            const ringDistance = baseDistance + (ring * 40);
-
-            const projectX = (theme.x || 0) + Math.cos(projectAngle) * ringDistance;
-            const projectY = (theme.y || 0) + Math.sin(projectAngle) * ringDistance;
-
-            return `translate(${projectX}, ${projectY})`;
-          }
-        }
-        return d3.select(this).attr("transform"); // Keep existing transform if no theme found
-      });
+    // Update project node positions (they're now independent nodes, not overlays)
+    if (projectEls) {
+      projectEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
     }
 
     try {
