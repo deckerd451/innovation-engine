@@ -1,7 +1,7 @@
 // ================================================================
 // UNIFIED START FLOW - Progressive Multi-Step Sequence
 // ================================================================
-// Guides users through: Notifications → Themes → Projects → People → Report
+// Guides users through: Notifications → Themes → Organizations → Projects → People → Report
 // Card-based UI with downloadable session report
 // ================================================================
 
@@ -14,7 +14,7 @@ class StartFlowManager {
       userProfile: null,
       supabase: null,
       currentStep: 0,
-      totalSteps: 5,
+      totalSteps: 6,
       stepData: {},
       sequenceComplete: false,
       sessionLog: {
@@ -22,7 +22,8 @@ class StartFlowManager {
         endTime: null,
         connectionRequestsSent: [],
         connectionsAccepted: [],
-        themesViewed: [],
+        themesInterested: [],
+        organizationsFollowed: [],
         projectsViewed: [],
         peopleViewed: [],
         errors: []
@@ -32,6 +33,7 @@ class StartFlowManager {
     this.steps = [
       { id: 'notifications', title: 'Notifications', icon: 'fa-bell', color: '#00e0ff' },
       { id: 'themes', title: 'Suggested Themes', icon: 'fa-palette', color: '#ffaa00' },
+      { id: 'organizations', title: 'Organizations', icon: 'fa-building', color: '#ff6b6b' },
       { id: 'projects', title: 'Projects', icon: 'fa-lightbulb', color: '#00ff88' },
       { id: 'people', title: 'People to Connect', icon: 'fa-users', color: '#ffd700' },
       { id: 'report', title: 'Session Report', icon: 'fa-chart-line', color: '#00e0ff' }
@@ -203,6 +205,8 @@ class StartFlowManager {
         return await this.loadNotifications();
       case 'themes':
         return await this.loadThemes();
+      case 'organizations':
+        return await this.loadOrganizations();
       case 'projects':
         return await this.loadProjects();
       case 'people':
@@ -276,9 +280,179 @@ class StartFlowManager {
   }
 
   async loadThemes() {
-    // Themes table doesn't exist in database - skip this step gracefully
-    console.log('ℹ️ Themes step skipped (table not available)');
-    return { items: [], count: 0 };
+    const { supabase } = this.state;
+    const themes = [];
+
+    try {
+      const nowIso = new Date().toISOString();
+      
+      const { data, error } = await supabase
+        .from('theme_circles')
+        .select('id, title, description, tags, participant_count, expires_at')
+        .eq('status', 'active')
+        .gt('expires_at', nowIso)
+        .order('participant_count', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      if (data) {
+        themes.push(...data.map(theme => ({
+          id: theme.id,
+          title: theme.title,
+          description: theme.description || 'Join this theme circle',
+          icon: 'fa-palette',
+          color: '#ffaa00',
+          tags: theme.tags || [],
+          participantCount: theme.participant_count || 0,
+          expiresAt: theme.expires_at,
+          action: () => this.markThemeInterested(theme)
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading themes:', error);
+      this.state.sessionLog.errors.push({
+        step: 'themes',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return { items: themes, count: themes.length };
+  }
+
+  async markThemeInterested(theme) {
+    try {
+      const { userProfile, supabase } = this.state;
+      
+      // Check if already interested
+      const { data: existing } = await supabase
+        .from('theme_participants')
+        .select('id')
+        .eq('theme_id', theme.id)
+        .eq('community_id', userProfile.id)
+        .single();
+
+      if (existing) {
+        alert('You are already interested in this theme!');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('theme_participants')
+        .insert({
+          theme_id: theme.id,
+          community_id: userProfile.id,
+          signals: 'interested',
+          engagement_level: 'observer'
+        });
+
+      if (error) throw error;
+
+      this.state.sessionLog.themesInterested.push({
+        title: theme.title,
+        description: theme.description || 'No description',
+        tags: theme.tags || [],
+        timestamp: new Date().toISOString()
+      });
+
+      alert(`Marked as interested in "${theme.title}"!`);
+    } catch (error) {
+      console.error('Error marking theme interest:', error);
+      this.state.sessionLog.errors.push({
+        action: 'mark_theme_interested',
+        theme: theme.title,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      alert('Failed to mark interest in theme');
+    }
+  }
+
+  async loadOrganizations() {
+    const { supabase } = this.state;
+    const organizations = [];
+
+    try {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('id, name, slug, description, logo_url, industry, follower_count, verified')
+        .eq('is_active', true)
+        .order('follower_count', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      if (data) {
+        organizations.push(...data.map(org => ({
+          id: org.id,
+          title: org.name,
+          description: org.description || 'Follow this organization',
+          icon: 'fa-building',
+          color: '#ff6b6b',
+          logoUrl: org.logo_url,
+          industry: org.industry || [],
+          followerCount: org.follower_count || 0,
+          verified: org.verified || false,
+          action: () => this.followOrganization(org)
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading organizations:', error);
+      this.state.sessionLog.errors.push({
+        step: 'organizations',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return { items: organizations, count: organizations.length };
+  }
+
+  async followOrganization(org) {
+    try {
+      const { userProfile, supabase } = this.state;
+      
+      // Check if already following
+      const { data: existing } = await supabase
+        .from('organization_followers')
+        .select('id')
+        .eq('organization_id', org.id)
+        .eq('community_id', userProfile.id)
+        .single();
+
+      if (existing) {
+        alert('You are already following this organization!');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('organization_followers')
+        .insert({
+          organization_id: org.id,
+          community_id: userProfile.id
+        });
+
+      if (error) throw error;
+
+      this.state.sessionLog.organizationsFollowed.push({
+        name: org.title,
+        description: org.description || 'No description',
+        industry: org.industry || [],
+        timestamp: new Date().toISOString()
+      });
+
+      alert(`Now following ${org.title}!`);
+    } catch (error) {
+      console.error('Error following organization:', error);
+      this.state.sessionLog.errors.push({
+        action: 'follow_organization',
+        organization: org.title,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      alert('Failed to follow organization');
+    }
   }
 
   async loadProjects() {
@@ -407,8 +581,11 @@ class StartFlowManager {
       sessionDuration: this.calculateDuration(),
       notifications: this.state.stepData.notifications?.count || 0,
       themes: this.state.stepData.themes?.count || 0,
+      organizations: this.state.stepData.organizations?.count || 0,
       projects: this.state.stepData.projects?.count || 0,
       people: this.state.stepData.people?.count || 0,
+      themesInterested: this.state.sessionLog.themesInterested.length,
+      organizationsFollowed: this.state.sessionLog.organizationsFollowed.length,
       connectionRequestsSent: this.state.sessionLog.connectionRequestsSent.length,
       connectionsAccepted: this.state.sessionLog.connectionsAccepted.length,
       errors: this.state.sessionLog.errors.length,
@@ -445,52 +622,91 @@ class StartFlowManager {
       return;
     }
 
-    // Card-based UI like previous version
-    const html = items.map((item, index) => `
-      <button 
-        class="start-recommendation-card"
-        id="step-item-${index}"
-        style="
-          background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.6));
-          border: 2px solid ${item.color}40;
-          border-radius: 12px;
-          padding: 1.5rem;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          text-align: left;
-          width: 100%;
-          display: flex;
-          align-items: center;
-          gap: 1.5rem;
-          margin-bottom: 1rem;
-        "
-        onmouseover="this.style.borderColor='${item.color}80'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 24px ${item.color}40';"
-        onmouseout="this.style.borderColor='${item.color}40'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
-      >
-        <div style="
-          width: 60px;
-          height: 60px;
-          background: ${item.color}20;
-          border: 2px solid ${item.color};
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        ">
-          <i class="fas ${item.icon}" style="font-size: 1.5rem; color: ${item.color};"></i>
-        </div>
-        <div style="flex: 1;">
-          <div style="color: #fff; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem;">
-            ${item.title}
+    // Card-based UI with enhanced rendering for themes and organizations
+    const html = items.map((item, index) => {
+      let extraInfo = '';
+      
+      // Add extra info for themes
+      if (step.id === 'themes') {
+        const tags = item.tags?.slice(0, 3).map(tag => 
+          `<span style="background:rgba(255,170,0,0.2); border:1px solid rgba(255,170,0,0.4); padding:0.15rem 0.4rem; border-radius:8px; font-size:0.7rem; color:#ffaa00;">${tag}</span>`
+        ).join(' ') || '';
+        
+        extraInfo = `
+          <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            ${tags}
+            <span style="color:rgba(255,255,255,0.5); font-size:0.75rem;">👥 ${item.participantCount} interested</span>
           </div>
-          <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
-            ${item.description}
+        `;
+      }
+      
+      // Add extra info for organizations
+      if (step.id === 'organizations') {
+        const industries = item.industry?.slice(0, 2).map(ind => 
+          `<span style="background:rgba(255,107,107,0.2); border:1px solid rgba(255,107,107,0.4); padding:0.15rem 0.4rem; border-radius:8px; font-size:0.7rem; color:#ff6b6b;">${ind}</span>`
+        ).join(' ') || '';
+        
+        const verified = item.verified ? '<span style="background:#00ff88; color:#000; padding:0.15rem 0.4rem; border-radius:8px; font-size:0.7rem; font-weight:700;">✓ VERIFIED</span>' : '';
+        
+        extraInfo = `
+          <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            ${industries}
+            ${verified}
+            <span style="color:rgba(255,255,255,0.5); font-size:0.75rem;">👥 ${item.followerCount} followers</span>
           </div>
-        </div>
-        <i class="fas fa-arrow-right" style="color: ${item.color}; font-size: 1.25rem; opacity: 0.7;"></i>
-      </button>
-    `).join('');
+        `;
+      }
+      
+      return `
+        <button 
+          class="start-recommendation-card"
+          id="step-item-${index}"
+          style="
+            background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.6));
+            border: 2px solid ${item.color}40;
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+          "
+          onmouseover="this.style.borderColor='${item.color}80'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 24px ${item.color}40';"
+          onmouseout="this.style.borderColor='${item.color}40'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+        >
+          <div style="
+            width: 60px;
+            height: 60px;
+            background: ${item.color}20;
+            border: 2px solid ${item.color};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          ">
+            ${item.logoUrl ? 
+              `<img src="${item.logoUrl}" alt="${item.title}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` :
+              `<i class="fas ${item.icon}" style="font-size: 1.5rem; color: ${item.color};"></i>`
+            }
+          </div>
+          <div style="flex: 1;">
+            <div style="color: #fff; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem;">
+              ${item.title}
+            </div>
+            <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
+              ${item.description}
+            </div>
+            ${extraInfo}
+          </div>
+          <i class="fas fa-arrow-right" style="color: ${item.color}; font-size: 1.25rem; opacity: 0.7;"></i>
+        </button>
+      `;
+    }).join('');
 
     const continueBtn = `
       <button 
@@ -567,12 +783,21 @@ class StartFlowManager {
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
             ${this.renderReportStat('Notifications', report.notifications, 'fa-bell', '#00e0ff')}
             ${this.renderReportStat('Themes', report.themes, 'fa-palette', '#ffaa00')}
+            ${this.renderReportStat('Organizations', report.organizations, 'fa-building', '#ff6b6b')}
             ${this.renderReportStat('Projects', report.projects, 'fa-lightbulb', '#00ff88')}
             ${this.renderReportStat('People', report.people, 'fa-users', '#ffd700')}
           </div>
           
           <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem; margin-top:1rem;">
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem;">
+              <div style="text-align:center;">
+                <div style="font-size:2rem; font-weight:bold; color:#ffaa00;">${report.themesInterested}</div>
+                <div style="font-size:0.85rem; color:rgba(255,255,255,0.6);">Themes Interested</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:2rem; font-weight:bold; color:#ff6b6b;">${report.organizationsFollowed}</div>
+                <div style="font-size:0.85rem; color:rgba(255,255,255,0.6);">Organizations Followed</div>
+              </div>
               <div style="text-align:center;">
                 <div style="font-size:2rem; font-weight:bold; color:#00ff88;">${report.connectionRequestsSent}</div>
                 <div style="font-size:0.85rem; color:rgba(255,255,255,0.6);">Connection Requests Sent</div>
@@ -668,9 +893,12 @@ class StartFlowManager {
       statistics: {
         notifications: this.state.stepData.notifications?.count || 0,
         themes: this.state.stepData.themes?.count || 0,
+        organizations: this.state.stepData.organizations?.count || 0,
         projects: this.state.stepData.projects?.count || 0,
         people: this.state.stepData.people?.count || 0
       },
+      themesInterested: this.state.sessionLog.themesInterested,
+      organizationsFollowed: this.state.sessionLog.organizationsFollowed,
       connectionRequestsSent: this.state.sessionLog.connectionRequestsSent,
       connectionsAccepted: this.state.sessionLog.connectionsAccepted,
       errors: this.state.sessionLog.errors,
