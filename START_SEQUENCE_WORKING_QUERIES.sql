@@ -7,22 +7,23 @@
 -- 1. TEST THEMES QUERY
 -- ============================================================================
 
--- Get active themes with participant counts
+-- Get themes with participant counts (no status filter - get all)
 SELECT 
   tc.id,
   tc.title,
   tc.description,
   tc.expires_at,
-  tc.is_active,
   tc.created_at,
   COUNT(DISTINCT tp.id) as participant_count
 FROM theme_circles tc
 LEFT JOIN theme_participants tp ON tc.id = tp.theme_id
-WHERE tc.is_active = true
-  AND (tc.expires_at IS NULL OR tc.expires_at > NOW())
-GROUP BY tc.id, tc.title, tc.description, tc.expires_at, tc.is_active, tc.created_at
+WHERE (tc.expires_at IS NULL OR tc.expires_at > NOW())
+GROUP BY tc.id, tc.title, tc.description, tc.expires_at, tc.created_at
 ORDER BY participant_count DESC
 LIMIT 5;
+
+-- Alternative: If you need to filter by a status column, first check what column exists
+-- Run CHECK_ACTUAL_THEME_COLUMNS.sql to see available columns
 
 -- ============================================================================
 -- 2. TEST ORGANIZATIONS QUERY (Using Summary View)

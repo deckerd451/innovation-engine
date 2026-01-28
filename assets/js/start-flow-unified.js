@@ -284,18 +284,10 @@ class StartFlowManager {
     const themes = [];
 
     try {
-      // Direct query with JOIN to get participant count
+      // Query theme_circles - don't filter by is_active since column may not exist
       const { data, error } = await supabase
         .from('theme_circles')
-        .select(`
-          id, 
-          title, 
-          description,
-          is_active,
-          expires_at,
-          created_at
-        `)
-        .eq('is_active', true)
+        .select('id, title, description, expires_at, created_at')
         .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(10); // Get more initially, we'll count and sort
