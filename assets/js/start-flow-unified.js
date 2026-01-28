@@ -123,6 +123,12 @@ class StartFlowManager {
       this.elements.modal.style.display = 'block';
       this.elements.backdrop.style.display = 'block';
       
+      // Hide the "I just want to explore freely" button
+      const exploreFreelyBtn = document.getElementById('explore-freely-btn');
+      if (exploreFreelyBtn) {
+        exploreFreelyBtn.style.display = 'none';
+      }
+      
       requestAnimationFrame(() => {
         this.elements.modal.style.opacity = '1';
         this.elements.modal.style.transform = 'translate(-50%, -50%) scale(1)';
@@ -262,12 +268,19 @@ class StartFlowManager {
     const themes = [];
 
     try {
+      // Check if themes table exists by trying to query it
       const { data, error } = await supabase
         .from('themes')
         .select('*')
         .eq('active', true)
         .order('member_count', { ascending: false })
         .limit(5);
+
+      // If table doesn't exist, return empty gracefully
+      if (error && error.message.includes('does not exist')) {
+        console.log('ℹ️ Themes table not available, skipping');
+        return { items: [], count: 0 };
+      }
 
       if (error) throw error;
 
@@ -288,6 +301,8 @@ class StartFlowManager {
         error: error.message,
         timestamp: new Date().toISOString()
       });
+      // Return empty instead of failing
+      return { items: [], count: 0 };
     }
 
     return { items: themes, count: themes.length };
