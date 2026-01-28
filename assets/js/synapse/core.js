@@ -975,11 +975,13 @@ async function buildGraph() {
         .forceCollide()
         .radius((d) => {
           if (d.type === "theme") return 0; // themes are separate visuals; keep collision out of it
-          if (d.type === "project") return 30; // Projects need collision radius
-          if (d.isCurrentUser) return 35;
-          return 25;
+          if (d.type === "project") return 35; // Projects need collision radius (increased to prevent overlap)
+          if (d.isCurrentUser) return 60; // Current user node is larger, needs more space
+          if (d.shouldShowImage) return 35; // Nodes with images are larger
+          return 28; // Default nodes (increased to prevent overlap)
         })
-        .strength(0.8)
+        .strength(1.0) // Increased from 0.8 to 1.0 for stronger collision prevention
+        .iterations(3) // Add iterations for better collision resolution
     )
     .velocityDecay(0.6)
     .alphaDecay(0.05)

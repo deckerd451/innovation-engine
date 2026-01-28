@@ -87,17 +87,34 @@ document.getElementById('btn-admin-top')?.addEventListener('click', () => {
 function ensureAdminButtonVisible() {
   if (isAdminUser()) {
     const adminBtn = document.getElementById('btn-admin-top');
-    if (adminBtn && adminBtn.style.display !== 'flex') {
+    if (adminBtn) {
       adminBtn.style.display = 'flex';
       console.log('👑 Admin button shown');
     }
   }
 }
 
-// Check immediately
+// Check immediately and on multiple events
+setTimeout(ensureAdminButtonVisible, 100);
 setTimeout(ensureAdminButtonVisible, 500);
 setTimeout(ensureAdminButtonVisible, 1500);
 setTimeout(ensureAdminButtonVisible, 3000);
+
+// Check when DOM is fully loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ensureAdminButtonVisible);
+} else {
+  ensureAdminButtonVisible();
+}
+
+// Check when profile is loaded
+document.addEventListener('profile-loaded', ensureAdminButtonVisible);
+
+// Check when user data changes
+window.addEventListener('user-data-loaded', ensureAdminButtonVisible);
+
+// Expose function globally so it can be called from other modules
+window.ensureAdminButtonVisible = ensureAdminButtonVisible;
 
 // Wire up View Controls button (backward compatibility if it exists)
 document.getElementById('btn-view-controls')?.addEventListener('click', () => {

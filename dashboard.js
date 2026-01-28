@@ -40,6 +40,11 @@ window.addEventListener('profile-loaded', async (e) => {
     // Setup event listeners
     setupEventListeners();
     
+    // Check admin button visibility after profile is loaded
+    if (typeof window.ensureAdminButtonVisible === 'function') {
+      window.ensureAdminButtonVisible();
+    }
+    
     console.log('✅ Dashboard loaded successfully');
   } catch (err) {
     console.error('❌ Error loading dashboard:', err);
