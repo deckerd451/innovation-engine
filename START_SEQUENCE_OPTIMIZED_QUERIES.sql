@@ -4,26 +4,12 @@
 -- ============================================================================
 
 -- ============================================================================
--- THEMES QUERY - Using active_themes_summary view
--- This view likely has pre-calculated participant counts
+-- THEMES QUERY
+-- NOTE: active_themes_summary view may not exist yet
+-- Using direct query with JOIN for participant count
 -- ============================================================================
 
--- Option 1: Use the summary view (RECOMMENDED - fastest)
-SELECT 
-  theme_id as id,
-  theme_title as title,
-  theme_description as description,
-  participant_count,
-  project_count,
-  expires_at,
-  is_active
-FROM active_themes_summary
-WHERE is_active = true
-  AND (expires_at IS NULL OR expires_at > NOW())
-ORDER BY participant_count DESC NULLS LAST
-LIMIT 5;
-
--- Option 2: Direct query with JOIN (if summary view doesn't work)
+-- Direct query with participant count (RECOMMENDED)
 SELECT 
   tc.id,
   tc.title,
@@ -42,26 +28,25 @@ LIMIT 5;
 
 -- ============================================================================
 -- ORGANIZATIONS QUERY - Using active_organizations_summary view
--- This view likely has pre-calculated follower counts
+-- This view has pre-calculated counts (based on ORGANIZATIONS_SCHEMA.sql)
 -- ============================================================================
 
--- Option 1: Use the summary view (RECOMMENDED - fastest)
+-- Use the summary view (columns are NOT prefixed with org_)
 SELECT 
-  org_id as id,
-  org_name as name,
-  org_slug as slug,
-  org_description as description,
+  id,
+  name,
+  slug,
+  description,
   logo_url,
   verified,
   follower_count,
   member_count,
-  is_active
+  open_opportunities
 FROM active_organizations_summary
-WHERE is_active = true
 ORDER BY follower_count DESC NULLS LAST
 LIMIT 5;
 
--- Option 2: Direct query with JOIN (if summary view doesn't work)
+-- Alternative: Direct query with JOIN (if summary view doesn't work)
 SELECT 
   o.id,
   o.name,
@@ -69,13 +54,13 @@ SELECT
   o.description,
   o.logo_url,
   o.verified,
-  o.is_active,
+  o.status,
   o.created_at,
   COUNT(DISTINCT of.id) as follower_count
 FROM organizations o
 LEFT JOIN organization_followers of ON o.id = of.organization_id
-WHERE o.is_active = true
-GROUP BY o.id, o.name, o.slug, o.description, o.logo_url, o.verified, o.is_active, o.created_at
+WHERE o.status = 'active'
+GROUP BY o.id, o.name, o.slug, o.description, o.logo_url, o.verified, o.status, o.created_at
 ORDER BY follower_count DESC
 LIMIT 5;
 

@@ -284,81 +284,55 @@ class StartFlowManager {
     const themes = [];
 
     try {
-      // Try to use the optimized summary view first
-      let data, error;
-      
-      try {
-        // Option 1: Use active_themes_summary view (pre-calculated counts)
-        const result = await supabase
-          .from('active_themes_summary')
-          .select('theme_id, theme_title, theme_description, participant_count, expires_at, is_active')
-          .eq('is_active', true)
-          .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-          .order('participant_count', { ascending: false })
-          .limit(5);
-        
-        if (result.data && result.data.length > 0) {
-          // Map summary view columns to expected format
-          data = result.data.map(row => ({
-            id: row.theme_id,
-            title: row.theme_title,
-            description: row.theme_description,
-            participantCount: row.participant_count || 0,
-            expiresAt: row.expires_at
-          }));
-        } else {
-          throw new Error('Summary view empty or not available');
-        }
-      } catch (summaryError) {
-        console.warn('Summary view not available, using direct query:', summaryError);
-        
-        // Option 2: Fallback to direct query with manual count
-        const result = await supabase
-          .from('theme_circles')
-          .select('id, title, description, is_active, expires_at, created_at')
-          .eq('is_active', true)
-          .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-          .order('created_at', { ascending: false })
-          .limit(5);
+      // Direct query with JOIN to get participant count
+      const { data, error } = await supabase
+        .from('theme_circles')
+        .select(`
+          id, 
+          title, 
+          description,
+          is_active,
+          expires_at,
+          created_at
+        `)
+        .eq('is_active', true)
+        .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(10); // Get more initially, we'll count and sort
 
-        if (result.error) throw result.error;
+      if (error) throw error;
 
+      if (data && data.length > 0) {
         // Get participant counts for each theme
-        data = [];
-        for (const theme of result.data || []) {
-          let participantCount = 0;
-          try {
-            const { count } = await supabase
-              .from('theme_participants')
-              .select('*', { count: 'exact', head: true })
-              .eq('theme_id', theme.id);
-            participantCount = count || 0;
-          } catch (e) {
-            console.warn('Could not get participant count:', e);
-          }
+        const themesWithCounts = await Promise.all(
+          data.map(async (theme) => {
+            let participantCount = 0;
+            try {
+              const { count } = await supabase
+                .from('theme_participants')
+                .select('*', { count: 'exact', head: true })
+                .eq('theme_id', theme.id);
+              participantCount = count || 0;
+            } catch (e) {
+              console.warn('Could not get participant count for theme:', theme.title, e);
+            }
 
-          data.push({
-            id: theme.id,
-            title: theme.title,
-            description: theme.description,
-            participantCount: participantCount,
-            expiresAt: theme.expires_at
-          });
-        }
-      }
+            return {
+              id: theme.id,
+              title: theme.title,
+              description: theme.description || 'Join this theme circle',
+              icon: 'fa-palette',
+              color: '#ffaa00',
+              participantCount: participantCount,
+              expiresAt: theme.expires_at,
+              action: () => this.markThemeInterested(theme)
+            };
+          })
+        );
 
-      // Convert to card format
-      if (data) {
-        themes.push(...data.map(theme => ({
-          id: theme.id,
-          title: theme.title,
-          description: theme.description || 'Join this theme circle',
-          icon: 'fa-palette',
-          color: '#ffaa00',
-          participantCount: theme.participantCount || 0,
-          expiresAt: theme.expiresAt,
-          action: () => this.markThemeInterested(theme)
-        })));
+        // Sort by participant count and take top 5
+        themesWithCounts.sort((a, b) => b.participantCount - a.participantCount);
+        themes.push(...themesWithCounts.slice(0, 5));
       }
     } catch (error) {
       console.error('Error loading themes:', error);
@@ -425,29 +399,20 @@ class StartFlowManager {
     const organizations = [];
 
     try {
-      // Try to use the optimized summary view first
+      // Try to use the optimized summary view first (it exists and has correct columns)
       let data, error;
       
       try {
         // Option 1: Use active_organizations_summary view (pre-calculated counts)
         const result = await supabase
           .from('active_organizations_summary')
-          .select('org_id, org_name, org_slug, org_description, logo_url, verified, follower_count, is_active')
-          .eq('is_active', true)
+          .select('id, name, slug, description, logo_url, verified, follower_count, member_count')
           .order('follower_count', { ascending: false })
           .limit(5);
         
         if (result.data && result.data.length > 0) {
-          // Map summary view columns to expected format
-          data = result.data.map(row => ({
-            id: row.org_id,
-            name: row.org_name,
-            slug: row.org_slug,
-            description: row.org_description,
-            logo_url: row.logo_url,
-            verified: row.verified,
-            followerCount: row.follower_count || 0
-          }));
+          data = result.data;
+          console.log('✅ Loaded organizations from summary view:', data.length);
         } else {
           throw new Error('Summary view empty or not available');
         }
@@ -457,37 +422,42 @@ class StartFlowManager {
         // Option 2: Fallback to direct query with manual count
         const result = await supabase
           .from('organizations')
-          .select('id, name, slug, description, logo_url, verified, is_active, created_at')
-          .eq('is_active', true)
+          .select('id, name, slug, description, logo_url, verified, status, created_at')
+          .eq('status', 'active')
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(10); // Get more initially
 
         if (result.error) throw result.error;
 
         // Get follower counts for each organization
-        data = [];
-        for (const org of result.data || []) {
-          let followerCount = 0;
-          try {
-            const { count } = await supabase
-              .from('organization_followers')
-              .select('*', { count: 'exact', head: true })
-              .eq('organization_id', org.id);
-            followerCount = count || 0;
-          } catch (e) {
-            console.warn('Could not get follower count:', e);
-          }
+        const orgsWithCounts = await Promise.all(
+          (result.data || []).map(async (org) => {
+            let followerCount = 0;
+            try {
+              const { count } = await supabase
+                .from('organization_followers')
+                .select('*', { count: 'exact', head: true })
+                .eq('organization_id', org.id);
+              followerCount = count || 0;
+            } catch (e) {
+              console.warn('Could not get follower count for org:', org.name, e);
+            }
 
-          data.push({
-            id: org.id,
-            name: org.name,
-            slug: org.slug,
-            description: org.description,
-            logo_url: org.logo_url,
-            verified: org.verified,
-            followerCount: followerCount
-          });
-        }
+            return {
+              id: org.id,
+              name: org.name,
+              slug: org.slug,
+              description: org.description,
+              logo_url: org.logo_url,
+              verified: org.verified,
+              followerCount: followerCount
+            };
+          })
+        );
+
+        // Sort by follower count and take top 5
+        orgsWithCounts.sort((a, b) => b.followerCount - a.followerCount);
+        data = orgsWithCounts.slice(0, 5);
       }
 
       // Convert to card format
@@ -499,7 +469,7 @@ class StartFlowManager {
           icon: 'fa-building',
           color: '#ff6b6b',
           logoUrl: org.logo_url,
-          followerCount: org.followerCount || 0,
+          followerCount: org.follower_count || org.followerCount || 0,
           verified: org.verified || false,
           action: () => this.followOrganization(org)
         })));
