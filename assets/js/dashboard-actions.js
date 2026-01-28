@@ -575,8 +575,8 @@ function createSynapseLegend() {
 
     <div id="legend-content" style="transition: all 0.3s ease; overflow-y: auto; ${isMobile ? 'padding: 0 1rem 1rem 1rem; flex: 1;' : 'padding: 1rem; overflow: hidden;'}">
       ${showAnalytics ? `
-        <button id="legend-analytics-btn" style="width: 100%; padding: 0.7rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-bottom: 0.75rem; box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3); transition: all 0.2s; font-size: 0.85rem;">
-          <i class="fas fa-chart-line"></i> Analytics
+        <button id="legend-analytics-btn" style="width: 100%; padding: 0.7rem; background: linear-gradient(135deg, #ffa500, #ffb84d); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer; margin-bottom: 0.75rem; box-shadow: 0 2px 8px rgba(255, 170, 0, 0.3); transition: all 0.2s; font-size: 0.85rem;">
+          <i class="fas fa-crown"></i> Admin Panel
         </button>
       ` : ''}
 
@@ -788,21 +788,25 @@ function createSynapseLegend() {
     toggleIcon.addEventListener('click', toggleCollapse);
   }
 
-  // Wire up analytics button
+  // Wire up admin panel button (formerly analytics)
   const analyticsBtn = document.getElementById('legend-analytics-btn');
   if (analyticsBtn) {
     analyticsBtn.addEventListener('click', () => {
-      if (typeof window.openAnalyticsModal === 'function') {
-        window.openAnalyticsModal();
+      console.log('👑 Opening admin panel from Filter View');
+      if (typeof window.openAdminPanel === 'function') {
+        window.openAdminPanel();
+      } else {
+        console.error('❌ openAdminPanel function not found');
+        alert('Admin panel not available');
       }
     });
     analyticsBtn.addEventListener('mouseenter', () => {
       analyticsBtn.style.transform = 'translateY(-2px)';
-      analyticsBtn.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.5)';
+      analyticsBtn.style.boxShadow = '0 4px 12px rgba(255, 170, 0, 0.5)';
     });
     analyticsBtn.addEventListener('mouseleave', () => {
       analyticsBtn.style.transform = 'translateY(0)';
-      analyticsBtn.style.boxShadow = '0 2px 8px rgba(255, 107, 107, 0.3)';
+      analyticsBtn.style.boxShadow = '0 2px 8px rgba(255, 170, 0, 0.3)';
     });
   }
 
