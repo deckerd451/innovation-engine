@@ -1,8 +1,8 @@
 // ================================================================
 // UNIFIED START FLOW - Progressive Multi-Step Sequence
 // ================================================================
-// Guides users through: Notifications → Themes → Organizations → Projects → People → Report
-// Each step completes before moving to the next
+// Guides users through: Notifications → Themes → Projects → People → Report
+// Card-based UI with downloadable session report
 // ================================================================
 
 console.log("%c🚀 Progressive START Flow Loading", "color:#0f8; font-weight:bold; font-size:14px");
@@ -14,35 +14,39 @@ class StartFlowManager {
       userProfile: null,
       supabase: null,
       currentStep: 0,
-      totalSteps: 6,
+      totalSteps: 5,
       stepData: {},
-      sequenceComplete: false
+      sequenceComplete: false,
+      sessionLog: {
+        startTime: null,
+        endTime: null,
+        connectionRequestsSent: [],
+        connectionsAccepted: [],
+        themesViewed: [],
+        projectsViewed: [],
+        peopleViewed: [],
+        errors: []
+      }
     };
     
     this.steps = [
       { id: 'notifications', title: 'Notifications', icon: 'fa-bell', color: '#00e0ff' },
       { id: 'themes', title: 'Suggested Themes', icon: 'fa-palette', color: '#ffaa00' },
-      { id: 'organizations', title: 'Organizations', icon: 'fa-building', color: '#a855f7' },
       { id: 'projects', title: 'Projects', icon: 'fa-lightbulb', color: '#00ff88' },
       { id: 'people', title: 'People to Connect', icon: 'fa-users', color: '#ffd700' },
-      { id: 'report', title: 'Your Daily Report', icon: 'fa-chart-line', color: '#00e0ff' }
+      { id: 'report', title: 'Session Report', icon: 'fa-chart-line', color: '#00e0ff' }
     ];
     
     this.elements = {
       container: null,
       modal: null,
       backdrop: null,
-      content: null,
-      progress: null
+      content: null
     };
     
     this.init();
   }
 
-  // ================================================================
-  // INITIALIZATION
-  // ================================================================
-  
   init() {
     console.log('🚀 Initializing Progressive START Flow');
     
@@ -69,10 +73,7 @@ class StartFlowManager {
     this.state.userProfile = e.detail?.profile || e.detail;
     this.state.supabase = window.supabase;
     
-    console.log('✅ Profile loaded in START Flow:', {
-      hasProfile: !!this.state.userProfile,
-      userId: this.state.userProfile?.id
-    });
+    console.log('✅ Profile loaded in START Flow');
     
     if (this.elements.container) {
       this.elements.container.style.display = 'flex';
@@ -101,10 +102,6 @@ class StartFlowManager {
     }
   }
 
-  // ================================================================
-  // SEQUENCE CONTROL
-  // ================================================================
-
   async open() {
     if (this.state.isOpen) return;
     
@@ -112,8 +109,8 @@ class StartFlowManager {
     this.state.isOpen = true;
     this.state.currentStep = 0;
     this.state.sequenceComplete = false;
+    this.state.sessionLog.startTime = new Date().toISOString();
 
-    // Hide start button container
     if (this.elements.container) {
       this.elements.container.style.transition = 'opacity 0.5s ease';
       this.elements.container.style.opacity = '0';
@@ -122,7 +119,6 @@ class StartFlowManager {
       }, 500);
     }
 
-    // Show modal
     if (this.elements.modal && this.elements.backdrop) {
       this.elements.modal.style.display = 'block';
       this.elements.backdrop.style.display = 'block';
@@ -133,9 +129,7 @@ class StartFlowManager {
       });
     }
 
-    // Start the sequence
     await this.showStep(0);
-    
     window.dispatchEvent(new CustomEvent('start-modal-opened'));
   }
 
@@ -150,17 +144,13 @@ class StartFlowManager {
     
     console.log(`📍 Step ${stepIndex + 1}/${this.steps.length}: ${step.title}`);
 
-    // Update progress indicator
     this.updateProgress();
-
-    // Load and render step content
     await this.renderStep(step);
   }
 
   async renderStep(step) {
     if (!this.elements.content) return;
 
-    // Show loading
     this.elements.content.innerHTML = `
       <div style="text-align:center; padding:2rem;">
         <i class="fas fa-spinner fa-spin" style="font-size:2rem; color:${step.color}; margin-bottom:1rem;"></i>
@@ -169,14 +159,16 @@ class StartFlowManager {
     `;
 
     try {
-      // Load step data
       const data = await this.loadStepData(step.id);
       this.state.stepData[step.id] = data;
-
-      // Render step content
       this.renderStepContent(step, data);
     } catch (error) {
       console.error(`❌ Error loading step ${step.id}:`, error);
+      this.state.sessionLog.errors.push({
+        step: step.id,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
       this.renderStepError(step);
     }
   }
@@ -193,8 +185,6 @@ class StartFlowManager {
         return await this.loadNotifications();
       case 'themes':
         return await this.loadThemes();
-      case 'organizations':
-        return await this.loadOrganizations();
       case 'projects':
         return await this.loadProjects();
       case 'people':
@@ -206,16 +196,11 @@ class StartFlowManager {
     }
   }
 
-  // ================================================================
-  // DATA LOADERS
-  // ================================================================
-
   async loadNotifications() {
     const { userProfile, supabase } = this.state;
     const notifications = [];
 
     try {
-      // Check unread messages
       const { data: conversations } = await supabase
         .from('conversations')
         .select('id')
@@ -237,12 +222,12 @@ class StartFlowManager {
             title: `${unreadCount} unread message${unreadCount > 1 ? 's' : ''}`,
             description: 'Catch up on your conversations',
             icon: 'fa-envelope',
+            color: '#00e0ff',
             action: () => this.openMessages()
           });
         }
       }
 
-      // Check connection requests
       const { count: pendingRequests } = await supabase
         .from('connections')
         .select('*', { count: 'exact', head: true })
@@ -255,32 +240,18 @@ class StartFlowManager {
           title: `${pendingRequests} connection request${pendingRequests > 1 ? 's' : ''}`,
           description: 'Review and respond',
           icon: 'fa-user-plus',
+          color: '#ffd700',
           action: () => this.openConnections()
-        });
-      }
-
-      // Check endorsements
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      
-      const { count: recentEndorsements } = await supabase
-        .from('endorsements')
-        .select('*', { count: 'exact', head: true })
-        .eq('endorsed_community_id', userProfile.id)
-        .gte('created_at', weekAgo.toISOString());
-
-      if (recentEndorsements > 0) {
-        notifications.push({
-          type: 'endorsements',
-          title: `${recentEndorsements} new endorsement${recentEndorsements > 1 ? 's' : ''}`,
-          description: 'See who endorsed you',
-          icon: 'fa-star',
-          action: () => this.openEndorsements()
         });
       }
 
     } catch (error) {
       console.error('Error loading notifications:', error);
+      this.state.sessionLog.errors.push({
+        step: 'notifications',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
     }
 
     return { items: notifications, count: notifications.length };
@@ -291,12 +262,14 @@ class StartFlowManager {
     const themes = [];
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('themes')
         .select('*')
         .eq('active', true)
         .order('member_count', { ascending: false })
         .limit(5);
+
+      if (error) throw error;
 
       if (data) {
         themes.push(...data.map(theme => ({
@@ -304,43 +277,20 @@ class StartFlowManager {
           title: theme.name,
           description: theme.description || 'Join this theme',
           icon: 'fa-palette',
-          members: theme.member_count || 0,
-          color: theme.color || '#ffaa00'
+          color: '#ffaa00',
+          members: theme.member_count || 0
         })));
       }
     } catch (error) {
       console.error('Error loading themes:', error);
+      this.state.sessionLog.errors.push({
+        step: 'themes',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
     }
 
     return { items: themes, count: themes.length };
-  }
-
-  async loadOrganizations() {
-    const { supabase } = this.state;
-    const orgs = [];
-
-    try {
-      const { data } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('is_active', true)
-        .order('member_count', { ascending: false })
-        .limit(5);
-
-      if (data) {
-        orgs.push(...data.map(org => ({
-          id: org.id,
-          title: org.name,
-          description: org.description || 'Learn more',
-          icon: 'fa-building',
-          members: org.member_count || 0
-        })));
-      }
-    } catch (error) {
-      console.error('Error loading organizations:', error);
-    }
-
-    return { items: orgs, count: orgs.length };
   }
 
   async loadProjects() {
@@ -348,12 +298,14 @@ class StartFlowManager {
     const projects = [];
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('projects')
         .select('*, creator:community!projects_creator_id_fkey(name)')
         .eq('status', 'in-progress')
         .order('created_at', { ascending: false })
         .limit(5);
+
+      if (error) throw error;
 
       if (data) {
         projects.push(...data.map(project => ({
@@ -361,11 +313,17 @@ class StartFlowManager {
           title: project.name,
           description: project.description || 'Join this project',
           icon: 'fa-lightbulb',
+          color: '#00ff88',
           creator: project.creator?.name || 'Unknown'
         })));
       }
     } catch (error) {
       console.error('Error loading projects:', error);
+      this.state.sessionLog.errors.push({
+        step: 'projects',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
     }
 
     return { items: projects, count: projects.length };
@@ -376,7 +334,6 @@ class StartFlowManager {
     const people = [];
 
     try {
-      // Get existing connections
       const { data: connections } = await supabase
         .from('connections')
         .select('from_user_id, to_user_id')
@@ -388,12 +345,13 @@ class StartFlowManager {
         connectedIds.add(conn.to_user_id);
       });
 
-      // Get suggested people
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('community')
         .select('*')
         .not('id', 'in', `(${Array.from(connectedIds).join(',')})`)
         .limit(5);
+
+      if (error) throw error;
 
       if (data) {
         people.push(...data.map(person => ({
@@ -401,32 +359,88 @@ class StartFlowManager {
           title: person.name,
           description: person.bio || 'Connect with this person',
           icon: 'fa-user',
-          skills: person.skills || []
+          color: '#ffd700',
+          email: person.email,
+          bio: person.bio,
+          skills: person.skills || [],
+          action: () => this.sendConnectionRequest(person)
         })));
       }
     } catch (error) {
       console.error('Error loading people:', error);
+      this.state.sessionLog.errors.push({
+        step: 'people',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
     }
 
     return { items: people, count: people.length };
   }
 
+  async sendConnectionRequest(person) {
+    try {
+      const { userProfile, supabase } = this.state;
+      
+      const { error } = await supabase
+        .from('connections')
+        .insert({
+          from_user_id: userProfile.id,
+          to_user_id: person.id,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      this.state.sessionLog.connectionRequestsSent.push({
+        name: person.title,
+        bio: person.bio || 'No bio provided',
+        email: person.email || 'No email',
+        timestamp: new Date().toISOString()
+      });
+
+      alert(`Connection request sent to ${person.title}!`);
+    } catch (error) {
+      console.error('Error sending connection request:', error);
+      this.state.sessionLog.errors.push({
+        action: 'send_connection_request',
+        person: person.title,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      alert('Failed to send connection request');
+    }
+  }
+
   async generateReport() {
+    this.state.sessionLog.endTime = new Date().toISOString();
+    
     const report = {
+      sessionDuration: this.calculateDuration(),
       notifications: this.state.stepData.notifications?.count || 0,
       themes: this.state.stepData.themes?.count || 0,
-      organizations: this.state.stepData.organizations?.count || 0,
       projects: this.state.stepData.projects?.count || 0,
       people: this.state.stepData.people?.count || 0,
+      connectionRequestsSent: this.state.sessionLog.connectionRequestsSent.length,
+      connectionsAccepted: this.state.sessionLog.connectionsAccepted.length,
+      errors: this.state.sessionLog.errors.length,
       timestamp: new Date().toISOString()
     };
 
     return { report };
   }
 
-  // ================================================================
-  // RENDER FUNCTIONS
-  // ================================================================
+  calculateDuration() {
+    if (!this.state.sessionLog.startTime || !this.state.sessionLog.endTime) {
+      return '0 minutes';
+    }
+    
+    const start = new Date(this.state.sessionLog.startTime);
+    const end = new Date(this.state.sessionLog.endTime);
+    const minutes = Math.round((end - start) / 60000);
+    
+    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  }
 
   renderStepContent(step, data) {
     if (!this.elements.content) return;
@@ -443,93 +457,105 @@ class StartFlowManager {
       return;
     }
 
-    const html = `
-      <div style="margin-bottom:1.5rem;">
-        <h3 style="color:${step.color}; font-size:1.2rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-          <i class="fas ${step.icon}"></i>
-          ${step.title}
-        </h3>
-        <div style="display:flex; flex-direction:column; gap:0.75rem;">
-          ${items.map((item, index) => this.renderItem(item, step, index)).join('')}
+    // Card-based UI like previous version
+    const html = items.map((item, index) => `
+      <button 
+        class="start-recommendation-card"
+        id="step-item-${index}"
+        style="
+          background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.6));
+          border: 2px solid ${item.color}40;
+          border-radius: 12px;
+          padding: 1.5rem;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          text-align: left;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 1.5rem;
+          margin-bottom: 1rem;
+        "
+        onmouseover="this.style.borderColor='${item.color}80'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 24px ${item.color}40';"
+        onmouseout="this.style.borderColor='${item.color}40'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+      >
+        <div style="
+          width: 60px;
+          height: 60px;
+          background: ${item.color}20;
+          border: 2px solid ${item.color};
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        ">
+          <i class="fas ${item.icon}" style="font-size: 1.5rem; color: ${item.color};"></i>
         </div>
-      </div>
-      <div style="display:flex; gap:1rem; margin-top:1.5rem;">
-        <button 
-          id="step-next-btn"
-          style="flex:1; padding:1rem; background:linear-gradient(135deg, ${step.color}40, ${step.color}20);
-          border:2px solid ${step.color}; border-radius:10px; color:#fff; font-weight:600; cursor:pointer; transition:all 0.3s;"
-        >
-          <i class="fas fa-arrow-right" style="margin-right:0.5rem;"></i>Continue
-        </button>
-      </div>
+        <div style="flex: 1;">
+          <div style="color: #fff; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem;">
+            ${item.title}
+          </div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
+            ${item.description}
+          </div>
+        </div>
+        <i class="fas fa-arrow-right" style="color: ${item.color}; font-size: 1.25rem; opacity: 0.7;"></i>
+      </button>
+    `).join('');
+
+    const continueBtn = `
+      <button 
+        id="step-next-btn"
+        style="
+          width: 100%;
+          padding: 1rem 2rem;
+          background: linear-gradient(135deg, ${step.color}, ${step.color}80);
+          border: none;
+          border-radius: 10px;
+          color: #000;
+          font-weight: 700;
+          font-size: 1.1rem;
+          cursor: pointer;
+          transition: all 0.3s;
+          margin-top: 1rem;
+        "
+        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px ${step.color}60';"
+        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+      >
+        <i class="fas fa-arrow-right" style="margin-right: 0.5rem;"></i>Continue to Next Step
+      </button>
     `;
 
-    this.elements.content.innerHTML = html;
+    this.elements.content.innerHTML = html + continueBtn;
 
     // Wire up next button
     const nextBtn = document.getElementById('step-next-btn');
     if (nextBtn) {
       nextBtn.addEventListener('click', () => this.nextStep());
-      nextBtn.addEventListener('mouseover', () => {
-        nextBtn.style.background = `linear-gradient(135deg, ${step.color}60, ${step.color}40)`;
-        nextBtn.style.transform = 'translateY(-2px)';
-      });
-      nextBtn.addEventListener('mouseout', () => {
-        nextBtn.style.background = `linear-gradient(135deg, ${step.color}40, ${step.color}20)`;
-        nextBtn.style.transform = 'translateY(0)';
-      });
     }
 
     // Wire up item clicks
     items.forEach((item, index) => {
       const itemEl = document.getElementById(`step-item-${index}`);
       if (itemEl && item.action) {
-        itemEl.addEventListener('click', () => item.action());
+        itemEl.addEventListener('click', (e) => {
+          e.preventDefault();
+          item.action();
+        });
       }
     });
   }
 
-  renderItem(item, step, index) {
-    return `
-      <div 
-        id="step-item-${index}"
-        style="
-          background:rgba(0,0,0,0.4); 
-          border:1px solid ${step.color}40; 
-          border-radius:8px; 
-          padding:1rem; 
-          cursor:${item.action ? 'pointer' : 'default'};
-          transition:all 0.3s;
-        "
-        onmouseover="if(${!!item.action}) { this.style.borderColor='${step.color}80'; this.style.background='rgba(0,0,0,0.6)'; }"
-        onmouseout="this.style.borderColor='${step.color}40'; this.style.background='rgba(0,0,0,0.4)';"
-      >
-        <div style="display:flex; align-items:center; gap:1rem;">
-          <div style="
-            width:40px; height:40px; background:${step.color}20; border:2px solid ${step.color};
-            border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;
-          ">
-            <i class="fas ${item.icon}" style="color:${step.color};"></i>
-          </div>
-          <div style="flex:1;">
-            <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${item.title}</div>
-            <div style="color:rgba(255,255,255,0.6); font-size:0.9rem;">${item.description}</div>
-          </div>
-          ${item.action ? `<i class="fas fa-chevron-right" style="color:${step.color}; opacity:0.5;"></i>` : ''}
-        </div>
-      </div>
-    `;
-  }
-
   renderEmptyStep(step) {
     this.elements.content.innerHTML = `
-      <div style="text-align:center; padding:2rem;">
-        <i class="fas ${step.icon}" style="font-size:3rem; color:${step.color}40; margin-bottom:1rem;"></i>
-        <h3 style="color:${step.color}; margin-bottom:0.5rem;">No ${step.title}</h3>
+      <div style="text-align:center; padding:3rem 2rem;">
+        <i class="fas ${step.icon}" style="font-size:4rem; color:${step.color}40; margin-bottom:1rem;"></i>
+        <h3 style="color:${step.color}; margin-bottom:0.5rem; font-size:1.5rem;">No ${step.title}</h3>
         <p style="color:rgba(255,255,255,0.6); margin-bottom:2rem;">You're all caught up!</p>
         <button 
           onclick="startFlowManager.nextStep()"
-          style="padding:1rem 2rem; background:${step.color}; border:none; border-radius:10px; color:#000; font-weight:600; cursor:pointer;"
+          style="padding:1rem 2rem; background:linear-gradient(135deg, ${step.color}, ${step.color}80); border:none; border-radius:10px; color:#000; font-weight:700; cursor:pointer; font-size:1.1rem;"
         >
           Continue <i class="fas fa-arrow-right" style="margin-left:0.5rem;"></i>
         </button>
@@ -538,34 +564,65 @@ class StartFlowManager {
   }
 
   renderReport(report) {
-    const totalItems = report.notifications + report.themes + report.organizations + report.projects + report.people;
-    
-    this.elements.content.innerHTML = `
+    const html = `
       <div style="text-align:center; padding:2rem;">
         <div style="font-size:4rem; color:#00ff88; margin-bottom:1rem;">
           <i class="fas fa-check-circle"></i>
         </div>
-        <h2 style="color:#00ff88; font-size:1.8rem; margin-bottom:0.5rem;">Sequence Complete!</h2>
-        <p style="color:rgba(255,255,255,0.7); margin-bottom:2rem;">Here's your daily summary</p>
+        <h2 style="color:#00ff88; font-size:2rem; margin-bottom:0.5rem;">Session Complete!</h2>
+        <p style="color:rgba(255,255,255,0.7); margin-bottom:2rem;">Duration: ${report.sessionDuration}</p>
         
         <div style="background:rgba(0,0,0,0.4); border:1px solid rgba(0,255,136,0.3); border-radius:12px; padding:1.5rem; margin-bottom:2rem; text-align:left;">
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem;">
+          <h3 style="color:#00e0ff; margin-bottom:1rem; font-size:1.2rem;">
+            <i class="fas fa-chart-bar" style="margin-right:0.5rem;"></i>Session Summary
+          </h3>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
             ${this.renderReportStat('Notifications', report.notifications, 'fa-bell', '#00e0ff')}
             ${this.renderReportStat('Themes', report.themes, 'fa-palette', '#ffaa00')}
-            ${this.renderReportStat('Organizations', report.organizations, 'fa-building', '#a855f7')}
             ${this.renderReportStat('Projects', report.projects, 'fa-lightbulb', '#00ff88')}
             ${this.renderReportStat('People', report.people, 'fa-users', '#ffd700')}
           </div>
+          
+          <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem; margin-top:1rem;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
+              <div style="text-align:center;">
+                <div style="font-size:2rem; font-weight:bold; color:#00ff88;">${report.connectionRequestsSent}</div>
+                <div style="font-size:0.85rem; color:rgba(255,255,255,0.6);">Connection Requests Sent</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:2rem; font-weight:bold; color:#00e0ff;">${report.connectionsAccepted}</div>
+                <div style="font-size:0.85rem; color:rgba(255,255,255,0.6);">Connections Accepted</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:2rem; font-weight:bold; color:${report.errors > 0 ? '#ff6b6b' : '#00ff88'}">${report.errors}</div>
+                <div style="font-size:0.85rem; color:rgba(255,255,255,0.6);">Errors</div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <button 
-          onclick="startFlowManager.close()"
-          style="padding:1rem 2rem; background:linear-gradient(135deg, #00ff88, #00e0ff); border:none; border-radius:10px; color:#000; font-weight:700; cursor:pointer; font-size:1.1rem;"
-        >
-          <i class="fas fa-rocket" style="margin-right:0.5rem;"></i>Start Exploring
-        </button>
+        <div style="display:flex; gap:1rem; justify-content:center;">
+          <button 
+            onclick="startFlowManager.downloadReport()"
+            style="padding:1rem 2rem; background:rgba(0,224,255,0.2); border:2px solid #00e0ff; border-radius:10px; color:#00e0ff; font-weight:700; cursor:pointer; font-size:1rem; transition:all 0.3s;"
+            onmouseover="this.style.background='rgba(0,224,255,0.3)'; this.style.transform='translateY(-2px)';"
+            onmouseout="this.style.background='rgba(0,224,255,0.2)'; this.style.transform='translateY(0)';"
+          >
+            <i class="fas fa-download" style="margin-right:0.5rem;"></i>Download Report
+          </button>
+          <button 
+            onclick="startFlowManager.close()"
+            style="padding:1rem 2rem; background:linear-gradient(135deg, #00ff88, #00e0ff); border:none; border-radius:10px; color:#000; font-weight:700; cursor:pointer; font-size:1rem; transition:all 0.3s;"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(0,255,136,0.4)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+          >
+            <i class="fas fa-rocket" style="margin-right:0.5rem;"></i>Start Exploring
+          </button>
+        </div>
       </div>
     `;
+
+    this.elements.content.innerHTML = html;
   }
 
   renderReportStat(label, value, icon, color) {
@@ -580,14 +637,15 @@ class StartFlowManager {
 
   renderStepError(step) {
     this.elements.content.innerHTML = `
-      <div style="text-align:center; padding:2rem;">
-        <i class="fas fa-exclamation-triangle" style="font-size:2rem; color:#ff6b6b; margin-bottom:1rem;"></i>
-        <p style="color:rgba(255,255,255,0.7); margin-bottom:1.5rem;">Unable to load ${step.title.toLowerCase()}</p>
+      <div style="text-align:center; padding:3rem 2rem;">
+        <i class="fas fa-exclamation-triangle" style="font-size:3rem; color:#ff6b6b; margin-bottom:1rem;"></i>
+        <h3 style="color:#ff6b6b; margin-bottom:0.5rem;">Unable to load ${step.title}</h3>
+        <p style="color:rgba(255,255,255,0.7); margin-bottom:2rem;">An error occurred while loading this step</p>
         <button 
           onclick="startFlowManager.nextStep()"
-          style="padding:0.75rem 1.5rem; background:#00e0ff; border:none; border-radius:8px; color:#000; font-weight:600; cursor:pointer;"
+          style="padding:1rem 2rem; background:#00e0ff; border:none; border-radius:10px; color:#000; font-weight:700; cursor:pointer; font-size:1rem;"
         >
-          Skip to Next
+          Skip to Next Step
         </button>
       </div>
     `;
@@ -604,16 +662,45 @@ class StartFlowManager {
       modalHeader.style.color = step.color;
     }
 
-    // Update subtitle with progress
     const subtitle = this.elements.modal?.querySelector('p');
     if (subtitle) {
       subtitle.textContent = `Step ${this.state.currentStep + 1} of ${this.steps.length}`;
     }
   }
 
-  // ================================================================
-  // NAVIGATION
-  // ================================================================
+  downloadReport() {
+    const report = {
+      sessionSummary: {
+        startTime: this.state.sessionLog.startTime,
+        endTime: this.state.sessionLog.endTime,
+        duration: this.calculateDuration(),
+        completedSteps: this.state.currentStep + 1,
+        totalSteps: this.steps.length
+      },
+      statistics: {
+        notifications: this.state.stepData.notifications?.count || 0,
+        themes: this.state.stepData.themes?.count || 0,
+        projects: this.state.stepData.projects?.count || 0,
+        people: this.state.stepData.people?.count || 0
+      },
+      connectionRequestsSent: this.state.sessionLog.connectionRequestsSent,
+      connectionsAccepted: this.state.sessionLog.connectionsAccepted,
+      errors: this.state.sessionLog.errors,
+      generatedAt: new Date().toISOString()
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `start-sequence-report-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log('📥 Report downloaded');
+  }
 
   nextStep() {
     const nextIndex = this.state.currentStep + 1;
@@ -632,7 +719,6 @@ class StartFlowManager {
   completeSequence() {
     console.log('✅ Sequence complete');
     this.state.sequenceComplete = true;
-    // Report is the last step, so it's already shown
   }
 
   close() {
@@ -667,10 +753,6 @@ class StartFlowManager {
       }, 500);
     }
   }
-
-  // ================================================================
-  // ACTION HANDLERS
-  // ================================================================
 
   openMessages() {
     setTimeout(() => {
@@ -708,10 +790,6 @@ class StartFlowManager {
     }, 100);
   }
 }
-
-// ================================================================
-// INITIALIZE
-// ================================================================
 
 const startFlowManager = new StartFlowManager();
 
