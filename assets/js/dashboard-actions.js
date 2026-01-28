@@ -361,43 +361,92 @@ function createSynapseLegend() {
 
   const legend = document.createElement('div');
   legend.id = 'synapse-legend-overlay';
-  legend.style.cssText = `
-    position: fixed;
-    top: 100px;
-    left: 20px;
-    background: linear-gradient(135deg, rgba(10,14,39,0.95), rgba(26,26,46,0.95));
-    border: 2px solid rgba(0,224,255,0.3);
-    border-radius: 12px;
-    padding: 1rem;
-    z-index: 100;
-    backdrop-filter: blur(10px);
-    min-width: 200px;
-    max-width: 250px;
-    transition: all 0.3s ease;
-  `;
+  
+  // Check if mobile
+  const isMobile = window.innerWidth <= 768;
+  
+  if (isMobile) {
+    // Mobile: Bottom sheet style
+    legend.style.cssText = `
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
+      border: 2px solid rgba(0,224,255,0.3);
+      border-radius: 20px 20px 0 0;
+      padding: 0;
+      z-index: 10000;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      max-height: 70vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    `;
+  } else {
+    // Desktop: Original style
+    legend.style.cssText = `
+      position: fixed;
+      top: 100px;
+      left: 20px;
+      background: linear-gradient(135deg, rgba(10,14,39,0.95), rgba(26,26,46,0.95));
+      border: 2px solid rgba(0,224,255,0.3);
+      border-radius: 12px;
+      padding: 1rem;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      min-width: 200px;
+      max-width: 250px;
+      transition: all 0.3s ease;
+    `;
+  }
 
   // Check if user is admin for analytics button
   const showAnalytics = isAdminUser();
 
+  const isMobile = window.innerWidth <= 768;
+
   legend.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;" id="legend-header">
-      <h4 style="color: #00e0ff; font-size: 0.9rem; margin: 0; font-weight: 700; cursor: pointer; flex: 1;" id="legend-title">
+    ${isMobile ? `
+      <!-- Mobile: Drag handle -->
+      <div style="padding: 0.75rem; display: flex; justify-content: center; cursor: grab; flex-shrink: 0;" id="legend-drag-handle">
+        <div style="width: 40px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px;"></div>
+      </div>
+    ` : ''}
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; ${isMobile ? 'padding: 0 1rem 0.75rem 1rem;' : 'margin-bottom: 0.75rem;'}" id="legend-header">
+      <h4 style="color: #00e0ff; font-size: ${isMobile ? '1.1rem' : '0.9rem'}; margin: 0; font-weight: 700; cursor: pointer; flex: 1;" id="legend-title">
         <i class="fas fa-filter"></i> Filter View
       </h4>
       <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <button id="legend-refresh-btn" style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: #00e0ff; cursor: pointer; padding: 0.35rem 0.5rem; font-size: 0.75rem; transition: all 0.2s;" title="Refresh Network">
-          <i class="fas fa-sync-alt" id="refresh-icon"></i>
-        </button>
-        <i class="fas fa-chevron-up" id="legend-toggle-icon" style="color: #00e0ff; font-size: 0.8rem; transition: transform 0.3s; cursor: pointer;"></i>
+        ${!isMobile ? `
+          <button id="legend-refresh-btn" style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: #00e0ff; cursor: pointer; padding: 0.35rem 0.5rem; font-size: 0.75rem; transition: all 0.2s;" title="Refresh Network">
+            <i class="fas fa-sync-alt" id="refresh-icon"></i>
+          </button>
+          <i class="fas fa-chevron-up" id="legend-toggle-icon" style="color: #00e0ff; font-size: 0.8rem; transition: transform 0.3s; cursor: pointer;"></i>
+        ` : `
+          <button id="legend-close-btn" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 50%; width: 32px; height: 32px; color: #ff6b6b; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: all 0.2s;">
+            <i class="fas fa-times"></i>
+          </button>
+        `}
       </div>
     </div>
 
-    <div id="legend-content" style="transition: all 0.3s ease; overflow: hidden;">
+    <div id="legend-content" style="transition: all 0.3s ease; overflow-y: auto; ${isMobile ? 'padding: 0 1rem 1rem 1rem; flex: 1;' : 'overflow: hidden;'}">
       ${showAnalytics ? `
         <button id="legend-analytics-btn" style="width: 100%; padding: 0.65rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-bottom: 0.75rem; box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3); transition: all 0.2s; font-size: 0.85rem;">
           <i class="fas fa-chart-line"></i> Analytics
         </button>
       ` : ''}
+
+      ${!isMobile ? '' : `
+        <button id="legend-refresh-btn-mobile" style="width: 100%; padding: 0.75rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff; cursor: pointer; margin-bottom: 0.75rem; font-weight: 600; transition: all 0.2s;">
+          <i class="fas fa-sync-alt" id="refresh-icon-mobile"></i> Refresh Network
+        </button>
+      `}
 
       <div id="legend-people" data-filter="people" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3);">
         <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(0,224,255,0.3); border: 2px solid #00e0ff; flex-shrink: 0;"></div>
@@ -447,18 +496,105 @@ function createSynapseLegend() {
 
   document.body.appendChild(legend);
 
-  // Add responsive positioning
+  // Mobile: Create backdrop
+  if (isMobile) {
+    const backdrop = document.createElement('div');
+    backdrop.id = 'legend-backdrop';
+    backdrop.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(backdrop);
+
+    // Mobile: Toggle function
+    window.toggleFilterSheet = () => {
+      const isOpen = legend.style.transform === 'translateY(0%)';
+      
+      if (isOpen) {
+        legend.style.transform = 'translateY(100%)';
+        backdrop.style.opacity = '0';
+        backdrop.style.pointerEvents = 'none';
+      } else {
+        legend.style.transform = 'translateY(0%)';
+        backdrop.style.opacity = '1';
+        backdrop.style.pointerEvents = 'auto';
+      }
+    };
+
+    // Close on backdrop click
+    backdrop.addEventListener('click', () => {
+      window.toggleFilterSheet();
+    });
+
+    // Close button
+    const closeBtn = document.getElementById('legend-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        window.toggleFilterSheet();
+      });
+    }
+
+    // Drag to close
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+
+    const dragHandle = document.getElementById('legend-drag-handle');
+    if (dragHandle) {
+      dragHandle.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        isDragging = true;
+        dragHandle.style.cursor = 'grabbing';
+      });
+
+      dragHandle.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        currentY = e.touches[0].clientY;
+        const diff = currentY - startY;
+        
+        if (diff > 0) {
+          legend.style.transform = `translateY(${diff}px)`;
+        }
+      });
+
+      dragHandle.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        dragHandle.style.cursor = 'grab';
+        
+        const diff = currentY - startY;
+        if (diff > 100) {
+          window.toggleFilterSheet();
+        } else {
+          legend.style.transform = 'translateY(0%)';
+        }
+      });
+    }
+  }
+
+  // Add responsive positioning for desktop
   function updateLegendPosition() {
     const width = window.innerWidth;
-    if (width <= 768) {
-      // Mobile: Move to bottom-left, smaller
-      legend.style.top = 'auto';
-      legend.style.bottom = '100px';
-      legend.style.left = '10px';
-      legend.style.minWidth = '180px';
-      legend.style.maxWidth = '200px';
-    } else {
-      // Desktop: Top-left
+    const wasMobile = legend.classList.contains('mobile-mode');
+    const isNowMobile = width <= 768;
+
+    if (wasMobile !== isNowMobile) {
+      // Mode changed, recreate legend
+      legend.remove();
+      const backdrop = document.getElementById('legend-backdrop');
+      if (backdrop) backdrop.remove();
+      createSynapseLegend();
+      return;
+    }
+
+    if (!isNowMobile) {
+      // Desktop positioning
       legend.style.top = '100px';
       legend.style.bottom = 'auto';
       legend.style.left = '20px';
@@ -467,43 +603,49 @@ function createSynapseLegend() {
     }
   }
 
+  if (isMobile) {
+    legend.classList.add('mobile-mode');
+  }
+
   // Set initial position
   updateLegendPosition();
 
   // Update on resize
   window.addEventListener('resize', updateLegendPosition);
 
-  // Wire up collapse/expand
-  const legendTitle = document.getElementById('legend-title');
-  const content = document.getElementById('legend-content');
-  const toggleIcon = document.getElementById('legend-toggle-icon');
+  // Wire up collapse/expand (desktop only)
+  if (!isMobile) {
+    const legendTitle = document.getElementById('legend-title');
+    const content = document.getElementById('legend-content');
+    const toggleIcon = document.getElementById('legend-toggle-icon');
 
-  const toggleCollapse = () => {
-    legendCollapsed = !legendCollapsed;
+    const toggleCollapse = () => {
+      legendCollapsed = !legendCollapsed;
 
+      if (legendCollapsed) {
+        content.style.maxHeight = '0';
+        content.style.opacity = '0';
+        content.style.marginTop = '0';
+        toggleIcon.style.transform = 'rotate(180deg)';
+      } else {
+        content.style.maxHeight = '500px';
+        content.style.opacity = '1';
+        content.style.marginTop = '0';
+        toggleIcon.style.transform = 'rotate(0deg)';
+      }
+    };
+
+    // Set initial collapsed state
     if (legendCollapsed) {
       content.style.maxHeight = '0';
       content.style.opacity = '0';
       content.style.marginTop = '0';
       toggleIcon.style.transform = 'rotate(180deg)';
-    } else {
-      content.style.maxHeight = '500px';
-      content.style.opacity = '1';
-      content.style.marginTop = '0';
-      toggleIcon.style.transform = 'rotate(0deg)';
     }
-  };
 
-  // Set initial collapsed state
-  if (legendCollapsed) {
-    content.style.maxHeight = '0';
-    content.style.opacity = '0';
-    content.style.marginTop = '0';
-    toggleIcon.style.transform = 'rotate(180deg)';
+    legendTitle.addEventListener('click', toggleCollapse);
+    toggleIcon.addEventListener('click', toggleCollapse);
   }
-
-  legendTitle.addEventListener('click', toggleCollapse);
-  toggleIcon.addEventListener('click', toggleCollapse);
 
   // Wire up analytics button
   const analyticsBtn = document.getElementById('legend-analytics-btn');
@@ -612,6 +754,67 @@ function createSynapseLegend() {
       }
     `;
     document.head.appendChild(style);
+  }
+
+  // Wire up mobile refresh button
+  const refreshBtnMobile = document.getElementById('legend-refresh-btn-mobile');
+  const refreshIconMobile = document.getElementById('refresh-icon-mobile');
+  if (refreshBtnMobile && refreshIconMobile) {
+    let isRefreshing = false;
+
+    refreshBtnMobile.addEventListener('click', async (e) => {
+      e.stopPropagation();
+
+      if (isRefreshing) return;
+
+      isRefreshing = true;
+
+      // Start spinning animation
+      refreshIconMobile.style.animation = 'spin 1s linear infinite';
+      refreshBtnMobile.style.opacity = '0.6';
+      refreshBtnMobile.style.cursor = 'not-allowed';
+
+      try {
+        if (typeof window.refreshSynapseConnections === 'function') {
+          await window.refreshSynapseConnections();
+          console.log('✅ Network refreshed successfully');
+
+          // Success feedback
+          refreshBtnMobile.style.background = 'rgba(0,255,136,0.2)';
+          refreshBtnMobile.style.borderColor = 'rgba(0,255,136,0.5)';
+          refreshIconMobile.style.color = '#00ff88';
+
+          setTimeout(() => {
+            refreshBtnMobile.style.background = 'rgba(0,224,255,0.1)';
+            refreshBtnMobile.style.borderColor = 'rgba(0,224,255,0.3)';
+            refreshIconMobile.style.color = '#00e0ff';
+          }, 1500);
+
+        } else {
+          console.warn('⚠️ Refresh function not available');
+          location.reload();
+        }
+      } catch (error) {
+        console.error('❌ Refresh failed:', error);
+
+        // Error feedback
+        refreshBtnMobile.style.background = 'rgba(255,107,107,0.2)';
+        refreshBtnMobile.style.borderColor = 'rgba(255,107,107,0.5)';
+        refreshIconMobile.style.color = '#ff6b6b';
+
+        setTimeout(() => {
+          refreshBtnMobile.style.background = 'rgba(0,224,255,0.1)';
+          refreshBtnMobile.style.borderColor = 'rgba(0,224,255,0.3)';
+          refreshIconMobile.style.color = '#00e0ff';
+        }, 1500);
+      } finally {
+        // Stop spinning
+        refreshIconMobile.style.animation = '';
+        refreshBtnMobile.style.opacity = '1';
+        refreshBtnMobile.style.cursor = 'pointer';
+        isRefreshing = false;
+      }
+    });
   }
 
   // Track filter state - Default all OFF except user
