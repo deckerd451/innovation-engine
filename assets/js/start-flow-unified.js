@@ -128,6 +128,18 @@ class StartFlowManager {
       if (exploreFreelyBtn) {
         exploreFreelyBtn.style.display = 'none';
       }
+
+      // Hide the Filter View panel (synapse legend)
+      const legendPanel = document.getElementById('synapse-legend');
+      if (legendPanel) {
+        legendPanel.style.display = 'none';
+      }
+
+      // Hide the search container at the bottom
+      const searchContainer = document.getElementById('centered-search-container');
+      if (searchContainer) {
+        searchContainer.style.display = 'none';
+      }
       
       requestAnimationFrame(() => {
         this.elements.modal.style.opacity = '1';
@@ -750,6 +762,18 @@ class StartFlowManager {
         this.elements.modal.style.display = 'none';
         if (this.elements.backdrop) {
           this.elements.backdrop.style.display = 'none';
+        }
+
+        // Restore the Filter View panel
+        const legendPanel = document.getElementById('synapse-legend');
+        if (legendPanel) {
+          legendPanel.style.display = '';
+        }
+
+        // Restore the search container
+        const searchContainer = document.getElementById('centered-search-container');
+        if (searchContainer) {
+          searchContainer.style.display = 'flex';
         }
       }, 300);
     }
