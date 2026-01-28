@@ -547,8 +547,6 @@ function createSynapseLegend() {
   // Check if user is admin for analytics button
   const showAnalytics = isAdminUser();
 
-  const isMobile = window.innerWidth <= 768;
-
   legend.innerHTML = `
     ${isMobile ? `
       <!-- Mobile: Drag handle -->
