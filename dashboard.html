@@ -695,174 +695,60 @@
   <div id="mentor-panel-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
     backdrop-filter:blur(4px); z-index:10000;" onclick="closeAllMentorPanels()"></div>
 
-  <!-- START Modal (floating over synapse view with no background) -->
-  <div id="start-modal" class="mentor-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
-    width:auto; max-width:min(90vw, 1200px); max-height:90vh; background:transparent;
-    border:none; padding:clamp(1rem, 3vw, 2rem); z-index:10002; overflow-y:auto;
-    box-shadow:none; backdrop-filter:none; pointer-events:auto;">
+  <!-- START Modal - Simplified and Efficient -->
+  <div id="start-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%) scale(0.95);
+    width:auto; max-width:min(600px, 90vw); max-height:90vh; 
+    background:linear-gradient(135deg, rgba(10,14,39,0.95), rgba(16,20,39,0.95));
+    border:2px solid rgba(0,255,136,0.4); border-radius:16px; padding:2rem; z-index:10002; 
+    overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,255,136,0.2);
+    backdrop-filter:blur(20px); opacity:0; transition:all 0.3s ease;">
 
+    <!-- Close Button -->
     <button class="mentor-panel-close" onclick="closeStartModal()"
-      style="position:absolute; top:clamp(-0.5rem, -1vw, -1rem); right:clamp(-0.5rem, -1vw, -1rem); 
-      background:rgba(0,0,0,0.8); border:2px solid rgba(0,255,136,0.5);
-      border-radius:50%; width:clamp(32px, 5vw, 40px); height:clamp(32px, 5vw, 40px); 
-      display:flex; align-items:center; justify-content:center; cursor:pointer; color:#00ff88;
-      font-size:clamp(1rem, 2vw, 1.25rem); transition:all 0.2s; box-shadow:0 0 15px rgba(0,255,136,0.3);">
+      style="position:absolute; top:1rem; right:1rem; 
+      background:rgba(255,102,102,0.2); border:1px solid rgba(255,102,102,0.4);
+      border-radius:50%; width:36px; height:36px; 
+      display:flex; align-items:center; justify-content:center; cursor:pointer; color:#f66;
+      font-size:1.2rem; transition:all 0.2s;">
       <i class="fas fa-times"></i>
     </button>
 
-    <div style="text-align:center; margin-bottom:clamp(1rem, 3vw, 2rem); background:rgba(0,0,0,0.85); 
-      padding:clamp(1rem, 3vw, 2rem); border-radius:15px;
-      border:2px solid rgba(0,255,136,0.3); box-shadow:0 0 30px rgba(0,255,136,0.2);">
-      <div style="font-size:clamp(2rem, 5vw, 3rem); color:#00ff88; margin-bottom:0.5rem;">
+    <!-- Header -->
+    <div style="text-align:center; margin-bottom:2rem;">
+      <div style="font-size:3rem; color:#00ff88; margin-bottom:0.5rem;">
         <i class="fas fa-play-circle"></i>
       </div>
-      <h2 style="color:#00ff88; font-size:clamp(1.25rem, 3.5vw, 2rem); margin:0 0 0.5rem 0; font-weight:700;">Your focus today</h2>
-      <p style="color:rgba(255,255,255,0.6); font-size:clamp(0.85rem, 2vw, 1rem); margin:0;">Based on your activity and interests, here's the best place to start today</p>
+      <h2 style="color:#00ff88; font-size:2rem; margin:0 0 0.5rem 0; font-weight:700;">Your focus today</h2>
+      <p style="color:rgba(255,255,255,0.6); font-size:1rem; margin:0;">Based on your activity and interests</p>
     </div>
 
-    <!-- Enhanced START Flow - Dynamic Recommendations Container -->
-    <div id="start-options-container" style="display:flex; flex-direction:column; gap:clamp(1rem, 2vw, 1.5rem); margin-bottom:clamp(1rem, 3vw, 2rem);">
-      <!-- Populated dynamically by start-flow-integration.js -->
+    <!-- Dynamic Recommendations Container -->
+    <div id="start-options-container" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+      <!-- Populated by start-flow-unified.js -->
     </div>
 
-    <!-- Escape Hatch -->
-    <div style="text-align:center; margin-bottom:clamp(1rem, 2vw, 1.5rem);">
-      <button id="explore-freely-btn" onclick="clearSessionFocus(); closeStartModal();" style="
+    <!-- Explore Freely Button -->
+    <div style="text-align:center;">
+      <button id="explore-freely-btn" onclick="closeStartModal();" style="
         background: rgba(0,224,255,0.15);
         border: 2px solid rgba(0,224,255,0.5);
         border-radius: 10px;
         color: #00e0ff;
-        font-size: clamp(0.9rem, 2vw, 1.1rem);
+        font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
-        padding: clamp(0.75rem, 2vw, 1rem) clamp(1.25rem, 3vw, 2rem);
+        padding: 1rem 2rem;
         transition: all 0.3s;
-        box-shadow: 0 0 20px rgba(0,224,255,0.2);
         width: 100%;
-        max-width: 400px;
       ">
         <i class="fas fa-compass" style="margin-right:0.5rem;"></i>I just want to explore freely
       </button>
     </div>
-
-    <!-- Dynamic content area (shown when user clicks a button) -->
-    <div id="start-dynamic-content" style="display:none;"></div>
-
-    <!-- Button sections (hidden when content is shown) - LEGACY FALLBACK -->
-    <div id="start-button-section" style="display:none;">
-
-    <!-- Mentor Panel Buttons -->
-    <div style="margin-bottom:clamp(1.5rem, 3vw, 2.5rem);">
-      <h3 style="color:rgba(0,224,255,0.9); font-size:clamp(0.8rem, 2vw, 0.95rem); margin-bottom:1rem; text-transform:uppercase; letter-spacing:1px; font-weight:600;">
-        <i class="fas fa-compass" style="margin-right:0.5rem;"></i>Explore Your Network
-      </h3>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap:clamp(0.75rem, 2vw, 1rem);">
-        <button id="start-btn-focus" class="start-nav-btn"
-          style="background:linear-gradient(135deg, rgba(0,224,255,0.15), rgba(0,128,255,0.1)); border:2px solid rgba(0,224,255,0.4);
-          border-radius:12px; padding:clamp(1rem, 2.5vw, 1.5rem); cursor:pointer; transition:all 0.2s; text-align:left;">
-          <div style="font-size:clamp(1.5rem, 3vw, 2rem); color:#00e0ff; margin-bottom:0.75rem;">
-            <i class="fas fa-compass"></i>
-          </div>
-          <div style="color:#fff; font-size:clamp(0.95rem, 2vw, 1.1rem); font-weight:600; margin-bottom:0.5rem;">Start with this focus</div>
-          <div style="color:rgba(255,255,255,0.6); font-size:clamp(0.75rem, 1.5vw, 0.85rem);">Where your interests and activity overlap</div>
-        </button>
-
-        <button id="start-btn-projects" class="start-nav-btn"
-          style="background:linear-gradient(135deg, rgba(255,107,107,0.15), rgba(255,128,128,0.1)); border:2px solid rgba(255,107,107,0.4);
-          border-radius:12px; padding:clamp(1rem, 2.5vw, 1.5rem); cursor:pointer; transition:all 0.2s; text-align:left;">
-          <div style="font-size:clamp(1.5rem, 3vw, 2rem); color:#ff6b6b; margin-bottom:0.75rem;">
-            <i class="fas fa-rocket"></i>
-          </div>
-          <div style="color:#fff; font-size:clamp(0.95rem, 2vw, 1.1rem); font-weight:600; margin-bottom:0.5rem;">See active projects</div>
-          <div style="color:rgba(255,255,255,0.6); font-size:clamp(0.75rem, 1.5vw, 0.85rem);">Projects gaining momentum</div>
-        </button>
-
-        <button id="start-btn-people" class="start-nav-btn"
-          style="background:linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,235,100,0.1)); border:2px solid rgba(255,215,0,0.4);
-          border-radius:12px; padding:clamp(1rem, 2.5vw, 1.5rem); cursor:pointer; transition:all 0.2s; text-align:left;">
-          <div style="font-size:clamp(1.5rem, 3vw, 2rem); color:#ffd700; margin-bottom:0.75rem;">
-            <i class="fas fa-users"></i>
-          </div>
-          <div style="color:#fff; font-size:clamp(0.95rem, 2vw, 1.1rem); font-weight:600; margin-bottom:0.5rem;">Meet people nearby</div>
-          <div style="color:rgba(255,255,255,0.6); font-size:clamp(0.75rem, 1.5vw, 0.85rem);">People worth knowing</div>
-        </button>
-      </div>
-    </div>
-
-    <!-- Bottom Bar Action Buttons -->
-    <div style="margin-bottom:clamp(1rem, 2vw, 1.5rem);">
-      <h3 style="color:rgba(0,224,255,0.9); font-size:clamp(0.8rem, 2vw, 0.95rem); margin-bottom:1rem; text-transform:uppercase; letter-spacing:1px; font-weight:600;">
-        <i class="fas fa-bolt" style="margin-right:0.5rem;"></i>Quick Actions
-      </h3>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap:clamp(0.5rem, 1.5vw, 0.75rem);">
-        <button id="start-action-connect" class="start-action-btn"
-          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
-          padding:clamp(0.75rem, 2vw, 1rem); cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:clamp(0.5rem, 1.5vw, 0.75rem);">
-          <div style="font-size:clamp(1.25rem, 2.5vw, 1.5rem); color:#00e0ff;"><i class="fas fa-user-plus"></i></div>
-          <div style="text-align:left;">
-            <div style="color:#fff; font-size:clamp(0.8rem, 1.5vw, 0.9rem); font-weight:600;">Connect</div>
-            <div style="color:rgba(255,255,255,0.5); font-size:clamp(0.7rem, 1.25vw, 0.75rem);">Find people to connect with</div>
-          </div>
-        </button>
-
-        <button id="start-action-messages" class="start-action-btn"
-          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
-          padding:clamp(0.75rem, 2vw, 1rem); cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:clamp(0.5rem, 1.5vw, 0.75rem);">
-          <div style="font-size:clamp(1.25rem, 2.5vw, 1.5rem); color:#00e0ff;"><i class="fas fa-envelope"></i></div>
-          <div style="text-align:left;">
-            <div style="color:#fff; font-size:clamp(0.8rem, 1.5vw, 0.9rem); font-weight:600;">Messages</div>
-            <div style="color:rgba(255,255,255,0.5); font-size:clamp(0.7rem, 1.25vw, 0.75rem);">Check your conversations</div>
-          </div>
-        </button>
-
-        <button id="start-action-projects" class="start-action-btn"
-          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
-          padding:clamp(0.75rem, 2vw, 1rem); cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:clamp(0.5rem, 1.5vw, 0.75rem);">
-          <div style="font-size:clamp(1.25rem, 2.5vw, 1.5rem); color:#00e0ff;"><i class="fas fa-lightbulb"></i></div>
-          <div style="text-align:left;">
-            <div style="color:#fff; font-size:clamp(0.8rem, 1.5vw, 0.9rem); font-weight:600;">Projects</div>
-            <div style="color:rgba(255,255,255,0.5); font-size:clamp(0.7rem, 1.25vw, 0.75rem);">Browse and join projects</div>
-          </div>
-        </button>
-
-        <button id="start-action-endorsements" class="start-action-btn"
-          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
-          padding:clamp(0.75rem, 2vw, 1rem); cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:clamp(0.5rem, 1.5vw, 0.75rem);">
-          <div style="font-size:clamp(1.25rem, 2.5vw, 1.5rem); color:#00e0ff;"><i class="fas fa-star"></i></div>
-          <div style="text-align:left;">
-            <div style="color:#fff; font-size:clamp(0.8rem, 1.5vw, 0.9rem); font-weight:600;">Endorse</div>
-            <div style="color:rgba(255,255,255,0.5); font-size:clamp(0.7rem, 1.25vw, 0.75rem);">Give and receive endorsements</div>
-          </div>
-        </button>
-
-        <button id="start-action-chat" class="start-action-btn"
-          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:8px;
-          padding:clamp(0.75rem, 2vw, 1rem); cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:clamp(0.5rem, 1.5vw, 0.75rem);">
-          <div style="font-size:clamp(1.25rem, 2.5vw, 1.5rem); color:#00e0ff;"><i class="fas fa-comments"></i></div>
-          <div style="text-align:left;">
-            <div style="color:#fff; font-size:clamp(0.8rem, 1.5vw, 0.9rem); font-weight:600;">Chat</div>
-            <div style="color:rgba(255,255,255,0.5); font-size:clamp(0.7rem, 1.25vw, 0.75rem);">Community discussions</div>
-          </div>
-        </button>
-      </div>
-    </div>
-
-    <!-- Close button sections wrapper -->
-    </div>
-
-    <!-- Done button - LEGACY FALLBACK (hidden by default, shown if enhanced flow fails) -->
-    <div id="start-done-button" style="display:none; text-align:center; padding-top:clamp(1rem, 2vw, 1.5rem); border-top:1px solid rgba(255,255,255,0.1);">
-      <button onclick="closeStartModal()" style="padding:clamp(0.75rem, 2vw, 1rem) clamp(1.5rem, 3vw, 2.5rem); background:linear-gradient(135deg, #00ff88, #00e0ff);
-        border:none; border-radius:10px; color:#000; font-weight:700; cursor:pointer; font-size:clamp(0.9rem, 2vw, 1rem); transition:all 0.2s;
-        box-shadow:0 4px 15px rgba(0,255,136,0.3);">
-        <i class="fas fa-check" style="margin-right:0.5rem;"></i>Done - Explore Network
-      </button>
-    </div>
   </div>
 
-  <!-- START Modal Backdrop (no blur, transparent to allow synapse interaction) -->
-  <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:transparent;
-    backdrop-filter:none; z-index:10001; pointer-events:none;"></div>
+  <!-- START Modal Backdrop -->
+  <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+    backdrop-filter:blur(5px); z-index:10001;"></div>
 
    <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
@@ -908,11 +794,8 @@
 
   <!-- Non-module controllers with commit-based cache-busting -->
   <script src="assets/js/dashboard-actions.js?v=e829b2ff916933b2da"></script>
-  <script src="assets/js/start-flow.js?v=e829b2ff916933b2da"></script>
-  <script src="assets/js/start-flow-enhanced.js?v=e829b2ff916933b2da"></script>
-  <script src="assets/js/start-flow-phase2.js?v=e829b2ff916933b2da"></script>
-  <script src="assets/js/start-flow-sequential.js?v=e829b2ff916933b2da"></script>
-  <script src="assets/js/start-flow-integration.js?v=e829b2ff916933b2da"></script>
+  <!-- Unified START Flow - replaces all old start-flow-*.js files -->
+  <script src="assets/js/start-flow-unified.js?v=e829b2ff916933b2da"></script>
 
   <!-- Mentor Guide System with commit-based cache-busting -->
   <script src="assets/js/mentor-guide.js?v=e829b2ff916933b2da"></script>
