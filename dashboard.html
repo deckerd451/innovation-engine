@@ -1406,8 +1406,20 @@
         function openSettings(e) {
           e.stopPropagation();
           closeDropdown();
-          console.log('Settings clicked');
-          alert('Settings feature coming soon!');
+          
+          // Check if user is admin
+          if (typeof window.isAdminUser === 'function' && window.isAdminUser()) {
+            console.log('👑 Opening admin panel from settings (admin user)');
+            if (typeof window.openAdminPanel === 'function') {
+              window.openAdminPanel();
+            } else {
+              console.error('❌ openAdminPanel function not found');
+              alert('Admin panel not available');
+            }
+          } else {
+            console.log('Settings clicked (non-admin)');
+            alert('Settings feature coming soon!');
+          }
         }
 
         // Logout action

@@ -85,24 +85,37 @@ document.getElementById('btn-admin-top')?.addEventListener('click', () => {
 
 // Ensure admin button shows for admin users (multiple checks)
 function ensureAdminButtonVisible() {
-  if (isAdminUser()) {
+  const isAdmin = isAdminUser();
+  console.log('🔍 Checking admin status:', isAdmin);
+  
+  if (isAdmin) {
     const adminBtn = document.getElementById('btn-admin-top');
     if (adminBtn) {
       adminBtn.style.display = 'flex';
       console.log('👑 Admin button shown');
+    } else {
+      console.warn('⚠️ Admin button element not found');
     }
     
     // Show admin badge in header
     const adminBadge = document.getElementById('admin-badge-header');
     if (adminBadge) {
       adminBadge.style.display = 'inline-block';
+      console.log('👑 Admin badge in header shown');
+    } else {
+      console.warn('⚠️ Admin badge element not found');
     }
     
     // Show admin indicator in settings dropdown
     const adminSettingsIndicator = document.getElementById('admin-settings-indicator');
     if (adminSettingsIndicator) {
       adminSettingsIndicator.style.display = 'inline-block';
+      console.log('👑 Admin settings indicator shown');
+    } else {
+      console.warn('⚠️ Admin settings indicator element not found');
     }
+  } else {
+    console.log('ℹ️ User is not an admin');
   }
 }
 
@@ -127,6 +140,19 @@ window.addEventListener('user-data-loaded', ensureAdminButtonVisible);
 
 // Expose function globally so it can be called from other modules
 window.ensureAdminButtonVisible = ensureAdminButtonVisible;
+
+// Expose a manual trigger for debugging
+window.showAdminUI = function() {
+  console.log('🔧 Manually triggering admin UI...');
+  ensureAdminButtonVisible();
+};
+
+// Also expose isAdminUser for debugging
+window.checkAdminStatus = function() {
+  const isAdmin = isAdminUser();
+  console.log('Admin status:', isAdmin);
+  return isAdmin;
+};
 
 // Handle Settings button click
 document.getElementById('dropdown-settings')?.addEventListener('click', () => {
