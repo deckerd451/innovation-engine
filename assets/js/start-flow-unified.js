@@ -276,48 +276,9 @@ class StartFlowManager {
   }
 
   async loadThemes() {
-    const { supabase } = this.state;
-    const themes = [];
-
-    try {
-      // Check if themes table exists by trying to query it
-      const { data, error } = await supabase
-        .from('themes')
-        .select('*')
-        .eq('active', true)
-        .order('member_count', { ascending: false })
-        .limit(5);
-
-      // If table doesn't exist, return empty gracefully
-      if (error && error.message.includes('does not exist')) {
-        console.log('ℹ️ Themes table not available, skipping');
-        return { items: [], count: 0 };
-      }
-
-      if (error) throw error;
-
-      if (data) {
-        themes.push(...data.map(theme => ({
-          id: theme.id,
-          title: theme.name,
-          description: theme.description || 'Join this theme',
-          icon: 'fa-palette',
-          color: '#ffaa00',
-          members: theme.member_count || 0
-        })));
-      }
-    } catch (error) {
-      console.error('Error loading themes:', error);
-      this.state.sessionLog.errors.push({
-        step: 'themes',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      });
-      // Return empty instead of failing
-      return { items: [], count: 0 };
-    }
-
-    return { items: themes, count: themes.length };
+    // Themes table doesn't exist in database - skip this step gracefully
+    console.log('ℹ️ Themes step skipped (table not available)');
+    return { items: [], count: 0 };
   }
 
   async loadProjects() {
