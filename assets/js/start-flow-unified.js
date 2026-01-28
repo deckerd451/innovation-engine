@@ -308,7 +308,7 @@ class StartFlowManager {
         title: 'Explore your network',
         description: 'Discover people and opportunities',
         icon: 'fa-compass',
-        color: '#00e0ff',
+        color: '#00ff88',
         action: () => this.close()
       },
       {
@@ -317,7 +317,7 @@ class StartFlowManager {
         title: 'Find people to connect with',
         description: 'Grow your network',
         icon: 'fa-user-plus',
-        color: '#00ff88',
+        color: '#00e0ff',
         action: () => this.openConnections()
       },
       {
@@ -387,8 +387,15 @@ class StartFlowManager {
     recommendations.forEach((rec, index) => {
       const card = this.elements.content.children[index];
       if (card) {
-        card.addEventListener('click', () => {
-          rec.action();
+        card.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🎯 Recommendation clicked:', rec.type);
+          if (typeof rec.action === 'function') {
+            rec.action();
+          } else {
+            console.error('❌ No action defined for:', rec.type);
+          }
         });
       }
     });
