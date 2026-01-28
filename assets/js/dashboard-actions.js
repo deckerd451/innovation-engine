@@ -364,7 +364,7 @@ function createSynapseLegend() {
   legend.style.cssText = `
     position: fixed;
     top: 100px;
-    right: 20px;
+    left: 20px;
     background: linear-gradient(135deg, rgba(10,14,39,0.95), rgba(26,26,46,0.95));
     border: 2px solid rgba(0,224,255,0.3);
     border-radius: 12px;
@@ -446,6 +446,32 @@ function createSynapseLegend() {
   `;
 
   document.body.appendChild(legend);
+
+  // Add responsive positioning
+  function updateLegendPosition() {
+    const width = window.innerWidth;
+    if (width <= 768) {
+      // Mobile: Move to bottom-left, smaller
+      legend.style.top = 'auto';
+      legend.style.bottom = '100px';
+      legend.style.left = '10px';
+      legend.style.minWidth = '180px';
+      legend.style.maxWidth = '200px';
+    } else {
+      // Desktop: Top-left
+      legend.style.top = '100px';
+      legend.style.bottom = 'auto';
+      legend.style.left = '20px';
+      legend.style.minWidth = '200px';
+      legend.style.maxWidth = '250px';
+    }
+  }
+
+  // Set initial position
+  updateLegendPosition();
+
+  // Update on resize
+  window.addEventListener('resize', updateLegendPosition);
 
   // Wire up collapse/expand
   const legendTitle = document.getElementById('legend-title');
