@@ -91,6 +91,18 @@ function ensureAdminButtonVisible() {
       adminBtn.style.display = 'flex';
       console.log('👑 Admin button shown');
     }
+    
+    // Show admin badge in header
+    const adminBadge = document.getElementById('admin-badge-header');
+    if (adminBadge) {
+      adminBadge.style.display = 'inline-block';
+    }
+    
+    // Show admin indicator in settings dropdown
+    const adminSettingsIndicator = document.getElementById('admin-settings-indicator');
+    if (adminSettingsIndicator) {
+      adminSettingsIndicator.style.display = 'inline-block';
+    }
   }
 }
 
@@ -115,6 +127,25 @@ window.addEventListener('user-data-loaded', ensureAdminButtonVisible);
 
 // Expose function globally so it can be called from other modules
 window.ensureAdminButtonVisible = ensureAdminButtonVisible;
+
+// Handle Settings button click
+document.getElementById('dropdown-settings')?.addEventListener('click', () => {
+  // Close dropdown
+  const dropdown = document.getElementById('user-dropdown');
+  if (dropdown) {
+    dropdown.style.display = 'none';
+  }
+  
+  // Check if user is admin
+  if (isAdminUser()) {
+    // Open admin panel for admins
+    console.log('👑 Opening admin panel from settings (admin user)');
+    openAdminPanel();
+  } else {
+    // Show "coming soon" message for non-admins
+    alert('Settings feature coming soon!');
+  }
+});
 
 // Wire up View Controls button (backward compatibility if it exists)
 document.getElementById('btn-view-controls')?.addEventListener('click', () => {

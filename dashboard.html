@@ -522,7 +522,7 @@
     <div style="position:absolute; top:20px; left:20px; z-index:1000;">
       <a href="https://charlestonhacks.com/" style="display:flex; align-items:center; text-decoration:none;">
         <img src="charlestonhackslogo.svg" alt="CharlestonHacks"
-             style="height:55px; width:auto; cursor:pointer;"
+             style="height:48px; width:auto; cursor:pointer;"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
         <span style="display:none; color:#00e0ff; font-size:1.5rem; font-weight:bold;">CharlestonHacks</span>
       </a>
@@ -577,6 +577,11 @@
             <span id="user-initials-header">?</span>
           </div>
           <span id="user-name-header" style="color:#fff; font-weight:600;">Loading...</span>
+          <!-- Admin Badge (shown for admins) -->
+          <span id="admin-badge-header" style="display:none; background:rgba(255,170,0,0.2); color:#ffa500; 
+            font-size:0.7rem; font-weight:700; padding:0.25rem 0.5rem; border-radius:4px; border:1px solid rgba(255,170,0,0.4);">
+            ADMIN
+          </span>
           <i class="fas fa-chevron-down" id="user-menu-chevron" style="color:#00e0ff; font-size:0.9rem; transition:transform 0.3s;"></i>
         </div>
 
@@ -638,6 +643,12 @@
           ">
             <i class="fas fa-cog" style="color:#00e0ff; font-size:1.1rem; width:20px;"></i>
             <span>Settings</span>
+            <!-- Admin indicator in settings (shown for admins) -->
+            <span id="admin-settings-indicator" style="display:none; margin-left:auto; background:rgba(255,170,0,0.2); 
+              color:#ffa500; font-size:0.65rem; font-weight:700; padding:0.2rem 0.4rem; border-radius:3px; 
+              border:1px solid rgba(255,170,0,0.4);">
+              ADMIN
+            </span>
           </button>
 
           <!-- Divider -->
