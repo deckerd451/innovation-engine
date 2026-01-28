@@ -689,15 +689,24 @@ async function renderPersonPanel(nodeData) {
           </div>
         </div>
       ` : ''}
+
+      <!-- Edit Profile Button (Own Profile Only) -->
+      ${profile.id === currentUserProfile?.id ? `
+        <div style="padding: 1.5rem;">
+          <button onclick="closeNodePanel(); window.openProfileEditor?.();" style="width: 100%; padding: 0.85rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 10px; color: white; font-weight: 700; cursor: pointer; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 12px rgba(0,224,255,0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,224,255,0.5)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.3)';">
+            <i class="fas fa-edit"></i> Edit Profile
+          </button>
+        </div>
+      ` : ''}
     </div>
 
     <!-- Action Bar (Fixed at Bottom) -->
     <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.95), rgba(26, 26, 46, 0.95)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1.5rem; backdrop-filter: blur(10px);">
       ${profile.id === currentUserProfile?.id ? `
-        <!-- Own Profile -->
-        <button onclick="closeNodePanel(); window.openProfileEditor?.();" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
-          <i class="fas fa-edit"></i> Edit Profile
-        </button>
+        <!-- Own Profile - No action bar needed since Edit Profile is above -->
+        <div style="text-align: center; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
+          <i class="fas fa-user-circle"></i> Your Profile
+        </div>
       ` : `
         <!-- Other User Actions -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
