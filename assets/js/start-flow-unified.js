@@ -280,34 +280,53 @@ class StartFlowManager {
   }
 
   async loadThemes() {
-    const { supabase } = this.state;
+    const { supabase, userProfile } = this.state;
     const themes = [];
 
     try {
-      const nowIso = new Date().toISOString();
-      
+      // Query theme_circles with actual schema (is_active instead of status)
       const { data, error } = await supabase
         .from('theme_circles')
-        .select('id, title, description, tags, participant_count, expires_at')
-        .eq('status', 'active')
-        .gt('expires_at', nowIso)
-        .order('participant_count', { ascending: false })
+        .select(`
+          id, 
+          title, 
+          description,
+          is_active,
+          expires_at,
+          created_at
+        `)
+        .eq('is_active', true)
+        .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+        .order('created_at', { ascending: false })
         .limit(5);
 
       if (error) throw error;
 
       if (data) {
-        themes.push(...data.map(theme => ({
-          id: theme.id,
-          title: theme.title,
-          description: theme.description || 'Join this theme circle',
-          icon: 'fa-palette',
-          color: '#ffaa00',
-          tags: theme.tags || [],
-          participantCount: theme.participant_count || 0,
-          expiresAt: theme.expires_at,
-          action: () => this.markThemeInterested(theme)
-        })));
+        // Get participant counts for each theme
+        for (const theme of data) {
+          let participantCount = 0;
+          try {
+            const { count } = await supabase
+              .from('theme_participants')
+              .select('*', { count: 'exact', head: true })
+              .eq('theme_id', theme.id);
+            participantCount = count || 0;
+          } catch (e) {
+            console.warn('Could not get participant count:', e);
+          }
+
+          themes.push({
+            id: theme.id,
+            title: theme.title,
+            description: theme.description || 'Join this theme circle',
+            icon: 'fa-palette',
+            color: '#ffaa00',
+            participantCount: participantCount,
+            expiresAt: theme.expires_at,
+            action: () => this.markThemeInterested(theme)
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading themes:', error);
@@ -374,28 +393,42 @@ class StartFlowManager {
     const organizations = [];
 
     try {
+      // Query with flexible column selection (some columns might not exist)
       const { data, error } = await supabase
         .from('organizations')
-        .select('id, name, slug, description, logo_url, industry, follower_count, verified')
+        .select('id, name, slug, description, logo_url, verified, is_active, created_at')
         .eq('is_active', true)
-        .order('follower_count', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(5);
 
       if (error) throw error;
 
       if (data) {
-        organizations.push(...data.map(org => ({
-          id: org.id,
-          title: org.name,
-          description: org.description || 'Follow this organization',
-          icon: 'fa-building',
-          color: '#ff6b6b',
-          logoUrl: org.logo_url,
-          industry: org.industry || [],
-          followerCount: org.follower_count || 0,
-          verified: org.verified || false,
-          action: () => this.followOrganization(org)
-        })));
+        // Get follower counts for each organization
+        for (const org of data) {
+          let followerCount = 0;
+          try {
+            const { count } = await supabase
+              .from('organization_followers')
+              .select('*', { count: 'exact', head: true })
+              .eq('organization_id', org.id);
+            followerCount = count || 0;
+          } catch (e) {
+            console.warn('Could not get follower count:', e);
+          }
+
+          organizations.push({
+            id: org.id,
+            title: org.name,
+            description: org.description || 'Follow this organization',
+            icon: 'fa-building',
+            color: '#ff6b6b',
+            logoUrl: org.logo_url,
+            followerCount: followerCount,
+            verified: org.verified || false,
+            action: () => this.followOrganization(org)
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading organizations:', error);

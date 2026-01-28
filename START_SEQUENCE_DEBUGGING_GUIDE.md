@@ -4,23 +4,37 @@
 
 ### Theme Query (from start-flow-unified.js)
 ```javascript
+// CORRECTED: Uses actual schema (is_active, not status)
 await supabase
   .from('theme_circles')
-  .select('id, title, description, tags, participant_count, expires_at')
-  .eq('status', 'active')
-  .gt('expires_at', nowIso)
-  .order('participant_count', { ascending: false })
+  .select('id, title, description, is_active, expires_at, created_at')
+  .eq('is_active', true)
+  .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+  .order('created_at', { ascending: false })
   .limit(5);
+
+// Then gets participant count separately:
+await supabase
+  .from('theme_participants')
+  .select('*', { count: 'exact', head: true })
+  .eq('theme_id', theme.id);
 ```
 
 ### Organization Query (from start-flow-unified.js)
 ```javascript
+// CORRECTED: Gets follower_count separately
 await supabase
   .from('organizations')
-  .select('id, name, slug, description, logo_url, industry, follower_count, verified')
+  .select('id, name, slug, description, logo_url, verified, is_active, created_at')
   .eq('is_active', true)
-  .order('follower_count', { ascending: false })
+  .order('created_at', { ascending: false })
   .limit(5);
+
+// Then gets follower count separately:
+await supabase
+  .from('organization_followers')
+  .select('*', { count: 'exact', head: true })
+  .eq('organization_id', org.id);
 ```
 
 ## Common Issues & Solutions
@@ -28,16 +42,18 @@ await supabase
 ### Issue 1: No Themes Showing Up
 
 **Possible Causes:**
-1. No themes in database with `status = 'active'`
-2. All themes have `expires_at` in the past
+1. No themes in database with `is_active = true`
+2. All themes have `expires_at` in the past (or NULL is not handled)
 3. Table doesn't exist or has different column names
+4. `theme_participants` table doesn't exist (needed for counts)
 
 **How to Check:**
 ```sql
 -- Run this in Supabase SQL Editor
 SELECT COUNT(*) as active_themes
 FROM theme_circles
-WHERE status = 'active' AND expires_at > NOW();
+WHERE is_active = true 
+  AND (expires_at IS NULL OR expires_at > NOW());
 ```
 
 **Solution:**
@@ -49,6 +65,7 @@ WHERE status = 'active' AND expires_at > NOW();
 **Possible Causes:**
 1. No organizations with `is_active = true`
 2. Table doesn't exist or has different column names
+3. `organization_followers` table doesn't exist (needed for counts)
 
 **How to Check:**
 ```sql
@@ -138,11 +155,11 @@ Run the queries from `START_SEQUENCE_TEST_QUERIES.sql` in order:
   id: "uuid",
   title: "Theme Name",
   description: "Theme description",
-  tags: ["tag1", "tag2"],
-  participant_count: 10,
-  expires_at: "2026-02-28T00:00:00Z",
-  status: "active"
+  is_active: true,
+  expires_at: "2026-02-28T00:00:00Z", // or NULL
+  created_at: "2026-01-15T00:00:00Z"
 }
+// Note: participant_count is calculated separately via theme_participants table
 ```
 
 ### Organization Object (from database)
@@ -153,36 +170,36 @@ Run the queries from `START_SEQUENCE_TEST_QUERIES.sql` in order:
   slug: "org-slug",
   description: "Org description",
   logo_url: "https://...",
-  industry: ["Industry1", "Industry2"],
-  follower_count: 50,
   verified: true,
-  is_active: true
+  is_active: true,
+  created_at: "2026-01-15T00:00:00Z"
 }
+// Note: follower_count is calculated separately via organization_followers table
 ```
 
 ## Quick Fixes
 
 ### Add Sample Themes
 ```sql
-INSERT INTO theme_circles (title, description, status, expires_at, participant_count, tags)
+INSERT INTO theme_circles (title, description, is_active, expires_at)
 VALUES 
-  ('AI & Machine Learning', 'Explore AI projects', 'active', NOW() + INTERVAL '30 days', 15, ARRAY['AI', 'ML']),
-  ('Web Development', 'Build web apps', 'active', NOW() + INTERVAL '30 days', 22, ARRAY['Web', 'Frontend']);
+  ('AI & Machine Learning', 'Explore AI projects', true, NOW() + INTERVAL '30 days'),
+  ('Web Development', 'Build web apps', true, NOW() + INTERVAL '30 days');
 ```
 
 ### Add Sample Organizations
 ```sql
-INSERT INTO organizations (name, slug, description, is_active, follower_count, verified, industry)
+INSERT INTO organizations (name, slug, description, is_active, verified)
 VALUES 
-  ('Tech Innovators', 'tech-innovators', 'Leading tech company', true, 150, true, ARRAY['Technology']),
-  ('Data Analytics Corp', 'data-analytics', 'Data solutions', true, 89, true, ARRAY['Data']);
+  ('Tech Innovators', 'tech-innovators', 'Leading tech company', true, true),
+  ('Data Analytics Corp', 'data-analytics', 'Data solutions', true, true);
 ```
 
 ### Update Expired Themes
 ```sql
 UPDATE theme_circles 
 SET expires_at = NOW() + INTERVAL '30 days'
-WHERE expires_at < NOW();
+WHERE expires_at IS NOT NULL AND expires_at < NOW();
 ```
 
 ### Activate Inactive Organizations
