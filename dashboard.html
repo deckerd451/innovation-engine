@@ -216,11 +216,61 @@
       60% { transform: translateY(-15px); }
     }
 
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* User Dropdown Styles */
+    #user-menu:hover {
+      background: rgba(0,224,255,0.15);
+      border-color: rgba(0,224,255,0.5);
+    }
+
+    #user-dropdown button:hover {
+      background: rgba(0,224,255,0.1);
+    }
+
+    #dropdown-logout:hover {
+      background: rgba(255,107,107,0.15) !important;
+    }
+
     @media (max-width: 768px) {
       .bottom-stats-bar { gap: 0.25rem; padding: 0.5rem; }
       .stat-card-mini { padding: 0.5rem !important; }
       .stat-card-mini .label { font-size: 0.65rem !important; }
       .stat-card-mini .value { font-size: 1.25rem !important; }
+
+      /* Mobile dropdown adjustments */
+      #user-dropdown {
+        right: -10px !important;
+        min-width: 200px !important;
+      }
+
+      #user-name-header {
+        display: none !important;
+      }
+
+      #user-menu {
+        padding: 0.4rem 0.75rem !important;
+        gap: 0.5rem !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #user-dropdown {
+        position: fixed !important;
+        top: 70px !important;
+        right: 10px !important;
+        left: 10px !important;
+        min-width: auto !important;
+      }
     }
 
     .bottom-stats-bar::-webkit-scrollbar { height: 6px; }
@@ -342,16 +392,104 @@
         <i class="fas fa-crown" style="color:#ffa500; font-size:1.2rem;"></i>
       </div>
 
-      <!-- User Profile -->
-      <div id="user-menu" style="cursor:pointer; padding:0.5rem 1rem; background:rgba(0,224,255,0.1);
-        border:1px solid rgba(0,224,255,0.3); border-radius:25px; display:flex; align-items:center; gap:0.75rem;"
-        title="View your profile">
-        <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff);
-          display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem;" id="user-avatar-header">
-          <span id="user-initials-header">?</span>
+      <!-- User Profile with Dropdown -->
+      <div style="position:relative;">
+        <div id="user-menu" style="cursor:pointer; padding:0.5rem 1rem; background:rgba(0,224,255,0.1);
+          border:1px solid rgba(0,224,255,0.3); border-radius:25px; display:flex; align-items:center; gap:0.75rem;
+          transition:all 0.3s;"
+          title="View your profile">
+          <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff);
+            display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem;" id="user-avatar-header">
+            <span id="user-initials-header">?</span>
+          </div>
+          <span id="user-name-header" style="color:#fff; font-weight:600;">Loading...</span>
+          <i class="fas fa-chevron-down" id="user-menu-chevron" style="color:#00e0ff; font-size:0.9rem; transition:transform 0.3s;"></i>
         </div>
-        <span id="user-name-header" style="color:#fff; font-weight:600;">Loading...</span>
-        <i class="fas fa-user-circle" style="color:#00e0ff; font-size:1.1rem;"></i>
+
+        <!-- Dropdown Menu -->
+        <div id="user-dropdown" style="
+          position:absolute;
+          top:calc(100% + 0.5rem);
+          right:0;
+          min-width:220px;
+          background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+          border:2px solid rgba(0,224,255,0.4);
+          border-radius:12px;
+          padding:0.5rem;
+          display:none;
+          flex-direction:column;
+          gap:0.25rem;
+          box-shadow:0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(0,224,255,0.2);
+          backdrop-filter:blur(10px);
+          z-index:10000;
+          animation:dropdownFadeIn 0.2s ease;
+        ">
+          <!-- Profile Option -->
+          <button id="dropdown-profile" style="
+            width:100%;
+            padding:0.75rem 1rem;
+            background:transparent;
+            border:none;
+            border-radius:8px;
+            color:#fff;
+            font-size:0.95rem;
+            font-weight:500;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            gap:0.75rem;
+            transition:all 0.2s;
+            text-align:left;
+          ">
+            <i class="fas fa-user" style="color:#00e0ff; font-size:1.1rem; width:20px;"></i>
+            <span>View Profile</span>
+          </button>
+
+          <!-- Settings Option -->
+          <button id="dropdown-settings" style="
+            width:100%;
+            padding:0.75rem 1rem;
+            background:transparent;
+            border:none;
+            border-radius:8px;
+            color:#fff;
+            font-size:0.95rem;
+            font-weight:500;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            gap:0.75rem;
+            transition:all 0.2s;
+            text-align:left;
+          ">
+            <i class="fas fa-cog" style="color:#00e0ff; font-size:1.1rem; width:20px;"></i>
+            <span>Settings</span>
+          </button>
+
+          <!-- Divider -->
+          <div style="height:1px; background:rgba(255,255,255,0.1); margin:0.25rem 0;"></div>
+
+          <!-- Logout Option -->
+          <button id="dropdown-logout" style="
+            width:100%;
+            padding:0.75rem 1rem;
+            background:transparent;
+            border:none;
+            border-radius:8px;
+            color:#ff6b6b;
+            font-size:0.95rem;
+            font-weight:600;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            gap:0.75rem;
+            transition:all 0.2s;
+            text-align:left;
+          ">
+            <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.1rem; width:20px;"></i>
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1014,6 +1152,135 @@
       }
 
       console.log('✅ START button logic initialized - will show on every app open');
+    })();
+  </script>
+
+  <!-- User Dropdown Menu Logic -->
+  <script>
+    (function() {
+      const userMenu = document.getElementById('user-menu');
+      const userDropdown = document.getElementById('user-dropdown');
+      const chevron = document.getElementById('user-menu-chevron');
+      const dropdownProfile = document.getElementById('dropdown-profile');
+      const dropdownSettings = document.getElementById('dropdown-settings');
+      const dropdownLogout = document.getElementById('dropdown-logout');
+
+      let isDropdownOpen = false;
+
+      // Toggle dropdown
+      function toggleDropdown(e) {
+        e.stopPropagation();
+        isDropdownOpen = !isDropdownOpen;
+        
+        if (isDropdownOpen) {
+          userDropdown.style.display = 'flex';
+          chevron.style.transform = 'rotate(180deg)';
+          userMenu.style.background = 'rgba(0,224,255,0.15)';
+          userMenu.style.borderColor = 'rgba(0,224,255,0.5)';
+        } else {
+          userDropdown.style.display = 'none';
+          chevron.style.transform = 'rotate(0deg)';
+          userMenu.style.background = 'rgba(0,224,255,0.1)';
+          userMenu.style.borderColor = 'rgba(0,224,255,0.3)';
+        }
+      }
+
+      // Close dropdown when clicking outside
+      function closeDropdown() {
+        if (isDropdownOpen) {
+          isDropdownOpen = false;
+          userDropdown.style.display = 'none';
+          chevron.style.transform = 'rotate(0deg)';
+          userMenu.style.background = 'rgba(0,224,255,0.1)';
+          userMenu.style.borderColor = 'rgba(0,224,255,0.3)';
+        }
+      }
+
+      // Profile action
+      function openProfile() {
+        closeDropdown();
+        if (typeof window.openProfileModal === 'function') {
+          window.openProfileModal();
+        }
+      }
+
+      // Settings action
+      function openSettings() {
+        closeDropdown();
+        // TODO: Implement settings modal
+        console.log('Settings clicked - implement settings modal');
+        alert('Settings feature coming soon!');
+      }
+
+      // Logout action
+      async function logout() {
+        closeDropdown();
+        
+        if (!confirm('Are you sure you want to logout?')) {
+          return;
+        }
+
+        try {
+          console.log('🚪 Logging out...');
+          
+          // Sign out from Supabase
+          if (window.supabase) {
+            const { error } = await window.supabase.auth.signOut();
+            if (error) {
+              console.error('Error signing out:', error);
+              throw error;
+            }
+          }
+
+          // Clear local storage
+          localStorage.clear();
+          sessionStorage.clear();
+
+          // Dispatch logout event
+          window.dispatchEvent(new CustomEvent('user-logged-out'));
+
+          // Reload to show login screen
+          console.log('✅ Logged out successfully');
+          window.location.reload();
+          
+        } catch (error) {
+          console.error('❌ Logout error:', error);
+          alert('Error logging out. Please try again.');
+        }
+      }
+
+      // Event listeners
+      if (userMenu) {
+        userMenu.addEventListener('click', toggleDropdown);
+      }
+
+      if (dropdownProfile) {
+        dropdownProfile.addEventListener('click', openProfile);
+      }
+
+      if (dropdownSettings) {
+        dropdownSettings.addEventListener('click', openSettings);
+      }
+
+      if (dropdownLogout) {
+        dropdownLogout.addEventListener('click', logout);
+      }
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!userMenu?.contains(e.target) && !userDropdown?.contains(e.target)) {
+          closeDropdown();
+        }
+      });
+
+      // Close dropdown on escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isDropdownOpen) {
+          closeDropdown();
+        }
+      });
+
+      console.log('✅ User dropdown menu initialized');
     })();
   </script>
 
