@@ -261,6 +261,180 @@
         padding: 0.4rem 0.75rem !important;
         gap: 0.5rem !important;
       }
+
+      /* MOBILE LAYOUT FIXES */
+      /* Top bar - compact and organized */
+      #main-content > div:first-child {
+        top: 8px !important;
+        left: 8px !important;
+      }
+
+      #main-content > div:first-child img {
+        height: 36px !important;
+      }
+
+      /* Top-right badges - stack vertically and compact */
+      #main-content > div:nth-child(2) {
+        top: 8px !important;
+        right: 8px !important;
+        flex-direction: column !important;
+        gap: 0.4rem !important;
+        align-items: flex-end !important;
+        max-width: 50vw !important;
+      }
+
+      /* Level badge - compact */
+      #main-content > div:nth-child(2) > div:first-child {
+        padding: 0.4rem 0.75rem !important;
+        font-size: 0.7rem !important;
+      }
+
+      #main-content > div:nth-child(2) > div:first-child > div:first-child {
+        font-size: 0.75rem !important;
+      }
+
+      #main-content > div:nth-child(2) > div:first-child > div:nth-child(2) {
+        font-size: 0.65rem !important;
+      }
+
+      #main-content > div:nth-child(2) > div:first-child > div:nth-child(3) {
+        font-size: 0.6rem !important;
+        display: none !important; /* Hide XP on mobile */
+      }
+
+      /* Streak badge - move to top center as toast */
+      #main-content > div:nth-child(2) > div:nth-child(2) {
+        position: fixed !important;
+        top: 8px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        padding: 0.4rem 0.75rem !important;
+        font-size: 0.7rem !important;
+        z-index: 1001 !important;
+      }
+
+      #main-content > div:nth-child(2) > div:nth-child(2) i {
+        font-size: 0.9rem !important;
+      }
+
+      #main-content > div:nth-child(2) > div:nth-child(2) > div > div:first-child {
+        font-size: 0.8rem !important;
+      }
+
+      #main-content > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) {
+        display: none !important; /* Hide "Keep it going!" text */
+      }
+
+      /* Notification bell - compact */
+      #notifications-bell {
+        width: 40px !important;
+        height: 40px !important;
+        padding: 0.5rem !important;
+      }
+
+      #notifications-bell i {
+        font-size: 1rem !important;
+      }
+
+      /* Admin crown - compact */
+      #btn-admin-top {
+        width: 40px !important;
+        height: 40px !important;
+        padding: 0.5rem !important;
+      }
+
+      #btn-admin-top i {
+        font-size: 1rem !important;
+      }
+
+      /* User menu - compact */
+      #user-menu {
+        padding: 0.35rem 0.65rem !important;
+      }
+
+      #user-avatar-header {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.85rem !important;
+      }
+
+      /* Search container - proper spacing from bottom */
+      #centered-search-container {
+        bottom: 80px !important; /* Above bottom nav */
+        width: calc(100vw - 20px) !important;
+        left: 10px !important;
+        transform: none !important;
+      }
+
+      #centered-search-container > div:first-child {
+        flex-wrap: wrap !important;
+        gap: 0.35rem !important;
+        justify-content: flex-start !important;
+      }
+
+      .search-category-btn {
+        padding: 0.35rem 0.65rem !important;
+        font-size: 0.7rem !important;
+      }
+
+      #centered-search-container > div:nth-child(2) {
+        padding: 0.5rem 0.75rem !important;
+      }
+
+      #global-search {
+        padding: 0.6rem 4rem 0.6rem 2.5rem !important;
+        font-size: 0.85rem !important;
+      }
+
+      #search-button {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.85rem !important;
+      }
+
+      /* START button - compact */
+      #btn-start-center {
+        width: 140px !important;
+        height: 140px !important;
+      }
+
+      #btn-start-center i {
+        font-size: 2.2rem !important;
+      }
+
+      #btn-start-center span {
+        font-size: 1.1rem !important;
+      }
+
+      #btn-explore-cancel {
+        font-size: 0.85rem !important;
+        padding: 0.6rem 1.2rem !important;
+      }
+
+      /* Mobile filter FAB */
+      #mobile-filter-fab {
+        position: fixed !important;
+        bottom: 90px !important;
+        right: 15px !important;
+        width: 56px !important;
+        height: 56px !important;
+        background: linear-gradient(135deg, #00e0ff, #0080ff) !important;
+        border: none !important;
+        border-radius: 50% !important;
+        color: #000 !important;
+        font-size: 1.5rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        box-shadow: 0 4px 20px rgba(0,224,255,0.5) !important;
+        z-index: 1000 !important;
+        transition: all 0.3s ease !important;
+      }
+
+      #mobile-filter-fab:active {
+        transform: scale(0.95) !important;
+      }
     }
 
     @media (max-width: 480px) {

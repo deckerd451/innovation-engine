@@ -343,6 +343,53 @@ function toggleViewControls() {
   }, 100);
 }
 
+// Create mobile filter FAB button
+function createMobileFilterFAB() {
+  // Remove existing FAB if present
+  const existingFAB = document.getElementById('mobile-filter-fab');
+  if (existingFAB) return;
+
+  const fab = document.createElement('button');
+  fab.id = 'mobile-filter-fab';
+  fab.innerHTML = '<i class="fas fa-filter"></i>';
+  fab.style.cssText = `
+    position: fixed;
+    bottom: 90px;
+    right: 15px;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #00e0ff, #0080ff);
+    border: none;
+    border-radius: 50%;
+    color: #000;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0,224,255,0.5);
+    z-index: 1000;
+    transition: all 0.3s ease;
+  `;
+
+  fab.addEventListener('click', () => {
+    if (typeof window.toggleFilterSheet === 'function') {
+      window.toggleFilterSheet();
+    }
+  });
+
+  fab.addEventListener('touchstart', () => {
+    fab.style.transform = 'scale(0.95)';
+  });
+
+  fab.addEventListener('touchend', () => {
+    fab.style.transform = 'scale(1)';
+  });
+
+  document.body.appendChild(fab);
+  console.log('✅ Mobile filter FAB created');
+}
+
 // -----------------------------
 // Legend on Synapse Screen (Collapsible)
 // -----------------------------
@@ -366,7 +413,10 @@ function createSynapseLegend() {
   const isMobile = window.innerWidth <= 768;
   
   if (isMobile) {
-    // Mobile: Bottom sheet style
+    // Mobile: Create FAB button instead of showing legend immediately
+    createMobileFilterFAB();
+    
+    // Mobile: Bottom sheet style (hidden by default)
     legend.style.cssText = `
       position: fixed;
       bottom: 0;
@@ -387,19 +437,19 @@ function createSynapseLegend() {
       flex-direction: column;
     `;
   } else {
-    // Desktop: Original style
+    // Desktop: Improved compact panel style
     legend.style.cssText = `
       position: fixed;
-      top: 100px;
-      left: 20px;
-      background: linear-gradient(135deg, rgba(10,14,39,0.95), rgba(26,26,46,0.95));
-      border: 2px solid rgba(0,224,255,0.3);
-      border-radius: 12px;
-      padding: 1rem;
+      top: 90px;
+      left: 15px;
+      background: linear-gradient(135deg, rgba(10,14,39,0.96), rgba(26,26,46,0.96));
+      border: 2px solid rgba(0,224,255,0.35);
+      border-radius: 14px;
+      padding: 0;
       z-index: 100;
-      backdrop-filter: blur(10px);
-      min-width: 200px;
-      max-width: 250px;
+      backdrop-filter: blur(15px);
+      width: 240px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(0,224,255,0.15);
       transition: all 0.3s ease;
     `;
   }
@@ -417,16 +467,16 @@ function createSynapseLegend() {
       </div>
     ` : ''}
     
-    <div style="display: flex; justify-content: space-between; align-items: center; ${isMobile ? 'padding: 0 1rem 0.75rem 1rem;' : 'margin-bottom: 0.75rem;'}" id="legend-header">
-      <h4 style="color: #00e0ff; font-size: ${isMobile ? '1.1rem' : '0.9rem'}; margin: 0; font-weight: 700; cursor: pointer; flex: 1;" id="legend-title">
-        <i class="fas fa-filter"></i> Filter View
+    <div style="display: flex; justify-content: space-between; align-items: center; ${isMobile ? 'padding: 0 1rem 0.75rem 1rem;' : 'padding: 1rem 1rem 0.75rem 1rem; border-bottom: 1px solid rgba(0,224,255,0.15);'}" id="legend-header">
+      <h4 style="color: #00e0ff; font-size: ${isMobile ? '1.1rem' : '1rem'}; margin: 0; font-weight: 700; cursor: ${isMobile ? 'default' : 'pointer'}; flex: 1; display: flex; align-items: center; gap: 0.5rem;" id="legend-title">
+        <i class="fas fa-filter"></i> <span>Filter View</span>
       </h4>
       <div style="display: flex; gap: 0.5rem; align-items: center;">
         ${!isMobile ? `
-          <button id="legend-refresh-btn" style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: #00e0ff; cursor: pointer; padding: 0.35rem 0.5rem; font-size: 0.75rem; transition: all 0.2s;" title="Refresh Network">
+          <button id="legend-refresh-btn" style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: #00e0ff; cursor: pointer; padding: 0.4rem 0.6rem; font-size: 0.75rem; transition: all 0.2s;" title="Refresh Network">
             <i class="fas fa-sync-alt" id="refresh-icon"></i>
           </button>
-          <i class="fas fa-chevron-up" id="legend-toggle-icon" style="color: #00e0ff; font-size: 0.8rem; transition: transform 0.3s; cursor: pointer;"></i>
+          <i class="fas fa-chevron-up" id="legend-toggle-icon" style="color: #00e0ff; font-size: 0.9rem; transition: transform 0.3s; cursor: pointer;"></i>
         ` : `
           <button id="legend-close-btn" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 50%; width: 32px; height: 32px; color: #ff6b6b; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: all 0.2s;">
             <i class="fas fa-times"></i>
@@ -435,9 +485,9 @@ function createSynapseLegend() {
       </div>
     </div>
 
-    <div id="legend-content" style="transition: all 0.3s ease; overflow-y: auto; ${isMobile ? 'padding: 0 1rem 1rem 1rem; flex: 1;' : 'overflow: hidden;'}">
+    <div id="legend-content" style="transition: all 0.3s ease; overflow-y: auto; ${isMobile ? 'padding: 0 1rem 1rem 1rem; flex: 1;' : 'padding: 1rem; overflow: hidden;'}">
       ${showAnalytics ? `
-        <button id="legend-analytics-btn" style="width: 100%; padding: 0.65rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-bottom: 0.75rem; box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3); transition: all 0.2s; font-size: 0.85rem;">
+        <button id="legend-analytics-btn" style="width: 100%; padding: 0.7rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-bottom: 0.75rem; box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3); transition: all 0.2s; font-size: 0.85rem;">
           <i class="fas fa-chart-line"></i> Analytics
         </button>
       ` : ''}
@@ -448,34 +498,36 @@ function createSynapseLegend() {
         </button>
       `}
 
-      <div id="legend-people" data-filter="people" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3);">
-        <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(0,224,255,0.3); border: 2px solid #00e0ff; flex-shrink: 0;"></div>
-        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">People</span>
-        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
-      </div>
-      <div id="legend-projects" data-filter="projects" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);">
-        <div style="width: 24px; height: 24px; transform: rotate(45deg); background: rgba(0,255,136,0.3); border: 2px solid #00ff88; flex-shrink: 0;"></div>
-        <span style="color: #fff; font-size: 0.85rem; font-weight: 600; margin-left: 0.25rem;">Projects</span>
-        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
-      </div>
-      <div id="legend-themes" data-filter="themes" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3);">
-        <div style="width: 24px; height: 24px; border-radius: 50%; background: transparent; border: 3px solid #ffa500; flex-shrink: 0;"></div>
-        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Themes</span>
-        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
-      </div>
-      <div id="legend-organizations" data-filter="organizations" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3);">
-        <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(168,85,247,0.3); border: 2px solid #a855f7; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px;">🏢</div>
-        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Orgs</span>
-        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
-      </div>
-      <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
-        <div style="width: 30px; height: 2px; background: #00e0ff; flex-shrink: 0;"></div>
-        <span style="color: #fff; font-size: 0.85rem; font-weight: 600;">Connections</span>
-        <i class="fas fa-check" style="margin-left: auto; color: #00ff88; font-size: 0.9rem;"></i>
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+        <div id="legend-people" data-filter="people" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.08); border: 1px solid rgba(0,224,255,0.25);">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: rgba(0,224,255,0.3); border: 2px solid #00e0ff; flex-shrink: 0;"></div>
+          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">People</span>
+          <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
+        </div>
+        <div id="legend-projects" data-filter="projects" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.25);">
+          <div style="width: 20px; height: 20px; transform: rotate(45deg); background: rgba(0,255,136,0.3); border: 2px solid #00ff88; flex-shrink: 0;"></div>
+          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Projects</span>
+          <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
+        </div>
+        <div id="legend-themes" data-filter="themes" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25);">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: transparent; border: 3px solid #ffa500; flex-shrink: 0;"></div>
+          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Themes</span>
+          <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
+        </div>
+        <div id="legend-organizations" data-filter="organizations" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.25);">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: rgba(168,85,247,0.3); border: 2px solid #a855f7; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px;">🏢</div>
+          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Orgs</span>
+          <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
+        </div>
+        <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
+          <div style="width: 26px; height: 2px; background: #00e0ff; flex-shrink: 0;"></div>
+          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Connections</span>
+          <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
+        </div>
       </div>
 
       <!-- Discovery Mode Toggle -->
-      <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+      <div style="padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
         <button id="toggle-discovery-btn" style="
           width: 100%;
           padding: 0.75rem;
@@ -487,6 +539,7 @@ function createSynapseLegend() {
           cursor: pointer;
           transition: all 0.2s;
           box-shadow: 0 2px 8px rgba(0,255,136,0.3);
+          font-size: 0.85rem;
         ">
           <i class="fas fa-globe"></i> <span id="discovery-btn-text">Discovery Mode</span>
         </button>
