@@ -1006,7 +1006,15 @@ async function buildGraph() {
   }
 
   // 4. People and organization nodes (foreground layer) - render LAST so they appear on top
-  const visibleInteractiveNodes = visibleNodes.filter((n) => n.type === "person" || n.type === "organization");
+  // Sort so current user's node is rendered last (appears on top in SVG)
+  const visibleInteractiveNodes = visibleNodes
+    .filter((n) => n.type === "person" || n.type === "organization")
+    .sort((a, b) => {
+      // Current user should be last (rendered on top)
+      if (a.isCurrentUser) return 1;
+      if (b.isCurrentUser) return -1;
+      return 0;
+    });
   nodeEls = renderNodes(container, visibleInteractiveNodes, { onNodeClick });
 
   // Drag for nodes - use clickDistance to allow click events to fire

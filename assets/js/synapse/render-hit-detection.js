@@ -153,29 +153,29 @@ export function getLinkColor(link) {
 }
 
 export function getLinkWidth(link) {
-  // Handle person-to-person connection links
+  // Handle person-to-person connection links (thinner)
   if (link.type === "connection") {
     if (link.status === "accepted") {
-      return 2.5; // Thicker for accepted connections
+      return 1.5; // Thinner for accepted connections (was 2.5)
     } else if (link.status === "pending") {
-      return 1; // Thin for pending connections
+      return 0.8; // Thinner for pending connections (was 1)
     }
   }
 
   switch (link.status) {
     case "accepted":
-      return 3;
+      return 2; // Thinner (was 3)
     case "pending":
-      return 2;
+      return 1.5; // Thinner (was 2)
     case "suggested":
-      return 1;
+      return 0.8; // Thinner (was 1)
     case "theme-participant":
-      // Width based on engagement level
-      if (link.engagement_level === "leading") return 3;
-      if (link.engagement_level === "active") return 2;
-      return 1.5; // interested/observer
+      // Width based on engagement level (all thinner)
+      if (link.engagement_level === "leading") return 2; // was 3
+      if (link.engagement_level === "active") return 1.5; // was 2
+      return 1; // interested/observer (was 1.5)
     default:
-      return 1;
+      return 0.8; // Thinner (was 1)
   }
 }
 
