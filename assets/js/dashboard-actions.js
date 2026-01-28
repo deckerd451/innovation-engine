@@ -83,6 +83,22 @@ document.getElementById('btn-admin-top')?.addEventListener('click', () => {
   openAdminPanel();
 });
 
+// Ensure admin button shows for admin users (multiple checks)
+function ensureAdminButtonVisible() {
+  if (isAdminUser()) {
+    const adminBtn = document.getElementById('btn-admin-top');
+    if (adminBtn && adminBtn.style.display !== 'flex') {
+      adminBtn.style.display = 'flex';
+      console.log('👑 Admin button shown');
+    }
+  }
+}
+
+// Check immediately
+setTimeout(ensureAdminButtonVisible, 500);
+setTimeout(ensureAdminButtonVisible, 1500);
+setTimeout(ensureAdminButtonVisible, 3000);
+
 // Wire up View Controls button (backward compatibility if it exists)
 document.getElementById('btn-view-controls')?.addEventListener('click', () => {
   toggleViewControls();
@@ -1107,6 +1123,17 @@ function applyVisualizationFilters(filterState) {
 document.addEventListener('DOMContentLoaded', () => {
   // Wait a bit for synapse to load
   setTimeout(createSynapseLegend, 1000);
+  
+  // Also check for admin button immediately
+  setTimeout(() => {
+    if (isAdminUser()) {
+      const adminBtn = document.getElementById('btn-admin-top');
+      if (adminBtn) {
+        adminBtn.style.display = 'flex';
+        console.log('👑 Admin button shown (DOMContentLoaded)');
+      }
+    }
+  }, 1500);
 });
 
 // Also create legend when profile is loaded
@@ -1122,7 +1149,7 @@ window.addEventListener('profile-loaded', () => {
     const adminBtn = document.getElementById('btn-admin-top');
     if (adminBtn) {
       adminBtn.style.display = 'flex';
-      console.log('👑 Admin button shown');
+      console.log('👑 Admin button shown (profile-loaded)');
     }
   }
 });
