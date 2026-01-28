@@ -882,34 +882,108 @@ class StartFlowManager {
   }
 
   downloadReport() {
-    const report = {
-      sessionSummary: {
-        startTime: this.state.sessionLog.startTime,
-        endTime: this.state.sessionLog.endTime,
-        duration: this.calculateDuration(),
-        completedSteps: this.state.currentStep + 1,
-        totalSteps: this.steps.length
-      },
-      statistics: {
-        notifications: this.state.stepData.notifications?.count || 0,
-        themes: this.state.stepData.themes?.count || 0,
-        organizations: this.state.stepData.organizations?.count || 0,
-        projects: this.state.stepData.projects?.count || 0,
-        people: this.state.stepData.people?.count || 0
-      },
-      themesInterested: this.state.sessionLog.themesInterested,
-      organizationsFollowed: this.state.sessionLog.organizationsFollowed,
-      connectionRequestsSent: this.state.sessionLog.connectionRequestsSent,
-      connectionsAccepted: this.state.sessionLog.connectionsAccepted,
-      errors: this.state.sessionLog.errors,
-      generatedAt: new Date().toISOString()
-    };
+    const startDate = new Date(this.state.sessionLog.startTime);
+    const endDate = new Date(this.state.sessionLog.endTime);
+    
+    let reportText = `
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    START SEQUENCE SESSION REPORT                           ║
+╚════════════════════════════════════════════════════════════════════════════╝
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+📅 SESSION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Start Time:        ${startDate.toLocaleString()}
+  End Time:          ${endDate.toLocaleString()}
+  Duration:          ${this.calculateDuration()}
+  Steps Completed:   ${this.state.currentStep + 1} of ${this.steps.length}
+
+📊 DISCOVERY SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🔔 Notifications:     ${this.state.stepData.notifications?.count || 0}
+  🎨 Themes:            ${this.state.stepData.themes?.count || 0}
+  🏢 Organizations:     ${this.state.stepData.organizations?.count || 0}
+  💡 Projects:          ${this.state.stepData.projects?.count || 0}
+  👥 People:            ${this.state.stepData.people?.count || 0}
+
+✨ ACTIONS TAKEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Themes Interested:           ${this.state.sessionLog.themesInterested.length}
+  Organizations Followed:      ${this.state.sessionLog.organizationsFollowed.length}
+  Connection Requests Sent:    ${this.state.sessionLog.connectionRequestsSent.length}
+  Connections Accepted:        ${this.state.sessionLog.connectionsAccepted.length}
+`;
+
+    // Add themes details
+    if (this.state.sessionLog.themesInterested.length > 0) {
+      reportText += `\n🎨 THEMES YOU'RE INTERESTED IN\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      this.state.sessionLog.themesInterested.forEach((theme, index) => {
+        reportText += `\n  ${index + 1}. ${theme.title}\n`;
+        reportText += `     ${theme.description}\n`;
+        if (theme.tags && theme.tags.length > 0) {
+          reportText += `     Tags: ${theme.tags.join(', ')}\n`;
+        }
+        reportText += `     Time: ${new Date(theme.timestamp).toLocaleString()}\n`;
+      });
+    }
+
+    // Add organizations details
+    if (this.state.sessionLog.organizationsFollowed.length > 0) {
+      reportText += `\n🏢 ORGANIZATIONS YOU FOLLOWED\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      this.state.sessionLog.organizationsFollowed.forEach((org, index) => {
+        reportText += `\n  ${index + 1}. ${org.name}\n`;
+        reportText += `     ${org.description}\n`;
+        if (org.industry && org.industry.length > 0) {
+          reportText += `     Industry: ${org.industry.join(', ')}\n`;
+        }
+        reportText += `     Time: ${new Date(org.timestamp).toLocaleString()}\n`;
+      });
+    }
+
+    // Add connection requests details
+    if (this.state.sessionLog.connectionRequestsSent.length > 0) {
+      reportText += `\n👥 CONNECTION REQUESTS SENT\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      this.state.sessionLog.connectionRequestsSent.forEach((person, index) => {
+        reportText += `\n  ${index + 1}. ${person.name}\n`;
+        reportText += `     Email: ${person.email}\n`;
+        reportText += `     Bio: ${person.bio}\n`;
+        reportText += `     Time: ${new Date(person.timestamp).toLocaleString()}\n`;
+      });
+    }
+
+    // Add connections accepted details
+    if (this.state.sessionLog.connectionsAccepted.length > 0) {
+      reportText += `\n✅ CONNECTIONS ACCEPTED\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      this.state.sessionLog.connectionsAccepted.forEach((person, index) => {
+        reportText += `\n  ${index + 1}. ${person.name}\n`;
+        reportText += `     Email: ${person.email}\n`;
+        reportText += `     Time: ${new Date(person.timestamp).toLocaleString()}\n`;
+      });
+    }
+
+    // Add errors if any
+    if (this.state.sessionLog.errors.length > 0) {
+      reportText += `\n⚠️  ERRORS ENCOUNTERED\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      this.state.sessionLog.errors.forEach((error, index) => {
+        reportText += `\n  ${index + 1}. ${error.step || error.action || 'Unknown'}\n`;
+        reportText += `     Error: ${error.error}\n`;
+        reportText += `     Time: ${new Date(error.timestamp).toLocaleString()}\n`;
+      });
+    }
+
+    reportText += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    reportText += `Report Generated: ${new Date().toLocaleString()}\n`;
+    reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+
+    const blob = new Blob([reportText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `start-sequence-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `start-sequence-report-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
