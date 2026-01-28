@@ -1158,129 +1158,134 @@
   <!-- User Dropdown Menu Logic -->
   <script>
     (function() {
-      const userMenu = document.getElementById('user-menu');
-      const userDropdown = document.getElementById('user-dropdown');
-      const chevron = document.getElementById('user-menu-chevron');
-      const dropdownProfile = document.getElementById('dropdown-profile');
-      const dropdownSettings = document.getElementById('dropdown-settings');
-      const dropdownLogout = document.getElementById('dropdown-logout');
-
       let isDropdownOpen = false;
 
-      // Toggle dropdown
-      function toggleDropdown(e) {
-        e.stopPropagation();
-        isDropdownOpen = !isDropdownOpen;
-        
-        if (isDropdownOpen) {
-          userDropdown.style.display = 'flex';
-          chevron.style.transform = 'rotate(180deg)';
-          userMenu.style.background = 'rgba(0,224,255,0.15)';
-          userMenu.style.borderColor = 'rgba(0,224,255,0.5)';
-        } else {
-          userDropdown.style.display = 'none';
-          chevron.style.transform = 'rotate(0deg)';
-          userMenu.style.background = 'rgba(0,224,255,0.1)';
-          userMenu.style.borderColor = 'rgba(0,224,255,0.3)';
-        }
-      }
+      // Wait for DOM to be fully loaded and other scripts to initialize
+      setTimeout(() => {
+        const userMenu = document.getElementById('user-menu');
+        const userDropdown = document.getElementById('user-dropdown');
+        const chevron = document.getElementById('user-menu-chevron');
+        const dropdownProfile = document.getElementById('dropdown-profile');
+        const dropdownSettings = document.getElementById('dropdown-settings');
+        const dropdownLogout = document.getElementById('dropdown-logout');
 
-      // Close dropdown when clicking outside
-      function closeDropdown() {
-        if (isDropdownOpen) {
-          isDropdownOpen = false;
-          userDropdown.style.display = 'none';
-          chevron.style.transform = 'rotate(0deg)';
-          userMenu.style.background = 'rgba(0,224,255,0.1)';
-          userMenu.style.borderColor = 'rgba(0,224,255,0.3)';
-        }
-      }
-
-      // Profile action
-      function openProfile() {
-        closeDropdown();
-        if (typeof window.openProfileModal === 'function') {
-          window.openProfileModal();
-        }
-      }
-
-      // Settings action
-      function openSettings() {
-        closeDropdown();
-        // TODO: Implement settings modal
-        console.log('Settings clicked - implement settings modal');
-        alert('Settings feature coming soon!');
-      }
-
-      // Logout action
-      async function logout() {
-        closeDropdown();
-        
-        if (!confirm('Are you sure you want to logout?')) {
+        if (!userMenu || !userDropdown) {
+          console.warn('⚠️ User menu elements not found');
           return;
         }
 
-        try {
-          console.log('🚪 Logging out...');
+        // Toggle dropdown
+        function toggleDropdown(e) {
+          e.stopPropagation();
+          e.preventDefault(); // Prevent profile modal from opening
           
-          // Sign out from Supabase
-          if (window.supabase) {
-            const { error } = await window.supabase.auth.signOut();
-            if (error) {
-              console.error('Error signing out:', error);
-              throw error;
+          isDropdownOpen = !isDropdownOpen;
+          
+          if (isDropdownOpen) {
+            userDropdown.style.display = 'flex';
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+            userMenu.style.background = 'rgba(0,224,255,0.15)';
+            userMenu.style.borderColor = 'rgba(0,224,255,0.5)';
+          } else {
+            userDropdown.style.display = 'none';
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+            userMenu.style.background = 'rgba(0,224,255,0.1)';
+            userMenu.style.borderColor = 'rgba(0,224,255,0.3)';
+          }
+        }
+
+        // Close dropdown
+        function closeDropdown() {
+          if (isDropdownOpen) {
+            isDropdownOpen = false;
+            userDropdown.style.display = 'none';
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+            userMenu.style.background = 'rgba(0,224,255,0.1)';
+            userMenu.style.borderColor = 'rgba(0,224,255,0.3)';
+          }
+        }
+
+        // Profile action
+        function openProfile(e) {
+          e.stopPropagation();
+          closeDropdown();
+          
+          setTimeout(() => {
+            if (typeof window.openProfileModal === 'function') {
+              window.openProfileModal();
             }
+          }, 100);
+        }
+
+        // Settings action
+        function openSettings(e) {
+          e.stopPropagation();
+          closeDropdown();
+          console.log('Settings clicked');
+          alert('Settings feature coming soon!');
+        }
+
+        // Logout action
+        async function logout(e) {
+          e.stopPropagation();
+          closeDropdown();
+          
+          if (!confirm('Are you sure you want to logout?')) {
+            return;
           }
 
-          // Clear local storage
-          localStorage.clear();
-          sessionStorage.clear();
+          try {
+            console.log('🚪 Logging out...');
+            
+            if (window.supabase) {
+              const { error } = await window.supabase.auth.signOut();
+              if (error) throw error;
+            }
 
-          // Dispatch logout event
-          window.dispatchEvent(new CustomEvent('user-logged-out'));
-
-          // Reload to show login screen
-          console.log('✅ Logged out successfully');
-          window.location.reload();
-          
-        } catch (error) {
-          console.error('❌ Logout error:', error);
-          alert('Error logging out. Please try again.');
+            localStorage.clear();
+            sessionStorage.clear();
+            window.dispatchEvent(new CustomEvent('user-logged-out'));
+            
+            console.log('✅ Logged out successfully');
+            window.location.reload();
+            
+          } catch (error) {
+            console.error('❌ Logout error:', error);
+            alert('Error logging out. Please try again.');
+          }
         }
-      }
 
-      // Event listeners
-      if (userMenu) {
-        userMenu.addEventListener('click', toggleDropdown);
-      }
+        // Add event listeners with capture phase to intercept before other handlers
+        userMenu.addEventListener('click', toggleDropdown, true);
 
-      if (dropdownProfile) {
-        dropdownProfile.addEventListener('click', openProfile);
-      }
-
-      if (dropdownSettings) {
-        dropdownSettings.addEventListener('click', openSettings);
-      }
-
-      if (dropdownLogout) {
-        dropdownLogout.addEventListener('click', logout);
-      }
-
-      // Close dropdown when clicking outside
-      document.addEventListener('click', (e) => {
-        if (!userMenu?.contains(e.target) && !userDropdown?.contains(e.target)) {
-          closeDropdown();
+        if (dropdownProfile) {
+          dropdownProfile.addEventListener('click', openProfile);
         }
-      });
 
-      // Close dropdown on escape key
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && isDropdownOpen) {
-          closeDropdown();
+        if (dropdownSettings) {
+          dropdownSettings.addEventListener('click', openSettings);
         }
-      });
 
-      console.log('✅ User dropdown menu initialized');
+        if (dropdownLogout) {
+          dropdownLogout.addEventListener('click', logout);
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!userMenu.contains(e.target) && !userDropdown.contains(e.target)) {
+            closeDropdown();
+          }
+        });
+
+        // Close dropdown on escape key
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && isDropdownOpen) {
+            closeDropdown();
+          }
+        });
+
+        console.log('✅ User dropdown menu initialized');
+      }, 500); // Wait for other scripts to load
     })();
   </script>
 
