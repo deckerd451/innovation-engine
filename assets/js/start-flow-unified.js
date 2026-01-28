@@ -284,27 +284,48 @@ class StartFlowManager {
     const themes = [];
 
     try {
-      // Query theme_circles with actual schema (is_active instead of status)
-      const { data, error } = await supabase
-        .from('theme_circles')
-        .select(`
-          id, 
-          title, 
-          description,
-          is_active,
-          expires_at,
-          created_at
-        `)
-        .eq('is_active', true)
-        .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(5);
+      // Try to use the optimized summary view first
+      let data, error;
+      
+      try {
+        // Option 1: Use active_themes_summary view (pre-calculated counts)
+        const result = await supabase
+          .from('active_themes_summary')
+          .select('theme_id, theme_title, theme_description, participant_count, expires_at, is_active')
+          .eq('is_active', true)
+          .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+          .order('participant_count', { ascending: false })
+          .limit(5);
+        
+        if (result.data && result.data.length > 0) {
+          // Map summary view columns to expected format
+          data = result.data.map(row => ({
+            id: row.theme_id,
+            title: row.theme_title,
+            description: row.theme_description,
+            participantCount: row.participant_count || 0,
+            expiresAt: row.expires_at
+          }));
+        } else {
+          throw new Error('Summary view empty or not available');
+        }
+      } catch (summaryError) {
+        console.warn('Summary view not available, using direct query:', summaryError);
+        
+        // Option 2: Fallback to direct query with manual count
+        const result = await supabase
+          .from('theme_circles')
+          .select('id, title, description, is_active, expires_at, created_at')
+          .eq('is_active', true)
+          .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(5);
 
-      if (error) throw error;
+        if (result.error) throw result.error;
 
-      if (data) {
         // Get participant counts for each theme
-        for (const theme of data) {
+        data = [];
+        for (const theme of result.data || []) {
           let participantCount = 0;
           try {
             const { count } = await supabase
@@ -316,17 +337,28 @@ class StartFlowManager {
             console.warn('Could not get participant count:', e);
           }
 
-          themes.push({
+          data.push({
             id: theme.id,
             title: theme.title,
-            description: theme.description || 'Join this theme circle',
-            icon: 'fa-palette',
-            color: '#ffaa00',
+            description: theme.description,
             participantCount: participantCount,
-            expiresAt: theme.expires_at,
-            action: () => this.markThemeInterested(theme)
+            expiresAt: theme.expires_at
           });
         }
+      }
+
+      // Convert to card format
+      if (data) {
+        themes.push(...data.map(theme => ({
+          id: theme.id,
+          title: theme.title,
+          description: theme.description || 'Join this theme circle',
+          icon: 'fa-palette',
+          color: '#ffaa00',
+          participantCount: theme.participantCount || 0,
+          expiresAt: theme.expiresAt,
+          action: () => this.markThemeInterested(theme)
+        })));
       }
     } catch (error) {
       console.error('Error loading themes:', error);
@@ -393,19 +425,48 @@ class StartFlowManager {
     const organizations = [];
 
     try {
-      // Query with flexible column selection (some columns might not exist)
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('id, name, slug, description, logo_url, verified, is_active, created_at')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(5);
+      // Try to use the optimized summary view first
+      let data, error;
+      
+      try {
+        // Option 1: Use active_organizations_summary view (pre-calculated counts)
+        const result = await supabase
+          .from('active_organizations_summary')
+          .select('org_id, org_name, org_slug, org_description, logo_url, verified, follower_count, is_active')
+          .eq('is_active', true)
+          .order('follower_count', { ascending: false })
+          .limit(5);
+        
+        if (result.data && result.data.length > 0) {
+          // Map summary view columns to expected format
+          data = result.data.map(row => ({
+            id: row.org_id,
+            name: row.org_name,
+            slug: row.org_slug,
+            description: row.org_description,
+            logo_url: row.logo_url,
+            verified: row.verified,
+            followerCount: row.follower_count || 0
+          }));
+        } else {
+          throw new Error('Summary view empty or not available');
+        }
+      } catch (summaryError) {
+        console.warn('Summary view not available, using direct query:', summaryError);
+        
+        // Option 2: Fallback to direct query with manual count
+        const result = await supabase
+          .from('organizations')
+          .select('id, name, slug, description, logo_url, verified, is_active, created_at')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(5);
 
-      if (error) throw error;
+        if (result.error) throw result.error;
 
-      if (data) {
         // Get follower counts for each organization
-        for (const org of data) {
+        data = [];
+        for (const org of result.data || []) {
           let followerCount = 0;
           try {
             const { count } = await supabase
@@ -417,18 +478,31 @@ class StartFlowManager {
             console.warn('Could not get follower count:', e);
           }
 
-          organizations.push({
+          data.push({
             id: org.id,
-            title: org.name,
-            description: org.description || 'Follow this organization',
-            icon: 'fa-building',
-            color: '#ff6b6b',
-            logoUrl: org.logo_url,
-            followerCount: followerCount,
-            verified: org.verified || false,
-            action: () => this.followOrganization(org)
+            name: org.name,
+            slug: org.slug,
+            description: org.description,
+            logo_url: org.logo_url,
+            verified: org.verified,
+            followerCount: followerCount
           });
         }
+      }
+
+      // Convert to card format
+      if (data) {
+        organizations.push(...data.map(org => ({
+          id: org.id,
+          title: org.name,
+          description: org.description || 'Follow this organization',
+          icon: 'fa-building',
+          color: '#ff6b6b',
+          logoUrl: org.logo_url,
+          followerCount: org.followerCount || 0,
+          verified: org.verified || false,
+          action: () => this.followOrganization(org)
+        })));
       }
     } catch (error) {
       console.error('Error loading organizations:', error);
