@@ -414,8 +414,8 @@
       /* Mobile filter FAB */
       #mobile-filter-fab {
         position: fixed !important;
-        bottom: 90px !important;
-        right: 15px !important;
+        bottom: 20px !important;
+        right: 20px !important;
         width: 56px !important;
         height: 56px !important;
         background: rgba(0,224,255,0.3) !important; /* Semi-transparent */
@@ -444,9 +444,28 @@
         display: none !important;
       }
 
+      /* Show badges in dropdown on mobile */
+      #dropdown-badges {
+        display: flex !important;
+      }
+
       /* Show badges in profile view on mobile */
       .mobile-only-badges {
         display: flex !important;
+      }
+
+      /* Mobile layout adjustments */
+      /* Move logo to right side */
+      body > .unified-main > div:first-of-type {
+        left: auto !important;
+        right: 20px !important;
+      }
+
+      /* Move user menu to top */
+      body > .unified-main > div:nth-of-type(2) {
+        top: 20px !important;
+        left: 20px !important;
+        right: auto !important;
       }
     }
 
@@ -616,6 +635,26 @@
           z-index:10000;
           animation:dropdownFadeIn 0.2s ease;
         ">
+          <!-- Level and Streak Badges (mobile only) -->
+          <div id="dropdown-badges" style="display:none; flex-direction:column; gap:0.5rem; padding:0.5rem; margin-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.1);">
+            <!-- Level Badge -->
+            <div style="padding:0.5rem 0.75rem; background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="color:#00e0ff; font-size:0.75rem; font-weight:600;">Level 6</div>
+                <div style="color:#aaa; font-size:0.65rem;">Leader</div>
+              </div>
+              <div style="color:#888; font-size:0.6rem;">2173 / 5000 XP</div>
+            </div>
+            <!-- Streak Badge -->
+            <div style="padding:0.5rem 0.75rem; background:rgba(255,59,48,0.15); border:1px solid rgba(255,59,48,0.3); border-radius:8px; display:flex; align-items:center; gap:0.5rem;">
+              <i class="fas fa-fire" style="color:#ff3b30; font-size:1rem;"></i>
+              <div style="flex:1;">
+                <div style="color:#ff3b30; font-size:0.75rem; font-weight:700;">25 Day Streak</div>
+                <div style="color:#ff8a80; font-size:0.6rem;">Keep it going!</div>
+              </div>
+            </div>
+          </div>
+
           <!-- Profile Option -->
           <button id="dropdown-profile" style="
             width:100%;
