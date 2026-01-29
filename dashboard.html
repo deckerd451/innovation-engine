@@ -456,16 +456,16 @@
 
       /* Mobile layout adjustments */
       /* Move logo to right side */
-      body > .unified-main > div:first-of-type {
+      #main-content > div:first-child {
         left: auto !important;
-        right: 20px !important;
+        right: 8px !important;
       }
 
-      /* Move user menu to top */
-      body > .unified-main > div:nth-of-type(2) {
-        top: 20px !important;
-        left: 20px !important;
+      /* Move user menu container to top-left */
+      #main-content > div:nth-child(2) {
+        left: 8px !important;
         right: auto !important;
+        flex-direction: row-reverse !important;
       }
     }
 
