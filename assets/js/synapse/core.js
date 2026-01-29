@@ -1143,7 +1143,14 @@ async function buildGraph() {
 
   // 2. Links (middle layer) - connection links and theme participation links
   // Only show links for admin users
-  const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
+  let isAdmin = false;
+  if (typeof window.isAdminUser === 'function') {
+    isAdmin = window.isAdminUser();
+    console.log(`🔐 Admin check result: ${isAdmin}`);
+  } else {
+    console.warn('⚠️ isAdminUser function not available yet - defaulting to non-admin');
+  }
+  
   if (isAdmin) {
     linkEls = renderLinks(container, simulationLinks);
     console.log('👑 Admin mode: Showing connection links');
