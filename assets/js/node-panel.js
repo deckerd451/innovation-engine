@@ -2494,7 +2494,27 @@ window.joinTheme = async function(themeId, themeName) {
     // Remove 'theme:' prefix if present
     const cleanThemeId = themeId.replace(/^theme:/, '');
     
-    console.log('Joining theme:', { themeId, cleanThemeId, communityId: userProfile.id });
+    console.log('Joining theme:', { 
+      originalThemeId: themeId, 
+      cleanThemeId, 
+      communityId: userProfile.id,
+      themeName 
+    });
+    
+    // Verify theme exists before trying to join
+    const { data: themeExists, error: themeCheckError } = await supabase
+      .from('theme_circles')
+      .select('id, title')
+      .eq('id', cleanThemeId)
+      .single();
+    
+    if (themeCheckError || !themeExists) {
+      console.error('Theme not found:', { cleanThemeId, error: themeCheckError });
+      alert(`Theme not found in database.\n\nTheme ID: ${cleanThemeId}\n\nPlease refresh the page and try again.`);
+      return;
+    }
+    
+    console.log('Theme found:', themeExists);
     
     // Add to theme_participants
     const { error } = await supabase
