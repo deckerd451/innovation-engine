@@ -1094,10 +1094,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       // Search based on category
       if (category === "all" || category === "people") {
+        // Search people by name, bio, AND skills
         const { data, error } = await state.supabase
           .from("community")
           .select("*")
-          .or(`name.ilike.%${q}%,bio.ilike.%${q}%`)
+          .or(`name.ilike.%${q}%,bio.ilike.%${q}%,skills.ilike.%${q}%`)
           .limit(25);
         if (error) console.warn("People search error:", error);
         else people = data;
@@ -1139,20 +1140,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         else themes = data;
       }
 
-      // Search for skills (search within people's skills field)
-      if (category === "all" || category === "skills") {
-        const { data, error } = await state.supabase
-          .from("community")
-          .select("*")
-          .ilike("skills", `%${q}%`)
-          .limit(25);
-        if (error) console.warn("Skills search error:", error);
-        else skillMatches = data;
-      }
-
       const filteredPeople = (people || []).filter((p) => p.id !== state.communityProfile?.id);
-      const filteredSkillMatches = (skillMatches || []).filter((p) => p.id !== state.communityProfile?.id);
-      const totalResults = filteredPeople.length + filteredSkillMatches.length + (organizations?.length || 0) + (projects?.length || 0) + (themes?.length || 0);
+      const totalResults = filteredPeople.length + (organizations?.length || 0) + (projects?.length || 0) + (themes?.length || 0);
 
       if (totalResults === 0) {
         list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">

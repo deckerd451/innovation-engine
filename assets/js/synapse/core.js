@@ -223,6 +223,9 @@ export function filterSynapseByCategory(category) {
     return;
   }
   
+  // Also handle theme circles if they exist
+  const themeCircles = svg?.selectAll('.theme-circle');
+  
   if (category === 'all') {
     // Show everything
     nodeEls
@@ -240,6 +243,15 @@ export function filterSynapseByCategory(category) {
         }
         return 0.6;
       });
+    
+    // Show theme circles
+    if (themeCircles && !themeCircles.empty()) {
+      themeCircles
+        .transition()
+        .duration(300)
+        .style('opacity', 1)
+        .style('pointer-events', 'auto');
+    }
   } else {
     // Map category to node type
     const typeMap = {
@@ -248,19 +260,36 @@ export function filterSynapseByCategory(category) {
       'organizations': 'organization',
       'themes': 'theme'
     };
-    const targetType = typeMap[category];
+    const filterType = typeMap[category];
     
-    if (!targetType) {
+    if (!filterType) {
       console.warn(`⚠️ Unknown category: ${category}`);
       return;
     }
+    
+    console.log(`📊 Filtering for type: ${filterType}`);
     
     // Filter nodes - only show nodes of the target type
     nodeEls
       .transition()
       .duration(300)
-      .style('opacity', d => d.type === targetType ? 1 : 0.15)
-      .style('pointer-events', d => d.type === targetType ? 'auto' : 'none');
+      .style('opacity', d => {
+        const isMatch = d.type === filterType;
+        if (isMatch) {
+          console.log(`✅ Showing node: ${d.name} (type: ${d.type})`);
+        }
+        return isMatch ? 1 : 0.15;
+      })
+      .style('pointer-events', d => d.type === filterType ? 'auto' : 'none');
+    
+    // Handle theme circles separately
+    if (themeCircles && !themeCircles.empty()) {
+      themeCircles
+        .transition()
+        .duration(300)
+        .style('opacity', category === 'themes' ? 1 : 0.15)
+        .style('pointer-events', category === 'themes' ? 'auto' : 'none');
+    }
     
     // Filter links - show links connected to visible nodes
     linkEls
@@ -269,12 +298,12 @@ export function filterSynapseByCategory(category) {
       .style('opacity', d => {
         const sourceType = typeof d.source === 'object' ? d.source.type : 
                           nodes.find(n => n.id === d.source)?.type;
-        const targetType = typeof d.target === 'object' ? d.target.type : 
+        const targetNodeType = typeof d.target === 'object' ? d.target.type : 
                           nodes.find(n => n.id === d.target)?.type;
         
-        // Show link if either end connects to a visible node
-        const sourceVisible = sourceType === targetType;
-        const targetVisible = targetType === targetType;
+        // Show link if either end connects to a visible node of the filter type
+        const sourceVisible = sourceType === filterType;
+        const targetVisible = targetNodeType === filterType;
         
         if (sourceVisible || targetVisible) {
           if (d.type === "project-member") {
