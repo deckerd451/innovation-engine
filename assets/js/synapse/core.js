@@ -218,17 +218,24 @@ export async function toggleFullCommunityView(show) {
 export function filterSynapseByCategory(category) {
   console.log(`🔍 Filtering synapse view by category: ${category}`);
   
-  if (!nodeEls || !linkEls) {
-    console.warn('⚠️ Node or link elements not available yet');
+  if (!svg) {
+    console.warn('⚠️ SVG not available yet');
     return;
   }
+  
+  // Select ALL node elements directly from SVG (not using cached nodeEls)
+  const allNodes = svg.selectAll('.synapse-node');
+  const allLinks = svg.selectAll('.link');
+  const themeCircles = svg.selectAll('.theme-circle');
+  
+  console.log(`📊 Found ${allNodes.size()} visual nodes, ${allLinks.size()} links, ${themeCircles.size()} theme circles`);
   
   // Debug: Log what types we have in the nodes array
   const nodeTypes = {};
   nodes.forEach(n => {
     nodeTypes[n.type] = (nodeTypes[n.type] || 0) + 1;
   });
-  console.log('📊 Available node types:', nodeTypes);
+  console.log('📊 Available node types in data:', nodeTypes);
   
   // Map category to node type (defined at function scope)
   const typeMap = {
@@ -238,18 +245,15 @@ export function filterSynapseByCategory(category) {
     'themes': 'theme'
   };
   
-  // Also handle theme circles if they exist
-  const themeCircles = svg?.selectAll('.theme-circle');
-  
   if (category === 'all') {
     // Show everything
-    nodeEls
+    allNodes
       .transition()
       .duration(300)
       .style('opacity', 1)
       .style('pointer-events', 'auto');
     
-    linkEls
+    allLinks
       .transition()
       .duration(300)
       .style('opacity', d => {
@@ -260,7 +264,7 @@ export function filterSynapseByCategory(category) {
       });
     
     // Show theme circles
-    if (themeCircles && !themeCircles.empty()) {
+    if (!themeCircles.empty()) {
       themeCircles
         .transition()
         .duration(300)
@@ -268,7 +272,7 @@ export function filterSynapseByCategory(category) {
         .style('pointer-events', 'auto');
     }
     
-    console.log(`✅ Filter applied: showing all nodes`);
+    console.log(`✅ Filter applied: showing all ${allNodes.size()} nodes`);
   } else {
     const filterType = typeMap[category];
     
@@ -281,35 +285,47 @@ export function filterSynapseByCategory(category) {
     
     // Count how many nodes match
     let matchCount = 0;
-    nodes.forEach(n => {
-      if (n.type === filterType) matchCount++;
+    const matchedNodes = [];
+    allNodes.each(function(d) {
+      if (d && d.type === filterType) {
+        matchCount++;
+        matchedNodes.push(d.name);
+      }
     });
-    console.log(`📊 Found ${matchCount} nodes of type "${filterType}"`);
+    console.log(`📊 Found ${matchCount} visual nodes of type "${filterType}":`, matchedNodes);
     
     // Filter nodes - only show nodes of the target type
-    nodeEls
+    allNodes
       .transition()
       .duration(300)
       .style('opacity', d => {
+        if (!d) return 0.15;
         const isMatch = d.type === filterType;
         return isMatch ? 1 : 0.15;
       })
-      .style('pointer-events', d => d.type === filterType ? 'auto' : 'none');
+      .style('pointer-events', d => {
+        if (!d) return 'none';
+        return d.type === filterType ? 'auto' : 'none';
+      });
     
     // Handle theme circles separately
-    if (themeCircles && !themeCircles.empty()) {
+    if (!themeCircles.empty()) {
+      const themeOpacity = category === 'themes' ? 1 : 0.15;
+      console.log(`🎨 Setting ${themeCircles.size()} theme circles opacity to: ${themeOpacity}`);
       themeCircles
         .transition()
         .duration(300)
-        .style('opacity', category === 'themes' ? 1 : 0.15)
+        .style('opacity', themeOpacity)
         .style('pointer-events', category === 'themes' ? 'auto' : 'none');
     }
     
     // Filter links - show links connected to visible nodes
-    linkEls
+    allLinks
       .transition()
       .duration(300)
       .style('opacity', d => {
+        if (!d) return 0.05;
+        
         const sourceType = typeof d.source === 'object' ? d.source.type : 
                           nodes.find(n => n.id === d.source)?.type;
         const targetNodeType = typeof d.target === 'object' ? d.target.type : 
@@ -328,7 +344,7 @@ export function filterSynapseByCategory(category) {
         return 0.05;
       });
     
-    console.log(`✅ Filter applied: ${category} (showing only ${filterType} nodes)`);
+    console.log(`✅ Filter applied: ${category} (showing ${matchCount} ${filterType} nodes)`);
   }
 }
 
