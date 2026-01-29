@@ -1211,8 +1211,33 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           </div>
         </div>`;
         
-        // Setup tab switching after rendering
-        setTimeout(() => setupOrgSearchTabs(), 100);
+        // Setup tab switching after rendering - inline to avoid scope issues
+        setTimeout(() => {
+          const tabs = document.querySelectorAll('.org-search-tab');
+          if (tabs.length) {
+            tabs.forEach(tab => {
+              tab.addEventListener('click', async () => {
+                // Update tab styles
+                tabs.forEach(t => {
+                  t.style.background = 'transparent';
+                  t.style.borderBottomColor = 'transparent';
+                  t.style.color = 'rgba(168,85,247,0.7)';
+                  t.classList.remove('active-org-tab');
+                });
+                tab.style.background = 'rgba(168,85,247,0.15)';
+                tab.style.borderBottomColor = '#a855f7';
+                tab.style.color = '#a855f7';
+                tab.classList.add('active-org-tab');
+                
+                // Load tab content
+                const tabName = tab.dataset.orgTab;
+                if (typeof loadOrgSearchTabContent === 'function') {
+                  await loadOrgSearchTabContent(tabName);
+                }
+              });
+            });
+          }
+        }, 100);
       }
 
       // Render Projects section
@@ -1268,8 +1293,33 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           </div>
         </div>`;
         
-        // Setup tab switching after rendering
-        setTimeout(() => setupThemeSearchTabs(), 100);
+        // Setup tab switching after rendering - inline to avoid scope issues
+        setTimeout(() => {
+          const tabs = document.querySelectorAll('.theme-search-tab');
+          if (tabs.length) {
+            tabs.forEach(tab => {
+              tab.addEventListener('click', async () => {
+                // Update tab styles
+                tabs.forEach(t => {
+                  t.style.background = 'transparent';
+                  t.style.borderBottomColor = 'transparent';
+                  t.style.color = 'rgba(255,170,0,0.7)';
+                  t.classList.remove('active-theme-tab');
+                });
+                tab.style.background = 'rgba(255,170,0,0.15)';
+                tab.style.borderBottomColor = '#ffaa00';
+                tab.style.color = '#ffaa00';
+                tab.classList.add('active-theme-tab');
+                
+                // Load tab content
+                const tabName = tab.dataset.themeTab;
+                if (typeof loadThemeSearchTabContent === 'function') {
+                  await loadThemeSearchTabContent(tabName);
+                }
+              });
+            });
+          }
+        }, 100);
       }
 
       list.innerHTML = html;
@@ -1734,9 +1784,14 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     if (isExpanded) {
       let joinButtonHTML = '';
       if (membershipStatus === 'pending') {
-        joinButtonHTML = `<button disabled style="background:rgba(255,170,0,0.3); border:1px solid rgba(255,170,0,0.5); padding:0.6rem 1.2rem; border-radius:8px; color:#ffaa00; font-weight:600; cursor:not-allowed; font-size:0.9rem;">
-          <i class="fas fa-clock"></i> Request Pending
-        </button>`;
+        joinButtonHTML = `
+          <button disabled style="background:rgba(255,170,0,0.3); border:1px solid rgba(255,170,0,0.5); padding:0.6rem 1.2rem; border-radius:8px; color:#ffaa00; font-weight:600; cursor:not-allowed; font-size:0.9rem;">
+            <i class="fas fa-clock"></i> Request Pending
+          </button>
+          <button onclick="withdrawProjectRequest('${projectId}')" style="background:rgba(255,68,68,0.2); border:1px solid rgba(255,68,68,0.5); padding:0.6rem 1.2rem; border-radius:8px; color:#ff4444; font-weight:600; cursor:pointer; font-size:0.9rem; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,68,68,0.3)'" onmouseout="this.style.background='rgba(255,68,68,0.2)'">
+            <i class="fas fa-times"></i> Withdraw Request
+          </button>
+        `;
       } else if (membershipStatus && membershipStatus !== 'pending') {
         joinButtonHTML = `<button disabled style="background:rgba(0,255,136,0.3); border:1px solid rgba(0,255,136,0.5); padding:0.6rem 1.2rem; border-radius:8px; color:#00ff88; font-weight:600; cursor:not-allowed; font-size:0.9rem;">
           <i class="fas fa-check"></i> Already a Member
@@ -1893,6 +1948,53 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     } catch (error) {
       console.error('Error sending join request:', error);
       alert('Failed to send join request: ' + error.message);
+    }
+  };
+
+  // Withdraw project join request
+  window.withdrawProjectRequest = async function(projectId) {
+    try {
+      if (!state.supabase || !state.communityProfile) {
+        alert('Please log in');
+        return;
+      }
+
+      // Confirm withdrawal
+      if (!confirm('Are you sure you want to withdraw your join request?')) {
+        return;
+      }
+
+      // Delete the pending request
+      const { error } = await state.supabase
+        .from('project_members')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('user_id', state.communityProfile.id)
+        .eq('role', 'pending');
+
+      if (error) throw error;
+
+      if (typeof showToastNotification === 'function') {
+        showToastNotification('Join request withdrawn', 'success');
+      } else {
+        alert('Join request withdrawn');
+      }
+
+      // Refresh synapse view
+      if (typeof window.refreshSynapse === 'function') {
+        await window.refreshSynapse();
+      }
+
+      // Re-render the search results to update the button state
+      expandedProjectId = projectId; // Keep it expanded
+      const query = $("global-search")?.value?.trim();
+      if (query) {
+        await renderSearchResults(query, activeSearchCategory);
+      }
+
+    } catch (error) {
+      console.error('Error withdrawing request:', error);
+      alert('Failed to withdraw request: ' + error.message);
     }
   };
 
