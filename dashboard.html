@@ -828,11 +828,12 @@
       </div>
 
       <!-- Search Input -->
-      <div style="position: relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); padding:0.75rem 1rem; border-radius:12px;
+      <div id="search-container" style="position: relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); padding:0.75rem 1rem; border-radius:12px;
         border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
         <i class="fas fa-search"
            style="position:absolute; left:1.5rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; z-index:1;"></i>
         <input type="text" id="global-search" placeholder="Search everything..."
+          autocomplete="off"
           style="width:100%; padding:0.75rem 5rem 0.75rem 3rem; background:rgba(0,0,0,0.4);
           border:1px solid rgba(0,224,255,0.3); border-radius:8px; color:#fff; font-size:16px; outline:none;">
         <button id="search-button"
@@ -841,6 +842,14 @@
           color:white; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; z-index:1;">
           <i class="fas fa-search"></i>
         </button>
+        
+        <!-- Predictive Search Suggestions Dropdown -->
+        <div id="search-suggestions" style="display:none; position:absolute; top:calc(100% + 0.5rem); left:1rem; right:1rem;
+          background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px;
+          max-height:400px; overflow-y:auto; z-index:1000; box-shadow:0 8px 32px rgba(0,224,255,0.3);
+          backdrop-filter:blur(20px);">
+          <!-- Suggestions will be populated here -->
+        </div>
       </div>
     </div>
   </div>

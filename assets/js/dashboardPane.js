@@ -222,6 +222,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     on($("global-search"), "keydown", (e) => {
       if (e.key === "Enter") handleSearch();
     });
+    
+    // Predictive search as user types
+    setupPredictiveSearch();
 
     // Setup category filter buttons
     setupCategoryButtons();
@@ -1062,6 +1065,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     const q = $("global-search")?.value?.trim();
     if (!q) return;
     
+    // Hide suggestions when performing full search
+    hideSuggestions();
+    
     // Update modal title
     const title = $("quick-connect-title");
     const subtitle = $("quick-connect-subtitle");
@@ -1077,6 +1083,265 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     
     openModal("quick-connect-modal");
     await renderSearchResults(q, activeSearchCategory);
+  }
+  
+  // Predictive Search Setup
+  let searchTimeout = null;
+  let currentSuggestionIndex = -1;
+  
+  function setupPredictiveSearch() {
+    const searchInput = $("global-search");
+    const suggestionsBox = $("search-suggestions");
+    
+    if (!searchInput || !suggestionsBox) return;
+    
+    // Handle input changes
+    searchInput.addEventListener("input", (e) => {
+      const query = e.target.value.trim();
+      
+      // Clear previous timeout
+      if (searchTimeout) clearTimeout(searchTimeout);
+      
+      // Hide suggestions if query is too short
+      if (query.length < 2) {
+        hideSuggestions();
+        return;
+      }
+      
+      // Debounce the search
+      searchTimeout = setTimeout(() => {
+        fetchSuggestions(query);
+      }, 300);
+    });
+    
+    // Handle keyboard navigation
+    searchInput.addEventListener("keydown", (e) => {
+      const suggestionsBox = $("search-suggestions");
+      if (!suggestionsBox || suggestionsBox.style.display === "none") return;
+      
+      const suggestions = suggestionsBox.querySelectorAll(".search-suggestion-item");
+      if (!suggestions.length) return;
+      
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, suggestions.length - 1);
+        updateSuggestionHighlight(suggestions);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+        updateSuggestionHighlight(suggestions);
+      } else if (e.key === "Enter" && currentSuggestionIndex >= 0) {
+        e.preventDefault();
+        suggestions[currentSuggestionIndex].click();
+      } else if (e.key === "Escape") {
+        hideSuggestions();
+      }
+    });
+    
+    // Hide suggestions when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+        hideSuggestions();
+      }
+    });
+  }
+  
+  function updateSuggestionHighlight(suggestions) {
+    suggestions.forEach((item, index) => {
+      if (index === currentSuggestionIndex) {
+        item.style.background = "rgba(0,224,255,0.2)";
+      } else {
+        item.style.background = "transparent";
+      }
+    });
+  }
+  
+  async function fetchSuggestions(query) {
+    const suggestionsBox = $("search-suggestions");
+    if (!suggestionsBox) return;
+    
+    const q = query.toLowerCase();
+    const category = activeSearchCategory;
+    
+    try {
+      let suggestions = [];
+      
+      // Fetch based on active category
+      if (category === "all" || category === "people") {
+        const { data } = await state.supabase
+          .from("community")
+          .select("id, name, bio, skills, image_url")
+          .or(`name.ilike.%${q}%,bio.ilike.%${q}%,skills.ilike.%${q}%`)
+          .limit(5);
+        
+        if (data) {
+          suggestions.push(...data.map(item => ({
+            type: "people",
+            icon: "fa-user",
+            color: "#00e0ff",
+            title: item.name,
+            subtitle: item.bio ? item.bio.substring(0, 60) + "..." : "Member",
+            image: item.image_url,
+            data: item
+          })));
+        }
+      }
+      
+      if (category === "all" || category === "organizations") {
+        const { data } = await state.supabase
+          .from("organizations")
+          .select("id, name, description, logo_url")
+          .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+          .limit(5);
+        
+        if (data) {
+          suggestions.push(...data.map(item => ({
+            type: "organizations",
+            icon: "fa-building",
+            color: "#a855f7",
+            title: item.name,
+            subtitle: item.description ? item.description.substring(0, 60) + "..." : "Organization",
+            image: item.logo_url,
+            data: item
+          })));
+        }
+      }
+      
+      if (category === "all" || category === "projects") {
+        const { data } = await state.supabase
+          .from("projects")
+          .select("id, name, description")
+          .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+          .limit(5);
+        
+        if (data) {
+          suggestions.push(...data.map(item => ({
+            type: "projects",
+            icon: "fa-lightbulb",
+            color: "#00ff88",
+            title: item.name,
+            subtitle: item.description ? item.description.substring(0, 60) + "..." : "Project",
+            data: item
+          })));
+        }
+      }
+      
+      if (category === "all" || category === "themes") {
+        const { data } = await state.supabase
+          .from("theme_circles")
+          .select("id, title, description")
+          .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
+          .limit(5);
+        
+        if (data) {
+          suggestions.push(...data.map(item => ({
+            type: "themes",
+            icon: "fa-palette",
+            color: "#ffaa00",
+            title: item.title,
+            subtitle: item.description ? item.description.substring(0, 60) + "..." : "Theme",
+            data: item
+          })));
+        }
+      }
+      
+      // Limit total suggestions
+      suggestions = suggestions.slice(0, 8);
+      
+      if (suggestions.length > 0) {
+        renderSuggestions(suggestions, query);
+      } else {
+        hideSuggestions();
+      }
+    } catch (error) {
+      console.error("Error fetching suggestions:", error);
+      hideSuggestions();
+    }
+  }
+  
+  function renderSuggestions(suggestions, query) {
+    const suggestionsBox = $("search-suggestions");
+    if (!suggestionsBox) return;
+    
+    currentSuggestionIndex = -1;
+    
+    const html = suggestions.map((item, index) => {
+      const imageHtml = item.image 
+        ? `<img src="${escapeHtml(item.image)}" 
+             style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid ${item.color};"
+             onerror="this.style.display='none'">`
+        : `<div style="width:40px; height:40px; border-radius:50%; background:${item.color}20; 
+             border:2px solid ${item.color}; display:flex; align-items:center; justify-content:center;">
+             <i class="fas ${item.icon}" style="color:${item.color}; font-size:1.2rem;"></i>
+           </div>`;
+      
+      return `
+        <div class="search-suggestion-item" data-index="${index}"
+          style="padding:0.75rem 1rem; cursor:pointer; transition:all 0.2s; 
+          border-bottom:1px solid rgba(0,224,255,0.1); display:flex; align-items:center; gap:1rem;">
+          ${imageHtml}
+          <div style="flex:1; min-width:0;">
+            <div style="color:${item.color}; font-weight:600; font-size:0.95rem; margin-bottom:0.25rem;">
+              <i class="fas ${item.icon}" style="font-size:0.85rem; margin-right:0.5rem;"></i>
+              ${highlightMatch(escapeHtml(item.title), query)}
+            </div>
+            <div style="color:#aaa; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              ${escapeHtml(item.subtitle)}
+            </div>
+          </div>
+          <i class="fas fa-arrow-right" style="color:${item.color}; opacity:0.5; font-size:0.85rem;"></i>
+        </div>
+      `;
+    }).join("");
+    
+    suggestionsBox.innerHTML = html + `
+      <div style="padding:0.75rem 1rem; text-align:center; border-top:1px solid rgba(0,224,255,0.2);">
+        <button onclick="handleSearch()" 
+          style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); 
+          padding:0.5rem 1rem; border-radius:6px; color:#00e0ff; cursor:pointer; font-weight:600; font-size:0.85rem;">
+          <i class="fas fa-search"></i> See all results for "${escapeHtml(query)}"
+        </button>
+      </div>
+    `;
+    
+    // Add click handlers
+    suggestionsBox.querySelectorAll(".search-suggestion-item").forEach((item, index) => {
+      item.addEventListener("click", () => {
+        selectSuggestion(suggestions[index]);
+      });
+      
+      item.addEventListener("mouseenter", () => {
+        currentSuggestionIndex = index;
+        updateSuggestionHighlight(suggestionsBox.querySelectorAll(".search-suggestion-item"));
+      });
+    });
+    
+    suggestionsBox.style.display = "block";
+  }
+  
+  function selectSuggestion(suggestion) {
+    const searchInput = $("global-search");
+    if (searchInput) {
+      searchInput.value = suggestion.title;
+    }
+    
+    hideSuggestions();
+    handleSearch();
+  }
+  
+  function hideSuggestions() {
+    const suggestionsBox = $("search-suggestions");
+    if (suggestionsBox) {
+      suggestionsBox.style.display = "none";
+      suggestionsBox.innerHTML = "";
+    }
+    currentSuggestionIndex = -1;
+  }
+  
+  function highlightMatch(text, query) {
+    if (!query) return text;
+    const regex = new RegExp(`(${query})`, "gi");
+    return text.replace(regex, '<span style="background:rgba(0,224,255,0.3); padding:0 2px; border-radius:2px;">$1</span>');
   }
 
   async function renderSearchResults(query, category = "all") {
