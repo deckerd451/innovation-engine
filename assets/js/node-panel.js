@@ -202,27 +202,42 @@ async function renderThemeLensPanel(themeData) {
   const { name, description, tags, expires_at, relatedProjects, onClearFocus } = themeData;
 
   // Get current user info
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: currentUserProfile } = await supabase
-    .from('community')
-    .select('id')
-    .eq('user_id', user?.id)
-    .single();
+  let currentUserCommunityId = null;
+  let isCreator = false;
+  let isParticipant = false;
   
-  const currentUserCommunityId = currentUserProfile?.id;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: currentUserProfile } = await supabase
+        .from('community')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      
+      currentUserCommunityId = currentUserProfile?.id;
 
-  // Check if user created this theme
-  const isCreator = themeData.created_by === currentUserCommunityId;
-  
-  // Check if user is a participant
-  const { data: participation } = await supabase
-    .from('theme_participants')
-    .select('id')
-    .eq('theme_id', themeData.id)
-    .eq('community_id', currentUserCommunityId)
-    .single();
-  
-  const isParticipant = !!participation;
+      // Check if user created this theme
+      isCreator = themeData.created_by === currentUserCommunityId;
+      
+      // Check if user is a participant (handle table not existing)
+      try {
+        const { data: participation } = await supabase
+          .from('theme_participants')
+          .select('id')
+          .eq('theme_id', themeData.id)
+          .eq('community_id', currentUserCommunityId)
+          .maybeSingle();
+        
+        isParticipant = !!participation;
+      } catch (err) {
+        console.warn('theme_participants table may not exist:', err);
+        isParticipant = false;
+      }
+    }
+  } catch (error) {
+    console.error('Error checking user status:', error);
+  }
 
   // Calculate time remaining
   const now = Date.now();
@@ -263,8 +278,17 @@ async function renderThemeLensPanel(themeData) {
         </div>
       ` : ''}
       
-      ${isParticipant || isCreator ? `
+      ${currentUserCommunityId ? `
         <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+          ${!isParticipant && !isCreator ? `
+            <button onclick="joinTheme('${themeData.id}', '${escapeHtml(name)}')"
+              onmouseover="this.style.background='linear-gradient(135deg, rgba(0,224,255,0.3), rgba(0,224,255,0.2))'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)';"
+              onmouseout="this.style.background='linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1))'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+              style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1)); border: 1px solid rgba(0,224,255,0.4); 
+              border-radius: 8px; color: #00e0ff; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;">
+              <i class="fas fa-user-plus"></i> Join Theme
+            </button>
+          ` : ''}
           ${isCreator ? `
             <button onclick="deleteTheme('${themeData.id}', '${escapeHtml(name)}')"
               onmouseover="this.style.background='rgba(255,68,68,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,68,68,0.3)';"
@@ -2446,6 +2470,63 @@ async function createProjectInTheme(themeId, themeName) {
     alert("Failed to open project creation form. Please try again.");
   }
 }
+
+// Join theme function
+window.joinTheme = async function(themeId, themeName) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('Please log in to join themes');
+      return;
+    }
+    
+    const { data: userProfile } = await supabase
+      .from('community')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!userProfile) {
+      alert('Profile not found');
+      return;
+    }
+    
+    // Add to theme_participants
+    const { error } = await supabase
+      .from('theme_participants')
+      .insert({
+        theme_id: themeId,
+        community_id: userProfile.id,
+        engagement_level: 'participating',
+        joined_at: new Date().toISOString()
+      });
+    
+    if (error) {
+      if (error.code === '23505') {
+        showToastNotification('You are already a member of this theme', 'info');
+      } else {
+        throw error;
+      }
+      return;
+    }
+    
+    showToastNotification(`✓ You've joined "${themeName}"!`, 'success');
+    
+    // Close panel and refresh
+    closeNodePanel();
+    
+    // Reload synapse data if available
+    if (window.reloadAllData) {
+      await window.reloadAllData();
+      if (window.rebuildGraph) {
+        await window.rebuildGraph();
+      }
+    }
+  } catch (error) {
+    console.error('Error joining theme:', error);
+    alert('Failed to join theme. Please try again.');
+  }
+};
 
 // Leave theme function
 window.leaveTheme = async function(themeId, themeName) {
