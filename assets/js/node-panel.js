@@ -2502,8 +2502,18 @@ window.joinTheme = async function(themeId, themeName) {
       });
     
     if (error) {
+      console.error('Join theme error:', error);
+      
+      // Check if table doesn't exist
+      if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+        alert('Theme participation feature is not yet set up in the database.\n\nPlease contact an administrator to run the theme_participants migration.');
+        return;
+      }
+      
       if (error.code === '23505') {
         showToastNotification('You are already a member of this theme', 'info');
+      } else if (error.code === '23503') {
+        alert('Invalid theme or user ID. Please refresh and try again.');
       } else {
         throw error;
       }
