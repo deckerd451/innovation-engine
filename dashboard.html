@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>CharlestonHacks Innovation Engine</title>
   <link rel="icon" href="favicon.ico"/>
 
@@ -51,6 +51,23 @@
       width: 100vw !important;
       height: 100vh !important;
       overflow: hidden !important;
+      overflow-x: hidden !important;
+      position: fixed !important;
+      touch-action: pan-y pinch-zoom !important;
+    }
+
+    /* Prevent input zoom and keyboard-induced scrolling on mobile */
+    input, textarea, select {
+      font-size: 16px !important; /* Prevents iOS zoom on focus */
+    }
+
+    /* Prevent keyboard from causing horizontal scroll */
+    @supports (-webkit-touch-callout: none) {
+      /* iOS-specific fix */
+      body {
+        position: fixed !important;
+        width: 100% !important;
+      }
     }
 
     /* Override any pseudo-elements */
@@ -138,9 +155,32 @@
 
     /* Responsive mentor nav */
     @media (max-width: 768px) {
+      /* CRITICAL: Prevent horizontal scroll on mobile */
+      html, body {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        position: fixed !important;
+        width: 100% !important;
+      }
+
+      #main-content,
+      .unified-main,
+      #synapse-main-view,
+      #synapse-svg {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        width: 100% !important;
+      }
+
+      /* Ensure all absolutely positioned elements stay within viewport */
+      #main-content > div {
+        max-width: 100vw !important;
+      }
+
       #mentor-nav {
         bottom: 98px !important;
         width: 95vw !important;
+        max-width: 95vw !important;
         padding: 0.4rem !important;
         gap: 0.3rem !important;
       }
@@ -350,33 +390,50 @@
       #centered-search-container {
         bottom: 20px !important; /* Move to bottom with more space */
         width: calc(100vw - 20px) !important;
+        max-width: calc(100vw - 20px) !important;
         left: 10px !important;
+        right: 10px !important;
         transform: none !important;
+        box-sizing: border-box !important;
       }
 
       #centered-search-container > div:first-child {
         flex-wrap: wrap !important;
         gap: 0.35rem !important;
         justify-content: flex-start !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
       }
 
       .search-category-btn {
         padding: 0.35rem 0.65rem !important;
         font-size: 0.7rem !important;
+        white-space: nowrap !important;
       }
 
       #centered-search-container > div:nth-child(2) {
         padding: 0.5rem 0.75rem !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
       }
 
       #global-search {
         padding: 0.6rem 4rem 0.6rem 2.5rem !important;
-        font-size: 0.85rem !important;
+        font-size: 16px !important; /* Prevents iOS zoom */
+        max-width: 100% !important;
+        box-sizing: border-box !important;
       }
 
       #search-button {
         padding: 0.5rem 0.75rem !important;
         font-size: 0.85rem !important;
+      }
+
+      /* Prevent keyboard from causing horizontal scroll */
+      body.keyboard-open {
+        position: fixed !important;
+        width: 100% !important;
+        overflow: hidden !important;
       }
 
       /* START button - compact */
@@ -523,7 +580,7 @@
   </div>
 
   <!-- Main -->
-  <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000;">
+  <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000; width: 100vw; height: 100vh; max-width: 100vw; touch-action: pan-y pinch-zoom;">
     <!-- Header Elements (No Background Bar) -->
     <div style="position:absolute; top:20px; left:20px; z-index:1000;">
       <a href="https://charlestonhacks.com/" style="display:flex; align-items:center; text-decoration:none;">
@@ -711,8 +768,8 @@
       </div>
     </div>
 
-    <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000;">
-      <svg id="synapse-svg" style="width:100%; height:100%; background: #000000;"></svg>
+    <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000; overflow: hidden; touch-action: pan-y pinch-zoom;">
+      <svg id="synapse-svg" style="width:100%; height:100%; background: #000000; touch-action: none;"></svg>
     </div>
 
     <!-- Centered Round START Button with Background Panel -->
@@ -748,10 +805,10 @@
     <!-- Search Field (Bottom Center) -->
     <div id="centered-search-container"
       style="position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
-      width:min(700px, 85vw); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
+      width:min(700px, 85vw); max-width:min(700px, 85vw); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
 
       <!-- Category Filter Buttons -->
-      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center; max-width:100%;">
         <button class="search-category-btn" data-category="all"
           style="padding:0.5rem 1rem; background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; border-radius:20px;
           color:white; cursor:pointer; font-weight:600; font-size:0.8rem; transition:all 0.2s;">
@@ -785,13 +842,13 @@
       </div>
 
       <!-- Search Input -->
-      <div style="position: relative; width:100%; background:rgba(10,14,39,0.6); padding:0.75rem 1rem; border-radius:12px;
+      <div style="position: relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); padding:0.75rem 1rem; border-radius:12px;
         border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
         <i class="fas fa-search"
            style="position:absolute; left:1.5rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; z-index:1;"></i>
         <input type="text" id="global-search" placeholder="Search everything..."
           style="width:100%; padding:0.75rem 5rem 0.75rem 3rem; background:rgba(0,0,0,0.4);
-          border:1px solid rgba(0,224,255,0.3); border-radius:8px; color:#fff; font-size:0.95rem; outline:none;">
+          border:1px solid rgba(0,224,255,0.3); border-radius:8px; color:#fff; font-size:16px; outline:none;">
         <button id="search-button"
           style="position:absolute; right:1.25rem; top:50%; transform:translateY(-50%);
           background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.6rem 1rem; border-radius:8px;
@@ -1298,6 +1355,37 @@
   <!-- START Button Logic -->
   <script>
     (function() {
+      // Prevent horizontal scroll when keyboard appears on mobile
+      const preventHorizontalScroll = () => {
+        document.documentElement.style.overflowX = 'hidden';
+        document.body.style.overflowX = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+      };
+
+      // Handle input focus to prevent scroll issues
+      const searchInput = document.getElementById('global-search');
+      if (searchInput) {
+        searchInput.addEventListener('focus', () => {
+          preventHorizontalScroll();
+          // Prevent viewport from shifting
+          window.scrollTo(0, 0);
+        });
+
+        searchInput.addEventListener('blur', () => {
+          preventHorizontalScroll();
+          window.scrollTo(0, 0);
+        });
+      }
+
+      // Continuously enforce no horizontal scroll
+      setInterval(preventHorizontalScroll, 100);
+
+      // Prevent any scroll on window
+      window.addEventListener('scroll', (e) => {
+        window.scrollTo(0, 0);
+      }, { passive: false });
+
       const startContainer = document.getElementById('start-button-container');
       const startBtn = document.getElementById('btn-start-center');
       const exploreBtn = document.getElementById('btn-explore-cancel');
