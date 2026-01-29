@@ -846,11 +846,79 @@
         <!-- Predictive Search Suggestions Dropdown -->
         <div id="search-suggestions" style="display:none; position:absolute; top:calc(100% + 0.5rem); left:1rem; right:1rem;
           background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px;
-          max-height:400px; overflow-y:auto; z-index:1000; box-shadow:0 8px 32px rgba(0,224,255,0.3);
+          max-height:min(400px, 60vh); overflow-y:auto; z-index:1000; box-shadow:0 8px 32px rgba(0,224,255,0.3);
           backdrop-filter:blur(20px);">
           <!-- Suggestions will be populated here -->
         </div>
       </div>
+      
+      <style>
+        /* Responsive styles for search suggestions */
+        @media (max-width: 768px) {
+          #search-suggestions {
+            left: 0.5rem !important;
+            right: 0.5rem !important;
+            max-height: min(350px, 50vh) !important;
+            font-size: 0.9rem;
+          }
+          
+          .search-suggestion-item {
+            padding: 0.6rem 0.75rem !important;
+          }
+          
+          .search-suggestion-item img,
+          .search-suggestion-item > div:first-child {
+            width: 35px !important;
+            height: 35px !important;
+          }
+          
+          .search-suggestion-item .fas.fa-arrow-right {
+            display: none !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          #search-suggestions {
+            max-height: min(300px, 45vh) !important;
+            font-size: 0.85rem;
+          }
+          
+          .search-suggestion-item {
+            padding: 0.5rem !important;
+            gap: 0.75rem !important;
+          }
+          
+          .search-suggestion-item img,
+          .search-suggestion-item > div:first-child {
+            width: 32px !important;
+            height: 32px !important;
+          }
+        }
+        
+        /* Smooth scrolling for suggestions */
+        #search-suggestions {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(0,224,255,0.3) rgba(0,0,0,0.2);
+        }
+        
+        #search-suggestions::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        #search-suggestions::-webkit-scrollbar-track {
+          background: rgba(0,0,0,0.2);
+          border-radius: 10px;
+        }
+        
+        #search-suggestions::-webkit-scrollbar-thumb {
+          background: rgba(0,224,255,0.3);
+          border-radius: 10px;
+        }
+        
+        #search-suggestions::-webkit-scrollbar-thumb:hover {
+          background: rgba(0,224,255,0.5);
+        }
+      </style>
     </div>
   </div>
 

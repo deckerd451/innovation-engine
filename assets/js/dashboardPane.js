@@ -1265,20 +1265,24 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     
     currentSuggestionIndex = -1;
     
+    // Check if mobile
+    const isMobile = window.innerWidth <= 768;
+    
     const html = suggestions.map((item, index) => {
       const imageHtml = item.image 
         ? `<img src="${escapeHtml(item.image)}" 
-             style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid ${item.color};"
+             style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid ${item.color}; flex-shrink:0;"
              onerror="this.style.display='none'">`
         : `<div style="width:40px; height:40px; border-radius:50%; background:${item.color}20; 
-             border:2px solid ${item.color}; display:flex; align-items:center; justify-content:center;">
+             border:2px solid ${item.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
              <i class="fas ${item.icon}" style="color:${item.color}; font-size:1.2rem;"></i>
            </div>`;
       
       return `
         <div class="search-suggestion-item" data-index="${index}"
           style="padding:0.75rem 1rem; cursor:pointer; transition:all 0.2s; 
-          border-bottom:1px solid rgba(0,224,255,0.1); display:flex; align-items:center; gap:1rem;">
+          border-bottom:1px solid rgba(0,224,255,0.1); display:flex; align-items:center; gap:1rem;
+          ${isMobile ? 'min-height:60px;' : ''}">
           ${imageHtml}
           <div style="flex:1; min-width:0;">
             <div style="color:${item.color}; font-weight:600; font-size:0.95rem; margin-bottom:0.25rem;">
@@ -1289,7 +1293,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
               ${escapeHtml(item.subtitle)}
             </div>
           </div>
-          <i class="fas fa-arrow-right" style="color:${item.color}; opacity:0.5; font-size:0.85rem;"></i>
+          ${!isMobile ? `<i class="fas fa-arrow-right" style="color:${item.color}; opacity:0.5; font-size:0.85rem;"></i>` : ''}
         </div>
       `;
     }).join("");
@@ -1298,7 +1302,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       <div style="padding:0.75rem 1rem; text-align:center; border-top:1px solid rgba(0,224,255,0.2);">
         <button onclick="handleSearch()" 
           style="background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); 
-          padding:0.5rem 1rem; border-radius:6px; color:#00e0ff; cursor:pointer; font-weight:600; font-size:0.85rem;">
+          padding:${isMobile ? '0.6rem 1.2rem' : '0.5rem 1rem'}; border-radius:6px; color:#00e0ff; cursor:pointer; 
+          font-weight:600; font-size:0.85rem; width:${isMobile ? '100%' : 'auto'};">
           <i class="fas fa-search"></i> See all results for "${escapeHtml(query)}"
         </button>
       </div>
@@ -1310,10 +1315,25 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         selectSuggestion(suggestions[index]);
       });
       
-      item.addEventListener("mouseenter", () => {
-        currentSuggestionIndex = index;
-        updateSuggestionHighlight(suggestionsBox.querySelectorAll(".search-suggestion-item"));
-      });
+      // Only add hover effects on non-touch devices
+      if (!isMobile) {
+        item.addEventListener("mouseenter", () => {
+          currentSuggestionIndex = index;
+          updateSuggestionHighlight(suggestionsBox.querySelectorAll(".search-suggestion-item"));
+        });
+      }
+      
+      // Add touch feedback for mobile
+      if (isMobile) {
+        item.addEventListener("touchstart", () => {
+          item.style.background = "rgba(0,224,255,0.15)";
+        });
+        item.addEventListener("touchend", () => {
+          setTimeout(() => {
+            item.style.background = "transparent";
+          }, 200);
+        });
+      }
     });
     
     suggestionsBox.style.display = "block";
