@@ -1031,7 +1031,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       'people': 'person',
       'projects': 'project',
       'organizations': 'organization',
-      'skills': 'skill'
+      'themes': 'theme'
     };
     return typeMap[category] || null;
   }
@@ -1042,7 +1042,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       people: { gradient: "#00e0ff, #0080ff", bg: "rgba(0,224,255,0.15)", border: "1px solid rgba(0,224,255,0.3)", text: "#00e0ff" },
       organizations: { gradient: "#a855f7, #8b3fd9", bg: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", text: "#a855f7" },
       projects: { gradient: "#00ff88, #00cc6a", bg: "rgba(0,255,136,0.15)", border: "1px solid rgba(0,255,136,0.3)", text: "#00ff88" },
-      skills: { gradient: "#ff6b6b, #ee5555", bg: "rgba(255,107,107,0.15)", border: "1px solid rgba(255,107,107,0.3)", text: "#ff6b6b" }
+      themes: { gradient: "#ffaa00, #ff8800", bg: "rgba(255,170,0,0.15)", border: "1px solid rgba(255,170,0,0.3)", text: "#ffaa00" }
     };
     return colors[category] || colors.all;
   }
@@ -1050,10 +1050,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   function getPlaceholderText(category) {
     const placeholders = {
       all: "Search everything...",
-      people: "Search people by name or bio...",
+      people: "Search people by name, bio, or skill...",
       organizations: "Search organizations...",
       projects: "Search projects...",
-      skills: "Search by skill name..."
+      themes: "Search themes..."
     };
     return placeholders[category] || placeholders.all;
   }

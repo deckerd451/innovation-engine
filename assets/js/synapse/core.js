@@ -246,7 +246,7 @@ export function filterSynapseByCategory(category) {
       'people': 'person',
       'projects': 'project',
       'organizations': 'organization',
-      'skills': 'skill'
+      'themes': 'theme'
     };
     const targetType = typeMap[category];
     
@@ -255,7 +255,7 @@ export function filterSynapseByCategory(category) {
       return;
     }
     
-    // Filter nodes
+    // Filter nodes - only show nodes of the target type
     nodeEls
       .transition()
       .duration(300)
@@ -272,6 +272,7 @@ export function filterSynapseByCategory(category) {
         const targetType = typeof d.target === 'object' ? d.target.type : 
                           nodes.find(n => n.id === d.target)?.type;
         
+        // Show link if either end connects to a visible node
         const sourceVisible = sourceType === targetType;
         const targetVisible = targetType === targetType;
         
@@ -285,7 +286,7 @@ export function filterSynapseByCategory(category) {
       });
   }
   
-  console.log(`✅ Filter applied: ${category}`);
+  console.log(`✅ Filter applied: ${category} (showing only ${typeMap[category] || 'all'} nodes)`);
 }
 
 export function getSynapseStats() {
