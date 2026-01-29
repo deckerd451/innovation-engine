@@ -435,6 +435,10 @@ function toggleViewControls() {
 
 // Create mobile filter FAB button
 function createMobileFilterFAB() {
+  // DISABLED: Filter View panel removed per user request
+  console.log('ℹ️ Mobile filter FAB disabled - using category buttons for filtering');
+  return;
+  
   // Remove existing FAB if present
   const existingFAB = document.getElementById('mobile-filter-fab');
   if (existingFAB) return;
@@ -486,6 +490,11 @@ function createMobileFilterFAB() {
 let legendCollapsed = true; // Start collapsed to give more space to synapse view
 
 function createSynapseLegend() {
+  // DISABLED: Filter View panel removed per user request
+  // Category filtering is now handled by the search category buttons at the bottom
+  console.log('ℹ️ Filter View panel disabled - using category buttons for filtering');
+  return;
+  
   // Remove existing legend if present
   const existingLegend = document.getElementById('synapse-legend-overlay');
   if (existingLegend) return; // Already exists

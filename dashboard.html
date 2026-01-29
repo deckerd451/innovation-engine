@@ -346,6 +346,17 @@
         font-size: 1rem !important;
       }
 
+      /* Refresh button - compact */
+      #btn-refresh-network {
+        width: 40px !important;
+        height: 40px !important;
+        padding: 0.5rem !important;
+      }
+
+      #btn-refresh-network i {
+        font-size: 1rem !important;
+      }
+
       /* Admin crown - compact */
       #btn-admin-top {
         width: 40px !important;
@@ -453,34 +464,6 @@
       #btn-explore-cancel {
         font-size: 0.85rem !important;
         padding: 0.6rem 1.2rem !important;
-      }
-
-      /* Mobile filter FAB - move to top-right area */
-      #mobile-filter-fab {
-        position: fixed !important;
-        top: 60px !important;
-        right: 10px !important;
-        bottom: auto !important;
-        width: 48px !important;
-        height: 48px !important;
-        background: rgba(0,224,255,0.3) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 2px solid rgba(0,224,255,0.5) !important;
-        border-radius: 50% !important;
-        color: #00e0ff !important;
-        font-size: 1.3rem !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        cursor: pointer !important;
-        box-shadow: 0 4px 20px rgba(0,224,255,0.3) !important;
-        z-index: 1000 !important;
-        transition: all 0.3s ease !important;
-      }
-
-      #mobile-filter-fab:active {
-        transform: scale(0.95) !important;
-        background: rgba(0,224,255,0.5) !important;
       }
 
       /* Hide badges on mobile - they'll show in profile view */
@@ -619,6 +602,14 @@
         <span class="notification-badge hidden" id="notif-count"
           style="position:absolute; top:-5px; right:-5px; background:#ff3b30; color:white;
           font-size:0.7rem; font-weight:bold; padding:2px 6px; border-radius:10px; min-width:18px; text-align:center;">0</span>
+      </div>
+
+      <!-- Refresh Network Button -->
+      <div id="btn-refresh-network" style="cursor:pointer; padding:0.75rem; background:rgba(0,224,255,0.1);
+        border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:48px; height:48px;
+        display:flex; align-items:center; justify-content:center; position:relative;"
+        title="Refresh network view">
+        <i class="fas fa-sync-alt" id="refresh-icon-header" style="color:#00e0ff; font-size:1.2rem;"></i>
       </div>
 
       <!-- Admin Panel Button (Hidden by default, same size as bell) -->
@@ -828,11 +819,6 @@
           style="padding:0.5rem 1rem; background:rgba(0,255,136,0.15); border:1px solid rgba(0,255,136,0.3); border-radius:20px;
           color:#00ff88; cursor:pointer; font-weight:600; font-size:0.8rem; transition:all 0.2s;">
           <i class="fas fa-lightbulb"></i> Projects
-        </button>
-        <button class="search-category-btn" data-category="themes"
-          style="padding:0.5rem 1rem; background:rgba(255,170,0,0.15); border:1px solid rgba(255,170,0,0.3); border-radius:20px;
-          color:#ffaa00; cursor:pointer; font-weight:600; font-size:0.8rem; transition:all 0.2s;">
-          <i class="fas fa-palette"></i> Themes
         </button>
         <button class="search-category-btn" data-category="skills"
           style="padding:0.5rem 1rem; background:rgba(255,107,107,0.15); border:1px solid rgba(255,107,107,0.3); border-radius:20px;
@@ -1464,6 +1450,43 @@
   <!-- User Dropdown Menu Logic -->
   <script>
     (function() {
+      // Wire up refresh network button
+      const refreshBtn = document.getElementById('btn-refresh-network');
+      const refreshIcon = document.getElementById('refresh-icon-header');
+      
+      if (refreshBtn && refreshIcon) {
+        refreshBtn.addEventListener('click', () => {
+          console.log('🔄 Refreshing network view...');
+          
+          // Add spinning animation
+          refreshIcon.style.animation = 'spin 1s linear infinite';
+          
+          // Trigger network refresh
+          if (typeof window.refreshSynapseView === 'function') {
+            window.refreshSynapseView();
+          } else if (typeof window.renderSynapse === 'function') {
+            window.renderSynapse();
+          } else {
+            console.warn('⚠️ No refresh function available');
+          }
+          
+          // Stop spinning after 1 second
+          setTimeout(() => {
+            refreshIcon.style.animation = '';
+          }, 1000);
+        });
+      }
+
+      // Add spin animation
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+
       let isDropdownOpen = false;
 
       // Wait for DOM to be fully loaded and other scripts to initialize

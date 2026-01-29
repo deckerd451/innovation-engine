@@ -1003,11 +1003,67 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         if (searchInput) {
           searchInput.placeholder = getPlaceholderText(activeSearchCategory);
         }
+
+        // Filter the synapse view based on category
+        filterSynapseByCategory(activeSearchCategory);
       });
     });
     
     // Initialize button styles on load
     updateButtonStyles();
+  }
+
+  // Filter synapse view by category
+  function filterSynapseByCategory(category) {
+    console.log(`🔍 Filtering synapse view by category: ${category}`);
+    
+    // Get all nodes and links in the synapse
+    const svg = d3.select('#synapse-svg');
+    const nodes = svg.selectAll('.node');
+    const links = svg.selectAll('.link');
+    
+    if (category === 'all') {
+      // Show everything
+      nodes.style('opacity', 1).style('pointer-events', 'auto');
+      links.style('opacity', 0.6);
+    } else {
+      // Filter based on category
+      nodes.each(function(d) {
+        const node = d3.select(this);
+        let shouldShow = false;
+        
+        if (category === 'people' && d.type === 'person') {
+          shouldShow = true;
+        } else if (category === 'projects' && d.type === 'project') {
+          shouldShow = true;
+        } else if (category === 'organizations' && d.type === 'organization') {
+          shouldShow = true;
+        } else if (category === 'skills' && d.type === 'skill') {
+          shouldShow = true;
+        }
+        
+        node.style('opacity', shouldShow ? 1 : 0.1)
+            .style('pointer-events', shouldShow ? 'auto' : 'none');
+      });
+      
+      // Dim links that don't connect to visible nodes
+      links.style('opacity', function(d) {
+        const sourceVisible = d.source.type === getCategoryType(category) || 
+                             d.target.type === getCategoryType(category);
+        return sourceVisible ? 0.6 : 0.05;
+      });
+    }
+  }
+
+  // Helper to convert category name to node type
+  function getCategoryType(category) {
+    const typeMap = {
+      'people': 'person',
+      'projects': 'project',
+      'organizations': 'organization',
+      'skills': 'skill'
+    };
+    return typeMap[category] || null;
   }
 
   function getCategoryColor(category) {
@@ -1016,7 +1072,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       people: { gradient: "#00e0ff, #0080ff", bg: "rgba(0,224,255,0.15)", border: "1px solid rgba(0,224,255,0.3)", text: "#00e0ff" },
       organizations: { gradient: "#a855f7, #8b3fd9", bg: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", text: "#a855f7" },
       projects: { gradient: "#00ff88, #00cc6a", bg: "rgba(0,255,136,0.15)", border: "1px solid rgba(0,255,136,0.3)", text: "#00ff88" },
-      themes: { gradient: "#ffaa00, #ff8800", bg: "rgba(255,170,0,0.15)", border: "1px solid rgba(255,170,0,0.3)", text: "#ffaa00" },
       skills: { gradient: "#ff6b6b, #ee5555", bg: "rgba(255,107,107,0.15)", border: "1px solid rgba(255,107,107,0.3)", text: "#ff6b6b" }
     };
     return colors[category] || colors.all;
@@ -1028,7 +1083,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       people: "Search people by name or bio...",
       organizations: "Search organizations...",
       projects: "Search projects...",
-      themes: "Search themes...",
       skills: "Search by skill name..."
     };
     return placeholders[category] || placeholders.all;
