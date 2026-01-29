@@ -514,11 +514,28 @@ async function renderPersonPanel(nodeData) {
   const mutualConnections = await getMutualConnections(profile.id);
 
   // Get endorsements
-  const { data: endorsements } = await supabase
+  const { data: endorsementsData } = await supabase
     .from('endorsements')
-    .select('skill, endorser:community!endorsements_endorser_community_id_fkey(name)')
+    .select('skill, endorser_community_id')
     .eq('endorsed_community_id', profile.id)
     .limit(5);
+  
+  // Fetch endorser names
+  let endorsements = [];
+  if (endorsementsData && endorsementsData.length > 0) {
+    const endorserIds = [...new Set(endorsementsData.map(e => e.endorser_community_id))];
+    const { data: endorserProfiles } = await supabase
+      .from('community')
+      .select('id, name')
+      .in('id', endorserIds);
+    
+    const profileMap = {};
+    (endorserProfiles || []).forEach(p => profileMap[p.id] = p);
+    endorsements = endorsementsData.map(e => ({
+      skill: e.skill,
+      endorser: profileMap[e.endorser_community_id]
+    }));
+  }
 
   // Get shared projects
   const sharedProjects = await getSharedProjects(profile.id);
@@ -1255,9 +1272,9 @@ window.confirmEndorsement = async function(userId, skill, userName, button) {
     const { error } = await supabase
       .from('endorsements')
       .insert({
-        endorser_id: user.id,
+        endorser_id: endorserProfile.id,           // Fixed: use community ID
         endorser_community_id: endorserProfile.id,
-        endorsed_id: userId,
+        endorsed_id: userId,                        // userId is already community.id from button
         endorsed_community_id: userId,
         skill: skill
       });

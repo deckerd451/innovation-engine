@@ -423,11 +423,34 @@ const EndorsementsModule = (function() {
     if (!currentUser) return [];
     
     try {
+      // Get community IDs from user IDs
+      const { data: endorserProfile, error: endorserError } = await window.supabase
+        .from('community')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .single();
+      
+      if (endorserError) {
+        console.error('Error getting endorser profile:', endorserError);
+        return [];
+      }
+      
+      const { data: endorsedProfile, error: endorsedError } = await window.supabase
+        .from('community')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+      
+      if (endorsedError) {
+        console.error('Error getting endorsed profile:', endorsedError);
+        return [];
+      }
+      
       const { data, error } = await window.supabase
         .from('endorsements')
         .select('skill')
-        .eq('endorser_id', currentUser.id)
-        .eq('endorsed_id', userId);
+        .eq('endorser_id', endorserProfile.id)
+        .eq('endorsed_id', endorsedProfile.id);
       
       if (error) {
         console.error('Error getting endorsed skills:', error);
@@ -458,10 +481,22 @@ const EndorsementsModule = (function() {
   // Get skill endorsements
   async function getSkillEndorsements(userId) {
     try {
+      // Get community ID from user ID
+      const { data: endorsedProfile, error: profileError } = await window.supabase
+        .from('community')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+      
+      if (profileError) {
+        console.error('Error getting endorsed profile:', profileError);
+        return {};
+      }
+      
       const { data, error } = await window.supabase
         .from('endorsements')
         .select('skill, endorser_id, endorser_community_id, created_at')
-        .eq('endorsed_id', userId);
+        .eq('endorsed_id', endorsedProfile.id);
       
       if (error) throw error;
       

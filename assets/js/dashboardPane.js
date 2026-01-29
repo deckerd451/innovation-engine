@@ -1090,7 +1090,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     try {
       const q = query.toLowerCase();
-      let people = null, organizations = null, projects = null, themes = null, skillMatches = null;
+      let people = null, organizations = null, projects = null, themes = null;
 
       // Search based on category
       if (category === "all" || category === "people") {
@@ -1270,16 +1270,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         
         // Setup tab switching after rendering
         setTimeout(() => setupThemeSearchTabs(), 100);
-      }
-
-      // Render Skills section (people with matching skills)
-      if (filteredSkillMatches && filteredSkillMatches.length > 0) {
-        html += `<div style="margin-bottom:2rem;">
-          <h3 style="color:#ff6b6b; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-            <i class="fas fa-code"></i> People with Skill: "${escapeHtml(query)}" (${filteredSkillMatches.length})
-          </h3>
-          ${filteredSkillMatches.map((p) => personCard(p)).join("")}
-        </div>`;
       }
 
       list.innerHTML = html;
@@ -3028,20 +3018,58 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     }
 
     try {
-      let query;
+      let data, error;
+      
       if (type === "received") {
-        query = state.supabase
+        // Get endorsements received
+        const result = await state.supabase
           .from("endorsements")
-          .select(`*, endorser:community!endorsements_endorser_community_id_fkey(id, name, image_url, bio)`)
-          .eq("endorsed_community_id", state.communityProfile.id);
+          .select("*")
+          .eq("endorsed_community_id", state.communityProfile.id)
+          .order("created_at", { ascending: false });
+        
+        data = result.data;
+        error = result.error;
+        
+        // Fetch endorser profiles
+        if (data && data.length > 0) {
+          const endorserIds = [...new Set(data.map(e => e.endorser_community_id))];
+          const { data: profiles } = await state.supabase
+            .from("community")
+            .select("id, name, image_url, bio")
+            .in("id", endorserIds);
+          
+          // Map profiles to endorsements
+          const profileMap = {};
+          (profiles || []).forEach(p => profileMap[p.id] = p);
+          data = data.map(e => ({ ...e, endorser: profileMap[e.endorser_community_id] }));
+        }
       } else {
-        query = state.supabase
+        // Get endorsements given
+        const result = await state.supabase
           .from("endorsements")
-          .select(`*, endorsed:community!endorsements_endorsed_community_id_fkey(id, name, image_url, bio)`)
-          .eq("endorser_community_id", state.communityProfile.id);
+          .select("*")
+          .eq("endorser_community_id", state.communityProfile.id)
+          .order("created_at", { ascending: false });
+        
+        data = result.data;
+        error = result.error;
+        
+        // Fetch endorsed profiles
+        if (data && data.length > 0) {
+          const endorsedIds = [...new Set(data.map(e => e.endorsed_community_id))];
+          const { data: profiles } = await state.supabase
+            .from("community")
+            .select("id, name, image_url, bio")
+            .in("id", endorsedIds);
+          
+          // Map profiles to endorsements
+          const profileMap = {};
+          (profiles || []).forEach(p => profileMap[p.id] = p);
+          data = data.map(e => ({ ...e, endorsed: profileMap[e.endorsed_community_id] }));
+        }
       }
-
-      const { data, error } = await query.order("created_at", { ascending: false });
+      
       if (error) throw error;
 
       if (!data || data.length === 0) {
