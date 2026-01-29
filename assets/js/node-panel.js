@@ -2522,7 +2522,7 @@ window.joinTheme = async function(themeId, themeName) {
       .insert({
         theme_id: cleanThemeId,
         community_id: userProfile.id,
-        engagement_level: 'exploring',  // Changed from 'participating' to 'exploring'
+        engagement_level: 'interested',  // Use 'interested' - one of the allowed values
         joined_at: new Date().toISOString()
       });
     
