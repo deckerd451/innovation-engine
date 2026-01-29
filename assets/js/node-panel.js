@@ -554,6 +554,26 @@ async function renderPersonPanel(nodeData) {
 
         ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
 
+        <!-- Level and Streak Badges (shown on mobile, hidden on desktop) -->
+        ${profile.id === currentUserProfile?.id ? `
+          <div class="mobile-only-badges" style="display: none; gap: 0.75rem; justify-content: center; margin: 1rem 0; flex-wrap: wrap;">
+            <!-- Level Badge -->
+            <div style="padding: 0.5rem 1rem; background: rgba(0,224,255,0.15); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; display: flex; flex-direction: column; align-items: center; min-width: 120px;">
+              <div style="color: #00e0ff; font-size: 0.75rem; font-weight: 600;">Level 6</div>
+              <div style="color: #aaa; font-size: 0.65rem;">Leader</div>
+              <div style="color: #888; font-size: 0.6rem; margin-top: 0.25rem;">2173 / 5000 XP</div>
+            </div>
+            <!-- Streak Badge -->
+            <div style="padding: 0.5rem 1rem; background: rgba(255,59,48,0.15); border: 1px solid rgba(255,59,48,0.3); border-radius: 8px; display: flex; align-items: center; gap: 0.5rem; min-width: 140px;">
+              <i class="fas fa-fire" style="color: #ff3b30; font-size: 1rem;"></i>
+              <div style="display: flex; flex-direction: column;">
+                <div style="color: #ff3b30; font-size: 0.85rem; font-weight: 700;">25 Day Streak</div>
+                <div style="color: #ff8a80; font-size: 0.6rem;">Keep it going!</div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
         ${profile.availability ? `
           <div style="display: inline-block; background: rgba(0,255,136,0.2); color: #00ff88; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; margin-bottom: 1rem;">
             <i class="fas fa-circle" style="font-size: 0.5rem;"></i> ${profile.availability}

@@ -418,22 +418,35 @@
         right: 15px !important;
         width: 56px !important;
         height: 56px !important;
-        background: linear-gradient(135deg, #00e0ff, #0080ff) !important;
-        border: none !important;
+        background: rgba(0,224,255,0.3) !important; /* Semi-transparent */
+        backdrop-filter: blur(10px) !important;
+        border: 2px solid rgba(0,224,255,0.5) !important;
         border-radius: 50% !important;
-        color: #000 !important;
+        color: #00e0ff !important;
         font-size: 1.5rem !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         cursor: pointer !important;
-        box-shadow: 0 4px 20px rgba(0,224,255,0.5) !important;
+        box-shadow: 0 4px 20px rgba(0,224,255,0.3) !important;
         z-index: 1000 !important;
         transition: all 0.3s ease !important;
       }
 
       #mobile-filter-fab:active {
         transform: scale(0.95) !important;
+        background: rgba(0,224,255,0.5) !important;
+      }
+
+      /* Hide badges on mobile - they'll show in profile view */
+      #level-badge-header,
+      #streak-badge-header {
+        display: none !important;
+      }
+
+      /* Show badges in profile view on mobile */
+      .mobile-only-badges {
+        display: flex !important;
       }
     }
 
@@ -530,7 +543,7 @@
 
     <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
       <!-- Level Badge -->
-      <div style="padding:0.75rem 1.5rem; background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3);
+      <div id="level-badge-header" style="padding:0.75rem 1.5rem; background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3);
         border-radius:8px; display:flex; flex-direction:column; align-items:center;">
         <div style="color:#00e0ff; font-size:0.8rem; font-weight:600;">Level 6</div>
         <div style="color:#aaa; font-size:0.7rem;">Leader</div>
@@ -538,7 +551,7 @@
       </div>
 
       <!-- Streak Badge -->
-      <div style="padding:0.75rem 1.5rem; background:rgba(255,59,48,0.15); border:1px solid rgba(255,59,48,0.3);
+      <div id="streak-badge-header" style="padding:0.75rem 1.5rem; background:rgba(255,59,48,0.15); border:1px solid rgba(255,59,48,0.3);
         border-radius:8px; display:flex; align-items:center; gap:0.5rem;">
         <i class="fas fa-fire" style="color:#ff3b30; font-size:1.2rem;"></i>
         <div style="display:flex; flex-direction:column;">
