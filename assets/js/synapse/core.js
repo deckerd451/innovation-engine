@@ -223,6 +223,13 @@ export function filterSynapseByCategory(category) {
     return;
   }
   
+  // Debug: Log what types we have in the nodes array
+  const nodeTypes = {};
+  nodes.forEach(n => {
+    nodeTypes[n.type] = (nodeTypes[n.type] || 0) + 1;
+  });
+  console.log('📊 Available node types:', nodeTypes);
+  
   // Map category to node type (defined at function scope)
   const typeMap = {
     'people': 'person',
@@ -270,7 +277,14 @@ export function filterSynapseByCategory(category) {
       return;
     }
     
-    console.log(`📊 Filtering for type: ${filterType}`);
+    console.log(`📊 Filtering for type: "${filterType}"`);
+    
+    // Count how many nodes match
+    let matchCount = 0;
+    nodes.forEach(n => {
+      if (n.type === filterType) matchCount++;
+    });
+    console.log(`📊 Found ${matchCount} nodes of type "${filterType}"`);
     
     // Filter nodes - only show nodes of the target type
     nodeEls
@@ -278,9 +292,6 @@ export function filterSynapseByCategory(category) {
       .duration(300)
       .style('opacity', d => {
         const isMatch = d.type === filterType;
-        if (isMatch) {
-          console.log(`✅ Showing node: ${d.name} (type: ${d.type})`);
-        }
         return isMatch ? 1 : 0.15;
       })
       .style('pointer-events', d => d.type === filterType ? 'auto' : 'none');
