@@ -1015,43 +1015,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // Filter synapse view by category
   function filterSynapseByCategory(category) {
-    console.log(`🔍 Filtering synapse view by category: ${category}`);
+    console.log(`🔍 Requesting synapse filter: ${category}`);
     
-    // Get all nodes and links in the synapse
-    const svg = d3.select('#synapse-svg');
-    const nodes = svg.selectAll('.node');
-    const links = svg.selectAll('.link');
-    
-    if (category === 'all') {
-      // Show everything
-      nodes.style('opacity', 1).style('pointer-events', 'auto');
-      links.style('opacity', 0.6);
+    // Call the synapse core filter function
+    if (typeof window.filterSynapseByCategory === 'function') {
+      window.filterSynapseByCategory(category);
     } else {
-      // Filter based on category
-      nodes.each(function(d) {
-        const node = d3.select(this);
-        let shouldShow = false;
-        
-        if (category === 'people' && d.type === 'person') {
-          shouldShow = true;
-        } else if (category === 'projects' && d.type === 'project') {
-          shouldShow = true;
-        } else if (category === 'organizations' && d.type === 'organization') {
-          shouldShow = true;
-        } else if (category === 'skills' && d.type === 'skill') {
-          shouldShow = true;
-        }
-        
-        node.style('opacity', shouldShow ? 1 : 0.1)
-            .style('pointer-events', shouldShow ? 'auto' : 'none');
-      });
-      
-      // Dim links that don't connect to visible nodes
-      links.style('opacity', function(d) {
-        const sourceVisible = d.source.type === getCategoryType(category) || 
-                             d.target.type === getCategoryType(category);
-        return sourceVisible ? 0.6 : 0.05;
-      });
+      console.warn('⚠️ Synapse filter function not available yet');
     }
   }
 

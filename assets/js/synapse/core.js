@@ -158,6 +158,10 @@ export async function initSynapseView() {
   window.showConnectPathways = showConnectPathways;
   window.clearConnectPathways = clearConnectPathways;
 
+  // Expose filtering function for category buttons
+  window.filterSynapseByCategory = filterSynapseByCategory;
+  window.refreshSynapseView = refreshSynapseConnections;
+
   // Handy for console debugging
   try {
     window.__synapseStats = getSynapseStats();
@@ -208,6 +212,80 @@ export async function toggleFullCommunityView(show) {
   if (typeof window.updateDiscoveryButtonState === 'function') {
     window.updateDiscoveryButtonState();
   }
+}
+
+// Filter synapse view by category
+export function filterSynapseByCategory(category) {
+  console.log(`🔍 Filtering synapse view by category: ${category}`);
+  
+  if (!nodeEls || !linkEls) {
+    console.warn('⚠️ Node or link elements not available yet');
+    return;
+  }
+  
+  if (category === 'all') {
+    // Show everything
+    nodeEls
+      .transition()
+      .duration(300)
+      .style('opacity', 1)
+      .style('pointer-events', 'auto');
+    
+    linkEls
+      .transition()
+      .duration(300)
+      .style('opacity', d => {
+        if (d.type === "project-member") {
+          return d.status === "pending" ? 0.5 : 0.8;
+        }
+        return 0.6;
+      });
+  } else {
+    // Map category to node type
+    const typeMap = {
+      'people': 'person',
+      'projects': 'project',
+      'organizations': 'organization',
+      'skills': 'skill'
+    };
+    const targetType = typeMap[category];
+    
+    if (!targetType) {
+      console.warn(`⚠️ Unknown category: ${category}`);
+      return;
+    }
+    
+    // Filter nodes
+    nodeEls
+      .transition()
+      .duration(300)
+      .style('opacity', d => d.type === targetType ? 1 : 0.15)
+      .style('pointer-events', d => d.type === targetType ? 'auto' : 'none');
+    
+    // Filter links - show links connected to visible nodes
+    linkEls
+      .transition()
+      .duration(300)
+      .style('opacity', d => {
+        const sourceType = typeof d.source === 'object' ? d.source.type : 
+                          nodes.find(n => n.id === d.source)?.type;
+        const targetType = typeof d.target === 'object' ? d.target.type : 
+                          nodes.find(n => n.id === d.target)?.type;
+        
+        const sourceVisible = sourceType === targetType;
+        const targetVisible = targetType === targetType;
+        
+        if (sourceVisible || targetVisible) {
+          if (d.type === "project-member") {
+            return d.status === "pending" ? 0.3 : 0.6;
+          }
+          return 0.4;
+        }
+        return 0.05;
+      });
+  }
+  
+  console.log(`✅ Filter applied: ${category}`);
 }
 
 export function getSynapseStats() {
