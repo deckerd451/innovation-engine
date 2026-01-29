@@ -486,12 +486,6 @@ function createMobileFilterFAB() {
 let legendCollapsed = true; // Start collapsed to give more space to synapse view
 
 function createSynapseLegend() {
-  // ADMIN ONLY: Filter View is restricted to administrators
-  if (!isAdminUser()) {
-    console.log('⚠️ Filter View is admin-only');
-    return;
-  }
-
   // Remove existing legend if present
   const existingLegend = document.getElementById('synapse-legend-overlay');
   if (existingLegend) return; // Already exists
@@ -499,8 +493,9 @@ function createSynapseLegend() {
   const legend = document.createElement('div');
   legend.id = 'synapse-legend-overlay';
   
-  // Check if mobile
+  // Check if mobile and admin status
   const isMobile = window.innerWidth <= 768;
+  const isAdmin = isAdminUser();
   
   if (isMobile) {
     // Mobile: Create FAB button instead of showing legend immediately
@@ -544,9 +539,6 @@ function createSynapseLegend() {
     `;
   }
 
-  // Check if user is admin for analytics button
-  const showAnalytics = isAdminUser();
-
   legend.innerHTML = `
     ${isMobile ? `
       <!-- Mobile: Drag handle -->
@@ -574,7 +566,7 @@ function createSynapseLegend() {
     </div>
 
     <div id="legend-content" style="transition: all 0.3s ease; overflow-y: auto; ${isMobile ? 'padding: 0 1rem 1rem 1rem; flex: 1;' : 'padding: 1rem; overflow: hidden;'}">
-      ${showAnalytics ? `
+      ${isAdmin ? `
         <button id="legend-analytics-btn" style="width: 100%; padding: 0.7rem; background: linear-gradient(135deg, #ffa500, #ffb84d); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer; margin-bottom: 0.75rem; box-shadow: 0 2px 8px rgba(255, 170, 0, 0.3); transition: all 0.2s; font-size: 0.85rem;">
           <i class="fas fa-crown"></i> Admin Panel
         </button>
@@ -609,27 +601,27 @@ function createSynapseLegend() {
         </div>
         <div id="legend-connections" data-filter="connections" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2);">
           <div style="width: 26px; height: 2px; background: #00e0ff; flex-shrink: 0;"></div>
-          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Connections</span>
+          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;" id="connections-label">Connections</span>
           <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
         </div>
       </div>
 
-      <!-- Discovery Mode Toggle -->
+      <!-- My Network / Discovery Mode Toggle -->
       <div style="padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
         <button id="toggle-discovery-btn" style="
           width: 100%;
           padding: 0.75rem;
-          background: linear-gradient(135deg, #00ff88, #00e0ff);
+          background: linear-gradient(135deg, #ff6b6b, #ff8c8c);
           border: none;
           border-radius: 8px;
-          color: #000;
+          color: #fff;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s;
-          box-shadow: 0 2px 8px rgba(0,255,136,0.3);
+          box-shadow: 0 2px 8px rgba(255,107,107,0.3);
           font-size: 0.85rem;
         ">
-          <i class="fas fa-globe"></i> <span id="discovery-btn-text">Discovery Mode</span>
+          <i class="fas fa-user-friends"></i> <span id="discovery-btn-text">My Network</span>
         </button>
       </div>
     </div>
@@ -1054,23 +1046,40 @@ function createSynapseLegend() {
   // Wire up discovery mode toggle button
   const discoveryBtn = document.getElementById('toggle-discovery-btn');
   const discoveryBtnText = document.getElementById('discovery-btn-text');
+  const connectionsLabel = document.getElementById('connections-label');
   
   if (discoveryBtn && discoveryBtnText) {
     console.log('🔍 Wiring up discovery mode toggle button');
     
-    // Update button text based on current mode
+    // Update button text and connections label based on current mode
     const updateDiscoveryButton = () => {
       const currentMode = window.synapseShowFullCommunity || false;
       console.log('🔍 Updating discovery button, current mode:', currentMode);
       
       if (currentMode) {
+        // Discovery Mode active
         discoveryBtnText.textContent = 'My Network';
         discoveryBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8c8c)';
-        discoveryBtn.title = 'Switch to filtered view (only your connections)';
+        discoveryBtn.style.color = '#fff';
+        discoveryBtn.querySelector('i').className = 'fas fa-user-friends';
+        discoveryBtn.title = 'Switch back to your network (only your connections)';
+        
+        // Change connections label to "Suggested Connections"
+        if (connectionsLabel) {
+          connectionsLabel.textContent = 'Suggested Connections';
+        }
       } else {
+        // My Network active (default)
         discoveryBtnText.textContent = 'Discovery Mode';
         discoveryBtn.style.background = 'linear-gradient(135deg, #00ff88, #00e0ff)';
-        discoveryBtn.title = 'Show all people and projects in the community';
+        discoveryBtn.style.color = '#000';
+        discoveryBtn.querySelector('i').className = 'fas fa-globe';
+        discoveryBtn.title = 'Discover new people and projects in the community';
+        
+        // Change connections label back to "Connections"
+        if (connectionsLabel) {
+          connectionsLabel.textContent = 'Connections';
+        }
       }
     };
 
