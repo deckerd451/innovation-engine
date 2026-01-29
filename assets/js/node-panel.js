@@ -201,6 +201,29 @@ async function loadNodeDetails(nodeData) {
 async function renderThemeLensPanel(themeData) {
   const { name, description, tags, expires_at, relatedProjects, onClearFocus } = themeData;
 
+  // Get current user info
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: currentUserProfile } = await supabase
+    .from('community')
+    .select('id')
+    .eq('user_id', user?.id)
+    .single();
+  
+  const currentUserCommunityId = currentUserProfile?.id;
+
+  // Check if user created this theme
+  const isCreator = themeData.created_by === currentUserCommunityId;
+  
+  // Check if user is a participant
+  const { data: participation } = await supabase
+    .from('theme_participants')
+    .select('id')
+    .eq('theme_id', themeData.id)
+    .eq('community_id', currentUserCommunityId)
+    .single();
+  
+  const isParticipant = !!participation;
+
   // Calculate time remaining
   const now = Date.now();
   const expires = new Date(expires_at).getTime();
@@ -211,7 +234,7 @@ async function renderThemeLensPanel(themeData) {
   panelElement.innerHTML = `
     <div class="node-panel-header" style="background: linear-gradient(135deg, rgba(0,224,255,0.15), rgba(0,224,255,0.05)); padding: 1.5rem; border-bottom: 1px solid rgba(0,224,255,0.3);">
       <div style="display: flex; justify-content: space-between; align-items: start;">
-        <div>
+        <div style="flex: 1;">
           <h2 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.5rem;">
             ✨ ${escapeHtml(name)}
           </h2>
@@ -219,7 +242,7 @@ async function renderThemeLensPanel(themeData) {
             Theme Circle • ${timeText}
           </div>
         </div>
-        <button onclick="window.closeNodePanel?.()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;">
+        <button onclick="window.closeNodePanel?.()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; flex-shrink: 0;">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -237,6 +260,29 @@ async function renderThemeLensPanel(themeData) {
               ${escapeHtml(tag)}
             </span>
           `).join('')}
+        </div>
+      ` : ''}
+      
+      ${isParticipant || isCreator ? `
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+          ${isCreator ? `
+            <button onclick="deleteTheme('${themeData.id}', '${escapeHtml(name)}')"
+              onmouseover="this.style.background='rgba(255,68,68,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,68,68,0.3)';"
+              onmouseout="this.style.background='rgba(255,68,68,0.15)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+              style="flex: 1; padding: 0.75rem; background: rgba(255,68,68,0.15); border: 1px solid rgba(255,68,68,0.4); 
+              border-radius: 8px; color: #ff4444; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;">
+              <i class="fas fa-trash"></i> Delete Theme
+            </button>
+          ` : ''}
+          ${isParticipant && !isCreator ? `
+            <button onclick="leaveTheme('${themeData.id}', '${escapeHtml(name)}')"
+              onmouseover="this.style.background='rgba(255,170,0,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,170,0,0.3)';"
+              onmouseout="this.style.background='rgba(255,170,0,0.15)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+              style="flex: 1; padding: 0.75rem; background: rgba(255,170,0,0.15); border: 1px solid rgba(255,170,0,0.4); 
+              border-radius: 8px; color: #ffaa00; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;">
+              <i class="fas fa-sign-out-alt"></i> Leave Theme
+            </button>
+          ` : ''}
         </div>
       ` : ''}
     </div>
@@ -2400,6 +2446,138 @@ async function createProjectInTheme(themeId, themeName) {
     alert("Failed to open project creation form. Please try again.");
   }
 }
+
+// Leave theme function
+window.leaveTheme = async function(themeId, themeName) {
+  if (!confirm(`Are you sure you want to leave "${themeName}"?\n\nYou can rejoin later if you change your mind.`)) {
+    return;
+  }
+  
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('Please log in to leave themes');
+      return;
+    }
+    
+    const { data: userProfile } = await supabase
+      .from('community')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!userProfile) {
+      alert('Profile not found');
+      return;
+    }
+    
+    // Remove from theme_participants
+    const { error } = await supabase
+      .from('theme_participants')
+      .delete()
+      .eq('theme_id', themeId)
+      .eq('community_id', userProfile.id);
+    
+    if (error) throw error;
+    
+    showToastNotification(`✓ You've left "${themeName}"`, 'success');
+    
+    // Close panel and refresh
+    closeNodePanel();
+    
+    // Reload synapse data if available
+    if (window.reloadAllData) {
+      await window.reloadAllData();
+      if (window.rebuildGraph) {
+        await window.rebuildGraph();
+      }
+    }
+  } catch (error) {
+    console.error('Error leaving theme:', error);
+    alert('Failed to leave theme. Please try again.');
+  }
+};
+
+// Delete theme function
+window.deleteTheme = async function(themeId, themeName) {
+  if (!confirm(`⚠️ Are you sure you want to DELETE "${themeName}"?\n\nThis will:\n• Remove the theme permanently\n• Remove all participants\n• Unlink all projects from this theme\n\nThis action CANNOT be undone!`)) {
+    return;
+  }
+  
+  // Double confirmation for destructive action
+  const confirmText = prompt(`Type "${themeName}" to confirm deletion:`);
+  if (confirmText !== themeName) {
+    alert('Theme name did not match. Deletion cancelled.');
+    return;
+  }
+  
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('Please log in to delete themes');
+      return;
+    }
+    
+    const { data: userProfile } = await supabase
+      .from('community')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!userProfile) {
+      alert('Profile not found');
+      return;
+    }
+    
+    // Verify user is the creator
+    const { data: theme } = await supabase
+      .from('theme_circles')
+      .select('created_by')
+      .eq('id', themeId)
+      .single();
+    
+    if (!theme || theme.created_by !== userProfile.id) {
+      alert('You can only delete themes you created');
+      return;
+    }
+    
+    // Unlink projects from this theme
+    await supabase
+      .from('projects')
+      .update({ theme_id: null })
+      .eq('theme_id', themeId);
+    
+    // Delete theme participants
+    await supabase
+      .from('theme_participants')
+      .delete()
+      .eq('theme_id', themeId);
+    
+    // Delete the theme
+    const { error } = await supabase
+      .from('theme_circles')
+      .delete()
+      .eq('id', themeId);
+    
+    if (error) throw error;
+    
+    showToastNotification(`✓ "${themeName}" has been deleted`, 'success');
+    
+    // Close panel and refresh
+    closeNodePanel();
+    
+    // Reload synapse data if available
+    if (window.reloadAllData) {
+      await window.reloadAllData();
+      if (window.rebuildGraph) {
+        await window.rebuildGraph();
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting theme:', error);
+    alert('Failed to delete theme. Please try again.');
+  }
+};
 
 
 // Initialize on DOM ready
