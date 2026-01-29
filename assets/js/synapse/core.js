@@ -225,7 +225,7 @@ export function filterSynapseByCategory(category) {
   
   // Select ALL node elements directly from SVG (not using cached nodeEls)
   const allNodes = svg.selectAll('.synapse-node');
-  const allLinks = svg.selectAll('.link');
+  const allLinks = svg.selectAll('.synapse-link');
   const themeCircles = svg.selectAll('.theme-circle');
   
   console.log(`📊 Found ${allNodes.size()} visual nodes, ${allLinks.size()} links, ${themeCircles.size()} theme circles`);
@@ -253,15 +253,18 @@ export function filterSynapseByCategory(category) {
       .style('opacity', 1)
       .style('pointer-events', 'auto');
     
-    allLinks
-      .transition()
-      .duration(300)
-      .style('opacity', d => {
-        if (d.type === "project-member") {
-          return d.status === "pending" ? 0.5 : 0.8;
-        }
-        return 0.6;
-      });
+    // Only filter links if they exist (admin mode)
+    if (!allLinks.empty()) {
+      allLinks
+        .transition()
+        .duration(300)
+        .style('opacity', d => {
+          if (d.type === "project-member") {
+            return d.status === "pending" ? 0.5 : 0.8;
+          }
+          return 0.6;
+        });
+    }
     
     // Show theme circles
     if (!themeCircles.empty()) {
@@ -319,30 +322,32 @@ export function filterSynapseByCategory(category) {
         .style('pointer-events', category === 'themes' ? 'auto' : 'none');
     }
     
-    // Filter links - show links connected to visible nodes
-    allLinks
-      .transition()
-      .duration(300)
-      .style('opacity', d => {
-        if (!d) return 0.05;
-        
-        const sourceType = typeof d.source === 'object' ? d.source.type : 
-                          nodes.find(n => n.id === d.source)?.type;
-        const targetNodeType = typeof d.target === 'object' ? d.target.type : 
-                          nodes.find(n => n.id === d.target)?.type;
-        
-        // Show link if either end connects to a visible node of the filter type
-        const sourceVisible = sourceType === filterType;
-        const targetVisible = targetNodeType === filterType;
-        
-        if (sourceVisible || targetVisible) {
-          if (d.type === "project-member") {
-            return d.status === "pending" ? 0.3 : 0.6;
+    // Filter links - only if they exist (admin mode)
+    if (!allLinks.empty()) {
+      allLinks
+        .transition()
+        .duration(300)
+        .style('opacity', d => {
+          if (!d) return 0.05;
+          
+          const sourceType = typeof d.source === 'object' ? d.source.type : 
+                            nodes.find(n => n.id === d.source)?.type;
+          const targetNodeType = typeof d.target === 'object' ? d.target.type : 
+                            nodes.find(n => n.id === d.target)?.type;
+          
+          // Show link if either end connects to a visible node of the filter type
+          const sourceVisible = sourceType === filterType;
+          const targetVisible = targetNodeType === filterType;
+          
+          if (sourceVisible || targetVisible) {
+            if (d.type === "project-member") {
+              return d.status === "pending" ? 0.3 : 0.6;
+            }
+            return 0.4;
           }
-          return 0.4;
-        }
-        return 0.05;
-      });
+          return 0.05;
+        });
+    }
     
     console.log(`✅ Filter applied: ${category} (showing ${matchCount} ${filterType} nodes)`);
   }
@@ -1137,7 +1142,16 @@ async function buildGraph() {
   }
 
   // 2. Links (middle layer) - connection links and theme participation links
-  linkEls = renderLinks(container, simulationLinks);
+  // Only show links for admin users
+  const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
+  if (isAdmin) {
+    linkEls = renderLinks(container, simulationLinks);
+    console.log('👑 Admin mode: Showing connection links');
+  } else {
+    // Create empty link group for non-admins
+    linkEls = container.append("g").attr("class", "links").selectAll("line");
+    console.log('👤 User mode: Hiding connection links');
+  }
 
   // 3. Project nodes (independent, not overlays) - render as actual nodes
   const visibleProjectNodes = visibleNodes.filter((n) => n.type === "project");
