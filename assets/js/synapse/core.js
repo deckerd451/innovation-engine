@@ -223,6 +223,14 @@ export function filterSynapseByCategory(category) {
     return;
   }
   
+  // Map category to node type (defined at function scope)
+  const typeMap = {
+    'people': 'person',
+    'projects': 'project',
+    'organizations': 'organization',
+    'themes': 'theme'
+  };
+  
   // Also handle theme circles if they exist
   const themeCircles = svg?.selectAll('.theme-circle');
   
@@ -252,14 +260,9 @@ export function filterSynapseByCategory(category) {
         .style('opacity', 1)
         .style('pointer-events', 'auto');
     }
+    
+    console.log(`✅ Filter applied: showing all nodes`);
   } else {
-    // Map category to node type
-    const typeMap = {
-      'people': 'person',
-      'projects': 'project',
-      'organizations': 'organization',
-      'themes': 'theme'
-    };
     const filterType = typeMap[category];
     
     if (!filterType) {
@@ -313,9 +316,9 @@ export function filterSynapseByCategory(category) {
         }
         return 0.05;
       });
+    
+    console.log(`✅ Filter applied: ${category} (showing only ${filterType} nodes)`);
   }
-  
-  console.log(`✅ Filter applied: ${category} (showing only ${typeMap[category] || 'all'} nodes)`);
 }
 
 export function getSynapseStats() {
