@@ -2491,11 +2491,16 @@ window.joinTheme = async function(themeId, themeName) {
       return;
     }
     
+    // Remove 'theme:' prefix if present
+    const cleanThemeId = themeId.replace(/^theme:/, '');
+    
+    console.log('Joining theme:', { themeId, cleanThemeId, communityId: userProfile.id });
+    
     // Add to theme_participants
     const { error } = await supabase
       .from('theme_participants')
       .insert({
-        theme_id: themeId,
+        theme_id: cleanThemeId,
         community_id: userProfile.id,
         engagement_level: 'participating',
         joined_at: new Date().toISOString()
@@ -2562,11 +2567,14 @@ window.leaveTheme = async function(themeId, themeName) {
       return;
     }
     
+    // Remove 'theme:' prefix if present
+    const cleanThemeId = themeId.replace(/^theme:/, '');
+    
     // Remove from theme_participants
     const { error } = await supabase
       .from('theme_participants')
       .delete()
-      .eq('theme_id', themeId)
+      .eq('theme_id', cleanThemeId)
       .eq('community_id', userProfile.id);
     
     if (error) throw error;
@@ -2620,11 +2628,14 @@ window.deleteTheme = async function(themeId, themeName) {
       return;
     }
     
+    // Remove 'theme:' prefix if present
+    const cleanThemeId = themeId.replace(/^theme:/, '');
+    
     // Verify user is the creator
     const { data: theme } = await supabase
       .from('theme_circles')
       .select('created_by')
-      .eq('id', themeId)
+      .eq('id', cleanThemeId)
       .single();
     
     if (!theme || theme.created_by !== userProfile.id) {
@@ -2636,19 +2647,19 @@ window.deleteTheme = async function(themeId, themeName) {
     await supabase
       .from('projects')
       .update({ theme_id: null })
-      .eq('theme_id', themeId);
+      .eq('theme_id', cleanThemeId);
     
     // Delete theme participants
     await supabase
       .from('theme_participants')
       .delete()
-      .eq('theme_id', themeId);
+      .eq('theme_id', cleanThemeId);
     
     // Delete the theme
     const { error } = await supabase
       .from('theme_circles')
       .delete()
-      .eq('id', themeId);
+      .eq('id', cleanThemeId);
     
     if (error) throw error;
     
