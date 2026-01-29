@@ -263,67 +263,36 @@
       }
 
       /* MOBILE LAYOUT FIXES */
-      /* Top bar - compact and organized */
+      /* Line up all header elements horizontally at top */
       #main-content > div:first-child {
         top: 8px !important;
-        left: 8px !important;
+        right: 8px !important;
+        left: auto !important;
       }
 
       #main-content > div:first-child img {
         height: 36px !important;
       }
 
-      /* Top-right badges - stack vertically and compact */
+      /* Header elements container - horizontal layout */
       #main-content > div:nth-child(2) {
         top: 8px !important;
-        right: 8px !important;
-        flex-direction: column !important;
-        gap: 0.4rem !important;
-        align-items: flex-end !important;
-        max-width: 50vw !important;
-      }
-
-      /* Level badge - compact */
-      #main-content > div:nth-child(2) > div:first-child {
-        padding: 0.4rem 0.75rem !important;
-        font-size: 0.7rem !important;
-      }
-
-      #main-content > div:nth-child(2) > div:first-child > div:first-child {
-        font-size: 0.75rem !important;
-      }
-
-      #main-content > div:nth-child(2) > div:first-child > div:nth-child(2) {
-        font-size: 0.65rem !important;
-      }
-
-      #main-content > div:nth-child(2) > div:first-child > div:nth-child(3) {
-        font-size: 0.6rem !important;
-        display: none !important; /* Hide XP on mobile */
-      }
-
-      /* Streak badge - move to top center as toast */
-      #main-content > div:nth-child(2) > div:nth-child(2) {
-        position: fixed !important;
-        top: 8px !important;
-        left: 50% !important;
+        left: 8px !important;
         right: auto !important;
-        transform: translateX(-50%) !important;
-        padding: 0.4rem 0.75rem !important;
-        font-size: 0.7rem !important;
-        z-index: 1001 !important;
+        flex-direction: row !important;
+        gap: 0.5rem !important;
+        align-items: center !important;
+        max-width: calc(100vw - 120px) !important;
       }
 
-      #main-content > div:nth-child(2) > div:nth-child(2) i {
-        font-size: 0.9rem !important;
+      /* Level badge - hide on mobile (shown in dropdown) */
+      #level-badge-header {
+        display: none !important;
       }
 
-      #main-content > div:nth-child(2) > div:nth-child(2) > div > div:first-child {
-        font-size: 0.8rem !important;
-      }
-
-      #main-content > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) {
-        display: none !important; /* Hide "Keep it going!" text */
+      /* Streak badge - hide on mobile (shown in dropdown) */
+      #streak-badge-header {
+        display: none !important;
       }
 
       /* Notification bell - compact */
@@ -348,6 +317,14 @@
         font-size: 1rem !important;
       }
 
+      /* Placeholder circle - show on mobile for visual balance */
+      #placeholder-circle {
+        display: flex !important;
+        width: 40px !important;
+        height: 40px !important;
+        padding: 0.5rem !important;
+      }
+
       /* User menu - compact */
       #user-menu {
         padding: 0.35rem 0.65rem !important;
@@ -359,9 +336,19 @@
         font-size: 0.85rem !important;
       }
 
-      /* Search container - proper spacing from bottom */
+      /* Hide user name on mobile */
+      #user-name-header {
+        display: none !important;
+      }
+
+      /* Hide admin badge in header on mobile */
+      #admin-badge-header {
+        display: none !important;
+      }
+
+      /* Search container - move down significantly */
       #centered-search-container {
-        bottom: 80px !important; /* Above bottom nav */
+        bottom: 20px !important; /* Move to bottom with more space */
         width: calc(100vw - 20px) !important;
         left: 10px !important;
         transform: none !important;
@@ -411,19 +398,20 @@
         padding: 0.6rem 1.2rem !important;
       }
 
-      /* Mobile filter FAB */
+      /* Mobile filter FAB - move to top-right area */
       #mobile-filter-fab {
         position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
-        width: 56px !important;
-        height: 56px !important;
-        background: rgba(0,224,255,0.3) !important; /* Semi-transparent */
+        top: 60px !important;
+        right: 10px !important;
+        bottom: auto !important;
+        width: 48px !important;
+        height: 48px !important;
+        background: rgba(0,224,255,0.3) !important;
         backdrop-filter: blur(10px) !important;
         border: 2px solid rgba(0,224,255,0.5) !important;
         border-radius: 50% !important;
         color: #00e0ff !important;
-        font-size: 1.5rem !important;
+        font-size: 1.3rem !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -452,20 +440,6 @@
       /* Show badges in profile view on mobile */
       .mobile-only-badges {
         display: flex !important;
-      }
-
-      /* Mobile layout adjustments */
-      /* Move logo to right side */
-      #main-content > div:first-child {
-        left: auto !important;
-        right: 8px !important;
-      }
-
-      /* Move user menu container to top-left */
-      #main-content > div:nth-child(2) {
-        left: 8px !important;
-        right: auto !important;
-        flex-direction: row-reverse !important;
       }
     }
 
@@ -596,6 +570,13 @@
         display:none; align-items:center; justify-content:center;"
         title="Admin Panel">
         <i class="fas fa-crown" style="color:#ffa500; font-size:1.2rem;"></i>
+      </div>
+
+      <!-- Placeholder circle (for visual balance on mobile) -->
+      <div id="placeholder-circle" style="cursor:default; padding:0.75rem; background:rgba(255,255,255,0.05);
+        border:1px solid rgba(255,255,255,0.1); border-radius:50%; width:48px; height:48px;
+        display:none; align-items:center; justify-content:center;"
+        title="">
       </div>
 
       <!-- User Profile with Dropdown -->
