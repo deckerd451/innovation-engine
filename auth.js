@@ -301,6 +301,7 @@
   async function fetchUserProfile(user) {
     log("🔍 Fetching profile for user_id:", user.id);
 
+    // First, try to find profile by user_id
     const { data, error } = await withTimeout(
       window.supabase
         .from("community")
@@ -316,7 +317,57 @@
       throw error;
     }
 
-    const profile = Array.isArray(data) && data.length ? data[0] : null;
+    let profile = Array.isArray(data) && data.length ? data[0] : null;
+    
+    // If no profile found by user_id, try to link to existing profile by email
+    if (!profile && user.email) {
+      log("🔗 No profile found by user_id, checking for existing profile by email:", user.email);
+      
+      const { data: emailData, error: emailError } = await withTimeout(
+        window.supabase
+          .from("community")
+          .select("*")
+          .eq("email", user.email)
+          .is("user_id", null) // Only link profiles that aren't already linked
+          .limit(1),
+        15000,
+        "Email lookup timeout"
+      );
+
+      if (!emailError && emailData && emailData.length > 0) {
+        const existingProfile = emailData[0];
+        log("✅ Found existing profile by email, linking to OAuth user:", existingProfile.id);
+        
+        // Link the existing profile to this OAuth user
+        const { data: updatedData, error: updateError } = await window.supabase
+          .from("community")
+          .update({ 
+            user_id: user.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", existingProfile.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          err("❌ Failed to link existing profile:", updateError);
+        } else {
+          log("🎉 Successfully linked existing profile to OAuth user");
+          profile = updatedData;
+          
+          // Show notification to user
+          setTimeout(() => {
+            if (typeof window.showNotification === 'function') {
+              window.showNotification(
+                "Welcome back! Your existing profile has been linked to your OAuth account.",
+                "success"
+              );
+            }
+          }, 1000);
+        }
+      }
+    }
+
     log("🔍 Profile query result:", profile ? "found" : "not found");
     return profile;
   }
