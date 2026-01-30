@@ -1245,8 +1245,99 @@ window.addEventListener('profile-loaded', () => {
       adminBtn.style.display = 'flex';
       console.log('👑 Admin button shown (profile-loaded)');
     }
+    
+    // Show Discovery Mode button for admins
+    const discoveryBtn = document.getElementById('discovery-mode-btn');
+    if (discoveryBtn) {
+      discoveryBtn.style.display = 'flex';
+      console.log('🌐 Discovery Mode button shown (admin only)');
+    }
   }
+  
+  // Wire up Discovery Mode button
+  setupDiscoveryModeButton();
 });
+
+// Setup Discovery Mode button (admin-only filter button)
+function setupDiscoveryModeButton() {
+  const discoveryBtn = document.getElementById('discovery-mode-btn');
+  const discoveryText = document.getElementById('discovery-mode-text');
+  
+  if (!discoveryBtn || !discoveryText) {
+    console.warn('⚠️ Discovery Mode button elements not found');
+    return;
+  }
+  
+  // Update button appearance based on current mode
+  const updateButtonState = () => {
+    const isDiscoveryMode = window.synapseShowFullCommunity || false;
+    
+    if (isDiscoveryMode) {
+      // Discovery Mode is ON - button shows "My Network" to switch back
+      discoveryText.textContent = 'My Network';
+      discoveryBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8c8c)';
+      discoveryBtn.style.color = '#fff';
+      discoveryBtn.querySelector('i').className = 'fas fa-user-friends';
+      discoveryBtn.title = 'Switch back to your network (only your connections)';
+    } else {
+      // My Network is ON - button shows "Discovery" to switch to discovery mode
+      discoveryText.textContent = 'Discovery';
+      discoveryBtn.style.background = 'linear-gradient(135deg, #00ff88, #00e0ff)';
+      discoveryBtn.style.color = '#000';
+      discoveryBtn.querySelector('i').className = 'fas fa-globe';
+      discoveryBtn.title = 'Discover all themes and people in the community';
+    }
+  };
+  
+  // Expose update function globally so synapse can call it
+  window.updateDiscoveryModeButton = updateButtonState;
+  
+  // Set initial state
+  setTimeout(updateButtonState, 1000);
+  
+  // Click handler
+  discoveryBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('🌐 Discovery Mode button clicked');
+    
+    if (typeof window.toggleFullCommunityView === 'function') {
+      try {
+        await window.toggleFullCommunityView();
+        updateButtonState();
+        
+        // Show notification
+        if (typeof window.showNotification === 'function') {
+          const mode = window.synapseShowFullCommunity ? 'Discovery Mode' : 'My Network';
+          window.showNotification(`Switched to ${mode}`, 'success');
+        }
+        
+        console.log('✅ Discovery Mode toggled:', window.synapseShowFullCommunity);
+      } catch (error) {
+        console.error('❌ Error toggling discovery mode:', error);
+        alert('Error toggling discovery mode: ' + error.message);
+      }
+    } else {
+      console.warn('⚠️ toggleFullCommunityView not available');
+      alert('Discovery mode toggle not available yet. Please wait for synapse to initialize.');
+    }
+  });
+  
+  // Hover effects
+  discoveryBtn.addEventListener('mouseenter', () => {
+    discoveryBtn.style.transform = 'translateY(-2px)';
+    discoveryBtn.style.boxShadow = '0 4px 12px rgba(0,224,255,0.5)';
+  });
+  
+  discoveryBtn.addEventListener('mouseleave', () => {
+    discoveryBtn.style.transform = 'translateY(0)';
+    discoveryBtn.style.boxShadow = 'none';
+  });
+  
+  console.log('✅ Discovery Mode button wired up successfully');
+}
+
 
 // -----------------------------
 // Bottom Bar Collapse/Expand

@@ -340,8 +340,14 @@ export async function toggleFullCommunityView(show) {
   await reloadAllData();
   await rebuildInterface();
   
+  // Update discovery button if it exists (in Filter View panel)
   if (typeof window.updateDiscoveryButtonState === 'function') {
     window.updateDiscoveryButtonState();
+  }
+  
+  // Update discovery mode button if it exists (admin-only filter button)
+  if (typeof window.updateDiscoveryModeButton === 'function') {
+    window.updateDiscoveryModeButton();
   }
 }
 
