@@ -596,6 +596,7 @@ const DailyEngagement = (function () {
 
   function showXPNotification(amount, reason) {
     const notification = document.createElement("div");
+    notification.className = 'xp-notification';
     notification.style.cssText = `
       position: fixed;
       bottom: 2rem;

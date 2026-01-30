@@ -117,6 +117,23 @@ function createPanelElement() {
     .panel-section-inner {
       padding: 1rem 1.5rem;
     }
+
+    /* Responsive styles for mobile */
+    @media (max-width: 768px) {
+      #node-side-panel {
+        width: 100vw !important;
+        right: -100vw !important;
+      }
+      
+      #node-side-panel.open {
+        right: 0 !important;
+      }
+      
+      /* Make action bars full width on mobile */
+      #node-side-panel [style*="width: 420px"] {
+        width: 100% !important;
+      }
+    }
   `;
   document.head.appendChild(style);
 
