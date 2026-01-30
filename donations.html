@@ -12,11 +12,8 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             font-family: 'Arial', sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 20px;
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         .container {
@@ -26,13 +23,10 @@
             padding: 40px;
             border-radius: 12px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-            position: relative;
+            margin: 20px auto;
         }
 
         .back-button {
-            position: absolute;
-            top: 20px;
-            left: 20px;
             background: #667eea;
             color: white;
             border: none;
@@ -41,6 +35,8 @@
             cursor: pointer;
             font-size: 16px;
             transition: background 0.3s;
+            margin-bottom: 20px;
+            display: inline-block;
         }
 
         .back-button:hover {
@@ -128,8 +124,13 @@
         }
 
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
             .container {
                 padding: 20px;
+                margin: 10px auto;
             }
 
             h1 {
@@ -137,8 +138,6 @@
             }
 
             .back-button {
-                position: static;
-                margin-bottom: 20px;
                 width: 100%;
             }
         }
