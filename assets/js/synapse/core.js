@@ -1147,8 +1147,10 @@ async function buildGraph() {
   }
 
   // 2. Links (middle layer) - connection links and theme participation links
-  // Only show links for admin users
+  // Only show links for admin users in Discovery Mode
   let isAdmin = false;
+  let isDiscoveryMode = window.synapseShowFullCommunity || false;
+  
   if (typeof window.isAdminUser === 'function') {
     isAdmin = window.isAdminUser();
     console.log(`🔐 Admin check result: ${isAdmin}`);
@@ -1156,13 +1158,19 @@ async function buildGraph() {
     console.warn('⚠️ isAdminUser function not available yet - defaulting to non-admin');
   }
   
-  if (isAdmin) {
+  console.log(`🌐 Discovery Mode: ${isDiscoveryMode}`);
+  
+  if (isAdmin && isDiscoveryMode) {
     linkEls = renderLinks(container, simulationLinks);
-    console.log('👑 Admin mode: Showing connection links');
+    console.log('👑 Admin mode + Discovery Mode: Showing connection links');
   } else {
-    // Create empty link group for non-admins
+    // Create empty link group for non-admins or My Network view
     linkEls = container.append("g").attr("class", "links").selectAll("line");
-    console.log('👤 User mode: Hiding connection links');
+    if (isAdmin && !isDiscoveryMode) {
+      console.log('👑 Admin mode + My Network: Hiding connection links');
+    } else {
+      console.log('👤 User mode: Hiding connection links');
+    }
   }
 
   // 3. Project nodes (independent, not overlays) - render as actual nodes

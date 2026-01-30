@@ -1788,18 +1788,17 @@
         const userDropdown = document.getElementById('user-dropdown');
         const adminBtnLeft = document.getElementById('btn-admin-top-left');
         
-        if (userProfileCircle && userDropdown) {
-          // Toggle dropdown when clicking the left-side profile button
+        if (userProfileCircle) {
+          // Open profile panel when clicking the left-side profile button
           userProfileCircle.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isOpen = userDropdown.style.display === 'flex';
-            userDropdown.style.display = isOpen ? 'none' : 'flex';
-          });
-          
-          // Close dropdown when clicking outside
-          document.addEventListener('click', (e) => {
-            if (!userProfileCircle.contains(e.target) && !userDropdown.contains(e.target)) {
-              userDropdown.style.display = 'none';
+            
+            // Open the profile panel
+            if (typeof window.openProfileModal === 'function') {
+              console.log('🔵 Opening profile panel from left-side button');
+              window.openProfileModal();
+            } else {
+              console.warn('⚠️ openProfileModal function not available');
             }
           });
           
