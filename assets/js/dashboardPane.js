@@ -2523,6 +2523,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // ================================================================
   window.openPersonProfileFromSearch = async function (element, personId) {
     try {
+      // Close the search results modal first to prevent z-index conflicts
+      if (typeof window.closeQuickConnectModal === 'function') {
+        window.closeQuickConnectModal();
+      }
+      
       // Get person data from the element's data attribute
       const personData = JSON.parse(element.getAttribute('data-person'));
       
