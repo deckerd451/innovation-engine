@@ -121,14 +121,14 @@
     const SUPABASE_URL = 'https://hvmotpzhliufzomewzfl.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2bW90cHpobGl1ZnpvbWV3emZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NzY2NDUsImV4cCI6MjA1ODE1MjY0NX0.foHTGZVtRjFvxzDfMf1dpp0Zw4XFfD-FPZK-zRnjc6s';
     
-    let supabase;
+    let testSupabase;
     
     // Test 1: Supabase Connection
-    async function testSupabase() {
+    async function testSupabaseConnection() {
       const el = document.getElementById('supabase-test');
       try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        window.supabase = supabase;
+        testSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabase = testSupabase;
         el.innerHTML = '<span class="success">✅ Supabase client initialized</span>';
         testAuth();
       } catch (error) {
@@ -140,15 +140,15 @@
     async function testAuth() {
       const el = document.getElementById('auth-test');
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const { data: { user }, error } = await testSupabase.auth.getUser();
         
         if (error) throw error;
         
         if (user) {
           el.innerHTML = `<span class="success">✅ User authenticated: ${user.email}</span>
-            <pre>${JSON.stringify(user, null, 2)}</pre>`;
+            <pre>${JSON.stringify({ id: user.id, email: user.email }, null, 2)}</pre>`;
         } else {
-          el.innerHTML = '<span class="warning">⚠️ No user logged in. Please log in first.</span>';
+          el.innerHTML = '<span class="warning">⚠️ No user logged in. Please log in to dashboard first.</span>';
         }
       } catch (error) {
         el.innerHTML = `<span class="error">❌ Auth error: ${error.message}</span>`;
@@ -161,16 +161,16 @@
       el.innerHTML = '<span class="warning">⏳ Testing SQL function...</span>';
       
       try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        const { data: { user }, error: userError } = await testSupabase.auth.getUser();
         
         if (userError || !user) {
-          el.innerHTML = '<span class="error">❌ Not authenticated</span>';
+          el.innerHTML = '<span class="error">❌ Not authenticated. Please log in to dashboard first.</span>';
           return;
         }
         
         console.log('Calling get_start_sequence_data with user:', user.id);
         
-        const { data, error } = await supabase.rpc('get_start_sequence_data', {
+        const { data, error } = await testSupabase.rpc('get_start_sequence_data', {
           auth_user_id: user.id
         });
         
@@ -186,7 +186,10 @@
         }
         
         el.innerHTML = `<span class="success">✅ SQL function works!</span>
-          <pre>${JSON.stringify(data, null, 2)}</pre>`;
+          <details>
+            <summary>Click to see data (${JSON.stringify(data).length} characters)</summary>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </details>`;
           
       } catch (error) {
         el.innerHTML = `<span class="error">❌ Exception: ${error.message}</span>
@@ -239,7 +242,7 @@
     
     // Auto-run initial tests
     window.addEventListener('DOMContentLoaded', () => {
-      testSupabase();
+      testSupabaseConnection();
       
       // Wire up button handlers
       document.getElementById('btn-test-sql').addEventListener('click', testSQLFunction);
