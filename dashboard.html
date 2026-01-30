@@ -781,15 +781,6 @@
           <i class="fas fa-play-circle" style="font-size:3rem;"></i>
           <span style="font-size:1.5rem;">START</span>
         </button>
-
-        <!-- "I just want to explore" cancel button -->
-        <button id="btn-explore-cancel"
-          style="background:transparent; border:1px solid rgba(255,255,255,0.3); border-radius:8px;
-          color:rgba(255,255,255,0.6); font-size:0.9rem; padding:0.75rem 1.5rem; cursor:pointer;
-          transition:all 0.2s; opacity:0.75;"
-          title="Skip the start sequence">
-          I just want to explore
-        </button>
       </div>
     </div>
 
@@ -1470,7 +1461,6 @@
 
       const startContainer = document.getElementById('start-button-container');
       const startBtn = document.getElementById('btn-start-center');
-      const exploreBtn = document.getElementById('btn-explore-cancel');
       
       // Track if START has been dismissed
       let startDismissed = sessionStorage.getItem('start_dismissed') === 'true';
@@ -1522,19 +1512,6 @@
               console.warn('❌ No START modal function available');
             }
           }, 500);
-        });
-      }
-
-      // "I just want to explore" button click handler
-      if (exploreBtn) {
-        exploreBtn.addEventListener('click', () => {
-          console.log('🔍 User wants to explore freely');
-
-          // Hide START button
-          hideStartButton();
-
-          // Don't open any modals, just let user see their node
-          console.log('✅ Showing user node only');
         });
       }
 

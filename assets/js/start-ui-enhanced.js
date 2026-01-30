@@ -394,7 +394,7 @@ class EnhancedStartUI {
           flex: 1;
           min-width: 200px;
         ">
-          🚀 Start Exploring
+          🎯 Go to Dashboard
         </button>
         <button onclick="window.EnhancedStartUI.downloadReport()" style="
           background: transparent;
