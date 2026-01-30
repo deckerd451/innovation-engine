@@ -474,7 +474,7 @@ function renderOrganizationContent(org, members) {
   const initials = org.name ? org.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'ORG';
 
   let html = `
-    <div style="padding: 2rem; padding-bottom: 100px;">
+    <div style="padding: 2rem; padding-bottom: 180px;">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
         <i class="fas fa-times"></i>
@@ -649,7 +649,7 @@ async function renderPersonPanel(nodeData) {
   const initials = profile.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
   let html = `
-    <div style="padding-bottom: 100px;">
+    <div style="padding-bottom: 180px;">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; transition: all 0.2s; z-index: 10;">
         <i class="fas fa-times"></i>
@@ -833,7 +833,7 @@ async function renderPersonPanel(nodeData) {
     </div>
 
     <!-- Action Bar (Fixed at Bottom) -->
-    <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.95), rgba(26, 26, 46, 0.95)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1.5rem; backdrop-filter: blur(10px);">
+    <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1.5rem; backdrop-filter: blur(10px); z-index: 100;">
       ${profile.id === currentUserProfile?.id ? `
         <!-- Own Profile - Action bar hidden for own profile -->
         <div style="display: none;"></div>
@@ -841,7 +841,7 @@ async function renderPersonPanel(nodeData) {
         <!-- Other User Actions -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
           <!-- Message button - always available -->
-          <button onclick="sendMessage('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+          <button onclick="sendMessage('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <i class="fas fa-comment"></i> Message
           </button>
 
@@ -911,7 +911,7 @@ async function renderProjectPanel(nodeData) {
   const isCreator = project.creator_id === currentUserProfile?.id;
 
   let html = `
-    <div style="padding: 2rem; padding-bottom: 100px;">
+    <div style="padding: 2rem; padding-bottom: 180px;">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
         <i class="fas fa-times"></i>
