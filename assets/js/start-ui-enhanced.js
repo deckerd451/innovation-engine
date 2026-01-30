@@ -131,6 +131,45 @@ class EnhancedStartUI {
     const summary = window.StartSequenceFormatter.generateSummary(data);
 
     container.innerHTML = `
+      <style>
+        /* Responsive START UI Styles */
+        @media (max-width: 768px) {
+          #start-modal {
+            width: 95vw !important;
+            max-width: 95vw !important;
+            padding: 1rem !important;
+            max-height: 90vh !important;
+            overflow-y: auto !important;
+          }
+          
+          #start-options-container {
+            padding: 0.5rem !important;
+          }
+          
+          #start-options-container h2 {
+            font-size: 1.4rem !important;
+          }
+          
+          #start-options-container h3 {
+            font-size: 1.1rem !important;
+          }
+          
+          #start-options-container p {
+            font-size: 0.9rem !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          #start-modal {
+            width: 100vw !important;
+            max-width: 100vw !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            padding: 0.75rem !important;
+          }
+        }
+      </style>
       ${this.renderHeader(data)}
       ${this.renderReport(summary)}
       ${this.renderInsights(insights)}
@@ -179,7 +218,7 @@ class EnhancedStartUI {
         <h3 style="color: #00e0ff; margin: 0 0 1rem 0; font-size: 1.2rem; text-align: center;">
           📊 Your Network Status
         </h3>
-        <div style="
+        <div class="start-report-grid" style="
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
           gap: 1rem;
@@ -190,6 +229,19 @@ class EnhancedStartUI {
           ${this.renderStatCard('Connections', summary.connections_accepted, 'link', '#00ff88')}
         </div>
       </div>
+      
+      <style>
+        @media (max-width: 768px) {
+          .start-report-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .start-report-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      </style>
     `;
   }
 
@@ -263,8 +315,8 @@ class EnhancedStartUI {
         cursor: ${insight.handler ? 'pointer' : 'default'};
         transition: all 0.3s ease;
       " ${insight.handler ? `onclick="window.EnhancedStartUI.handleAction('${insight.handler}')"` : ''}>
-        <div style="display: flex; align-items: start; gap: 1rem;">
-          <div style="
+        <div class="insight-card-content" style="display: flex; align-items: start; gap: 1rem;">
+          <div class="insight-icon" style="
             width: 48px;
             height: 48px;
             background: ${color}20;
@@ -277,17 +329,17 @@ class EnhancedStartUI {
           ">
             <i class="fas fa-${insight.icon}" style="color: ${color}; font-size: 1.5rem;"></i>
           </div>
-          <div style="flex: 1;">
-            <div style="color: #fff; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem;">
+          <div style="flex: 1; min-width: 0;">
+            <div style="color: #fff; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; word-wrap: break-word;">
               ${insight.message}
             </div>
             ${insight.detail ? `
-              <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem; margin-bottom: 0.75rem;">
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem; margin-bottom: 0.75rem; word-wrap: break-word;">
                 ${insight.detail}
               </div>
             ` : ''}
             ${insight.action ? `
-              <div style="
+              <div class="insight-action-btn" style="
                 display: inline-block;
                 background: ${color};
                 color: #000;
@@ -302,6 +354,26 @@ class EnhancedStartUI {
           </div>
         </div>
       </div>
+      
+      <style>
+        @media (max-width: 768px) {
+          .insight-card {
+            padding: 1rem !important;
+          }
+          .insight-card-content {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+          }
+          .insight-icon {
+            margin-bottom: 0.5rem;
+          }
+          .insight-action-btn {
+            width: 100%;
+            text-align: center;
+          }
+        }
+      </style>
     `;
   }
 
@@ -310,7 +382,7 @@ class EnhancedStartUI {
    */
   renderActions(data) {
     return `
-      <div style="margin-top: 2rem; text-align: center; display: flex; gap: 1rem; justify-content: center;">
+      <div class="start-actions-container" style="margin-top: 2rem; text-align: center; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
         <button onclick="window.EnhancedStartUI.close()" style="
           background: linear-gradient(135deg, #00e0ff, #0080ff);
           border: none;
@@ -321,6 +393,8 @@ class EnhancedStartUI {
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s;
+          flex: 1;
+          min-width: 200px;
         ">
           🚀 Start Exploring
         </button>
@@ -334,10 +408,24 @@ class EnhancedStartUI {
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
+          flex: 1;
+          min-width: 200px;
         ">
           📥 Download Report
         </button>
       </div>
+      
+      <style>
+        @media (max-width: 768px) {
+          .start-actions-container {
+            flex-direction: column !important;
+          }
+          .start-actions-container button {
+            width: 100% !important;
+            min-width: auto !important;
+          }
+        }
+      </style>
     `;
   }
 

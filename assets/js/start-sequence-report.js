@@ -77,27 +77,46 @@ class StartSequenceReport {
 
     console.log('👤 Fetching START data for user:', user.id);
 
-    // Call the SQL function
-    const { data, error } = await window.supabase.rpc('get_start_sequence_data', {
-      auth_user_id: user.id
-    });
+    try {
+      // Call the SQL function
+      const { data, error } = await window.supabase.rpc('get_start_sequence_data', {
+        auth_user_id: user.id
+      });
 
-    if (error) {
-      console.error('Database error:', error);
+      if (error) {
+        console.error('Database error:', error);
+        throw new Error(`Database error: ${error.message || JSON.stringify(error)}`);
+      }
+
+      if (!data) {
+        throw new Error('No data returned from database');
+      }
+
+      console.log('✅ Raw data from database:', data);
+
+      // Parse if it's a string
+      let parsedData = data;
+      if (typeof data === 'string') {
+        try {
+          parsedData = JSON.parse(data);
+        } catch (e) {
+          console.error('Failed to parse data:', e);
+          throw new Error('Invalid JSON response from database');
+        }
+      }
+
+      // Check if user has a profile
+      if (parsedData.has_profile === false) {
+        console.warn('⚠️ User has no community profile');
+        return this.createEmptyReport();
+      }
+
+      return parsedData;
+      
+    } catch (error) {
+      console.error('❌ Error fetching START data:', error);
       throw error;
     }
-
-    if (!data) {
-      throw new Error('No data returned from database');
-    }
-
-    // Check if user has a profile
-    if (data.has_profile === false) {
-      console.warn('⚠️ User has no community profile');
-      return this.createEmptyReport();
-    }
-
-    return data;
   }
 
   /**
