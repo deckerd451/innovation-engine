@@ -342,9 +342,9 @@ BEGIN
       
       -- Activity breakdown by type
       'activity_breakdown', (
-        SELECT json_object_agg(action_type, count)
+        SELECT COALESCE(json_object_agg(action_type, count), '{}'::json)
         FROM (
-          SELECT action_type, COUNT(*) as count
+          SELECT action_type, COUNT(*)::int as count
           FROM activity_log
           WHERE community_user_id = user_community_id
           AND created_at > NOW() - INTERVAL '7 days'
@@ -394,9 +394,9 @@ BEGIN
       'connections', json_build_object(
         'total', c.connection_count,
         'by_type', (
-          SELECT json_object_agg(type, count)
+          SELECT COALESCE(json_object_agg(type, count), '{}'::json)
           FROM (
-            SELECT type, COUNT(*) as count
+            SELECT type, COUNT(*)::int as count
             FROM connections
             WHERE (from_user_id = user_community_id OR to_user_id = user_community_id)
             AND status = 'accepted'
