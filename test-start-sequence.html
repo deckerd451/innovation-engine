@@ -43,6 +43,43 @@
 <body>
   <h1>🧪 START Sequence Diagnostic Test</h1>
   
+  <!-- START Modal (needed for testing) -->
+  <div id="start-modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9998;"></div>
+  <div id="start-modal" style="
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+    border: 2px solid rgba(0,224,255,0.4);
+    border-radius: 16px;
+    padding: 2rem;
+    z-index: 9999;
+    overflow-y: auto;
+  ">
+    <button onclick="document.getElementById('start-modal').style.display='none'; document.getElementById('start-modal-backdrop').style.display='none';" style="
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">×</button>
+    <div id="start-options-container"></div>
+  </div>
+  
   <div class="test-section">
     <h2>1. Supabase Connection</h2>
     <div id="supabase-test">Testing...</div>
@@ -55,24 +92,29 @@
   
   <div class="test-section">
     <h2>3. SQL Function Test</h2>
-    <button onclick="testSQLFunction()">Test SQL Function</button>
+    <button id="btn-test-sql">Test SQL Function</button>
     <div id="sql-test"></div>
   </div>
   
   <div class="test-section">
     <h2>4. Report Generator Test</h2>
-    <button onclick="testReportGenerator()">Test Report Generator</button>
+    <button id="btn-test-report">Test Report Generator</button>
     <div id="report-test"></div>
   </div>
   
   <div class="test-section">
     <h2>5. Full START Sequence Test</h2>
-    <button onclick="testFullSequence()">Test Full Sequence</button>
+    <button id="btn-test-full">Test Full Sequence</button>
     <div id="full-test"></div>
   </div>
 
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- START Sequence Scripts -->
+  <script src="assets/js/start-sequence-report.js"></script>
+  <script src="assets/js/start-synapse-integration.js"></script>
+  <script src="assets/js/start-ui-enhanced.js"></script>
   
   <script>
     // Initialize Supabase
@@ -198,12 +240,12 @@
     // Auto-run initial tests
     window.addEventListener('DOMContentLoaded', () => {
       testSupabase();
+      
+      // Wire up button handlers
+      document.getElementById('btn-test-sql').addEventListener('click', testSQLFunction);
+      document.getElementById('btn-test-report').addEventListener('click', testReportGenerator);
+      document.getElementById('btn-test-full').addEventListener('click', testFullSequence);
     });
   </script>
-  
-  <!-- START Sequence Scripts -->
-  <script src="assets/js/start-sequence-report.js"></script>
-  <script src="assets/js/start-synapse-integration.js"></script>
-  <script src="assets/js/start-ui-enhanced.js"></script>
 </body>
 </html>
