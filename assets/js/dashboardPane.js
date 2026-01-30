@@ -790,6 +790,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     safeText("user-name-header", name);
     safeText("user-initials-header", initials || "?");
+    
+    // Also update left-side profile button
+    safeText("user-initials-left", initials || "?");
+    safeText("user-name-dropdown", name);
+    safeText("user-initials-dropdown", initials || "?");
   }
 
   // -----------------------------

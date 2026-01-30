@@ -1221,10 +1221,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Also check for admin button immediately
   setTimeout(() => {
     if (isAdminUser()) {
-      const adminBtn = document.getElementById('btn-admin-top');
-      if (adminBtn) {
-        adminBtn.style.display = 'flex';
-        console.log('👑 Admin button shown (DOMContentLoaded)');
+      const adminBtnLeft = document.getElementById('btn-admin-top-left');
+      if (adminBtnLeft) {
+        adminBtnLeft.style.display = 'flex';
+        console.log('👑 Admin button shown on left side (DOMContentLoaded)');
       }
     }
   }, 1500);
@@ -1238,12 +1238,19 @@ window.addEventListener('profile-loaded', () => {
   
   setTimeout(createSynapseLegend, 500);
 
-  // Show admin button if user is admin (now at top)
+  // Show admin button if user is admin (now at top left)
   if (isAdminUser()) {
-    const adminBtn = document.getElementById('btn-admin-top');
-    if (adminBtn) {
-      adminBtn.style.display = 'flex';
-      console.log('👑 Admin button shown (profile-loaded)');
+    // Show left-side admin button
+    const adminBtnLeft = document.getElementById('btn-admin-top-left');
+    if (adminBtnLeft) {
+      adminBtnLeft.style.display = 'flex';
+      console.log('👑 Admin button shown on left side (profile-loaded)');
+    }
+    
+    // Show admin badge in dropdown
+    const adminBadgeDropdown = document.getElementById('admin-badge-dropdown');
+    if (adminBadgeDropdown) {
+      adminBadgeDropdown.style.display = 'inline-block';
     }
     
     // Show Discovery Mode button for admins
