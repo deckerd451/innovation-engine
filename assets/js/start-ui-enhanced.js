@@ -508,10 +508,17 @@ class EnhancedStartUI {
               console.log('✅ Already in circles mode, themes visible');
             }
           } else {
-            console.warn('⚠️ Theme toggle not available');
-            // Fallback: just filter to show themes
-            if (window.filterByNodeType) {
+            console.warn('⚠️ Theme toggle not available, using fallback');
+            // Fallback: Click the Themes filter button
+            const themesBtn = document.getElementById('btn-themes');
+            if (themesBtn) {
+              console.log('✅ Clicking Themes filter button');
+              themesBtn.click();
+            } else if (window.filterByNodeType) {
+              console.log('✅ Using filterByNodeType');
               window.filterByNodeType('theme');
+            } else {
+              console.error('❌ No way to show themes found');
             }
           }
         }
