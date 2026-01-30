@@ -1279,6 +1279,15 @@
 
   <!-- Unified START Flow - DISABLED: Using Enhanced START UI instead -->
   <!-- <script src="assets/js/start-flow-unified.js?v=e829b2ff916933b2da"></script> -->
+  
+  <!-- Prevent old START flow from running if cached -->
+  <script>
+    // Disable old START flow if it somehow loaded from cache
+    if (window.startFlowManager) {
+      console.log('⚠️ Old START flow detected, disabling...');
+      window.startFlowManager = null;
+    }
+  </script>
 
   <!-- Mentor Guide System with commit-based cache-busting -->
   <script src="assets/js/mentor-guide.js?v=e829b2ff916933b2da"></script>
@@ -1718,9 +1727,9 @@
     })();
   </script>
 
-  <script src="assets/js/start-sequence-report.js"></script>
-<script src="assets/js/start-synapse-integration.js"></script>
-<script src="assets/js/start-ui-enhanced.js"></script>
+  <script src="assets/js/start-sequence-report.js?v=2"></script>
+<script src="assets/js/start-synapse-integration.js?v=2"></script>
+<script src="assets/js/start-ui-enhanced.js?v=2"></script>
 
 <!-- Wire up global functions for enhanced START UI -->
 <script>
