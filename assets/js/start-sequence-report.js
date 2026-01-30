@@ -1,15 +1,6 @@
 // ================================================================
 // START SEQUENCE REPORT GENERATOR
 // ================================================================
-// Fetches and transforms START sequence data from the database
-// Generates actionable insights for the enhanced START flow
-// ================================================================
-
-console.log('%c📊 START Sequence Report Generator - Loading', 'color:#0f8; font-weight:bold;');
-
-// ================================================================
-// MAIN REPORT CLASS
-// ================================================================
 
 class StartSequenceReport {
   constructor() {
@@ -28,18 +19,15 @@ class StartSequenceReport {
   async getData(forceRefresh = false) {
     // Check cache first
     if (!forceRefresh && this.isCacheValid()) {
-      console.log('📦 Using cached START sequence data');
       return this.cache.data;
     }
 
     // Prevent duplicate requests
     if (this.isLoading) {
-      console.log('⏳ Already loading START sequence data...');
       return this.waitForLoad();
     }
 
     this.isLoading = true;
-    console.log('🔄 Fetching fresh START sequence data...');
 
     try {
       const data = await this.fetchFromDatabase();
@@ -48,11 +36,10 @@ class StartSequenceReport {
       this.cache.data = data;
       this.cache.timestamp = Date.now();
       
-      console.log('✅ START sequence data loaded:', data);
       return data;
       
     } catch (error) {
-      console.error('❌ Failed to load START sequence data:', error);
+      console.error('Failed to load START sequence data:', error);
       throw error;
       
     } finally {
@@ -75,8 +62,6 @@ class StartSequenceReport {
       throw new Error('User not authenticated');
     }
 
-    console.log('👤 Fetching START data for user:', user.id);
-
     try {
       // Call the SQL function
       const { data, error } = await window.supabase.rpc('get_start_sequence_data', {
@@ -92,8 +77,6 @@ class StartSequenceReport {
         throw new Error('No data returned from database');
       }
 
-      console.log('✅ Raw data from database:', data);
-
       // Parse if it's a string
       let parsedData = data;
       if (typeof data === 'string') {
@@ -107,14 +90,13 @@ class StartSequenceReport {
 
       // Check if user has a profile
       if (parsedData.has_profile === false) {
-        console.warn('⚠️ User has no community profile');
         return this.createEmptyReport();
       }
 
       return parsedData;
       
     } catch (error) {
-      console.error('❌ Error fetching START data:', error);
+      console.error('Error fetching START data:', error);
       throw error;
     }
   }
@@ -187,7 +169,6 @@ class StartSequenceReport {
    * Clear cache (useful after user actions)
    */
   clearCache() {
-    console.log('🗑️ Clearing START sequence cache');
     this.cache.data = null;
     this.cache.timestamp = null;
   }
@@ -523,5 +504,3 @@ window.generateStartSummary = generateStartSummary;
 window.generateStartInsights = generateStartInsights;
 window.getStartSynapseData = getStartSynapseData;
 window.clearStartSequenceCache = clearStartSequenceCache;
-
-console.log('✅ START Sequence Report Generator ready');

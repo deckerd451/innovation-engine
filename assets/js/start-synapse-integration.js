@@ -21,18 +21,13 @@ class SynapseHighlighter {
    * Apply highlights from START sequence data
    */
   async applyStartHighlights() {
-    console.log('🎨 Applying START sequence highlights to synapse...');
-
     try {
       // Get synapse data from START sequence
       const synapseData = await window.getStartSynapseData();
       
       if (!synapseData || !synapseData.highlights) {
-        console.log('No highlights to apply');
         return;
       }
-
-      console.log(`✨ Applying ${synapseData.highlights.length} highlights`);
 
       // Clear existing highlights
       this.clearAllHighlights();
@@ -341,8 +336,6 @@ class SynapseHighlighter {
    * Clear all highlights
    */
   clearAllHighlights() {
-    console.log('🧹 Clearing all synapse highlights');
-
     // Stop all animations
     this.animationFrames.forEach((frameId, element) => {
       if (frameId) {
@@ -420,8 +413,6 @@ class SynapseConnectionDrawer {
   drawStartConnections(synapseData) {
     if (!synapseData || !synapseData.highlights) return;
 
-    console.log('🔗 Drawing START sequence connections');
-
     // Get user node
     const userNode = this.findUserNode();
     if (!userNode) {
@@ -462,8 +453,7 @@ class SynapseConnectionDrawer {
    */
   drawConnection(fromNode, toNodeId, reason) {
     // Implementation depends on your synapse visualization library
-    // This is a placeholder for D3.js or similar
-    console.log(`Drawing connection: user -> ${toNodeId} (${reason})`);
+    // This is a placeholder
   }
 }
 
@@ -511,13 +501,11 @@ window.refreshStartHighlights = refreshStartHighlights;
 
 // Listen for synapse ready event
 document.addEventListener('synapse-ready', async () => {
-  console.log('🧠 Synapse ready - applying START highlights');
   await applyStartHighlights();
 });
 
 // Also try to apply if synapse is already ready
 if (window.isSynapseReady && window.isSynapseReady()) {
-  console.log('🧠 Synapse already ready - applying START highlights');
   setTimeout(() => applyStartHighlights(), 1000);
 }
 

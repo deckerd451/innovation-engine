@@ -22,11 +22,9 @@ class EnhancedStartUI {
    */
   async open() {
     if (this.isOpen) {
-      console.warn('START modal already open');
       return;
     }
 
-    console.log('🚀 Opening enhanced START modal');
     this.isOpen = true;
 
     // Show loading state first
@@ -457,8 +455,6 @@ class EnhancedStartUI {
       event.preventDefault();
     }
     
-    console.log('🎯 Action clicked:', handler);
-
     // Close modal first
     this.close();
 
@@ -466,69 +462,48 @@ class EnhancedStartUI {
     setTimeout(() => {
       const handlers = {
         openConnectionRequests: () => {
-          console.log('📋 Opening connection requests...');
           // Filter synapse to show only people with pending requests
           if (window.filterByNodeType) {
             window.filterByNodeType('person');
           }
         },
         openMessaging: () => {
-          console.log('💬 Opening messaging...');
           if (window.openMessagesModal) {
             window.openMessagesModal();
           } else if (window.openMessagingModal) {
             window.openMessagingModal();
-          } else {
-            console.warn('⚠️ Messaging modal not available');
           }
         },
         openProjectBids: () => {
-          console.log('📋 Opening project bids...');
           // Open projects modal
           if (window.openProjectsModal) {
             window.openProjectsModal();
-          } else {
-            console.warn('⚠️ Projects modal not available');
           }
         },
         openSkillMatchedProjects: () => {
-          console.log('💡 Opening skill-matched projects...');
           if (window.openProjectsModal) {
             window.openProjectsModal();
-          } else {
-            console.warn('⚠️ Projects modal not available');
           }
         },
         openThemes: () => {
-          console.log('🎯 Switching to themes view...');
           // Check if we're in cards mode and need to switch to circles
           const currentStrategy = window.currentStrategy || 'new';
-          console.log('Current strategy:', currentStrategy);
           
           if (window.toggleThemeStrategy && typeof window.toggleThemeStrategy === 'function') {
             // If in cards mode, switch to circles to see themes
             if (currentStrategy === 'new') {
-              console.log('🔄 Switching from cards to circles to show themes');
               window.toggleThemeStrategy();
-            } else {
-              console.log('✅ Already in circles mode, themes visible');
             }
           } else {
-            console.warn('⚠️ Theme toggle not available, using fallback');
             // Fallback: Click the Themes filter button
             const themesBtn = document.querySelector('[data-category="themes"]');
             if (themesBtn) {
-              console.log('✅ Clicking Themes filter button');
               themesBtn.click();
             } else if (window.Synapse && window.Synapse.filterByType) {
-              console.log('✅ Using Synapse.filterByType');
               window.Synapse.filterByType('theme');
             } else if (window.filterByNodeType) {
-              console.log('✅ Using filterByNodeType');
               window.filterByNodeType('theme');
             } else {
-              console.error('❌ No way to show themes found');
-              // Last resort: just close modal and let user manually click Themes
               alert('Please click the "Themes" button to view active themes');
             }
           }
@@ -538,8 +513,6 @@ class EnhancedStartUI {
       const handlerFn = handlers[handler];
       if (handlerFn) {
         handlerFn();
-      } else {
-        console.warn('⚠️ Handler not found:', handler);
       }
     }, 300);
   }
@@ -549,7 +522,6 @@ class EnhancedStartUI {
    */
   downloadReport() {
     if (!this.currentData) {
-      console.warn('No data to download');
       return;
     }
 
@@ -739,16 +711,12 @@ class EnhancedStartUI {
     link.click();
     
     URL.revokeObjectURL(url);
-    
-    console.log('📥 Report downloaded as HTML');
   }
 
   /**
    * Close the modal
    */
   close() {
-    console.log('🚪 Closing enhanced START modal');
-
     const modal = document.getElementById('start-modal');
     const backdrop = document.getElementById('start-modal-backdrop');
 
