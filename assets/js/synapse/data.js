@@ -34,16 +34,18 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       .or(`from_user_id.eq.${currentUserCommunityId},to_user_id.eq.${currentUserCommunityId}`);
 
     const connectedIds = new Set();
-    connectedIds.add(currentUserCommunityId); // Exclude self
+    // Don't exclude self - we want the user to remain centered in Discovery Mode
     connections?.forEach(conn => {
       connectedIds.add(conn.from_user_id);
       connectedIds.add(conn.to_user_id);
     });
 
-    // Filter to only suggested connections (not already connected)
-    members = allMembers?.filter(user => !connectedIds.has(user.id)) || [];
+    // Filter to only suggested connections (not already connected) + current user
+    members = allMembers?.filter(user => 
+      user.id === currentUserCommunityId || !connectedIds.has(user.id)
+    ) || [];
 
-    console.log(`📊 Discovery Mode: Showing ${members.length} suggested connections out of ${allMembers?.length || 0} total members`);
+    console.log(`📊 Discovery Mode: Showing ${members.length} suggested connections out of ${allMembers?.length || 0} total members (including current user)`);
   } else {
     console.log(`📊 My Network: Loading all ${members?.length || 0} members for filtering`);
   }
