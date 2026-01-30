@@ -2558,14 +2558,24 @@ window.joinTheme = async function(themeId, themeName) {
     
     showToastNotification(`✓ You've joined "${themeName}"!`, 'success');
     
-    // Close panel and refresh
+    // Close panel
     closeNodePanel();
+    
+    console.log('🔄 Refreshing synapse after joining theme...');
     
     // Reload synapse data if available
     if (window.reloadAllData) {
+      console.log('🔄 Calling reloadAllData...');
       await window.reloadAllData();
       if (window.rebuildGraph) {
+        console.log('🔄 Calling rebuildGraph...');
         await window.rebuildGraph();
+      }
+    } else {
+      console.warn('⚠️ reloadAllData not available, trying alternative refresh...');
+      // Alternative: trigger a manual refresh
+      if (window.location) {
+        setTimeout(() => window.location.reload(), 1000);
       }
     }
   } catch (error) {
@@ -2612,14 +2622,24 @@ window.leaveTheme = async function(themeId, themeName) {
     
     showToastNotification(`✓ You've left "${themeName}"`, 'success');
     
-    // Close panel and refresh
+    // Close panel
     closeNodePanel();
+    
+    console.log('🔄 Refreshing synapse after leaving theme...');
     
     // Reload synapse data if available
     if (window.reloadAllData) {
+      console.log('🔄 Calling reloadAllData...');
       await window.reloadAllData();
       if (window.rebuildGraph) {
+        console.log('🔄 Calling rebuildGraph...');
         await window.rebuildGraph();
+      }
+    } else {
+      console.warn('⚠️ reloadAllData not available, trying alternative refresh...');
+      // Alternative: trigger a manual refresh
+      if (window.location) {
+        setTimeout(() => window.location.reload(), 1000);
       }
     }
   } catch (error) {
