@@ -30,13 +30,16 @@ class EnhancedStartUI {
     // Show loading state first
     this.showLoadingState();
 
+    // Setup event listeners for ESC and backdrop click
+    this.setupEventListeners();
+
     try {
       // Fetch fresh data
       const data = await window.getStartSequenceData(true);
       this.currentData = data;
 
       // Render the enhanced UI
-      this.render(data);
+      await this.render(data);
 
       // Apply synapse highlights
       if (window.applyStartHighlights) {
@@ -120,13 +123,22 @@ class EnhancedStartUI {
   /**
    * Render the enhanced START UI
    */
-  render(data) {
+  async render(data) {
     const container = document.getElementById('start-options-container');
     if (!container) return;
 
-    // Generate insights
-    const insights = window.StartSequenceFormatter.generateInsights(data);
-    const summary = window.StartSequenceFormatter.generateSummary(data);
+    // Check if user is new (needs onboarding) or existing (gets daily digest)
+    const isNewUser = data.is_new_user || !data.profile?.onboarding_completed;
+
+    let contentHTML = '';
+
+    if (isNewUser) {
+      // Show onboarding flow
+      contentHTML = await window.StartOnboarding.render(data);
+    } else {
+      // Show daily digest
+      contentHTML = await window.StartDailyDigest.render(data);
+    }
 
     container.innerHTML = `
       <style>
@@ -139,24 +151,32 @@ class EnhancedStartUI {
             max-height: 90vh !important;
             overflow-y: auto !important;
           }
-          
+
           #start-options-container {
             padding: 0.5rem !important;
           }
-          
+
           #start-options-container h2 {
             font-size: 1.4rem !important;
           }
-          
+
           #start-options-container h3 {
             font-size: 1.1rem !important;
           }
-          
+
           #start-options-container p {
             font-size: 0.9rem !important;
           }
+
+          .onboarding-progress {
+            padding: 0 !important;
+          }
+
+          .progress-step span {
+            font-size: 0.65rem !important;
+          }
         }
-        
+
         @media (max-width: 480px) {
           #start-modal {
             width: 100vw !important;
@@ -166,12 +186,14 @@ class EnhancedStartUI {
             border-radius: 0 !important;
             padding: 0.75rem !important;
           }
+
+          .progress-step span {
+            display: none; /* Hide labels on very small screens */
+          }
         }
       </style>
-      ${this.renderHeader(data)}
-      ${this.renderReport(summary)}
-      ${this.renderInsights(insights)}
-      ${this.renderActions(data)}
+      ${contentHTML}
+      ${this.renderActions(data, isNewUser)}
     `;
 
     // Wire up event handlers
@@ -404,7 +426,12 @@ class EnhancedStartUI {
   /**
    * Render action buttons
    */
-  renderActions(data) {
+  renderActions(data, isNewUser = false) {
+    // Don't show actions for onboarding (onboarding has its own navigation)
+    if (isNewUser) {
+      return '';
+    }
+
     return `
       <div class="start-actions-container" style="margin-top: 2rem; text-align: center; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
         <button onclick="window.EnhancedStartUI.close()" style="
@@ -438,7 +465,7 @@ class EnhancedStartUI {
           📥 Download Report
         </button>
       </div>
-      
+
       <style>
         @media (max-width: 768px) {
           .start-actions-container {
@@ -839,6 +866,43 @@ class EnhancedStartUI {
     }
 
     this.isOpen = false;
+  }
+
+  /**
+   * Setup event listeners for modal
+   */
+  setupEventListeners() {
+    // ESC key to close
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape' && this.isOpen) {
+        this.close();
+      }
+    };
+
+    // Remove old listener if it exists
+    if (this.escapeHandler) {
+      document.removeEventListener('keydown', this.escapeHandler);
+    }
+
+    this.escapeHandler = escapeHandler;
+    document.addEventListener('keydown', this.escapeHandler);
+
+    // Backdrop click to close
+    const backdrop = document.getElementById('start-modal-backdrop');
+    if (backdrop) {
+      // Remove old listener
+      if (this.backdropClickHandler) {
+        backdrop.removeEventListener('click', this.backdropClickHandler);
+      }
+
+      this.backdropClickHandler = (e) => {
+        if (e.target === backdrop) {
+          this.close();
+        }
+      };
+
+      backdrop.addEventListener('click', this.backdropClickHandler);
+    }
   }
 }
 
