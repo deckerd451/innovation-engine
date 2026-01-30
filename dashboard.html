@@ -1471,12 +1471,9 @@
       const startContainer = document.getElementById('start-button-container');
       const startBtn = document.getElementById('btn-start-center');
       const exploreBtn = document.getElementById('btn-explore-cancel');
-
-      // Always show START on app open (removed session check)
-      function shouldShowStart() {
-        // Always return true to show START every time
-        return true;
-      }
+      
+      // Track if START has been dismissed
+      let startDismissed = sessionStorage.getItem('start_dismissed') === 'true';
 
       // Hide START button and show user node
       function hideStartButton() {
@@ -1490,7 +1487,9 @@
           }, 500);
         }
 
-        // Mark that START was used this session (for reference only)
+        // Mark that START was dismissed
+        startDismissed = true;
+        sessionStorage.setItem('start_dismissed', 'true');
         sessionStorage.setItem('chs_session_started', 'true');
         localStorage.setItem('chs_start_last_used', Date.now());
       }
@@ -1531,19 +1530,19 @@
         });
       }
 
-      // Always show START on page load
+      // Show START on page load only if not dismissed
       window.addEventListener('profile-loaded', () => {
-        if (startContainer) {
+        if (startContainer && !startDismissed) {
           startContainer.style.display = 'flex';
         }
       });
 
-      // Show START immediately if container exists
-      if (startContainer) {
+      // Show START immediately if container exists and not dismissed
+      if (startContainer && !startDismissed) {
         startContainer.style.display = 'flex';
       }
 
-      console.log('✅ START button logic initialized - will show on every app open');
+      console.log('✅ START button logic initialized');
     })();
   </script>
 
