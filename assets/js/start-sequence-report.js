@@ -296,7 +296,8 @@ class StartSequenceFormatter {
         color: '#ffaa00',
         message: `${opportunities.active_themes.count} active themes to explore`,
         action: 'Browse Themes',
-        handler: 'openThemes'
+        handler: 'openThemes',
+        data: { themeCount: opportunities.active_themes.count }
       });
     }
 
@@ -326,6 +327,55 @@ class StartSequenceFormatter {
         action: null,
         handler: null
       });
+    }
+
+    // Empty state insights - help users get started
+    const hasNoActivity = insights.length === 0;
+    const hasNoConnections = (network.connections?.total || 0) === 0;
+    const hasNoThemes = (network.participating_themes?.count || 0) === 0;
+    const hasNoProjects = (network.active_projects?.count || 0) === 0;
+
+    if (hasNoActivity) {
+      // First-time user or inactive user
+      if (hasNoConnections) {
+        insights.push({
+          type: 'onboarding',
+          priority: 'high',
+          icon: 'users',
+          color: '#00e0ff',
+          message: 'Start building your network',
+          detail: 'Connect with people who share your interests',
+          action: 'Find People',
+          handler: 'openConnectionRequests'
+        });
+      }
+
+      if (hasNoThemes) {
+        insights.push({
+          type: 'onboarding',
+          priority: 'high',
+          icon: 'compass',
+          color: '#ffaa00',
+          message: 'Explore themes and interests',
+          detail: 'Join communities around topics you care about',
+          action: 'Browse Themes',
+          handler: 'openThemes',
+          data: { themeCount: 0 }
+        });
+      }
+
+      if (hasNoProjects) {
+        insights.push({
+          type: 'onboarding',
+          priority: 'medium',
+          icon: 'rocket',
+          color: '#00ff88',
+          message: 'Discover projects to join',
+          detail: 'Collaborate on exciting ideas and initiatives',
+          action: 'View Projects',
+          handler: 'openSkillMatchedProjects'
+        });
+      }
     }
 
     return insights;

@@ -303,9 +303,13 @@ class EnhancedStartUI {
     };
 
     const color = insight.color || priorityColors[insight.priority] || '#00e0ff';
+    const dataAttr = insight.data ? `data-insight-data='${JSON.stringify(insight.data)}'` : '';
 
     return `
-      <div class="insight-card" data-handler="${insight.handler || ''}" style="
+      <div class="insight-card" 
+           data-handler="${insight.handler || ''}" 
+           ${dataAttr}
+           style="
         background: linear-gradient(135deg, ${color}15, rgba(0,0,0,0.1));
         border: 2px solid ${color}40;
         border-radius: 12px;
@@ -369,6 +373,28 @@ class EnhancedStartUI {
           .insight-action-btn {
             width: 100%;
             text-align: center;
+          }
+        }
+        
+        @keyframes slideInRight {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideOutRight {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(400px);
+            opacity: 0;
           }
         }
       </style>
@@ -455,6 +481,12 @@ class EnhancedStartUI {
       event.preventDefault();
     }
     
+    // Get the insight data if available
+    const insightCard = event?.currentTarget;
+    const insightData = insightCard?.dataset?.insightData 
+      ? JSON.parse(insightCard.dataset.insightData) 
+      : {};
+    
     // Close modal first
     this.close();
 
@@ -472,20 +504,34 @@ class EnhancedStartUI {
             window.openMessagesModal();
           } else if (window.openMessagingModal) {
             window.openMessagingModal();
+          } else {
+            this.showToast('Messaging feature coming soon!', 'info');
           }
         },
         openProjectBids: () => {
           // Open projects modal
           if (window.openProjectsModal) {
             window.openProjectsModal();
+          } else {
+            this.showToast('Projects feature coming soon!', 'info');
           }
         },
         openSkillMatchedProjects: () => {
           if (window.openProjectsModal) {
             window.openProjectsModal();
+          } else {
+            this.showToast('Projects feature coming soon!', 'info');
           }
         },
         openThemes: () => {
+          const themeCount = insightData.themeCount || 0;
+          
+          // If no themes, show helpful message
+          if (themeCount === 0) {
+            this.showToast('No active themes yet. Themes will appear here when created by admins or community leaders.', 'info');
+            return;
+          }
+          
           // Check if we're in cards mode and need to switch to circles
           const currentStrategy = window.currentStrategy || 'new';
           
@@ -499,12 +545,20 @@ class EnhancedStartUI {
             const themesBtn = document.querySelector('[data-category="themes"]');
             if (themesBtn) {
               themesBtn.click();
+              
+              // Check if there are themes after a short delay
+              setTimeout(() => {
+                const themeNodes = document.querySelectorAll('[data-type="theme"]');
+                if (themeNodes.length === 0) {
+                  this.showToast('No active themes found. Check back later!', 'info');
+                }
+              }, 500);
             } else if (window.Synapse && window.Synapse.filterByType) {
               window.Synapse.filterByType('theme');
             } else if (window.filterByNodeType) {
               window.filterByNodeType('theme');
             } else {
-              alert('Please click the "Themes" button to view active themes');
+              this.showToast('Please click the "Themes" button to view active themes', 'info');
             }
           }
         }
@@ -512,9 +566,59 @@ class EnhancedStartUI {
 
       const handlerFn = handlers[handler];
       if (handlerFn) {
-        handlerFn();
+        try {
+          handlerFn();
+        } catch (error) {
+          console.error('Error executing handler:', error);
+          this.showToast('Something went wrong. Please try again.', 'error');
+        }
+      } else {
+        console.warn('Unknown handler:', handler);
+        this.showToast('This feature is not yet available', 'info');
       }
     }, 300);
+  }
+
+  /**
+   * Show toast notification
+   */
+  showToast(message, type = 'info') {
+    const colors = {
+      info: '#00e0ff',
+      success: '#00ff88',
+      warning: '#ffaa00',
+      error: '#ff6b6b'
+    };
+
+    const color = colors[type] || colors.info;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, ${color}20, rgba(0,0,0,0.9));
+      border: 2px solid ${color}60;
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 500;
+      max-width: 400px;
+      z-index: 100000;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+      animation: slideInRight 0.3s ease;
+    `;
+    toast.textContent = message;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'slideOutRight 0.3s ease';
+      setTimeout(() => {
+        document.body.removeChild(toast);
+      }, 300);
+    }, 4000);
   }
 
   /**
