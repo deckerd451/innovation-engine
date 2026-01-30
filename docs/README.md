@@ -5,7 +5,8 @@
 ### START Sequence Documentation
 
 #### Current Implementation (Phase 3 Complete ✨)
-- **[PHASE3_START_REDESIGN.md](PHASE3_START_REDESIGN.md)** - ⭐ **NEW!** Phase 3 complete redesign with onboarding & daily digest
+- **[PHASE3_OVERLAY_FIX.md](PHASE3_OVERLAY_FIX.md)** - ⭐ **NEW!** Phase 3 overlay fix - navigation button only
+- **[PHASE3_START_REDESIGN.md](PHASE3_START_REDESIGN.md)** - Phase 3 complete redesign with onboarding & daily digest
 - **[START_REDESIGN_PHASE1.md](START_REDESIGN_PHASE1.md)** - Phase 1 & 2 completion summary
 - **[PHASE2_COMPLETION_SUMMARY.md](PHASE2_COMPLETION_SUMMARY.md)** - Detailed breakdown of Phase 2 improvements
 - **[QUICK_TEST_PHASE2.md](QUICK_TEST_PHASE2.md)** - Step-by-step testing guide for Phase 2 features
