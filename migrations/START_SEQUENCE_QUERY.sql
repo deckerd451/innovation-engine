@@ -171,7 +171,7 @@ BEGIN
       -- Projects that match YOUR skills
       'skill_matched_projects', (
         SELECT json_build_object(
-          'count', COUNT(*),
+          'count', COUNT(*) OVER(),
           'items', COALESCE(json_agg(json_build_object(
             'id', p.id,
             'title', p.title,
@@ -188,26 +188,31 @@ BEGIN
             'creator_image', creator.image_url,
             'bid_count', p.bid_count,
             'created_at', p.created_at
-          ) ORDER BY (
+          )), '[]'::json)
+        )
+        FROM (
+          SELECT p.*, creator.name as creator_name, creator.image_url as creator_image
+          FROM projects p
+          JOIN community creator ON creator.user_id = p.creator_id
+          WHERE p.status = 'open'
+          AND EXISTS (
+            SELECT 1 FROM unnest(p.required_skills) skill 
+            WHERE skill = ANY(c.skills)
+          )
+          AND p.creator_id != auth_user_id
+          ORDER BY (
             SELECT COUNT(*)
             FROM unnest(p.required_skills) skill
             WHERE skill = ANY(c.skills)
-          ) DESC LIMIT 10), '[]'::json)
-        )
-        FROM projects p
-        JOIN community creator ON creator.user_id = p.creator_id
-        WHERE p.status = 'open'
-        AND EXISTS (
-          SELECT 1 FROM unnest(p.required_skills) skill 
-          WHERE skill = ANY(c.skills)
-        )
-        AND p.creator_id != auth_user_id
+          ) DESC
+          LIMIT 10
+        ) p
       ),
       
       -- Active theme circles
       'active_themes', (
         SELECT json_build_object(
-          'count', COUNT(*),
+          'count', COUNT(*) OVER(),
           'items', COALESCE(json_agg(json_build_object(
             'id', tc.id,
             'title', tc.title,
@@ -227,24 +232,29 @@ BEGIN
               AND tp.community_id = user_community_id
             ),
             'created_at', tc.created_at
-          ) ORDER BY tc.activity_score DESC, tc.created_at DESC LIMIT 10), '[]'::json)
+          )), '[]'::json)
         )
-        FROM theme_circles tc
-        WHERE tc.status = 'active'
-        AND tc.expires_at > NOW()
+        FROM (
+          SELECT tc.*
+          FROM theme_circles tc
+          WHERE tc.status = 'active'
+          AND tc.expires_at > NOW()
+          ORDER BY tc.activity_score DESC, tc.created_at DESC
+          LIMIT 10
+        ) tc
       ),
       
       -- Open opportunities (jobs, internships, etc.)
       'open_opportunities', (
         SELECT json_build_object(
-          'count', COUNT(*),
+          'count', COUNT(*) OVER(),
           'items', COALESCE(json_agg(json_build_object(
             'id', opp.id,
             'title', opp.title,
             'description', opp.description,
             'type', opp.type,
-            'organization_name', org.name,
-            'organization_logo', org.logo_url,
+            'organization_name', opp.org_name,
+            'organization_logo', opp.org_logo_url,
             'location', opp.location,
             'remote_ok', opp.remote_ok,
             'required_skills', opp.required_skills,
@@ -257,22 +267,27 @@ BEGIN
             'compensation_type', opp.compensation_type,
             'expires_at', opp.expires_at,
             'created_at', opp.created_at
-          ) ORDER BY (
+          )), '[]'::json)
+        )
+        FROM (
+          SELECT opp.*, org.name as org_name, org.logo_url as org_logo_url
+          FROM opportunities opp
+          LEFT JOIN organizations org ON org.id = opp.organization_id
+          WHERE opp.status = 'open'
+          AND (opp.expires_at IS NULL OR opp.expires_at > NOW())
+          ORDER BY (
             SELECT COUNT(*)
             FROM unnest(opp.required_skills) skill
             WHERE skill = ANY(c.skills)
-          ) DESC LIMIT 10), '[]'::json)
-        )
-        FROM opportunities opp
-        LEFT JOIN organizations org ON org.id = opp.organization_id
-        WHERE opp.status = 'open'
-        AND (opp.expires_at IS NULL OR opp.expires_at > NOW())
+          ) DESC
+          LIMIT 10
+        ) opp
       ),
       
       -- People with complementary skills
       'complementary_connections', (
         SELECT json_build_object(
-          'count', COUNT(*),
+          'count', COUNT(*) OVER(),
           'items', COALESCE(json_agg(json_build_object(
             'id', other.id,
             'name', other.name,
@@ -293,18 +308,23 @@ BEGIN
                  OR (conn.from_user_id = other.id AND conn.to_user_id = user_community_id))
               AND conn.status = 'accepted'
             )
-          ) ORDER BY other.connection_count DESC, other.xp DESC LIMIT 10), '[]'::json)
+          )), '[]'::json)
         )
-        FROM community other
-        WHERE other.id != user_community_id
-        AND other.skills IS NOT NULL
-        AND array_length(other.skills, 1) > 0
-        AND NOT EXISTS (
-          SELECT 1 FROM connections conn
-          WHERE ((conn.from_user_id = user_community_id AND conn.to_user_id = other.id)
-             OR (conn.from_user_id = other.id AND conn.to_user_id = user_community_id))
-          AND conn.status = 'accepted'
-        )
+        FROM (
+          SELECT other.*
+          FROM community other
+          WHERE other.id != user_community_id
+          AND other.skills IS NOT NULL
+          AND array_length(other.skills, 1) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM connections conn
+            WHERE ((conn.from_user_id = user_community_id AND conn.to_user_id = other.id)
+               OR (conn.from_user_id = other.id AND conn.to_user_id = user_community_id))
+            AND conn.status = 'accepted'
+          )
+          ORDER BY other.connection_count DESC, other.xp DESC
+          LIMIT 10
+        ) other
       )
     ),
     
