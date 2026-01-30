@@ -493,7 +493,7 @@ class EnhancedStartUI {
   }
 
   /**
-   * Download report as JSON
+   * Download report as readable text/HTML
    */
   downloadReport() {
     if (!this.currentData) {
@@ -501,18 +501,194 @@ class EnhancedStartUI {
       return;
     }
 
-    const dataStr = JSON.stringify(this.currentData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
+    const data = this.currentData;
+    const profile = data.profile || {};
+    const progress = data.progress || {};
+    const immediate = data.immediate_actions || {};
+    const opportunities = data.opportunities || {};
+    const momentum = data.momentum || {};
+    const network = data.network_insights || {};
+    
+    const date = new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
+    // Create HTML report
+    const htmlReport = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>START Report - ${date}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: linear-gradient(135deg, #0a0e27 0%, #101427 100%);
+      color: #ffffff;
+      line-height: 1.6;
+    }
+    h1 { color: #00e0ff; margin-bottom: 0.5rem; }
+    h2 { color: #00ff88; margin-top: 2rem; border-bottom: 2px solid rgba(0,255,136,0.3); padding-bottom: 0.5rem; }
+    h3 { color: #00e0ff; margin-top: 1.5rem; }
+    .header { text-align: center; margin-bottom: 3rem; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin: 1rem 0; }
+    .stat-card { background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; padding: 1rem; text-align: center; }
+    .stat-value { font-size: 2rem; font-weight: bold; color: #00ff88; }
+    .stat-label { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: 0.25rem; }
+    .insight { background: rgba(0,255,136,0.1); border-left: 4px solid #00ff88; padding: 1rem; margin: 0.5rem 0; border-radius: 4px; }
+    .count { color: #00ff88; font-weight: bold; }
+    .footer { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.2); text-align: center; color: rgba(255,255,255,0.5); font-size: 0.9rem; }
+    @media print {
+      body { background: white; color: black; }
+      h1, h2, h3 { color: #0066cc; }
+      .stat-card { border: 1px solid #ddd; }
+    }
+    @media (max-width: 600px) {
+      body { padding: 1rem; }
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .stat-value { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🚀 START Report</h1>
+    <p style="color: rgba(255,255,255,0.7);">${date}</p>
+    <p style="font-size: 1.2rem; margin-top: 1rem;">Welcome back, <strong>${profile.name || 'User'}</strong>!</p>
+  </div>
+
+  <h2>📊 Your Progress</h2>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-value">${progress.xp || 0}</div>
+      <div class="stat-label">XP</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${progress.level || 1}</div>
+      <div class="stat-label">Level</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${progress.login_streak || 0}</div>
+      <div class="stat-label">Day Streak</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${progress.connection_count || 0}</div>
+      <div class="stat-label">Connections</div>
+    </div>
+  </div>
+
+  <h2>⚡ Immediate Actions</h2>
+  ${immediate.pending_requests?.count > 0 ? `
+    <div class="insight">
+      <strong>👥 Connection Requests:</strong> <span class="count">${immediate.pending_requests.count}</span> ${immediate.pending_requests.count === 1 ? 'person wants' : 'people want'} to connect with you
+    </div>
+  ` : ''}
+  ${immediate.unread_messages?.count > 0 ? `
+    <div class="insight">
+      <strong>💬 Unread Messages:</strong> <span class="count">${immediate.unread_messages.count}</span> unread ${immediate.unread_messages.count === 1 ? 'message' : 'messages'}
+    </div>
+  ` : ''}
+  ${immediate.pending_bids?.count > 0 ? `
+    <div class="insight">
+      <strong>📋 Pending Bids:</strong> <span class="count">${immediate.pending_bids.count}</span> ${immediate.pending_bids.count === 1 ? 'bid' : 'bids'} awaiting review
+    </div>
+  ` : ''}
+  ${immediate.bids_to_review?.count > 0 ? `
+    <div class="insight">
+      <strong>✅ Bids to Review:</strong> <span class="count">${immediate.bids_to_review.count}</span> ${immediate.bids_to_review.count === 1 ? 'bid' : 'bids'} on your projects
+    </div>
+  ` : ''}
+  ${!immediate.pending_requests?.count && !immediate.unread_messages?.count && !immediate.pending_bids?.count && !immediate.bids_to_review?.count ? `
+    <p style="color: rgba(255,255,255,0.6);">✨ You're all caught up! No immediate actions needed.</p>
+  ` : ''}
+
+  <h2>🎯 Opportunities</h2>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-value">${opportunities.skill_matched_projects?.count || 0}</div>
+      <div class="stat-label">Open Projects</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${opportunities.active_themes?.count || 0}</div>
+      <div class="stat-label">Active Themes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${opportunities.open_opportunities?.count || 0}</div>
+      <div class="stat-label">Opportunities</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${opportunities.complementary_connections?.count || 0}</div>
+      <div class="stat-label">Potential Connections</div>
+    </div>
+  </div>
+
+  <h2>🔥 Momentum</h2>
+  <div class="insight">
+    <strong>Weekly Activity:</strong> <span class="count">${momentum.weekly_activity || 0}</span> actions in the last 7 days
+  </div>
+  ${momentum.streak?.current > 0 ? `
+    <div class="insight">
+      <strong>Login Streak:</strong> <span class="count">${momentum.streak.current}</span> days
+      ${momentum.streak.is_at_risk ? ' ⚠️ <em>At risk! Log in today to maintain your streak.</em>' : ' 🎉'}
+    </div>
+  ` : ''}
+  <div class="insight">
+    <strong>XP Progress:</strong> ${momentum.xp_progress?.current_xp || 0} / ${momentum.xp_progress?.next_level_xp || 1000} 
+    (${momentum.xp_progress?.progress_percentage || 0}% to Level ${(momentum.xp_progress?.current_level || 1) + 1})
+  </div>
+
+  <h2>🌐 Network Insights</h2>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-value">${network.connections?.total || 0}</div>
+      <div class="stat-label">Total Connections</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${network.active_projects?.count || 0}</div>
+      <div class="stat-label">Active Projects</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${network.participating_themes?.count || 0}</div>
+      <div class="stat-label">Participating Themes</div>
+    </div>
+  </div>
+
+  <h3>📈 Growth (Last 30 Days)</h3>
+  <div class="insight">
+    <strong>New Connections:</strong> <span class="count">${network.growth?.new_connections || 0}</span>
+  </div>
+  <div class="insight">
+    <strong>New Projects:</strong> <span class="count">${network.growth?.new_projects || 0}</span>
+  </div>
+  <div class="insight">
+    <strong>New Themes:</strong> <span class="count">${network.growth?.new_themes || 0}</span>
+  </div>
+
+  <div class="footer">
+    <p>Generated by CharlestonHacks START Sequence</p>
+    <p>${date}</p>
+  </div>
+</body>
+</html>`;
+
+    // Create and download
+    const blob = new Blob([htmlReport], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `start-report-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `START-Report-${new Date().toISOString().split('T')[0]}.html`;
     link.click();
     
     URL.revokeObjectURL(url);
     
-    console.log('📥 Report downloaded');
+    console.log('📥 Report downloaded as HTML');
   }
 
   /**
