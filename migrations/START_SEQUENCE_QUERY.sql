@@ -342,7 +342,7 @@ BEGIN
       
       -- Activity breakdown by type
       'activity_breakdown', (
-        SELECT COALESCE(json_object_agg(action_type, count), '{}'::json)
+        SELECT COALESCE(json_object_agg(action_type::text, count), '{}'::json)
         FROM (
           SELECT action_type, COUNT(*)::int as count
           FROM activity_log
@@ -394,7 +394,7 @@ BEGIN
       'connections', json_build_object(
         'total', c.connection_count,
         'by_type', (
-          SELECT COALESCE(json_object_agg(type, count), '{}'::json)
+          SELECT COALESCE(json_object_agg(type::text, count), '{}'::json)
           FROM (
             SELECT type, COUNT(*)::int as count
             FROM connections
