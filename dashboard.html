@@ -1277,8 +1277,8 @@
   <!-- Dashboard controller with commit-based cache-busting -->
   <script type="module" src="assets/js/dashboardPane.js?v=e829b2ff916933b2da"></script>
 
-  <!-- Unified START Flow - replaces all old start-flow-*.js files -->
-  <script src="assets/js/start-flow-unified.js?v=e829b2ff916933b2da"></script>
+  <!-- Unified START Flow - DISABLED: Using Enhanced START UI instead -->
+  <!-- <script src="assets/js/start-flow-unified.js?v=e829b2ff916933b2da"></script> -->
 
   <!-- Mentor Guide System with commit-based cache-busting -->
   <script src="assets/js/mentor-guide.js?v=e829b2ff916933b2da"></script>
@@ -1721,6 +1721,23 @@
   <script src="assets/js/start-sequence-report.js"></script>
 <script src="assets/js/start-synapse-integration.js"></script>
 <script src="assets/js/start-ui-enhanced.js"></script>
+
+<!-- Wire up global functions for enhanced START UI -->
+<script>
+  // Make sure closeStartModal works with enhanced UI
+  window.closeStartModal = function() {
+    if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
+      window.EnhancedStartUI.close();
+    }
+  };
+  
+  // Make sure openStartModal uses enhanced UI
+  window.openStartModal = async function() {
+    if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
+      await window.EnhancedStartUI.open();
+    }
+  };
+</script>
 
   </body>
 </html>
