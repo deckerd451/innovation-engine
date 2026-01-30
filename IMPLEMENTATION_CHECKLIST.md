@@ -7,6 +7,7 @@
 - [x] Navigation button already in place (`btn-start-nav`)
 - [x] Event handlers properly configured
 - [x] Created minimal SQL function
+- [x] **NEW**: Removed redundant "I just want to explore freely" button
 
 ### 2. Database Updates
 - [x] SQL function created: `migrations/PHASE3_MINIMAL_START_FUNCTION.sql`
