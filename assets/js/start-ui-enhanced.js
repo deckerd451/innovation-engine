@@ -935,19 +935,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Also handle the "I just want to explore" button
-document.addEventListener('DOMContentLoaded', () => {
-  const exploreButton = document.getElementById('btn-explore-cancel');
-  
-  if (exploreButton) {
-    exploreButton.addEventListener('click', () => {
-      // Hide the START button container
-      const container = document.getElementById('start-button-container');
-      if (container) {
-        container.style.display = 'none';
-      }
-    });
-  }
-});
-
 console.log('✅ Enhanced START UI ready');

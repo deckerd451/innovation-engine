@@ -103,11 +103,7 @@
       opacity: 0.75;
     }
 
-    #btn-explore-cancel:hover {
-      background: rgba(255,255,255,0.1);
-      border-color: rgba(255,255,255,0.5);
-      color: rgba(255,255,255,0.9);
-      opacity: 0.75;
+    /* START modal styles */
     }
 
     /* Mentor Navigation Styling */
@@ -470,11 +466,6 @@
 
       #btn-start-center span {
         font-size: 1.1rem !important;
-      }
-
-      #btn-explore-cancel {
-        font-size: 0.85rem !important;
-        padding: 0.6rem 1.2rem !important;
       }
 
       /* Hide badges on mobile - they'll show in profile view */
@@ -1219,25 +1210,8 @@
 
     <!-- Dynamic Recommendations Container -->
     <div id="start-options-container" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
-      <!-- Populated by start-flow-unified.js -->
-    </div>
-
-    <!-- Explore Freely Button -->
-    <div style="text-align:center;">
-      <button id="explore-freely-btn" onclick="closeStartModal();" style="
-        background: rgba(0,224,255,0.15);
-        border: 2px solid rgba(0,224,255,0.5);
-        border-radius: 10px;
-        color: #00e0ff;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        padding: 1rem 2rem;
-        transition: all 0.3s;
-        width: 100%;
-      ">
-        <i class="fas fa-compass" style="margin-right:0.5rem;"></i>I just want to explore freely
-      </button>
+      <!-- Populated by start-ui-enhanced.js -->
+      <!-- Note: "Go to Dashboard" and "Download Report" buttons are rendered by start-ui-enhanced.js -->
     </div>
   </div>
 
