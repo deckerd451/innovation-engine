@@ -890,6 +890,12 @@
           bottom: auto;
         }
 
+        /* Desktop: Shift search container up when showing suggestions */
+        #centered-search-container.showing-suggestions {
+          bottom: 40vh !important;
+          transition: bottom 0.3s ease;
+        }
+
         /* Responsive styles for search suggestions */
         @media (max-width: 768px) {
           /* On mobile, show suggestions ABOVE search field to avoid keyboard */

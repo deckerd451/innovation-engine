@@ -1337,6 +1337,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     });
     
     suggestionsBox.style.display = "block";
+    
+    // Shift search container up when showing suggestions
+    const searchContainer = document.getElementById('centered-search-container');
+    if (searchContainer) {
+      searchContainer.classList.add('showing-suggestions');
+    }
   }
   
   function selectSuggestion(suggestion) {
@@ -1356,6 +1362,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       suggestionsBox.innerHTML = "";
     }
     currentSuggestionIndex = -1;
+    
+    // Remove showing-suggestions class when hiding
+    const searchContainer = document.getElementById('centered-search-container');
+    if (searchContainer) {
+      searchContainer.classList.remove('showing-suggestions');
+    }
   }
   
   function highlightMatch(text, query) {
