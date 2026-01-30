@@ -2564,19 +2564,19 @@ window.joinTheme = async function(themeId, themeName) {
     console.log('🔄 Refreshing synapse after joining theme...');
     
     // Reload synapse data if available
-    if (window.reloadAllData) {
+    if (window.reloadAllData && typeof window.reloadAllData === 'function') {
       console.log('🔄 Calling reloadAllData...');
       await window.reloadAllData();
-      if (window.rebuildGraph) {
+      if (window.rebuildGraph && typeof window.rebuildGraph === 'function') {
         console.log('🔄 Calling rebuildGraph...');
         await window.rebuildGraph();
       }
     } else {
-      console.warn('⚠️ reloadAllData not available, trying alternative refresh...');
-      // Alternative: trigger a manual refresh
-      if (window.location) {
-        setTimeout(() => window.location.reload(), 1000);
-      }
+      console.warn('⚠️ reloadAllData not available, forcing page reload...');
+      // Force a full page reload to refresh the synapse
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     }
   } catch (error) {
     console.error('Error joining theme:', error);
@@ -2628,19 +2628,19 @@ window.leaveTheme = async function(themeId, themeName) {
     console.log('🔄 Refreshing synapse after leaving theme...');
     
     // Reload synapse data if available
-    if (window.reloadAllData) {
+    if (window.reloadAllData && typeof window.reloadAllData === 'function') {
       console.log('🔄 Calling reloadAllData...');
       await window.reloadAllData();
-      if (window.rebuildGraph) {
+      if (window.rebuildGraph && typeof window.rebuildGraph === 'function') {
         console.log('🔄 Calling rebuildGraph...');
         await window.rebuildGraph();
       }
     } else {
-      console.warn('⚠️ reloadAllData not available, trying alternative refresh...');
-      // Alternative: trigger a manual refresh
-      if (window.location) {
-        setTimeout(() => window.location.reload(), 1000);
-      }
+      console.warn('⚠️ reloadAllData not available, forcing page reload...');
+      // Force a full page reload to refresh the synapse
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     }
   } catch (error) {
     console.error('Error leaving theme:', error);
