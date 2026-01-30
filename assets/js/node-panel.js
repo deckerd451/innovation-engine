@@ -166,6 +166,7 @@ export async function openNodePanel(nodeData) {
 
   // Show panel
   panelElement.style.right = '0';
+  panelElement.classList.add('open');
 
   // Load full data
   await loadNodeDetails(nodeData);
@@ -174,6 +175,7 @@ export async function openNodePanel(nodeData) {
 // Close panel
 export function closeNodePanel() {
   panelElement.style.right = '-450px';
+  panelElement.classList.remove('open');
   currentNodeData = null;
 }
 
