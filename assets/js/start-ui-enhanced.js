@@ -510,15 +510,20 @@ class EnhancedStartUI {
           } else {
             console.warn('⚠️ Theme toggle not available, using fallback');
             // Fallback: Click the Themes filter button
-            const themesBtn = document.getElementById('btn-themes');
+            const themesBtn = document.querySelector('[data-category="themes"]');
             if (themesBtn) {
               console.log('✅ Clicking Themes filter button');
               themesBtn.click();
+            } else if (window.Synapse && window.Synapse.filterByType) {
+              console.log('✅ Using Synapse.filterByType');
+              window.Synapse.filterByType('theme');
             } else if (window.filterByNodeType) {
               console.log('✅ Using filterByNodeType');
               window.filterByNodeType('theme');
             } else {
               console.error('❌ No way to show themes found');
+              // Last resort: just close modal and let user manually click Themes
+              alert('Please click the "Themes" button to view active themes');
             }
           }
         }
