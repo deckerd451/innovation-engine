@@ -3,38 +3,71 @@
 ## The Problem
 The SQL function has an error: "could not identify an equality operator for type json"
 
-## The Solution (2 Steps)
+This happens because `json_object_agg` needs text keys, not json values.
+
+## The Solution (3 Steps)
 
 ### Step 1: Drop the Old Function
 
-Go to Supabase SQL Editor and run:
+Go to your Supabase SQL Editor at:
+https://supabase.com/dashboard/project/hvmotpzhliufzomewzfl/sql/new
+
+Then run:
 
 ```sql
 DROP FUNCTION IF EXISTS get_start_sequence_data(UUID);
 ```
 
+Click "Run" and wait for success message.
+
 ### Step 2: Create the New Function
 
-Copy the **entire contents** of `migrations/START_SEQUENCE_QUERY.sql` from GitHub and paste it into Supabase SQL Editor, then click Run.
+Copy the **entire contents** of `migrations/START_SEQUENCE_QUERY.sql` from GitHub:
 
-**Direct link to file:**
-https://github.com/Charlestonhacks/charlestonhacks.github.io/blob/main/migrations/START_SEQUENCE_QUERY.sql
+**Direct link to raw file:**
+https://raw.githubusercontent.com/Charlestonhacks/charlestonhacks.github.io/main/migrations/START_SEQUENCE_QUERY.sql
 
-Click "Raw" button to see the plain text, then copy all of it.
+1. Click the link above
+2. Press Ctrl+A (or Cmd+A on Mac) to select all
+3. Press Ctrl+C (or Cmd+C) to copy
+4. Go back to Supabase SQL Editor
+5. Paste the entire SQL code
+6. Click "Run"
+7. Wait for success message
 
-### Step 3: Test Again
+### Step 3: Verify Function Exists
 
-Go back to your dashboard and run the test script in console again:
+In Supabase SQL Editor, run:
 
-```javascript
-// Copy from test-start-in-dashboard.js
+```sql
+SELECT routine_name FROM information_schema.routines 
+WHERE routine_name = 'get_start_sequence_data';
 ```
+
+You should see:
+
+```
+| routine_name            |
+| ----------------------- |
+| get_start_sequence_data |
+```
+
+### Step 4: Test in Dashboard
+
+1. Open your dashboard: https://charlestonhacks.github.io/dashboard.html
+2. Open browser console (F12 or right-click → Inspect → Console)
+3. Copy the entire contents of `test-start-in-dashboard.js`
+4. Paste into console and press Enter
+5. Watch the test results
 
 ## What Was Fixed
 
-- Added `COALESCE` to `json_object_agg` calls
+- Cast `type` and `action_type` to `::text` in `json_object_agg` calls
+- Added `COALESCE` to handle empty results
 - Cast `COUNT(*)` to `int` explicitly
 - Return empty JSON `{}` as fallback for empty results
+
+The key fix: `json_object_agg(type::text, count)` instead of `json_object_agg(type, count)`
 
 ## Expected Result
 
