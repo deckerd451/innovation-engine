@@ -14,10 +14,11 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   console.log("🔄 Loading synapse data with new theme-centric model...");
   console.log("🔍 showFullCommunity (Discovery Mode):", showFullCommunity);
 
-  // Load all data first
+  // Load all data first (exclude hidden users)
   const { data: allMembers, error } = await supabase
     .from("community")
-    .select("id, name, email, image_url, skills, interests, bio, availability, x, y, connection_count")
+    .select("id, name, email, image_url, skills, interests, bio, availability, x, y, connection_count, is_hidden")
+    .or("is_hidden.is.null,is_hidden.eq.false") // Only show non-hidden users
     .order("created_at", { ascending: false });
   if (error) throw error;
 

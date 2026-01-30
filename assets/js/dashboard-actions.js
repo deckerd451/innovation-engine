@@ -1426,8 +1426,8 @@ function openAdminPanel() {
 
     <!-- Tabs -->
     <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <button class="admin-tab active-admin-tab" data-tab="view" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-eye"></i> View Community
+      <button class="admin-tab active-admin-tab" data-tab="manage" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <i class="fas fa-users-cog"></i> Manage Community
       </button>
       <button class="admin-tab" data-tab="themes" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
         <i class="fas fa-bullseye"></i> Manage Themes
@@ -1468,36 +1468,70 @@ function openAdminPanel() {
   });
 
   // Load initial tab
-  loadAdminTabContent('view');
+  loadAdminTabContent('manage');
 }
 
 function loadAdminTabContent(tabName) {
   const content = document.getElementById('admin-tab-content');
   if (!content) return;
 
-  if (tabName === 'view') {
+  if (tabName === 'manage') {
     content.innerHTML = `
-      <div style="text-align: center; padding: 2rem;">
-        <div style="font-size: 3rem; color: #00e0ff; margin-bottom: 1rem;">
-          <i class="fas fa-globe"></i>
+      <div style="max-height: 60vh; overflow-y: auto;">
+        <!-- Add Person Section -->
+        <div style="background: rgba(0,255,136,0.05); border: 2px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+          <h3 style="color: #00ff88; font-size: 1.25rem; margin-bottom: 1rem;">
+            <i class="fas fa-user-plus"></i> Add Person to Community
+          </h3>
+          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem; font-size: 0.9rem;">
+            Create a new profile with an email. The user will be able to connect to their profile when logging in for the first time.
+          </p>
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 0.5rem;">
+            <input type="email" id="admin-add-email" placeholder="user@example.com" 
+              style="flex: 1; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,136,0.3); 
+              border-radius: 8px; color: white; font-size: 0.95rem;">
+            <button onclick="adminAddPerson()" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00ff88, #00e0ff); 
+              border: none; border-radius: 8px; color: #000; font-weight: 700; cursor: pointer; white-space: nowrap;">
+              <i class="fas fa-plus"></i> Add Person
+            </button>
+          </div>
+          <div id="admin-add-status" style="margin-top: 0.75rem; font-size: 0.85rem;"></div>
         </div>
-        <h3 style="color: #fff; font-size: 1.5rem; margin-bottom: 1rem;">View Full Community</h3>
-        <p style="color: rgba(255,255,255,0.7); margin-bottom: 2rem;">Toggle to see all users, projects, and themes in the network (not just your connections).</p>
-        <button id="admin-toggle-view-btn" style="padding: 1rem 2rem; background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 10px; color: #000; font-weight: 700; cursor: pointer; font-size: 1.1rem; transition: all 0.2s; box-shadow: 0 4px 15px rgba(0,255,136,0.3);">
-          <i class="fas fa-eye"></i> Show Full Community
-        </button>
+
+        <!-- Search and Manage People Section -->
+        <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem;">
+          <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 1rem;">
+            <i class="fas fa-search"></i> Search and Manage People
+          </h3>
+          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem; font-size: 0.9rem;">
+            Search for people by name to hide them from view (makes them unsearchable and not accessible to the community).
+          </p>
+          <div style="margin-bottom: 1rem;">
+            <input type="text" id="admin-search-people" placeholder="Search by name..." 
+              style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); 
+              border-radius: 8px; color: white; font-size: 0.95rem;">
+          </div>
+          <div id="admin-people-list" style="max-height: 400px; overflow-y: auto;">
+            <div style="text-align: center; color: rgba(255,255,255,0.5); padding: 2rem;">
+              <i class="fas fa-search" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+              <p>Search for people to manage</p>
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
-    document.getElementById('admin-toggle-view-btn')?.addEventListener('click', () => {
-      if (typeof window.toggleFullCommunityView === 'function') {
-        window.toggleFullCommunityView(true);
-        document.getElementById('admin-panel')?.remove();
-        if (typeof window.showNotification === 'function') {
-          window.showNotification('Showing full community view', 'success');
-        }
-      }
-    });
+    // Wire up search
+    const searchInput = document.getElementById('admin-search-people');
+    if (searchInput) {
+      let searchTimeout;
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          adminSearchPeople(e.target.value);
+        }, 300);
+      });
+    }
   } else if (tabName === 'themes') {
     content.innerHTML = `
       <div style="margin-bottom: 2rem;">
@@ -1536,6 +1570,188 @@ function loadAdminTabContent(tabName) {
     loadOrganizationsList();
   }
 }
+
+// Admin function to add a person to the community
+async function adminAddPerson() {
+  const emailInput = document.getElementById('admin-add-email');
+  const statusEl = document.getElementById('admin-add-status');
+  
+  if (!emailInput || !statusEl) return;
+  
+  const email = emailInput.value.trim();
+  
+  if (!email) {
+    statusEl.innerHTML = '<span style="color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Please enter an email address</span>';
+    return;
+  }
+  
+  if (!email.includes('@')) {
+    statusEl.innerHTML = '<span style="color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Please enter a valid email address</span>';
+    return;
+  }
+  
+  statusEl.innerHTML = '<span style="color: #00e0ff;"><i class="fas fa-spinner fa-spin"></i> Adding person...</span>';
+  
+  try {
+    const supabase = window.supabase;
+    if (!supabase) throw new Error('Supabase not available');
+    
+    // Check if email already exists
+    const { data: existing } = await supabase
+      .from('community')
+      .select('id, name, email')
+      .eq('email', email)
+      .maybeSingle();
+    
+    if (existing) {
+      statusEl.innerHTML = `<span style="color: #ffaa00;"><i class="fas fa-info-circle"></i> User already exists: ${existing.name || email}</span>`;
+      return;
+    }
+    
+    // Create new community profile
+    const { data: newProfile, error } = await supabase
+      .from('community')
+      .insert({
+        email: email,
+        name: email.split('@')[0], // Use email prefix as default name
+        profile_completed: false,
+        onboarding_completed: false,
+        is_hidden: false
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    statusEl.innerHTML = `<span style="color: #00ff88;"><i class="fas fa-check-circle"></i> Successfully added ${email}! They can now log in and complete their profile.</span>`;
+    emailInput.value = '';
+    
+    // Refresh synapse if available
+    if (typeof window.refreshSynapse === 'function') {
+      setTimeout(() => window.refreshSynapse(), 1000);
+    }
+    
+  } catch (error) {
+    console.error('Error adding person:', error);
+    statusEl.innerHTML = `<span style="color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</span>`;
+  }
+}
+
+// Admin function to search for people
+async function adminSearchPeople(query) {
+  const listEl = document.getElementById('admin-people-list');
+  if (!listEl) return;
+  
+  if (!query || query.length < 2) {
+    listEl.innerHTML = `
+      <div style="text-align: center; color: rgba(255,255,255,0.5); padding: 2rem;">
+        <i class="fas fa-search" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+        <p>Search for people to manage</p>
+      </div>
+    `;
+    return;
+  }
+  
+  listEl.innerHTML = '<div style="text-align: center; padding: 2rem; color: #00e0ff;"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+  
+  try {
+    const supabase = window.supabase;
+    if (!supabase) throw new Error('Supabase not available');
+    
+    const { data: people, error } = await supabase
+      .from('community')
+      .select('id, name, email, image_url, is_hidden')
+      .ilike('name', `%${query}%`)
+      .order('name')
+      .limit(20);
+    
+    if (error) throw error;
+    
+    if (!people || people.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align: center; color: rgba(255,255,255,0.5); padding: 2rem;">
+          <i class="fas fa-user-slash" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+          <p>No people found matching "${query}"</p>
+        </div>
+      `;
+      return;
+    }
+    
+    let html = '<div style="display: grid; gap: 0.75rem;">';
+    people.forEach(person => {
+      const initials = person.name ? person.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
+      const isHidden = person.is_hidden || false;
+      
+      html += `
+        <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(0,224,255,0.05); 
+          border: 1px solid rgba(0,224,255,0.2); border-radius: 8px;">
+          ${person.image_url ?
+            `<img src="${person.image_url}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">` :
+            `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); 
+              display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${initials}</div>`
+          }
+          <div style="flex: 1; min-width: 0;">
+            <div style="color: white; font-weight: 600; font-size: 0.95rem;">${person.name || 'Unnamed'}</div>
+            <div style="color: #aaa; font-size: 0.85rem;">${person.email || 'No email'}</div>
+            ${isHidden ? '<div style="color: #ff6b6b; font-size: 0.8rem; margin-top: 0.25rem;"><i class="fas fa-eye-slash"></i> Hidden</div>' : ''}
+          </div>
+          <button onclick="adminTogglePersonVisibility('${person.id}', ${!isHidden})" 
+            style="padding: 0.5rem 1rem; background: ${isHidden ? 'rgba(0,255,136,0.2)' : 'rgba(255,107,107,0.2)'}; 
+            border: 1px solid ${isHidden ? 'rgba(0,255,136,0.4)' : 'rgba(255,107,107,0.4)'}; 
+            border-radius: 6px; color: ${isHidden ? '#00ff88' : '#ff6b6b'}; font-weight: 600; cursor: pointer; white-space: nowrap;">
+            <i class="fas fa-${isHidden ? 'eye' : 'eye-slash'}"></i> ${isHidden ? 'Show' : 'Hide'}
+          </button>
+        </div>
+      `;
+    });
+    html += '</div>';
+    
+    listEl.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error searching people:', error);
+    listEl.innerHTML = `<div style="color: #ff6b6b; padding: 1rem;"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</div>`;
+  }
+}
+
+// Admin function to toggle person visibility
+async function adminTogglePersonVisibility(personId, hide) {
+  try {
+    const supabase = window.supabase;
+    if (!supabase) throw new Error('Supabase not available');
+    
+    const { error } = await supabase
+      .from('community')
+      .update({ is_hidden: hide })
+      .eq('id', personId);
+    
+    if (error) throw error;
+    
+    // Refresh the search results
+    const searchInput = document.getElementById('admin-search-people');
+    if (searchInput && searchInput.value) {
+      await adminSearchPeople(searchInput.value);
+    }
+    
+    // Refresh synapse if available
+    if (typeof window.refreshSynapse === 'function') {
+      setTimeout(() => window.refreshSynapse(), 500);
+    }
+    
+    if (typeof window.showNotification === 'function') {
+      window.showNotification(hide ? 'Person hidden from community' : 'Person visible in community', 'success');
+    }
+    
+  } catch (error) {
+    console.error('Error toggling visibility:', error);
+    alert('Error updating visibility: ' + error.message);
+  }
+}
+
+// Expose admin functions globally
+window.adminAddPerson = adminAddPerson;
+window.adminSearchPeople = adminSearchPeople;
+window.adminTogglePersonVisibility = adminTogglePersonVisibility;
 
 async function loadThemesList() {
   const listEl = document.getElementById('admin-themes-list');
