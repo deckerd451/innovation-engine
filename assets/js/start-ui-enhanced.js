@@ -314,7 +314,7 @@ class EnhancedStartUI {
         padding: 1.25rem;
         cursor: ${insight.handler ? 'pointer' : 'default'};
         transition: all 0.3s ease;
-      " ${insight.handler ? `onclick="window.EnhancedStartUI.handleAction('${insight.handler}')"` : ''}>
+      " ${insight.handler ? `onclick="event.stopPropagation(); window.EnhancedStartUI.handleAction('${insight.handler}', event)"` : ''}>
         <div class="insight-card-content" style="display: flex; align-items: start; gap: 1rem;">
           <div class="insight-icon" style="
             width: 48px;
@@ -450,7 +450,13 @@ class EnhancedStartUI {
   /**
    * Handle action button clicks
    */
-  handleAction(handler) {
+  handleAction(handler, event) {
+    // Stop event propagation to prevent triggering other clicks
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    
     console.log('🎯 Action clicked:', handler);
 
     // Close modal first

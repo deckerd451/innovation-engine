@@ -1496,7 +1496,15 @@
 
       // START button click handler
       if (startBtn) {
-        startBtn.addEventListener('click', async () => {
+        startBtn.addEventListener('click', async (e) => {
+          // Prevent if modal is already open
+          if (window.EnhancedStartUI && window.EnhancedStartUI.isOpen) {
+            console.log('⚠️ START modal already open, ignoring click');
+            e.stopPropagation();
+            e.preventDefault();
+            return;
+          }
+          
           console.log('🚀 START button clicked');
 
           // Hide START button
