@@ -2428,28 +2428,35 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       .filter(Boolean)
       .slice(0, 3);
 
+    // Store person data for click handler
+    const personDataJson = JSON.stringify(person).replace(/"/g, '&quot;');
+
     return `
       <div style="display:flex; align-items:center; gap:1rem; padding:1rem;
         background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
-        border-radius:12px; margin-bottom:0.75rem;">
+        border-radius:12px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;"
+        onclick="openPersonProfileFromSearch(this, '${person.id}')"
+        onmouseenter="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.4)'"
+        onmouseleave="this.style.background='rgba(0,224,255,0.05)'; this.style.borderColor='rgba(0,224,255,0.2)'"
+        data-person='${personDataJson}'>
         ${
           person.image_url
             ? `<img src="${escapeHtml(person.image_url)}" style="width:52px; height:52px; border-radius:50%;
-                 object-fit:cover; border:2px solid #00e0ff;">`
+                 object-fit:cover; border:2px solid #00e0ff; pointer-events:none;">`
             : `<div style="width:52px; height:52px; border-radius:50%;
                  background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center;
-                 font-weight:bold; color:white; font-size:1.1rem;">${initials}</div>`
+                 font-weight:bold; color:white; font-size:1.1rem; pointer-events:none;">${initials}</div>`
         }
-        <div style="flex:1; min-width:0;">
+        <div style="flex:1; min-width:0; pointer-events:none;">
           <div style="color:white; font-weight:700; font-size:1rem;">${escapeHtml(name)}</div>
           <div style="color:#aaa; font-size:0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
             ${skills.length ? escapeHtml(skills.join(", ")) : "No skills listed"}
           </div>
           ${showScoreHint ? `<div style="color:#666; font-size:0.75rem; margin-top:0.25rem;">Suggested match</div>` : ``}
         </div>
-        <button class="btn btn-primary" style="white-space:nowrap;" onclick="sendConnectionRequest('${person.id}')">
-          <i class="fas fa-user-plus"></i> Connect
-        </button>
+        <div style="color:#00e0ff; font-size:0.85rem; white-space:nowrap; pointer-events:none;">
+          <i class="fas fa-arrow-right"></i> View Profile
+        </div>
       </div>
     `;
   }
@@ -2508,6 +2515,36 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     } catch (e) {
       console.error("sendConnectionRequest failed:", e);
       alert(`Could not send request: ${e?.message || e}`);
+    }
+  };
+
+  // ================================================================
+  // Open Person Profile from Search Results
+  // ================================================================
+  window.openPersonProfileFromSearch = async function (element, personId) {
+    try {
+      // Get person data from the element's data attribute
+      const personData = JSON.parse(element.getAttribute('data-person'));
+      
+      // Format data for node panel (expects type property)
+      const nodeData = {
+        ...personData,
+        type: 'person'
+      };
+      
+      console.log('Opening profile for person:', nodeData);
+      
+      // Call openNodePanel if available
+      if (typeof window.openNodePanel === 'function') {
+        await window.openNodePanel(nodeData);
+      } else {
+        console.error('openNodePanel function not available');
+        // Fallback: show a simple alert
+        alert('Profile panel not available. Please refresh the page.');
+      }
+    } catch (e) {
+      console.error('Error opening person profile:', e);
+      alert(`Could not open profile: ${e?.message || e}`);
     }
   };
 
