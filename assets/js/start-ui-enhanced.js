@@ -456,40 +456,74 @@ class EnhancedStartUI {
     // Close modal first
     this.close();
 
-    // Execute handler
-    const handlers = {
-      openConnectionRequests: () => {
-        // TODO: Implement connection requests modal
-        console.log('Opening connection requests...');
-      },
-      openMessaging: () => {
-        if (window.openMessagingModal) {
-          window.openMessagingModal();
+    // Execute handler after modal closes
+    setTimeout(() => {
+      const handlers = {
+        openConnectionRequests: () => {
+          console.log('📋 Opening connection requests...');
+          // Filter synapse to show only people with pending requests
+          if (window.filterByNodeType) {
+            window.filterByNodeType('person');
+          }
+        },
+        openMessaging: () => {
+          console.log('💬 Opening messaging...');
+          if (window.openMessagesModal) {
+            window.openMessagesModal();
+          } else if (window.openMessagingModal) {
+            window.openMessagingModal();
+          } else {
+            console.warn('⚠️ Messaging modal not available');
+          }
+        },
+        openProjectBids: () => {
+          console.log('📋 Opening project bids...');
+          // Open projects modal
+          if (window.openProjectsModal) {
+            window.openProjectsModal();
+          } else {
+            console.warn('⚠️ Projects modal not available');
+          }
+        },
+        openSkillMatchedProjects: () => {
+          console.log('💡 Opening skill-matched projects...');
+          if (window.openProjectsModal) {
+            window.openProjectsModal();
+          } else {
+            console.warn('⚠️ Projects modal not available');
+          }
+        },
+        openThemes: () => {
+          console.log('🎯 Switching to themes view...');
+          // Check if we're in cards mode and need to switch to circles
+          const currentStrategy = window.currentStrategy || 'new';
+          console.log('Current strategy:', currentStrategy);
+          
+          if (window.toggleThemeStrategy && typeof window.toggleThemeStrategy === 'function') {
+            // If in cards mode, switch to circles to see themes
+            if (currentStrategy === 'new') {
+              console.log('🔄 Switching from cards to circles to show themes');
+              window.toggleThemeStrategy();
+            } else {
+              console.log('✅ Already in circles mode, themes visible');
+            }
+          } else {
+            console.warn('⚠️ Theme toggle not available');
+            // Fallback: just filter to show themes
+            if (window.filterByNodeType) {
+              window.filterByNodeType('theme');
+            }
+          }
         }
-      },
-      openProjectBids: () => {
-        // TODO: Implement project bids modal
-        console.log('Opening project bids...');
-      },
-      openSkillMatchedProjects: () => {
-        if (window.openProjectsModal) {
-          window.openProjectsModal();
-        }
-      },
-      openThemes: () => {
-        // Switch to circles view
-        if (window.toggleThemeStrategy) {
-          window.toggleThemeStrategy();
-        }
-      }
-    };
+      };
 
-    const handlerFn = handlers[handler];
-    if (handlerFn) {
-      setTimeout(() => handlerFn(), 300);
-    } else {
-      console.warn('Handler not found:', handler);
-    }
+      const handlerFn = handlers[handler];
+      if (handlerFn) {
+        handlerFn();
+      } else {
+        console.warn('⚠️ Handler not found:', handler);
+      }
+    }, 300);
   }
 
   /**
