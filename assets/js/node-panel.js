@@ -206,6 +206,9 @@ async function renderThemeLensPanel(themeData) {
   let isCreator = false;
   let isParticipant = false;
   
+  // Remove 'theme:' prefix from theme ID
+  const cleanThemeId = themeData.id ? themeData.id.replace(/^theme:/, '') : null;
+  
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -220,19 +223,22 @@ async function renderThemeLensPanel(themeData) {
       // Check if user created this theme
       isCreator = themeData.created_by === currentUserCommunityId;
       
-      // Check if user is a participant (handle table not existing)
-      try {
-        const { data: participation } = await supabase
-          .from('theme_participants')
-          .select('id')
-          .eq('theme_id', themeData.id)
-          .eq('community_id', currentUserCommunityId)
-          .maybeSingle();
-        
-        isParticipant = !!participation;
-      } catch (err) {
-        console.warn('theme_participants table may not exist:', err);
-        isParticipant = false;
+      // Check if user is a participant
+      if (cleanThemeId && currentUserCommunityId) {
+        try {
+          const { data: participation } = await supabase
+            .from('theme_participants')
+            .select('id')
+            .eq('theme_id', cleanThemeId)
+            .eq('community_id', currentUserCommunityId)
+            .maybeSingle();
+          
+          isParticipant = !!participation;
+          console.log('Participation check:', { cleanThemeId, currentUserCommunityId, isParticipant });
+        } catch (err) {
+          console.warn('Error checking participation:', err);
+          isParticipant = false;
+        }
       }
     }
   } catch (error) {
@@ -2535,9 +2541,14 @@ window.joinTheme = async function(themeId, themeName) {
         return;
       }
       
+      // Check for duplicate - user already joined
       if (error.code === '23505') {
-        showToastNotification('You are already a member of this theme', 'info');
-      } else if (error.code === '23503') {
+        showToastNotification('✓ You are already a member of this theme!', 'info');
+        closeNodePanel();
+        return;
+      }
+      
+      if (error.code === '23503') {
         alert('Invalid theme or user ID. Please refresh and try again.');
       } else {
         throw error;
