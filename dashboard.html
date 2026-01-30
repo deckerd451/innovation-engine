@@ -898,7 +898,7 @@
             bottom: calc(100% + 0.5rem) !important;
             left: 0.5rem !important;
             right: 0.5rem !important;
-            max-height: min(300px, 40vh) !important;
+            max-height: min(350px, 50vh) !important;
             font-size: 0.9rem;
           }
           
@@ -915,11 +915,17 @@
           .search-suggestion-item .fas.fa-arrow-right {
             display: none !important;
           }
+
+          /* Shift search container up when keyboard is open */
+          #centered-search-container.keyboard-open {
+            bottom: 50vh !important;
+            transition: bottom 0.3s ease;
+          }
         }
         
         @media (max-width: 480px) {
           #search-suggestions {
-            max-height: min(250px, 35vh) !important;
+            max-height: min(300px, 45vh) !important;
             font-size: 0.85rem;
           }
           
@@ -932,6 +938,11 @@
           .search-suggestion-item > div:first-child {
             width: 32px !important;
             height: 32px !important;
+          }
+
+          /* More aggressive shift on small screens */
+          #centered-search-container.keyboard-open {
+            bottom: 55vh !important;
           }
         }
         
@@ -1462,18 +1473,48 @@
         document.body.style.width = '100%';
       };
 
-      // Handle input focus to prevent scroll issues
+      // Handle input focus to prevent scroll issues and detect keyboard on mobile
       const searchInput = document.getElementById('global-search');
-      if (searchInput) {
+      const searchContainer = document.getElementById('centered-search-container');
+      
+      if (searchInput && searchContainer) {
+        // Detect keyboard opening on mobile
         searchInput.addEventListener('focus', () => {
           preventHorizontalScroll();
           // Prevent viewport from shifting
           window.scrollTo(0, 0);
+          
+          // On mobile, shift search container up when keyboard opens
+          if (window.innerWidth <= 768) {
+            searchContainer.classList.add('keyboard-open');
+          }
         });
 
         searchInput.addEventListener('blur', () => {
           preventHorizontalScroll();
           window.scrollTo(0, 0);
+          
+          // Remove keyboard-open class when keyboard closes
+          searchContainer.classList.remove('keyboard-open');
+        });
+
+        // Also detect window resize (keyboard opening/closing changes viewport height)
+        let lastHeight = window.innerHeight;
+        window.addEventListener('resize', () => {
+          const currentHeight = window.innerHeight;
+          
+          // If height decreased significantly and search is focused, keyboard is open
+          if (currentHeight < lastHeight - 100 && document.activeElement === searchInput) {
+            if (window.innerWidth <= 768) {
+              searchContainer.classList.add('keyboard-open');
+            }
+          }
+          // If height increased and keyboard-open class exists, keyboard closed
+          else if (currentHeight > lastHeight + 100) {
+            searchContainer.classList.remove('keyboard-open');
+          }
+          
+          lastHeight = currentHeight;
         });
       }
 
