@@ -1485,20 +1485,24 @@
 
       // START button click handler
       if (startBtn) {
-        startBtn.addEventListener('click', () => {
+        startBtn.addEventListener('click', async () => {
           console.log('🚀 START button clicked');
 
           // Hide START button
           hideStartButton();
 
-          // Open START modal/sequence
-          if (typeof window.openStartModal === 'function') {
-            setTimeout(() => {
+          // Open enhanced START UI
+          setTimeout(async () => {
+            if (typeof window.EnhancedStartUI !== 'undefined' && window.EnhancedStartUI.open) {
+              console.log('✨ Opening Enhanced START UI');
+              await window.EnhancedStartUI.open();
+            } else if (typeof window.openStartModal === 'function') {
+              console.log('⚠️ Fallback to old START modal');
               window.openStartModal();
-            }, 500);
-          } else {
-            console.warn('START modal function not available');
-          }
+            } else {
+              console.warn('❌ No START modal function available');
+            }
+          }, 500);
         });
       }
 
