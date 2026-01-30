@@ -599,15 +599,16 @@ const DailyEngagement = (function () {
     notification.style.cssText = `
       position: fixed;
       bottom: 2rem;
-      right: 2rem;
+      left: 2rem;
       background: linear-gradient(135deg, #00e0ff, #0080ff);
       color: white;
       padding: 1rem 1.5rem;
       border-radius: 12px;
       font-weight: bold;
-      z-index: 9999;
+      z-index: 1999;
       box-shadow: 0 4px 20px rgba(0,224,255,0.4);
-      animation: slideInRight 0.3s ease;
+      animation: slideInLeft 0.3s ease;
+      max-width: 300px;
     `;
 
     notification.innerHTML = `
