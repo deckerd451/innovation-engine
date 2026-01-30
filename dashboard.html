@@ -1537,19 +1537,10 @@
         });
       }
 
-      // Show START on page load only if not dismissed
-      window.addEventListener('profile-loaded', () => {
-        if (startContainer && !startDismissed) {
-          startContainer.style.display = 'flex';
-        }
-      });
+      // PHASE 3: START button moved to navigation - keep overlay hidden
+      // (Old code disabled - we now use btn-start-nav in the top bar)
 
-      // Show START immediately if container exists and not dismissed
-      if (startContainer && !startDismissed) {
-        startContainer.style.display = 'flex';
-      }
-
-      console.log('✅ START button logic initialized');
+      console.log('✅ START button logic initialized (overlay disabled - using nav button)');
     })();
   </script>
 
