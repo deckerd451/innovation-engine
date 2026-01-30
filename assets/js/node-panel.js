@@ -835,10 +835,8 @@ async function renderPersonPanel(nodeData) {
     <!-- Action Bar (Fixed at Bottom) -->
     <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.95), rgba(26, 26, 46, 0.95)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1.5rem; backdrop-filter: blur(10px);">
       ${profile.id === currentUserProfile?.id ? `
-        <!-- Own Profile - No action bar needed since Edit Profile is above -->
-        <div style="text-align: center; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
-          <i class="fas fa-user-circle"></i> Your Profile
-        </div>
+        <!-- Own Profile - Action bar hidden for own profile -->
+        <div style="display: none;"></div>
       ` : `
         <!-- Other User Actions -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
