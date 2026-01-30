@@ -346,6 +346,17 @@
         font-size: 1rem !important;
       }
 
+      /* START button - compact */
+      #btn-start-nav {
+        width: 40px !important;
+        height: 40px !important;
+        padding: 0.5rem !important;
+      }
+
+      #btn-start-nav i {
+        font-size: 1rem !important;
+      }
+
       /* Refresh button - compact */
       #btn-refresh-network {
         width: 40px !important;
@@ -593,6 +604,17 @@
         </div>
       </div>
 
+      <!-- START Button (Green Circle) -->
+      <div id="btn-start-nav" style="cursor:pointer; padding:0.75rem; background:rgba(0,255,136,0.1);
+        border:1px solid rgba(0,255,136,0.3); border-radius:50%; width:48px; height:48px;
+        display:flex; align-items:center; justify-content:center; position:relative;"
+        title="View START sequence" onclick="if(window.EnhancedStartUI && window.EnhancedStartUI.open) { window.EnhancedStartUI.open(); }">
+        <i class="fas fa-play-circle" style="color:#00ff88; font-size:1.2rem;"></i>
+        <span class="start-updates-badge hidden" id="start-updates-count"
+          style="position:absolute; top:-5px; right:-5px; background:#00ff88; color:#000;
+          font-size:0.7rem; font-weight:bold; padding:2px 6px; border-radius:10px; min-width:18px; text-align:center;">0</span>
+      </div>
+
       <!-- Notification Bell -->
       <div id="notifications-bell" style="cursor:pointer; padding:0.75rem; background:rgba(0,224,255,0.1);
         border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:48px; height:48px;
@@ -763,9 +785,9 @@
       <svg id="synapse-svg" style="width:100%; height:100%; background: #000000; touch-action: none;"></svg>
     </div>
 
-    <!-- Centered Round START Button with Background Panel -->
+    <!-- Centered Round START Button with Background Panel (HIDDEN - replaced by nav button) -->
     <div id="start-button-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh;
-      z-index:1000; display:flex; align-items:center; justify-content:center;">
+      z-index:1000; display:none; align-items:center; justify-content:center;">
       
       <!-- Background Panel with 75% opacity -->
       <div style="position:absolute; inset:0; background:rgba(10,14,39,0.75); backdrop-filter:blur(10px);"></div>
@@ -1714,9 +1736,11 @@
     })();
   </script>
 
-  <script src="assets/js/start-sequence-report.js?v=2"></script>
-<script src="assets/js/start-synapse-integration.js?v=2"></script>
-<script src="assets/js/start-ui-enhanced.js?v=2"></script>
+  <script src="assets/js/start-sequence-report.js?v=3"></script>
+<script src="assets/js/start-synapse-integration.js?v=3"></script>
+<script src="assets/js/start-onboarding.js?v=3"></script>
+<script src="assets/js/start-daily-digest.js?v=3"></script>
+<script src="assets/js/start-ui-enhanced.js?v=3"></script>
 
 <!-- Wire up global functions for enhanced START UI -->
 <script>
