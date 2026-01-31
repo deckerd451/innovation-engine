@@ -847,10 +847,14 @@ export class DailySuggestionsEngineV2 {
       reasons.push('Not enough recent activity to detect patterns');
     }
     
+    // Use a deterministic UUID for "no signals" card
+    // This is the UUID for the string "coord:no-signals" (deterministic)
+    const noSignalsUUID = '00000000-0000-0000-0000-000000000001';
+    
     return {
       suggestion_type: 'coordination',
       subtype: 'no_signals',
-      target_id: 'coord:no-signals',
+      target_id: noSignalsUUID,
       score: 100, // Always show at top
       why: reasons.slice(0, 3),
       source: 'coordination',
@@ -862,7 +866,8 @@ export class DailySuggestionsEngineV2 {
         detail: reasons.join(' • '),
         action: 'Learn More',
         icon: 'info-circle',
-        color: '#ff6b6b'
+        color: '#ff6b6b',
+        synthetic_id: 'coord:no-signals'
       }
     };
   }
