@@ -1504,7 +1504,7 @@ function loadAdminTabContent(tabName) {
             <i class="fas fa-search"></i> Search and Manage People
           </h3>
           <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem; font-size: 0.9rem;">
-            Search for people by name to hide them from view (makes them unsearchable and not accessible to the community).
+            Search for people by name to remove them from view (makes them unsearchable and not accessible to the community). Removed members can be reinstated by an admin.
           </p>
           <div style="margin-bottom: 1rem;">
             <input type="text" id="admin-search-people" placeholder="Search by name..." 
@@ -1663,7 +1663,7 @@ async function adminSearchPeople(query) {
       .select('id, name, email, image_url, is_hidden')
       .ilike('name', `%${query}%`)
       .order('name')
-      .limit(20);
+      .limit(50); // Increased limit to show more results including removed members
     
     if (error) throw error;
     
@@ -1680,26 +1680,27 @@ async function adminSearchPeople(query) {
     let html = '<div style="display: grid; gap: 0.75rem;">';
     people.forEach(person => {
       const initials = person.name ? person.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
-      const isHidden = person.is_hidden || false;
+      const isRemoved = person.is_hidden || false;
       
       html += `
-        <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(0,224,255,0.05); 
-          border: 1px solid rgba(0,224,255,0.2); border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: ${isRemoved ? 'rgba(255,107,107,0.05)' : 'rgba(0,224,255,0.05)'}; 
+          border: 1px solid ${isRemoved ? 'rgba(255,107,107,0.2)' : 'rgba(0,224,255,0.2)'}; border-radius: 8px;">
           ${person.image_url ?
-            `<img src="${person.image_url}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">` :
+            `<img src="${person.image_url}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; ${isRemoved ? 'opacity: 0.6;' : ''}">` :
             `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); 
-              display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${initials}</div>`
+              display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; ${isRemoved ? 'opacity: 0.6;' : ''}">${initials}</div>`
           }
           <div style="flex: 1; min-width: 0;">
-            <div style="color: white; font-weight: 600; font-size: 0.95rem;">${person.name || 'Unnamed'}</div>
-            <div style="color: #aaa; font-size: 0.85rem;">${person.email || 'No email'}</div>
-            ${isHidden ? '<div style="color: #ff6b6b; font-size: 0.8rem; margin-top: 0.25rem;"><i class="fas fa-eye-slash"></i> Hidden</div>' : ''}
+            <div style="color: white; font-weight: 600; font-size: 0.95rem; ${isRemoved ? 'opacity: 0.7;' : ''}">${person.name || 'Unnamed'}</div>
+            <div style="color: #aaa; font-size: 0.85rem; ${isRemoved ? 'opacity: 0.7;' : ''}">${person.email || 'No email'}</div>
+            ${isRemoved ? '<div style="color: #ff6b6b; font-size: 0.8rem; margin-top: 0.25rem; font-weight: 600;"><i class="fas fa-ban"></i> REMOVED</div>' : ''}
           </div>
-          <button onclick="adminTogglePersonVisibility('${person.id}', ${!isHidden})" 
-            style="padding: 0.5rem 1rem; background: ${isHidden ? 'rgba(0,255,136,0.2)' : 'rgba(255,107,107,0.2)'}; 
-            border: 1px solid ${isHidden ? 'rgba(0,255,136,0.4)' : 'rgba(255,107,107,0.4)'}; 
-            border-radius: 6px; color: ${isHidden ? '#00ff88' : '#ff6b6b'}; font-weight: 600; cursor: pointer; white-space: nowrap;">
-            <i class="fas fa-${isHidden ? 'eye' : 'eye-slash'}"></i> ${isHidden ? 'Show' : 'Hide'}
+          <button onclick="adminTogglePersonVisibility('${person.id}', ${!isRemoved}, '${(person.name || 'this member').replace(/'/g, "\\'")}', ${isRemoved})" 
+            style="padding: 0.5rem 1rem; background: ${isRemoved ? 'rgba(0,255,136,0.2)' : 'rgba(255,107,107,0.2)'}; 
+            border: 1px solid ${isRemoved ? 'rgba(0,255,136,0.4)' : 'rgba(255,107,107,0.4)'}; 
+            border-radius: 6px; color: ${isRemoved ? '#00ff88' : '#ff6b6b'}; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;"
+            onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            <i class="fas fa-${isRemoved ? 'undo' : 'user-times'}"></i> ${isRemoved ? 'Reinstate' : 'Remove'}
           </button>
         </div>
       `;
@@ -1714,18 +1715,31 @@ async function adminSearchPeople(query) {
   }
 }
 
-// Admin function to toggle person visibility
-async function adminTogglePersonVisibility(personId, hide) {
+// Admin function to toggle person visibility (remove/reinstate)
+async function adminTogglePersonVisibility(personId, shouldRemove, personName, currentlyRemoved) {
   try {
+    // Show confirmation dialog for removal
+    if (shouldRemove && !currentlyRemoved) {
+      const confirmed = confirm(`Are you sure you would like to remove this member?`);
+      if (!confirmed) {
+        return; // User cancelled
+      }
+    }
+    
     const supabase = window.supabase;
     if (!supabase) throw new Error('Supabase not available');
     
     const { error } = await supabase
       .from('community')
-      .update({ is_hidden: hide })
+      .update({ is_hidden: shouldRemove })
       .eq('id', personId);
     
     if (error) throw error;
+    
+    // Show success message
+    if (shouldRemove) {
+      alert('User has been removed from view. Note that the user is not accessible by the community but may be reinstated by an admin.');
+    }
     
     // Refresh the search results
     const searchInput = document.getElementById('admin-search-people');
@@ -1738,16 +1752,19 @@ async function adminTogglePersonVisibility(personId, hide) {
       setTimeout(() => window.refreshSynapse(), 500);
     }
     
+    // Show notification
     if (typeof window.showNotification === 'function') {
-      window.showNotification(hide ? 'Person hidden from community' : 'Person visible in community', 'success');
+      window.showNotification(
+        shouldRemove ? `${personName} removed from community` : `${personName} reinstated to community`, 
+        'success'
+      );
     }
     
   } catch (error) {
     console.error('Error toggling visibility:', error);
-    alert('Error updating visibility: ' + error.message);
+    alert('Error updating member status: ' + error.message);
   }
 }
-
 // Expose admin functions globally
 window.adminAddPerson = adminAddPerson;
 window.adminSearchPeople = adminSearchPeople;
