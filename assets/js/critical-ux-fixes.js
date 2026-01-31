@@ -22,54 +22,12 @@
   function ensureEngagementContainers() {
     const container = document.getElementById('engagement-displays');
     if (!container) {
-      console.warn('⚠️ Engagement displays container not found - daily-engagement.js will create it');
+      console.warn('⚠️ Engagement displays container not found');
       return;
     }
 
-    // Add placeholder elements if they don't exist
-    if (!document.getElementById('level-badge-header')) {
-      const levelBadge = document.createElement('div');
-      levelBadge.id = 'level-badge-header';
-      levelBadge.style.cssText = `
-        padding: 0.75rem 1.5rem;
-        background: rgba(0,224,255,0.15);
-        border: 1px solid rgba(0,224,255,0.3);
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      `;
-      levelBadge.innerHTML = `
-        <div style="color: #00e0ff; font-size: 0.8rem; font-weight: 600;">Level 1</div>
-        <div style="color: #aaa; font-size: 0.7rem;">Newcomer</div>
-        <div style="color: #888; font-size: 0.65rem; margin-top: 0.25rem;" id="user-xp">0 / 100 XP</div>
-      `;
-      container.appendChild(levelBadge);
-    }
-
-    if (!document.getElementById('streak-badge-header')) {
-      const streakBadge = document.createElement('div');
-      streakBadge.id = 'streak-badge-header';
-      streakBadge.style.cssText = `
-        padding: 0.75rem 1.5rem;
-        background: rgba(255,59,48,0.15);
-        border: 1px solid rgba(255,59,48,0.3);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      `;
-      streakBadge.innerHTML = `
-        <i class="fas fa-fire" style="color: #ff3b30; font-size: 1.2rem;"></i>
-        <div style="display: flex; flex-direction: column;">
-          <div style="color: #ff3b30; font-size: 1rem; font-weight: 700;">0 Day Streak</div>
-          <div style="color: #ff8a80; font-size: 0.65rem;">Start your journey!</div>
-        </div>
-      `;
-      container.appendChild(streakBadge);
-    }
-
-    console.log('✅ Engagement containers verified');
+    // Container exists - daily-engagement.js will populate it
+    console.log('✅ Engagement displays container found, ready for daily-engagement.js');
   }
 
   // ================================================================
