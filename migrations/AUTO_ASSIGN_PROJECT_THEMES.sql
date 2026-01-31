@@ -8,18 +8,12 @@
 INSERT INTO theme_circles (
   id,
   title,
-  description,
-  is_active,
-  is_temporary,
   expires_at,
   created_at
 )
 SELECT
   gen_random_uuid(),
   'General Projects',
-  'Projects that don''t fit into a specific theme circle. A place for diverse ideas and collaborations.',
-  true,
-  false,
   (NOW() + INTERVAL '1 year')::timestamptz,
   NOW()
 WHERE NOT EXISTS (
@@ -115,8 +109,8 @@ END $$;
 SELECT 
   id,
   title,
-  description,
   (SELECT COUNT(*) FROM projects WHERE theme_id = theme_circles.id) as project_count,
-  expires_at
+  expires_at,
+  created_at
 FROM theme_circles
 WHERE title = 'General Projects';
