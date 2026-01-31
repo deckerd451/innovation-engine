@@ -25,28 +25,48 @@ export class DailySuggestionsEngineV2 {
     const today = this.getTodayKey();
     const profile = await queries.getCurrentUserProfile();
     
+    // Check debug flags
+    const flags = window.appFlags || {};
+    const forceRegen = flags.forceRegenSuggestions || false;
+    const forceCoordination = flags.forceCoordination || false;
+    const debugSignals = flags.debugSignals || false;
+    
     // Check if we already have suggestions for today
     const existing = await this.store.getSuggestionsForDate(profile.id, today);
     
-    if (existing && existing.length >= this.minSuggestions) {
-      console.log(`✅ Found ${existing.length} suggestions for today`);
+    if (existing && existing.length >= this.minSuggestions && !forceRegen && !forceCoordination) {
+      console.log(`✅ Found ${existing.length} cached suggestions for today`);
+      
+      // Print intelligence report even for cached suggestions
+      this.printIntelligenceReport(existing, { cached: true, profile });
+      
       return existing;
     }
     
+    if (forceRegen) {
+      console.log('🔄 Force regeneration enabled - bypassing cache');
+    }
+    
     console.log('🔄 Generating new suggestions for today...');
-    const suggestions = await this.generateSuggestions(profile);
+    const suggestions = await this.generateSuggestions(profile, { forceCoordination, debugSignals });
     
     // Store suggestions
     await this.store.storeSuggestions(profile.id, today, suggestions);
     
     console.log(`✅ Generated ${suggestions.length} suggestions for today`);
+    
+    // Print intelligence report
+    this.printIntelligenceReport(suggestions, { cached: false, profile, forceCoordination, debugSignals });
+    
     return suggestions;
   }
 
   /**
    * Generate suggestions with intelligence layer
    */
-  async generateSuggestions(profile) {
+  async generateSuggestions(profile, options = {}) {
+    const { forceCoordination = false, debugSignals = false } = options;
+    
     console.log('🧠 Intelligence layer running');
     console.log(`🎯 Generating suggestions for: ${profile.name}`);
     
@@ -89,6 +109,9 @@ export class DailySuggestionsEngineV2 {
     
     console.log(`📊 Signals loaded: projects=${signals.projects.length}, connections=${signals.connections.length}, themes=${signals.themes.length}`);
     
+    // Load activity signals (last 30 days)
+    const activitySignals = await this.loadActivitySignals(profile.id, debugSignals);
+    
     // Get cooldown list
     const cooldownList = await this.store.getRecentSuggestions(
       profile.id,
@@ -99,7 +122,7 @@ export class DailySuggestionsEngineV2 {
     const coordinationMoments = await this.coordinationDetector.detectCoordinationMoments(
       profile,
       context,
-      signals
+      { ...signals, ...activitySignals }
     );
     
     // Generate traditional suggestions in parallel
@@ -126,6 +149,11 @@ export class DailySuggestionsEngineV2 {
     
     // Take top suggestions
     let finalSuggestions = allSuggestions.slice(0, this.maxSuggestions);
+    
+    // If no coordination moments and signals exist, add "not enough signals" card
+    if (coordinationMoments.length === 0 && activitySignals.hasSignals) {
+      finalSuggestions.unshift(this.createNoSignalsCard(activitySignals));
+    }
     
     // Ensure minimum count with fallback
     if (finalSuggestions.length < this.minSuggestions) {
@@ -658,5 +686,211 @@ export class DailySuggestionsEngineV2 {
     const now = new Date();
     const diffMs = now - date;
     return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  // ================================================================
+  // INTELLIGENCE LAYER - ACTIVITY SIGNALS
+  // ================================================================
+
+  /**
+   * Load activity signals from last 30 days (RLS-safe)
+   */
+  async loadActivitySignals(userId, debug = false) {
+    const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const signals = {
+      hasSignals: false,
+      activity_log: { count: 0, accessible: false, error: null },
+      messages: { count: 0, accessible: false, error: null },
+      notifications: { count: 0, accessible: false, error: null }
+    };
+    
+    if (debug) {
+      console.group('🔍 Loading Activity Signals (last 30 days)');
+    }
+    
+    // Try to load activity_log
+    try {
+      const { data, error } = await window.supabase
+        .from('activity_log')
+        .select('id, action_type, created_at', { count: 'exact', head: false })
+        .gte('created_at', cutoffDate.toISOString())
+        .limit(100);
+      
+      if (error) throw error;
+      
+      signals.activity_log.count = data?.length || 0;
+      signals.activity_log.accessible = true;
+      signals.hasSignals = signals.hasSignals || signals.activity_log.count > 0;
+      
+      if (debug) {
+        console.log(`✅ activity_log: ${signals.activity_log.count} rows`);
+      }
+    } catch (err) {
+      signals.activity_log.error = err.message;
+      if (debug) {
+        console.warn(`⚠️ activity_log: Not accessible (${err.message})`);
+      }
+    }
+    
+    // Try to load messages
+    try {
+      const { data, error } = await window.supabase
+        .from('messages')
+        .select('id, created_at', { count: 'exact', head: false })
+        .gte('created_at', cutoffDate.toISOString())
+        .limit(100);
+      
+      if (error) throw error;
+      
+      signals.messages.count = data?.length || 0;
+      signals.messages.accessible = true;
+      signals.hasSignals = signals.hasSignals || signals.messages.count > 0;
+      
+      if (debug) {
+        console.log(`✅ messages: ${signals.messages.count} rows`);
+      }
+    } catch (err) {
+      signals.messages.error = err.message;
+      if (debug) {
+        console.warn(`⚠️ messages: Not accessible (${err.message})`);
+      }
+    }
+    
+    // Try to load notifications
+    try {
+      const { data, error } = await window.supabase
+        .from('notifications')
+        .select('id, created_at', { count: 'exact', head: false })
+        .gte('created_at', cutoffDate.toISOString())
+        .limit(100);
+      
+      if (error) throw error;
+      
+      signals.notifications.count = data?.length || 0;
+      signals.notifications.accessible = true;
+      signals.hasSignals = signals.hasSignals || signals.notifications.count > 0;
+      
+      if (debug) {
+        console.log(`✅ notifications: ${signals.notifications.count} rows`);
+      }
+    } catch (err) {
+      signals.notifications.error = err.message;
+      if (debug) {
+        console.warn(`⚠️ notifications: Not accessible (${err.message})`);
+      }
+    }
+    
+    if (debug) {
+      console.groupEnd();
+    }
+    
+    return signals;
+  }
+
+  /**
+   * Create "not enough signals" card
+   */
+  createNoSignalsCard(activitySignals) {
+    const reasons = [];
+    
+    if (!activitySignals.activity_log.accessible) {
+      reasons.push('Activity log not accessible');
+    } else if (activitySignals.activity_log.count === 0) {
+      reasons.push('No activity log entries in last 30 days');
+    }
+    
+    if (!activitySignals.messages.accessible) {
+      reasons.push('Messages not accessible');
+    } else if (activitySignals.messages.count === 0) {
+      reasons.push('No messages in last 30 days');
+    }
+    
+    if (reasons.length === 0) {
+      reasons.push('Not enough recent activity to detect patterns');
+    }
+    
+    return {
+      suggestion_type: 'coordination',
+      subtype: 'no_signals',
+      target_id: 'coord:no-signals',
+      score: 100, // Always show at top
+      why: reasons.slice(0, 3),
+      source: 'coordination',
+      data: {
+        suggestionType: 'info',
+        title: 'Intelligence Layer Active',
+        description: 'Not enough activity signals yet to detect coordination moments',
+        message: '🌐 Coordination detection ready',
+        detail: reasons.join(' • '),
+        action: 'Learn More',
+        icon: 'info-circle',
+        color: '#ff6b6b'
+      }
+    };
+  }
+
+  /**
+   * Print comprehensive intelligence report
+   */
+  printIntelligenceReport(suggestions, options = {}) {
+    const { cached = false, profile, forceCoordination = false, debugSignals = false } = options;
+    
+    console.group('🧠 Intelligence Layer Report');
+    
+    // Report header
+    console.log(`%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'color:#00e0ff');
+    console.log(`%cUser: ${profile?.name || 'Unknown'}`, 'color:#00ff88; font-weight:bold');
+    console.log(`%cDate: ${this.getTodayKey()}`, 'color:#00ff88');
+    console.log(`%cCached: ${cached ? 'Yes' : 'No (freshly generated)'}`, 'color:#00ff88');
+    console.log(`%cFlags: forceRegen=${options.forceRegen || false}, forceCoordination=${forceCoordination}, debugSignals=${debugSignals}`, 'color:#00ff88');
+    console.log(`%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'color:#00e0ff');
+    
+    // Coordination detector status
+    console.log('\n%c📡 Coordination Detector Status:', 'color:#ff6b6b; font-weight:bold');
+    console.log(`   Imported: ${this.coordinationDetector ? '✅ Yes' : '❌ No'}`);
+    console.log(`   Executed: ${cached ? 'N/A (using cache)' : '✅ Yes'}`);
+    
+    // Suggestion counts by type
+    console.log('\n%c📊 Suggestions by Type:', 'color:#a855f7; font-weight:bold');
+    const counts = {
+      coordination: suggestions.filter(s => s.suggestion_type === 'coordination').length,
+      person: suggestions.filter(s => s.suggestion_type === 'person').length,
+      project_join: suggestions.filter(s => s.suggestion_type === 'project_join').length,
+      project_recruit: suggestions.filter(s => s.suggestion_type === 'project_recruit').length,
+      theme: suggestions.filter(s => s.suggestion_type === 'theme').length,
+      org: suggestions.filter(s => s.suggestion_type === 'org').length
+    };
+    
+    Object.entries(counts).forEach(([type, count]) => {
+      const icon = type === 'coordination' ? '🌐' : type === 'person' ? '👤' : type.includes('project') ? '💼' : type === 'theme' ? '🎯' : '🏢';
+      console.log(`   ${icon} ${type}: ${count}`);
+    });
+    
+    // Source breakdown
+    console.log('\n%c🎯 Source Breakdown:', 'color:#00e0ff; font-weight:bold');
+    const sources = {
+      coordination: suggestions.filter(s => s.source === 'coordination').length,
+      heuristic: suggestions.filter(s => s.source === 'heuristic').length,
+      fallback: suggestions.filter(s => s.source === 'fallback').length
+    };
+    
+    Object.entries(sources).forEach(([source, count]) => {
+      console.log(`   ${source}: ${count}`);
+    });
+    
+    // Top 3 suggestions
+    console.log('\n%c🏆 Top 3 Suggestions:', 'color:#00ff88; font-weight:bold');
+    suggestions.slice(0, 3).forEach((s, i) => {
+      const title = s.data?.title || s.data?.name || s.data?.message || 'Untitled';
+      console.log(`\n   ${i + 1}. ${title}`);
+      console.log(`      Type: ${s.suggestion_type} | Source: ${s.source} | Score: ${s.score}`);
+      console.log(`      Why:`);
+      (s.why || []).forEach(reason => {
+        console.log(`        • ${reason}`);
+      });
+    });
+    
+    console.log(`\n%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'color:#00e0ff');
+    console.groupEnd();
   }
 }

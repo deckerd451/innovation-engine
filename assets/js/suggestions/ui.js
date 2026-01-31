@@ -49,12 +49,28 @@ export class DailySuggestionsUI {
    * Convert a single suggestion to insight format
    */
   suggestionToInsight(suggestion) {
+    // Handle both V1 and V2 suggestion formats
+    const suggestionType = suggestion.suggestion_type || suggestion.type;
+    const data = suggestion.data || {};
+    
     const typeConfig = {
       person: {
         icon: 'user-plus',
         color: '#00e0ff',
         actionText: 'Connect',
         handler: 'viewPerson'
+      },
+      project_join: {
+        icon: 'lightbulb',
+        color: '#00ff88',
+        actionText: 'View Project',
+        handler: 'viewProject'
+      },
+      project_recruit: {
+        icon: 'users',
+        color: '#a855f7',
+        actionText: 'Recruit',
+        handler: 'viewProject'
       },
       project: {
         icon: 'lightbulb',
@@ -77,43 +93,47 @@ export class DailySuggestionsUI {
       coordination: {
         icon: 'network-wired',
         color: '#ff6b6b',
-        actionText: 'View',
+        actionText: data.action || 'View',
         handler: 'viewCoordination'
       }
     };
     
-    const config = typeConfig[suggestion.type] || typeConfig.person;
-    const data = suggestion.data || {};
+    const config = typeConfig[suggestionType] || typeConfig.person;
     
     // For coordination insights, use custom messaging
-    if (suggestion.type === 'coordination') {
+    if (suggestionType === 'coordination') {
       return {
-        icon: config.icon,
-        color: config.color,
-        message: suggestion.message || 'Coordination opportunity',
-        detail: suggestion.detail || (suggestion.why && suggestion.why.length > 0 ? suggestion.why.join(' • ') : 'Opportunity detected'),
-        action: suggestion.action || config.actionText,
+        icon: data.icon || config.icon,
+        color: data.color || config.color,
+        message: data.message || 'Coordination opportunity',
+        detail: data.detail || (suggestion.why && suggestion.why.length > 0 ? suggestion.why.join(' • ') : 'Opportunity detected'),
+        action: data.action || config.actionText,
         handler: config.handler,
         priority: this.scoreToPriority(suggestion.score),
         data: {
           ...data,
           targetId: suggestion.target_id,
-          suggestionType: suggestion.type,
-          subtype: suggestion.subtype
+          suggestionType: suggestionType,
+          subtype: suggestion.subtype,
+          why: suggestion.why
         }
       };
     }
     
     // Build message for traditional suggestions
     let message = '';
-    if (suggestion.suggestion_type === 'person' || suggestion.type === 'person') {
-      message = data.name || 'Connect with someone new';
-    } else if (suggestion.suggestion_type === 'project' || suggestion.type === 'project') {
-      message = data.title || 'Join a project';
-    } else if (suggestion.suggestion_type === 'theme' || suggestion.type === 'theme') {
-      message = data.title || 'Explore a theme';
-    } else if (suggestion.suggestion_type === 'org' || suggestion.type === 'org') {
-      message = data.name || 'Follow an organization';
+    if (suggestionType === 'person') {
+      message = `Connect with ${data.name || 'someone new'}`;
+    } else if (suggestionType === 'project_join') {
+      message = `Join: ${data.title || 'a project'}`;
+    } else if (suggestionType === 'project_recruit') {
+      message = `Recruit for: ${data.title || 'your project'}`;
+    } else if (suggestionType === 'project') {
+      message = data.title || 'View project';
+    } else if (suggestionType === 'theme') {
+      message = `Explore: ${data.title || 'a theme'}`;
+    } else if (suggestionType === 'org') {
+      message = `Follow: ${data.name || 'an organization'}`;
     }
     
     // Build detail (why this was recommended)
@@ -126,13 +146,14 @@ export class DailySuggestionsUI {
       color: config.color,
       message: message,
       detail: detail,
-      action: config.actionText,
+      action: data.action || config.actionText,
       handler: config.handler,
       priority: this.scoreToPriority(suggestion.score),
       data: {
         ...data,
         targetId: suggestion.target_id,
-        suggestionType: suggestion.suggestion_type || suggestion.type
+        suggestionType: suggestionType,
+        why: suggestion.why
       }
     };
   }
