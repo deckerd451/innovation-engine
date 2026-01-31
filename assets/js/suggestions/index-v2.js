@@ -39,13 +39,21 @@ window.initDailySuggestionsV2 = async function() {
   const engine = new DailySuggestionsEngineV2(store);
   const ui = new DailySuggestionsUI(engine, store);
   
-  // Expose globally
+  // Expose globally (V2 names)
   window.DailySuggestionsEngineV2 = engine;
   window.DailySuggestionsStoreV2 = store;
   window.DailySuggestionsUIV2 = ui;
   
+  // Also expose V1-compatible names for backward compatibility
+  window.DailySuggestionsEngine = engine;
+  window.DailySuggestionsStore = store;
+  window.DailySuggestionsUI = ui;
+  
   // Generate today's suggestions
   await engine.ensureTodaysSuggestions();
+  
+  // Dispatch ready event for integrations
+  window.dispatchEvent(new CustomEvent('daily-suggestions-ready', { detail: { version: 2 } }));
   
   console.log('✅ Daily Suggestions V2 initialized');
 };
