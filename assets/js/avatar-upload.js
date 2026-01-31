@@ -13,7 +13,7 @@
   }
   window[GUARD] = true;
 
-  const BUCKET_NAME = 'avatars';
+  const BUCKET_NAME = 'hacksbucket';
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
@@ -31,9 +31,9 @@
     }
 
     try {
-      // Generate unique filename
+      // Generate unique filename with avatars subfolder
       const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}/${Date.now()}.${fileExt}`;
+      const fileName = `avatars/${userId}/${Date.now()}.${fileExt}`;
 
       // Upload to Supabase Storage
       const { data, error } = await window.supabase.storage
