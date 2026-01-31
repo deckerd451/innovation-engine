@@ -9,9 +9,8 @@ INSERT INTO theme_circles (
   id,
   title,
   description,
-  tags,
-  status,
-  origin_type,
+  is_active,
+  is_temporary,
   expires_at,
   created_at
 )
@@ -19,9 +18,8 @@ SELECT
   gen_random_uuid(),
   'General Projects',
   'Projects that don''t fit into a specific theme circle. A place for diverse ideas and collaborations.',
-  ARRAY['general', 'miscellaneous', 'open'],
-  'active',
-  'system',
+  true,
+  false,
   (NOW() + INTERVAL '1 year')::timestamptz,
   NOW()
 WHERE NOT EXISTS (
