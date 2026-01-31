@@ -243,9 +243,9 @@
         ` : ''}
 
         <!-- Actions -->
-        <div style="display: flex; gap: 0.75rem; margin-top: 2rem;">
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 2rem;">
           <button onclick="sendConnectionRequest('${user.id}')" style="
-            flex: 1;
+            width: 100%;
             padding: 0.75rem;
             background: linear-gradient(135deg, #00e0ff, #0080ff);
             border: none;
@@ -256,6 +256,20 @@
             transition: all 0.2s;
           " onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform='translateY(0)'">
             <i class="fas fa-user-plus"></i> Connect
+          </button>
+          
+          <button onclick="if(window.handleLogout) window.handleLogout()" style="
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255,107,107,0.2);
+            border: 1px solid rgba(255,107,107,0.4);
+            border-radius: 8px;
+            color: #ff6b6b;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+          " onmouseenter="this.style.background='rgba(255,107,107,0.3)'" onmouseleave="this.style.background='rgba(255,107,107,0.2)'">
+            <i class="fas fa-sign-out-alt"></i> Logout
           </button>
         </div>
       </div>
