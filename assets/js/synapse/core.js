@@ -250,6 +250,13 @@ export async function initSynapseView() {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) {
       console.warn('⚠️ Node not found:', nodeId);
+      console.log('ℹ️ Falling back to activity view (centering on current user)');
+      
+      // Fallback: center on current user instead
+      const userNode = findCurrentUserNode(nodes, currentUserCommunityId);
+      if (userNode) {
+        setFocusOnNode(userNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
+      }
       return;
     }
     
@@ -273,6 +280,13 @@ export async function initSynapseView() {
     
     if (!themeNode) {
       console.warn('⚠️ Theme node not found:', themeId);
+      console.log('ℹ️ Falling back to activity view (centering on current user)');
+      
+      // Fallback: center on current user instead
+      const userNode = findCurrentUserNode(nodes, currentUserCommunityId);
+      if (userNode) {
+        setFocusOnNode(userNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
+      }
       return;
     }
     

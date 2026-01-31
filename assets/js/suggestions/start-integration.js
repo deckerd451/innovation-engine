@@ -216,6 +216,8 @@ function handleSuggestionCTA(handler, data) {
   const suggestionType = data.suggestionType || data.type;
   const targetId = data.targetId;
   const source = data.source || 'heuristic';
+  const originalType = data.original_type; // Preserved from store.js
+  const subtype = data.subtype; // Preserved from store.js
   
   // Validate targetId if present
   if (targetId && !isUUID(targetId) && !targetId.startsWith('theme:')) {
@@ -239,26 +241,12 @@ function handleSuggestionCTA(handler, data) {
       return;
     }
     
+    // Check if this is actually a coordination suggestion (mapped to 'theme' in DB)
+    const isCoordination = originalType === 'coordination' || source === 'coordination';
+    
     // Route by suggestion type
-    if (suggestionType === 'person' && targetId) {
-      console.log('👤 Routing to person:', targetId);
-      window.synapseApi.focusNode(targetId);
-      
-    } else if ((suggestionType === 'project' || suggestionType === 'project_join' || suggestionType === 'project_recruit') && targetId) {
-      console.log('💡 Routing to project:', targetId);
-      window.synapseApi.focusNode(targetId);
-      
-    } else if (suggestionType === 'theme' && targetId) {
-      console.log('🎯 Routing to theme:', targetId);
-      window.synapseApi.focusTheme(targetId);
-      
-    } else if (suggestionType === 'org' && targetId) {
-      console.log('🏢 Routing to organization:', targetId);
-      window.synapseApi.focusNode(targetId);
-      
-    } else if (suggestionType === 'coordination') {
+    if (isCoordination) {
       // Coordination suggestions route based on subtype
-      const subtype = data.subtype;
       console.log('🌐 Routing coordination suggestion:', subtype);
       
       // Special case: "no_signals" means intelligence layer is active but no patterns detected
@@ -278,8 +266,24 @@ function handleSuggestionCTA(handler, data) {
         window.synapseApi.showActivity();
       }
       
+    } else if (suggestionType === 'person' && targetId) {
+      console.log('👤 Routing to person:', targetId);
+      window.synapseApi.focusNode(targetId);
+      
+    } else if ((suggestionType === 'project' || suggestionType === 'project_join' || suggestionType === 'project_recruit') && targetId) {
+      console.log('💡 Routing to project:', targetId);
+      window.synapseApi.focusNode(targetId);
+      
+    } else if (suggestionType === 'theme' && targetId) {
+      console.log('🎯 Routing to theme:', targetId);
+      window.synapseApi.focusTheme(targetId);
+      
+    } else if (suggestionType === 'org' && targetId) {
+      console.log('🏢 Routing to organization:', targetId);
+      window.synapseApi.focusNode(targetId);
+      
     } else {
-      console.warn('⚠️ Unknown suggestion type or missing targetId:', { suggestionType, targetId });
+      console.warn('⚠️ Unknown suggestion type or missing targetId:', { suggestionType, targetId, originalType, subtype });
       // Fallback: show activity view
       window.synapseApi.showActivity();
     }
