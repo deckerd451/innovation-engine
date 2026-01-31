@@ -226,15 +226,34 @@ export class DailySuggestionsUI {
   viewPerson(personId) {
     // Try to open profile modal
     if (window.openProfile && typeof window.openProfile === 'function') {
-      window.openProfile(personId);
-    } else if (window.viewProfile && typeof window.viewProfile === 'function') {
-      window.viewProfile(personId);
-    } else {
-      // Fallback: filter synapse to show people
-      if (window.filterByNodeType) {
-        window.filterByNodeType('person');
+      try {
+        window.openProfile(personId);
+        return;
+      } catch (err) {
+        console.warn('Failed to open profile:', err);
       }
-      this.showToast('Showing people in your network', 'info');
+    }
+    
+    if (window.viewProfile && typeof window.viewProfile === 'function') {
+      try {
+        window.viewProfile(personId);
+        return;
+      } catch (err) {
+        console.warn('Failed to view profile:', err);
+      }
+    }
+    
+    // Fallback: filter synapse to show people
+    if (window.filterByNodeType && typeof window.filterByNodeType === 'function') {
+      try {
+        window.filterByNodeType('person');
+        this.showToast('Showing people in your network', 'info');
+      } catch (err) {
+        console.warn('Failed to filter by person:', err);
+        this.showToast('Check the network visualization for people', 'info');
+      }
+    } else {
+      this.showToast('Explore people in the network visualization', 'info');
     }
   }
 
@@ -244,11 +263,26 @@ export class DailySuggestionsUI {
   viewProject(projectId) {
     // Try to open project modal
     if (window.openProjectsModal && typeof window.openProjectsModal === 'function') {
-      window.openProjectsModal();
-    } else if (window.filterByNodeType) {
-      window.filterByNodeType('project');
+      try {
+        window.openProjectsModal();
+        return;
+      } catch (err) {
+        console.warn('Failed to open projects modal:', err);
+      }
     }
-    this.showToast('Showing projects', 'info');
+    
+    // Fallback: filter synapse
+    if (window.filterByNodeType && typeof window.filterByNodeType === 'function') {
+      try {
+        window.filterByNodeType('project');
+        this.showToast('Showing projects', 'info');
+      } catch (err) {
+        console.warn('Failed to filter by project:', err);
+        this.showToast('Check the network visualization for projects', 'info');
+      }
+    } else {
+      this.showToast('Explore projects in the network visualization', 'info');
+    }
   }
 
   /**
@@ -256,12 +290,18 @@ export class DailySuggestionsUI {
    */
   viewTheme(themeId) {
     // Try to filter to themes
-    if (window.filterByNodeType) {
-      window.filterByNodeType('theme');
-    } else if (window.toggleThemeStrategy && typeof window.toggleThemeStrategy === 'function') {
-      window.toggleThemeStrategy();
+    if (window.filterByNodeType && typeof window.filterByNodeType === 'function') {
+      try {
+        window.filterByNodeType('theme');
+        this.showToast('Showing themes', 'info');
+      } catch (err) {
+        console.warn('Failed to filter by theme:', err);
+        this.showToast('Themes view - check the network visualization', 'info');
+      }
+    } else {
+      // Fallback: just show a message
+      this.showToast('Explore themes in the network visualization', 'info');
     }
-    this.showToast('Showing themes', 'info');
   }
 
   /**
@@ -269,10 +309,17 @@ export class DailySuggestionsUI {
    */
   viewOrganization(orgId) {
     // Try to filter to organizations
-    if (window.filterByNodeType) {
-      window.filterByNodeType('organization');
+    if (window.filterByNodeType && typeof window.filterByNodeType === 'function') {
+      try {
+        window.filterByNodeType('organization');
+        this.showToast('Showing organizations', 'info');
+      } catch (err) {
+        console.warn('Failed to filter by organization:', err);
+        this.showToast('Check the network visualization for organizations', 'info');
+      }
+    } else {
+      this.showToast('Explore organizations in the network visualization', 'info');
     }
-    this.showToast('Showing organizations', 'info');
   }
 
   /**
