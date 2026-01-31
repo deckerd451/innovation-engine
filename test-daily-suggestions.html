@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Suggestions Engine - Test Console</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: linear-gradient(135deg, #0a0e27 0%, #101427 100%);
+      color: #ffffff;
+      line-height: 1.6;
+    }
+    h1 { color: #00e0ff; }
+    h2 { color: #00ff88; margin-top: 2rem; }
+    .test-section {
+      background: rgba(0,224,255,0.1);
+      border: 1px solid rgba(0,224,255,0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    button {
+      background: linear-gradient(135deg, #00e0ff, #0080ff);
+      border: none;
+      border-radius: 8px;
+      color: #000;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    .output {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(0,224,255,0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .success { color: #00ff88; }
+    .error { color: #ff6b6b; }
+    .warning { color: #ffaa00; }
+    .info { color: #00e0ff; }
+  </style>
+</head>
+<body>
+  <h1>🎯 Daily Suggestions Engine - Test Console</h1>
+  <p>Use this page to test and debug the Daily Suggestions Engine.</p>
+
+  <!-- Test 1: Check Initialization -->
+  <div class="test-section">
+    <h2>1. Check Initialization</h2>
+    <p>Verify that all modules are loaded and initialized.</p>
+    <button onclick="test1()">Run Test</button>
+    <div id="output1" class="output"></div>
+  </div>
+
+  <!-- Test 2: Check Profile -->
+  <div class="test-section">
+    <h2>2. Check User Profile</h2>
+    <p>Verify that the current user profile is loaded.</p>
+    <button onclick="test2()">Run Test</button>
+    <div id="output2" class="output"></div>
+  </div>
+
+  <!-- Test 3: Check Storage -->
+  <div class="test-section">
+    <h2>3. Check Storage Method</h2>
+    <p>Check if using Supabase table or localStorage fallback.</p>
+    <button onclick="test3()">Run Test</button>
+    <div id="output3" class="output"></div>
+  </div>
+
+  <!-- Test 4: Generate Suggestions -->
+  <div class="test-section">
+    <h2>4. Generate Suggestions</h2>
+    <p>Force generation of new suggestions for today.</p>
+    <button onclick="test4()">Run Test</button>
+    <div id="output4" class="output"></div>
+  </div>
+
+  <!-- Test 5: View Suggestions -->
+  <div class="test-section">
+    <h2>5. View Today's Suggestions</h2>
+    <p>Display all suggestions for today with details.</p>
+    <button onclick="test5()">Run Test</button>
+    <div id="output5" class="output"></div>
+  </div>
+
+  <!-- Test 6: Test UI Integration -->
+  <div class="test-section">
+    <h2>6. Test UI Integration</h2>
+    <p>Get suggestions formatted for START UI.</p>
+    <button onclick="test6()">Run Test</button>
+    <div id="output6" class="output"></div>
+  </div>
+
+  <!-- Test 7: Test Scoring -->
+  <div class="test-section">
+    <h2>7. Test Scoring Logic</h2>
+    <p>View detailed scoring breakdown for suggestions.</p>
+    <button onclick="test7()">Run Test</button>
+    <div id="output7" class="output"></div>
+  </div>
+
+  <!-- Test 8: Clean Old Data -->
+  <div class="test-section">
+    <h2>8. Clean Old Suggestions</h2>
+    <p>Remove suggestions older than 30 days.</p>
+    <button onclick="test8()">Run Test</button>
+    <div id="output8" class="output"></div>
+  </div>
+
+  <!-- Test 9: Performance Test -->
+  <div class="test-section">
+    <h2>9. Performance Test</h2>
+    <p>Measure suggestion generation time.</p>
+    <button onclick="test9()">Run Test</button>
+    <div id="output9" class="output"></div>
+  </div>
+
+  <!-- Test 10: Open START Modal -->
+  <div class="test-section">
+    <h2>10. Open START Modal</h2>
+    <p>Open the START modal to see suggestions in action.</p>
+    <button onclick="test10()">Run Test</button>
+    <div id="output10" class="output"></div>
+  </div>
+
+  <script>
+    function log(outputId, message, type = 'info') {
+      const output = document.getElementById(outputId);
+      const className = type;
+      const timestamp = new Date().toLocaleTimeString();
+      output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+    }
+
+    function clear(outputId) {
+      document.getElementById(outputId).innerHTML = '';
+    }
+
+    // Test 1: Check Initialization
+    function test1() {
+      clear('output1');
+      log('output1', '🔍 Checking initialization...', 'info');
+      
+      const checks = [
+        { name: 'window.supabase', value: !!window.supabase },
+        { name: 'window.currentUserProfile', value: !!window.currentUserProfile },
+        { name: 'window.DailySuggestionsEngine', value: !!window.DailySuggestionsEngine },
+        { name: 'window.DailySuggestionsStore', value: !!window.DailySuggestionsStore },
+        { name: 'window.DailySuggestionsUI', value: !!window.DailySuggestionsUI },
+        { name: 'window.initDailySuggestions', value: !!window.initDailySuggestions }
+      ];
+      
+      let allPassed = true;
+      checks.forEach(check => {
+        if (check.value) {
+          log('output1', `✅ ${check.name}: OK`, 'success');
+        } else {
+          log('output1', `❌ ${check.name}: NOT FOUND`, 'error');
+          allPassed = false;
+        }
+      });
+      
+      if (allPassed) {
+        log('output1', '\n✅ All modules initialized successfully!', 'success');
+      } else {
+        log('output1', '\n❌ Some modules are missing. Check console for errors.', 'error');
+      }
+    }
+
+    // Test 2: Check Profile
+    function test2() {
+      clear('output2');
+      log('output2', '🔍 Checking user profile...', 'info');
+      
+      if (!window.currentUserProfile) {
+        log('output2', '❌ No profile loaded. Please log in first.', 'error');
+        return;
+      }
+      
+      const profile = window.currentUserProfile;
+      log('output2', `✅ Profile loaded: ${profile.name}`, 'success');
+      log('output2', `   ID: ${profile.id}`, 'info');
+      log('output2', `   Email: ${profile.email || 'N/A'}`, 'info');
+      log('output2', `   Skills: ${profile.skills || 'None'}`, 'info');
+      log('output2', `   Interests: ${JSON.stringify(profile.interests || [])}`, 'info');
+      log('output2', `   Bio: ${profile.bio ? profile.bio.substring(0, 100) + '...' : 'None'}`, 'info');
+    }
+
+    // Test 3: Check Storage
+    async function test3() {
+      clear('output3');
+      log('output3', '🔍 Checking storage method...', 'info');
+      
+      if (!window.DailySuggestionsStore) {
+        log('output3', '❌ Store not initialized', 'error');
+        return;
+      }
+      
+      const useSupabase = window.DailySuggestionsStore.useSupabase;
+      
+      if (useSupabase) {
+        log('output3', '✅ Using Supabase table for storage', 'success');
+        log('output3', '   Table: daily_suggestions', 'info');
+        
+        // Try to query the table
+        try {
+          const { data, error } = await window.supabase
+            .from('daily_suggestions')
+            .select('id')
+            .limit(1);
+          
+          if (error) {
+            log('output3', `⚠️ Table query error: ${error.message}`, 'warning');
+          } else {
+            log('output3', '✅ Table accessible', 'success');
+          }
+        } catch (err) {
+          log('output3', `❌ Error: ${err.message}`, 'error');
+        }
+      } else {
+        log('output3', '⚠️ Using localStorage fallback', 'warning');
+        log('output3', '   Reason: Supabase table not found or not accessible', 'info');
+        
+        // Check localStorage usage
+        const keys = Object.keys(localStorage).filter(k => k.includes('daily_suggestions'));
+        log('output3', `   localStorage keys: ${keys.length}`, 'info');
+      }
+    }
+
+    // Test 4: Generate Suggestions
+    async function test4() {
+      clear('output4');
+      log('output4', '🔄 Generating suggestions...', 'info');
+      
+      if (!window.DailySuggestionsEngine || !window.currentUserProfile) {
+        log('output4', '❌ Engine or profile not available', 'error');
+        return;
+      }
+      
+      try {
+        const startTime = Date.now();
+        const suggestions = await window.DailySuggestionsEngine.ensureTodaysSuggestions();
+        const duration = Date.now() - startTime;
+        
+        log('output4', `✅ Generated ${suggestions.length} suggestions in ${duration}ms`, 'success');
+        
+        // Count by type
+        const counts = {};
+        suggestions.forEach(s => {
+          counts[s.suggestion_type] = (counts[s.suggestion_type] || 0) + 1;
+        });
+        
+        log('output4', '\nBreakdown by type:', 'info');
+        Object.entries(counts).forEach(([type, count]) => {
+          log('output4', `   ${type}: ${count}`, 'info');
+        });
+      } catch (err) {
+        log('output4', `❌ Error: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    // Test 5: View Suggestions
+    async function test5() {
+      clear('output5');
+      log('output5', '📋 Loading today\'s suggestions...', 'info');
+      
+      if (!window.DailySuggestionsEngine || !window.DailySuggestionsStore || !window.currentUserProfile) {
+        log('output5', '❌ Required modules not available', 'error');
+        return;
+      }
+      
+      try {
+        const profile = window.currentUserProfile;
+        const today = window.DailySuggestionsEngine.getTodayKey();
+        const suggestions = await window.DailySuggestionsStore.getSuggestionsForDate(profile.id, today);
+        
+        if (!suggestions || suggestions.length === 0) {
+          log('output5', '⚠️ No suggestions found for today. Run Test 4 to generate.', 'warning');
+          return;
+        }
+        
+        log('output5', `✅ Found ${suggestions.length} suggestions for ${today}:\n`, 'success');
+        
+        suggestions.forEach((s, i) => {
+          log('output5', `${i + 1}. [${s.suggestion_type.toUpperCase()}] Score: ${s.score}`, 'info');
+          log('output5', `   Target: ${s.target_id}`, 'info');
+          log('output5', `   Why: ${s.why.join(' • ')}`, 'info');
+          if (s.data) {
+            const name = s.data.name || s.data.title || 'Unknown';
+            log('output5', `   Name: ${name}`, 'info');
+          }
+          log('output5', '', 'info');
+        });
+      } catch (err) {
+        log('output5', `❌ Error: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    // Test 6: Test UI Integration
+    async function test6() {
+      clear('output6');
+      log('output6', '🎨 Getting UI-formatted suggestions...', 'info');
+      
+      if (!window.DailySuggestionsUI) {
+        log('output6', '❌ UI module not available', 'error');
+        return;
+      }
+      
+      try {
+        const insights = await window.DailySuggestionsUI.getSuggestionsForStartUI();
+        
+        if (!insights || insights.length === 0) {
+          log('output6', '⚠️ No insights generated. Run Test 4 first.', 'warning');
+          return;
+        }
+        
+        log('output6', `✅ Generated ${insights.length} UI insights:\n`, 'success');
+        
+        insights.forEach((insight, i) => {
+          log('output6', `${i + 1}. ${insight.message}`, 'info');
+          log('output6', `   Icon: ${insight.icon}`, 'info');
+          log('output6', `   Color: ${insight.color}`, 'info');
+          log('output6', `   Detail: ${insight.detail}`, 'info');
+          log('output6', `   Action: ${insight.action}`, 'info');
+          log('output6', `   Handler: ${insight.handler}`, 'info');
+          log('output6', '', 'info');
+        });
+      } catch (err) {
+        log('output6', `❌ Error: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    // Test 7: Test Scoring
+    async function test7() {
+      clear('output7');
+      log('output7', '🎯 Analyzing scoring logic...', 'info');
+      
+      if (!window.DailySuggestionsEngine || !window.DailySuggestionsStore || !window.currentUserProfile) {
+        log('output7', '❌ Required modules not available', 'error');
+        return;
+      }
+      
+      try {
+        const profile = window.currentUserProfile;
+        const today = window.DailySuggestionsEngine.getTodayKey();
+        const suggestions = await window.DailySuggestionsStore.getSuggestionsForDate(profile.id, today);
+        
+        if (!suggestions || suggestions.length === 0) {
+          log('output7', '⚠️ No suggestions found. Run Test 4 first.', 'warning');
+          return;
+        }
+        
+        // Sort by score
+        const sorted = [...suggestions].sort((a, b) => b.score - a.score);
+        
+        log('output7', '📊 Top 5 suggestions by score:\n', 'success');
+        
+        sorted.slice(0, 5).forEach((s, i) => {
+          const name = s.data?.name || s.data?.title || 'Unknown';
+          log('output7', `${i + 1}. ${name} (${s.suggestion_type})`, 'info');
+          log('output7', `   Score: ${s.score}`, 'info');
+          log('output7', `   Reasons:`, 'info');
+          s.why.forEach(reason => {
+            log('output7', `     • ${reason}`, 'info');
+          });
+          log('output7', '', 'info');
+        });
+        
+        // Score distribution
+        const scoreRanges = {
+          'High (50+)': 0,
+          'Medium (20-49)': 0,
+          'Low (<20)': 0
+        };
+        
+        suggestions.forEach(s => {
+          if (s.score >= 50) scoreRanges['High (50+)']++;
+          else if (s.score >= 20) scoreRanges['Medium (20-49)']++;
+          else scoreRanges['Low (<20)']++;
+        });
+        
+        log('output7', '\n📈 Score distribution:', 'info');
+        Object.entries(scoreRanges).forEach(([range, count]) => {
+          log('output7', `   ${range}: ${count}`, 'info');
+        });
+      } catch (err) {
+        log('output7', `❌ Error: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    // Test 8: Clean Old Data
+    async function test8() {
+      clear('output8');
+      log('output8', '🧹 Cleaning old suggestions...', 'info');
+      
+      if (!window.DailySuggestionsStore || !window.currentUserProfile) {
+        log('output8', '❌ Store or profile not available', 'error');
+        return;
+      }
+      
+      try {
+        const profile = window.currentUserProfile;
+        await window.DailySuggestionsStore.cleanOldSuggestions(profile.id, 30);
+        log('output8', '✅ Cleaned suggestions older than 30 days', 'success');
+      } catch (err) {
+        log('output8', `❌ Error: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    // Test 9: Performance Test
+    async function test9() {
+      clear('output9');
+      log('output9', '⚡ Running performance test...', 'info');
+      
+      if (!window.DailySuggestionsEngine || !window.currentUserProfile) {
+        log('output9', '❌ Engine or profile not available', 'error');
+        return;
+      }
+      
+      try {
+        const profile = window.currentUserProfile;
+        
+        // Test 1: Fresh generation
+        log('output9', '\n1. Fresh generation (no cache):', 'info');
+        const start1 = Date.now();
+        const suggestions1 = await window.DailySuggestionsEngine.generateSuggestions(profile);
+        const duration1 = Date.now() - start1;
+        log('output9', `   Time: ${duration1}ms`, duration1 < 3000 ? 'success' : 'warning');
+        log('output9', `   Count: ${suggestions1.length}`, 'info');
+        
+        // Test 2: Cached load
+        log('output9', '\n2. Cached load:', 'info');
+        const start2 = Date.now();
+        const suggestions2 = await window.DailySuggestionsEngine.ensureTodaysSuggestions();
+        const duration2 = Date.now() - start2;
+        log('output9', `   Time: ${duration2}ms`, duration2 < 200 ? 'success' : 'warning');
+        log('output9', `   Count: ${suggestions2.length}`, 'info');
+        
+        // Test 3: UI formatting
+        log('output9', '\n3. UI formatting:', 'info');
+        const start3 = Date.now();
+        const insights = await window.DailySuggestionsUI.getSuggestionsForStartUI();
+        const duration3 = Date.now() - start3;
+        log('output9', `   Time: ${duration3}ms`, duration3 < 100 ? 'success' : 'warning');
+        log('output9', `   Count: ${insights.length}`, 'info');
+        
+        log('output9', '\n✅ Performance test complete', 'success');
+      } catch (err) {
+        log('output9', `❌ Error: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    // Test 10: Open START Modal
+    function test10() {
+      clear('output10');
+      log('output10', '🚀 Opening START modal...', 'info');
+      
+      if (!window.EnhancedStartUI) {
+        log('output10', '❌ EnhancedStartUI not available', 'error');
+        log('output10', '   Make sure you\'re on the dashboard page', 'warning');
+        return;
+      }
+      
+      try {
+        window.EnhancedStartUI.open();
+        log('output10', '✅ START modal opened', 'success');
+        log('output10', '   Check for "Personalized for You" section', 'info');
+      } catch (err) {
+        log('output10', `❌ Error: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    // Auto-run Test 1 on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        test1();
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

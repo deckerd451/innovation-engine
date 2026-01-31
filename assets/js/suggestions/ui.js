@@ -1,0 +1,321 @@
+// ================================================================
+// DAILY SUGGESTIONS - UI INTEGRATION
+// ================================================================
+// Renders suggestions in the START UI and handles user interactions
+// ================================================================
+
+export class DailySuggestionsUI {
+  constructor(engine, store) {
+    this.engine = engine;
+    this.store = store;
+  }
+
+  /**
+   * Get suggestions for rendering in START UI
+   * Returns array of insight objects compatible with EnhancedStartUI
+   */
+  async getSuggestionsForStartUI() {
+    try {
+      const profile = window.currentUserProfile;
+      if (!profile) {
+        console.warn('⚠️ No profile available for suggestions');
+        return [];
+      }
+      
+      const today = this.engine.getTodayKey();
+      let suggestions = await this.store.getSuggestionsForDate(profile.id, today);
+      
+      // If no suggestions, generate them
+      if (!suggestions || suggestions.length === 0) {
+        suggestions = await this.engine.ensureTodaysSuggestions();
+      }
+      
+      // Convert to START UI insight format
+      return this.convertToInsights(suggestions);
+    } catch (err) {
+      console.error('❌ Failed to get suggestions for START UI:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Convert suggestions to START UI insight format
+   */
+  convertToInsights(suggestions) {
+    return suggestions.map(s => this.suggestionToInsight(s));
+  }
+
+  /**
+   * Convert a single suggestion to insight format
+   */
+  suggestionToInsight(suggestion) {
+    const typeConfig = {
+      person: {
+        icon: 'user-plus',
+        color: '#00e0ff',
+        actionText: 'Connect',
+        handler: 'viewPerson'
+      },
+      project: {
+        icon: 'lightbulb',
+        color: '#00ff88',
+        actionText: 'View Project',
+        handler: 'viewProject'
+      },
+      theme: {
+        icon: 'bullseye',
+        color: '#ffaa00',
+        actionText: 'Explore Theme',
+        handler: 'viewTheme'
+      },
+      org: {
+        icon: 'building',
+        color: '#a855f7',
+        actionText: 'View Organization',
+        handler: 'viewOrganization'
+      }
+    };
+    
+    const config = typeConfig[suggestion.suggestion_type] || typeConfig.person;
+    const data = suggestion.data || {};
+    
+    // Build message
+    let message = '';
+    if (suggestion.suggestion_type === 'person') {
+      message = data.name || 'Connect with someone new';
+    } else if (suggestion.suggestion_type === 'project') {
+      message = data.title || 'Join a project';
+    } else if (suggestion.suggestion_type === 'theme') {
+      message = data.title || 'Explore a theme';
+    } else if (suggestion.suggestion_type === 'org') {
+      message = data.name || 'Follow an organization';
+    }
+    
+    // Build detail (why this was recommended)
+    const detail = suggestion.why && suggestion.why.length > 0
+      ? suggestion.why.join(' • ')
+      : 'Recommended for you';
+    
+    return {
+      icon: config.icon,
+      color: config.color,
+      message: message,
+      detail: detail,
+      action: config.actionText,
+      handler: config.handler,
+      priority: this.scoreToPriority(suggestion.score),
+      data: {
+        ...data,
+        targetId: suggestion.target_id,
+        suggestionType: suggestion.suggestion_type
+      }
+    };
+  }
+
+  /**
+   * Convert score to priority level
+   */
+  scoreToPriority(score) {
+    if (score >= 50) return 'high';
+    if (score >= 20) return 'medium';
+    return 'low';
+  }
+
+  /**
+   * Show "why" modal for a suggestion
+   */
+  showWhyModal(suggestion) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
+      border: 2px solid rgba(0,224,255,0.4);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      z-index: 10003;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    `;
+    
+    const typeLabels = {
+      person: 'Person',
+      project: 'Project',
+      theme: 'Theme',
+      org: 'Organization'
+    };
+    
+    const typeLabel = typeLabels[suggestion.suggestion_type] || 'Item';
+    const data = suggestion.data || {};
+    const name = data.name || data.title || 'Unknown';
+    
+    modal.innerHTML = `
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">💡</div>
+        <h3 style="color: #00e0ff; margin: 0 0 0.5rem 0;">Why this ${typeLabel}?</h3>
+        <p style="color: rgba(255,255,255,0.7); margin: 0; font-size: 0.9rem;">${name}</p>
+      </div>
+      
+      <div style="background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h4 style="color: #00ff88; margin: 0 0 1rem 0; font-size: 1rem;">Reasons:</h4>
+        <ul style="margin: 0; padding-left: 1.5rem; color: rgba(255,255,255,0.9);">
+          ${suggestion.why.map(reason => `<li style="margin-bottom: 0.5rem;">${reason}</li>`).join('')}
+        </ul>
+      </div>
+      
+      <div style="text-align: center;">
+        <button onclick="this.closest('div[style*=fixed]').remove(); document.getElementById('why-modal-backdrop').remove();" style="
+          background: linear-gradient(135deg, #00e0ff, #0080ff);
+          border: none;
+          border-radius: 8px;
+          color: #000;
+          padding: 0.75rem 2rem;
+          font-size: 1rem;
+          font-weight: 600;
+          cursor: pointer;
+        ">
+          Got it!
+        </button>
+      </div>
+    `;
+    
+    // Backdrop
+    const backdrop = document.createElement('div');
+    backdrop.id = 'why-modal-backdrop';
+    backdrop.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 10002;
+    `;
+    backdrop.onclick = () => {
+      modal.remove();
+      backdrop.remove();
+    };
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+  }
+
+  /**
+   * Handle suggestion action (view/connect/etc)
+   */
+  async handleSuggestionAction(handler, data) {
+    const handlers = {
+      viewPerson: () => this.viewPerson(data.targetId),
+      viewProject: () => this.viewProject(data.targetId),
+      viewTheme: () => this.viewTheme(data.targetId),
+      viewOrganization: () => this.viewOrganization(data.targetId)
+    };
+    
+    const handlerFn = handlers[handler];
+    if (handlerFn) {
+      await handlerFn();
+    } else {
+      console.warn('Unknown handler:', handler);
+    }
+  }
+
+  /**
+   * View a person (open profile or filter synapse)
+   */
+  viewPerson(personId) {
+    // Try to open profile modal
+    if (window.openProfile && typeof window.openProfile === 'function') {
+      window.openProfile(personId);
+    } else if (window.viewProfile && typeof window.viewProfile === 'function') {
+      window.viewProfile(personId);
+    } else {
+      // Fallback: filter synapse to show people
+      if (window.filterByNodeType) {
+        window.filterByNodeType('person');
+      }
+      this.showToast('Showing people in your network', 'info');
+    }
+  }
+
+  /**
+   * View a project
+   */
+  viewProject(projectId) {
+    // Try to open project modal
+    if (window.openProjectsModal && typeof window.openProjectsModal === 'function') {
+      window.openProjectsModal();
+    } else if (window.filterByNodeType) {
+      window.filterByNodeType('project');
+    }
+    this.showToast('Showing projects', 'info');
+  }
+
+  /**
+   * View a theme
+   */
+  viewTheme(themeId) {
+    // Try to filter to themes
+    if (window.filterByNodeType) {
+      window.filterByNodeType('theme');
+    } else if (window.toggleThemeStrategy && typeof window.toggleThemeStrategy === 'function') {
+      window.toggleThemeStrategy();
+    }
+    this.showToast('Showing themes', 'info');
+  }
+
+  /**
+   * View an organization
+   */
+  viewOrganization(orgId) {
+    // Try to filter to organizations
+    if (window.filterByNodeType) {
+      window.filterByNodeType('organization');
+    }
+    this.showToast('Showing organizations', 'info');
+  }
+
+  /**
+   * Show toast notification
+   */
+  showToast(message, type = 'info') {
+    const colors = {
+      info: '#00e0ff',
+      success: '#00ff88',
+      warning: '#ffaa00',
+      error: '#ff6b6b'
+    };
+
+    const color = colors[type] || colors.info;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, ${color}20, rgba(0,0,0,0.9));
+      border: 2px solid ${color}60;
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 500;
+      max-width: 400px;
+      z-index: 100000;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+      animation: slideInRight 0.3s ease;
+    `;
+    toast.textContent = message;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'slideOutRight 0.3s ease';
+      setTimeout(() => {
+        if (toast.parentNode) {
+          document.body.removeChild(toast);
+        }
+      }, 300);
+    }, 4000);
+  }
+}
