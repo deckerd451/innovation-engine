@@ -6,6 +6,26 @@
 // MANDATORY: Project suggestions for both join AND recruit
 // ================================================================
 
+// ================================================================
+// appFlags hydration (must be first)
+// ================================================================
+(function hydrateAppFlags() {
+  try {
+    const saved = localStorage.getItem("appFlags");
+    const parsed = saved ? JSON.parse(saved) : null;
+    
+    // Merge precedence: localStorage baseline + any runtime overrides
+    const merged = { ...(parsed || {}), ...(window.appFlags || {}) };
+    
+    window.appFlags = merged;
+    
+    console.log("🧠 appFlags hydrated:", window.appFlags);
+  } catch (e) {
+    console.warn("🧠 appFlags hydration failed:", e);
+    window.appFlags = window.appFlags || {};
+  }
+})();
+
 import * as queries from './queries.js';
 import { CoordinationDetectorV2 } from '../intelligence/coordination-detector-v2.js';
 
@@ -25,26 +45,38 @@ export class DailySuggestionsEngineV2 {
     const today = this.getTodayKey();
     const profile = await queries.getCurrentUserProfile();
     
-    // Check debug flags
+    // Check debug flags (hydrated at module load)
     const flags = window.appFlags || {};
-    const forceRegen = flags.forceRegenSuggestions || false;
-    const forceCoordination = flags.forceCoordination || false;
-    const debugSignals = flags.debugSignals || false;
+    const forceRegen = !!flags.forceRegenSuggestions;
+    const forceCoordination = !!flags.forceCoordination;
+    const debugSignals = !!flags.debugSignals;
     
     // Check if we already have suggestions for today
     const existing = await this.store.getSuggestionsForDate(profile.id, today);
     
+    // Use cache ONLY if it exists AND no force flags are set
     if (existing && existing.length >= this.minSuggestions && !forceRegen && !forceCoordination) {
       console.log(`✅ Found ${existing.length} cached suggestions for today`);
       
       // Print intelligence report even for cached suggestions
-      this.printIntelligenceReport(existing, { cached: true, profile });
+      this.printIntelligenceReport(existing, { 
+        cached: true, 
+        profile,
+        forceRegen,
+        forceCoordination,
+        debugSignals
+      });
       
       return existing;
     }
     
+    // Log why we're regenerating
     if (forceRegen) {
       console.log('🔄 Force regeneration enabled - bypassing cache');
+    } else if (forceCoordination) {
+      console.log('🔄 Force coordination enabled - regenerating with coordination detection');
+    } else if (!existing || existing.length < this.minSuggestions) {
+      console.log('🔄 No cached suggestions or insufficient count - generating new');
     }
     
     console.log('🔄 Generating new suggestions for today...');
@@ -56,7 +88,13 @@ export class DailySuggestionsEngineV2 {
     console.log(`✅ Generated ${suggestions.length} suggestions for today`);
     
     // Print intelligence report
-    this.printIntelligenceReport(suggestions, { cached: false, profile, forceCoordination, debugSignals });
+    this.printIntelligenceReport(suggestions, { 
+      cached: false, 
+      profile, 
+      forceRegen,
+      forceCoordination, 
+      debugSignals 
+    });
     
     return suggestions;
   }
@@ -833,7 +871,10 @@ export class DailySuggestionsEngineV2 {
    * Print comprehensive intelligence report
    */
   printIntelligenceReport(suggestions, options = {}) {
-    const { cached = false, profile, forceCoordination = false, debugSignals = false } = options;
+    const { cached = false, profile, forceRegen = false, forceCoordination = false, debugSignals = false } = options;
+    
+    // Get current flags state
+    const flags = window.appFlags || {};
     
     console.group('🧠 Intelligence Layer Report');
     
@@ -841,8 +882,8 @@ export class DailySuggestionsEngineV2 {
     console.log(`%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'color:#00e0ff');
     console.log(`%cUser: ${profile?.name || 'Unknown'}`, 'color:#00ff88; font-weight:bold');
     console.log(`%cDate: ${this.getTodayKey()}`, 'color:#00ff88');
-    console.log(`%cCached: ${cached ? 'Yes' : 'No (freshly generated)'}`, 'color:#00ff88');
-    console.log(`%cFlags: forceRegen=${options.forceRegen || false}, forceCoordination=${forceCoordination}, debugSignals=${debugSignals}`, 'color:#00ff88');
+    console.log(`%cCached: ${cached ? 'Yes (using cache)' : 'No (freshly generated)'}`, 'color:#00ff88');
+    console.log(`%cFlags: forceRegen=${forceRegen}, forceCoordination=${forceCoordination}, debugSignals=${debugSignals}, dailySuggestions=${!!flags.dailySuggestions}`, 'color:#00ff88');
     console.log(`%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'color:#00e0ff');
     
     // Coordination detector status
