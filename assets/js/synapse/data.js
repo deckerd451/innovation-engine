@@ -224,7 +224,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   // 2. Create project nodes (projects are standalone entities that belong to themes)
   if (projects?.length) {
     const projectNodes = projects
-      .filter(project => project.theme_id) // Only include projects with themes
+      // Include ALL projects, even those without theme_id
       .map(project => ({
         id: project.id,
         type: 'project',
