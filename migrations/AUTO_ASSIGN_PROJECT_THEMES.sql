@@ -87,26 +87,42 @@ CREATE TRIGGER trigger_auto_assign_general_theme
   FOR EACH ROW
   EXECUTE FUNCTION auto_assign_general_theme();
 
--- Verification query
-SELECT 
-  'Projects with theme_id' as status,
-  COUNT(*) as count
-FROM projects
-WHERE theme_id IS NOT NULL
-UNION ALL
-SELECT 
-  'Projects without theme_id' as status,
-  COUNT(*) as count
-FROM projects
-WHERE theme_id IS NULL;
+-- Verification queries
+DO $$
+DECLARE
+  projects_with_theme INTEGER;
+  projects_without_theme INTEGER;
+  general_theme_projects INTEGER;
+BEGIN
+  -- Count projects with theme_id
+  SELECT COUNT(*) INTO projects_with_theme
+  FROM projects
+  WHERE theme_id IS NOT NULL;
+  
+  -- Count projects without theme_id
+  SELECT COUNT(*) INTO projects_without_theme
+  FROM projects
+  WHERE theme_id IS NULL;
+  
+  -- Count projects in General theme
+  SELECT COUNT(*) INTO general_theme_projects
+  FROM projects p
+  JOIN theme_circles t ON p.theme_id = t.id
+  WHERE t.title = 'General Projects';
+  
+  -- Log results
+  RAISE NOTICE '✅ Theme auto-assignment configured successfully!';
+  RAISE NOTICE '📊 Projects with theme_id: %', projects_with_theme;
+  RAISE NOTICE '📊 Projects without theme_id: %', projects_without_theme;
+  RAISE NOTICE '📦 Projects in General theme: %', general_theme_projects;
+END $$;
 
 -- Show General theme info
 SELECT 
   id,
   title,
   description,
-  (SELECT COUNT(*) FROM projects WHERE theme_id = theme_circles.id) as project_count
+  (SELECT COUNT(*) FROM projects WHERE theme_id = theme_circles.id) as project_count,
+  expires_at
 FROM theme_circles
 WHERE title = 'General Projects';
-
-RAISE NOTICE '✅ Theme auto-assignment configured successfully!';
