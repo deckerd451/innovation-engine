@@ -703,6 +703,17 @@
         <i class="fas fa-sync-alt" id="refresh-icon-header" style="color:#00e0ff; font-size:1.2rem;"></i>
       </div>
 
+      <!-- Logout Button -->
+      <div id="btn-logout-header" onclick="if(window.handleLogout) { if(confirm('Are you sure you want to logout?')) window.handleLogout(); }" 
+        style="cursor:pointer; padding:0.75rem; background:rgba(255,107,107,0.1);
+        border:1px solid rgba(255,107,107,0.3); border-radius:50%; width:48px; height:48px;
+        display:flex; align-items:center; justify-content:center; transition:all 0.2s;"
+        onmouseenter="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
+        onmouseleave="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'"
+        title="Logout">
+        <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.2rem;"></i>
+      </div>
+
       <!-- Admin Panel Button (Hidden - moved to left side) -->
       <div id="btn-admin-top" style="display:none;">
       </div>
