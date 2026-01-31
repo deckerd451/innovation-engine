@@ -7,10 +7,19 @@
 
 console.log('%c🔗 Daily Suggestions START Integration - Loading', 'color:#0f8; font-weight:bold;');
 
+// Guard to prevent double initialization
+let isEnhanced = false;
+
 /**
  * Enhance the START Daily Digest with personalized suggestions
  */
 async function enhanceStartDailyDigest() {
+  // Prevent double initialization
+  if (isEnhanced) {
+    console.log('🔗 START Daily Digest already enhanced, skipping...');
+    return;
+  }
+  
   // Wait for Daily Suggestions Engine to be ready
   if (!window.DailySuggestionsUI) {
     console.warn('⚠️ Daily Suggestions Engine not ready yet');
@@ -24,6 +33,9 @@ async function enhanceStartDailyDigest() {
   }
   
   console.log('🔗 Enhancing START Daily Digest with personalized suggestions...');
+  
+  // Mark as enhanced
+  isEnhanced = true;
   
   // Store original render method
   const originalRender = window.StartDailyDigest.render.bind(window.StartDailyDigest);
