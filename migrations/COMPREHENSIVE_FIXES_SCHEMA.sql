@@ -363,4 +363,8 @@ SELECT 2500, calculate_level(2500), get_level_title(calculate_level(2500))
 UNION ALL
 SELECT 5000, calculate_level(5000), get_level_title(calculate_level(5000));
 
-RAISE NOTICE '✅ Schema updates completed successfully!';
+-- Success message
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Schema updates completed successfully!';
+END $$;
