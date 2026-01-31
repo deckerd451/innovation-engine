@@ -339,62 +339,80 @@ export class CoordinationDetectorV2 {
     
     // Check project momentum for user's projects
     for (const projectId of context.projectIds || []) {
-      // Count recent vs older activity
-      const { data: recentActivity } = await window.supabase
-        .from('activity_log')
-        .select('id, action_type, created_at')
-        .eq('project_id', projectId)
-        .gte('created_at', recentCutoff.toISOString());
-      
-      const { data: olderActivity } = await window.supabase
-        .from('activity_log')
-        .select('id')
-        .eq('project_id', projectId)
-        .gte('created_at', olderCutoff.toISOString())
-        .lt('created_at', recentCutoff.toISOString());
-      
-      const recentCount = recentActivity?.length || 0;
-      const olderCount = olderActivity?.length || 0;
-      
-      // Detect momentum shift (activity doubled)
-      if (recentCount >= 5 && recentCount >= olderCount * 1.5) {
-        const { data: project } = await window.supabase
-          .from('projects')
-          .select('id, title, description')
-          .eq('id', projectId)
-          .single();
+      try {
+        // Count recent vs older activity
+        // Note: activity_log may not have project_id column, so we catch errors
+        const { data: recentActivity, error: recentError } = await window.supabase
+          .from('activity_log')
+          .select('id, action_type, created_at')
+          .eq('project_id', projectId)
+          .gte('created_at', recentCutoff.toISOString());
         
-        if (project) {
-          const reasons = [];
-          
-          // Timing reason
-          reasons.push(`Activity increased ${Math.round((recentCount / Math.max(olderCount, 1)) * 100)}% in last ${this.recentActivityWindow} days`);
-          
-          // Momentum reason
-          reasons.push(`${recentCount} recent actions`);
-          
-          // Why now reason
-          reasons.push('Momentum building - time to engage');
-          
-          moments.push({
-            suggestion_type: 'coordination',
-            subtype: 'momentum_shift',
-            target_id: projectId,
-            score: 65 + Math.min(recentCount * 3, 30),
-            why: reasons,
-            source: 'coordination',
-            data: {
-              suggestionType: 'project',
-              title: project.title,
-              description: project.description,
-              action: 'Check In',
-              message: `"${project.title}" gaining momentum`,
-              detail: `Activity accelerating - ${recentCount} actions in ${this.recentActivityWindow} days`,
-              recent_activity: recentCount,
-              growth_rate: Math.round((recentCount / Math.max(olderCount, 1)) * 100)
-            }
-          });
+        if (recentError) {
+          // If project_id column doesn't exist, skip momentum detection
+          if (recentError.code === '42703' || recentError.message?.includes('column')) {
+            console.warn('⚠️ activity_log.project_id column not found - skipping momentum detection');
+            break; // Exit the loop, no point trying other projects
+          }
+          throw recentError;
         }
+        
+        const { data: olderActivity, error: olderError } = await window.supabase
+          .from('activity_log')
+          .select('id')
+          .eq('project_id', projectId)
+          .gte('created_at', olderCutoff.toISOString())
+          .lt('created_at', recentCutoff.toISOString());
+        
+        if (olderError) throw olderError;
+        
+        const recentCount = recentActivity?.length || 0;
+        const olderCount = olderActivity?.length || 0;
+        
+        // Detect momentum shift (activity doubled)
+        if (recentCount >= 5 && recentCount >= olderCount * 1.5) {
+          const { data: project } = await window.supabase
+            .from('projects')
+            .select('id, title, description')
+            .eq('id', projectId)
+            .single();
+          
+          if (project) {
+            const reasons = [];
+            
+            // Timing reason
+            reasons.push(`Activity increased ${Math.round((recentCount / Math.max(olderCount, 1)) * 100)}% in last ${this.recentActivityWindow} days`);
+            
+            // Momentum reason
+            reasons.push(`${recentCount} recent actions`);
+            
+            // Why now reason
+            reasons.push('Momentum building - time to engage');
+            
+            moments.push({
+              suggestion_type: 'coordination',
+              subtype: 'momentum_shift',
+              target_id: projectId,
+              score: 65 + Math.min(recentCount * 3, 30),
+              why: reasons,
+              source: 'coordination',
+              data: {
+                suggestionType: 'project',
+                title: project.title,
+                description: project.description,
+                action: 'Check In',
+                message: `"${project.title}" gaining momentum`,
+                detail: `Activity accelerating - ${recentCount} actions in ${this.recentActivityWindow} days`,
+                recent_activity: recentCount,
+                growth_rate: Math.round((recentCount / Math.max(olderCount, 1)) * 100)
+              }
+            });
+          }
+        }
+      } catch (err) {
+        // Silently skip this project if there's an error
+        console.warn(`⚠️ Momentum detection failed for project ${projectId}:`, err.message);
+        continue;
       }
     }
     
