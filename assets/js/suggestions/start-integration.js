@@ -199,6 +199,90 @@ function renderSuggestionCard(suggestion) {
 }
 
 /**
+ * UUID validation helper
+ */
+function isUUID(str) {
+  if (!str || typeof str !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+/**
+ * Handle suggestion CTA click - routes to appropriate Synapse view
+ */
+function handleSuggestionCTA(handler, data) {
+  console.log('🎯 Suggestion CTA clicked:', { handler, data });
+  
+  const suggestionType = data.suggestionType || data.type;
+  const targetId = data.targetId;
+  const source = data.source || 'heuristic';
+  
+  // Validate targetId if present
+  if (targetId && !isUUID(targetId) && !targetId.startsWith('theme:')) {
+    console.warn('⚠️ Invalid targetId format:', targetId);
+  }
+  
+  // Open Synapse view first
+  if (window.synapseApi && window.synapseApi.open) {
+    window.synapseApi.open();
+  } else {
+    console.warn('⚠️ synapseApi not available, falling back to showView');
+    if (window.showView) {
+      window.showView('synapse');
+    }
+  }
+  
+  // Wait for Synapse to open, then route based on type
+  setTimeout(() => {
+    if (!window.synapseApi) {
+      console.warn('⚠️ synapseApi not available after opening Synapse');
+      return;
+    }
+    
+    // Route by suggestion type
+    if (suggestionType === 'person' && targetId) {
+      console.log('👤 Routing to person:', targetId);
+      window.synapseApi.focusNode(targetId);
+      
+    } else if ((suggestionType === 'project' || suggestionType === 'project_join' || suggestionType === 'project_recruit') && targetId) {
+      console.log('💡 Routing to project:', targetId);
+      window.synapseApi.focusNode(targetId);
+      
+    } else if (suggestionType === 'theme' && targetId) {
+      console.log('🎯 Routing to theme:', targetId);
+      window.synapseApi.focusTheme(targetId);
+      
+    } else if (suggestionType === 'org' && targetId) {
+      console.log('🏢 Routing to organization:', targetId);
+      window.synapseApi.focusNode(targetId);
+      
+    } else if (suggestionType === 'coordination') {
+      // Coordination suggestions route based on subtype
+      const subtype = data.subtype;
+      console.log('🌐 Routing coordination suggestion:', subtype);
+      
+      if (subtype === 'theme_convergence' && targetId) {
+        window.synapseApi.focusTheme(targetId);
+      } else if (subtype === 'bridge_opportunity' && targetId) {
+        window.synapseApi.focusNode(targetId);
+      } else if (subtype === 'momentum_shift' && targetId) {
+        window.synapseApi.focusNode(targetId);
+      } else if (subtype === 'conversation_to_action') {
+        window.synapseApi.showActivity();
+      } else {
+        // Generic coordination - show activity view
+        window.synapseApi.showActivity();
+      }
+      
+    } else {
+      console.warn('⚠️ Unknown suggestion type or missing targetId:', { suggestionType, targetId });
+      // Fallback: show activity view
+      window.synapseApi.showActivity();
+    }
+  }, 150); // Short delay to let Synapse view open
+}
+
+/**
  * Handle suggestion card click
  */
 window.handleSuggestionClick = function(handler, element) {
@@ -208,13 +292,13 @@ window.handleSuggestionClick = function(handler, element) {
   // Close START modal
   if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
     window.EnhancedStartUI.close();
+  } else if (window.closeStartModal) {
+    window.closeStartModal();
   }
   
-  // Execute handler after modal closes
+  // Execute routing after modal closes
   setTimeout(() => {
-    if (window.DailySuggestionsUI) {
-      window.DailySuggestionsUI.handleSuggestionAction(handler, data);
-    }
+    handleSuggestionCTA(handler, data);
   }, 300);
 };
 

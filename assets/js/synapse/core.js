@@ -162,6 +162,152 @@ export async function initSynapseView() {
   window.filterSynapseByCategory = filterSynapseByCategory;
   window.refreshSynapseView = refreshSynapseConnections;
 
+  // ================================================================
+  // SYNAPSE API - Bridge for START Suggestions
+  // ================================================================
+  window.synapseApi = {
+    /**
+     * Open Synapse view (switch from START to Synapse)
+     */
+    open: () => {
+      console.log('🌐 synapseApi.open() called');
+      
+      // Close START modal if open
+      if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
+        window.EnhancedStartUI.close();
+      } else if (window.closeStartModal) {
+        window.closeStartModal();
+      }
+      
+      // Switch to Synapse view
+      if (window.showView) {
+        window.showView('synapse');
+      }
+    },
+    
+    /**
+     * Focus on a specific node (person, project, org)
+     */
+    focusNode: (nodeId) => {
+      console.log('🎯 synapseApi.focusNode() called:', nodeId);
+      
+      if (!nodeId) {
+        console.warn('⚠️ focusNode called without nodeId');
+        return;
+      }
+      
+      // Dispatch event for focus system to handle
+      window.dispatchEvent(new CustomEvent('synapse:focus-node', {
+        detail: { nodeId }
+      }));
+    },
+    
+    /**
+     * Focus on a theme
+     */
+    focusTheme: (themeId) => {
+      console.log('🎯 synapseApi.focusTheme() called:', themeId);
+      
+      if (!themeId) {
+        console.warn('⚠️ focusTheme called without themeId');
+        return;
+      }
+      
+      // Dispatch event for theme focus
+      window.dispatchEvent(new CustomEvent('synapse:focus-theme', {
+        detail: { themeId }
+      }));
+    },
+    
+    /**
+     * Show activity view (center on current user)
+     */
+    showActivity: () => {
+      console.log('📊 synapseApi.showActivity() called');
+      
+      // Dispatch event to center on current user
+      window.dispatchEvent(new CustomEvent('synapse:show-activity', {
+        detail: { userId: currentUserCommunityId }
+      }));
+    }
+  };
+  
+  // ================================================================
+  // EVENT LISTENERS - Handle synapseApi events
+  // ================================================================
+  
+  // Listen for focus-node events
+  window.addEventListener('synapse:focus-node', (event) => {
+    const { nodeId } = event.detail;
+    console.log('🎯 Handling synapse:focus-node event:', nodeId);
+    
+    if (!nodeId || !nodes || !svg || !container || !zoomBehavior) {
+      console.warn('⚠️ Cannot focus node - missing dependencies');
+      return;
+    }
+    
+    // Find the node
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) {
+      console.warn('⚠️ Node not found:', nodeId);
+      return;
+    }
+    
+    // Focus on the node
+    setFocusOnNode(node, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
+  });
+  
+  // Listen for focus-theme events
+  window.addEventListener('synapse:focus-theme', (event) => {
+    const { themeId } = event.detail;
+    console.log('🎯 Handling synapse:focus-theme event:', themeId);
+    
+    if (!themeId || !nodes || !svg || !container || !zoomBehavior) {
+      console.warn('⚠️ Cannot focus theme - missing dependencies');
+      return;
+    }
+    
+    // Find the theme node (theme nodes have id format "theme:<uuid>")
+    const themeNodeId = themeId.startsWith('theme:') ? themeId : `theme:${themeId}`;
+    const themeNode = nodes.find(n => n.id === themeNodeId || n.theme_id === themeId);
+    
+    if (!themeNode) {
+      console.warn('⚠️ Theme node not found:', themeId);
+      return;
+    }
+    
+    // Focus on the theme and open its card
+    setFocusOnNode(themeNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
+    
+    // Open theme card after a short delay
+    setTimeout(() => {
+      openThemeCard(themeNode);
+    }, 400);
+  });
+  
+  // Listen for show-activity events
+  window.addEventListener('synapse:show-activity', (event) => {
+    const { userId } = event.detail;
+    console.log('📊 Handling synapse:show-activity event:', userId);
+    
+    const targetUserId = userId || currentUserCommunityId;
+    
+    if (!targetUserId || !nodes || !svg || !container || !zoomBehavior) {
+      console.warn('⚠️ Cannot show activity - missing dependencies');
+      return;
+    }
+    
+    // Find the user node
+    const userNode = findCurrentUserNode(nodes, targetUserId);
+    if (!userNode) {
+      console.warn('⚠️ User node not found:', targetUserId);
+      return;
+    }
+    
+    // Center on the user
+    setFocusOnNode(userNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
+  });
+
   // Handy for console debugging
   try {
     window.__synapseStats = getSynapseStats();

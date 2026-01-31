@@ -268,10 +268,21 @@ export class DailySuggestionsUI {
   }
 
   /**
-   * View a person (open profile or filter synapse)
+   * View a person (open profile or focus in Synapse)
    */
   viewPerson(personId) {
-    // Try to open profile modal
+    console.log('👤 Viewing person:', personId);
+    
+    // Use synapseApi if available
+    if (window.synapseApi) {
+      window.synapseApi.open();
+      setTimeout(() => {
+        window.synapseApi.focusNode(personId);
+      }, 150);
+      return;
+    }
+    
+    // Fallback: try to open profile modal
     if (window.openProfile && typeof window.openProfile === 'function') {
       try {
         window.openProfile(personId);
@@ -308,7 +319,18 @@ export class DailySuggestionsUI {
    * View a project
    */
   viewProject(projectId) {
-    // Try to open project modal
+    console.log('💡 Viewing project:', projectId);
+    
+    // Use synapseApi if available
+    if (window.synapseApi) {
+      window.synapseApi.open();
+      setTimeout(() => {
+        window.synapseApi.focusNode(projectId);
+      }, 150);
+      return;
+    }
+    
+    // Fallback: try to open project modal
     if (window.openProjectsModal && typeof window.openProjectsModal === 'function') {
       try {
         window.openProjectsModal();
@@ -336,7 +358,18 @@ export class DailySuggestionsUI {
    * View a theme
    */
   viewTheme(themeId) {
-    // Try to filter to themes
+    console.log('🎯 Viewing theme:', themeId);
+    
+    // Use synapseApi if available
+    if (window.synapseApi) {
+      window.synapseApi.open();
+      setTimeout(() => {
+        window.synapseApi.focusTheme(themeId);
+      }, 150);
+      return;
+    }
+    
+    // Fallback: try to filter to themes
     if (window.filterByNodeType && typeof window.filterByNodeType === 'function') {
       try {
         window.filterByNodeType('theme');
@@ -355,7 +388,18 @@ export class DailySuggestionsUI {
    * View an organization
    */
   viewOrganization(orgId) {
-    // Try to filter to organizations
+    console.log('🏢 Viewing organization:', orgId);
+    
+    // Use synapseApi if available
+    if (window.synapseApi) {
+      window.synapseApi.open();
+      setTimeout(() => {
+        window.synapseApi.focusNode(orgId);
+      }, 150);
+      return;
+    }
+    
+    // Fallback: try to filter to organizations
     if (window.filterByNodeType && typeof window.filterByNodeType === 'function') {
       try {
         window.filterByNodeType('organization');
@@ -373,17 +417,35 @@ export class DailySuggestionsUI {
    * View coordination opportunity
    */
   viewCoordination(data) {
-    const subtype = data.subtype;
+    console.log('🌐 Viewing coordination:', data);
     
-    // Handle different coordination types
-    if (subtype === 'theme_convergence' && data.targetId) {
-      this.viewTheme(data.targetId);
-    } else if (subtype === 'bridge_opportunity' && data.targetId) {
-      this.viewPerson(data.targetId);
-    } else if (subtype === 'momentum_shift' && data.targetId) {
-      this.viewProject(data.targetId);
-    } else if (subtype === 'conversation_to_action' && data.targetId) {
-      // Try to open messaging
+    const subtype = data.subtype;
+    const targetId = data.targetId;
+    
+    // Use synapseApi if available
+    if (window.synapseApi) {
+      window.synapseApi.open();
+      
+      setTimeout(() => {
+        // Handle different coordination types
+        if (subtype === 'theme_convergence' && targetId) {
+          window.synapseApi.focusTheme(targetId);
+        } else if (subtype === 'bridge_opportunity' && targetId) {
+          window.synapseApi.focusNode(targetId);
+        } else if (subtype === 'momentum_shift' && targetId) {
+          window.synapseApi.focusNode(targetId);
+        } else if (subtype === 'conversation_to_action') {
+          window.synapseApi.showActivity();
+        } else {
+          // Generic: show activity view
+          window.synapseApi.showActivity();
+        }
+      }, 150);
+      return;
+    }
+    
+    // Fallback: try to open messaging for conversation_to_action
+    if (subtype === 'conversation_to_action') {
       if (window.openMessagesModal && typeof window.openMessagesModal === 'function') {
         try {
           window.openMessagesModal();
