@@ -73,21 +73,46 @@ export class DailySuggestionsUI {
         color: '#a855f7',
         actionText: 'View Organization',
         handler: 'viewOrganization'
+      },
+      coordination: {
+        icon: 'network-wired',
+        color: '#ff6b6b',
+        actionText: 'View',
+        handler: 'viewCoordination'
       }
     };
     
-    const config = typeConfig[suggestion.suggestion_type] || typeConfig.person;
+    const config = typeConfig[suggestion.type] || typeConfig.person;
     const data = suggestion.data || {};
     
-    // Build message
+    // For coordination insights, use custom messaging
+    if (suggestion.type === 'coordination') {
+      return {
+        icon: config.icon,
+        color: config.color,
+        message: suggestion.message || 'Coordination opportunity',
+        detail: suggestion.detail || (suggestion.why && suggestion.why.length > 0 ? suggestion.why.join(' • ') : 'Opportunity detected'),
+        action: suggestion.action || config.actionText,
+        handler: config.handler,
+        priority: this.scoreToPriority(suggestion.score),
+        data: {
+          ...data,
+          targetId: suggestion.target_id,
+          suggestionType: suggestion.type,
+          subtype: suggestion.subtype
+        }
+      };
+    }
+    
+    // Build message for traditional suggestions
     let message = '';
-    if (suggestion.suggestion_type === 'person') {
+    if (suggestion.suggestion_type === 'person' || suggestion.type === 'person') {
       message = data.name || 'Connect with someone new';
-    } else if (suggestion.suggestion_type === 'project') {
+    } else if (suggestion.suggestion_type === 'project' || suggestion.type === 'project') {
       message = data.title || 'Join a project';
-    } else if (suggestion.suggestion_type === 'theme') {
+    } else if (suggestion.suggestion_type === 'theme' || suggestion.type === 'theme') {
       message = data.title || 'Explore a theme';
-    } else if (suggestion.suggestion_type === 'org') {
+    } else if (suggestion.suggestion_type === 'org' || suggestion.type === 'org') {
       message = data.name || 'Follow an organization';
     }
     
@@ -107,7 +132,7 @@ export class DailySuggestionsUI {
       data: {
         ...data,
         targetId: suggestion.target_id,
-        suggestionType: suggestion.suggestion_type
+        suggestionType: suggestion.suggestion_type || suggestion.type
       }
     };
   }
@@ -209,7 +234,8 @@ export class DailySuggestionsUI {
       viewPerson: () => this.viewPerson(data.targetId),
       viewProject: () => this.viewProject(data.targetId),
       viewTheme: () => this.viewTheme(data.targetId),
-      viewOrganization: () => this.viewOrganization(data.targetId)
+      viewOrganization: () => this.viewOrganization(data.targetId),
+      viewCoordination: () => this.viewCoordination(data)
     };
     
     const handlerFn = handlers[handler];
@@ -319,6 +345,37 @@ export class DailySuggestionsUI {
       }
     } else {
       this.showToast('Explore organizations in the network visualization', 'info');
+    }
+  }
+
+  /**
+   * View coordination opportunity
+   */
+  viewCoordination(data) {
+    const subtype = data.subtype;
+    
+    // Handle different coordination types
+    if (subtype === 'theme_convergence' && data.targetId) {
+      this.viewTheme(data.targetId);
+    } else if (subtype === 'bridge_opportunity' && data.targetId) {
+      this.viewPerson(data.targetId);
+    } else if (subtype === 'momentum_shift' && data.targetId) {
+      this.viewProject(data.targetId);
+    } else if (subtype === 'conversation_to_action' && data.targetId) {
+      // Try to open messaging
+      if (window.openMessagesModal && typeof window.openMessagesModal === 'function') {
+        try {
+          window.openMessagesModal();
+        } catch (err) {
+          console.warn('Failed to open messages:', err);
+          this.showToast('Check your messages', 'info');
+        }
+      } else {
+        this.showToast('Check your messages for this conversation', 'info');
+      }
+    } else {
+      // Generic: show network view
+      this.showToast('Explore the network to see this opportunity', 'info');
     }
   }
 

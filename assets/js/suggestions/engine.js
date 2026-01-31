@@ -2,9 +2,11 @@
 // DAILY SUGGESTIONS ENGINE - CORE LOGIC
 // ================================================================
 // Generates personalized daily suggestions with scoring and explanations
+// Enhanced with Intelligence Layer for coordination detection
 // ================================================================
 
 import * as queries from './queries.js';
+import { CoordinationDetector } from '../intelligence/coordination-detector.js';
 
 export class DailySuggestionsEngine {
   constructor(store) {
@@ -12,6 +14,7 @@ export class DailySuggestionsEngine {
     this.minSuggestions = 5;
     this.maxSuggestions = 10;
     this.cooldownDays = 7;
+    this.coordinationDetector = new CoordinationDetector();
   }
 
   /**
@@ -62,13 +65,30 @@ export class DailySuggestionsEngine {
       queries.getUserOrganizationMemberships(profile.id)
     ]);
     
+    // Build context for coordination detection
+    const context = {
+      connectedIds,
+      pendingIds,
+      projectIds: [...projectIds, ...projectRequestIds],
+      userThemes: themeIds,
+      orgIds
+    };
+    
     // Get cooldown list (recently suggested items)
     const cooldownList = await this.store.getRecentSuggestions(
       profile.id,
       this.cooldownDays
     );
     
-    // Generate candidates for each type
+    // 🧠 INTELLIGENCE LAYER: Detect coordination moments first
+    console.log('🧠 Running coordination detection...');
+    const coordinationMoments = await this.coordinationDetector.detectCoordinationMoments(
+      profile,
+      context
+    );
+    console.log(`✨ Found ${coordinationMoments.length} coordination moments`);
+    
+    // Generate traditional candidates for each type
     const [people, projects, themes, orgs] = await Promise.all([
       this.generatePeopleSuggestions(profile, connectedIds, pendingIds, cooldownList),
       this.generateProjectSuggestions(profile, [...projectIds, ...projectRequestIds], cooldownList),
@@ -76,8 +96,9 @@ export class DailySuggestionsEngine {
       this.generateOrganizationSuggestions(profile, orgIds, cooldownList)
     ]);
     
-    // Combine and sort by score
-    const allSuggestions = [...people, ...projects, ...themes, ...orgs]
+    // Combine coordination moments with traditional suggestions
+    // Coordination moments get priority due to higher scores
+    const allSuggestions = [...coordinationMoments, ...people, ...projects, ...themes, ...orgs]
       .sort((a, b) => b.score - a.score);
     
     // Take top suggestions, ensuring minimum count
@@ -92,6 +113,8 @@ export class DailySuggestionsEngine {
       );
       finalSuggestions = [...finalSuggestions, ...fallback];
     }
+    
+    console.log(`📊 Final mix: ${coordinationMoments.length} coordination + ${finalSuggestions.length - coordinationMoments.length} traditional`);
     
     return finalSuggestions;
   }
