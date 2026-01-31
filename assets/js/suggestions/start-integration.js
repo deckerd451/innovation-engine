@@ -68,17 +68,6 @@ function renderSuggestionsSection(suggestions) {
   
   return `
     <div style="margin-top: 2rem; margin-bottom: 2rem; clear: both;">
-      <h3 style="
-        color: #00ff88;
-        margin: 0 0 1rem 0;
-        font-size: 1.1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      ">
-        <i class="fas fa-magic"></i> Personalized for You
-      </h3>
-      
       <div style="display: flex; flex-direction: column; gap: 1rem; position: relative; z-index: 1;">
         ${displaySuggestions.map(suggestion => renderSuggestionCard(suggestion)).join('')}
       </div>
