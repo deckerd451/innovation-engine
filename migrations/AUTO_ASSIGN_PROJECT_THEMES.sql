@@ -13,8 +13,7 @@ INSERT INTO theme_circles (
   status,
   origin_type,
   expires_at,
-  created_at,
-  updated_at
+  created_at
 )
 SELECT
   gen_random_uuid(),
@@ -24,7 +23,6 @@ SELECT
   'active',
   'system',
   (NOW() + INTERVAL '1 year')::timestamptz,
-  NOW(),
   NOW()
 WHERE NOT EXISTS (
   SELECT 1 FROM theme_circles WHERE title = 'General Projects'
@@ -43,9 +41,7 @@ BEGIN
 
   -- Update projects without theme_id
   UPDATE projects
-  SET 
-    theme_id = general_theme_id,
-    updated_at = NOW()
+  SET theme_id = general_theme_id
   WHERE theme_id IS NULL;
 
   -- Log the result
