@@ -427,8 +427,11 @@ export class DailySuggestionsUI {
       window.synapseApi.open();
       
       setTimeout(() => {
-        // Handle different coordination types
-        if (subtype === 'theme_convergence' && targetId) {
+        // Special case: "no_signals" means intelligence layer is active but no patterns detected
+        if (subtype === 'no_signals') {
+          console.log('ℹ️ Intelligence Layer Active (no signals) - showing activity view');
+          window.synapseApi.showActivity();
+        } else if (subtype === 'theme_convergence' && targetId) {
           window.synapseApi.focusTheme(targetId);
         } else if (subtype === 'bridge_opportunity' && targetId) {
           window.synapseApi.focusNode(targetId);
