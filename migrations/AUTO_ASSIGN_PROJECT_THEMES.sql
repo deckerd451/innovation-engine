@@ -8,12 +8,14 @@
 INSERT INTO theme_circles (
   id,
   title,
+  origin_type,
   expires_at,
   created_at
 )
 SELECT
   gen_random_uuid(),
   'General Projects',
+  'admin',
   (NOW() + INTERVAL '1 year')::timestamptz,
   NOW()
 WHERE NOT EXISTS (
