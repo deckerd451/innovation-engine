@@ -38,9 +38,16 @@ async function enhanceStartDailyDigest() {
       const suggestions = await window.DailySuggestionsUI.getSuggestionsForStartUI();
       
       if (suggestions && suggestions.length > 0) {
-        // Insert suggestions section before the closing div
+        // Wrap the original content and add suggestions after
         const suggestionsHTML = renderSuggestionsSection(suggestions);
-        html = html.replace('</div>', `${suggestionsHTML}</div>`);
+        
+        // Simply append suggestions at the end
+        html = `
+          <div class="daily-digest-wrapper">
+            ${html}
+            ${suggestionsHTML}
+          </div>
+        `;
       }
     } catch (err) {
       console.error('❌ Failed to add suggestions to START UI:', err);
@@ -60,7 +67,7 @@ function renderSuggestionsSection(suggestions) {
   const displaySuggestions = suggestions.slice(0, 8);
   
   return `
-    <div style="margin-bottom: 2rem;">
+    <div style="margin-top: 2rem; margin-bottom: 2rem; clear: both;">
       <h3 style="
         color: #00ff88;
         margin: 0 0 1rem 0;
@@ -72,7 +79,7 @@ function renderSuggestionsSection(suggestions) {
         <i class="fas fa-magic"></i> Personalized for You
       </h3>
       
-      <div style="display: flex; flex-direction: column; gap: 1rem;">
+      <div style="display: flex; flex-direction: column; gap: 1rem; position: relative; z-index: 1;">
         ${displaySuggestions.map(suggestion => renderSuggestionCard(suggestion)).join('')}
       </div>
       
@@ -114,6 +121,8 @@ function renderSuggestionCard(suggestion) {
       cursor: pointer;
       transition: all 0.3s ease;
       position: relative;
+      isolation: isolate;
+      margin-bottom: 0.5rem;
     "
     onclick="handleSuggestionClick('${handler}', this)"
     onmouseenter="this.style.transform='translateY(-2px)'; this.style.borderColor='${color}'; this.style.boxShadow='0 8px 25px ${color}30';"
@@ -139,6 +148,7 @@ function renderSuggestionCard(suggestion) {
           font-size: 0.9rem;
           font-weight: 700;
           transition: all 0.2s;
+          z-index: 2;
         "
         onmouseenter="this.style.background='${color}40'; this.style.borderColor='${color}';"
         onmouseleave="this.style.background='${color}20'; this.style.borderColor='${color}40';"
