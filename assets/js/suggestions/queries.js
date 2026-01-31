@@ -246,3 +246,17 @@ export async function getAllConnections() {
   if (error) throw error;
   return data || [];
 }
+
+/**
+ * Get projects owned/created by user (for recruit suggestions)
+ */
+export async function getUserOwnedProjects(communityId) {
+  const { data, error } = await window.supabase
+    .from('projects')
+    .select('id')
+    .eq('creator_id', communityId)
+    .in('status', ['planning', 'in-progress']);
+  
+  if (error) throw error;
+  return data?.map(p => p.id) || [];
+}

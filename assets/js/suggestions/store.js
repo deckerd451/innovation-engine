@@ -97,6 +97,7 @@ export class DailySuggestionsStore {
         target_id: s.target_id,
         score: s.score,
         why: s.why,
+        source: s.source || 'heuristic',
         data: s.data || {}
       }));
       
