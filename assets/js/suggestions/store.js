@@ -89,17 +89,54 @@ export class DailySuggestionsStore {
         .eq('user_id', userId)
         .eq('date', date);
       
-      // Insert new suggestions
-      const rows = suggestions.map(s => ({
-        user_id: userId,
-        date: date,
-        suggestion_type: s.suggestion_type,
-        target_id: s.target_id,
-        score: s.score,
-        why: s.why,
-        source: s.source || 'heuristic',
-        data: s.data || {}
-      }));
+      // Sanitize and validate suggestions before insert
+      const rows = suggestions.map(s => {
+        // Map coordination to allowed type (theme) if not in enum
+        let suggestionType = s.suggestion_type;
+        if (suggestionType === 'coordination') {
+          suggestionType = 'theme'; // Map to allowed type
+        }
+        
+        // Ensure target_id is valid UUID or null
+        let targetId = s.target_id;
+        if (targetId && typeof targetId === 'string') {
+          // Check if it's a valid UUID format
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (!uuidRegex.test(targetId)) {
+            // Invalid UUID, set to null and store in data
+            targetId = null;
+          }
+        }
+        
+        return {
+          user_id: userId,
+          date: date,
+          suggestion_type: suggestionType,
+          target_id: targetId,
+          score: s.score,
+          why: s.why,
+          source: s.source || 'heuristic',
+          data: {
+            ...(s.data || {}),
+            original_type: s.suggestion_type, // Preserve original type
+            subtype: s.subtype // Preserve subtype
+          }
+        };
+      });
+      
+      // Log insert summary
+      const typeCounts = {};
+      let invalidTargetCount = 0;
+      rows.forEach(r => {
+        typeCounts[r.suggestion_type] = (typeCounts[r.suggestion_type] || 0) + 1;
+        if (r.target_id === null && r.data.original_type === 'coordination') {
+          invalidTargetCount++;
+        }
+      });
+      console.log(`📦 Inserting suggestion types:`, typeCounts);
+      if (invalidTargetCount > 0) {
+        console.log(`⚠️ Invalid target_id count: ${invalidTargetCount} (set to null)`);
+      }
       
       const { error } = await window.supabase
         .from(this.tableName)
