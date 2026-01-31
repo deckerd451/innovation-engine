@@ -84,61 +84,149 @@
   }
 
   // ================================================================
-  // FIX 3: Loosen Theme Recommendation Matching
+  // FIX 3: Add Robust Theme Recommendation Fallbacks
   // ================================================================
 
   function patchThemeRecommendations() {
-    // Override the theme recommendation logic to be less strict
-    if (window.generateThemeRecommendations) {
-      const original = window.generateThemeRecommendations;
-      window.generateThemeRecommendations = async function(limit) {
+    console.log('🎯 Patching theme recommendation system with robust fallbacks');
+    
+    // Patch calculateThemeRecommendations if it exists
+    if (window.calculateThemeRecommendations) {
+      const original = window.calculateThemeRecommendations;
+      window.calculateThemeRecommendations = async function(ecosystemData) {
         try {
-          const result = await original.call(this, limit);
+          const result = await original.call(this, ecosystemData);
           
-          // If no results, provide fallback recommendations
-          if (!result || result.length === 0) {
-            console.log('🎯 No theme recommendations found, using fallback');
-            return getFallbackThemeRecommendations(limit);
+          // If no results or very few, add fallbacks
+          if (!result || result.length < 3) {
+            console.log('🎯 Theme recommendations insufficient, adding fallbacks');
+            const fallbacks = await getSmartThemeFallbacks(ecosystemData);
+            return [...(result || []), ...fallbacks].slice(0, 5);
           }
           
           return result;
         } catch (error) {
           console.error('Error generating theme recommendations:', error);
-          return getFallbackThemeRecommendations(limit);
+          return await getSmartThemeFallbacks(ecosystemData);
         }
       };
     }
 
-    console.log('✅ Theme recommendation matching loosened');
+    // Patch START UI recommendation system
+    if (window.EnhancedStartUI && window.EnhancedStartUI.getRecommendations) {
+      const originalGetRecs = window.EnhancedStartUI.getRecommendations;
+      window.EnhancedStartUI.getRecommendations = async function() {
+        try {
+          const result = await originalGetRecs.call(this);
+          
+          // Ensure themes array has content
+          if (!result.themes || result.themes.length === 0) {
+            console.log('🎯 No theme recommendations, using fallbacks');
+            result.themes = await getSmartThemeFallbacks();
+          }
+          
+          return result;
+        } catch (error) {
+          console.error('Error in START recommendations:', error);
+          return {
+            themes: await getSmartThemeFallbacks(),
+            projects: [],
+            people: [],
+            primary: null
+          };
+        }
+      };
+    }
+
+    console.log('✅ Theme recommendation system patched with fallbacks');
   }
 
-  function getFallbackThemeRecommendations(limit = 3) {
+  async function getSmartThemeFallbacks(ecosystemData = null) {
+    const fallbacks = [];
+    
+    // Try to get actual themes from database first
+    if (window.supabase) {
+      try {
+        const { data: themes, error } = await window.supabase
+          .from('theme_circles')
+          .select('*')
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        if (!error && themes && themes.length > 0) {
+          console.log(`✅ Found ${themes.length} active themes in database`);
+          return themes.map(theme => ({
+            type: 'theme',
+            id: theme.id,
+            title: theme.title,
+            description: theme.description || 'Join this theme circle to collaborate',
+            score: 70,
+            reasons: ['Active theme circle', 'Open for participation'],
+            data: theme,
+            action: 'Join Theme Circle',
+            actionIcon: 'bullseye'
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching themes:', error);
+      }
+    }
+    
+    // If no themes in database, provide onboarding prompts
+    console.log('🎯 No themes found, providing onboarding recommendations');
+    
     return [
       {
-        id: 'fallback-theme-1',
-        title: 'Innovation & Technology',
-        description: 'Explore cutting-edge technology and innovative solutions',
-        score: 75,
-        reasons: ['Popular theme', 'Active community'],
-        type: 'theme'
+        type: 'onboarding',
+        id: 'onboarding-explore',
+        title: 'Explore the Network',
+        description: 'Start by exploring people and projects in your network. Click on nodes to learn more and make connections.',
+        score: 90,
+        reasons: ['Great way to get started', 'Discover opportunities'],
+        action: 'Explore Network',
+        actionIcon: 'compass',
+        actionHandler: () => {
+          // Close START modal and let user explore
+          const modal = document.getElementById('start-modal');
+          if (modal) modal.style.display = 'none';
+          const backdrop = document.getElementById('start-modal-backdrop');
+          if (backdrop) backdrop.style.display = 'none';
+        }
       },
       {
-        id: 'fallback-theme-2',
-        title: 'Collaboration & Networking',
-        description: 'Connect with others and build meaningful relationships',
-        score: 70,
-        reasons: ['Great for networking', 'Many active projects'],
-        type: 'theme'
+        type: 'onboarding',
+        id: 'onboarding-profile',
+        title: 'Complete Your Profile',
+        description: 'Add your skills, interests, and bio to help others discover you and find collaboration opportunities.',
+        score: 85,
+        reasons: ['Increase visibility', 'Better recommendations'],
+        action: 'Edit Profile',
+        actionIcon: 'user-edit',
+        actionHandler: () => {
+          // Open profile panel
+          if (window.currentUserProfile) {
+            const profileBtn = document.getElementById('user-profile-circle');
+            if (profileBtn) profileBtn.click();
+          }
+        }
       },
       {
-        id: 'fallback-theme-3',
-        title: 'Learning & Development',
-        description: 'Grow your skills and learn from the community',
-        score: 65,
-        reasons: ['Educational focus', 'Supportive community'],
-        type: 'theme'
+        type: 'onboarding',
+        id: 'onboarding-project',
+        title: 'Start a Project',
+        description: 'Have an idea? Create a project and invite others to collaborate. Projects help organize work and attract contributors.',
+        score: 80,
+        reasons: ['Build something new', 'Attract collaborators'],
+        action: 'Create Project',
+        actionIcon: 'plus-circle',
+        actionHandler: () => {
+          // Open projects modal
+          const projectsBtn = document.getElementById('btn-projects');
+          if (projectsBtn) projectsBtn.click();
+        }
       }
-    ].slice(0, limit);
+    ];
   }
 
   // ================================================================
@@ -172,16 +260,21 @@
   }
 
   // ================================================================
-  // FIX 6: Add Bottom-Bar Element Check
+  // FIX 6: Remove Bottom-Bar Toggle Code
   // ================================================================
 
-  function addBottomBarCheck() {
-    // Check if bottom-bar toggle element exists
-    const bottomBar = document.querySelector('.bottom-stats-bar');
-    if (!bottomBar) {
-      console.warn('⚠️ Bottom stats bar not found - some features may not work');
-    } else {
-      console.log('✅ Bottom stats bar found');
+  function removeBottomBarToggle() {
+    // Remove bottom bar toggle button if it exists
+    const toggleBtn = document.getElementById('bottom-bar-toggle');
+    if (toggleBtn) {
+      toggleBtn.remove();
+      console.log('✅ Bottom bar toggle button removed');
+    }
+    
+    // Remove any references to toggle function
+    if (window.toggleBottomBar) {
+      delete window.toggleBottomBar;
+      console.log('✅ Bottom bar toggle function removed');
     }
   }
 
@@ -214,7 +307,7 @@
     patchThemeRecommendations();
     enhanceNotificationBell();
     patchProjectVisibility();
-    addBottomBarCheck();
+    removeBottomBarToggle();
     reduceAdminCheckLogging();
     
     console.log('✅ Critical UX fixes applied');
@@ -234,7 +327,7 @@
 
   window.CriticalUXFixes = {
     ensureEngagementContainers,
-    getFallbackThemeRecommendations
+    getSmartThemeFallbacks
   };
 
   console.log('✅ Critical UX fixes module loaded');

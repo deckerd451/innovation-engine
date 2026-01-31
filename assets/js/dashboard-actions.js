@@ -5,10 +5,12 @@
 // Prevent duplicate initialization
 if (window.__DASHBOARD_ACTIONS_INITIALIZED__) {
   console.log("⚠️ Dashboard Actions already initialized, skipping...");
-} else {
-  window.__DASHBOARD_ACTIONS_INITIALIZED__ = true;
-  console.log("%c🎮 Dashboard Actions Loading", "color:#0ff; font-weight:bold;");
+  // Exit early to prevent duplicate initialization
+  throw new Error('Dashboard Actions already initialized');
 }
+
+window.__DASHBOARD_ACTIONS_INITIALIZED__ = true;
+console.log("%c🎮 Dashboard Actions Loading", "color:#0ff; font-weight:bold;");
 
 // Wire up Quick Connect button
 document.getElementById('btn-quickconnect')?.addEventListener('click', () => {
@@ -178,10 +180,8 @@ document.getElementById('btn-view-controls')?.addEventListener('click', () => {
   toggleViewControls();
 });
 
-// Wire up Bottom Bar Toggle
-document.getElementById('bottom-bar-toggle')?.addEventListener('click', () => {
-  toggleBottomBar();
-});
+// Wire up Bottom Bar Toggle - REMOVED (no longer needed)
+// Bottom bar toggle functionality has been removed per user request
 
 // -----------------------------
 // Admin detection (enhanced)
@@ -241,7 +241,10 @@ function isAdminUser() {
     return true;
   }
 
-  console.log('⚠️ Admin check failed - no admin credentials found');
+  // Only log admin check failures in debug mode
+  if (window.__DEBUG_ADMIN_CHECKS__) {
+    console.log('ℹ️ Admin check: no admin credentials found');
+  }
   return false;
 }
 
@@ -1347,45 +1350,8 @@ function setupDiscoveryModeButton() {
 
 
 // -----------------------------
-// Bottom Bar Collapse/Expand
-// -----------------------------
-let bottomBarCollapsed = false;
-
-function toggleBottomBar() {
-  const bottomBar = document.getElementById('bottom-stats-bar');
-  const toggleBtn = document.getElementById('bottom-bar-toggle');
-  const toggleIcon = toggleBtn?.querySelector('i');
-
-  if (!bottomBar || !toggleBtn) return;
-
-  bottomBarCollapsed = !bottomBarCollapsed;
-
-  if (bottomBarCollapsed) {
-    // Collapse the bar - slide down out of view
-    bottomBar.style.transform = 'translateY(100%)';
-    bottomBar.style.opacity = '0';
-    toggleBtn.style.bottom = '8px';
-    toggleBtn.style.borderRadius = '8px 8px 0 0';
-    if (toggleIcon) {
-      toggleIcon.className = 'fas fa-chevron-up';
-    }
-    console.log('📉 Bottom bar collapsed');
-  } else {
-    // Expand the bar - slide up into view
-    bottomBar.style.transform = 'translateY(0)';
-    bottomBar.style.opacity = '1';
-    toggleBtn.style.bottom = '90px';
-    toggleBtn.style.borderRadius = '8px 8px 0 0';
-    if (toggleIcon) {
-      toggleIcon.className = 'fas fa-chevron-down';
-    }
-    console.log('📈 Bottom bar expanded');
-  }
-}
-
-// Make toggleBottomBar available globally
-window.toggleBottomBar = toggleBottomBar;
-
+// Bottom Bar Collapse/Expand - REMOVED
+// This functionality has been removed per user request
 // -----------------------------
 // Admin Panel (per yellow instructions)
 // -----------------------------
