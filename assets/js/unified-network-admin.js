@@ -140,17 +140,81 @@ function addUnifiedNetworkAdminControls() {
   });
   
   testBtn.addEventListener('click', async () => {
-    if (window.runUnifiedNetworkIntegrationTest) {
-      console.log('🧪 Running integration test...');
-      await window.runUnifiedNetworkIntegrationTest();
-    } else {
-      console.error('❌ Integration test not available');
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Tests...';
+    
+    try {
+      // Run integration tests
+      if (window.runUnifiedNetworkIntegrationTest) {
+        console.log('🧪 Running unified network integration test...');
+        await window.runUnifiedNetworkIntegrationTest();
+      }
+      
+      // Run bridge tests if available
+      if (window.BridgeIntegrationTests) {
+        console.log('🌉 Running bridge integration tests...');
+        const bridgeTests = new window.BridgeIntegrationTests();
+        const results = await bridgeTests.runAll();
+        
+        // Show results in console
+        console.log('📊 Bridge Test Results:', results);
+        
+        // Show notification
+        const message = `Bridge Tests: ${results.passed}/${results.total} passed`;
+        if (results.failed === 0) {
+          showTestNotification(message, 'success');
+        } else {
+          showTestNotification(message, 'warning');
+        }
+      } else {
+        console.warn('⚠️ Bridge integration tests not available');
+      }
+      
+      testBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
+      setTimeout(() => {
+        testBtn.innerHTML = '<i class="fas fa-vial"></i> Run Integration Test';
+        testBtn.disabled = false;
+      }, 2000);
+    } catch (error) {
+      console.error('❌ Test failed:', error);
+      testBtn.innerHTML = '<i class="fas fa-times"></i> Test Failed';
+      testBtn.disabled = false;
     }
   });
   
   closeBtn.addEventListener('click', () => {
     panel.style.display = 'none';
   });
+  
+  // Helper function to show test notifications
+  function showTestNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'success' ? '#44ff44' : type === 'warning' ? '#ffaa00' : '#4488ff'};
+      color: ${type === 'warning' ? '#000' : '#fff'};
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 10000;
+      font-weight: 600;
+      animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-out';
+      setTimeout(() => {
+        if (notification.parentElement) {
+          notification.parentElement.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
+  }
   
   // Add keyboard shortcut to toggle panel
   document.addEventListener('keydown', (e) => {

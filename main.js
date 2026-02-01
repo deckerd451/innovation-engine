@@ -53,6 +53,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
           log.info('ℹ️ Using legacy synapse visualization');
         }
+        
+        // Initialize synapse bridge after both systems are loaded
+        // This ensures seamless integration between unified network and legacy synapse
+        if (window.synapseBridge) {
+          log.debug('🌉 Initializing synapse bridge...');
+          window.synapseBridge.init();
+        }
       } catch (error) {
         log.error('❌ Unified Network initialization failed:', error);
       }
