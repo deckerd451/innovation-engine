@@ -3,6 +3,20 @@
 // Version: 1.0.0
 
 import { SystemMode } from './types.js';
+import { graphDataStore } from './graph-data-store.js';
+import { relevanceScoreEngine } from './relevance-engine.js';
+import { presenceEnergyTracker } from './presence-tracker.js';
+import { stateManager } from './state-manager.js';
+import { effectivePullCalculator } from './effective-pull.js';
+import { nodeRenderer, NodeRenderer } from './node-renderer.js';
+import { animationEngine } from './animation-engine.js';
+import { physicsLoop, AdaptiveFrameRateManager } from './physics-loop.js';
+import { interactionHandler } from './interaction-handler.js';
+import { 
+  applyEffectivePullForces,
+  calculateAverageVelocity,
+  positionGuidedNodesInThumbZone 
+} from './physics.js';
 
 /**
  * Unified Network Discovery API
@@ -15,13 +29,21 @@ export class UnifiedNetworkAPI {
     this._userId = null;
     this._eventHandlers = new Map();
     
-    // Component references (to be wired in initialize)
-    this._stateManager = null;
-    this._physicsLoop = null;
-    this._graphDataStore = null;
-    this._presenceTracker = null;
-    this._relevanceEngine = null;
-    this._interactionHandler = null;
+    // Component references
+    this._graphDataStore = graphDataStore;
+    this._relevanceEngine = relevanceScoreEngine;
+    this._presenceTracker = presenceEnergyTracker;
+    this._stateManager = stateManager;
+    this._effectivePullCalculator = effectivePullCalculator;
+    this._nodeRenderer = nodeRenderer;
+    this._animationEngine = animationEngine;
+    this._physicsLoop = physicsLoop;
+    this._interactionHandler = interactionHandler;
+    this._frameRateManager = null;
+    
+    // D3 simulation reference
+    this._simulation = null;
+    this._svg = null;
   }
 
   /**
@@ -43,20 +65,106 @@ export class UnifiedNetworkAPI {
     console.log(`   Container: ${containerId}`);
     console.log(`   User: ${userId}`);
 
-    // TODO: Wire up components
-    // - GraphDataStore
-    // - RelevanceScoreEngine
-    // - PresenceEnergyTracker
-    // - StateManager
-    // - PhysicsLoop
-    // - NodeRenderer
-    // - AnimationEngine
-    // - InteractionHandler
+    try {
+      // Get Supabase client
+      const supabase = window.supabase;
+      if (!supabase) {
+        throw new Error('Supabase client not found on window');
+      }
 
-    this._initialized = true;
-    this.emit('initialized', { userId, containerId });
-    
-    console.log('✅ Unified Network Discovery System initialized');
+      // Get SVG element
+      this._svg = document.getElementById(containerId);
+      if (!this._svg) {
+        throw new Error(`Container not found: ${containerId}`);
+      }
+
+      // 1. Initialize Graph Data Store
+      await this._graphDataStore.initialize(supabase, userId);
+      const { nodes, edges } = await this._graphDataStore.loadGraphData();
+      console.log(`📊 Loaded ${nodes.length} nodes, ${edges.length} edges`);
+
+      // 2. Initialize Relevance Engine
+      this._relevanceEngine.initialize(this._graphDataStore);
+      
+      // Calculate initial relevance scores
+      for (const node of nodes) {
+        if (node.id !== userId) {
+          node.relevanceScore = this._relevanceEngine.computeScore(userId, node.id);
+        }
+      }
+      console.log('🎯 Relevance scores calculated');
+
+      // 3. Initialize Presence Tracker
+      await this._presenceTracker.initialize(supabase, userId);
+      
+      // Apply initial presence energy
+      for (const node of nodes) {
+        node.presenceEnergy = this._presenceTracker.getEnergy(node.id);
+      }
+      console.log('⚡ Presence energy initialized');
+
+      // 4. Calculate effectivePull for all nodes
+      this._effectivePullCalculator.updateAll(nodes);
+      console.log('📈 effectivePull calculated');
+
+      // 5. Initialize State Manager
+      this._stateManager.initialize();
+      
+      // Determine initial My Network nodes (connected to user)
+      const connectedNodes = this._graphDataStore.getConnectedNodes(userId);
+      connectedNodes.forEach(node => {
+        node.isMyNetwork = true;
+      });
+      console.log(`🏠 ${connectedNodes.length} nodes in My Network`);
+
+      // 6. Setup D3 simulation (if not already exists)
+      if (!window.d3) {
+        throw new Error('D3 not found on window');
+      }
+      
+      this._simulation = this._getOrCreateSimulation(nodes, edges);
+      console.log('🌀 D3 simulation ready');
+
+      // 7. Apply physics forces
+      applyEffectivePullForces(this._simulation, nodes, edges);
+      console.log('⚙️ Physics forces applied');
+
+      // 8. Initialize Node Renderer
+      this._nodeRenderer.initialize(this._svg);
+      NodeRenderer.setupGlowFilter(this._svg);
+      console.log('🎨 Renderer initialized');
+
+      // 9. Initialize Interaction Handler
+      this._interactionHandler.initialize(
+        this._svg,
+        this._nodeRenderer,
+        this._stateManager
+      );
+      this._setupInteractionHandlers();
+      console.log('👆 Interaction handler ready');
+
+      // 10. Setup Physics Loop
+      this._setupPhysicsLoop(nodes);
+      this._physicsLoop.start();
+      console.log('🔄 Physics loop started');
+
+      // 11. Setup Adaptive Frame Rate
+      this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
+      this._frameRateManager.start();
+      console.log('🎯 Adaptive frame rate active');
+
+      // 12. Subscribe to real-time updates
+      this._graphDataStore.subscribeToUpdates();
+      console.log('📡 Real-time subscriptions active');
+
+      this._initialized = true;
+      this.emit('initialized', { userId, containerId });
+      
+      console.log('✅ Unified Network Discovery System initialized');
+    } catch (error) {
+      console.error('❌ Initialization failed:', error);
+      throw error;
+    }
   }
 
   /**
@@ -67,14 +175,35 @@ export class UnifiedNetworkAPI {
 
     console.log('🔄 Destroying Unified Network Discovery System');
 
-    // TODO: Cleanup components
-    // - Stop physics loop
-    // - Unsubscribe from presence
-    // - Clear event handlers
-    // - Remove DOM elements
+    // Stop physics loop
+    if (this._physicsLoop) {
+      this._physicsLoop.stop();
+    }
+
+    // Stop frame rate manager
+    if (this._frameRateManager) {
+      this._frameRateManager.stop();
+    }
+
+    // Unsubscribe from presence
+    if (this._presenceTracker) {
+      this._presenceTracker.unsubscribe();
+    }
+
+    // Cleanup interaction handler
+    if (this._interactionHandler) {
+      this._interactionHandler.destroy();
+    }
+
+    // Cancel all animations
+    if (this._animationEngine) {
+      this._animationEngine.cancelAllAnimations();
+    }
+
+    // Clear event handlers
+    this._eventHandlers.clear();
 
     this._initialized = false;
-    this._eventHandlers.clear();
     
     console.log('✅ Unified Network Discovery System destroyed');
   }
@@ -85,19 +214,7 @@ export class UnifiedNetworkAPI {
    */
   getState() {
     this._ensureInitialized();
-    // TODO: Return actual state from StateManager
-    return {
-      mode: SystemMode.MyNetwork,
-      currentFocusedNodeId: null,
-      isDefaultUserFocus: true,
-      guidedNodes: [],
-      presenceAmplifiedNode: null,
-      lastInteractionTime: new Date(),
-      averageVelocity: 0,
-      isCalm: true,
-      fps: 60,
-      visibleNodeCount: 0
-    };
+    return this._stateManager.getState();
   }
 
   /**
@@ -107,8 +224,7 @@ export class UnifiedNetworkAPI {
    */
   getNode(nodeId) {
     this._ensureInitialized();
-    // TODO: Get from GraphDataStore
-    return null;
+    return this._graphDataStore.getNode(nodeId);
   }
 
   /**
@@ -117,8 +233,7 @@ export class UnifiedNetworkAPI {
    */
   getAllNodes() {
     this._ensureInitialized();
-    // TODO: Get from GraphDataStore
-    return [];
+    return this._graphDataStore.getAllNodes();
   }
 
   /**
@@ -276,6 +391,95 @@ export class UnifiedNetworkAPI {
    */
   getContainerId() {
     return this._containerId;
+  }
+
+  /**
+   * Get or create D3 simulation
+   * @private
+   */
+  _getOrCreateSimulation(nodes, edges) {
+    // Check if simulation already exists
+    if (window.synapseSimulation) {
+      return window.synapseSimulation;
+    }
+
+    // Create new simulation
+    const simulation = window.d3.forceSimulation(nodes)
+      .force('link', window.d3.forceLink(edges).id(d => d.id).distance(100))
+      .force('charge', window.d3.forceManyBody().strength(-50))
+      .force('center', window.d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2))
+      .force('collision', window.d3.forceCollide().radius(30));
+
+    window.synapseSimulation = simulation;
+    return simulation;
+  }
+
+  /**
+   * Setup physics loop callbacks
+   * @private
+   */
+  _setupPhysicsLoop(nodes) {
+    this._physicsLoop.onUpdate((deltaTime) => {
+      // Update simulation
+      if (this._simulation) {
+        this._simulation.tick();
+      }
+
+      // Calculate average velocity
+      const avgVelocity = calculateAverageVelocity(nodes);
+      this._stateManager.updateAverageVelocity(avgVelocity);
+
+      // Check for state transitions
+      if (this._stateManager.shouldTransitionToDiscovery(nodes)) {
+        this._stateManager.transitionToDiscovery();
+      } else if (this._stateManager.shouldTransitionToMyNetwork(nodes)) {
+        this._stateManager.transitionToMyNetwork();
+      }
+
+      // Update guided nodes
+      this._stateManager.updateGuidedNodes(nodes);
+
+      // Position guided nodes in thumb zone
+      const state = this._stateManager.getState();
+      if (state.guidedNodes.length > 0) {
+        const guidedNodes = nodes.filter(n => state.guidedNodes.includes(n.id));
+        positionGuidedNodesInThumbZone(
+          guidedNodes,
+          window.innerWidth,
+          window.innerHeight
+        );
+      }
+
+      // Render nodes
+      this._nodeRenderer.render(nodes, state);
+    });
+  }
+
+  /**
+   * Setup interaction handlers
+   * @private
+   */
+  _setupInteractionHandlers() {
+    // Node tapped
+    this._interactionHandler.on('node-tapped', ({ nodeId }) => {
+      const node = this._graphDataStore.getNode(nodeId);
+      if (node) {
+        const action = this._interactionHandler.presentAction(node);
+        this.emit('node-action-requested', { node, action });
+      }
+    });
+
+    // Node dismissed
+    this._interactionHandler.on('node-dismissed', ({ nodeId }) => {
+      this.dismissGuidedNode(nodeId);
+    });
+
+    // Mark activity for frame rate manager
+    this._interactionHandler.on('node-tapped', () => {
+      if (this._frameRateManager) {
+        this._frameRateManager.markActivity();
+      }
+    });
   }
 }
 
