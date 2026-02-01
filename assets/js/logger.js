@@ -20,7 +20,7 @@
 //   - URL contains ?debug=1
 // ================================================================
 
-(() => {
+const log = (() => {
   'use strict';
 
   // ================================================================
@@ -278,4 +278,11 @@
   }
   
   logger.info('✅ Centralized logger initialized');
+  
+  // Return logger for ES6 module export
+  return logger;
 })();
+
+// ES6 module export (outside IIFE)
+export { log as logger };
+export default log;
