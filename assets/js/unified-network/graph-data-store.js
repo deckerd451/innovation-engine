@@ -128,7 +128,7 @@ export class GraphDataStore {
     const { data, error } = await this._supabase
       .from('connections')
       .select('*')
-      .or(`user_id.eq.${this._userId},connected_user_id.eq.${this._userId}`);
+      .or(`from_user_id.eq.${this._userId},to_user_id.eq.${this._userId}`);
 
     if (error) {
       console.error('Error loading edges:', error);
@@ -137,8 +137,8 @@ export class GraphDataStore {
 
     // Transform to edge format
     return data.map(conn => ({
-      source: conn.user_id,
-      target: conn.connected_user_id,
+      source: conn.from_user_id,
+      target: conn.to_user_id,
       type: 'connection',
       strength: 0.5,
       createdAt: new Date(conn.created_at)
