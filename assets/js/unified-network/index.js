@@ -101,6 +101,11 @@ export {
   accessibilityManager
 } from './accessibility.js';
 
+export {
+  OnboardingManager,
+  onboardingManager
+} from './onboarding.js';
+
 // Interfaces (for reference)
 export * from './interfaces.js';
 

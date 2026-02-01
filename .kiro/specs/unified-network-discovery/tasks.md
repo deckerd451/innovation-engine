@@ -329,7 +329,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
     - Test reduced motion mode
 
 - [ ] 22. Implement discovery accessibility and onboarding
-  - [ ] 22.1 Add discovery accessibility features
+  - [x] 22.1 Add discovery accessibility features
     - Remove admin-only restrictions from discovery
     - Implement first-time tooltip (one-time only)
     - Add user preference UI for discovery frequency

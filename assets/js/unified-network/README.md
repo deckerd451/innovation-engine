@@ -30,6 +30,7 @@ unified-network/
 ├── discovery-trigger-manager.js # Discovery triggers (Task 17)
 ├── temporal-presence-manager.js # Temporal presence (Task 18)
 ├── accessibility.js # Accessibility features (Task 21)
+├── onboarding.js    # Onboarding & preferences (Task 22)
 ├── graph-data-store.js # Data management (Task 14)
 ├── index.js           # Module exports
 ├── README.md          # This file
@@ -117,6 +118,16 @@ const shouldPrioritize = unifiedNetworkApi.shouldPrioritizeTemporal(nodeA, nodeB
 // Screen reader announcements for focus changes
 // Keyboard navigation: Arrow keys, Enter, Escape, Ctrl+D
 // Reduced motion support (respects prefers-reduced-motion)
+
+// Onboarding and preferences
+// First-time tooltip shown automatically (one-time only)
+// Discovery accessible to all users (no admin restrictions)
+
+// Show preferences panel
+unifiedNetworkApi.showPreferencesPanel();
+
+// Check if discovery is accessible
+const isAccessible = unifiedNetworkApi.isDiscoveryAccessible(); // Always true
 
 // Get current state
 const state = unifiedNetworkApi.getState();

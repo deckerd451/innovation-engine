@@ -17,6 +17,7 @@ import { guidedNodeDecay } from './guided-node-decay.js';
 import { DiscoveryTriggerManager } from './discovery-trigger-manager.js';
 import { TemporalPresenceManager } from './temporal-presence-manager.js';
 import { AccessibilityManager } from './accessibility.js';
+import { OnboardingManager } from './onboarding.js';
 import { 
   applyEffectivePullForces,
   calculateAverageVelocity,
@@ -49,6 +50,7 @@ export class UnifiedNetworkAPI {
     this._discoveryTriggerManager = null;
     this._temporalPresenceManager = null;
     this._accessibilityManager = null;
+    this._onboardingManager = null;
     this._frameRateManager = null;
     
     // D3 simulation reference
@@ -196,17 +198,31 @@ export class UnifiedNetworkAPI {
       this._setupAccessibilityHandlers();
       console.log('♿ Accessibility features enabled');
 
-      // 15. Setup Physics Loop
+      // 15. Initialize Onboarding Manager
+      this._onboardingManager = new OnboardingManager();
+      this._onboardingManager.initialize(this._svg, this);
+      this._setupOnboardingHandlers();
+      
+      // Load saved preferences
+      this._onboardingManager.loadPreferences();
+      
+      // Show first-time tooltip if needed
+      setTimeout(() => {
+        this._onboardingManager.showFirstTimeTooltip();
+      }, 1000);
+      console.log('👋 Onboarding ready');
+
+      // 16. Setup Physics Loop
       this._setupPhysicsLoop(nodes);
       this._physicsLoop.start();
       console.log('🔄 Physics loop started');
 
-      // 16. Setup Adaptive Frame Rate
+      // 17. Setup Adaptive Frame Rate
       this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
       this._frameRateManager.start();
       console.log('🎯 Adaptive frame rate active');
 
-      // 17. Subscribe to real-time updates
+      // 18. Subscribe to real-time updates
       this._graphDataStore.subscribeToUpdates();
       console.log('📡 Real-time subscriptions active');
 
@@ -271,6 +287,11 @@ export class UnifiedNetworkAPI {
     // Cleanup accessibility manager
     if (this._accessibilityManager) {
       this._accessibilityManager.destroy();
+    }
+
+    // Cleanup onboarding manager
+    if (this._onboardingManager) {
+      this._onboardingManager.destroy();
     }
 
     // Cancel all animations
@@ -423,6 +444,47 @@ export class UnifiedNetworkAPI {
     console.log(`🔇 Clearing presence for ${nodeId}`);
     // TODO: Implement presence clear
     this.emit('presence-cleared', { nodeId });
+  }
+
+  /**
+   * Show discovery preferences panel
+   */
+  showPreferencesPanel() {
+    this._ensureInitialized();
+    
+    if (this._onboardingManager) {
+      this._onboardingManager.showPreferencesPanel();
+    }
+  }
+
+  /**
+   * Hide discovery preferences panel
+   */
+  hidePreferencesPanel() {
+    this._ensureInitialized();
+    
+    if (this._onboardingManager) {
+      this._onboardingManager.hidePreferencesPanel();
+    }
+  }
+
+  /**
+   * Show first-time tooltip (for testing or re-showing)
+   */
+  showOnboardingTooltip() {
+    this._ensureInitialized();
+    
+    if (this._onboardingManager) {
+      this._onboardingManager.showFirstTimeTooltip();
+    }
+  }
+
+  /**
+   * Check if discovery is accessible (no admin restrictions)
+   * @returns {boolean} Always true - discovery is accessible to all users
+   */
+  isDiscoveryAccessible() {
+    return true; // Requirement 10.1: No admin-only restrictions
   }
 
   /**
@@ -891,6 +953,42 @@ export class UnifiedNetworkAPI {
     // Announce action completion
     this._actionResolver.on('action-completed', ({ nodeId, actionType }) => {
       this._accessibilityManager.announceActionCompleted(nodeId, actionType);
+    });
+  }
+
+  /**
+   * Setup onboarding handlers
+   * @private
+   */
+  _setupOnboardingHandlers() {
+    // Tooltip shown
+    this._onboardingManager.on('tooltip-shown', () => {
+      console.log('👋 First-time tooltip shown');
+      this.emit('onboarding-tooltip-shown');
+    });
+
+    // Tooltip closed
+    this._onboardingManager.on('tooltip-closed', () => {
+      console.log('👋 Tooltip closed');
+      this.emit('onboarding-tooltip-closed');
+    });
+
+    // Preferences saved
+    this._onboardingManager.on('preferences-saved', (preferences) => {
+      console.log('⚙️ Discovery preferences saved', preferences);
+      this.emit('discovery-preferences-saved', preferences);
+    });
+
+    // Preferences panel shown
+    this._onboardingManager.on('preferences-panel-shown', () => {
+      console.log('⚙️ Preferences panel shown');
+      this.emit('preferences-panel-shown');
+    });
+
+    // Preferences panel hidden
+    this._onboardingManager.on('preferences-panel-hidden', () => {
+      console.log('⚙️ Preferences panel hidden');
+      this.emit('preferences-panel-hidden');
     });
   }
 
