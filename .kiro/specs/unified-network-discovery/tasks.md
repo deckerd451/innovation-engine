@@ -220,7 +220,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
     - Verify graph updates after actions
 
 - [ ] 15. Implement action resolution system
-  - [ ] 15.1 Create ActionResolver class
+  - [x] 15.1 Create ActionResolver class
     - Implement connection action (update connections table)
     - Implement project join action (update project_participants)
     - Implement theme exploration action (update theme interactions)
@@ -252,7 +252,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
 
 
 - [ ] 17. Implement discovery triggers and frequency management
-  - [ ] 17.1 Create DiscoveryTriggerManager class
+  - [x] 17.1 Create DiscoveryTriggerManager class
     - Implement momentum detection (velocity < 0.1 for 5 seconds)
     - Implement strong action absence detection (no effectivePull > 0.7)
     - Implement relevant presence detection (presenceEnergy > 0.6)
@@ -272,7 +272,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
     - Verify rate limiting
 
 - [ ] 18. Implement temporal and collaborative presence
-  - [ ] 18.1 Create TemporalPresenceManager class
+  - [x] 18.1 Create TemporalPresenceManager class
     - Implement deadline urgency detection (within 48 hours)
     - Implement collaborative presence tracking (shared interests)
     - Implement collective theme presence (> 3 active participants)
@@ -290,7 +290,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
     - Verify collaborative and collective presence logic
     - Verify temporal prioritization
 
-- [ ] 19. Checkpoint - Ensure discovery and presence systems work
+- [x] 19. Checkpoint - Ensure discovery and presence systems work
   - Ensure all tests pass, ask the user if questions arise.
 
 
