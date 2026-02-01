@@ -667,8 +667,8 @@ async function renderPersonPanel(nodeData) {
         ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
 
         <!-- Admin-only: Show email -->
-        ${window.isAdmin && profile.email ? `
-          <div style="color: rgba(255,170,0,0.8); font-size: 0.85rem; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 6px; display: inline-block;">
+        ${(typeof window.isAdminUser === 'function' && window.isAdminUser()) && profile.email ? `
+          <div style="color: rgba(255,170,0,0.8); font-size: 0.85rem; margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 6px; display: inline-block;">
             <i class="fas fa-envelope"></i> ${profile.email}
           </div>
         ` : ''}
