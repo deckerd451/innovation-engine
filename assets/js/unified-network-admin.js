@@ -6,22 +6,42 @@
 
 // Add admin controls to the page
 function addUnifiedNetworkAdminControls() {
-  // Check if we're on the dashboard
-  if (!document.getElementById('synapse-svg')) {
+  // CRITICAL: Don't show admin panel on login/landing pages
+  // Only show on dashboard after user is authenticated
+  const isLoginPage = !document.getElementById('synapse-svg') || 
+                      document.body.classList.contains('login-page') ||
+                      !window.location.pathname.includes('dashboard');
+  
+  if (isLoginPage) {
+    console.log('⏭️ Skipping admin panel - not on dashboard');
     return;
   }
   
   // IMPORTANT: Wait for authentication before showing admin panel
   // Check if user is authenticated
   const checkAuth = () => {
-    if (!window.authenticatedUser && !window.supabase?.auth) {
-      console.log('⏳ Waiting for authentication before showing admin panel...');
+    // If no auth system loaded yet, wait
+    if (!window.supabase?.auth) {
+      console.log('⏳ Waiting for Supabase auth...');
       setTimeout(checkAuth, 500);
       return;
     }
     
-    // User is authenticated, safe to show admin panel
-    createAdminPanel();
+    // Check if user is actually logged in
+    window.supabase.auth.getSession().then(({data}) => {
+      if (!data.session) {
+        console.log('⏳ No session yet, waiting for login...');
+        setTimeout(checkAuth, 500);
+        return;
+      }
+      
+      // User is authenticated, safe to show admin panel
+      console.log('✅ User authenticated, showing admin panel');
+      createAdminPanel();
+    }).catch(err => {
+      console.log('⏳ Auth check failed, retrying...', err);
+      setTimeout(checkAuth, 500);
+    });
   };
   
   checkAuth();
