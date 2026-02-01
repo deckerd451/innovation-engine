@@ -210,7 +210,7 @@ function isUUID(str) {
 /**
  * Handle suggestion CTA click - routes to appropriate Synapse view
  */
-function handleSuggestionCTA(handler, data) {
+async function handleSuggestionCTA(handler, data) {
   console.log('🎯 Suggestion CTA clicked:', { handler, data });
   
   const suggestionType = data.suggestionType || data.type;
@@ -235,7 +235,7 @@ function handleSuggestionCTA(handler, data) {
   }
   
   // Wait for Synapse to open, then route based on type
-  setTimeout(() => {
+  setTimeout(async () => {
     if (!window.synapseApi) {
       console.warn('⚠️ synapseApi not available after opening Synapse');
       return;
@@ -268,6 +268,22 @@ function handleSuggestionCTA(handler, data) {
       
     } else if (suggestionType === 'person' && targetId) {
       console.log('👤 Routing to person:', targetId);
+      
+      // Check if we need to enable Discovery Mode
+      const isDiscoveryMode = window.synapseShowFullCommunity || false;
+      
+      if (!isDiscoveryMode && window.toggleFullCommunityView && typeof window.toggleFullCommunityView === 'function') {
+        console.log('🌐 Enabling Discovery Mode to show suggested person');
+        
+        // Enable Discovery Mode and wait for reload
+        await window.toggleFullCommunityView(true);
+        
+        // Wait a bit longer for the graph to rebuild
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        console.log('✅ Discovery Mode enabled, attempting focus');
+      }
+      
       window.synapseApi.focusNode(targetId);
       
     } else if ((suggestionType === 'project' || suggestionType === 'project_join' || suggestionType === 'project_recruit') && targetId) {
@@ -304,9 +320,9 @@ window.handleSuggestionClick = function(handler, element) {
     window.closeStartModal();
   }
   
-  // Execute routing after modal closes
-  setTimeout(() => {
-    handleSuggestionCTA(handler, data);
+  // Execute routing after modal closes (async)
+  setTimeout(async () => {
+    await handleSuggestionCTA(handler, data);
   }, 300);
 };
 

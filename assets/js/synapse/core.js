@@ -337,9 +337,9 @@ export async function initSynapseView() {
       
       // Show helpful toast notification
       showSynapseNotification(
-        'This person isn\'t in your current network view. Enable Discovery Mode to see suggested connections.',
+        'Person not found in current view. They may not be in the network yet.',
         'info',
-        8000
+        6000
       );
       
       // Fallback: center on current user instead
