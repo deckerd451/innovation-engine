@@ -6,7 +6,10 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
   <title>CharlestonHacks Innovation Engine</title>
   <link rel="icon" href="favicon.ico"/>
 
@@ -23,6 +26,12 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
   <style>
+    /* Dynamic viewport height variables for mobile browser UI */
+    :root {
+      --vh: 1vh;
+      --real-vh: 1vh;
+    }
+
     /* NUCLEAR OPTION: Force black backgrounds everywhere */
     html,
     body,
@@ -44,12 +53,13 @@
       max-width: none !important;
     }
 
-    /* Ensure full coverage with no gaps */
+    /* Ensure full coverage with no gaps - use dynamic viewport height */
     html, body {
       margin: 0 !important;
       padding: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
+      height: calc(var(--vh, 1vh) * 100) !important;
       overflow: hidden !important;
       overflow-x: hidden !important;
       position: fixed !important;
@@ -575,7 +585,7 @@
 
   <!-- Login -->
   <div id="login-section" class="active-tab-pane"
-    style="position: fixed; inset: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center;
+    style="position: fixed; inset: 0; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); display: flex; align-items: center; justify-content: center;
     z-index: 9999; overflow: hidden; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);">
     <div class="login-container">
       <img src="ieheader.webp"
@@ -628,7 +638,7 @@
   </div>
 
   <!-- Main -->
-  <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000; width: 100vw; height: 100vh; max-width: 100vw; touch-action: pan-y pinch-zoom;">
+  <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); max-width: 100vw; touch-action: pan-y pinch-zoom;">
     <!-- Header Elements (No Background Bar) -->
     <!-- Left side: Admin Crown, User Profile -->
     <div style="position:absolute; top:20px; left:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
@@ -833,7 +843,7 @@
     </div>
 
     <!-- Centered Round START Button with Background Panel (HIDDEN - replaced by nav button) -->
-    <div id="start-button-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh;
+    <div id="start-button-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh; height: calc(var(--vh, 1vh) * 100);
       z-index:1000; display:none; align-items:center; justify-content:center;">
       
       <!-- Background Panel with 75% opacity -->
@@ -1304,6 +1314,9 @@
    <!-- External libs (ONLY ONCE) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
+  <!-- Centralized Logger (MUST LOAD FIRST) -->
+  <script src="assets/js/logger.js?v=e829b2ff916933b2da"></script>
+
   <!-- Required base modules -->
   <!-- Cache-busting using git commit hash - changes on every deploy -->
   <script type="module" src="assets/js/supabaseClient.js?v=e829b2ff916933b2da"></script>
@@ -1357,6 +1370,12 @@
 
   <!-- Synapse boot with commit-based cache-busting -->
   <script type="module" src="assets/js/synapse.js?v=e829b2ff916933b2da"></script>
+
+  <!-- Unified Network Discovery Integration (Feature Flag Controlled) -->
+  <script type="module" src="assets/js/unified-network-integration.js?v=1"></script>
+  
+  <!-- Unified Network Admin Controls (Ctrl+Shift+U to toggle) -->
+  <script src="assets/js/unified-network-admin.js?v=1"></script>
 
   <!-- Main app boot with commit-based cache-busting -->
   <script type="module" src="main.js?v=e829b2ff916933b2da"></script>
@@ -1898,6 +1917,61 @@
       await window.EnhancedStartUI.open();
     }
   };
+</script>
+
+<!-- Dynamic Viewport Height Detection for Mobile Browser UI -->
+<script>
+  (function() {
+    // Function to set the viewport height CSS variable
+    function setViewportHeight() {
+      // Get the actual viewport height
+      const vh = window.innerHeight * 0.01;
+      
+      // Set the CSS variable
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+      
+      // Log for debugging (remove in production if needed)
+      if (window.location.search.includes('debug')) {
+        console.log(`📐 Viewport height updated: ${window.innerHeight}px (--vh: ${vh}px)`);
+      }
+    }
+    
+    // Set on initial load
+    setViewportHeight();
+    
+    // Update on resize (handles browser UI showing/hiding)
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      // Debounce to avoid too many updates
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setViewportHeight();
+      }, 100);
+    });
+    
+    // Update on orientation change
+    window.addEventListener('orientationchange', () => {
+      setTimeout(setViewportHeight, 100);
+    });
+    
+    // iOS-specific: Update when scrolling (Safari shows/hides UI on scroll)
+    let scrollTimer;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        setViewportHeight();
+      }, 150);
+    }, { passive: true });
+    
+    // Update when page becomes visible again (handles tab switching)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        setTimeout(setViewportHeight, 100);
+      }
+    });
+    
+    console.log('✅ Dynamic viewport height detection initialized');
+  })();
 </script>
 
   </body>

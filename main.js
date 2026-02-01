@@ -4,7 +4,11 @@
 // This file coordinates auth.js, profile.js, and dashboard.js
 // All modules are loaded as scripts and communicate via window object and events
 
-console.log("🚀 CharlestonHacks Innovation Engine starting...");
+// Import centralized logger
+const log = window.log || console;
+
+log.moduleLoad('main.js');
+log.info('🚀 CharlestonHacks Innovation Engine starting...');
 
 // ================================================================
 // INITIALIZE ON DOM READY
@@ -12,12 +16,12 @@ console.log("🚀 CharlestonHacks Innovation Engine starting...");
 document.addEventListener("DOMContentLoaded", async () => {
   // One-time init guard - prevents double-binding and ghost listeners
   if (window.__IE_MAIN_INIT_DONE__) {
-    console.log("⚠️ Main already initialized, skipping...");
+    log.once('main-already-init', '⚠️ Main already initialized, skipping...');
     return;
   }
   window.__IE_MAIN_INIT_DONE__ = true;
 
-  console.log("🎨 DOM ready, initializing systems...");
+  log.debug('🎨 DOM ready, initializing systems...');
 
   // Wait for required globals from other scripts
   await waitForGlobals();
@@ -33,7 +37,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   //    - 'profile-new'
   //    - 'user-logged-out'
   //    - 'app-ready'
-  console.log("✅ System ready!");
+  
+  // 4) Initialize Unified Network Discovery (if enabled)
+  window.addEventListener('profile-loaded', async (e) => {
+    const { user } = e.detail;
+    
+    if (user && window.unifiedNetworkIntegration) {
+      log.debug('🧠 Attempting to initialize Unified Network Discovery...');
+      
+      try {
+        const initialized = await window.unifiedNetworkIntegration.init(user.id, 'synapse-svg');
+        
+        if (initialized) {
+          log.info('✅ Unified Network Discovery active');
+        } else {
+          log.info('ℹ️ Using legacy synapse visualization');
+        }
+      } catch (error) {
+        log.error('❌ Unified Network initialization failed:', error);
+      }
+    }
+  });
+  
+  log.info('✅ System ready!');
 });
 
 // Helper to wait for required globals to exist
@@ -51,7 +77,7 @@ function waitForGlobals() {
       if (ok) return resolve();
 
       if (Date.now() - start > TIMEOUT_MS) {
-        console.warn("⏱️ waitForGlobals timed out — continuing best-effort.");
+        log.warn('⏱️ waitForGlobals timed out — continuing best-effort.');
         return resolve();
       }
 
