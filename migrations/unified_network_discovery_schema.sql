@@ -22,8 +22,7 @@ CREATE TABLE IF NOT EXISTS presence_sessions (
 
 -- Indexes for efficient presence queries
 CREATE INDEX IF NOT EXISTS idx_presence_active 
-  ON presence_sessions(user_id, expires_at) 
-  WHERE expires_at > NOW();
+  ON presence_sessions(user_id, expires_at);
 
 CREATE INDEX IF NOT EXISTS idx_presence_context 
   ON presence_sessions(context_type, context_id);
@@ -65,6 +64,37 @@ COMMENT ON COLUMN presence_sessions.energy IS 'Presence energy value [0, 1]';
 COMMENT ON COLUMN presence_sessions.expires_at IS 'TTL expiration timestamp';
 COMMENT ON COLUMN presence_sessions.context_type IS 'Type of context: theme, project, profile, or general';
 COMMENT ON COLUMN presence_sessions.context_id IS 'ID of the context (theme_id, project_id, user_id, etc.)';
+
+-- Function to get active presence sessions
+CREATE OR REPLACE FUNCTION get_active_presence_sessions()
+RETURNS TABLE (
+  id UUID,
+  user_id UUID,
+  context_type TEXT,
+  context_id UUID,
+  energy DECIMAL(3,2),
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    ps.id,
+    ps.user_id,
+    ps.context_type,
+    ps.context_id,
+    ps.energy,
+    ps.expires_at,
+    ps.created_at,
+    ps.updated_at
+  FROM presence_sessions ps
+  WHERE ps.expires_at > NOW()
+  ORDER BY ps.energy DESC, ps.expires_at ASC;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+COMMENT ON FUNCTION get_active_presence_sessions IS 'Returns all active (non-expired) presence sessions';
 
 -- ============================================================================
 -- 2. NODE_INTERACTIONS TABLE
@@ -155,8 +185,7 @@ CREATE INDEX IF NOT EXISTS idx_dismissals_user_node
   ON discovery_dismissals(user_id, node_id);
 
 CREATE INDEX IF NOT EXISTS idx_dismissals_active 
-  ON discovery_dismissals(user_id, dismissed_at) 
-  WHERE reintroduce_after > NOW();
+  ON discovery_dismissals(user_id, dismissed_at);
 
 -- Function to check if node is dismissed
 CREATE OR REPLACE FUNCTION is_node_dismissed(
