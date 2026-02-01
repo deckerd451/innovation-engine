@@ -326,7 +326,7 @@ export async function initSynapseView() {
   
   // Listen for focus-node events
   window.addEventListener('synapse:focus-node', (event) => {
-    const { nodeId } = event.detail;
+    const { nodeId, skipToast } = event.detail; // NEW: skipToast flag
     console.log('🎯 Handling synapse:focus-node event:', nodeId);
     
     if (!nodeId || !nodes || !svg || !container || !zoomBehavior) {
@@ -340,12 +340,14 @@ export async function initSynapseView() {
       console.warn('⚠️ Node not found:', nodeId);
       console.log('ℹ️ Falling back to activity view (centering on current user)');
       
-      // Show helpful toast notification
-      showSynapseNotification(
-        'Person not found in current view. They may not be in the network yet.',
-        'info',
-        6000
-      );
+      // Only show toast if not skipped (e.g., when clicking pathway animations)
+      if (!skipToast) {
+        showSynapseNotification(
+          'Person not found in current view. They may not be in the network yet.',
+          'info',
+          6000
+        );
+      }
       
       // Fallback: center on current user instead
       const userNode = findCurrentUserNode(nodes, currentUserCommunityId);

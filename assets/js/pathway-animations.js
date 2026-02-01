@@ -317,6 +317,7 @@ export function animatePathway(sourceId, targetId, options = {}) {
     glowIntensity = 10,
     onComplete = null,
     forceDirect = false, // if true, draw direct even if no accepted path
+    targetNode = null, // NEW: pass the target node data for click handling
   } = options;
 
   let path = findShortestPath(sourceId, targetId, false);
@@ -345,7 +346,8 @@ export function animatePathway(sourceId, targetId, options = {}) {
     .append("g")
     .attr("class", "animated-pathway")
     .attr("data-source", sourceId)
-    .attr("data-target", targetId);
+    .attr("data-target", targetId)
+    .style("cursor", "pointer"); // Make it clear this is clickable
 
   // Draw segments
   const segments = [];
@@ -360,10 +362,39 @@ export function animatePathway(sourceId, targetId, options = {}) {
       .attr("stroke", color)
       .attr("stroke-width", 4)
       .attr("opacity", 0)
-      .attr("filter", `drop-shadow(0 0 ${glowIntensity}px ${color})`);
+      .attr("filter", `drop-shadow(0 0 ${glowIntensity}px ${color})`)
+      .style("cursor", "pointer"); // Make segments clickable
 
     segments.push({ pathEl: seg, source: a, target: b });
   }
+
+  // NEW: Add click handler to open target node's profile
+  const handlePathwayClick = (event) => {
+    event.stopPropagation();
+    
+    const targetNodeData = targetNode || getNodeById(targetId);
+    if (!targetNodeData) {
+      console.warn("Cannot open profile - target node data not available");
+      return;
+    }
+    
+    console.log("🎯 Pathway clicked - opening profile for:", targetNodeData.name);
+    
+    // Import openNodePanel if available
+    if (typeof window.openNodePanel === 'function') {
+      window.openNodePanel({
+        id: targetNodeData.id,
+        name: targetNodeData.name,
+        type: targetNodeData.type || "person",
+        ...targetNodeData,
+      });
+    } else {
+      console.warn("openNodePanel not available");
+    }
+  };
+  
+  // Add click handler to the group
+  group.on("click", handlePathwayClick);
 
   const updatePositions = () => {
     for (const s of segments) {
@@ -415,6 +446,7 @@ export function animatePathway(sourceId, targetId, options = {}) {
     segments,
     pathNodes,
     updatePositions,
+    targetNode: targetNodeData, // Store target node data
   };
 
   activePathways.push(entry);
@@ -593,6 +625,7 @@ export async function showRecommendationPathways(limit = 5) {
         duration: 1600,
         particleCount: 2,
         glowIntensity: 12,
+        targetNode: rec.node, // Pass the target node data for click handling
       });
     }, i * 350);
   });
