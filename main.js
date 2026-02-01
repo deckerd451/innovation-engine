@@ -65,6 +65,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
     
+    // Initialize presence tracking
+    if (user && window.PresenceSessionManager && window.supabase) {
+      log.debug('👋 Initializing presence tracking...');
+      try {
+        await window.PresenceSessionManager.initialize(window.supabase, user.id);
+        log.info('✅ Presence tracking active');
+      } catch (error) {
+        log.error('❌ Presence tracking initialization failed:', error);
+      }
+    }
+    
     // Load admin panel AFTER authentication
     // This prevents it from showing on the login page
     if (user) {
@@ -77,7 +88,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   log.info('✅ System ready!');
 });
-
 // Helper to wait for required globals to exist
 function waitForGlobals() {
   return new Promise((resolve) => {
