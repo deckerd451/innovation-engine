@@ -83,6 +83,11 @@ export {
   ActionResolver
 } from './action-resolver.js';
 
+export {
+  GuidedNodeDecay,
+  guidedNodeDecay
+} from './guided-node-decay.js';
+
 // Interfaces (for reference)
 export * from './interfaces.js';
 

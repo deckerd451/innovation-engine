@@ -293,6 +293,77 @@ const result = await unifiedNetworkApi.executeAction(themeId, 'explore-theme');
 7. `graph-updated` event emitted
 8. Physics simulation restarted with new positions
 
+## Guided Node Decay
+
+Discovery nodes naturally fade away when ignored, preventing nagging:
+
+### Decay Behavior
+
+```javascript
+// After 30 seconds of no interaction:
+// - effectivePull reduces by 0.1 per second
+// - When effectivePull < 0.3, node fades out over 2 seconds
+// - Node is dismissed with 24-hour cooldown
+
+// Listen to decay events
+unifiedNetworkApi.on('node-fading-out', ({ nodeId }) => {
+  console.log(`Node ${nodeId} is fading out`);
+});
+
+unifiedNetworkApi.on('node-faded-out', ({ nodeId }) => {
+  console.log(`Node ${nodeId} has faded out`);
+  // When all guided nodes fade, system recenters to My Network
+});
+```
+
+### Manual Dismissal
+
+```javascript
+// Dismiss a guided node
+unifiedNetworkApi.dismissGuidedNode(nodeId);
+
+// Listen to dismissal
+unifiedNetworkApi.on('node-dismissed', ({ nodeId, cooldownUntil }) => {
+  console.log(`Node dismissed until ${new Date(cooldownUntil).toLocaleString()}`);
+});
+```
+
+### Reintroduction Logic
+
+A dismissed node can be reintroduced if:
+- 24-hour cooldown has expired, OR
+- relevanceScore or presenceEnergy increases by > 0.3
+
+```javascript
+import { guidedNodeDecay } from './assets/js/unified-network/index.js';
+
+// Check if node is in cooldown
+const inCooldown = guidedNodeDecay.isInCooldown(nodeId);
+
+// Get remaining cooldown time
+const remaining = guidedNodeDecay.getRemainingCooldown(nodeId); // milliseconds
+
+// Check if can reintroduce
+const canReintroduce = guidedNodeDecay.canReintroduce(
+  nodeId,
+  currentRelevanceScore,
+  currentPresenceEnergy
+);
+```
+
+### Interaction Resets Decay
+
+Any interaction with a guided node resets its decay timer:
+
+```javascript
+// These actions reset the decay timer:
+// - Tapping the node
+// - Executing an action
+// - Focusing on the node
+
+// The node gets a fresh 30 seconds before decay starts again
+```
+
 ## Advanced Usage
 
 ### Custom Presence Boosts

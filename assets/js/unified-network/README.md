@@ -26,6 +26,7 @@ unified-network/
 ├── animation-engine.js # Animation system (Task 10)
 ├── interaction-handler.js # User interactions (Task 12)
 ├── action-resolver.js  # Action execution (Task 15)
+├── guided-node-decay.js # Guided node decay (Task 16)
 ├── graph-data-store.js # Data management (Task 14)
 ├── index.js           # Module exports
 ├── README.md          # This file
@@ -111,6 +112,9 @@ unifiedNetworkApi.destroy();
 - `action-completed` - Action successfully executed
 - `action-failed` - Action execution failed
 - `graph-updated` - Graph structure changed after action
+- `node-fading-out` - Guided node starting to fade
+- `node-faded-out` - Guided node completely faded
+- `node-dismissed` - Guided node dismissed by user
 - `node-dismissed` - Guided node dismissed
 - `presence-updated` - Presence energy updated
 - `presence-cleared` - Presence energy cleared

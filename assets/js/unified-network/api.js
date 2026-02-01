@@ -13,6 +13,7 @@ import { animationEngine } from './animation-engine.js';
 import { physicsLoop, AdaptiveFrameRateManager } from './physics-loop.js';
 import { interactionHandler } from './interaction-handler.js';
 import { ActionResolver } from './action-resolver.js';
+import { guidedNodeDecay } from './guided-node-decay.js';
 import { 
   applyEffectivePullForces,
   calculateAverageVelocity,
@@ -41,6 +42,7 @@ export class UnifiedNetworkAPI {
     this._physicsLoop = physicsLoop;
     this._interactionHandler = interactionHandler;
     this._actionResolver = new ActionResolver();
+    this._guidedNodeDecay = guidedNodeDecay;
     this._frameRateManager = null;
     
     // D3 simulation reference
@@ -155,17 +157,25 @@ export class UnifiedNetworkAPI {
       this._setupActionResolverHandlers();
       console.log('🎯 Action resolver ready');
 
-      // 11. Setup Physics Loop
+      // 11. Initialize Guided Node Decay
+      this._guidedNodeDecay.initialize(
+        this._animationEngine,
+        this._effectivePullCalculator
+      );
+      this._setupGuidedNodeDecayHandlers();
+      console.log('⏱️ Guided node decay ready');
+
+      // 12. Setup Physics Loop
       this._setupPhysicsLoop(nodes);
       this._physicsLoop.start();
       console.log('🔄 Physics loop started');
 
-      // 12. Setup Adaptive Frame Rate
+      // 13. Setup Adaptive Frame Rate
       this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
       this._frameRateManager.start();
       console.log('🎯 Adaptive frame rate active');
 
-      // 13. Subscribe to real-time updates
+      // 14. Subscribe to real-time updates
       this._graphDataStore.subscribeToUpdates();
       console.log('📡 Real-time subscriptions active');
 
@@ -210,6 +220,11 @@ export class UnifiedNetworkAPI {
     // Cleanup action resolver
     if (this._actionResolver) {
       this._actionResolver.cleanup();
+    }
+
+    // Cleanup guided node decay
+    if (this._guidedNodeDecay) {
+      this._guidedNodeDecay.cleanup();
     }
 
     // Cancel all animations
@@ -302,8 +317,11 @@ export class UnifiedNetworkAPI {
   dismissGuidedNode(nodeId) {
     this._ensureInitialized();
     console.log(`❌ Dismissing guided node: ${nodeId}`);
-    // TODO: Implement dismissal logic
-    this.emit('node-dismissed', { nodeId });
+    
+    const node = this._graphDataStore.getNode(nodeId);
+    if (node) {
+      this._guidedNodeDecay.dismissNode(nodeId, node);
+    }
   }
 
   /**
@@ -456,8 +474,21 @@ export class UnifiedNetworkAPI {
       // Update guided nodes
       this._stateManager.updateGuidedNodes(nodes);
 
-      // Position guided nodes in thumb zone
+      // Apply decay to guided nodes
       const state = this._stateManager.getState();
+      if (state.guidedNodes.length > 0) {
+        for (const nodeId of state.guidedNodes) {
+          const node = nodes.find(n => n.id === nodeId);
+          if (node) {
+            const newEffectivePull = this._guidedNodeDecay.applyDecay(node);
+            if (newEffectivePull !== node.effectivePull) {
+              node.effectivePull = newEffectivePull;
+            }
+          }
+        }
+      }
+
+      // Position guided nodes in thumb zone
       if (state.guidedNodes.length > 0) {
         const guidedNodes = nodes.filter(n => state.guidedNodes.includes(n.id));
         positionGuidedNodesInThumbZone(
@@ -508,6 +539,9 @@ export class UnifiedNetworkAPI {
     this._actionResolver.on('action-completed', ({ nodeId, actionType, result }) => {
       console.log(`✅ Action completed: ${actionType} on ${nodeId}`);
       this.emit('action-completed', { nodeId, actionType, result });
+      
+      // Reset decay timer on interaction
+      this._guidedNodeDecay.onNodeInteraction(nodeId);
     });
 
     // Action failed
@@ -533,6 +567,42 @@ export class UnifiedNetworkAPI {
         this._simulation.alpha(0.5).restart();
       }
     });
+  }
+
+  /**
+   * Setup guided node decay handlers
+   * @private
+   */
+  _setupGuidedNodeDecayHandlers() {
+    // Node fading out
+    this._guidedNodeDecay.on('node-fading-out', ({ nodeId }) => {
+      console.log(`🌫️ Node fading out: ${nodeId}`);
+      this.emit('node-fading-out', { nodeId });
+    });
+
+    // Node faded out
+    this._guidedNodeDecay.on('node-faded-out', ({ nodeId }) => {
+      console.log(`✅ Node faded out: ${nodeId}`);
+      this.emit('node-faded-out', { nodeId });
+      
+      // Check if all guided nodes have faded
+      const state = this._stateManager.getState();
+      if (state.guidedNodes.length === 0) {
+        console.log('🏠 All guided nodes faded, recentering My Network');
+        this.resetToMyNetwork();
+      }
+    });
+
+    // Node dismissed
+    this._guidedNodeDecay.on('node-dismissed', ({ nodeId, cooldownUntil }) => {
+      console.log(`❌ Node dismissed: ${nodeId}, cooldown until ${new Date(cooldownUntil).toLocaleString()}`);
+      this.emit('node-dismissed', { nodeId, cooldownUntil });
+    });
+
+    // Periodically clear expired dismissals
+    setInterval(() => {
+      this._guidedNodeDecay.clearExpiredDismissals();
+    }, 60000); // Every minute
   }
 
   /**
