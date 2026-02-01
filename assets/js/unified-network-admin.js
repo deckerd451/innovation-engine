@@ -11,6 +11,23 @@ function addUnifiedNetworkAdminControls() {
     return;
   }
   
+  // IMPORTANT: Wait for authentication before showing admin panel
+  // Check if user is authenticated
+  const checkAuth = () => {
+    if (!window.authenticatedUser && !window.supabase?.auth) {
+      console.log('⏳ Waiting for authentication before showing admin panel...');
+      setTimeout(checkAuth, 500);
+      return;
+    }
+    
+    // User is authenticated, safe to show admin panel
+    createAdminPanel();
+  };
+  
+  checkAuth();
+}
+
+function createAdminPanel() {
   // Create admin panel
   const panel = document.createElement('div');
   panel.id = 'unified-network-admin-panel';
