@@ -179,7 +179,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
     - Verify requestAnimationFrame is used
 
 - [ ] 12. Implement interaction handler
-  - [ ] 12.1 Create InteractionHandler class
+  - [x] 12.1 Create InteractionHandler class
     - Implement tap/click event processing
     - Add haptic feedback for mobile
     - Implement minimum tap target size enforcement
@@ -203,7 +203,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 14. Implement graph data store
-  - [ ] 14.1 Create GraphDataStore class
+  - [x] 14.1 Create GraphDataStore class
     - Implement Supabase integration for nodes and edges
     - Add caching for computed values (relevanceScore, effectivePull)
     - Implement data synchronization and updates

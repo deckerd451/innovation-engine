@@ -107,17 +107,17 @@ unifiedNetworkApi.destroy();
 ## Implementation Status
 
 - [x] Task 1: Core data structures and type definitions
-- [ ] Task 2: effectivePull calculation system
-- [ ] Task 3: Relevance score engine
-- [ ] Task 4: Database schema extensions
-- [ ] Task 5: Presence energy tracker
-- [ ] Task 6: State manager
-- [ ] Task 7: D3 physics modifications
-- [ ] Task 9: Node renderer
-- [ ] Task 10: Animation engine
-- [ ] Task 11: Physics loop
-- [ ] Task 12: Interaction handler
-- [ ] Task 14: Graph data store
+- [x] Task 2: effectivePull calculation system
+- [x] Task 3: Relevance score engine
+- [x] Task 4: Database schema extensions
+- [x] Task 5: Presence energy tracker
+- [x] Task 6: State manager
+- [x] Task 7: D3 physics modifications
+- [x] Task 9: Node renderer
+- [x] Task 10: Animation engine
+- [x] Task 11: Physics loop
+- [x] Task 12: Interaction handler
+- [x] Task 14: Graph data store
 - [ ] Task 15: Action resolution system
 - [ ] Task 16: Guided node decay
 - [ ] Task 17: Discovery triggers
