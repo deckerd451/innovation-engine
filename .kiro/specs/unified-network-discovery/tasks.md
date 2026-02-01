@@ -357,7 +357,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
     - Verify spatial culling effectiveness
 
 - [ ] 24. Integrate with existing dashboard
-  - [ ] 24.1 Replace existing My Network and Discovery views
+  - [x] 24.1 Replace existing My Network and Discovery views
     - Remove old mode selection UI
     - Replace with unified network container
     - Update navigation to use new API
