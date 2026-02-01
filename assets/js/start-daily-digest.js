@@ -19,13 +19,16 @@ class StartDailyDigest {
     this.userData = data;
     const whatsNew = data.whats_new || {};
     const hasUpdates = this.hasAnyUpdates(whatsNew);
+    
+    // Await the network snapshot since it's async
+    const networkSnapshotHTML = await this.renderNetworkSnapshot(data);
 
     return `
       <div class="daily-digest-container">
         ${this.renderWelcomeHeader(data)}
         ${hasUpdates ? this.renderWhatsNew(whatsNew) : this.renderNoUpdates()}
         ${this.renderQuickActions(data)}
-        ${this.renderNetworkSnapshot(data)}
+        ${networkSnapshotHTML}
       </div>
     `;
   }
