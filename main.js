@@ -64,6 +64,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         log.error('❌ Unified Network initialization failed:', error);
       }
     }
+    
+    // Load admin panel AFTER authentication
+    // This prevents it from showing on the login page
+    if (user) {
+      log.debug('🎛️ Loading admin panel...');
+      const script = document.createElement('script');
+      script.src = 'assets/js/unified-network-admin.js?v=1';
+      document.body.appendChild(script);
+    }
   });
   
   log.info('✅ System ready!');
