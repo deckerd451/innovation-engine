@@ -27,6 +27,7 @@ unified-network/
 ├── interaction-handler.js # User interactions (Task 12)
 ├── action-resolver.js  # Action execution (Task 15)
 ├── guided-node-decay.js # Guided node decay (Task 16)
+├── discovery-trigger-manager.js # Discovery triggers (Task 17)
 ├── graph-data-store.js # Data management (Task 14)
 ├── index.js           # Module exports
 ├── README.md          # This file
@@ -92,6 +93,15 @@ unifiedNetworkApi.updatePresence(nodeId, 0.8, 300000); // 5 min TTL
 await unifiedNetworkApi.executeAction(nodeId, 'connect');
 await unifiedNetworkApi.executeAction(projectId, 'join-project');
 await unifiedNetworkApi.executeAction(themeId, 'explore-theme');
+
+// Set discovery preferences
+unifiedNetworkApi.setDiscoveryPreferences({
+  frequency: 'normal', // 'low', 'normal', 'high', 'off'
+  enabled: true
+});
+
+// Manually trigger discovery
+unifiedNetworkApi.triggerDiscovery();
 
 // Get current state
 const state = unifiedNetworkApi.getState();

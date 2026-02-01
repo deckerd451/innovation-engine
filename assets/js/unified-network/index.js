@@ -88,6 +88,10 @@ export {
   guidedNodeDecay
 } from './guided-node-decay.js';
 
+export {
+  DiscoveryTriggerManager
+} from './discovery-trigger-manager.js';
+
 // Interfaces (for reference)
 export * from './interfaces.js';
 

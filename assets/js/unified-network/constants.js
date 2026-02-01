@@ -173,11 +173,21 @@ export const EASING_COEFFICIENTS = {
  * Discovery trigger thresholds
  */
 export const DISCOVERY_TRIGGERS = {
-  lowMomentumDuration: 5000,    // 5 seconds
-  relevantPresence: 0.6,
-  smallGraphSize: 5,
-  longActivityDuration: 1800000, // 30 minutes
-  minTransitionInterval: 120000  // 2 minutes
+  LOW_MOMENTUM_THRESHOLD: 0.1,        // velocity < 0.1
+  LOW_MOMENTUM_DURATION_MS: 5000,     // 5 seconds
+  STRONG_ACTION_THRESHOLD: 0.7,       // effectivePull > 0.7
+  RELEVANT_PRESENCE_THRESHOLD: 0.6,   // presenceEnergy > 0.6
+  TEMPORAL_WINDOW_MS: 172800000       // 48 hours in milliseconds
+};
+
+/**
+ * Discovery frequency settings
+ */
+export const DISCOVERY_FREQUENCY = {
+  RATE_LIMIT_MS: 120000,              // 2 minutes minimum between discoveries
+  INACTIVITY_THRESHOLD_MS: 1800000,   // 30 minutes
+  SMALL_GRAPH_THRESHOLD: 5,           // < 5 nodes
+  SMALL_GRAPH_MULTIPLIER: 0.5         // 50% faster for small graphs
 };
 
 /**

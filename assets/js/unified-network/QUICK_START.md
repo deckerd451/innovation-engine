@@ -364,6 +364,75 @@ Any interaction with a guided node resets its decay timer:
 // The node gets a fresh 30 seconds before decay starts again
 ```
 
+## Discovery Triggers
+
+The system automatically triggers discovery mode based on multiple conditions.
+
+### Automatic Triggers
+
+```javascript
+// Discovery triggers when:
+// 1. Low momentum: velocity < 0.1 for 5 seconds
+// 2. No strong actions: no nodes with effectivePull > 0.7
+// 3. Relevant presence: any node with presenceEnergy > 0.6
+// 4. Temporal opportunities: deadlines within 48 hours
+// 5. Inactivity: 30+ minutes without new connections
+// 6. Small graph: < 5 nodes (triggers more frequently)
+
+// Listen to discovery triggers
+unifiedNetworkApi.on('discovery-triggered', ({ reasons, timestamp }) => {
+  console.log('Discovery triggered by:', reasons);
+  // reasons: ['momentum', 'presence', 'temporal', etc.]
+});
+```
+
+### Manual Discovery
+
+```javascript
+// Force discovery mode
+unifiedNetworkApi.triggerDiscovery();
+```
+
+### Discovery Preferences
+
+```javascript
+// Set user preferences
+unifiedNetworkApi.setDiscoveryPreferences({
+  frequency: 'normal', // 'low', 'normal', 'high', 'off'
+  enabled: true
+});
+
+// Get current preferences
+const prefs = unifiedNetworkApi.getDiscoveryPreferences();
+console.log('Frequency:', prefs.frequency);
+console.log('Enabled:', prefs.enabled);
+
+// Listen to preference changes
+unifiedNetworkApi.on('discovery-preferences-updated', (prefs) => {
+  console.log('Preferences updated:', prefs);
+});
+```
+
+### Frequency Settings
+
+- **low**: Discovery every 4 minutes (minimum)
+- **normal**: Discovery every 2 minutes (minimum)
+- **high**: Discovery every 1 minute (minimum)
+- **off**: Discovery disabled
+
+For small graphs (< 5 nodes), frequency is automatically increased by 50%.
+
+### Rate Limiting
+
+```javascript
+// Discovery is rate-limited to prevent overwhelming users
+// Minimum interval between discoveries:
+// - Normal: 2 minutes
+// - Low: 4 minutes
+// - High: 1 minute
+// - Small graphs: 50% faster than normal setting
+```
+
 ## Advanced Usage
 
 ### Custom Presence Boosts

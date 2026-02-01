@@ -14,6 +14,7 @@ import { physicsLoop, AdaptiveFrameRateManager } from './physics-loop.js';
 import { interactionHandler } from './interaction-handler.js';
 import { ActionResolver } from './action-resolver.js';
 import { guidedNodeDecay } from './guided-node-decay.js';
+import { DiscoveryTriggerManager } from './discovery-trigger-manager.js';
 import { 
   applyEffectivePullForces,
   calculateAverageVelocity,
@@ -43,6 +44,7 @@ export class UnifiedNetworkAPI {
     this._interactionHandler = interactionHandler;
     this._actionResolver = new ActionResolver();
     this._guidedNodeDecay = guidedNodeDecay;
+    this._discoveryTriggerManager = null;
     this._frameRateManager = null;
     
     // D3 simulation reference
@@ -165,17 +167,27 @@ export class UnifiedNetworkAPI {
       this._setupGuidedNodeDecayHandlers();
       console.log('⏱️ Guided node decay ready');
 
-      // 12. Setup Physics Loop
+      // 12. Initialize Discovery Trigger Manager
+      this._discoveryTriggerManager = new DiscoveryTriggerManager(
+        this._stateManager,
+        this._graphDataStore,
+        this._presenceTracker
+      );
+      this._setupDiscoveryTriggerHandlers();
+      this._discoveryTriggerManager.start();
+      console.log('🔍 Discovery trigger manager ready');
+
+      // 13. Setup Physics Loop
       this._setupPhysicsLoop(nodes);
       this._physicsLoop.start();
       console.log('🔄 Physics loop started');
 
-      // 13. Setup Adaptive Frame Rate
+      // 14. Setup Adaptive Frame Rate
       this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
       this._frameRateManager.start();
       console.log('🎯 Adaptive frame rate active');
 
-      // 14. Subscribe to real-time updates
+      // 15. Subscribe to real-time updates
       this._graphDataStore.subscribeToUpdates();
       console.log('📡 Real-time subscriptions active');
 
@@ -225,6 +237,11 @@ export class UnifiedNetworkAPI {
     // Cleanup guided node decay
     if (this._guidedNodeDecay) {
       this._guidedNodeDecay.cleanup();
+    }
+
+    // Cleanup discovery trigger manager
+    if (this._discoveryTriggerManager) {
+      this._discoveryTriggerManager.destroy();
     }
 
     // Cancel all animations
@@ -306,8 +323,39 @@ export class UnifiedNetworkAPI {
   triggerDiscovery() {
     this._ensureInitialized();
     console.log('🔍 Manually triggering Discovery state');
-    // TODO: Implement discovery trigger
-    this.emit('discovery-triggered');
+    
+    if (this._discoveryTriggerManager) {
+      this._discoveryTriggerManager.forceDiscovery();
+    }
+  }
+
+  /**
+   * Set discovery preferences
+   * @param {Object} preferences - Discovery preferences
+   * @param {string} preferences.frequency - 'low', 'normal', 'high', or 'off'
+   * @param {boolean} preferences.enabled - Enable/disable discovery
+   */
+  setDiscoveryPreferences(preferences) {
+    this._ensureInitialized();
+    console.log('⚙️ Setting discovery preferences', preferences);
+    
+    if (this._discoveryTriggerManager) {
+      this._discoveryTriggerManager.setPreferences(preferences);
+    }
+  }
+
+  /**
+   * Get discovery preferences
+   * @returns {Object} Current discovery preferences
+   */
+  getDiscoveryPreferences() {
+    this._ensureInitialized();
+    
+    if (this._discoveryTriggerManager) {
+      return this._discoveryTriggerManager.getPreferences();
+    }
+    
+    return { frequency: 'normal', enabled: true };
   }
 
   /**
@@ -603,6 +651,33 @@ export class UnifiedNetworkAPI {
     setInterval(() => {
       this._guidedNodeDecay.clearExpiredDismissals();
     }, 60000); // Every minute
+  }
+
+  /**
+   * Setup discovery trigger handlers
+   * @private
+   */
+  _setupDiscoveryTriggerHandlers() {
+    // Discovery triggered
+    this._discoveryTriggerManager.on('discovery-triggered', ({ reasons, timestamp }) => {
+      console.log(`🔍 Discovery triggered by: ${reasons.join(', ')}`);
+      this.emit('discovery-triggered', { reasons, timestamp });
+    });
+
+    // Preferences updated
+    this._discoveryTriggerManager.on('preferences-updated', (preferences) => {
+      console.log('⚙️ Discovery preferences updated', preferences);
+      this.emit('discovery-preferences-updated', preferences);
+    });
+
+    // Record interactions to reset inactivity timer
+    this._interactionHandler.on('node-tapped', () => {
+      this._discoveryTriggerManager.recordInteraction();
+    });
+
+    this._interactionHandler.on('node-dismissed', () => {
+      this._discoveryTriggerManager.recordInteraction();
+    });
   }
 
   /**
