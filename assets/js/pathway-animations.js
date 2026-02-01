@@ -368,11 +368,13 @@ export function animatePathway(sourceId, targetId, options = {}) {
     segments.push({ pathEl: seg, source: a, target: b });
   }
 
+  // Get target node data for click handler (define outside the handler)
+  const targetNodeData = targetNode || getNodeById(targetId);
+
   // NEW: Add click handler to open target node's profile
   const handlePathwayClick = (event) => {
     event.stopPropagation();
     
-    const targetNodeData = targetNode || getNodeById(targetId);
     if (!targetNodeData) {
       console.warn("Cannot open profile - target node data not available");
       return;
