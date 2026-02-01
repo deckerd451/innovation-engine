@@ -50,6 +50,11 @@ async function enhanceStartDailyDigest() {
       const suggestions = await window.DailySuggestionsUI.getSuggestionsForStartUI();
       
       if (suggestions && suggestions.length > 0) {
+        // Initialize navigation system with suggestions
+        if (window.initSuggestionNavigation && typeof window.initSuggestionNavigation === 'function') {
+          window.initSuggestionNavigation(suggestions);
+        }
+        
         // Wrap the original content and add suggestions after
         const suggestionsHTML = renderSuggestionsSection(suggestions);
         
@@ -224,6 +229,14 @@ async function handleSuggestionCTA(handler, data) {
     console.warn('⚠️ Invalid targetId format:', targetId);
   }
   
+  // Show navigation overlay after executing action
+  // Use setTimeout to show after Synapse opens
+  setTimeout(() => {
+    if (window.showNavigationOverlay && typeof window.showNavigationOverlay === 'function') {
+      window.showNavigationOverlay();
+    }
+  }, 800);
+  
   // Open Synapse view first
   if (window.synapseApi && window.synapseApi.open) {
     window.synapseApi.open();
@@ -326,6 +339,15 @@ window.handleSuggestionClick = function(handler, element) {
   const dataAttr = element.getAttribute('data-suggestion-data');
   const data = dataAttr ? JSON.parse(dataAttr) : {};
   
+  // Get the index of this suggestion for navigation
+  const allCards = document.querySelectorAll('.suggestion-card');
+  const index = Array.from(allCards).indexOf(element);
+  
+  // Set current suggestion index for navigation
+  if (window.setCurrentSuggestionIndex && typeof window.setCurrentSuggestionIndex === 'function') {
+    window.setCurrentSuggestionIndex(index);
+  }
+  
   // Close START modal
   if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
     window.EnhancedStartUI.close();
@@ -338,6 +360,9 @@ window.handleSuggestionClick = function(handler, element) {
     await handleSuggestionCTA(handler, data);
   }, 300);
 };
+
+// Expose handleSuggestionCTA globally for navigation system
+window.handleSuggestionCTA = handleSuggestionCTA;
 
 /**
  * Show "why" modal for a suggestion
