@@ -666,11 +666,11 @@ async function renderPersonPanel(nodeData) {
 
         ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
 
-        <!-- Admin-only: Show email -->
+        <!-- Admin-only: Show email (clickable) -->
         ${(typeof window.isAdminUser === 'function' && window.isAdminUser()) && profile.email ? `
-          <div style="color: rgba(255,170,0,0.8); font-size: 0.85rem; margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 6px; display: inline-block;">
+          <a href="mailto:${profile.email}" style="color: rgba(255,170,0,0.9); font-size: 0.85rem; margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 6px; display: inline-block; text-decoration: none; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.background='rgba(255,170,0,0.2)'; this.style.borderColor='rgba(255,170,0,0.5)'" onmouseout="this.style.background='rgba(255,170,0,0.1)'; this.style.borderColor='rgba(255,170,0,0.3)'">
             <i class="fas fa-envelope"></i> ${profile.email}
-          </div>
+          </a>
         ` : ''}
 
         <!-- Level and Streak Badges (shown on mobile, hidden on desktop) -->
