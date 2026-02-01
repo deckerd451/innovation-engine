@@ -66,6 +66,11 @@ unifiedNetworkApi.centerOnCurrentUser();
 // Manually trigger discovery
 unifiedNetworkApi.triggerDiscovery();
 
+// Execute action on a node
+await unifiedNetworkApi.executeAction(nodeId, 'connect');
+await unifiedNetworkApi.executeAction(projectId, 'join-project');
+await unifiedNetworkApi.executeAction(themeId, 'explore-theme');
+
 // Update presence for a node
 unifiedNetworkApi.updatePresence(nodeId, 0.8, 300000); // 5 min TTL
 
@@ -101,17 +106,27 @@ async function initializeUnifiedNetwork() {
     unifiedNetworkApi.on('node-action-requested', async ({ node, action }) => {
       console.log(`Executing ${action} on ${node.name}`);
       
-      switch (action) {
-        case 'connect':
-          await connectToUser(node.id);
-          break;
-        case 'join-project':
-          await joinProject(node.id);
-          break;
-        case 'explore-theme':
-          await exploreTheme(node.id);
-          break;
+      try {
+        // Execute the action through the API
+        const result = await unifiedNetworkApi.executeAction(node.id, action);
+        console.log('Action completed:', result);
+      } catch (error) {
+        console.error('Action failed:', error);
       }
+    });
+
+    unifiedNetworkApi.on('action-completed', ({ nodeId, actionType, result }) => {
+      console.log(`✅ ${actionType} completed for ${nodeId}`);
+      showSuccessNotification(result.message);
+    });
+
+    unifiedNetworkApi.on('action-failed', ({ nodeId, actionType, error }) => {
+      console.error(`❌ ${actionType} failed for ${nodeId}:`, error);
+      showErrorNotification(error);
+    });
+
+    unifiedNetworkApi.on('graph-updated', ({ nodeId, change }) => {
+      console.log(`Graph updated: ${change} for ${nodeId}`);
     });
 
     unifiedNetworkApi.on('mode-changed', ({ mode }) => {
@@ -188,6 +203,95 @@ Expressed through physics (glow, position):
 
 - `presence-updated` - Presence energy updated
 - `presence-cleared` - Presence cleared
+
+### Action Events
+
+- `action-completed` - Action successfully executed
+- `action-failed` - Action execution failed
+- `graph-updated` - Graph structure changed after action
+
+## Action Resolution
+
+The system handles three types of actions that modify the graph:
+
+### Connect Action
+
+Creates a connection between users:
+
+```javascript
+// Execute connect action
+const result = await unifiedNetworkApi.executeAction(userId, 'connect');
+
+// Result:
+// {
+//   success: true,
+//   connectionId: '...',
+//   status: 'pending',
+//   message: 'Connection request sent'
+// }
+
+// After action:
+// - Node moves from Discovery to My Network
+// - relevanceScore increases by 0.3
+// - effectivePull recalculated
+// - Graph position updated
+```
+
+### Join Project Action
+
+Adds user to a project:
+
+```javascript
+// Execute join-project action
+const result = await unifiedNetworkApi.executeAction(projectId, 'join-project');
+
+// Result:
+// {
+//   success: true,
+//   participantId: '...',
+//   role: 'member',
+//   message: 'Joined project successfully'
+// }
+
+// After action:
+// - relevanceScore increases by 0.4
+// - Node marked as My Network
+// - Position recalculated
+// - Physics simulation restarted
+```
+
+### Explore Theme Action
+
+Records theme exploration:
+
+```javascript
+// Execute explore-theme action
+const result = await unifiedNetworkApi.executeAction(themeId, 'explore-theme');
+
+// Result:
+// {
+//   success: true,
+//   interactionId: '...',
+//   message: 'Theme exploration recorded'
+// }
+
+// After action:
+// - relevanceScore increases by 0.2
+// - presenceEnergy temporarily boosted by 0.3
+// - Glow intensity increased
+// - TTL set for 1 minute
+```
+
+### Action Flow
+
+1. User taps node → `node-action-requested` event
+2. Call `executeAction(nodeId, actionType)`
+3. ActionResolver executes database updates
+4. Interaction recorded in `node_interactions` table
+5. Graph state updated (relevanceScore, effectivePull)
+6. `action-completed` or `action-failed` event emitted
+7. `graph-updated` event emitted
+8. Physics simulation restarted with new positions
 
 ## Advanced Usage
 

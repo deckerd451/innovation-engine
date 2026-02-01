@@ -20,12 +20,16 @@ unified-network/
 ├── relevance-engine.js # Relevance score computation (Task 3)
 ├── presence-tracker.js # Presence energy tracking (Task 5)
 ├── state-manager.js    # State transition management (Task 6)
+├── physics.js          # D3 physics modifications (Task 7)
 ├── physics-loop.js     # Animation loop (Task 11)
 ├── node-renderer.js    # Node rendering (Task 9)
 ├── animation-engine.js # Animation system (Task 10)
 ├── interaction-handler.js # User interactions (Task 12)
+├── action-resolver.js  # Action execution (Task 15)
 ├── graph-data-store.js # Data management (Task 14)
-└── README.md          # This file
+├── index.js           # Module exports
+├── README.md          # This file
+└── QUICK_START.md     # Quick start guide
 ```
 
 ## Key Concepts
@@ -83,6 +87,11 @@ unifiedNetworkApi.focusNode(nodeId, { duration: 750, smooth: true });
 // Update presence
 unifiedNetworkApi.updatePresence(nodeId, 0.8, 300000); // 5 min TTL
 
+// Execute action on a node
+await unifiedNetworkApi.executeAction(nodeId, 'connect');
+await unifiedNetworkApi.executeAction(projectId, 'join-project');
+await unifiedNetworkApi.executeAction(themeId, 'explore-theme');
+
 // Get current state
 const state = unifiedNetworkApi.getState();
 console.log('Current mode:', state.mode);
@@ -98,6 +107,10 @@ unifiedNetworkApi.destroy();
 - `centered-on-user` - Centered on current user
 - `reset-to-my-network` - Reset to My Network state
 - `discovery-triggered` - Discovery state triggered
+- `node-action-requested` - User tapped a node
+- `action-completed` - Action successfully executed
+- `action-failed` - Action execution failed
+- `graph-updated` - Graph structure changed after action
 - `node-dismissed` - Guided node dismissed
 - `presence-updated` - Presence energy updated
 - `presence-cleared` - Presence energy cleared

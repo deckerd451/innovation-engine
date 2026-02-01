@@ -79,6 +79,10 @@ export {
   interactionHandler
 } from './interaction-handler.js';
 
+export {
+  ActionResolver
+} from './action-resolver.js';
+
 // Interfaces (for reference)
 export * from './interfaces.js';
 

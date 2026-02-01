@@ -12,6 +12,7 @@ import { nodeRenderer, NodeRenderer } from './node-renderer.js';
 import { animationEngine } from './animation-engine.js';
 import { physicsLoop, AdaptiveFrameRateManager } from './physics-loop.js';
 import { interactionHandler } from './interaction-handler.js';
+import { ActionResolver } from './action-resolver.js';
 import { 
   applyEffectivePullForces,
   calculateAverageVelocity,
@@ -39,6 +40,7 @@ export class UnifiedNetworkAPI {
     this._animationEngine = animationEngine;
     this._physicsLoop = physicsLoop;
     this._interactionHandler = interactionHandler;
+    this._actionResolver = new ActionResolver();
     this._frameRateManager = null;
     
     // D3 simulation reference
@@ -143,17 +145,27 @@ export class UnifiedNetworkAPI {
       this._setupInteractionHandlers();
       console.log('👆 Interaction handler ready');
 
-      // 10. Setup Physics Loop
+      // 10. Initialize Action Resolver
+      this._actionResolver.initialize(
+        supabase,
+        this._graphDataStore,
+        this._stateManager,
+        this._relevanceEngine
+      );
+      this._setupActionResolverHandlers();
+      console.log('🎯 Action resolver ready');
+
+      // 11. Setup Physics Loop
       this._setupPhysicsLoop(nodes);
       this._physicsLoop.start();
       console.log('🔄 Physics loop started');
 
-      // 11. Setup Adaptive Frame Rate
+      // 12. Setup Adaptive Frame Rate
       this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
       this._frameRateManager.start();
       console.log('🎯 Adaptive frame rate active');
 
-      // 12. Subscribe to real-time updates
+      // 13. Subscribe to real-time updates
       this._graphDataStore.subscribeToUpdates();
       console.log('📡 Real-time subscriptions active');
 
@@ -193,6 +205,11 @@ export class UnifiedNetworkAPI {
     // Cleanup interaction handler
     if (this._interactionHandler) {
       this._interactionHandler.destroy();
+    }
+
+    // Cleanup action resolver
+    if (this._actionResolver) {
+      this._actionResolver.cleanup();
     }
 
     // Cancel all animations
@@ -480,6 +497,58 @@ export class UnifiedNetworkAPI {
         this._frameRateManager.markActivity();
       }
     });
+  }
+
+  /**
+   * Setup action resolver handlers
+   * @private
+   */
+  _setupActionResolverHandlers() {
+    // Action completed
+    this._actionResolver.on('action-completed', ({ nodeId, actionType, result }) => {
+      console.log(`✅ Action completed: ${actionType} on ${nodeId}`);
+      this.emit('action-completed', { nodeId, actionType, result });
+    });
+
+    // Action failed
+    this._actionResolver.on('action-failed', ({ nodeId, actionType, error }) => {
+      console.error(`❌ Action failed: ${actionType} on ${nodeId}`, error);
+      this.emit('action-failed', { nodeId, actionType, error });
+    });
+
+    // Graph updated
+    this._actionResolver.on('graph-updated', (data) => {
+      console.log('🔄 Graph updated after action', data);
+      this.emit('graph-updated', data);
+      
+      // Trigger position recalculation
+      if (this._simulation) {
+        this._simulation.alpha(0.3).restart();
+      }
+    });
+
+    // Recalculate positions
+    this._actionResolver.on('recalculate-positions', () => {
+      if (this._simulation) {
+        this._simulation.alpha(0.5).restart();
+      }
+    });
+  }
+
+  /**
+   * Execute action on a node
+   * @param {string} nodeId - Node ID
+   * @param {string} actionType - Action type
+   * @returns {Promise<Object>} Action result
+   */
+  async executeAction(nodeId, actionType) {
+    this._ensureInitialized();
+    
+    if (!this._userId) {
+      throw new Error('User ID not set');
+    }
+
+    return await this._actionResolver.resolveAction(nodeId, actionType, this._userId);
   }
 }
 
