@@ -831,20 +831,21 @@ export class DailySuggestionsEngineV2 {
   createNoSignalsCard(activitySignals) {
     const reasons = [];
     
+    // Make reasons more user-friendly
     if (!activitySignals.activity_log.accessible) {
-      reasons.push('Activity log not accessible');
+      reasons.push('Building your activity history');
     } else if (activitySignals.activity_log.count === 0) {
-      reasons.push('No activity log entries in last 30 days');
+      reasons.push('Start connecting and collaborating to unlock insights');
     }
     
     if (!activitySignals.messages.accessible) {
-      reasons.push('Messages not accessible');
+      reasons.push('Message history not available yet');
     } else if (activitySignals.messages.count === 0) {
-      reasons.push('No messages in last 30 days');
+      reasons.push('Send messages to activate conversation tracking');
     }
     
     if (reasons.length === 0) {
-      reasons.push('Not enough recent activity to detect patterns');
+      reasons.push('Keep engaging to unlock coordination insights');
     }
     
     // Use a deterministic UUID for "no signals" card
@@ -861,12 +862,12 @@ export class DailySuggestionsEngineV2 {
       data: {
         suggestionType: 'info',
         title: 'Intelligence Layer Active',
-        description: 'Not enough activity signals yet to detect coordination moments',
-        message: '🌐 Coordination detection ready',
-        detail: reasons.join(' • '),
+        description: 'Discovering connections for you',
+        message: '🌐 Explore Your Network',
+        detail: 'Click to see recommended connections based on your skills and interests',
         action: 'Learn More',
-        icon: 'info-circle',
-        color: '#ff6b6b',
+        icon: 'network-wired',
+        color: '#00e0ff',
         synthetic_id: 'coord:no-signals'
       }
     };
