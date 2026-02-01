@@ -386,9 +386,28 @@ class StartDailyDigest {
   /**
    * Render network snapshot
    */
-  renderNetworkSnapshot(data) {
+  async renderNetworkSnapshot(data) {
     const network = data.network_insights || {};
     const opportunities = data.opportunities || {};
+    
+    // Fetch actual counts from database if not provided
+    let connectionsCount = network.connections?.total || 0;
+    let themesCount = opportunities.active_themes?.count || 0;
+    let projectsCount = network.active_projects?.count || 0;
+    let opportunitiesCount = opportunities.skill_matched_projects?.count || 0;
+    
+    // If counts are 0, try to fetch them directly
+    if (connectionsCount === 0 || themesCount === 0 || projectsCount === 0) {
+      try {
+        const counts = await this.fetchActualCounts();
+        connectionsCount = counts.connections;
+        themesCount = counts.themes;
+        projectsCount = counts.projects;
+        opportunitiesCount = counts.opportunities;
+      } catch (err) {
+        console.warn('Failed to fetch actual counts:', err);
+      }
+    }
 
     return `
       <div style="
@@ -412,26 +431,95 @@ class StartDailyDigest {
           grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
           gap: 1rem;
         ">
-          ${this.renderStatCard('Connections', network.connections?.total || 0, 'users', '#00e0ff')}
-          ${this.renderStatCard('Themes', opportunities.active_themes?.count || 0, 'bullseye', '#ffaa00')}
-          ${this.renderStatCard('Projects', network.active_projects?.count || 0, 'rocket', '#a855f7')}
-          ${this.renderStatCard('Opportunities', opportunities.skill_matched_projects?.count || 0, 'briefcase', '#00ff88')}
+          ${this.renderStatCard('Connections', connectionsCount, 'users', '#00e0ff', 'viewConnections')}
+          ${this.renderStatCard('Themes', themesCount, 'bullseye', '#ffaa00', 'viewThemes')}
+          ${this.renderStatCard('Projects', projectsCount, 'rocket', '#a855f7', 'viewProjects')}
+          ${this.renderStatCard('Opportunities', opportunitiesCount, 'briefcase', '#00ff88', 'viewOpportunities')}
         </div>
       </div>
     `;
+  }
+  
+  /**
+   * Fetch actual counts from database
+   */
+  async fetchActualCounts() {
+    if (!window.supabase) {
+      return { connections: 0, themes: 0, projects: 0, opportunities: 0 };
+    }
+    
+    const { data: { user } } = await window.supabase.auth.getUser();
+    if (!user) {
+      return { connections: 0, themes: 0, projects: 0, opportunities: 0 };
+    }
+    
+    // Get community profile
+    const { data: profile } = await window.supabase
+      .from('community')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!profile) {
+      return { connections: 0, themes: 0, projects: 0, opportunities: 0 };
+    }
+    
+    const communityId = profile.id;
+    
+    // Fetch counts in parallel
+    const [connectionsResult, themesResult, projectsResult, opportunitiesResult] = await Promise.all([
+      // Count accepted connections
+      window.supabase
+        .from('connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'accepted')
+        .or(`from_user_id.eq.${communityId},to_user_id.eq.${communityId}`),
+      
+      // Count theme participations
+      window.supabase
+        .from('theme_participants')
+        .select('theme_id', { count: 'exact', head: true })
+        .eq('community_id', communityId),
+      
+      // Count project memberships
+      window.supabase
+        .from('project_members')
+        .select('project_id', { count: 'exact', head: true })
+        .eq('user_id', communityId),
+      
+      // Count open projects (opportunities)
+      window.supabase
+        .from('projects')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'open')
+    ]);
+    
+    return {
+      connections: connectionsResult.count || 0,
+      themes: themesResult.count || 0,
+      projects: projectsResult.count || 0,
+      opportunities: opportunitiesResult.count || 0
+    };
   }
 
   /**
    * Render stat card
    */
-  renderStatCard(label, value, icon, color) {
+  renderStatCard(label, value, icon, color, handler) {
+    const clickHandler = handler ? `onclick="window.StartDailyDigest.${handler}()" style="cursor: pointer;"` : '';
+    const hoverStyle = handler ? `
+      onmouseenter="this.style.transform='translateY(-2px)'; this.style.borderColor='${color}';"
+      onmouseleave="this.style.transform='translateY(0)'; this.style.borderColor='${color}40';"
+    ` : '';
+    
     return `
-      <div style="
+      <div ${clickHandler} ${hoverStyle} style="
         background: rgba(0,0,0,0.3);
         border: 1px solid ${color}40;
         border-radius: 12px;
         padding: 1rem;
         text-align: center;
+        transition: all 0.2s;
       ">
         <i class="fas fa-${icon}" style="color: ${color}; font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
         <div style="color: #fff; font-size: 1.8rem; font-weight: 700; margin-bottom: 0.25rem;">
@@ -460,6 +548,43 @@ class StartDailyDigest {
     setTimeout(() => {
       if (window.filterByNodeType) {
         window.filterByNodeType('person');
+      }
+    }, 300);
+  }
+  
+  viewThemes() {
+    window.EnhancedStartUI.close();
+    setTimeout(() => {
+      if (window.showView) {
+        window.showView('synapse');
+      }
+      // Filter to show only themes
+      setTimeout(() => {
+        if (window.filterSynapseByCategory) {
+          window.filterSynapseByCategory('themes');
+        }
+      }, 500);
+    }, 300);
+  }
+  
+  viewProjects() {
+    window.EnhancedStartUI.close();
+    setTimeout(() => {
+      if (window.filterByNodeType) {
+        window.filterByNodeType('project');
+      }
+    }, 300);
+  }
+  
+  viewOpportunities() {
+    window.EnhancedStartUI.close();
+    setTimeout(() => {
+      // Show opportunities page or open projects list
+      if (window.showView) {
+        window.showView('opportunities');
+      } else if (window.filterByNodeType) {
+        // Fallback: show open projects
+        window.filterByNodeType('project');
       }
     }, 300);
   }
