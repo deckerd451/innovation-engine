@@ -258,11 +258,8 @@ export class DiscoveryTriggerManager {
     // Emit event with trigger reasons
     this.emit('discovery-triggered', { reasons, timestamp: Date.now() });
     
-    // Request state transition
-    this.stateManager.requestTransition('discovery', {
-      trigger: 'automatic',
-      reasons
-    });
+    // Transition to discovery state
+    this.stateManager.transitionToDiscovery();
   }
   
   /**

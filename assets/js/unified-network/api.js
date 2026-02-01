@@ -1047,10 +1047,7 @@ export class UnifiedNetworkAPI {
         this._physicsLoop.stop();
       }
       
-      // Pause presence tracking
-      if (this._presenceTracker) {
-        this._presenceTracker.pause();
-      }
+      // Note: Presence tracking continues in background (event-driven)
       
       this.emit('background-paused');
     });
@@ -1064,10 +1061,7 @@ export class UnifiedNetworkAPI {
         this._physicsLoop.start();
       }
       
-      // Resume presence tracking
-      if (this._presenceTracker) {
-        this._presenceTracker.resume();
-      }
+      // Note: Presence tracking continues automatically (event-driven)
       
       this.emit('background-resumed');
     });
