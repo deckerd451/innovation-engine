@@ -6,6 +6,13 @@
 
 // Add admin controls to the page
 function addUnifiedNetworkAdminControls() {
+  // DEPRECATED: Unified Network controls are now integrated into the main Admin Panel
+  // under the "System Settings" tab. This standalone panel is no longer needed.
+  console.log('ℹ️ Unified Network controls are available in Admin Panel > System Settings');
+  return;
+  
+  // Original code kept for reference but not executed
+  /*
   // CRITICAL: Don't show admin panel on login/landing pages
   // Only show on dashboard after user is authenticated
   const isLoginPage = !document.getElementById('synapse-svg') || 

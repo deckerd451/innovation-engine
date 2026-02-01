@@ -1404,6 +1404,9 @@ function openAdminPanel() {
       <button class="admin-tab" data-tab="organizations" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
         <i class="fas fa-building"></i> Manage Orgs
       </button>
+      <button class="admin-tab" data-tab="system" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <i class="fas fa-cog"></i> System Settings
+      </button>
     </div>
 
     <!-- Tab Content -->
@@ -1534,6 +1537,153 @@ function loadAdminTabContent(tabName) {
       </div>
     `;
     loadOrganizationsList();
+  } else if (tabName === 'system') {
+    const isEnabled = localStorage.getItem('enable-unified-network') === 'true';
+    const isDebug = localStorage.getItem('unified-network-debug') === 'true';
+    
+    content.innerHTML = `
+      <div style="max-height: 60vh; overflow-y: auto;">
+        <!-- Unified Network Discovery Section -->
+        <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+          <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 1rem;">
+            <i class="fas fa-network-wired"></i> Unified Network Discovery
+          </h3>
+          
+          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; line-height: 1.6;">
+            Enable the new physics-based network visualization with smooth animations and intelligent discovery features.
+          </p>
+          
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 1rem; margin-bottom: 1rem;">
+              <input type="checkbox" id="unified-network-toggle-admin" ${isEnabled ? 'checked' : ''} 
+                style="margin-right: 12px; cursor: pointer; width: 20px; height: 20px;">
+              <span style="font-weight: 600;">Enable Unified Network</span>
+            </label>
+            
+            <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.95rem;">
+              <input type="checkbox" id="unified-network-debug-toggle-admin" ${isDebug ? 'checked' : ''} 
+                style="margin-right: 12px; cursor: pointer; width: 18px; height: 18px;">
+              <span>Debug Mode (verbose console logging)</span>
+            </label>
+          </div>
+          
+          <div style="padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 1.5rem;">
+            <div style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">Status:</div>
+            <div id="unified-network-status-admin" style="font-size: 1.1rem; font-weight: 600; color: ${isEnabled ? '#44ff44' : '#ff4444'};">
+              ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <button id="unified-network-reload-admin" style="
+              padding: 0.875rem 1.25rem;
+              background: linear-gradient(135deg, #00e0ff, #0080ff);
+              border: none;
+              border-radius: 8px;
+              color: white;
+              font-weight: 600;
+              cursor: pointer;
+              font-size: 0.95rem;
+              transition: all 0.2s;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+              <i class="fas fa-sync-alt"></i> Apply & Reload
+            </button>
+            
+            <button id="unified-network-test-admin" style="
+              padding: 0.875rem 1.25rem;
+              background: rgba(68, 136, 255, 0.2);
+              border: 1px solid rgba(68, 136, 255, 0.5);
+              border-radius: 8px;
+              color: #4488ff;
+              font-weight: 600;
+              cursor: pointer;
+              font-size: 0.95rem;
+              transition: all 0.2s;
+            " onmouseover="this.style.background='rgba(68, 136, 255, 0.3)'" onmouseout="this.style.background='rgba(68, 136, 255, 0.2)'">
+              <i class="fas fa-vial"></i> Run Tests
+            </button>
+          </div>
+          
+          <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 8px;">
+            <div style="color: #ffaa00; font-size: 0.85rem; line-height: 1.5;">
+              <i class="fas fa-info-circle"></i> <strong>Note:</strong> Changes require a page reload to take effect. The unified network provides smooth physics-based animations and intelligent discovery features.
+            </div>
+          </div>
+        </div>
+        
+        <!-- Future system settings can go here -->
+      </div>
+    `;
+    
+    // Wire up event listeners
+    const toggle = document.getElementById('unified-network-toggle-admin');
+    const debugToggle = document.getElementById('unified-network-debug-toggle-admin');
+    const reloadBtn = document.getElementById('unified-network-reload-admin');
+    const testBtn = document.getElementById('unified-network-test-admin');
+    const status = document.getElementById('unified-network-status-admin');
+    
+    toggle.addEventListener('change', () => {
+      if (toggle.checked) {
+        localStorage.setItem('enable-unified-network', 'true');
+        status.textContent = '⚠️ Enabled (reload required)';
+        status.style.color = '#ffaa00';
+      } else {
+        localStorage.removeItem('enable-unified-network');
+        status.textContent = '⚠️ Disabled (reload required)';
+        status.style.color = '#ffaa00';
+      }
+    });
+    
+    debugToggle.addEventListener('change', () => {
+      if (debugToggle.checked) {
+        localStorage.setItem('unified-network-debug', 'true');
+      } else {
+        localStorage.removeItem('unified-network-debug');
+      }
+    });
+    
+    reloadBtn.addEventListener('click', () => {
+      window.location.reload();
+    });
+    
+    testBtn.addEventListener('click', async () => {
+      testBtn.disabled = true;
+      testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Tests...';
+      
+      try {
+        if (window.unifiedNetworkIntegration?.isActive()) {
+          console.log('🧪 Running unified network tests...');
+          
+          // Check system health
+          if (window.unifiedNetworkErrorIntegration) {
+            const isHealthy = window.unifiedNetworkErrorIntegration.isHealthy();
+            const stats = window.unifiedNetworkErrorIntegration.getStats();
+            
+            console.log('🏥 System Health:', { healthy: isHealthy, stats });
+            
+            if (isHealthy) {
+              alert('✅ System is healthy! All tests passed.');
+            } else {
+              alert(`⚠️ System has ${stats.total} logged errors. Check console for details.`);
+            }
+          } else {
+            alert('✅ Unified network is active and running!');
+          }
+        } else {
+          alert('ℹ️ Unified network is not currently active. Enable it and reload to test.');
+        }
+        
+        testBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
+        setTimeout(() => {
+          testBtn.innerHTML = '<i class="fas fa-vial"></i> Run Tests';
+          testBtn.disabled = false;
+        }, 2000);
+      } catch (error) {
+        console.error('❌ Test failed:', error);
+        testBtn.innerHTML = '<i class="fas fa-times"></i> Test Failed';
+        testBtn.disabled = false;
+      }
+    });
   }
 }
 
