@@ -29,6 +29,7 @@ unified-network/
 ├── guided-node-decay.js # Guided node decay (Task 16)
 ├── discovery-trigger-manager.js # Discovery triggers (Task 17)
 ├── temporal-presence-manager.js # Temporal presence (Task 18)
+├── accessibility.js # Accessibility features (Task 21)
 ├── graph-data-store.js # Data management (Task 14)
 ├── index.js           # Module exports
 ├── README.md          # This file
@@ -111,6 +112,11 @@ console.log('Collaborative boost:', boosts.collaborative);
 
 // Check temporal priority between nodes
 const shouldPrioritize = unifiedNetworkApi.shouldPrioritizeTemporal(nodeA, nodeB);
+
+// Accessibility features are automatically enabled
+// Screen reader announcements for focus changes
+// Keyboard navigation: Arrow keys, Enter, Escape, Ctrl+D
+// Reduced motion support (respects prefers-reduced-motion)
 
 // Get current state
 const state = unifiedNetworkApi.getState();

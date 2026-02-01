@@ -96,6 +96,11 @@ export {
   TemporalPresenceManager
 } from './temporal-presence-manager.js';
 
+export {
+  AccessibilityManager,
+  accessibilityManager
+} from './accessibility.js';
+
 // Interfaces (for reference)
 export * from './interfaces.js';
 

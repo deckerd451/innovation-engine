@@ -16,6 +16,7 @@ import { ActionResolver } from './action-resolver.js';
 import { guidedNodeDecay } from './guided-node-decay.js';
 import { DiscoveryTriggerManager } from './discovery-trigger-manager.js';
 import { TemporalPresenceManager } from './temporal-presence-manager.js';
+import { AccessibilityManager } from './accessibility.js';
 import { 
   applyEffectivePullForces,
   calculateAverageVelocity,
@@ -47,6 +48,7 @@ export class UnifiedNetworkAPI {
     this._guidedNodeDecay = guidedNodeDecay;
     this._discoveryTriggerManager = null;
     this._temporalPresenceManager = null;
+    this._accessibilityManager = null;
     this._frameRateManager = null;
     
     // D3 simulation reference
@@ -188,17 +190,23 @@ export class UnifiedNetworkAPI {
       this._temporalPresenceManager.start();
       console.log('⏰ Temporal presence manager ready');
 
-      // 14. Setup Physics Loop
+      // 14. Initialize Accessibility Manager
+      this._accessibilityManager = new AccessibilityManager();
+      this._accessibilityManager.initialize(this._svg);
+      this._setupAccessibilityHandlers();
+      console.log('♿ Accessibility features enabled');
+
+      // 15. Setup Physics Loop
       this._setupPhysicsLoop(nodes);
       this._physicsLoop.start();
       console.log('🔄 Physics loop started');
 
-      // 15. Setup Adaptive Frame Rate
+      // 16. Setup Adaptive Frame Rate
       this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
       this._frameRateManager.start();
       console.log('🎯 Adaptive frame rate active');
 
-      // 16. Subscribe to real-time updates
+      // 17. Subscribe to real-time updates
       this._graphDataStore.subscribeToUpdates();
       console.log('📡 Real-time subscriptions active');
 
@@ -258,6 +266,11 @@ export class UnifiedNetworkAPI {
     // Cleanup temporal presence manager
     if (this._temporalPresenceManager) {
       this._temporalPresenceManager.destroy();
+    }
+
+    // Cleanup accessibility manager
+    if (this._accessibilityManager) {
+      this._accessibilityManager.destroy();
     }
 
     // Cancel all animations
@@ -804,6 +817,80 @@ export class UnifiedNetworkAPI {
       if (this._simulation) {
         this._simulation.alpha(0.3).restart();
       }
+    });
+  }
+
+  /**
+   * Setup accessibility handlers
+   * @private
+   */
+  _setupAccessibilityHandlers() {
+    // Node activated via keyboard
+    this._accessibilityManager.on('node-activated', ({ nodeId }) => {
+      console.log(`♿ Node activated via keyboard: ${nodeId}`);
+      const node = this._graphDataStore.getNode(nodeId);
+      if (node) {
+        const action = this._interactionHandler.presentAction(node);
+        this.emit('node-action-requested', { node, action });
+      }
+    });
+
+    // Reset requested via keyboard
+    this._accessibilityManager.on('reset-requested', () => {
+      console.log('♿ Reset requested via keyboard');
+      this.resetToMyNetwork();
+    });
+
+    // Discovery requested via keyboard
+    this._accessibilityManager.on('discovery-requested', () => {
+      console.log('♿ Discovery requested via keyboard');
+      this.triggerDiscovery();
+    });
+
+    // Navigate nodes via keyboard
+    this._accessibilityManager.on('navigate-nodes', ({ direction }) => {
+      console.log(`♿ Navigate nodes: ${direction}`);
+      // TODO: Implement node navigation
+    });
+
+    // Reduced motion enabled
+    this._accessibilityManager.on('reduced-motion-enabled', () => {
+      console.log('♿ Reduced motion enabled');
+      this.emit('reduced-motion-enabled');
+      
+      // Adjust animation engine
+      if (this._animationEngine) {
+        this._animationEngine.setReducedMotion(true);
+      }
+    });
+
+    // Reduced motion disabled
+    this._accessibilityManager.on('reduced-motion-disabled', () => {
+      console.log('♿ Reduced motion disabled');
+      this.emit('reduced-motion-disabled');
+      
+      // Adjust animation engine
+      if (this._animationEngine) {
+        this._animationEngine.setReducedMotion(false);
+      }
+    });
+
+    // Announce node focus changes
+    this._interactionHandler.on('node-tapped', ({ nodeId }) => {
+      const node = this._graphDataStore.getNode(nodeId);
+      if (node) {
+        this._accessibilityManager.announceNodeFocus(node);
+      }
+    });
+
+    // Announce state transitions
+    this._stateManager.on('state-changed', ({ newState, reason }) => {
+      this._accessibilityManager.announceStateTransition(newState, reason);
+    });
+
+    // Announce action completion
+    this._actionResolver.on('action-completed', ({ nodeId, actionType }) => {
+      this._accessibilityManager.announceActionCompleted(nodeId, actionType);
     });
   }
 

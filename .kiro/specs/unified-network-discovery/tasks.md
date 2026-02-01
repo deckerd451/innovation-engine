@@ -314,7 +314,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
     - Test event emission
 
 - [ ] 21. Implement accessibility features
-  - [ ] 21.1 Add accessibility support
+  - [x] 21.1 Add accessibility support
     - Implement screen reader announcements for focus changes
     - Add keyboard navigation support (if applicable)
     - Verify color contrast for glow effects
