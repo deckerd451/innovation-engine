@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quick Readiness Test</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 2rem;
+      background: #0a0e27;
+      color: #0f0;
+    }
+    button {
+      background: #00e0ff;
+      border: none;
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      cursor: pointer;
+      margin: 1rem;
+    }
+    .result {
+      margin: 1rem 0;
+      padding: 1rem;
+      background: rgba(0,255,0,0.1);
+      border: 1px solid #0f0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Quick Readiness Test</h1>
+  
+  <button onclick="testReadiness()">Test Readiness State</button>
+  <button onclick="testDebug()">Test Debug Interface</button>
+  <button onclick="testEarlyFocus()">Test Early Focus (Reload First!)</button>
+  
+  <div id="results"></div>
+
+  <script>
+    function log(msg) {
+      const div = document.createElement('div');
+      div.className = 'result';
+      div.textContent = msg;
+      document.getElementById('results').appendChild(div);
+      console.log(msg);
+    }
+
+    function testReadiness() {
+      log('=== Testing Readiness ===');
+      
+      if (!window.synapseApi) {
+        log('❌ window.synapseApi not found');
+        return;
+      }
+      
+      if (!window.synapseApi.debug) {
+        log('❌ window.synapseApi.debug not found');
+        return;
+      }
+      
+      const isReady = window.synapseApi.debug.isReady();
+      log(`✅ Synapse ready: ${isReady}`);
+      
+      const nodes = window.synapseApi.debug.getNodes();
+      log(`✅ Nodes loaded: ${nodes.length}`);
+      
+      const links = window.synapseApi.debug.getLinks();
+      log(`✅ Links loaded: ${links.length}`);
+    }
+
+    function testDebug() {
+      log('=== Testing Debug Interface ===');
+      
+      if (!window.synapseApi || !window.synapseApi.debug) {
+        log('❌ Debug interface not available');
+        return;
+      }
+      
+      try {
+        const nodes = window.synapseApi.debug.getNodes();
+        const byType = nodes.reduce((acc, n) => {
+          acc[n.type] = (acc[n.type] || 0) + 1;
+          return acc;
+        }, {});
+        
+        log('Node types:');
+        Object.entries(byType).forEach(([type, count]) => {
+          log(`  ${type}: ${count}`);
+        });
+        
+        log('✅ Debug interface working');
+      } catch (err) {
+        log(`❌ Error: ${err.message}`);
+      }
+    }
+
+    function testEarlyFocus() {
+      log('=== Testing Early Focus ===');
+      log('This test should be run immediately after page load');
+      log('Reload the page and click this button within 1 second');
+      
+      if (!window.synapseApi) {
+        log('❌ synapseApi not available');
+        return;
+      }
+      
+      const isReady = window.synapseApi.debug.isReady();
+      log(`Current ready state: ${isReady}`);
+      
+      if (isReady) {
+        log('⚠️ Synapse already ready - test invalid');
+        log('Reload page and try again immediately');
+      } else {
+        log('✅ Synapse not ready - calling focusNode()');
+        window.synapseApi.focusNode('test-early-focus-id');
+        log('✅ Focus should be queued');
+        log('Check console for queue message');
+      }
+    }
+
+    // Auto-test on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        log('=== Auto-test after 2 seconds ===');
+        testReadiness();
+      }, 2000);
+    });
+  </script>
+</body>
+</html>

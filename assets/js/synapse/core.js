@@ -213,7 +213,26 @@ export async function initSynapseView() {
         window.closeStartModal();
       }
       
-      // Switch to Synapse view
+      // Explicitly show Synapse view
+      const synapseView = document.getElementById('synapse-main-view');
+      if (synapseView) {
+        synapseView.style.display = 'block';
+        synapseView.style.visibility = 'visible';
+        synapseView.style.opacity = '1';
+        synapseView.style.zIndex = '1';
+        console.log('✅ Synapse view made visible');
+      } else {
+        console.warn('⚠️ synapse-main-view element not found');
+      }
+      
+      // Hide dashboard pane if it exists
+      const dashboardPane = document.getElementById('dashboard-pane');
+      if (dashboardPane) {
+        dashboardPane.style.display = 'none';
+        console.log('✅ Dashboard pane hidden');
+      }
+      
+      // Try legacy showView if it exists
       if (window.showView) {
         window.showView('synapse');
       }
