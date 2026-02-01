@@ -335,6 +335,13 @@ export async function initSynapseView() {
       console.warn('⚠️ Node not found:', nodeId);
       console.log('ℹ️ Falling back to activity view (centering on current user)');
       
+      // Show helpful toast notification
+      showSynapseNotification(
+        'This person isn\'t in your current network view. Enable Discovery Mode to see suggested connections.',
+        'info',
+        8000
+      );
+      
       // Fallback: center on current user instead
       const userNode = findCurrentUserNode(nodes, currentUserCommunityId);
       if (userNode) {
@@ -364,6 +371,13 @@ export async function initSynapseView() {
     if (!themeNode) {
       console.warn('⚠️ Theme node not found:', themeId);
       console.log('ℹ️ Falling back to activity view (centering on current user)');
+      
+      // Show helpful toast notification
+      showSynapseNotification(
+        'This theme isn\'t in your current view. You may need to join it or enable Discovery Mode.',
+        'info',
+        8000
+      );
       
       // Fallback: center on current user instead
       const userNode = findCurrentUserNode(nodes, currentUserCommunityId);
