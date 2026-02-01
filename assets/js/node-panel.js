@@ -666,6 +666,13 @@ async function renderPersonPanel(nodeData) {
 
         ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
 
+        <!-- Admin-only: Show email -->
+        ${window.isAdmin && profile.email ? `
+          <div style="color: rgba(255,170,0,0.8); font-size: 0.85rem; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 6px; display: inline-block;">
+            <i class="fas fa-envelope"></i> ${profile.email}
+          </div>
+        ` : ''}
+
         <!-- Level and Streak Badges (shown on mobile, hidden on desktop) -->
         ${profile.id === currentUserProfile?.id ? `
           <div class="mobile-only-badges" style="display: none; gap: 0.75rem; justify-content: center; margin: 1rem 0; flex-wrap: wrap;">
