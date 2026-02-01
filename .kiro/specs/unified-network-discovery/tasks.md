@@ -101,14 +101,14 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
 
 
 - [ ] 7. Modify D3 physics simulation
-  - [ ] 7.1 Implement effectivePull-based force adjustments
+  - [x] 7.1 Implement effectivePull-based force adjustments
     - Modify link strength based on effectivePull
     - Add radial force for guided nodes (thumb-reachable positioning)
     - Adjust charge force based on effectivePull
     - Implement spatial integration for discovery nodes
     - _Requirements: 1.2, 1.3, 1.4, 3.4, 3.5, 8.1_
   
-  - [ ] 7.2 Implement motion decay and calm state
+  - [x] 7.2 Implement motion decay and calm state
     - Add velocity decay when no interaction
     - Implement calm state detection (velocity < 0.05)
     - Add maximum settle time enforcement (15 seconds)
@@ -126,7 +126,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 9. Implement node renderer
-  - [ ] 9.1 Create NodeRenderer class
+  - [x] 9.1 Create NodeRenderer class
     - Implement visual state calculation (radius, opacity, glow, scale)
     - Implement distance-based dimming for focused nodes
     - Add GPU-accelerated positioning (CSS transforms)
@@ -147,7 +147,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
 
 
 - [ ] 10. Implement animation engine
-  - [ ] 10.1 Create AnimationEngine class
+  - [x] 10.1 Create AnimationEngine class
     - Implement position interpolation with cubic-bezier easing
     - Implement fade in/out for discovery nodes
     - Implement glow pulse animations
@@ -163,7 +163,7 @@ This implementation plan transforms the existing "My Network" and "Discovery" vi
     - Verify stagger timing (100ms delays)
 
 - [ ] 11. Implement physics loop with adaptive frame rate
-  - [ ] 11.1 Create PhysicsLoop class
+  - [x] 11.1 Create PhysicsLoop class
     - Implement requestAnimationFrame-based loop
     - Add adaptive frame rate (60fps active, 30fps calm)
     - Implement background pause detection
