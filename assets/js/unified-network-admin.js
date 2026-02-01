@@ -87,7 +87,39 @@ function addUnifiedNetworkAdminControls() {
       font-size: 13px;
       transition: all 0.2s;
     ">
-      <i class="fas fa-vial"></i> Run Integration Test
+      <i class="fas fa-vial"></i> Run Integration Tests
+    </button>
+    
+    <button id="unified-network-error-test" style="
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      background: rgba(255, 136, 68, 0.2);
+      border: 1px solid rgba(255, 136, 68, 0.5);
+      border-radius: 6px;
+      color: #ff8844;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    ">
+      <i class="fas fa-shield-alt"></i> Run Error Handler Tests
+    </button>
+    
+    <button id="unified-network-health" style="
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      background: rgba(68, 255, 136, 0.2);
+      border: 1px solid rgba(68, 255, 136, 0.5);
+      border-radius: 6px;
+      color: #44ff88;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    ">
+      <i class="fas fa-heartbeat"></i> Check System Health
     </button>
     
     <button id="unified-network-close" style="
@@ -112,6 +144,8 @@ function addUnifiedNetworkAdminControls() {
   const debugToggle = document.getElementById('unified-network-debug-toggle');
   const reloadBtn = document.getElementById('unified-network-reload');
   const testBtn = document.getElementById('unified-network-test');
+  const errorTestBtn = document.getElementById('unified-network-error-test');
+  const healthBtn = document.getElementById('unified-network-health');
   const closeBtn = document.getElementById('unified-network-close');
   const status = document.getElementById('unified-network-status');
   
@@ -172,13 +206,91 @@ function addUnifiedNetworkAdminControls() {
       
       testBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
       setTimeout(() => {
-        testBtn.innerHTML = '<i class="fas fa-vial"></i> Run Integration Test';
+        testBtn.innerHTML = '<i class="fas fa-vial"></i> Run Integration Tests';
         testBtn.disabled = false;
       }, 2000);
     } catch (error) {
       console.error('❌ Test failed:', error);
       testBtn.innerHTML = '<i class="fas fa-times"></i> Test Failed';
       testBtn.disabled = false;
+    }
+  });
+  
+  errorTestBtn.addEventListener('click', async () => {
+    errorTestBtn.disabled = true;
+    errorTestBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Tests...';
+    
+    try {
+      // Run error handler tests
+      if (window.ErrorHandlerTests) {
+        console.log('🛡️ Running error handler tests...');
+        const errorTests = new window.ErrorHandlerTests();
+        const results = await errorTests.runAll();
+        
+        // Show results in console
+        console.log('📊 Error Handler Test Results:', results);
+        
+        // Show notification
+        const message = `Error Handler Tests: ${results.passed}/${results.total} passed`;
+        if (results.failed === 0) {
+          showTestNotification(message, 'success');
+        } else {
+          showTestNotification(message, 'warning');
+        }
+      } else {
+        console.warn('⚠️ Error handler tests not available');
+        showTestNotification('Error handler tests not loaded', 'warning');
+      }
+      
+      errorTestBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
+      setTimeout(() => {
+        errorTestBtn.innerHTML = '<i class="fas fa-shield-alt"></i> Run Error Handler Tests';
+        errorTestBtn.disabled = false;
+      }, 2000);
+    } catch (error) {
+      console.error('❌ Error test failed:', error);
+      errorTestBtn.innerHTML = '<i class="fas fa-times"></i> Test Failed';
+      errorTestBtn.disabled = false;
+    }
+  });
+  
+  healthBtn.addEventListener('click', () => {
+    healthBtn.disabled = true;
+    healthBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+    
+    try {
+      // Check system health
+      if (window.unifiedNetworkErrorIntegration) {
+        const isHealthy = window.unifiedNetworkErrorIntegration.isHealthy();
+        const stats = window.unifiedNetworkErrorIntegration.getStats();
+        
+        console.log('🏥 System Health Check:', {
+          healthy: isHealthy,
+          stats
+        });
+        
+        if (isHealthy) {
+          showTestNotification('System is healthy! ✅', 'success');
+        } else {
+          showTestNotification(`System has issues. ${stats.total} errors logged.`, 'warning');
+        }
+        
+        // Show detailed stats in console
+        console.table(stats.byType);
+        console.table(stats.bySeverity);
+      } else {
+        showTestNotification('Error integration not available', 'warning');
+      }
+      
+      healthBtn.innerHTML = '<i class="fas fa-check"></i> Check Complete';
+      setTimeout(() => {
+        healthBtn.innerHTML = '<i class="fas fa-heartbeat"></i> Check System Health';
+        healthBtn.disabled = false;
+      }, 2000);
+    } catch (error) {
+      console.error('❌ Health check failed:', error);
+      healthBtn.innerHTML = '<i class="fas fa-times"></i> Check Failed';
+      healthBtn.disabled = false;
     }
   });
   

@@ -13,6 +13,7 @@
 
 import { unifiedNetworkApi } from './unified-network/api.js';
 import { logger } from './logger.js';
+import { initializeErrorHandling } from './unified-network/error-integration.js';
 
 // Feature flag - can be controlled via localStorage or server config
 const FEATURE_FLAGS = {
@@ -42,6 +43,9 @@ export async function initUnifiedNetwork(userId, containerId = 'synapse-svg') {
   logger.info('UnifiedNetworkIntegration', 'Initializing unified network discovery');
   
   try {
+    // Initialize error handling FIRST
+    initializeErrorHandling(unifiedNetworkApi);
+    
     // Initialize the unified network API
     await unifiedNetworkApi.initialize(containerId, userId);
     
