@@ -191,6 +191,11 @@ export async function initSynapseView() {
   window.getRecommendations = getRecommendations;
   window.showConnectPathways = showConnectPathways;
   window.clearConnectPathways = clearConnectPathways;
+  window.illuminatePathways = illuminatePathways; // Expose for Intelligence Layer
+  
+  // Expose pathway animation functions for Intelligence Layer
+  window.showRecommendationPathways = PathwayAnimations.showRecommendationPathways;
+  window.clearAllPathways = PathwayAnimations.clearAllPathways;
 
   // Expose filtering function for category buttons
   window.filterSynapseByCategory = filterSynapseByCategory;

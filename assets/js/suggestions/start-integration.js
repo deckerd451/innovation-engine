@@ -250,9 +250,22 @@ async function handleSuggestionCTA(handler, data) {
       console.log('🌐 Routing coordination suggestion:', subtype);
       
       // Special case: "no_signals" means intelligence layer is active but no patterns detected
+      // Show pathway animations to help user discover connections
       if (subtype === 'no_signals') {
-        console.log('ℹ️ Intelligence Layer Active (no signals) - showing activity view');
-        window.synapseApi.showActivity();
+        console.log('ℹ️ Intelligence Layer Active (no signals) - showing pathway recommendations');
+        
+        // Show pathway animations (curved yellow pulsating lines)
+        if (window.showRecommendationPathways && typeof window.showRecommendationPathways === 'function') {
+          console.log('🌟 Triggering pathway animations...');
+          await window.showRecommendationPathways(5); // Show top 5 recommendations
+        } else if (window.illuminatePathways && typeof window.illuminatePathways === 'function') {
+          console.log('🌟 Triggering illuminate pathways...');
+          await window.illuminatePathways({ limit: 5, clearFirst: true });
+        } else {
+          console.warn('⚠️ Pathway animation functions not available');
+          // Fallback: just center on user
+          window.synapseApi.showActivity();
+        }
       } else if (subtype === 'theme_convergence' && targetId) {
         window.synapseApi.focusTheme(targetId);
       } else if (subtype === 'bridge_opportunity' && targetId) {
