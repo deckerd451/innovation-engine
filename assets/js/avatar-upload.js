@@ -16,6 +16,99 @@
   const BUCKET_NAME = 'hacksbucket';
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  
+  // Optimal profile image size (works great on all screens including retina)
+  const OPTIMIZED_SIZE = 400; // 400x400px
+  const JPEG_QUALITY = 0.85; // 85% quality for good balance of size/quality
+
+  // ================================================================
+  // IMAGE OPTIMIZATION
+  // ================================================================
+
+  /**
+   * Resize and optimize image before upload
+   * @param {File} file - Original image file
+   * @returns {Promise<Blob>} - Optimized image blob
+   */
+  async function optimizeImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      img.onload = () => {
+        // Calculate dimensions (square crop from center)
+        const size = Math.min(img.width, img.height);
+        const x = (img.width - size) / 2;
+        const y = (img.height - size) / 2;
+
+        // Set canvas to optimized size
+        canvas.width = OPTIMIZED_SIZE;
+        canvas.height = OPTIMIZED_SIZE;
+
+        // Enable image smoothing for better quality
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // Draw image (cropped and resized)
+        ctx.drawImage(
+          img,
+          x, y, size, size,  // Source rectangle (center crop)
+          0, 0, OPTIMIZED_SIZE, OPTIMIZED_SIZE  // Destination rectangle
+        );
+
+        // Convert to blob (WebP if supported, otherwise JPEG)
+        const mimeType = file.type === 'image/png' && hasTransparency(ctx) 
+          ? 'image/png'  // Keep PNG if it has transparency
+          : 'image/jpeg'; // Otherwise use JPEG for better compression
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              console.log(`📐 Image optimized: ${(file.size / 1024).toFixed(1)}KB → ${(blob.size / 1024).toFixed(1)}KB (${((1 - blob.size / file.size) * 100).toFixed(0)}% reduction)`);
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to create optimized image'));
+            }
+          },
+          mimeType,
+          JPEG_QUALITY
+        );
+      };
+
+      img.onerror = () => {
+        reject(new Error('Failed to load image'));
+      };
+
+      // Load image from file
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target.result;
+      };
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
+   * Check if image has transparency
+   * @param {CanvasRenderingContext2D} ctx - Canvas context
+   * @returns {boolean}
+   */
+  function hasTransparency(ctx) {
+    const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const data = imageData.data;
+    
+    // Check alpha channel
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 255) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   // ================================================================
   // UPLOAD AVATAR
@@ -31,16 +124,21 @@
     }
 
     try {
+      // Optimize image before upload
+      console.log('🔄 Optimizing image...');
+      const optimizedBlob = await optimizeImage(file);
+      
       // Generate unique filename with avatars subfolder
-      const fileExt = file.name.split('.').pop();
+      const fileExt = optimizedBlob.type === 'image/png' ? 'png' : 'jpg';
       const fileName = `avatars/${userId}/${Date.now()}.${fileExt}`;
 
-      // Upload to Supabase Storage
+      // Upload optimized image to Supabase Storage
       const { data, error } = await window.supabase.storage
         .from(BUCKET_NAME)
-        .upload(fileName, file, {
+        .upload(fileName, optimizedBlob, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: optimizedBlob.type
         });
 
       if (error) {
@@ -210,9 +308,9 @@
 
       // Disable button and show loading
       uploadBtn.disabled = true;
-      uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+      uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Optimizing...';
       status.style.color = '#00e0ff';
-      status.textContent = 'Uploading...';
+      status.textContent = 'Optimizing and uploading...';
 
       try {
         // Get current user
