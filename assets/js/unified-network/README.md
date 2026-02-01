@@ -28,6 +28,7 @@ unified-network/
 ├── action-resolver.js  # Action execution (Task 15)
 ├── guided-node-decay.js # Guided node decay (Task 16)
 ├── discovery-trigger-manager.js # Discovery triggers (Task 17)
+├── temporal-presence-manager.js # Temporal presence (Task 18)
 ├── graph-data-store.js # Data management (Task 14)
 ├── index.js           # Module exports
 ├── README.md          # This file
@@ -102,6 +103,14 @@ unifiedNetworkApi.setDiscoveryPreferences({
 
 // Manually trigger discovery
 unifiedNetworkApi.triggerDiscovery();
+
+// Get temporal and collaborative boosts
+const boosts = unifiedNetworkApi.getAllBoosts(nodeId);
+console.log('Temporal boost:', boosts.temporal);
+console.log('Collaborative boost:', boosts.collaborative);
+
+// Check temporal priority between nodes
+const shouldPrioritize = unifiedNetworkApi.shouldPrioritizeTemporal(nodeA, nodeB);
 
 // Get current state
 const state = unifiedNetworkApi.getState();

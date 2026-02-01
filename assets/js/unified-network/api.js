@@ -15,6 +15,7 @@ import { interactionHandler } from './interaction-handler.js';
 import { ActionResolver } from './action-resolver.js';
 import { guidedNodeDecay } from './guided-node-decay.js';
 import { DiscoveryTriggerManager } from './discovery-trigger-manager.js';
+import { TemporalPresenceManager } from './temporal-presence-manager.js';
 import { 
   applyEffectivePullForces,
   calculateAverageVelocity,
@@ -45,6 +46,7 @@ export class UnifiedNetworkAPI {
     this._actionResolver = new ActionResolver();
     this._guidedNodeDecay = guidedNodeDecay;
     this._discoveryTriggerManager = null;
+    this._temporalPresenceManager = null;
     this._frameRateManager = null;
     
     // D3 simulation reference
@@ -177,17 +179,26 @@ export class UnifiedNetworkAPI {
       this._discoveryTriggerManager.start();
       console.log('🔍 Discovery trigger manager ready');
 
-      // 13. Setup Physics Loop
+      // 13. Initialize Temporal Presence Manager
+      this._temporalPresenceManager = new TemporalPresenceManager(
+        this._graphDataStore,
+        this._presenceTracker
+      );
+      this._setupTemporalPresenceHandlers();
+      this._temporalPresenceManager.start();
+      console.log('⏰ Temporal presence manager ready');
+
+      // 14. Setup Physics Loop
       this._setupPhysicsLoop(nodes);
       this._physicsLoop.start();
       console.log('🔄 Physics loop started');
 
-      // 14. Setup Adaptive Frame Rate
+      // 15. Setup Adaptive Frame Rate
       this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
       this._frameRateManager.start();
       console.log('🎯 Adaptive frame rate active');
 
-      // 15. Subscribe to real-time updates
+      // 16. Subscribe to real-time updates
       this._graphDataStore.subscribeToUpdates();
       console.log('📡 Real-time subscriptions active');
 
@@ -242,6 +253,11 @@ export class UnifiedNetworkAPI {
     // Cleanup discovery trigger manager
     if (this._discoveryTriggerManager) {
       this._discoveryTriggerManager.destroy();
+    }
+
+    // Cleanup temporal presence manager
+    if (this._temporalPresenceManager) {
+      this._temporalPresenceManager.destroy();
     }
 
     // Cancel all animations
@@ -394,6 +410,67 @@ export class UnifiedNetworkAPI {
     console.log(`🔇 Clearing presence for ${nodeId}`);
     // TODO: Implement presence clear
     this.emit('presence-cleared', { nodeId });
+  }
+
+  /**
+   * Get temporal boost for a node
+   * @param {string} nodeId - Node ID
+   * @returns {Object|undefined} Temporal boost info
+   */
+  getTemporalBoost(nodeId) {
+    this._ensureInitialized();
+    
+    if (this._temporalPresenceManager) {
+      return this._temporalPresenceManager.getTemporalBoost(nodeId);
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Get collaborative boost for a node
+   * @param {string} nodeId - Node ID
+   * @returns {Object|undefined} Collaborative boost info
+   */
+  getCollaborativeBoost(nodeId) {
+    this._ensureInitialized();
+    
+    if (this._temporalPresenceManager) {
+      return this._temporalPresenceManager.getCollaborativeBoost(nodeId);
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Get all boosts for a node
+   * @param {string} nodeId - Node ID
+   * @returns {Object} All boosts (temporal and collaborative)
+   */
+  getAllBoosts(nodeId) {
+    this._ensureInitialized();
+    
+    if (this._temporalPresenceManager) {
+      return this._temporalPresenceManager.getAllBoosts(nodeId);
+    }
+    
+    return { temporal: undefined, collaborative: undefined };
+  }
+
+  /**
+   * Check if temporal priority should apply between two nodes
+   * @param {Object} nodeA - First node
+   * @param {Object} nodeB - Second node
+   * @returns {boolean} True if nodeA should be prioritized
+   */
+  shouldPrioritizeTemporal(nodeA, nodeB) {
+    this._ensureInitialized();
+    
+    if (this._temporalPresenceManager) {
+      return this._temporalPresenceManager.shouldPrioritizeTemporal(nodeA, nodeB);
+    }
+    
+    return false;
   }
 
   /**
@@ -677,6 +754,56 @@ export class UnifiedNetworkAPI {
 
     this._interactionHandler.on('node-dismissed', () => {
       this._discoveryTriggerManager.recordInteraction();
+    });
+  }
+
+  /**
+   * Setup temporal presence handlers
+   * @private
+   */
+  _setupTemporalPresenceHandlers() {
+    // Temporal boost applied
+    this._temporalPresenceManager.on('temporal-boost-applied', ({ nodeId, boost, expiresAt, reason }) => {
+      console.log(`⏰ Temporal boost applied: ${nodeId} (+${boost}) - ${reason}`);
+      this.emit('temporal-boost-applied', { nodeId, boost, expiresAt, reason });
+      
+      // Trigger physics update
+      if (this._simulation) {
+        this._simulation.alpha(0.3).restart();
+      }
+    });
+
+    // Temporal boost removed
+    this._temporalPresenceManager.on('temporal-boost-removed', ({ nodeId, reason }) => {
+      console.log(`⏰ Temporal boost removed: ${nodeId} - ${reason}`);
+      this.emit('temporal-boost-removed', { nodeId, reason });
+      
+      // Trigger physics update
+      if (this._simulation) {
+        this._simulation.alpha(0.3).restart();
+      }
+    });
+
+    // Collaborative boost applied
+    this._temporalPresenceManager.on('collaborative-boost-applied', ({ nodeId, boost, reason, metadata }) => {
+      console.log(`🤝 Collaborative boost applied: ${nodeId} (+${boost}) - ${reason}`);
+      this.emit('collaborative-boost-applied', { nodeId, boost, reason, metadata });
+      
+      // Trigger physics update
+      if (this._simulation) {
+        this._simulation.alpha(0.3).restart();
+      }
+    });
+
+    // Collaborative boost removed
+    this._temporalPresenceManager.on('collaborative-boost-removed', ({ nodeId, reason }) => {
+      console.log(`🤝 Collaborative boost removed: ${nodeId} - ${reason}`);
+      this.emit('collaborative-boost-removed', { nodeId, reason });
+      
+      // Trigger physics update
+      if (this._simulation) {
+        this._simulation.alpha(0.3).restart();
+      }
     });
   }
 

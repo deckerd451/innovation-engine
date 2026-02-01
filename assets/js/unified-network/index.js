@@ -92,6 +92,10 @@ export {
   DiscoveryTriggerManager
 } from './discovery-trigger-manager.js';
 
+export {
+  TemporalPresenceManager
+} from './temporal-presence-manager.js';
+
 // Interfaces (for reference)
 export * from './interfaces.js';
 

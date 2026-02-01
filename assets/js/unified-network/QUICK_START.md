@@ -433,6 +433,107 @@ For small graphs (< 5 nodes), frequency is automatically increased by 50%.
 // - Small graphs: 50% faster than normal setting
 ```
 
+## Temporal and Collaborative Presence
+
+The system automatically boosts presence for time-sensitive opportunities and collaborative activities.
+
+### Temporal Boosts (with expiration)
+
+```javascript
+// Automatic temporal boosts:
+// 1. Deadline urgency: +0.5 presence when deadline within 48 hours
+// 2. Expires immediately when deadline passes
+
+// Listen to temporal boost events
+unifiedNetworkApi.on('temporal-boost-applied', ({ nodeId, boost, expiresAt, reason }) => {
+  console.log(`Temporal boost: ${nodeId} +${boost} (${reason})`);
+  console.log(`Expires: ${new Date(expiresAt).toLocaleString()}`);
+});
+
+unifiedNetworkApi.on('temporal-boost-removed', ({ nodeId, reason }) => {
+  console.log(`Temporal boost removed: ${nodeId} (${reason})`);
+});
+
+// Query temporal boost
+const temporalBoost = unifiedNetworkApi.getTemporalBoost(nodeId);
+if (temporalBoost) {
+  console.log('Boost:', temporalBoost.boost);
+  console.log('Expires:', new Date(temporalBoost.expiresAt).toLocaleString());
+  console.log('Reason:', temporalBoost.reason);
+}
+```
+
+### Collaborative Boosts (no expiration)
+
+```javascript
+// Automatic collaborative boosts:
+// 1. Shared interest: +0.4 when connection actively working on shared interest
+// 2. Collective theme: +0.3 when theme has > 3 active participants (presenceEnergy > 0.5)
+
+// Listen to collaborative boost events
+unifiedNetworkApi.on('collaborative-boost-applied', ({ nodeId, boost, reason, metadata }) => {
+  console.log(`Collaborative boost: ${nodeId} +${boost} (${reason})`);
+  console.log('Metadata:', metadata);
+});
+
+unifiedNetworkApi.on('collaborative-boost-removed', ({ nodeId, reason }) => {
+  console.log(`Collaborative boost removed: ${nodeId} (${reason})`);
+});
+
+// Query collaborative boost
+const collaborativeBoost = unifiedNetworkApi.getCollaborativeBoost(nodeId);
+if (collaborativeBoost) {
+  console.log('Boost:', collaborativeBoost.boost);
+  console.log('Reason:', collaborativeBoost.reason);
+  console.log('Metadata:', collaborativeBoost.metadata);
+}
+```
+
+### Query All Boosts
+
+```javascript
+// Get both temporal and collaborative boosts
+const allBoosts = unifiedNetworkApi.getAllBoosts(nodeId);
+
+if (allBoosts.temporal) {
+  console.log('Temporal:', allBoosts.temporal);
+}
+
+if (allBoosts.collaborative) {
+  console.log('Collaborative:', allBoosts.collaborative);
+}
+```
+
+### Temporal Priority
+
+```javascript
+// When two nodes have effectivePull within 0.1 of each other,
+// temporal opportunities are prioritized
+
+const nodeA = { id: 'a', effectivePull: 0.75 };
+const nodeB = { id: 'b', effectivePull: 0.78 };
+
+const shouldPrioritize = unifiedNetworkApi.shouldPrioritizeTemporal(nodeA, nodeB);
+// Returns true if nodeA has temporal boost and nodeB doesn't
+// (and effectivePull difference < 0.1)
+```
+
+### Boost Combinations
+
+```javascript
+// Boosts stack additively (capped at 1.0):
+// presenceEnergy = baseEnergy + temporalBoost + collaborativeBoost
+
+// Example:
+// - Base presence: 0.3
+// - Deadline boost: +0.5
+// - Shared interest: +0.4
+// - Total: min(1.0, 0.3 + 0.5 + 0.4) = 1.0
+
+// effectivePull is then recalculated:
+// effectivePull = relevanceScore × (1 + presenceEnergy)
+```
+
 ## Advanced Usage
 
 ### Custom Presence Boosts
