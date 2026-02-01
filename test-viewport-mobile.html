@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <title>Viewport Test - Mobile Browser UI</title>
+  <style>
+    :root {
+      --vh: 1vh;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+      color: white;
+      height: 100vh;
+      height: calc(var(--vh, 1vh) * 100);
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+    }
+    
+    .container {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+    }
+    
+    .header {
+      background: rgba(0, 224, 255, 0.1);
+      border: 2px solid rgba(0, 224, 255, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    .info-box {
+      background: rgba(0, 224, 255, 0.05);
+      border: 1px solid rgba(0, 224, 255, 0.2);
+      border-radius: 8px;
+      padding: 15px;
+      width: 100%;
+      max-width: 400px;
+    }
+    
+    .info-box h3 {
+      color: #00e0ff;
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+    
+    .info-box p {
+      color: #aaa;
+      font-size: 0.9rem;
+      margin: 5px 0;
+    }
+    
+    .value {
+      color: #00ff88;
+      font-weight: bold;
+    }
+    
+    .footer {
+      background: rgba(255, 107, 107, 0.1);
+      border: 2px solid rgba(255, 107, 107, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    
+    .status.browser {
+      background: rgba(255, 170, 0, 0.2);
+      color: #ffa500;
+      border: 1px solid rgba(255, 170, 0, 0.4);
+    }
+    
+    .status.pwa {
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+      border: 1px solid rgba(0, 255, 136, 0.4);
+    }
+    
+    button {
+      background: linear-gradient(135deg, #00e0ff, #0080ff);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📐 Viewport Test</h1>
+      <p>Testing dynamic viewport height with mobile browser UI</p>
+    </div>
+    
+    <div class="content">
+      <div class="info-box">
+        <h3>📱 Viewport Info</h3>
+        <p>Window Height: <span class="value" id="window-height">-</span></p>
+        <p>CSS --vh value: <span class="value" id="vh-value">-</span></p>
+        <p>Calculated Height: <span class="value" id="calc-height">-</span></p>
+      </div>
+      
+      <div class="info-box">
+        <h3>🌐 Display Mode</h3>
+        <p id="display-mode">Detecting...</p>
+        <div id="mode-status"></div>
+      </div>
+      
+      <div class="info-box">
+        <h3>📊 Browser UI Status</h3>
+        <p id="ui-status">Monitoring...</p>
+      </div>
+      
+      <button onclick="updateInfo()">🔄 Refresh Info</button>
+    </div>
+    
+    <div class="footer">
+      <p><strong>Instructions:</strong></p>
+      <p>Scroll up/down to see Safari UI appear/disappear</p>
+      <p>Watch the values update automatically</p>
+    </div>
+  </div>
+
+  <script>
+    // Dynamic viewport height detection
+    function setViewportHeight() {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+      updateInfo();
+    }
+    
+    function updateInfo() {
+      // Get viewport info
+      const windowHeight = window.innerHeight;
+      const vhValue = getComputedStyle(document.documentElement).getPropertyValue('--vh');
+      const calcHeight = parseFloat(vhValue) * 100;
+      
+      document.getElementById('window-height').textContent = `${windowHeight}px`;
+      document.getElementById('vh-value').textContent = vhValue;
+      document.getElementById('calc-height').textContent = `${calcHeight.toFixed(2)}px`;
+      
+      // Check display mode
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                          window.navigator.standalone ||
+                          document.referrer.includes('android-app://');
+      
+      const displayMode = document.getElementById('display-mode');
+      const modeStatus = document.getElementById('mode-status');
+      
+      if (isStandalone) {
+        displayMode.innerHTML = '<span class="value">PWA Mode (Standalone)</span>';
+        modeStatus.innerHTML = '<div class="status pwa">✓ Full Screen</div>';
+      } else {
+        displayMode.innerHTML = '<span class="value">Browser Mode</span>';
+        modeStatus.innerHTML = '<div class="status browser">⚠ Browser UI Visible</div>';
+      }
+      
+      // Browser UI status
+      const uiStatus = document.getElementById('ui-status');
+      const heightDiff = window.outerHeight - window.innerHeight;
+      uiStatus.innerHTML = `Browser chrome: <span class="value">${heightDiff}px</span>`;
+    }
+    
+    // Initialize
+    setViewportHeight();
+    updateInfo();
+    
+    // Update on resize
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setViewportHeight();
+      }, 100);
+    });
+    
+    // Update on orientation change
+    window.addEventListener('orientationchange', () => {
+      setTimeout(setViewportHeight, 100);
+    });
+    
+    // Update on scroll (iOS Safari shows/hides UI)
+    let scrollTimer;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        setViewportHeight();
+      }, 150);
+    }, { passive: true });
+    
+    // Update when page becomes visible
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        setTimeout(setViewportHeight, 100);
+      }
+    });
+    
+    console.log('✅ Viewport test initialized');
+  </script>
+</body>
+</html>

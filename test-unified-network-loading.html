@@ -152,14 +152,14 @@
   </script>
   
   <!-- Load logger first -->
-  <script type="module" src="assets/js/logger.js"></script>
+  <script type="module" src="assets/js/logger.js?v=2"></script>
   
   <!-- Load unified network integration -->
   <script type="module">
     console.log('🔄 Loading unified-network-integration.js...');
     
     try {
-      const module = await import('./assets/js/unified-network-integration.js');
+      const module = await import('./assets/js/unified-network-integration.js?v=2');
       console.log('✅ unified-network-integration.js loaded successfully');
       console.log('📦 Module exports:', Object.keys(module));
       
@@ -186,7 +186,7 @@
     console.log('🔄 Loading unified-network-synapse-bridge.js...');
     
     try {
-      const module = await import('./assets/js/unified-network-synapse-bridge.js');
+      const module = await import('./assets/js/unified-network-synapse-bridge.js?v=2');
       console.log('✅ unified-network-synapse-bridge.js loaded successfully');
       
       setTimeout(() => {
@@ -204,6 +204,6 @@
   </script>
   
   <!-- Load admin panel -->
-  <script src="assets/js/unified-network-admin.js"></script>
+  <script src="assets/js/unified-network-admin.js?v=2"></script>
 </body>
 </html>

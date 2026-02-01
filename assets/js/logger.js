@@ -261,7 +261,7 @@ const log = (() => {
   // Make available globally for non-module scripts
   window.log = logger;
   
-  // Also support ES6 module import
+  // Also support CommonJS
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = logger;
   }
@@ -283,6 +283,7 @@ const log = (() => {
   return logger;
 })();
 
-// ES6 module export (outside IIFE)
+// ES6 module exports (outside IIFE)
+// Export both named and default for maximum compatibility
 export { log as logger };
 export default log;
