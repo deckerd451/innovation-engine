@@ -18,6 +18,7 @@ import { DiscoveryTriggerManager } from './discovery-trigger-manager.js';
 import { TemporalPresenceManager } from './temporal-presence-manager.js';
 import { AccessibilityManager } from './accessibility.js';
 import { OnboardingManager } from './onboarding.js';
+import { PerformanceManager } from './performance.js';
 import { 
   applyEffectivePullForces,
   calculateAverageVelocity,
@@ -51,6 +52,7 @@ export class UnifiedNetworkAPI {
     this._temporalPresenceManager = null;
     this._accessibilityManager = null;
     this._onboardingManager = null;
+    this._performanceManager = null;
     this._frameRateManager = null;
     
     // D3 simulation reference
@@ -212,17 +214,26 @@ export class UnifiedNetworkAPI {
       }, 1000);
       console.log('👋 Onboarding ready');
 
-      // 16. Setup Physics Loop
+      // 16. Initialize Performance Manager
+      this._performanceManager = new PerformanceManager();
+      this._performanceManager.initialize();
+      this._setupPerformanceHandlers();
+      
+      // Optimize for large graphs
+      this._performanceManager.optimizeForLargeGraph(nodes.length);
+      console.log('⚡ Performance optimizations enabled');
+
+      // 17. Setup Physics Loop
       this._setupPhysicsLoop(nodes);
       this._physicsLoop.start();
       console.log('🔄 Physics loop started');
 
-      // 17. Setup Adaptive Frame Rate
+      // 18. Setup Adaptive Frame Rate
       this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
       this._frameRateManager.start();
       console.log('🎯 Adaptive frame rate active');
 
-      // 18. Subscribe to real-time updates
+      // 19. Subscribe to real-time updates
       this._graphDataStore.subscribeToUpdates();
       console.log('📡 Real-time subscriptions active');
 
@@ -292,6 +303,11 @@ export class UnifiedNetworkAPI {
     // Cleanup onboarding manager
     if (this._onboardingManager) {
       this._onboardingManager.destroy();
+    }
+
+    // Cleanup performance manager
+    if (this._performanceManager) {
+      this._performanceManager.destroy();
     }
 
     // Cancel all animations
@@ -485,6 +501,31 @@ export class UnifiedNetworkAPI {
    */
   isDiscoveryAccessible() {
     return true; // Requirement 10.1: No admin-only restrictions
+  }
+
+  /**
+   * Get performance metrics
+   * @returns {Object} Performance metrics (FPS, memory, etc.)
+   */
+  getPerformanceMetrics() {
+    this._ensureInitialized();
+    
+    if (this._performanceManager) {
+      return this._performanceManager.getMetrics();
+    }
+    
+    return {};
+  }
+
+  /**
+   * Log performance report
+   */
+  logPerformanceReport() {
+    this._ensureInitialized();
+    
+    if (this._performanceManager) {
+      this._performanceManager.logPerformanceReport();
+    }
   }
 
   /**
@@ -989,6 +1030,58 @@ export class UnifiedNetworkAPI {
     this._onboardingManager.on('preferences-panel-hidden', () => {
       console.log('⚙️ Preferences panel hidden');
       this.emit('preferences-panel-hidden');
+    });
+  }
+
+  /**
+   * Setup performance handlers
+   * @private
+   */
+  _setupPerformanceHandlers() {
+    // Background pause
+    this._performanceManager.on('background-pause', () => {
+      console.log('⚡ App backgrounded - pausing physics');
+      
+      // Pause physics loop
+      if (this._physicsLoop) {
+        this._physicsLoop.stop();
+      }
+      
+      // Pause presence tracking
+      if (this._presenceTracker) {
+        this._presenceTracker.pause();
+      }
+      
+      this.emit('background-paused');
+    });
+
+    // Background resume
+    this._performanceManager.on('background-resume', () => {
+      console.log('⚡ App foregrounded - resuming physics');
+      
+      // Resume physics loop
+      if (this._physicsLoop) {
+        this._physicsLoop.start();
+      }
+      
+      // Resume presence tracking
+      if (this._presenceTracker) {
+        this._presenceTracker.resume();
+      }
+      
+      this.emit('background-resumed');
+    });
+
+    // Large graph detected
+    this._performanceManager.on('large-graph-detected', ({ nodeCount }) => {
+      console.log(`⚡ Large graph detected (${nodeCount} nodes) - applying optimizations`);
+      
+      // Reduce frame rate for large graphs
+      if (this._frameRateManager) {
+        this._frameRateManager.setTargetFPS(30);
+      }
+      
+      this.emit('large-graph-detected', { nodeCount });
     });
   }
 

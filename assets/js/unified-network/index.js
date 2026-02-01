@@ -106,6 +106,12 @@ export {
   onboardingManager
 } from './onboarding.js';
 
+export {
+  PerformanceManager,
+  performanceManager,
+  PerformanceUtils
+} from './performance.js';
+
 // Interfaces (for reference)
 export * from './interfaces.js';
 

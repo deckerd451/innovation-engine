@@ -31,6 +31,7 @@ unified-network/
 ├── temporal-presence-manager.js # Temporal presence (Task 18)
 ├── accessibility.js # Accessibility features (Task 21)
 ├── onboarding.js    # Onboarding & preferences (Task 22)
+├── performance.js   # Performance optimizations (Task 23)
 ├── graph-data-store.js # Data management (Task 14)
 ├── index.js           # Module exports
 ├── README.md          # This file
@@ -128,6 +129,14 @@ unifiedNetworkApi.showPreferencesPanel();
 
 // Check if discovery is accessible
 const isAccessible = unifiedNetworkApi.isDiscoveryAccessible(); // Always true
+
+// Performance monitoring
+const metrics = unifiedNetworkApi.getPerformanceMetrics();
+console.log('FPS:', metrics.fps);
+console.log('Memory:', metrics.memoryUsage);
+
+// Log performance report
+unifiedNetworkApi.logPerformanceReport();
 
 // Get current state
 const state = unifiedNetworkApi.getState();
