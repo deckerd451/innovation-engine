@@ -57,6 +57,40 @@ let projectCircles = null;
 let showFullCommunity = false; // Default to My Network (not Discovery Mode)
 let userManuallyToggledMode = false; // Track if user manually changed the mode
 
+// Readiness tracking for focus reliability
+let _ready = false;
+let __pendingFocus = null; // Single pending focus: { type: 'node'|'theme'|'activity', id?: string }
+
+/* ==========================================================================
+   READINESS TRACKING
+   ========================================================================== */
+
+/**
+ * Mark Synapse as ready and replay any pending focus
+ */
+function markSynapseReady() {
+  if (_ready) return; // Already ready
+  
+  _ready = true;
+  console.log('✅ Synapse ready - nodes and graph loaded');
+  
+  // Replay pending focus if any
+  if (__pendingFocus) {
+    const pending = __pendingFocus;
+    __pendingFocus = null; // Clear before replaying
+    
+    console.log('🔄 Replaying queued focus:', pending);
+    
+    if (pending.type === 'node') {
+      window.synapseApi.focusNode(pending.id);
+    } else if (pending.type === 'theme') {
+      window.synapseApi.focusTheme(pending.id);
+    } else if (pending.type === 'activity') {
+      window.synapseApi.showActivity();
+    }
+  }
+}
+
 /* ==========================================================================
    PUBLIC API
    ========================================================================== */
@@ -196,6 +230,13 @@ export async function initSynapseView() {
         return;
       }
       
+      // If Synapse not ready, queue the focus
+      if (!_ready) {
+        console.log('⏳ Synapse not ready yet - queueing focus request');
+        __pendingFocus = { type: 'node', id: nodeId };
+        return;
+      }
+      
       // Dispatch event for focus system to handle
       window.dispatchEvent(new CustomEvent('synapse:focus-node', {
         detail: { nodeId }
@@ -213,6 +254,13 @@ export async function initSynapseView() {
         return;
       }
       
+      // If Synapse not ready, queue the focus
+      if (!_ready) {
+        console.log('⏳ Synapse not ready yet - queueing focus request');
+        __pendingFocus = { type: 'theme', id: themeId };
+        return;
+      }
+      
       // Dispatch event for theme focus
       window.dispatchEvent(new CustomEvent('synapse:focus-theme', {
         detail: { themeId }
@@ -225,10 +273,26 @@ export async function initSynapseView() {
     showActivity: () => {
       console.log('📊 synapseApi.showActivity() called');
       
+      // If Synapse not ready, queue the focus
+      if (!_ready) {
+        console.log('⏳ Synapse not ready yet - queueing focus request');
+        __pendingFocus = { type: 'activity' };
+        return;
+      }
+      
       // Dispatch event to center on current user
       window.dispatchEvent(new CustomEvent('synapse:show-activity', {
         detail: { userId: currentUserCommunityId }
       }));
+    },
+    
+    /**
+     * Debug interface - read-only access to Synapse state
+     */
+    debug: {
+      getNodes: () => nodes,
+      getLinks: () => links,
+      isReady: () => _ready
     }
   };
   
@@ -1364,6 +1428,9 @@ async function buildGraph() {
   // Performance monitoring
   const perfEnd = performance.now();
   console.log(`⚡ Graph built in ${(perfEnd - perfStart).toFixed(2)}ms with ${totalElements} DOM elements`);
+
+  // Mark Synapse as ready - nodes and graph are now loaded
+  markSynapseReady();
 
   // Tick
   let tickCount = 0;

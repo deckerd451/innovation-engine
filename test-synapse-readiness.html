@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Synapse Readiness</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      background: #0a0e27;
+      color: #fff;
+    }
+    .test-section {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(0,224,255,0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    h2 {
+      color: #00e0ff;
+      margin-top: 0;
+    }
+    button {
+      background: linear-gradient(135deg, #00e0ff, #0080ff);
+      border: none;
+      border-radius: 8px;
+      color: #000;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 0.5rem 0.5rem 0.5rem 0;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,224,255,0.3);
+    }
+    .log {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(0,224,255,0.2);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .log-entry {
+      margin-bottom: 0.5rem;
+      padding: 0.25rem;
+    }
+    .log-entry.success { color: #00ff88; }
+    .log-entry.error { color: #ff6b6b; }
+    .log-entry.info { color: #00e0ff; }
+    .log-entry.warning { color: #ffaa00; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Synapse Readiness Test Suite</h1>
+  <p>Test the readiness tracking and pending focus queue</p>
+
+  <div class="test-section">
+    <h2>1. Readiness State Tests</h2>
+    <button onclick="testReadinessState()">Check Readiness State</button>
+    <button onclick="testDebugInterface()">Test Debug Interface</button>
+    <div id="readiness-log" class="log"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Pending Focus Queue Tests</h2>
+    <button onclick="testFocusBeforeReady()">Test Focus Before Ready</button>
+    <button onclick="testFocusAfterReady()">Test Focus After Ready</button>
+    <button onclick="testQueueReplay()">Test Queue Replay</button>
+    <div id="queue-log" class="log"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Debug State Inspection</h2>
+    <button onclick="inspectNodes()">Inspect Nodes</button>
+    <button onclick="inspectLinks()">Inspect Links</button>
+    <button onclick="inspectReadiness()">Inspect Readiness</button>
+    <div id="debug-log" class="log"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Focus Reliability Tests</h2>
+    <button onclick="testEarlyFocus()">Test Early Focus (Before Init)</button>
+    <button onclick="testLateFocus()">Test Late Focus (After Init)</button>
+    <button onclick="testMultipleFocus()">Test Multiple Focus Calls</button>
+    <div id="focus-log" class="log"></div>
+  </div>
+
+  <script>
+    // Logging helper
+    function log(containerId, message, type = 'info') {
+      const container = document.getElementById(containerId);
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      container.appendChild(entry);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Test 1: Readiness State
+    function testReadinessState() {
+      const logId = 'readiness-log';
+      log(logId, 'Testing readiness state...', 'info');
+      
+      if (!window.synapseApi) {
+        log(logId, '❌ synapseApi not available', 'error');
+        return;
+      }
+      
+      if (!window.synapseApi.debug) {
+        log(logId, '❌ synapseApi.debug not available', 'error');
+        return;
+      }
+      
+      const isReady = window.synapseApi.debug.isReady();
+      log(logId, `Synapse ready: ${isReady}`, isReady ? 'success' : 'warning');
+      
+      if (isReady) {
+        log(logId, '✅ Synapse is ready for focus operations', 'success');
+      } else {
+        log(logId, '⏳ Synapse is still initializing', 'warning');
+      }
+    }
+
+    function testDebugInterface() {
+      const logId = 'readiness-log';
+      log(logId, 'Testing debug interface...', 'info');
+      
+      if (!window.synapseApi || !window.synapseApi.debug) {
+        log(logId, '❌ Debug interface not available', 'error');
+        return;
+      }
+      
+      const debug = window.synapseApi.debug;
+      
+      // Test getNodes
+      try {
+        const nodes = debug.getNodes();
+        log(logId, `✅ getNodes() returned ${nodes.length} nodes`, 'success');
+      } catch (err) {
+        log(logId, `❌ getNodes() failed: ${err.message}`, 'error');
+      }
+      
+      // Test getLinks
+      try {
+        const links = debug.getLinks();
+        log(logId, `✅ getLinks() returned ${links.length} links`, 'success');
+      } catch (err) {
+        log(logId, `❌ getLinks() failed: ${err.message}`, 'error');
+      }
+      
+      // Test isReady
+      try {
+        const ready = debug.isReady();
+        log(logId, `✅ isReady() returned ${ready}`, 'success');
+      } catch (err) {
+        log(logId, `❌ isReady() failed: ${err.message}`, 'error');
+      }
+    }
+
+    // Test 2: Pending Focus Queue
+    function testFocusBeforeReady() {
+      const logId = 'queue-log';
+      log(logId, 'Testing focus before ready...', 'info');
+      
+      if (!window.synapseApi) {
+        log(logId, '❌ synapseApi not available', 'error');
+        return;
+      }
+      
+      const isReady = window.synapseApi.debug.isReady();
+      
+      if (isReady) {
+        log(logId, '⚠️ Synapse is already ready - cannot test queue', 'warning');
+        log(logId, 'Reload page and run this test immediately', 'info');
+        return;
+      }
+      
+      log(logId, 'Calling focusNode() before ready...', 'info');
+      window.synapseApi.focusNode('test-node-id');
+      log(logId, '✅ Focus call should be queued', 'success');
+    }
+
+    function testFocusAfterReady() {
+      const logId = 'queue-log';
+      log(logId, 'Testing focus after ready...', 'info');
+      
+      if (!window.synapseApi) {
+        log(logId, '❌ synapseApi not available', 'error');
+        return;
+      }
+      
+      const isReady = window.synapseApi.debug.isReady();
+      
+      if (!isReady) {
+        log(logId, '⚠️ Synapse not ready yet - wait for initialization', 'warning');
+        return;
+      }
+      
+      log(logId, 'Calling focusNode() after ready...', 'info');
+      window.synapseApi.focusNode('test-node-id');
+      log(logId, '✅ Focus call should execute immediately', 'success');
+    }
+
+    function testQueueReplay() {
+      const logId = 'queue-log';
+      log(logId, 'Testing queue replay...', 'info');
+      log(logId, 'Check browser console for replay messages', 'info');
+      log(logId, 'Look for: "🔄 Replaying queued focus"', 'info');
+    }
+
+    // Test 3: Debug State Inspection
+    function inspectNodes() {
+      const logId = 'debug-log';
+      log(logId, 'Inspecting nodes...', 'info');
+      
+      if (!window.synapseApi || !window.synapseApi.debug) {
+        log(logId, '❌ Debug interface not available', 'error');
+        return;
+      }
+      
+      const nodes = window.synapseApi.debug.getNodes();
+      log(logId, `Total nodes: ${nodes.length}`, 'info');
+      
+      const byType = nodes.reduce((acc, n) => {
+        acc[n.type] = (acc[n.type] || 0) + 1;
+        return acc;
+      }, {});
+      
+      Object.entries(byType).forEach(([type, count]) => {
+        log(logId, `  ${type}: ${count}`, 'info');
+      });
+      
+      log(logId, 'Full node list logged to console', 'success');
+      console.log('Nodes:', nodes);
+    }
+
+    function inspectLinks() {
+      const logId = 'debug-log';
+      log(logId, 'Inspecting links...', 'info');
+      
+      if (!window.synapseApi || !window.synapseApi.debug) {
+        log(logId, '❌ Debug interface not available', 'error');
+        return;
+      }
+      
+      const links = window.synapseApi.debug.getLinks();
+      log(logId, `Total links: ${links.length}`, 'info');
+      
+      const byType = links.reduce((acc, l) => {
+        const type = l.type || 'unknown';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {});
+      
+      Object.entries(byType).forEach(([type, count]) => {
+        log(logId, `  ${type}: ${count}`, 'info');
+      });
+      
+      log(logId, 'Full link list logged to console', 'success');
+      console.log('Links:', links);
+    }
+
+    function inspectReadiness() {
+      const logId = 'debug-log';
+      log(logId, 'Inspecting readiness...', 'info');
+      
+      if (!window.synapseApi || !window.synapseApi.debug) {
+        log(logId, '❌ Debug interface not available', 'error');
+        return;
+      }
+      
+      const isReady = window.synapseApi.debug.isReady();
+      const nodes = window.synapseApi.debug.getNodes();
+      const links = window.synapseApi.debug.getLinks();
+      
+      log(logId, `Ready: ${isReady}`, isReady ? 'success' : 'warning');
+      log(logId, `Nodes loaded: ${nodes.length}`, 'info');
+      log(logId, `Links loaded: ${links.length}`, 'info');
+      
+      if (isReady && nodes.length > 0) {
+        log(logId, '✅ Synapse fully initialized', 'success');
+      } else if (!isReady) {
+        log(logId, '⏳ Synapse still initializing', 'warning');
+      } else {
+        log(logId, '⚠️ Synapse ready but no nodes loaded', 'warning');
+      }
+    }
+
+    // Test 4: Focus Reliability
+    function testEarlyFocus() {
+      const logId = 'focus-log';
+      log(logId, 'Testing early focus (before init)...', 'info');
+      log(logId, 'Reload page and run this test immediately', 'info');
+      log(logId, 'Focus should be queued and replayed after init', 'info');
+    }
+
+    function testLateFocus() {
+      const logId = 'focus-log';
+      log(logId, 'Testing late focus (after init)...', 'info');
+      
+      if (!window.synapseApi) {
+        log(logId, '❌ synapseApi not available', 'error');
+        return;
+      }
+      
+      const isReady = window.synapseApi.debug.isReady();
+      
+      if (!isReady) {
+        log(logId, '⚠️ Synapse not ready yet', 'warning');
+        return;
+      }
+      
+      const nodes = window.synapseApi.debug.getNodes();
+      if (nodes.length === 0) {
+        log(logId, '⚠️ No nodes loaded', 'warning');
+        return;
+      }
+      
+      // Find a real node to focus on
+      const testNode = nodes.find(n => n.type === 'person');
+      if (testNode) {
+        log(logId, `Focusing on node: ${testNode.name || testNode.id}`, 'info');
+        window.synapseApi.focusNode(testNode.id);
+        log(logId, '✅ Focus should execute immediately', 'success');
+      } else {
+        log(logId, '⚠️ No person nodes found', 'warning');
+      }
+    }
+
+    function testMultipleFocus() {
+      const logId = 'focus-log';
+      log(logId, 'Testing multiple focus calls...', 'info');
+      
+      if (!window.synapseApi) {
+        log(logId, '❌ synapseApi not available', 'error');
+        return;
+      }
+      
+      log(logId, 'Calling focusNode() 3 times...', 'info');
+      window.synapseApi.focusNode('node-1');
+      window.synapseApi.focusNode('node-2');
+      window.synapseApi.focusNode('node-3');
+      
+      log(logId, '✅ Only last focus should be queued/executed', 'success');
+      log(logId, 'Check console for focus messages', 'info');
+    }
+
+    // Auto-run basic tests on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        testReadinessState();
+        testDebugInterface();
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
