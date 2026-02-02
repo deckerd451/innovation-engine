@@ -33,6 +33,29 @@
     console.log('👋 Initializing presence session for user:', userId);
 
     try {
+      // Check if user exists in community table first
+      const { data: userExists, error: checkError } = await supabase
+        .from('community')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (checkError || !userExists) {
+        console.warn('⚠️ User not found in community table, skipping presence session');
+        console.log('💡 Presence will be initialized after profile is created');
+        
+        // Listen for profile creation
+        window.addEventListener('profile-loaded', async (e) => {
+          if (e.detail?.user?.id === userId && !currentSessionId) {
+            console.log('✅ Profile loaded, initializing presence session');
+            await createPresenceSession();
+            startHeartbeat();
+          }
+        });
+        
+        return;
+      }
+
       // Create initial presence session
       await createPresenceSession();
 
@@ -115,6 +138,13 @@
       }
 
       if (error) {
+        // Check if it's a foreign key constraint error (user not in community table)
+        if (error.code === '23503' && error.message?.includes('presence_sessions_user_id_fkey')) {
+          console.warn('⚠️ Cannot create presence session: User profile not found in community table');
+          console.log('💡 Waiting for profile to be created...');
+          return;
+        }
+        
         console.error('Error creating presence session:', error);
         return;
       }
