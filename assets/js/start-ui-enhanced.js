@@ -682,11 +682,11 @@ class EnhancedStartUI {
         if (userProfile) {
           console.log('📊 Fetching network data for profile:', userProfile.id);
           
-          // Fetch all connections (simpler query without foreign key hints)
+          // Fetch all connections (using correct column names)
           const { data: connections, error: connError } = await window.supabase
             .from('connections')
             .select('*')
-            .or(`from_user.eq.${userProfile.id},to_user.eq.${userProfile.id}`)
+            .or(`from_user_id.eq.${userProfile.id},to_user_id.eq.${userProfile.id}`)
             .order('created_at', { ascending: false });
           
           if (connError) {
@@ -698,8 +698,8 @@ class EnhancedStartUI {
               // Fetch all user profiles for connections
               const userIds = new Set();
               connections.forEach(conn => {
-                if (conn.from_user !== userProfile.id) userIds.add(conn.from_user);
-                if (conn.to_user !== userProfile.id) userIds.add(conn.to_user);
+                if (conn.from_user_id !== userProfile.id) userIds.add(conn.from_user_id);
+                if (conn.to_user_id !== userProfile.id) userIds.add(conn.to_user_id);
               });
               
               const { data: profiles } = await window.supabase
@@ -713,8 +713,8 @@ class EnhancedStartUI {
               }
               
               allConnections = connections.map(conn => {
-                const isFromUser = conn.from_user === userProfile.id;
-                const otherUserId = isFromUser ? conn.to_user : conn.from_user;
+                const isFromUser = conn.from_user_id === userProfile.id;
+                const otherUserId = isFromUser ? conn.to_user_id : conn.from_user_id;
                 const otherProfile = profileMap[otherUserId];
                 
                 if (!otherProfile) {
@@ -738,11 +738,28 @@ class EnhancedStartUI {
             }
           }
           
-          // Fetch themes (using theme_circles table)
-          const { data: themeParticipants, error: themesError } = await window.supabase
+          // Fetch themes (try different column names)
+          let themeParticipants = null;
+          let themesError = null;
+          
+          // Try community_id first
+          const result1 = await window.supabase
             .from('theme_participants')
             .select('theme_id')
-            .eq('user_id', userProfile.id);
+            .eq('community_id', userProfile.id);
+          
+          if (result1.error) {
+            // Try participant_id
+            const result2 = await window.supabase
+              .from('theme_participants')
+              .select('theme_id')
+              .eq('participant_id', userProfile.id);
+            
+            themeParticipants = result2.data;
+            themesError = result2.error;
+          } else {
+            themeParticipants = result1.data;
+          }
           
           if (themesError) {
             console.error('Error fetching theme participants:', themesError);
