@@ -680,8 +680,10 @@ class EnhancedStartUI {
           .single();
         
         if (userProfile) {
+          console.log('📊 Fetching network data for profile:', userProfile.id);
+          
           // Fetch all connections
-          const { data: connections } = await window.supabase
+          const { data: connections, error: connError } = await window.supabase
             .from('connections')
             .select(`
               *,
@@ -691,53 +693,87 @@ class EnhancedStartUI {
             .or(`from_user.eq.${userProfile.id},to_user.eq.${userProfile.id}`)
             .order('created_at', { ascending: false });
           
-          if (connections) {
-            allConnections = connections.map(conn => {
-              const isFromUser = conn.from_user === userProfile.id;
-              const otherProfile = isFromUser ? conn.to_profile : conn.from_profile;
-              return {
-                ...otherProfile,
-                status: conn.status,
-                created_at: conn.created_at,
-                direction: isFromUser ? 'outgoing' : 'incoming'
-              };
-            }).filter(c => c.id);
+          if (connError) {
+            console.error('Error fetching connections:', connError);
+          } else {
+            console.log('📊 Raw connections data:', connections);
+            
+            if (connections) {
+              allConnections = connections.map(conn => {
+                const isFromUser = conn.from_user === userProfile.id;
+                const otherProfile = isFromUser ? conn.to_profile : conn.from_profile;
+                
+                if (!otherProfile || !otherProfile.id) {
+                  console.warn('Skipping connection with missing profile:', conn);
+                  return null;
+                }
+                
+                return {
+                  id: otherProfile.id,
+                  name: otherProfile.name,
+                  email: otherProfile.email,
+                  bio: otherProfile.bio,
+                  skills: otherProfile.skills,
+                  status: conn.status,
+                  created_at: conn.created_at,
+                  direction: isFromUser ? 'outgoing' : 'incoming'
+                };
+              }).filter(c => c !== null);
+              
+              console.log('📊 Processed connections:', allConnections);
+            }
           }
           
           // Fetch themes
-          const { data: themes } = await window.supabase
+          const { data: themes, error: themesError } = await window.supabase
             .from('theme_participants')
             .select('theme:themes(*)')
             .eq('user_id', userProfile.id);
           
-          if (themes) {
+          if (themesError) {
+            console.error('Error fetching themes:', themesError);
+          } else if (themes) {
             allThemes = themes.map(t => t.theme).filter(t => t);
+            console.log('📊 Themes:', allThemes.length);
           }
           
           // Fetch projects
-          const { data: projects } = await window.supabase
+          const { data: projects, error: projectsError } = await window.supabase
             .from('project_members')
             .select('project:projects(*)')
             .eq('user_id', userProfile.id);
           
-          if (projects) {
+          if (projectsError) {
+            console.error('Error fetching projects:', projectsError);
+          } else if (projects) {
             allProjects = projects.map(p => p.project).filter(p => p);
+            console.log('📊 Projects:', allProjects.length);
           }
           
           // Fetch organizations
-          const { data: orgFollows } = await window.supabase
+          const { data: orgFollows, error: orgsError } = await window.supabase
             .from('organization_followers')
             .select('organization:organizations(*)')
             .eq('user_id', userProfile.id);
           
-          if (orgFollows) {
+          if (orgsError) {
+            console.error('Error fetching organizations:', orgsError);
+          } else if (orgFollows) {
             allOrganizations = orgFollows.map(o => o.organization).filter(o => o);
+            console.log('📊 Organizations:', allOrganizations.length);
           }
         }
       }
     } catch (error) {
       console.error('Error fetching comprehensive network data:', error);
     }
+    
+    console.log('📊 Final counts:', {
+      connections: allConnections.length,
+      themes: allThemes.length,
+      projects: allProjects.length,
+      organizations: allOrganizations.length
+    });
     
     const date = new Date().toLocaleDateString('en-US', { 
       weekday: 'long', 
