@@ -511,10 +511,11 @@ export function filterSynapseByCategory(category) {
     'people': 'person',
     'projects': 'project',
     'organizations': 'organization',
-    'themes': 'theme'
+    'themes': 'theme',
+    'discovery': 'all' // Discovery mode shows all nodes
   };
   
-  if (category === 'all') {
+  if (category === 'all' || category === 'discovery') {
     // Show everything
     allNodes
       .transition()
