@@ -38,7 +38,7 @@
         .from('community')
         .select('id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (checkError || !userExists) {
         console.warn('⚠️ User not found in community table, skipping presence session');
