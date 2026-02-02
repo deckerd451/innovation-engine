@@ -950,9 +950,85 @@ class StartFlowManager {
     }
   }
 
-  downloadReport() {
+  async downloadReport() {
     const startDate = new Date(this.state.sessionLog.startTime);
     const endDate = new Date(this.state.sessionLog.endTime);
+    
+    // Fetch current user's full network data
+    let allConnections = [];
+    let allThemes = [];
+    let allProjects = [];
+    let allOrganizations = [];
+    
+    try {
+      const { data: { user } } = await window.supabase.auth.getUser();
+      if (user) {
+        // Get user's community profile
+        const { data: profile } = await window.supabase
+          .from('community')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile) {
+          // Fetch all connections (both directions)
+          const { data: connections } = await window.supabase
+            .from('connections')
+            .select(`
+              *,
+              from_profile:community!connections_from_user_fkey(id, name, email, bio, skills),
+              to_profile:community!connections_to_user_fkey(id, name, email, bio, skills)
+            `)
+            .or(`from_user.eq.${profile.id},to_user.eq.${profile.id}`)
+            .order('created_at', { ascending: false });
+          
+          if (connections) {
+            allConnections = connections.map(conn => {
+              const isFromUser = conn.from_user === profile.id;
+              const otherProfile = isFromUser ? conn.to_profile : conn.from_profile;
+              return {
+                ...otherProfile,
+                status: conn.status,
+                created_at: conn.created_at,
+                direction: isFromUser ? 'outgoing' : 'incoming'
+              };
+            }).filter(c => c.id); // Filter out null profiles
+          }
+          
+          // Fetch user's themes
+          const { data: themes } = await window.supabase
+            .from('theme_participants')
+            .select('theme:themes(*)')
+            .eq('user_id', profile.id);
+          
+          if (themes) {
+            allThemes = themes.map(t => t.theme).filter(t => t);
+          }
+          
+          // Fetch user's projects
+          const { data: projects } = await window.supabase
+            .from('project_members')
+            .select('project:projects(*)')
+            .eq('user_id', profile.id);
+          
+          if (projects) {
+            allProjects = projects.map(p => p.project).filter(p => p);
+          }
+          
+          // Fetch followed organizations
+          const { data: orgFollows } = await window.supabase
+            .from('organization_followers')
+            .select('organization:organizations(*)')
+            .eq('user_id', profile.id);
+          
+          if (orgFollows) {
+            allOrganizations = orgFollows.map(o => o.organization).filter(o => o);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching network data for report:', error);
+    }
     
     let reportText = `
 ╔════════════════════════════════════════════════════════════════════════════╗
@@ -974,7 +1050,7 @@ class StartFlowManager {
   💡 Projects:          ${this.state.stepData.projects?.count || 0}
   👥 People:            ${this.state.stepData.people?.count || 0}
 
-✨ ACTIONS TAKEN
+✨ ACTIONS TAKEN THIS SESSION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Themes Interested:           ${this.state.sessionLog.themesInterested.length}
   Organizations Followed:      ${this.state.sessionLog.organizationsFollowed.length}
@@ -982,9 +1058,9 @@ class StartFlowManager {
   Connections Accepted:        ${this.state.sessionLog.connectionsAccepted.length}
 `;
 
-    // Add themes details
+    // Add themes details from this session
     if (this.state.sessionLog.themesInterested.length > 0) {
-      reportText += `\n🎨 THEMES YOU'RE INTERESTED IN\n`;
+      reportText += `\n🎨 THEMES YOU'RE INTERESTED IN (THIS SESSION)\n`;
       reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
       this.state.sessionLog.themesInterested.forEach((theme, index) => {
         reportText += `\n  ${index + 1}. ${theme.title}\n`;
@@ -996,9 +1072,9 @@ class StartFlowManager {
       });
     }
 
-    // Add organizations details
+    // Add organizations details from this session
     if (this.state.sessionLog.organizationsFollowed.length > 0) {
-      reportText += `\n🏢 ORGANIZATIONS YOU FOLLOWED\n`;
+      reportText += `\n🏢 ORGANIZATIONS YOU FOLLOWED (THIS SESSION)\n`;
       reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
       this.state.sessionLog.organizationsFollowed.forEach((org, index) => {
         reportText += `\n  ${index + 1}. ${org.name}\n`;
@@ -1010,9 +1086,9 @@ class StartFlowManager {
       });
     }
 
-    // Add connection requests details
+    // Add connection requests details from this session
     if (this.state.sessionLog.connectionRequestsSent.length > 0) {
-      reportText += `\n👥 CONNECTION REQUESTS SENT\n`;
+      reportText += `\n👥 CONNECTION REQUESTS SENT (THIS SESSION)\n`;
       reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
       this.state.sessionLog.connectionRequestsSent.forEach((person, index) => {
         reportText += `\n  ${index + 1}. ${person.name}\n`;
@@ -1022,9 +1098,9 @@ class StartFlowManager {
       });
     }
 
-    // Add connections accepted details
+    // Add connections accepted details from this session
     if (this.state.sessionLog.connectionsAccepted.length > 0) {
-      reportText += `\n✅ CONNECTIONS ACCEPTED\n`;
+      reportText += `\n✅ CONNECTIONS ACCEPTED (THIS SESSION)\n`;
       reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
       this.state.sessionLog.connectionsAccepted.forEach((person, index) => {
         reportText += `\n  ${index + 1}. ${person.name}\n`;
@@ -1033,9 +1109,102 @@ class StartFlowManager {
       });
     }
 
+    // Add comprehensive network overview
+    reportText += `\n\n╔════════════════════════════════════════════════════════════════════════════╗\n`;
+    reportText += `║                    COMPLETE NETWORK OVERVIEW                               ║\n`;
+    reportText += `╚════════════════════════════════════════════════════════════════════════════╝\n`;
+
+    // All connections
+    if (allConnections.length > 0) {
+      const acceptedConnections = allConnections.filter(c => c.status === 'accepted');
+      const pendingConnections = allConnections.filter(c => c.status === 'pending');
+      
+      reportText += `\n👥 ALL CONNECTIONS (${allConnections.length} total)\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      
+      if (acceptedConnections.length > 0) {
+        reportText += `\n✅ ACCEPTED CONNECTIONS (${acceptedConnections.length})\n`;
+        acceptedConnections.forEach((person, index) => {
+          reportText += `\n  ${index + 1}. ${person.name}\n`;
+          reportText += `     Email: ${person.email}\n`;
+          if (person.bio) {
+            reportText += `     Bio: ${person.bio}\n`;
+          }
+          if (person.skills) {
+            reportText += `     Skills: ${person.skills}\n`;
+          }
+          reportText += `     Connected: ${new Date(person.created_at).toLocaleDateString()}\n`;
+        });
+      }
+      
+      if (pendingConnections.length > 0) {
+        reportText += `\n⏳ PENDING CONNECTIONS (${pendingConnections.length})\n`;
+        pendingConnections.forEach((person, index) => {
+          reportText += `\n  ${index + 1}. ${person.name}\n`;
+          reportText += `     Status: ${person.direction === 'outgoing' ? 'Request sent' : 'Request received'}\n`;
+          if (person.bio) {
+            reportText += `     Bio: ${person.bio}\n`;
+          }
+          reportText += `     Date: ${new Date(person.created_at).toLocaleDateString()}\n`;
+        });
+      }
+    } else {
+      reportText += `\n👥 ALL CONNECTIONS\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      reportText += `\n  No connections yet. Start building your network!\n`;
+    }
+
+    // All themes
+    if (allThemes.length > 0) {
+      reportText += `\n\n🎨 ALL THEMES YOU'RE PARTICIPATING IN (${allThemes.length})\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      allThemes.forEach((theme, index) => {
+        reportText += `\n  ${index + 1}. ${theme.title}\n`;
+        if (theme.description) {
+          reportText += `     ${theme.description}\n`;
+        }
+        if (theme.tags && theme.tags.length > 0) {
+          reportText += `     Tags: ${theme.tags.join(', ')}\n`;
+        }
+      });
+    }
+
+    // All projects
+    if (allProjects.length > 0) {
+      reportText += `\n\n💡 ALL PROJECTS YOU'RE INVOLVED IN (${allProjects.length})\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      allProjects.forEach((project, index) => {
+        reportText += `\n  ${index + 1}. ${project.title}\n`;
+        if (project.description) {
+          reportText += `     ${project.description}\n`;
+        }
+        if (project.status) {
+          reportText += `     Status: ${project.status}\n`;
+        }
+      });
+    }
+
+    // All organizations
+    if (allOrganizations.length > 0) {
+      reportText += `\n\n🏢 ALL ORGANIZATIONS YOU FOLLOW (${allOrganizations.length})\n`;
+      reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      allOrganizations.forEach((org, index) => {
+        reportText += `\n  ${index + 1}. ${org.name}\n`;
+        if (org.description) {
+          reportText += `     ${org.description}\n`;
+        }
+        if (org.industry && org.industry.length > 0) {
+          reportText += `     Industry: ${org.industry.join(', ')}\n`;
+        }
+        if (org.website) {
+          reportText += `     Website: ${org.website}\n`;
+        }
+      });
+    }
+
     // Add errors if any
     if (this.state.sessionLog.errors.length > 0) {
-      reportText += `\n⚠️  ERRORS ENCOUNTERED\n`;
+      reportText += `\n\n⚠️  ERRORS ENCOUNTERED\n`;
       reportText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
       this.state.sessionLog.errors.forEach((error, index) => {
         reportText += `\n  ${index + 1}. ${error.step || error.action || 'Unknown'}\n`;
