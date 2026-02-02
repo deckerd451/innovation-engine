@@ -37,7 +37,7 @@
       const { data: userExists, error: checkError } = await supabase
         .from('community')
         .select('id')
-        .eq('id', userId)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (checkError || !userExists) {
