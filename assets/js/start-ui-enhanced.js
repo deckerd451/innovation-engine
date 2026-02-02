@@ -682,14 +682,10 @@ class EnhancedStartUI {
         if (userProfile) {
           console.log('📊 Fetching network data for profile:', userProfile.id);
           
-          // Fetch all connections
+          // Fetch all connections (simpler query without foreign key hints)
           const { data: connections, error: connError } = await window.supabase
             .from('connections')
-            .select(`
-              *,
-              from_profile:community!connections_from_user_fkey(id, name, email, bio, skills),
-              to_profile:community!connections_to_user_fkey(id, name, email, bio, skills)
-            `)
+            .select('*')
             .or(`from_user.eq.${userProfile.id},to_user.eq.${userProfile.id}`)
             .order('created_at', { ascending: false });
           
@@ -698,12 +694,30 @@ class EnhancedStartUI {
           } else {
             console.log('📊 Raw connections data:', connections);
             
-            if (connections) {
+            if (connections && connections.length > 0) {
+              // Fetch all user profiles for connections
+              const userIds = new Set();
+              connections.forEach(conn => {
+                if (conn.from_user !== userProfile.id) userIds.add(conn.from_user);
+                if (conn.to_user !== userProfile.id) userIds.add(conn.to_user);
+              });
+              
+              const { data: profiles } = await window.supabase
+                .from('community')
+                .select('id, name, email, bio, skills')
+                .in('id', Array.from(userIds));
+              
+              const profileMap = {};
+              if (profiles) {
+                profiles.forEach(p => profileMap[p.id] = p);
+              }
+              
               allConnections = connections.map(conn => {
                 const isFromUser = conn.from_user === userProfile.id;
-                const otherProfile = isFromUser ? conn.to_profile : conn.from_profile;
+                const otherUserId = isFromUser ? conn.to_user : conn.from_user;
+                const otherProfile = profileMap[otherUserId];
                 
-                if (!otherProfile || !otherProfile.id) {
+                if (!otherProfile) {
                   console.warn('Skipping connection with missing profile:', conn);
                   return null;
                 }
@@ -724,43 +738,85 @@ class EnhancedStartUI {
             }
           }
           
-          // Fetch themes
-          const { data: themes, error: themesError } = await window.supabase
+          // Fetch themes (using theme_circles table)
+          const { data: themeParticipants, error: themesError } = await window.supabase
             .from('theme_participants')
-            .select('theme:themes(*)')
+            .select('theme_id')
             .eq('user_id', userProfile.id);
           
           if (themesError) {
-            console.error('Error fetching themes:', themesError);
-          } else if (themes) {
-            allThemes = themes.map(t => t.theme).filter(t => t);
-            console.log('📊 Themes:', allThemes.length);
+            console.error('Error fetching theme participants:', themesError);
+          } else if (themeParticipants && themeParticipants.length > 0) {
+            const themeIds = themeParticipants.map(tp => tp.theme_id);
+            const { data: themes } = await window.supabase
+              .from('theme_circles')
+              .select('*')
+              .in('id', themeIds);
+            
+            if (themes) {
+              allThemes = themes;
+              console.log('📊 Themes:', allThemes.length);
+            }
           }
           
           // Fetch projects
-          const { data: projects, error: projectsError } = await window.supabase
+          const { data: projectMembers, error: projectsError } = await window.supabase
             .from('project_members')
-            .select('project:projects(*)')
+            .select('project_id')
             .eq('user_id', userProfile.id);
           
           if (projectsError) {
-            console.error('Error fetching projects:', projectsError);
-          } else if (projects) {
-            allProjects = projects.map(p => p.project).filter(p => p);
-            console.log('📊 Projects:', allProjects.length);
+            console.error('Error fetching project members:', projectsError);
+          } else if (projectMembers && projectMembers.length > 0) {
+            const projectIds = projectMembers.map(pm => pm.project_id);
+            const { data: projects } = await window.supabase
+              .from('projects')
+              .select('*')
+              .in('id', projectIds);
+            
+            if (projects) {
+              allProjects = projects;
+              console.log('📊 Projects:', allProjects.length);
+            }
           }
           
-          // Fetch organizations
+          // Fetch organizations (check what column name is used)
           const { data: orgFollows, error: orgsError } = await window.supabase
             .from('organization_followers')
-            .select('organization:organizations(*)')
-            .eq('user_id', userProfile.id);
+            .select('*')
+            .eq('follower_id', userProfile.id);
           
           if (orgsError) {
             console.error('Error fetching organizations:', orgsError);
-          } else if (orgFollows) {
-            allOrganizations = orgFollows.map(o => o.organization).filter(o => o);
-            console.log('📊 Organizations:', allOrganizations.length);
+            // Try alternative column name
+            const { data: orgFollows2, error: orgsError2 } = await window.supabase
+              .from('organization_followers')
+              .select('*')
+              .eq('community_id', userProfile.id);
+            
+            if (!orgsError2 && orgFollows2 && orgFollows2.length > 0) {
+              const orgIds = orgFollows2.map(of => of.organization_id);
+              const { data: orgs } = await window.supabase
+                .from('organizations')
+                .select('*')
+                .in('id', orgIds);
+              
+              if (orgs) {
+                allOrganizations = orgs;
+                console.log('📊 Organizations:', allOrganizations.length);
+              }
+            }
+          } else if (orgFollows && orgFollows.length > 0) {
+            const orgIds = orgFollows.map(of => of.organization_id);
+            const { data: orgs } = await window.supabase
+              .from('organizations')
+              .select('*')
+              .in('id', orgIds);
+            
+            if (orgs) {
+              allOrganizations = orgs;
+              console.log('📊 Organizations:', allOrganizations.length);
+            }
           }
         }
       }
