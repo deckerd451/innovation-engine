@@ -57,13 +57,20 @@
    */
   async function createPresenceSession() {
     try {
-      // Try with is_active column first
+      const now = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + SESSION_TIMEOUT).toISOString();
+      
+      // Try with all columns (unified network schema + simple tracking)
       let { data, error } = await supabase
         .from('presence_sessions')
         .insert({
           user_id: userId,
-          last_seen: new Date().toISOString(),
-          is_active: true
+          last_seen: now,
+          is_active: true,
+          context_type: 'general',
+          context_id: '00000000-0000-0000-0000-000000000000',
+          energy: 1.0,
+          expires_at: expiresAt
         })
         .select()
         .single();
@@ -75,7 +82,30 @@
           .from('presence_sessions')
           .insert({
             user_id: userId,
-            last_seen: new Date().toISOString()
+            last_seen: now,
+            context_type: 'general',
+            context_id: '00000000-0000-0000-0000-000000000000',
+            energy: 1.0,
+            expires_at: expiresAt
+          })
+          .select()
+          .single();
+        
+        data = result.data;
+        error = result.error;
+      }
+
+      // If last_seen column doesn't exist, try with just unified network schema
+      if (error && error.message?.includes('last_seen')) {
+        console.warn('⚠️ last_seen column not found, using unified network schema only');
+        const result = await supabase
+          .from('presence_sessions')
+          .insert({
+            user_id: userId,
+            context_type: 'general',
+            context_id: '00000000-0000-0000-0000-000000000000',
+            energy: 1.0,
+            expires_at: expiresAt
           })
           .select()
           .single();
@@ -107,11 +137,16 @@
     }
 
     try {
+      const now = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + SESSION_TIMEOUT).toISOString();
+      
       const { error } = await supabase
         .from('presence_sessions')
         .update({
-          last_seen: new Date().toISOString(),
-          is_active: true
+          last_seen: now,
+          is_active: true,
+          expires_at: expiresAt,
+          energy: 1.0
         })
         .eq('id', currentSessionId);
 
