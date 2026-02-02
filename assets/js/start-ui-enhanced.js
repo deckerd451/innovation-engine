@@ -651,7 +651,7 @@ class EnhancedStartUI {
   /**
    * Download report as readable text/HTML
    */
-  downloadReport() {
+  async downloadReport() {
     if (!this.currentData) {
       return;
     }
@@ -664,12 +664,90 @@ class EnhancedStartUI {
     const momentum = data.momentum || {};
     const network = data.network_insights || {};
     
+    // Fetch comprehensive network data
+    let allConnections = [];
+    let allThemes = [];
+    let allProjects = [];
+    let allOrganizations = [];
+    
+    try {
+      const { data: { user } } = await window.supabase.auth.getUser();
+      if (user) {
+        const { data: userProfile } = await window.supabase
+          .from('community')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (userProfile) {
+          // Fetch all connections
+          const { data: connections } = await window.supabase
+            .from('connections')
+            .select(`
+              *,
+              from_profile:community!connections_from_user_fkey(id, name, email, bio, skills),
+              to_profile:community!connections_to_user_fkey(id, name, email, bio, skills)
+            `)
+            .or(`from_user.eq.${userProfile.id},to_user.eq.${userProfile.id}`)
+            .order('created_at', { ascending: false });
+          
+          if (connections) {
+            allConnections = connections.map(conn => {
+              const isFromUser = conn.from_user === userProfile.id;
+              const otherProfile = isFromUser ? conn.to_profile : conn.from_profile;
+              return {
+                ...otherProfile,
+                status: conn.status,
+                created_at: conn.created_at,
+                direction: isFromUser ? 'outgoing' : 'incoming'
+              };
+            }).filter(c => c.id);
+          }
+          
+          // Fetch themes
+          const { data: themes } = await window.supabase
+            .from('theme_participants')
+            .select('theme:themes(*)')
+            .eq('user_id', userProfile.id);
+          
+          if (themes) {
+            allThemes = themes.map(t => t.theme).filter(t => t);
+          }
+          
+          // Fetch projects
+          const { data: projects } = await window.supabase
+            .from('project_members')
+            .select('project:projects(*)')
+            .eq('user_id', userProfile.id);
+          
+          if (projects) {
+            allProjects = projects.map(p => p.project).filter(p => p);
+          }
+          
+          // Fetch organizations
+          const { data: orgFollows } = await window.supabase
+            .from('organization_followers')
+            .select('organization:organizations(*)')
+            .eq('user_id', userProfile.id);
+          
+          if (orgFollows) {
+            allOrganizations = orgFollows.map(o => o.organization).filter(o => o);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching comprehensive network data:', error);
+    }
+    
     const date = new Date().toLocaleDateString('en-US', { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
     });
+    
+    const acceptedConnections = allConnections.filter(c => c.status === 'accepted');
+    const pendingConnections = allConnections.filter(c => c.status === 'pending');
 
     // Create HTML report
     const htmlReport = `<!DOCTYPE html>
@@ -698,11 +776,17 @@ class EnhancedStartUI {
     .stat-label { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: 0.25rem; }
     .insight { background: rgba(0,255,136,0.1); border-left: 4px solid #00ff88; padding: 1rem; margin: 0.5rem 0; border-radius: 4px; }
     .count { color: #00ff88; font-weight: bold; }
+    .connection-item { background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); padding: 1rem; margin: 0.5rem 0; border-radius: 6px; }
+    .connection-name { color: #00e0ff; font-weight: bold; font-size: 1.1rem; }
+    .connection-email { color: #00ff88; font-size: 0.9rem; }
+    .connection-bio { color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-top: 0.5rem; }
+    .connection-meta { color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-top: 0.5rem; }
+    .section-divider { border-top: 2px solid rgba(0,224,255,0.3); margin: 3rem 0; padding-top: 2rem; }
     .footer { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.2); text-align: center; color: rgba(255,255,255,0.5); font-size: 0.9rem; }
     @media print {
       body { background: white; color: black; }
       h1, h2, h3 { color: #0066cc; }
-      .stat-card { border: 1px solid #ddd; }
+      .stat-card, .connection-item { border: 1px solid #ddd; }
     }
     @media (max-width: 600px) {
       body { padding: 1rem; }
@@ -733,7 +817,7 @@ class EnhancedStartUI {
       <div class="stat-label">Day Streak</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value">${progress.connection_count || 0}</div>
+      <div class="stat-value">${allConnections.length || progress.connection_count || 0}</div>
       <div class="stat-label">Connections</div>
     </div>
   </div>
@@ -801,16 +885,20 @@ class EnhancedStartUI {
   <h2>🌐 Network Insights</h2>
   <div class="stat-grid">
     <div class="stat-card">
-      <div class="stat-value">${network.connections?.total || 0}</div>
+      <div class="stat-value">${allConnections.length || network.connections?.total || 0}</div>
       <div class="stat-label">Total Connections</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value">${network.active_projects?.count || 0}</div>
+      <div class="stat-value">${allProjects.length || network.active_projects?.count || 0}</div>
       <div class="stat-label">Active Projects</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value">${network.participating_themes?.count || 0}</div>
+      <div class="stat-value">${allThemes.length || network.participating_themes?.count || 0}</div>
       <div class="stat-label">Participating Themes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${allOrganizations.length || 0}</div>
+      <div class="stat-label">Organizations</div>
     </div>
   </div>
 
@@ -824,6 +912,73 @@ class EnhancedStartUI {
   <div class="insight">
     <strong>New Themes:</strong> <span class="count">${network.growth?.new_themes || 0}</span>
   </div>
+
+  <div class="section-divider"></div>
+
+  <h2>👥 Complete Network Overview</h2>
+  
+  ${acceptedConnections.length > 0 ? `
+    <h3>✅ Accepted Connections (${acceptedConnections.length})</h3>
+    ${acceptedConnections.map(conn => `
+      <div class="connection-item">
+        <div class="connection-name">${conn.name || 'Unknown'}</div>
+        <div class="connection-email">${conn.email || 'No email'}</div>
+        ${conn.bio ? `<div class="connection-bio">${conn.bio}</div>` : ''}
+        ${conn.skills ? `<div class="connection-meta"><strong>Skills:</strong> ${conn.skills}</div>` : ''}
+        <div class="connection-meta">Connected: ${new Date(conn.created_at).toLocaleDateString()}</div>
+      </div>
+    `).join('')}
+  ` : ''}
+
+  ${pendingConnections.length > 0 ? `
+    <h3>⏳ Pending Connections (${pendingConnections.length})</h3>
+    ${pendingConnections.map(conn => `
+      <div class="connection-item">
+        <div class="connection-name">${conn.name || 'Unknown'}</div>
+        <div class="connection-meta">Status: ${conn.direction === 'outgoing' ? 'Request sent' : 'Request received'}</div>
+        ${conn.bio ? `<div class="connection-bio">${conn.bio}</div>` : ''}
+        <div class="connection-meta">Date: ${new Date(conn.created_at).toLocaleDateString()}</div>
+      </div>
+    `).join('')}
+  ` : ''}
+
+  ${allConnections.length === 0 ? `
+    <p style="color: rgba(255,255,255,0.6);">No connections yet. Start building your network!</p>
+  ` : ''}
+
+  ${allThemes.length > 0 ? `
+    <h3>🎨 Your Themes (${allThemes.length})</h3>
+    ${allThemes.map(theme => `
+      <div class="connection-item">
+        <div class="connection-name">${theme.title || 'Untitled Theme'}</div>
+        ${theme.description ? `<div class="connection-bio">${theme.description}</div>` : ''}
+        ${theme.tags && theme.tags.length > 0 ? `<div class="connection-meta"><strong>Tags:</strong> ${theme.tags.join(', ')}</div>` : ''}
+      </div>
+    `).join('')}
+  ` : ''}
+
+  ${allProjects.length > 0 ? `
+    <h3>💡 Your Projects (${allProjects.length})</h3>
+    ${allProjects.map(project => `
+      <div class="connection-item">
+        <div class="connection-name">${project.title || 'Untitled Project'}</div>
+        ${project.description ? `<div class="connection-bio">${project.description}</div>` : ''}
+        ${project.status ? `<div class="connection-meta"><strong>Status:</strong> ${project.status}</div>` : ''}
+      </div>
+    `).join('')}
+  ` : ''}
+
+  ${allOrganizations.length > 0 ? `
+    <h3>🏢 Organizations You Follow (${allOrganizations.length})</h3>
+    ${allOrganizations.map(org => `
+      <div class="connection-item">
+        <div class="connection-name">${org.name || 'Unnamed Organization'}</div>
+        ${org.description ? `<div class="connection-bio">${org.description}</div>` : ''}
+        ${org.industry && org.industry.length > 0 ? `<div class="connection-meta"><strong>Industry:</strong> ${org.industry.join(', ')}</div>` : ''}
+        ${org.website ? `<div class="connection-meta"><strong>Website:</strong> <a href="${org.website}" target="_blank" style="color: #00e0ff;">${org.website}</a></div>` : ''}
+      </div>
+    `).join('')}
+  ` : ''}
 
   <div class="footer">
     <p>Generated by CharlestonHacks START Sequence</p>
