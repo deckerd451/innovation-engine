@@ -176,7 +176,7 @@ function addPreferencesButton() {
                  document.querySelector('.top-bar');
   
   if (!header) {
-    logger.warn('UnifiedNetworkIntegration', 'Could not find header to add preferences button');
+    logger.debug('UnifiedNetworkIntegration', 'No header found for preferences button - skipping UI integration');
     return;
   }
   
