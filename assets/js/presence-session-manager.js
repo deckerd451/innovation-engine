@@ -34,13 +34,18 @@
 
     try {
       // Check if user exists in community table first
+      console.log('🔍 Checking for user profile with user_id:', userId);
+      
       const { data: userExists, error: checkError } = await supabase
         .from('community')
-        .select('id')
+        .select('id, user_id, email, name')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (checkError || !userExists) {
+      console.log('📊 Profile check result:', { userExists, checkError });
+
+      if (checkError) {
+        console.error('❌ Error checking for profile:', checkError);
         console.warn('⚠️ User not found in community table, skipping presence session');
         console.log('💡 Presence will be initialized after profile is created');
         
@@ -55,6 +60,24 @@
         
         return;
       }
+
+      if (!userExists) {
+        console.warn('⚠️ User not found in community table, skipping presence session');
+        console.log('💡 Presence will be initialized after profile is created');
+        
+        // Listen for profile creation
+        window.addEventListener('profile-loaded', async (e) => {
+          if (e.detail?.user?.id === userId && !currentSessionId) {
+            console.log('✅ Profile loaded, initializing presence session');
+            await createPresenceSession();
+            startHeartbeat();
+          }
+        });
+        
+        return;
+      }
+
+      console.log('✅ Found user profile:', userExists);
 
       // Create initial presence session
       await createPresenceSession();
