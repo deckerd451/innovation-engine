@@ -57,7 +57,8 @@
    */
   async function createPresenceSession() {
     try {
-      const { data, error } = await supabase
+      // Try with is_active column first
+      let { data, error } = await supabase
         .from('presence_sessions')
         .insert({
           user_id: userId,
@@ -66,6 +67,22 @@
         })
         .select()
         .single();
+
+      // If is_active column doesn't exist, try without it
+      if (error && error.message?.includes('is_active')) {
+        console.warn('⚠️ is_active column not found, creating session without it');
+        const result = await supabase
+          .from('presence_sessions')
+          .insert({
+            user_id: userId,
+            last_seen: new Date().toISOString()
+          })
+          .select()
+          .single();
+        
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) {
         console.error('Error creating presence session:', error);
