@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   // 4) Initialize Unified Network Discovery (if enabled)
   window.addEventListener('profile-loaded', async (e) => {
-    const { user } = e.detail;
+    const { user, profile } = e.detail;
     
     if (user && window.unifiedNetworkIntegration) {
       log.debug('🧠 Attempting to initialize Unified Network Discovery...');
@@ -65,11 +65,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
     
-    // Initialize presence tracking
-    if (user && window.PresenceSessionManager && window.supabase) {
+    // Initialize presence tracking with community profile ID
+    if (profile?.id && window.PresenceSessionManager && window.supabase) {
       log.debug('👋 Initializing presence tracking...');
       try {
-        await window.PresenceSessionManager.initialize(window.supabase, user.id);
+        await window.PresenceSessionManager.initialize(window.supabase, profile.id);
         log.info('✅ Presence tracking active');
       } catch (error) {
         log.error('❌ Presence tracking initialization failed:', error);

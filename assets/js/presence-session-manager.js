@@ -18,28 +18,30 @@
   let currentSessionId = null;
   let heartbeatInterval = null;
   let supabase = null;
-  let userId = null;
+  let communityProfileId = null; // Community profile ID, not auth user ID
 
   const HEARTBEAT_INTERVAL = 30000; // 30 seconds
   const SESSION_TIMEOUT = 60000; // 1 minute (2x heartbeat)
 
   /**
    * Initialize presence tracking for current user
+   * @param {object} supabaseClient - Supabase client instance
+   * @param {string} profileId - Community profile ID (not auth user ID)
    */
-  async function initialize(supabaseClient, currentUserId) {
+  async function initialize(supabaseClient, profileId) {
     supabase = supabaseClient;
-    userId = currentUserId;
+    communityProfileId = profileId;
 
-    console.log('👋 Initializing presence session for user:', userId);
+    console.log('👋 Initializing presence session for community profile:', profileId);
 
     try {
       // Check if user exists in community table first
-      console.log('🔍 Checking for user profile with user_id:', userId);
+      console.log('🔍 Checking for user profile with user_id:', communityProfileId);
       
       const { data: userExists, error: checkError } = await supabase
         .from('community')
         .select('id, user_id, email, name')
-        .eq('user_id', userId)
+        .eq('id', communityProfileId)
         .maybeSingle();
 
       console.log('📊 Profile check result:', { userExists, checkError });
@@ -51,7 +53,7 @@
         
         // Listen for profile creation
         window.addEventListener('profile-loaded', async (e) => {
-          if (e.detail?.user?.id === userId && !currentSessionId) {
+          if (e.detail?.profile?.id === communityProfileId && !currentSessionId) {
             console.log('✅ Profile loaded, initializing presence session');
             await createPresenceSession();
             startHeartbeat();
@@ -67,7 +69,7 @@
         
         // Listen for profile creation
         window.addEventListener('profile-loaded', async (e) => {
-          if (e.detail?.user?.id === userId && !currentSessionId) {
+          if (e.detail?.profile?.id === communityProfileId && !currentSessionId) {
             console.log('✅ Profile loaded, initializing presence session');
             await createPresenceSession();
             startHeartbeat();
@@ -110,7 +112,7 @@
       let { data, error } = await supabase
         .from('presence_sessions')
         .insert({
-          user_id: userId,
+          user_id: communityProfileId,
           last_seen: now,
           is_active: true,
           context_type: 'general',
@@ -127,7 +129,7 @@
         const result = await supabase
           .from('presence_sessions')
           .insert({
-            user_id: userId,
+            user_id: communityProfileId,
             last_seen: now,
             context_type: 'general',
             context_id: '00000000-0000-0000-0000-000000000000',
@@ -147,7 +149,7 @@
         const result = await supabase
           .from('presence_sessions')
           .insert({
-            user_id: userId,
+            user_id: communityProfileId,
             context_type: 'general',
             context_id: '00000000-0000-0000-0000-000000000000',
             energy: 1.0,
@@ -329,7 +331,7 @@
   function getSessionInfo() {
     return {
       sessionId: currentSessionId,
-      userId: userId,
+      communityProfileId: communityProfileId,
       isActive: !document.hidden && !!heartbeatInterval
     };
   }
