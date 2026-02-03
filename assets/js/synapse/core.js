@@ -863,8 +863,10 @@ function calculateNestedPosition(
     const userThemes = currentUser?.themes || [];
     const userProjects = currentUser?.projects || [];
 
-    // Check if user participates in this theme OR has projects in this theme
-    const isUserConnected = userThemes.includes(node.theme_id);
+    // Use the pre-computed user_is_participant flag from data loading
+    // This is already calculated correctly in data.js based on theme_participants table
+    const isUserConnected = node.user_is_participant === true;
+    
     const hasProjectsInTheme = (node.projects || []).some(project =>
       userProjects.includes(project.id)
     );
@@ -875,6 +877,8 @@ function calculateNestedPosition(
     // Debug logging for theme visibility
     if (!shouldShowTheme) {
       console.log(`🔍 Hiding theme "${node.name || node.title}":`, {
+        theme_id: node.theme_id,
+        user_is_participant: node.user_is_participant,
         isUserConnected,
         hasProjectsInTheme,
         userProjects,
@@ -883,6 +887,8 @@ function calculateNestedPosition(
       });
     } else {
       console.log(`✅ Showing theme "${node.name || node.title}":`, {
+        theme_id: node.theme_id,
+        user_is_participant: node.user_is_participant,
         isUserConnected,
         hasProjectsInTheme,
         userProjects,
@@ -907,7 +913,8 @@ function calculateNestedPosition(
       // User's themes - independent nodes spread around center
       const myThemes = themes
         .filter((t) => {
-          const hasThemeParticipation = userThemes.includes(t.theme_id);
+          // Use pre-computed user_is_participant flag
+          const hasThemeParticipation = t.user_is_participant === true;
           const hasThemeProjects = (t.projects || []).some(p => userProjects.includes(p.id));
           return hasThemeParticipation || hasThemeProjects;
         })
@@ -944,7 +951,8 @@ function calculateNestedPosition(
       // Discovery mode: show unconnected themes in outer orbit
       const otherThemes = themes
         .filter((t) => {
-          const hasThemeParticipation = userThemes.includes(t.theme_id);
+          // Use pre-computed user_is_participant flag
+          const hasThemeParticipation = t.user_is_participant === true;
           const hasThemeProjects = (t.projects || []).some(p => userProjects.includes(p.id));
           return !hasThemeParticipation && !hasThemeProjects;
         })
