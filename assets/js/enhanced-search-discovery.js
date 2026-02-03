@@ -3,7 +3,6 @@
 // ================================================================
 // Comprehensive search across people, projects, themes, and skills with advanced filtering
 
-console.log("%c🔍 Enhanced Search & Discovery Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
 
 let supabase = null;
 let currentUserProfile = null;
@@ -78,7 +77,6 @@ export function initEnhancedSearchDiscovery() {
   // Initialize search cache
   loadSearchData();
 
-  console.log('✅ Enhanced search & discovery initialized');
 }
 
 // Load and cache search data
@@ -86,7 +84,6 @@ async function loadSearchData() {
   if (!supabase) return;
 
   try {
-    console.log('📊 Loading search data...');
 
     // Load people
     const { data: people, error: peopleError } = await supabase
@@ -148,7 +145,6 @@ async function loadSearchData() {
     searchCache.skills = allSkills;
     searchCache.lastUpdated = Date.now();
 
-    console.log(`✅ Search data loaded: ${searchCache.people.length} people, ${searchCache.projects.length} projects, ${searchCache.themes.length} themes, ${searchCache.skills.size} skills`);
 
   } catch (error) {
     console.error('❌ Error loading search data:', error);
@@ -157,7 +153,6 @@ async function loadSearchData() {
 
 // Open enhanced search modal
 export async function openEnhancedSearch(initialQuery = '', initialCategory = 'all') {
-  console.log('🔍 Opening enhanced search...');
 
   // Remove existing modal if present
   const existing = document.getElementById('enhanced-search-modal');
@@ -575,7 +570,6 @@ export async function openEnhancedSearch(initialQuery = '', initialCategory = 'a
     setTimeout(() => performEnhancedSearch(), 100);
   }
 
-  console.log('✅ Enhanced search modal opened');
 }
 
 // Setup search event listeners
@@ -1005,7 +999,6 @@ window.closeEnhancedSearch = function() {
   if (modal) {
     modal.remove();
   }
-  console.log('🗑️ Enhanced search modal closed');
 };
 
 // Initialize on DOM ready
@@ -1013,4 +1006,3 @@ document.addEventListener('DOMContentLoaded', () => {
   initEnhancedSearchDiscovery();
 });
 
-console.log('✅ Enhanced search & discovery ready');

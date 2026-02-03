@@ -29,7 +29,6 @@ export async function initThemeAdmin() {
   window.openThemeAdminModal = openThemeAdminModal;
   window.closeThemeAdminModal = closeThemeAdminModal;
 
-  console.log("✅ Theme admin initialized");
 }
 
 // ============================================================================
@@ -55,7 +54,6 @@ function isAdmin() {
         const parsed = JSON.parse(data);
         const email = parsed?.currentSession?.user?.email || parsed?.user?.email;
         if (email && adminEmails.includes(email.toLowerCase())) {
-          console.log('✅ Admin access granted via email:', email);
           return true;
         }
       }
@@ -71,7 +69,6 @@ function isAdmin() {
                localStorage.getItem('userRole');
 
   if (role && ['admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
-    console.log('✅ Admin access granted via role:', role);
     return true;
   }
 
@@ -81,7 +78,6 @@ function isAdmin() {
       const session = window.supabase.auth?.session?.();
       const email = session?.user?.email;
       if (email && adminEmails.includes(email.toLowerCase())) {
-        console.log('✅ Admin access granted via Supabase session:', email);
         return true;
       }
     } catch (e) {

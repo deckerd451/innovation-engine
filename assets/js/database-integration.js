@@ -29,7 +29,6 @@ function initializeDatabaseIntegration() {
 
   try {
     window.dbHelper = window.initializeDatabaseHelper(window.supabase);
-    console.log('✅ Database helper integrated with Supabase client');
 
     // Initialize enhanced functions
     setupEnhancedFunctions();
@@ -49,7 +48,6 @@ initializeDatabaseIntegration();
 function setupEnhancedFunctions() {
   // Override existing messaging functions with database-aware versions
   window.sendDirectMessage = async function(userId, message) {
-    console.log('📨 Enhanced sendDirectMessage called:', userId, message);
     
     try {
       if (!window.dbHelper) throw new Error('Database helper not initialized');
@@ -67,7 +65,6 @@ function setupEnhancedFunctions() {
         await window.openMessagingInterface(conversation.id);
       }
       
-      console.log('✅ Direct message sent successfully');
       
     } catch (error) {
       console.error('❌ Error in enhanced sendDirectMessage:', error);
@@ -85,7 +82,6 @@ function setupEnhancedFunctions() {
 
   // Enhanced messaging interface
   window.openEnhancedMessagingInterface = async function(conversationId = null) {
-    console.log('💬 Enhanced messaging interface opening...');
     
     try {
       if (!window.dbHelper) throw new Error('Database helper not initialized');
@@ -108,14 +104,12 @@ function setupEnhancedFunctions() {
   // ================================================================
 
   window.sendEnhancedConnectionRequest = async function(toCommunityId, targetName = 'User', type = 'recommendation') {
-    console.log('🤝 Enhanced connection request:', toCommunityId, targetName, type);
     
     try {
       if (!window.dbHelper) throw new Error('Database helper not initialized');
 
       const result = await window.dbHelper.sendConnectionRequest(toCommunityId, type);
       
-      console.log('✅ Enhanced connection request sent:', result);
       
       // Refresh UI components
       if (typeof window.refreshCounters === 'function') {
@@ -151,14 +145,12 @@ function setupEnhancedFunctions() {
 // ================================================================
 
 window.createEnhancedProject = async function(projectData) {
-  console.log('💡 Enhanced project creation:', projectData);
   
   try {
     if (!window.dbHelper) throw new Error('Database helper not initialized');
     
     const project = await window.dbHelper.createProject(projectData);
     
-    console.log('✅ Enhanced project created:', project);
     
     // Refresh UI components
     if (typeof window.refreshCounters === 'function') {
@@ -189,14 +181,12 @@ window.createEnhancedProject = async function(projectData) {
 // ================================================================
 
 window.enhancedCommunitySearch = async function(query, limit = 20) {
-  console.log('🔍 Enhanced community search:', query);
   
   try {
     if (!window.dbHelper) throw new Error('Database helper not initialized');
     
     const results = await window.dbHelper.searchCommunity(query, limit);
     
-    console.log(`✅ Enhanced search found ${results.length} results`);
     
     return results;
     
@@ -218,7 +208,6 @@ window.joinEnhancedTheme = async function(themeId, engagementLevel = 'interested
     
     const participation = await window.dbHelper.joinTheme(themeId, engagementLevel, signals);
     
-    console.log('✅ Enhanced theme joined:', participation);
     
     // Refresh UI components
     if (typeof window.refreshSynapse === 'function') {
@@ -245,14 +234,12 @@ window.joinEnhancedTheme = async function(themeId, engagementLevel = 'interested
 // ================================================================
 
 window.getEnhancedNetworkStats = async function() {
-  console.log('📊 Getting enhanced network stats...');
   
   try {
     if (!window.dbHelper) throw new Error('Database helper not initialized');
     
     const stats = await window.dbHelper.getNetworkStats();
     
-    console.log('✅ Enhanced network stats loaded:', stats);
     
     return stats;
     
@@ -269,7 +256,6 @@ window.getEnhancedNetworkStats = async function() {
 let activeSubscriptions = new Map();
 
 window.subscribeToEnhancedMessages = function(conversationId, callback) {
-  console.log('🔄 Subscribing to enhanced messages:', conversationId);
   
   try {
     if (!window.dbHelper) throw new Error('Database helper not initialized');
@@ -284,7 +270,6 @@ window.subscribeToEnhancedMessages = function(conversationId, callback) {
     const subscription = window.dbHelper.subscribeToMessages(conversationId, callback);
     activeSubscriptions.set(`messages:${conversationId}`, subscription);
     
-    console.log('✅ Enhanced message subscription created');
     
     return subscription;
     
@@ -295,7 +280,6 @@ window.subscribeToEnhancedMessages = function(conversationId, callback) {
 };
 
 window.subscribeToEnhancedConnections = function(callback) {
-  console.log('🔄 Subscribing to enhanced connections...');
   
   try {
     if (!window.dbHelper) throw new Error('Database helper not initialized');
@@ -310,7 +294,6 @@ window.subscribeToEnhancedConnections = function(callback) {
     const subscription = window.dbHelper.subscribeToConnections(callback);
     activeSubscriptions.set('connections', subscription);
     
-    console.log('✅ Enhanced connections subscription created');
     
     return subscription;
     
@@ -325,7 +308,6 @@ window.subscribeToEnhancedConnections = function(callback) {
 // ================================================================
 
 window.testDatabaseConnection = async function() {
-  console.log('🔍 Testing database connection...');
   
   try {
     if (!window.dbHelper) throw new Error('Database helper not initialized');
@@ -333,7 +315,6 @@ window.testDatabaseConnection = async function() {
     const result = await window.dbHelper.testConnection();
     
     if (result.success) {
-      console.log('✅ Database connection test passed');
       if (window.showSynapseNotification) {
         window.showSynapseNotification('Database connection healthy', 'success');
       }
@@ -369,7 +350,6 @@ window.addEventListener('profile-loaded', async (event) => {
     
     // Initialize real-time subscriptions for connections
     window.subscribeToEnhancedConnections((payload) => {
-      console.log('🔄 Connection update received:', payload);
       
       // Refresh UI components
       if (typeof window.refreshCounters === 'function') {
@@ -377,7 +357,6 @@ window.addEventListener('profile-loaded', async (event) => {
       }
     });
     
-    console.log('✅ Enhanced database features initialized');
     
   } catch (error) {
     console.error('❌ Error initializing enhanced database features:', error);
@@ -392,7 +371,6 @@ window.addEventListener('user-logged-out', () => {
   activeSubscriptions.forEach((subscription, key) => {
     try {
       supabase.removeChannel(subscription);
-      console.log(`✅ Unsubscribed from ${key}`);
     } catch (error) {
       console.warn(`⚠️ Error unsubscribing from ${key}:`, error);
     }
@@ -406,7 +384,6 @@ window.addEventListener('user-logged-out', () => {
     window.dbHelper.currentCommunityProfile = null;
   }
   
-  console.log('✅ Database cleanup completed');
 });
 
 // ================================================================
@@ -429,5 +406,4 @@ if (!window.originalSendDirectMessage && window.sendDirectMessage) {
   window.originalSendDirectMessage = window.sendDirectMessage;
 }
 
-console.log('✅ Database integration completed - all systems wired');
 }
