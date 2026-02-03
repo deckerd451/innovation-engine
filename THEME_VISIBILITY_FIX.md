@@ -1,35 +1,56 @@
 # Theme Visibility Bug Fix
 
 ## Problem
-Themes that users were connected to (via `theme_participants` table) were not appearing in the synapse view.
+Themes that users were connected to (via `theme_participants` table) were not appearing in the synapse view. In fact, NO nodes were appearing at all - console showed "🎨 Rendered 0 nodes (71 culled)".
 
-## Root Cause
-The theme visibility logic in `assets/js/synapse/core.js` was incorrectly checking theme participation:
+## Root Causes
+
+### Critical Bug #1: Missing showFullCommunity Parameter
+The `calculateNestedPosition` function was using `showFullCommunity` in its logic but the parameter was NOT being passed when the function was called. This caused `showFullCommunity` to be `undefined`, which evaluates to `false`, resulting in ALL nodes being marked as `hidden: true`.
+
+```javascript
+// BEFORE (BROKEN):
+function calculateNestedPosition(
+  node, allNodes, allLinks, centerX, centerY, currentUserCommunityId
+) {
+  // showFullCommunity is undefined here!
+  if (!shouldShowTheme && !showFullCommunity) {
+    return { hidden: true }; // ALL themes hidden!
+  }
+}
+
+// Called without showFullCommunity:
+calculateNestedPosition(node, nodes, links, centerX, centerY, currentUserCommunityId);
+```
+
+### Bug #2: Incorrect Theme Participation Check
+The theme visibility logic was trying to recalculate theme participation by checking if `userThemes.includes(node.theme_id)`, but this was unreliable.
 
 ```javascript
 // BEFORE (BROKEN):
 const isUserConnected = userThemes.includes(node.theme_id);
 ```
 
-This approach had a subtle bug where it was trying to match theme IDs from the person node's `themes` array against the theme node's `theme_id`. While this should work in theory, the data flow was unreliable.
-
 ## Solution
-The theme node already has a pre-computed `user_is_participant` flag that is calculated correctly during data loading in `assets/js/synapse/data.js`:
 
+### Fix #1: Pass showFullCommunity Parameter
 ```javascript
-// In data.js - Theme node creation:
-const userParticipation = (themeParticipants || []).find(
-  tp => tp.theme_id === theme.id && tp.community_id === currentUserCommunityId
-);
+// AFTER (FIXED):
+function calculateNestedPosition(
+  node, allNodes, allLinks, centerX, centerY, currentUserCommunityId,
+  showFullCommunity = true // Added parameter with default
+) {
+  // Now showFullCommunity is properly defined
+}
 
-return {
-  // ...
-  user_is_participant: !!userParticipation,
-  // ...
-};
+// Called WITH showFullCommunity:
+calculateNestedPosition(
+  node, nodes, links, centerX, centerY, currentUserCommunityId, showFullCommunity
+);
 ```
 
-The fix is to use this pre-computed flag instead of recalculating:
+### Fix #2: Use Pre-computed Flag
+The theme node already has a pre-computed `user_is_participant` flag that is calculated correctly during data loading:
 
 ```javascript
 // AFTER (FIXED):
@@ -94,3 +115,14 @@ To verify the fix:
 - `assets/js/synapse/core.js` - Theme visibility and positioning logic
 - `assets/js/node-panel.js` - Join/leave theme functions
 - `migrations/CREATE_THEME_PARTICIPANTS.sql` - Database schema
+
+
+## Why This Caused "0 nodes rendered (71 culled)"
+
+When `showFullCommunity` was `undefined`:
+1. **Themes**: All themes without user participation were marked `hidden: true` (even in Discovery Mode)
+2. **People**: All people without theme participation were marked `hidden: true`
+3. **Projects**: Projects in hidden themes were also affected
+4. **Result**: Nearly all nodes were hidden, showing "0 nodes rendered (71 culled)"
+
+The fix ensures `showFullCommunity` is properly passed and defaults to `true` (Discovery Mode), allowing all nodes to be visible by default.
