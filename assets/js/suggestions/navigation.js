@@ -174,6 +174,12 @@ export function hideNavigationOverlay() {
     navigationOverlay.remove();
     navigationOverlay = null;
   }
+  
+  // Reset filter to show all nodes when closing navigation
+  if (window.filterSynapseByCategory && typeof window.filterSynapseByCategory === 'function') {
+    window.filterSynapseByCategory('all');
+    console.log('🔄 Reset synapse filter to show all nodes');
+  }
 }
 
 /**

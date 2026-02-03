@@ -298,18 +298,41 @@ async function handleSuggestionCTA(handler, data) {
       // Discovery Mode is always on now - no need to toggle
       console.log('🌐 Discovery Mode: Always enabled');
       
+      // Filter to show only people when focusing on a person suggestion
+      if (window.filterSynapseByCategory && typeof window.filterSynapseByCategory === 'function') {
+        window.filterSynapseByCategory('people');
+      }
+      
       window.synapseApi.focusNode(targetId);
       
     } else if ((suggestionType === 'project' || suggestionType === 'project_join' || suggestionType === 'project_recruit') && targetId) {
       console.log('💡 Routing to project:', targetId);
+      
+      // Filter to show only projects when focusing on a project suggestion
+      if (window.filterSynapseByCategory && typeof window.filterSynapseByCategory === 'function') {
+        window.filterSynapseByCategory('projects');
+      }
+      
       window.synapseApi.focusNode(targetId);
       
     } else if (suggestionType === 'theme' && targetId) {
       console.log('🎯 Routing to theme:', targetId);
+      
+      // Filter to show only themes when focusing on a theme suggestion
+      if (window.filterSynapseByCategory && typeof window.filterSynapseByCategory === 'function') {
+        window.filterSynapseByCategory('themes');
+      }
+      
       window.synapseApi.focusTheme(targetId);
       
     } else if (suggestionType === 'org' && targetId) {
       console.log('🏢 Routing to organization:', targetId);
+      
+      // Filter to show only organizations when focusing on an org suggestion
+      if (window.filterSynapseByCategory && typeof window.filterSynapseByCategory === 'function') {
+        window.filterSynapseByCategory('organizations');
+      }
+      
       window.synapseApi.focusNode(targetId);
       
     } else {
