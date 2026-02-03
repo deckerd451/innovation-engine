@@ -54,7 +54,7 @@ let currentUserCommunityId = null;
 
 let initialized = false;
 let projectCircles = null;
-let showFullCommunity = false; // Default to My Network (not Discovery Mode)
+let showFullCommunity = true; // Always show full community (Discovery Mode)
 let userManuallyToggledMode = false; // Track if user manually changed the mode
 
 // Readiness tracking for focus reliability
@@ -164,7 +164,7 @@ export async function initSynapseView() {
   window.refreshThemeCircles = refreshThemeCircles;
   window.refreshSynapseConnections = refreshSynapseConnections;
   window.refreshSynapseProjectCircles = refreshSynapseProjectCircles;
-  window.toggleFullCommunityView = toggleFullCommunityView;
+  // toggleFullCommunityView removed - always in Discovery Mode now
   window.openThemeCard = openThemeCard; // Expose for search results
 
   // Expose theme selection functions for debugging
@@ -183,8 +183,8 @@ export async function initSynapseView() {
     }
   };
 
-  // Expose state for UI components
-  window.synapseShowFullCommunity = showFullCommunity;
+  // Expose state for UI components (always true now)
+  window.synapseShowFullCommunity = true;
 
   // Expose functions needed by Illuminate Pathways
   window.getSynapseStats = getSynapseStats;
@@ -449,39 +449,8 @@ export async function refreshSynapseProjectCircles() {
   await rebuildGraph();
 }
 
-export async function toggleFullCommunityView(show) {
-  if (typeof show === "boolean") {
-    showFullCommunity = show;
-  } else {
-    showFullCommunity = !showFullCommunity;
-  }
-
-  // Mark that user manually toggled (disable auto-discovery)
-  userManuallyToggledMode = true;
-
-  // Expose state globally for UI components
-  window.synapseShowFullCommunity = showFullCommunity;
-
-  console.log(
-    `🌐 Synapse view mode: ${showFullCommunity ? "Full Community (Discovery Mode)" : "My Network"}`,
-    `(showFullCommunity=${showFullCommunity}, userManuallyToggled=true)`
-  );
-
-  // Per yellow comments: In discovery mode, show themes user is not connected to
-  // This allows users to discover new themes through the start sequence
-  await reloadAllData();
-  await rebuildGraph();
-  
-  // Update discovery button if it exists (in Filter View panel)
-  if (typeof window.updateDiscoveryButtonState === 'function') {
-    window.updateDiscoveryButtonState();
-  }
-  
-  // Update discovery mode button if it exists
-  if (typeof window.updateDiscoveryModeButton === 'function') {
-    window.updateDiscoveryModeButton();
-  }
-}
+// toggleFullCommunityView removed - always in Discovery Mode
+// Visual indicators on nodes show connection status instead
 
 // Filter synapse view by category
 export function filterSynapseByCategory(category) {
@@ -1441,7 +1410,11 @@ async function buildGraph() {
   // 3. Project nodes (independent, not overlays) - render as actual nodes
   const visibleProjectNodes = visibleNodes.filter((n) => n.type === "project");
   if (visibleProjectNodes.length > 0) {
-    projectEls = renderNodes(container, visibleProjectNodes, { onNodeClick });
+    projectEls = renderNodes(container, visibleProjectNodes, { 
+      onNodeClick,
+      connectionsData,
+      currentUserCommunityId
+    });
   }
 
   // 4. People and organization nodes (foreground layer) - render LAST so they appear on top
@@ -1454,7 +1427,11 @@ async function buildGraph() {
       if (b.isCurrentUser) return -1;
       return 0;
     });
-  nodeEls = renderNodes(container, visibleInteractiveNodes, { onNodeClick });
+  nodeEls = renderNodes(container, visibleInteractiveNodes, { 
+    onNodeClick,
+    connectionsData,
+    currentUserCommunityId
+  });
 
   // Drag for nodes - use clickDistance to allow click events to fire
   nodeEls.call(

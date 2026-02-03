@@ -1055,121 +1055,9 @@ function createSynapseLegend() {
     });
   });
 
-  // Wire up discovery mode toggle button
-  const discoveryBtn = document.getElementById('toggle-discovery-btn');
-  const discoveryBtnText = document.getElementById('discovery-btn-text');
-  const connectionsLabel = document.getElementById('connections-label');
-  
-  if (discoveryBtn && discoveryBtnText) {
-    console.log('🔍 Wiring up discovery mode toggle button');
-    
-    // Update button text and connections label based on current mode
-    const updateDiscoveryButton = () => {
-      const currentMode = window.synapseShowFullCommunity || false;
-      console.log('🔍 Updating discovery button, current mode:', currentMode);
-      
-      if (currentMode) {
-        // Discovery Mode active
-        discoveryBtnText.textContent = 'My Network';
-        discoveryBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8c8c)';
-        discoveryBtn.style.color = '#fff';
-        discoveryBtn.querySelector('i').className = 'fas fa-user-friends';
-        discoveryBtn.title = 'Switch back to your network (only your connections)';
-        
-        // Change connections label to "Suggested Connections"
-        if (connectionsLabel) {
-          connectionsLabel.textContent = 'Suggested Connections';
-        }
-      } else {
-        // My Network active (default)
-        discoveryBtnText.textContent = 'Discovery Mode';
-        discoveryBtn.style.background = 'linear-gradient(135deg, #00ff88, #00e0ff)';
-        discoveryBtn.style.color = '#000';
-        discoveryBtn.querySelector('i').className = 'fas fa-globe';
-        discoveryBtn.title = 'Discover new people and projects in the community';
-        
-        // Change connections label back to "Connections"
-        if (connectionsLabel) {
-          connectionsLabel.textContent = 'Connections';
-        }
-      }
-    };
-
-    // Expose update function globally so synapse can call it
-    window.updateDiscoveryButtonState = updateDiscoveryButton;
-
-    // Initial state - check after a delay to let synapse initialize
-    setTimeout(() => {
-      updateDiscoveryButton();
-      console.log('🔍 Initial discovery button state set');
-    }, 1000);
-
-    // Click handler
-    discoveryBtn.addEventListener('click', async (e) => {
-      e.preventDefault(); // Prevent any default behavior
-      e.stopPropagation(); // Stop event bubbling
-      
-      console.log('🔍 ========== DISCOVERY BUTTON CLICKED ==========');
-      console.log('🔍 Event:', e);
-      console.log('🔍 Button element:', discoveryBtn);
-      console.log('🔍 Current state BEFORE toggle:', window.synapseShowFullCommunity);
-      console.log('🔍 toggleFullCommunityView available:', typeof window.toggleFullCommunityView);
-      
-      if (typeof window.toggleFullCommunityView === 'function') {
-        try {
-          // Toggle the mode
-          console.log('🔍 Calling toggleFullCommunityView...');
-          await window.toggleFullCommunityView();
-          console.log('🔍 Toggle complete, new mode:', window.synapseShowFullCommunity);
-          
-          // Update button appearance (will be called by synapse too, but ensure it happens)
-          updateDiscoveryButton();
-          
-          // Show notification
-          if (typeof window.showNotification === 'function') {
-            const mode = window.synapseShowFullCommunity ? 'Discovery Mode' : 'My Network';
-            window.showNotification(`Switched to ${mode}`, 'success');
-          }
-        } catch (error) {
-          console.error('❌ Error toggling discovery mode:', error);
-          alert('Error toggling discovery mode: ' + error.message);
-        }
-      } else {
-        console.warn('⚠️ toggleFullCommunityView not available');
-        alert('Discovery mode toggle not available yet. Please wait for synapse to initialize.');
-      }
-    });
-
-    // Hover effects
-    discoveryBtn.addEventListener('mouseenter', () => {
-      discoveryBtn.style.transform = 'translateY(-2px)';
-      discoveryBtn.style.boxShadow = '0 4px 12px rgba(0,255,136,0.5)';
-    });
-
-    discoveryBtn.addEventListener('mouseleave', () => {
-      discoveryBtn.style.transform = 'translateY(0)';
-      discoveryBtn.style.boxShadow = '0 2px 8px rgba(0,255,136,0.3)';
-    });
-    
-    console.log('✅ Discovery button wired up successfully');
-    
-    // Expose test function for debugging
-    window.testDiscoveryButton = () => {
-      console.log('🧪 Testing discovery button...');
-      console.log('  Button element:', discoveryBtn);
-      console.log('  Button text element:', discoveryBtnText);
-      console.log('  Current text:', discoveryBtnText.textContent);
-      console.log('  Current mode:', window.synapseShowFullCommunity);
-      console.log('  Toggle function:', typeof window.toggleFullCommunityView);
-      
-      // Try clicking programmatically
-      discoveryBtn.click();
-    };
-    
-    console.log('💡 Test button with: window.testDiscoveryButton()');
-  } else {
-    console.warn('⚠️ Discovery button elements not found:', { discoveryBtn, discoveryBtnText });
-  }
+  // Discovery Mode is now always on - no toggle needed
+  // Visual indicators on nodes show connection status instead
+  console.log('🌐 Discovery Mode: Always enabled with visual connection indicators');
 }
 
 // Apply filters to the synapse visualization
@@ -1264,89 +1152,12 @@ window.addEventListener('profile-loaded', () => {
     }
   }
   
-  // Wire up Discovery Mode button
-  setupDiscoveryModeButton();
+  // Wire up Discovery Mode - now always enabled
+  console.log('🌐 Discovery Mode: Always enabled (no toggle needed)');
 });
 
-// Setup Discovery Mode button (available to all users)
-function setupDiscoveryModeButton() {
-  const discoveryBtn = document.getElementById('discovery-mode-btn');
-  const discoveryText = document.getElementById('discovery-mode-text');
-  
-  if (!discoveryBtn || !discoveryText) {
-    console.warn('⚠️ Discovery Mode button elements not found');
-    return;
-  }
-  
-  // Update button appearance based on current mode
-  const updateButtonState = () => {
-    const isDiscoveryMode = window.synapseShowFullCommunity || false;
-    
-    if (isDiscoveryMode) {
-      // Discovery Mode is ON - button shows "My Network" to switch back
-      discoveryText.textContent = 'My Network';
-      discoveryBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8c8c)';
-      discoveryBtn.style.color = '#fff';
-      discoveryBtn.querySelector('i').className = 'fas fa-user-friends';
-      discoveryBtn.title = 'Switch back to your network (only your connections)';
-    } else {
-      // My Network is ON - button shows "Discovery" to switch to discovery mode
-      discoveryText.textContent = 'Discovery';
-      discoveryBtn.style.background = 'linear-gradient(135deg, #00ff88, #00e0ff)';
-      discoveryBtn.style.color = '#000';
-      discoveryBtn.querySelector('i').className = 'fas fa-globe';
-      discoveryBtn.title = 'Discover all themes and people in the community';
-    }
-  };
-  
-  // Expose update function globally so synapse can call it
-  window.updateDiscoveryModeButton = updateButtonState;
-  
-  // Set initial state
-  setTimeout(updateButtonState, 1000);
-  
-  // Click handler
-  discoveryBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('🌐 Discovery Mode button clicked');
-    
-    if (typeof window.toggleFullCommunityView === 'function') {
-      try {
-        await window.toggleFullCommunityView();
-        updateButtonState();
-        
-        // Show notification
-        if (typeof window.showNotification === 'function') {
-          const mode = window.synapseShowFullCommunity ? 'Discovery Mode' : 'My Network';
-          window.showNotification(`Switched to ${mode}`, 'success');
-        }
-        
-        console.log('✅ Discovery Mode toggled:', window.synapseShowFullCommunity);
-      } catch (error) {
-        console.error('❌ Error toggling discovery mode:', error);
-        alert('Error toggling discovery mode: ' + error.message);
-      }
-    } else {
-      console.warn('⚠️ toggleFullCommunityView not available');
-      alert('Discovery mode toggle not available yet. Please wait for synapse to initialize.');
-    }
-  });
-  
-  // Hover effects
-  discoveryBtn.addEventListener('mouseenter', () => {
-    discoveryBtn.style.transform = 'translateY(-2px)';
-    discoveryBtn.style.boxShadow = '0 4px 12px rgba(0,224,255,0.5)';
-  });
-  
-  discoveryBtn.addEventListener('mouseleave', () => {
-    discoveryBtn.style.transform = 'translateY(0)';
-    discoveryBtn.style.boxShadow = 'none';
-  });
-  
-  console.log('✅ Discovery Mode button wired up successfully');
-}
+// Discovery Mode is now always on - no setup needed
+// Visual indicators on nodes show connection status instead
 
 
 // -----------------------------

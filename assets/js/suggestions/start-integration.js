@@ -295,20 +295,8 @@ async function handleSuggestionCTA(handler, data) {
     } else if (suggestionType === 'person' && targetId) {
       console.log('👤 Routing to person:', targetId);
       
-      // Check if we need to enable Discovery Mode
-      const isDiscoveryMode = window.synapseShowFullCommunity || false;
-      
-      if (!isDiscoveryMode && window.toggleFullCommunityView && typeof window.toggleFullCommunityView === 'function') {
-        console.log('🌐 Enabling Discovery Mode to show suggested person');
-        
-        // Enable Discovery Mode and wait for reload
-        await window.toggleFullCommunityView(true);
-        
-        // Wait a bit longer for the graph to rebuild
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        console.log('✅ Discovery Mode enabled, attempting focus');
-      }
+      // Discovery Mode is always on now - no need to toggle
+      console.log('🌐 Discovery Mode: Always enabled');
       
       window.synapseApi.focusNode(targetId);
       

@@ -229,7 +229,24 @@ export function renderLinks(container, links) {
   return linkEls;
 }
 
-export function renderNodes(container, nodes, { onNodeClick } = {}) {
+export function renderNodes(container, nodes, { onNodeClick, connectionsData = [], currentUserCommunityId = null } = {}) {
+  // Build a set of connected user IDs for quick lookup
+  const connectedUserIds = new Set();
+  if (connectionsData && currentUserCommunityId) {
+    connectionsData.forEach(conn => {
+      const status = String(conn.status || "").toLowerCase();
+      // Only mark as connected if accepted
+      if (status === 'accepted' || status === 'active' || status === 'connected') {
+        if (conn.from_user_id === currentUserCommunityId) {
+          connectedUserIds.add(conn.to_user_id);
+        }
+        if (conn.to_user_id === currentUserCommunityId) {
+          connectedUserIds.add(conn.from_user_id);
+        }
+      }
+    });
+  }
+  
   const nodeEls = container
     .append("g")
     .attr("class", "nodes")
@@ -245,6 +262,9 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
 
   nodeEls.each(function (d) {
     const node = d3.select(this);
+    
+    // Check if this person is connected to current user
+    const isConnected = d.type === "person" && connectedUserIds.has(d.id);
 
     if (d.type === "organization") {
       const radius = 28;
@@ -331,6 +351,18 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
     // Enhanced people nodes with better visual hierarchy
     const radius = d.isCurrentUser ? 55 : d.shouldShowImage ? 32 : d.isSuggested ? 24 : 16;
 
+    // Add connection indicator ring for connected people (not current user)
+    if (isConnected && !d.isCurrentUser) {
+      node
+        .append("circle")
+        .attr("r", radius + 6)
+        .attr("fill", "none")
+        .attr("stroke", "#00ff88") // Green for connected
+        .attr("stroke-width", 2.5)
+        .attr("stroke-opacity", 0.8)
+        .attr("class", "connection-indicator-ring");
+    }
+
     // Add outer ring for current user
     if (d.isCurrentUser) {
       node
@@ -351,10 +383,16 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
       .attr("r", radius)
       .attr("fill", () => {
         if (d.isCurrentUser) return COLORS.nodeCurrentUser;
+        // Slightly different fill for connected vs unconnected
+        if (isConnected) return d.shouldShowImage ? COLORS.nodeDefault : "rgba(0, 255, 136, 0.3)";
         return d.shouldShowImage ? COLORS.nodeDefault : "rgba(0, 224, 255, 0.4)";
       })
-      .attr("stroke", () => (d.isCurrentUser ? "#fff" : COLORS.nodeDefault))
-      .attr("stroke-width", d.isCurrentUser ? 4 : 2)
+      .attr("stroke", () => {
+        if (d.isCurrentUser) return "#fff";
+        if (isConnected) return "#00ff88"; // Green stroke for connected
+        return COLORS.nodeDefault; // Cyan stroke for unconnected
+      })
+      .attr("stroke-width", d.isCurrentUser ? 4 : isConnected ? 2.5 : 2)
       .attr("filter", "url(#glow)")
       .attr("class", "node-circle");
   });
