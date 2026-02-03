@@ -806,18 +806,6 @@ class EnhancedStartUI {
           if (orgsError) {
             console.error('Error fetching organizations:', orgsError);
           } else if (orgFollows && orgFollows.length > 0) {
-              const orgIds = orgFollows2.map(of => of.organization_id);
-              const { data: orgs } = await window.supabase
-                .from('organizations')
-                .select('*')
-                .in('id', orgIds);
-              
-              if (orgs) {
-                allOrganizations = orgs;
-                console.log('📊 Organizations:', allOrganizations.length);
-              }
-            }
-          } else if (orgFollows && orgFollows.length > 0) {
             const orgIds = orgFollows.map(of => of.organization_id);
             const { data: orgs } = await window.supabase
               .from('organizations')
