@@ -105,7 +105,7 @@ export function getLinkColor(link) {
     if (link.status === "accepted") {
       return COLORS.edgeAccepted; // Green for accepted connections
     } else if (link.status === "pending") {
-      return "rgba(255, 255, 255, 0.15)"; // Subtle gray for pending
+      return "rgba(255, 170, 0, 0.5)"; // Orange for pending (more visible than gray)
     }
   }
 
@@ -217,8 +217,8 @@ export function renderLinks(container, links) {
       if (d.type === "organization") return 0.6;
       // Connection links (person-to-person)
       if (d.type === "connection") {
-        if (d.status === "accepted") return 0.8; // More visible for accepted
-        if (d.status === "pending") return 0.3; // Very subtle for pending
+        if (d.status === "accepted") return 0.9; // Very visible for accepted
+        if (d.status === "pending") return 0.6; // More visible for pending (was 0.3)
       }
       // Theme and other links
       if (d.status === "suggested") return 0.4;

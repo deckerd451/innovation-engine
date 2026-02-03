@@ -1392,20 +1392,12 @@ async function buildGraph() {
     console.warn('⚠️ isAdminUser function not available yet - defaulting to non-admin');
   }
   
-  console.log(`🌐 Discovery Mode: ${isDiscoveryMode}`);
+  console.log(`🌐 Discovery Mode: ${isDiscoveryMode} (always true now)`);
   
-  if (isAdmin && isDiscoveryMode) {
-    linkEls = renderLinks(container, simulationLinks);
-    console.log('👑 Admin mode + Discovery Mode: Showing connection links');
-  } else {
-    // Create empty link group for non-admins or My Network view
-    linkEls = container.append("g").attr("class", "links").selectAll("line");
-    if (isAdmin && !isDiscoveryMode) {
-      console.log('👑 Admin mode + My Network: Hiding connection links');
-    } else {
-      console.log('👤 User mode: Hiding connection links');
-    }
-  }
+  // Always show connection links in Discovery Mode (for all users)
+  // This makes connection status visible to everyone
+  linkEls = renderLinks(container, simulationLinks);
+  console.log('🔗 Showing connection links for all users');
 
   // 3. Project nodes (independent, not overlays) - render as actual nodes
   const visibleProjectNodes = visibleNodes.filter((n) => n.type === "project");

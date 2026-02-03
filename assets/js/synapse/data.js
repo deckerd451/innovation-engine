@@ -476,14 +476,17 @@ const connectionLinks = connectionsData
     const status = String(conn.status || "").toLowerCase();
 
     // ✅ Only draw links that belong on the graph
-    if (status !== "pending" && status !== "accepted") return false;
+    if (status !== "pending" && status !== "accepted") {
+      console.log("⚠️ Skipping connection with status:", status, conn);
+      return false;
+    }
 
     // Only show connections involving users in the graph
     const user1Exists = nodes.some(n => n.id === conn.from_user_id);
     const user2Exists = nodes.some(n => n.id === conn.to_user_id);
 
     if (!user1Exists || !user2Exists) {
-      console.log("⚠️ Filtering out connection:", {
+      console.log("⚠️ Filtering out connection (user not in graph):", {
         from_user: conn.from_user_id,
         from_user_exists: user1Exists,
         to_user: conn.to_user_id,
@@ -506,7 +509,7 @@ const connectionLinks = connectionsData
 
 
     links = [...links, ...connectionLinks];
-    console.log("🤝 Created connection links:", connectionLinks.length);
+    console.log("🤝 Created connection links:", connectionLinks.length, connectionLinks);
   } else {
     console.warn("⚠️ No connections data loaded from database");
   }
