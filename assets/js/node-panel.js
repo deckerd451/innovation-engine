@@ -50,6 +50,68 @@ function createPanelElement() {
   // Custom scrollbar and collapsible section styles
   const style = document.createElement('style');
   style.textContent = `
+    /* Mobile responsive styles for node panel */
+    @media (max-width: 768px) {
+      #node-side-panel {
+        width: 100vw !important;
+        right: -100vw !important;
+        border-left: none !important;
+        height: 100vh !important;
+        height: 100dvh !important; /* Dynamic viewport height for mobile browsers */
+      }
+      
+      #node-side-panel.open {
+        right: 0 !important;
+      }
+      
+      /* Adjust padding for mobile */
+      #node-side-panel .node-panel-header {
+        padding: 1rem !important;
+      }
+      
+      #node-side-panel .panel-section-header {
+        padding: 0.75rem 1rem !important;
+      }
+      
+      /* Make buttons stack on mobile */
+      #node-side-panel .action-buttons,
+      #node-side-panel [style*="display: flex"][style*="gap"] {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+      }
+      
+      #node-side-panel button[style*="flex: 1"] {
+        width: 100% !important;
+        flex: none !important;
+      }
+      
+      /* Adjust font sizes for mobile */
+      #node-side-panel h2 {
+        font-size: 1.25rem !important;
+      }
+      
+      #node-side-panel h3 {
+        font-size: 1.1rem !important;
+      }
+      
+      /* Make profile images smaller on mobile */
+      #node-side-panel img[style*="width: 120px"],
+      #node-side-panel img[style*="width: 100px"] {
+        width: 80px !important;
+        height: 80px !important;
+      }
+      
+      /* Adjust skill tags for mobile */
+      #node-side-panel [style*="flex-wrap: wrap"] {
+        gap: 0.35rem !important;
+      }
+      
+      #node-side-panel [style*="flex-wrap: wrap"] > * {
+        font-size: 0.75rem !important;
+        padding: 0.25rem 0.5rem !important;
+      }
+    }
+    
     #node-side-panel::-webkit-scrollbar {
       width: 8px;
     }
@@ -174,7 +236,9 @@ export async function openNodePanel(nodeData) {
 
 // Close panel
 export function closeNodePanel() {
-  panelElement.style.right = '-450px';
+  // Check if mobile
+  const isMobile = window.innerWidth <= 768;
+  panelElement.style.right = isMobile ? '-100vw' : '-450px';
   panelElement.classList.remove('open');
   currentNodeData = null;
 }
