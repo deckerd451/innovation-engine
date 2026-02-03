@@ -345,7 +345,7 @@ export async function toggleFullCommunityView(show) {
     window.updateDiscoveryButtonState();
   }
   
-  // Update discovery mode button if it exists (admin-only filter button)
+  // Update discovery mode button if it exists
   if (typeof window.updateDiscoveryModeButton === 'function') {
     window.updateDiscoveryModeButton();
   }

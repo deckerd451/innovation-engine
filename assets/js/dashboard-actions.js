@@ -1256,11 +1256,11 @@ window.addEventListener('profile-loaded', () => {
       adminBadgeDropdown.style.display = 'inline-block';
     }
     
-    // Show Discovery Mode button for admins
+    // Show Discovery Mode button for all users
     const discoveryBtn = document.getElementById('discovery-mode-btn');
     if (discoveryBtn) {
       discoveryBtn.style.display = 'flex';
-      console.log('🌐 Discovery Mode button shown (admin only)');
+      console.log('🌐 Discovery Mode button available to all users');
     }
   }
   
@@ -1268,7 +1268,7 @@ window.addEventListener('profile-loaded', () => {
   setupDiscoveryModeButton();
 });
 
-// Setup Discovery Mode button (admin-only filter button)
+// Setup Discovery Mode button (available to all users)
 function setupDiscoveryModeButton() {
   const discoveryBtn = document.getElementById('discovery-mode-btn');
   const discoveryText = document.getElementById('discovery-mode-text');
