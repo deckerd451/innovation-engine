@@ -797,21 +797,15 @@ class EnhancedStartUI {
             }
           }
           
-          // Fetch organizations (check what column name is used)
+          // Fetch organizations
           const { data: orgFollows, error: orgsError } = await window.supabase
             .from('organization_followers')
             .select('*')
-            .eq('follower_id', userProfile.id);
+            .eq('community_id', userProfile.id);
           
           if (orgsError) {
             console.error('Error fetching organizations:', orgsError);
-            // Try alternative column name
-            const { data: orgFollows2, error: orgsError2 } = await window.supabase
-              .from('organization_followers')
-              .select('*')
-              .eq('community_id', userProfile.id);
-            
-            if (!orgsError2 && orgFollows2 && orgFollows2.length > 0) {
+          } else if (orgFollows && orgFollows.length > 0) {
               const orgIds = orgFollows2.map(of => of.organization_id);
               const { data: orgs } = await window.supabase
                 .from('organizations')
