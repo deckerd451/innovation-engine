@@ -19,36 +19,85 @@ let bridgeState = {
   unifiedNetworkAvailable: false,
   legacySynapseAvailable: false,
   activeSystem: null, // 'unified' or 'legacy'
-  eventListeners: []
+  eventListeners: [],
+  initAttempts: 0,
+  maxAttempts: 10
 };
 
 /**
- * Initialize the synapse bridge
+ * Check if unified network is enabled (same flag as UnifiedNetworkIntegration)
+ */
+function isUnifiedNetworkEnabled() {
+  return localStorage.getItem('enable-unified-network') === 'true';
+}
+
+/**
+ * Check system availability with diagnostics
+ */
+function checkSystemAvailability() {
+  const unifiedEnabled = isUnifiedNetworkEnabled();
+  const hasUnifiedApi = typeof window.unifiedNetworkApi !== 'undefined';
+  const hasLegacyApi = typeof window.__SYNAPSE_READY__ !== 'undefined' || 
+                       typeof window.initSynapseView !== 'undefined';
+  
+  return {
+    unifiedEnabled,
+    hasUnifiedApi,
+    hasLegacyApi,
+    unifiedAvailable: unifiedEnabled && hasUnifiedApi,
+    legacyAvailable: !unifiedEnabled && hasLegacyApi
+  };
+}
+
+/**
+ * Initialize the synapse bridge (event-driven, with retry)
  * Call this after both systems are loaded
  */
 export function initSynapseBridge() {
   if (bridgeState.initialized) {
     logger.warn('SynapseBridge', 'Already initialized');
-    return;
+    return true;
   }
   
-  logger.info('SynapseBridge', 'Initializing synapse bridge');
+  bridgeState.initAttempts++;
   
-  // Check what systems are available
-  bridgeState.unifiedNetworkAvailable = typeof window.unifiedNetworkIntegration !== 'undefined' &&
-                                        window.unifiedNetworkIntegration.isActive();
-  bridgeState.legacySynapseAvailable = typeof window.synapseApi !== 'undefined';
+  // Check what systems are available with diagnostics
+  const availability = checkSystemAvailability();
+  
+  logger.info('SynapseBridge', `Initialization attempt ${bridgeState.initAttempts}/${bridgeState.maxAttempts}`, {
+    unifiedEnabled: availability.unifiedEnabled,
+    hasUnifiedApi: availability.hasUnifiedApi,
+    hasLegacyApi: availability.hasLegacyApi,
+    unifiedAvailable: availability.unifiedAvailable,
+    legacyAvailable: availability.legacyAvailable
+  });
   
   // Determine active system
-  if (bridgeState.unifiedNetworkAvailable) {
+  if (availability.unifiedAvailable) {
     bridgeState.activeSystem = 'unified';
+    bridgeState.unifiedNetworkAvailable = true;
     logger.info('SynapseBridge', 'Using unified network system');
-  } else if (bridgeState.legacySynapseAvailable) {
+  } else if (availability.legacyAvailable) {
     bridgeState.activeSystem = 'legacy';
+    bridgeState.legacySynapseAvailable = true;
     logger.info('SynapseBridge', 'Using legacy synapse system');
   } else {
-    logger.error('SynapseBridge', 'No network system available!');
-    return;
+    // No system available yet - retry with backoff
+    if (bridgeState.initAttempts < bridgeState.maxAttempts) {
+      const delay = Math.min(1000 * Math.pow(1.5, bridgeState.initAttempts), 5000);
+      logger.debug('SynapseBridge', `No system available yet, retrying in ${delay}ms...`);
+      setTimeout(() => initSynapseBridge(), delay);
+      return false;
+    } else {
+      logger.error('SynapseBridge', 'No network system available after max attempts', {
+        attempts: bridgeState.initAttempts,
+        unifiedEnabled: availability.unifiedEnabled,
+        hasUnifiedApi: availability.hasUnifiedApi,
+        hasLegacyApi: availability.hasLegacyApi
+      });
+      showFallbackMessage();
+      return false;
+    }
   }
   
   // Setup bidirectional event bridges
@@ -76,6 +125,41 @@ export function initSynapseBridge() {
   window.dispatchEvent(new CustomEvent('synapse-bridge-ready', {
     detail: { activeSystem: bridgeState.activeSystem }
   }));
+  
+  return true;
+}
+
+/**
+ * Show user-visible fallback message
+ */
+function showFallbackMessage() {
+  const message = document.createElement('div');
+  message.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 107, 107, 0.95);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10000;
+    max-width: 400px;
+  `;
+  message.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div>
+        <strong>Network Visualization Unavailable</strong>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">
+          The network visualization system failed to initialize. Please refresh the page.
+        </p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(message);
+  
+  setTimeout(() => message.remove(), 10000);
 }
 
 /**
@@ -388,6 +472,25 @@ if (typeof window !== 'undefined') {
     getState: getBridgeState,
     cleanup: cleanupBridge
   };
+  
+  // Event-driven initialization: wait for either system to be ready
+  window.addEventListener('unified-network-ready', () => {
+    logger.debug('SynapseBridge', 'Unified network ready event received');
+    initSynapseBridge();
+  });
+  
+  window.addEventListener('synapse-ready', () => {
+    logger.debug('SynapseBridge', 'Legacy synapse ready event received');
+    initSynapseBridge();
+  });
+  
+  // Fallback: try initialization after a delay
+  setTimeout(() => {
+    if (!bridgeState.initialized) {
+      logger.debug('SynapseBridge', 'Fallback initialization attempt');
+      initSynapseBridge();
+    }
+  }, 2000);
 }
 
 logger.info('SynapseBridge', 'Bridge module loaded');

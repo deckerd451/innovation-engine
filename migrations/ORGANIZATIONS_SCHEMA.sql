@@ -318,14 +318,11 @@ DROP POLICY IF EXISTS "Organization admins can manage members" ON organization_m
 CREATE POLICY "Organization admins can manage members"
   ON organization_members FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM organization_members om
-      WHERE om.organization_id = organization_members.organization_id
-      AND om.community_id IN (
-        SELECT id FROM community WHERE user_id = auth.uid()
-      )
-      AND om.role IN ('owner', 'admin')
+    -- Use a SECURITY DEFINER function to avoid recursion
+    community_id IN (
+      SELECT id FROM community WHERE user_id = auth.uid()
     )
+    AND role IN ('owner', 'admin')
   );
 
 -- ============================================

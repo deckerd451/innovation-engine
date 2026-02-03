@@ -663,6 +663,39 @@ function setupSVG() {
 }
 
 /* ==========================================================================
+   ERROR HANDLING
+   ========================================================================== */
+
+function showSVGDimensionError() {
+  const errorDiv = document.createElement('div');
+  errorDiv.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 107, 107, 0.95);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    z-index: 10000;
+    max-width: 500px;
+    text-align: center;
+  `;
+  errorDiv.innerHTML = `
+    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+    <h3 style="margin-bottom: 1rem;">Visualization Layout Error</h3>
+    <p style="margin-bottom: 1.5rem; opacity: 0.9;">
+      The network visualization container has zero dimensions. This usually happens when the page layout hasn't finished loading.
+    </p>
+    <button onclick="location.reload()" style="padding: 0.75rem 2rem; background: white; color: #ff6b6b; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+      Reload Page
+    </button>
+  `;
+  document.body.appendChild(errorDiv);
+}
+
+/* ==========================================================================
    DATA LOADING
    ========================================================================== */
 
@@ -1396,6 +1429,46 @@ async function buildGraph() {
     .alphaMin(0.001);
 
   // RENDERING ORDER: Background to foreground for proper z-index layering
+  
+  // Render sanity check: Ensure SVG has dimensions before rendering
+  const svgRect = svg.node().getBoundingClientRect();
+  console.log('📐 SVG dimensions before render:', {
+    width: svgRect.width,
+    height: svgRect.height,
+    visible: svgRect.width > 0 && svgRect.height > 0
+  });
+  
+  if (svgRect.width === 0 || svgRect.height === 0) {
+    console.warn('⚠️ SVG has zero dimensions, waiting for layout...');
+    
+    // Use ResizeObserver to wait for layout
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          console.log('✅ SVG layout ready, re-rendering...', { width, height });
+          resizeObserver.disconnect();
+          // Re-trigger render
+          setTimeout(() => rebuildGraph(), 100);
+          return;
+        }
+      }
+    });
+    
+    resizeObserver.observe(svg.node());
+    
+    // Fallback timeout
+    setTimeout(() => {
+      resizeObserver.disconnect();
+      const newRect = svg.node().getBoundingClientRect();
+      if (newRect.width === 0 || newRect.height === 0) {
+        console.error('❌ SVG still has zero dimensions after timeout');
+        showSVGDimensionError();
+      }
+    }, 5000);
+    
+    return; // Don't render yet
+  }
 
   // 1. Theme circles (background layer) - render FIRST without projects
   const visibleThemeNodes = visibleNodes.filter((n) => n.type === "theme");

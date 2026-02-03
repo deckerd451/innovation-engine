@@ -11,9 +11,18 @@ function addThemeStrategyToggle() {
   // Use the bottom bar button instead of creating a floating button
   const button = document.getElementById('btn-view-toggle');
   if (!button) {
-    console.warn('⚠️ Bottom bar view toggle button not found');
+    // Button doesn't exist - this is expected if bottom bar is not present
+    // Don't log a warning as this is a normal state
+    console.debug('Theme strategy toggle: btn-view-toggle not found (bottom bar may not be present)');
     return;
   }
+
+  // Prevent double-binding
+  if (button.dataset.themeToggleBound === 'true') {
+    console.debug('Theme strategy toggle already bound');
+    return;
+  }
+  button.dataset.themeToggleBound = 'true';
 
   // Update button content to reflect current strategy
   updateButtonText(button);
@@ -33,6 +42,8 @@ function addThemeStrategyToggle() {
     button.style.transform = 'translateY(0)';
     button.style.boxShadow = 'none';
   });
+  
+  console.log('✅ Theme strategy toggle bound to button');
 }
 
 function updateButtonText(button) {
