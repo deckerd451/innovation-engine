@@ -11,6 +11,8 @@ export function parseSkills(skills) {
 }
 
 export async function loadSynapseData({ supabase, currentUserCommunityId, showFullCommunity = false }) {
+  console.log("🔄 Loading synapse data with new theme-centric model...");
+  console.log("🔍 showFullCommunity (Discovery Mode):", showFullCommunity);
 
   // Load all data first (exclude hidden users)
   const { data: allMembers, error } = await supabase
@@ -26,8 +28,10 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     // Discovery Mode: Show everyone in the community
     console.log("🌐 Discovery Mode: Loading ALL community members...");
     members = allMembers || [];
+    console.log(`📊 Discovery Mode: Showing all ${members.length} members`);
   } else {
     // My Network Mode (deprecated but keeping for reference)
+    console.log(`📊 My Network: Loading all ${members?.length || 0} members for filtering`);
   }
 
   const { data: projects, error: projectsError } = await supabase
@@ -99,11 +103,13 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   // Make sure connections.js is initialized before calling this
   const connectionsData = await getAllConnectionsForSynapse();
   
+  console.log("🔍 DEBUG: Connections loaded:", {
     count: connectionsData?.length || 0,
     sample: connectionsData?.[0],
     currentUser: currentUserCommunityId
   });
 
+  console.log("📊 Raw data loaded:", {
     members: members?.length || 0,
     projects: projects?.length || 0,
     themes: themes?.length || 0,
@@ -116,8 +122,11 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
 
   // Debug: Log projects and their theme associations
   if (projects && projects.length > 0) {
+    console.log("🔍 Projects with themes:");
     const projectsWithThemes = projects.filter(p => p.theme_id);
     const projectsWithoutThemes = projects.filter(p => !p.theme_id);
+    console.log(`  ✅ ${projectsWithThemes.length} projects WITH theme_id`);
+    console.log(`  ⚠️  ${projectsWithoutThemes.length} projects WITHOUT theme_id (won't appear in synapse)`);
     if (projectsWithThemes.length > 0) {
       console.log("  Sample project with theme:", projectsWithThemes[0]);
     }
@@ -129,6 +138,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   // Debug: Log current user's project memberships
   if (currentUserCommunityId && projectMembersData && projectMembersData.length > 0) {
     const userProjectMemberships = projectMembersData.filter(pm => pm.user_id === currentUserCommunityId);
+    console.log(`🔍 Current user (${currentUserCommunityId}) has ${userProjectMemberships.length} project memberships:`);
     userProjectMemberships.forEach(pm => {
       console.log(`  - Project: ${pm.project?.title || pm.project_id}, Role: ${pm.role}`);
     });
@@ -218,6 +228,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
       }));
 
     nodes = [...nodes, ...projectNodes];
+    console.log("💡 Created project nodes:", projectNodes.length);
     
     if (projectNodes.length > 0) {
       console.log("  Sample project node:", projectNodes[0]);
@@ -230,6 +241,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     
     // Filter members based on theme participation AND direct connections (including pending)
     if (!showFullCommunity && currentUserCommunityId) {
+      console.log("🔍 Filtering members for My Network mode:");
       console.log("  - Current user ID:", currentUserCommunityId);
       console.log("  - Total members before filter:", members.length);
       console.log("  - Connections available:", connectionsData?.length || 0);
@@ -268,6 +280,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         });
 
         if (hasConnection) {
+          console.log("  ✅ Including user due to connection:", member.name, member.id);
           return true;
         }
 
@@ -283,12 +296,14 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         const hasSharedTheme = userThemes.some(themeId => memberThemes.includes(themeId));
         
         if (hasSharedTheme) {
+          console.log("  ✅ Including user due to shared theme:", member.name, member.id);
         }
 
         // Show if they share at least one theme
         return hasSharedTheme;
       });
       
+      console.log("  📊 After filtering: " + filteredMembers.length + " members will be shown");
     }
 
     const peopleNodes = filteredMembers.map((member) => {
@@ -342,6 +357,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     // Debug: Log image visibility stats
     const peopleWithImages = peopleNodes.filter(p => p.shouldShowImage);
     const connectedPeople = peopleNodes.filter(p => p.isConnectedToCurrentUser);
+    console.log("🖼️ Image visibility stats:");
     console.log(`  - Total people: ${peopleNodes.length}`);
     console.log(`  - Should show images: ${peopleWithImages.length}`);
     console.log(`  - Connected to current user: ${connectedPeople.length}`);
@@ -350,6 +366,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     // Debug: Log current user's node data
     const currentUserNode = peopleNodes.find(p => p.id === currentUserCommunityId);
     if (currentUserNode) {
+      console.log("🔍 Current user node data:");
       console.log(`  - Name: ${currentUserNode.name}`);
       console.log(`  - Themes: ${currentUserNode.themes.length}`, currentUserNode.themes);
       console.log(`  - Projects: ${currentUserNode.projects.length}`, currentUserNode.projects);
@@ -430,6 +447,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   }
 
   // 5. Add person-to-person connection links (for accepted and pending connections)
+  console.log("🔍 Debug connections:", {
     connectionsCount: connectionsData?.length || 0,
     connections: connectionsData,
     nodeIds: nodes.filter(n => n.type === 'person').map(n => n.id)
@@ -442,6 +460,7 @@ const connectionLinks = connectionsData
 
     // ✅ Only draw links that belong on the graph
     if (status !== "pending" && status !== "accepted") {
+      console.log("⚠️ Skipping connection with status:", status, conn);
       return false;
     }
 
@@ -450,6 +469,7 @@ const connectionLinks = connectionsData
     const user2Exists = nodes.some(n => n.id === conn.to_user_id);
 
     if (!user1Exists || !user2Exists) {
+      console.log("⚠️ Filtering out connection (user not in graph):", {
         from_user: conn.from_user_id,
         from_user_exists: user1Exists,
         to_user: conn.to_user_id,
@@ -472,6 +492,7 @@ const connectionLinks = connectionsData
 
 
     links = [...links, ...connectionLinks];
+    console.log("🤝 Created connection links:", connectionLinks.length, connectionLinks);
   } else {
     console.warn("⚠️ No connections data loaded from database");
   }
@@ -530,9 +551,11 @@ const connectionLinks = connectionsData
       }));
 
       links = [...links, ...suggestionLinks];
+      console.log("💡 Created theme suggestions:", suggestionLinks.length);
     }
   }
 
+  console.log("✅ New synapse model loaded:", {
     totalNodes: nodes.length,
     totalLinks: links.length,
     themes: nodes.filter(n => n.type === 'theme').length,

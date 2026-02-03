@@ -43,6 +43,7 @@ function addThemeStrategyToggle() {
     button.style.boxShadow = 'none';
   });
   
+  console.log('✅ Theme strategy toggle bound to button');
 }
 
 function updateButtonText(button) {
@@ -75,6 +76,7 @@ async function toggleThemeStrategy() {
     button.style.pointerEvents = 'none';
 
     // Reset the current view's state before switching
+    console.log('🔄 Resetting current view state before switch...');
     try {
       if (currentStrategy === 'circles') {
         // We're in circles mode, reset circles before switching

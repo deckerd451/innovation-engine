@@ -72,12 +72,14 @@ function markSynapseReady() {
   if (_ready) return; // Already ready
   
   _ready = true;
+  console.log('✅ Synapse ready - nodes and graph loaded');
   
   // Replay pending focus if any
   if (__pendingFocus) {
     const pending = __pendingFocus;
     __pendingFocus = null; // Clear before replaying
     
+    console.log('🔄 Replaying queued focus:', pending);
     
     if (pending.type === 'node') {
       window.synapseApi.focusNode(pending.id);
@@ -95,6 +97,7 @@ function markSynapseReady() {
 
 export async function initSynapseView() {
   if (initialized) {
+    console.log("⚠️ Synapse already initialized — skipping.");
     return;
   }
 
@@ -127,6 +130,7 @@ export async function initSynapseView() {
     );
   }
 
+  console.log("%c🧠 Synapse Core booting...", "color:#0ff; font-weight:bold;");
 
   // Connection system gives us currentUserCommunityId reliably
   const userInfo = await initConnections(supabase);
@@ -172,8 +176,10 @@ export async function initSynapseView() {
     console.log("🎯 Testing theme selection for:", themeId);
     if (themeId) {
       highlightSelectedTheme(themeId);
+      console.log("✅ Theme highlighted:", themeId);
     } else {
       clearThemeSelection();
+      console.log("✅ All theme selections cleared");
     }
   };
 
@@ -219,6 +225,7 @@ export async function initSynapseView() {
         synapseView.style.visibility = 'visible';
         synapseView.style.opacity = '1';
         synapseView.style.zIndex = '1';
+        console.log('✅ Synapse view made visible');
       } else {
         console.warn('⚠️ synapse-main-view element not found');
       }
@@ -227,6 +234,7 @@ export async function initSynapseView() {
       const dashboardPane = document.getElementById('dashboard-pane');
       if (dashboardPane) {
         dashboardPane.style.display = 'none';
+        console.log('✅ Dashboard pane hidden');
       }
       
       // Try legacy showView if it exists
@@ -287,6 +295,7 @@ export async function initSynapseView() {
      * Show activity view (center on current user)
      */
     showActivity: () => {
+      console.log('📊 synapseApi.showActivity() called');
       
       // If Synapse not ready, queue the focus
       if (!_ready) {
@@ -329,6 +338,7 @@ export async function initSynapseView() {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) {
       console.warn('⚠️ Node not found:', nodeId);
+      console.log('ℹ️ Falling back to activity view (centering on current user)');
       
       // Only show toast if not skipped (e.g., when clicking pathway animations)
       if (!skipToast) {
@@ -367,6 +377,7 @@ export async function initSynapseView() {
     
     if (!themeNode) {
       console.warn('⚠️ Theme node not found:', themeId);
+      console.log('ℹ️ Falling back to activity view (centering on current user)');
       
       // Show helpful toast notification
       showSynapseNotification(
@@ -395,6 +406,7 @@ export async function initSynapseView() {
   // Listen for show-activity events
   window.addEventListener('synapse:show-activity', (event) => {
     const { userId } = event.detail;
+    console.log('📊 Handling synapse:show-activity event:', userId);
     
     const targetUserId = userId || currentUserCommunityId;
     
@@ -419,6 +431,7 @@ export async function initSynapseView() {
     window.__synapseStats = getSynapseStats();
   } catch (_) {}
 
+  console.log("%c✅ Synapse ready", "color:#0f0; font-weight:bold;");
 }
 
 export async function refreshSynapseConnections() {
@@ -441,6 +454,7 @@ export async function refreshSynapseProjectCircles() {
 
 // Filter synapse view by category
 export function filterSynapseByCategory(category) {
+  console.log(`🔍 Filtering synapse view by category: ${category}`);
   
   if (!svg) {
     console.warn('⚠️ SVG not available yet');
@@ -452,12 +466,14 @@ export function filterSynapseByCategory(category) {
   const allLinks = svg.selectAll('.synapse-link');
   const themeCircles = svg.selectAll('.theme-circle');
   
+  console.log(`📊 Found ${allNodes.size()} visual nodes, ${allLinks.size()} links, ${themeCircles.size()} theme circles`);
   
   // Debug: Log what types we have in the nodes array
   const nodeTypes = {};
   nodes.forEach(n => {
     nodeTypes[n.type] = (nodeTypes[n.type] || 0) + 1;
   });
+  console.log('📊 Available node types in data:', nodeTypes);
   
   // Map category to node type (defined at function scope)
   const typeMap = {
@@ -498,6 +514,7 @@ export function filterSynapseByCategory(category) {
         .style('pointer-events', 'auto');
     }
     
+    console.log(`✅ Filter applied: showing all ${allNodes.size()} nodes`);
   } else {
     const filterType = typeMap[category];
     
@@ -506,6 +523,7 @@ export function filterSynapseByCategory(category) {
       return;
     }
     
+    console.log(`📊 Filtering for type: "${filterType}"`);
     
     // Count how many nodes match
     let matchCount = 0;
@@ -516,6 +534,7 @@ export function filterSynapseByCategory(category) {
         matchedNodes.push(d.name);
       }
     });
+    console.log(`📊 Found ${matchCount} visual nodes of type "${filterType}":`, matchedNodes);
     
     // Filter nodes - only show nodes of the target type
     allNodes
@@ -569,6 +588,7 @@ export function filterSynapseByCategory(category) {
         });
     }
     
+    console.log(`✅ Filter applied: ${category} (showing ${matchCount} ${filterType} nodes)`);
   }
 }
 
@@ -682,6 +702,7 @@ function showSVGDimensionError() {
 async function reloadAllData() {
   if (!supabase) return;
 
+  console.log("🔄 Loading synapse data...");
 
   const loaded = await loadSynapseData({
     supabase,
@@ -694,6 +715,7 @@ async function reloadAllData() {
   connectionsData = loaded.connectionsData || [];
   projectMembersData = loaded.projectMembersData || [];
 
+  console.log("📊 Synapse data loaded:", {
     nodes: nodes.length,
     links: links.length,
     connections: connectionsData.length,
@@ -707,6 +729,7 @@ async function reloadAllData() {
     acc[n.type] = (acc[n.type] || 0) + 1;
     return acc;
   }, {});
+  console.log("📊 Nodes by type:", nodesByType);
 
   // Log current user info
   const currentUser = nodes.find(n => n.id === currentUserCommunityId);
@@ -887,6 +910,7 @@ function calculateNestedPosition(
 
     // Debug logging for theme visibility
     if (!shouldShowTheme) {
+      console.log(`🔍 Hiding theme "${node.name || node.title}":`, {
         theme_id: node.theme_id,
         user_is_participant: node.user_is_participant,
         isUserConnected,
@@ -896,6 +920,7 @@ function calculateNestedPosition(
         showFullCommunity
       });
     } else {
+      console.log(`✅ Showing theme "${node.name || node.title}":`, {
         theme_id: node.theme_id,
         user_is_participant: node.user_is_participant,
         isUserConnected,
@@ -1022,6 +1047,7 @@ function calculateNestedPosition(
     // ✅ CRITICAL FIX: Show people with connections even if they have no themes
     // Check if this person is connected to the current user (accepted or pending)
     if (node.isConnectedToCurrentUser) {
+      console.log(`✅ Showing connected person without themes: ${node.name}`);
       // Position near center since they have no theme
       const angle = Math.random() * 2 * Math.PI;
       const distance = 300 + Math.random() * 200;
@@ -1310,14 +1336,19 @@ async function buildGraph() {
     acc[n.type] = (acc[n.type] || 0) + 1;
     return acc;
   }, {});
+  console.log("👁️ Visible nodes by type:", visibleByType);
 
   // If no visible nodes, this might be the issue
   if (visibleNodes.length === 0) {
     console.warn("⚠️ No visible nodes! This might be why nothing is showing.");
+    console.log("🔍 All nodes:", nodes.map(n => ({ id: n.id, type: n.type, name: n.name || n.title, hidden: n.hidden })));
+    console.log("🔍 showFullCommunity:", showFullCommunity);
+    console.log("🔍 currentUserCommunityId:", currentUserCommunityId);
     
     // Check if current user node exists
     const currentUserNode = nodes.find(n => n.id === currentUserCommunityId);
     if (currentUserNode) {
+      console.log("🔍 Current user node:", {
         id: currentUserNode.id,
         name: currentUserNode.name,
         themes: currentUserNode.themes,
@@ -1332,6 +1363,7 @@ async function buildGraph() {
   // Auto-enable Discovery Mode is now disabled - users must manually click the button
   // This respects user preference to start with "My Network" view
   if (visibleNodes.length <= 10 && !userManuallyToggledMode) {
+    console.log("🔍 Limited content found. Discovery Mode available via button.");
   }
 
   // ✅ Use only visible nodes and links for simulation
@@ -1346,6 +1378,7 @@ async function buildGraph() {
     links: simulationLinks.length * 1, // 1 line each (simplified)
   };
   const totalElements = Object.values(domElementCount).reduce((a, b) => a + b, 0);
+  console.log("📊 DOM elements to create:", domElementCount, "Total:", totalElements);
 
   simulation = d3
     .forceSimulation(simulationNodes)
@@ -1413,6 +1446,7 @@ async function buildGraph() {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0) {
+          console.log('✅ SVG layout ready, re-rendering...', { width, height });
           resizeObserver.disconnect();
           // Re-trigger render
           setTimeout(() => rebuildGraph(), 100);
@@ -1616,6 +1650,7 @@ async function openThemeCard(themeNode) {
 
     // Primary match: same theme_id
     if (n.theme_id === themeNode.theme_id) {
+      console.log("✅ Found additional project node by theme_id:", {
         projectTitle: n.title || n.name,
         projectThemeId: n.theme_id,
         targetThemeId: themeNode.theme_id
@@ -1627,6 +1662,7 @@ async function openThemeCard(themeNode) {
     const projectTags = n.tags || [];
     const hasSharedTag = projectTags.some((tag) => themeTags.includes(tag));
     if (hasSharedTag) {
+      console.log("✅ Found additional project node by shared tags:", {
         projectTitle: n.title || n.name,
         projectTags: projectTags,
         themeTags: themeTags,

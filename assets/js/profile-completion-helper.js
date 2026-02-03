@@ -445,6 +445,7 @@ class ProfileCompletionHelper {
       // Show success message
       this.showSuccessMessage();
       
+      console.log('✅ Profile saved successfully');
       
     } catch (error) {
       console.error('❌ Failed to save profile:', error);
@@ -542,3 +543,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 3000);
 });
 
+console.log('✅ Profile Completion Helper ready');

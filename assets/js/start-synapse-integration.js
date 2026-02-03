@@ -5,6 +5,7 @@
 // Highlights nodes, draws connections, and provides visual feedback
 // ================================================================
 
+console.log('%c🧠 START-Synapse Integration - Loading', 'color:#0f8; font-weight:bold;');
 
 // ================================================================
 // SYNAPSE HIGHLIGHTER
@@ -508,3 +509,4 @@ if (window.isSynapseReady && window.isSynapseReady()) {
   setTimeout(() => applyStartHighlights(), 1000);
 }
 
+console.log('✅ START-Synapse Integration ready');

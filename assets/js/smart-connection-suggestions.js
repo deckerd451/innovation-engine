@@ -3,6 +3,7 @@
 // ================================================================
 // AI-powered connection recommendations based on skills, interests, and compatibility
 
+console.log("%c🧠 Smart Connection Suggestions Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
 
 let supabase = null;
 let currentUserProfile = null;
@@ -42,10 +43,12 @@ export function initSmartConnectionSuggestions() {
   window.explainConnectionSuggestion = explainConnectionSuggestion;
   window.refreshSmartSuggestions = refreshSmartSuggestions;
 
+  console.log('✅ Smart connection suggestions initialized');
 }
 
 // Get smart connection suggestions with scoring
 export async function getSmartConnectionSuggestions(limit = 8) {
+  console.log('🧠 Generating smart connection suggestions...');
 
   if (!currentUserProfile) {
     console.warn('⚠️ No current user profile available');
@@ -57,9 +60,11 @@ export async function getSmartConnectionSuggestions(limit = 8) {
     const candidates = await getPotentialConnections();
     
     if (candidates.length === 0) {
+      console.log('ℹ️ No potential connections found');
       return [];
     }
 
+    console.log(`📊 Analyzing ${candidates.length} potential connections...`);
 
     // Score each candidate
     const scoredCandidates = await Promise.all(
@@ -79,6 +84,7 @@ export async function getSmartConnectionSuggestions(limit = 8) {
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
+    console.log(`✅ Generated ${suggestions.length} smart suggestions`);
     console.log('🏆 Top suggestion:', suggestions[0]?.name, 'Score:', suggestions[0]?.score);
 
     return suggestions;
@@ -415,6 +421,7 @@ export function explainConnectionSuggestion(suggestion) {
 
 // Refresh suggestions (clear cache, recalculate)
 export async function refreshSmartSuggestions() {
+  console.log('🔄 Refreshing smart connection suggestions...');
   
   // Clear any cached data
   if (window.cachedSuggestions) {
@@ -531,3 +538,4 @@ document.addEventListener('DOMContentLoaded', () => {
   initSmartConnectionSuggestions();
 });
 
+console.log('✅ Smart connection suggestions ready');
