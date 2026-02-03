@@ -715,6 +715,14 @@ async function reloadAllData() {
   connectionsData = loaded.connectionsData || [];
   projectMembersData = loaded.projectMembersData || [];
 
+  // Expose data globally for debugging
+  window.synapseData = {
+    nodes,
+    links,
+    connectionsData,
+    projectMembersData
+  };
+
   console.log("📊 Synapse data loaded:", {
     nodes: nodes.length,
     links: links.length,
@@ -930,21 +938,11 @@ function calculateNestedPosition(
       });
     }
 
-    // In non-discovery mode, hide themes user has no connection to
-    if (!shouldShowTheme && !showFullCommunity) {
-      // Position far off-screen or mark as hidden
-      return {
-        x: centerX + 10000, // Off-screen
-        y: centerY + 10000,
-        themeRadius: 0,
-        parentTheme: null,
-        isUserTheme: false,
-        hidden: true, // Mark as hidden
-      };
-    }
-
+    // ✅ FIXED: Always show ALL themes in Discovery Mode (which is always enabled)
+    // Separate user's themes (close) from discoverable themes (far)
+    
     if (shouldShowTheme) {
-      // User's themes - independent nodes spread around center
+      // User's themes - position close to center in inner orbit
       const myThemes = themes
         .filter((t) => {
           // Use pre-computed user_is_participant flag
@@ -955,6 +953,11 @@ function calculateNestedPosition(
         .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
 
       const myIndex = myThemes.findIndex((t) => t.id === node.id);
+      
+      if (myIndex === -1) {
+        console.warn('⚠️ Theme marked as shouldShowTheme but not found in myThemes:', node.title);
+      }
+      
       const baseThemeRadius = 180;
 
       // Find most active theme (most projects or participants)
@@ -979,9 +982,9 @@ function calculateNestedPosition(
         themeRadius: baseThemeRadius,
         parentTheme: null,
         isUserTheme,
-        hidden: false,
+        hidden: false, // ✅ Never hide user's themes
       };
-    } else {
+    } else if (showFullCommunity) {
       // Discovery mode: show unconnected themes in outer orbit
       const otherThemes = themes
         .filter((t) => {
@@ -993,6 +996,11 @@ function calculateNestedPosition(
         .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
 
       const otherIndex = otherThemes.findIndex((t) => t.id === node.id);
+      
+      if (otherIndex === -1) {
+        console.warn('⚠️ Theme not found in otherThemes:', node.title);
+      }
+      
       const orbitR = 900; // Further out for discovery
       const angle = (otherIndex / Math.max(1, otherThemes.length)) * 2 * Math.PI;
 
@@ -1002,8 +1010,19 @@ function calculateNestedPosition(
         themeRadius: 180,
         parentTheme: null,
         isUserTheme: false,
-        hidden: false,
+        hidden: false, // ✅ Never hide discoverable themes in Discovery Mode
         isDiscoverable: true, // Mark as discoverable theme
+      };
+    } else {
+      // Fallback: hide theme if not in Discovery Mode and user not connected
+      console.warn('⚠️ Hiding theme (not in Discovery Mode):', node.title);
+      return {
+        x: centerX + 10000,
+        y: centerY + 10000,
+        themeRadius: 0,
+        parentTheme: null,
+        isUserTheme: false,
+        hidden: true,
       };
     }
   }

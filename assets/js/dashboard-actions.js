@@ -1314,15 +1314,75 @@ function loadAdminTabContent(tabName) {
     }
   } else if (tabName === 'themes') {
     content.innerHTML = `
-      <div style="margin-bottom: 2rem;">
-        <button onclick="openThemeCreator()" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer;">
-          <i class="fas fa-plus"></i> Create New Theme
-        </button>
-      </div>
-      <div id="admin-themes-list" style="color: rgba(255,255,255,0.7);">
-        Loading themes...
+      <div style="max-height: 70vh; overflow-y: auto;">
+        <!-- Theme Management Section -->
+        <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+          <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 1rem;">
+            <i class="fas fa-bullseye"></i> Theme Circles Management
+          </h3>
+          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
+            Create and manage theme circles for your community
+          </p>
+          
+          <!-- Theme Admin Tabs -->
+          <div class="theme-admin-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid rgba(0,224,255,0.2); padding-bottom: 0.5rem;">
+            <button class="theme-tab-btn active" data-theme-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+              <i class="fas fa-plus-circle"></i> Create New
+            </button>
+            <button class="theme-tab-btn" data-theme-tab="manage" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+              <i class="fas fa-list"></i> Manage Existing
+            </button>
+          </div>
+          
+          <!-- Create Tab Content -->
+          <div id="theme-create-content" class="theme-tab-content">
+            <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 1.5rem;">
+              <button onclick="openThemeCreator()" style="width: 100%; padding: 1rem 1.5rem; background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer; font-size: 1rem;">
+                <i class="fas fa-plus"></i> Open Theme Creator
+              </button>
+              <p style="color: rgba(255,255,255,0.5); margin-top: 1rem; text-align: center; font-size: 0.85rem;">
+                Opens the full theme creation interface
+              </p>
+            </div>
+          </div>
+          
+          <!-- Manage Tab Content -->
+          <div id="theme-manage-content" class="theme-tab-content" style="display: none;">
+            <div id="admin-themes-list" style="color: rgba(255,255,255,0.7);">
+              Loading themes...
+            </div>
+          </div>
+        </div>
       </div>
     `;
+    
+    // Wire up theme tab switching
+    const themeTabBtns = content.querySelectorAll('.theme-tab-btn');
+    themeTabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Update button states
+        themeTabBtns.forEach(b => {
+          b.classList.remove('active');
+          b.style.borderBottom = '3px solid transparent';
+          b.style.color = 'rgba(255,255,255,0.6)';
+        });
+        btn.classList.add('active');
+        btn.style.borderBottom = '3px solid #00e0ff';
+        btn.style.color = '#00e0ff';
+        
+        // Show/hide content
+        const tab = btn.dataset.themeTab;
+        content.querySelector('#theme-create-content').style.display = tab === 'create' ? 'block' : 'none';
+        content.querySelector('#theme-manage-content').style.display = tab === 'manage' ? 'block' : 'none';
+        
+        // Load themes list when switching to manage tab
+        if (tab === 'manage') {
+          loadThemesList();
+        }
+      });
+    });
+    
+    // Load themes list initially (for manage tab)
     loadThemesList();
   } else if (tabName === 'projects') {
     content.innerHTML = `
