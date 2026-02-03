@@ -850,7 +850,8 @@ function calculateNestedPosition(
   allLinks,
   centerX,
   centerY,
-  currentUserCommunityId
+  currentUserCommunityId,
+  showFullCommunity = true // Default to true (Discovery Mode)
 ) {
   const themes = allNodes.filter((n) => n.type === "theme");
 
@@ -1257,7 +1258,8 @@ async function buildGraph() {
       links,
       centerX,
       centerY,
-      currentUserCommunityId
+      currentUserCommunityId,
+      showFullCommunity // Pass showFullCommunity parameter
     );
 
     node.x = position.x;
@@ -1306,7 +1308,23 @@ async function buildGraph() {
   // If no visible nodes, this might be the issue
   if (visibleNodes.length === 0) {
     console.warn("⚠️ No visible nodes! This might be why nothing is showing.");
-    console.log("🔍 All nodes:", nodes.map(n => ({ id: n.id, type: n.type, hidden: n.hidden })));
+    console.log("🔍 All nodes:", nodes.map(n => ({ id: n.id, type: n.type, name: n.name || n.title, hidden: n.hidden })));
+    console.log("🔍 showFullCommunity:", showFullCommunity);
+    console.log("🔍 currentUserCommunityId:", currentUserCommunityId);
+    
+    // Check if current user node exists
+    const currentUserNode = nodes.find(n => n.id === currentUserCommunityId);
+    if (currentUserNode) {
+      console.log("🔍 Current user node:", {
+        id: currentUserNode.id,
+        name: currentUserNode.name,
+        themes: currentUserNode.themes,
+        projects: currentUserNode.projects,
+        hidden: currentUserNode.hidden
+      });
+    } else {
+      console.error("❌ Current user node NOT FOUND! This is the problem.");
+    }
   }
 
   // Auto-enable Discovery Mode is now disabled - users must manually click the button
