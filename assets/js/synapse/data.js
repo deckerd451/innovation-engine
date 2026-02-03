@@ -22,32 +22,15 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     .order("created_at", { ascending: false });
   if (error) throw error;
 
-  // Filter members based on Discovery Mode setting
+  // Discovery Mode: Show ALL users (no filtering)
   let members = allMembers;
-  if (showFullCommunity && currentUserCommunityId) {
-    // Discovery Mode: Show only suggested connections (not already connected)
-    console.log("🌐 Discovery Mode: Loading suggested connections only...");
-
-    // Get existing connections and pending requests
-    const { data: connections } = await supabase
-      .from('connections')
-      .select('from_user_id, to_user_id, status')
-      .or(`from_user_id.eq.${currentUserCommunityId},to_user_id.eq.${currentUserCommunityId}`);
-
-    const connectedIds = new Set();
-    // Don't exclude self - we want the user to remain centered in Discovery Mode
-    connections?.forEach(conn => {
-      connectedIds.add(conn.from_user_id);
-      connectedIds.add(conn.to_user_id);
-    });
-
-    // Filter to only suggested connections (not already connected) + current user
-    members = allMembers?.filter(user => 
-      user.id === currentUserCommunityId || !connectedIds.has(user.id)
-    ) || [];
-
-    console.log(`📊 Discovery Mode: Showing ${members.length} suggested connections out of ${allMembers?.length || 0} total members (including current user)`);
+  if (showFullCommunity) {
+    // Discovery Mode: Show everyone in the community
+    console.log("🌐 Discovery Mode: Loading ALL community members...");
+    members = allMembers || [];
+    console.log(`📊 Discovery Mode: Showing all ${members.length} members`);
   } else {
+    // My Network Mode (deprecated but keeping for reference)
     console.log(`📊 My Network: Loading all ${members?.length || 0} members for filtering`);
   }
 
