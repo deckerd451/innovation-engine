@@ -1,7 +1,7 @@
 # Discovery Mode Simplification
 
 ## Summary
-Removed the Discovery/My Network toggle and made Discovery Mode the default (and only) view. Visual indicators now show which nodes you're already connected to.
+Removed the Discovery/My Network toggle and made Discovery Mode the default (and only) view. Visual indicators now show which nodes you're already connected to, and connection links are visible to all users.
 
 ## Changes Made
 
@@ -11,21 +11,26 @@ Removed the Discovery/My Network toggle and made Discovery Mode the default (and
 - All users see the entire community by default
 
 ### 2. Visual Connection Indicators
-Added visual indicators to show connection status on person nodes:
 
-**Connected People (Accepted Connections):**
-- Green outer ring around the node
-- Green stroke on the main circle
-- Slightly different fill color (green tint)
+**On Nodes:**
+- **Connected People (Accepted Connections):**
+  - Green outer ring around the node
+  - Green stroke on the main circle
+  - Slightly different fill color (green tint)
 
-**Unconnected People:**
-- Standard cyan stroke
-- No outer ring
-- Standard fill color
+- **Unconnected People:**
+  - Standard cyan stroke
+  - No outer ring
+  - Standard fill color
 
-**Current User:**
-- Keeps the special pulsing ring animation
-- Always clearly identifiable
+- **Current User:**
+  - Keeps the special pulsing ring animation
+  - Always clearly identifiable
+
+**Connection Links (Lines Between People):**
+- **Accepted Connections:** Green lines (0.9 opacity)
+- **Pending Connections:** Orange dashed lines (0.6 opacity)
+- **Visible to all users** (not just admins)
 
 ### 3. UI Changes
 - Removed Discovery Mode toggle button from dashboard
@@ -48,12 +53,16 @@ Added visual indicators to show connection status on person nodes:
 - Users had to toggle between "My Network" and "Discovery Mode"
 - Confusing which mode they were in
 - Had to switch modes to see suggested people/themes
+- Connection links only visible to admins
 
 ### After:
 - One unified view showing everyone
-- Clear visual indicators show who you're connected to
-- Green rings = already connected
-- No rings = potential new connections
+- Clear visual indicators show who you're connected to:
+  - **Green rings on nodes** = already connected
+  - **Green lines** = accepted connections
+  - **Orange dashed lines** = pending connection requests
+  - **No rings/lines** = potential new connections
+- Connection links visible to all users
 - Search and filter still work perfectly
 
 ## Technical Details
@@ -88,8 +97,9 @@ renderNodes(container, nodes, {
 
 ## Files Modified
 
-- `assets/js/synapse/core.js` - Removed toggle, always show full community
-- `assets/js/synapse/render.js` - Added connection indicators
+- `assets/js/synapse/core.js` - Removed toggle, always show full community, show links for all users
+- `assets/js/synapse/render.js` - Added connection indicators, made connection links more visible
+- `assets/js/synapse/data.js` - Added better debug logging for connections
 - `assets/js/dashboard-actions.js` - Removed toggle button wiring
 - `assets/js/suggestions/start-integration.js` - Removed auto-toggle
 - `dashboard.html` - Removed toggle button
@@ -100,16 +110,28 @@ renderNodes(container, nodes, {
 - [ ] Connected people show green rings
 - [ ] Unconnected people show cyan (no ring)
 - [ ] Current user node clearly identifiable
+- [ ] **Accepted connections show green lines**
+- [ ] **Pending connections show orange dashed lines**
+- [ ] **Connection links visible to non-admin users**
+- [ ] **Sending a connection request immediately shows orange dashed line**
 - [ ] Category filters work (People, Projects, Themes, Orgs)
 - [ ] Search functionality works
 - [ ] START suggestions navigate correctly
 - [ ] No console errors related to toggle functions
 - [ ] Performance is smooth with full community visible
 
+## Connection Link Colors
+
+- **Accepted:** Green solid line (`COLORS.edgeAccepted`, opacity 0.9)
+- **Pending:** Orange dashed line (`rgba(255, 170, 0, 0.5)`, opacity 0.6, dash pattern 4,4)
+- **Project Members:** Red line (`#ff6b6b`)
+- **Organizations:** Purple line (`rgba(168, 85, 247, 0.5)`)
+
 ## Future Enhancements
 
 Possible additions:
-- Hover tooltip showing connection status
-- Filter by connection status (connected/unconnected)
+- Hover tooltip showing connection status and date
+- Filter by connection status (connected/unconnected/pending)
 - Connection strength indicators (mutual connections, shared projects)
-- Pending connection requests shown with different color (yellow/orange)
+- Different visual treatment for incoming vs outgoing pending requests
+- Notification badge on nodes with pending requests
