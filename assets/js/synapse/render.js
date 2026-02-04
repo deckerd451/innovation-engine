@@ -448,6 +448,13 @@ export function renderNodes(container, nodes, { onNodeClick, connectionsData = [
     .attr("pointer-events", "none")
     .text((d) => truncateName(d.name));
 
+  // Dispatch event for progressive disclosure system
+  setTimeout(() => {
+    window.dispatchEvent(new CustomEvent('synapse:nodes-rendered', {
+      detail: { nodeEls, nodes }
+    }));
+  }, 100);
+
   return nodeEls;
 }
 

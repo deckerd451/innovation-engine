@@ -1,6 +1,6 @@
 // assets/js/synapse/core.js
 // Synapse Core — init, svg, simulation wiring (modularized)
-// Version: 6.0 - Fixed theme click handler null safety (2026-01-13)
+// Version: 7.0 - Added Progressive Disclosure System (2026-02-04)
 
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
@@ -30,6 +30,8 @@ import {
   markInterested,
   renderThemeOverlayCard,
 } from "./themes.js";
+
+import ProgressiveDisclosure from "./progressive-disclosure.js";
 
 /* ==========================================================================
    STATE
@@ -139,6 +141,29 @@ export async function initSynapseView() {
   setupSVG();
   await reloadAllData();
   await buildGraph();
+
+  // Progressive Disclosure System (Mobile-First UX)
+  try {
+    console.log('🎨 Initializing Progressive Disclosure System...');
+    ProgressiveDisclosure.init({
+      svg,
+      container,
+      nodes,
+      links,
+      nodeEls,
+      linkEls,
+      themeEls,
+      projectEls,
+      zoomBehavior,
+      simulation
+    });
+    console.log('✅ Progressive Disclosure initialized');
+    
+    // Expose for debugging
+    window.ProgressiveDisclosure = ProgressiveDisclosure;
+  } catch (e) {
+    console.error('❌ Progressive Disclosure init failed:', e);
+  }
 
   // Realtime refresh (connections/projects/themes)
   setupSynapseRealtime(supabase, async () => {
@@ -639,6 +664,19 @@ function setupSVG() {
     .scaleExtent([0.2, 4])
     .on("zoom", (event) => {
       container.attr("transform", event.transform);
+      
+      // Progressive Disclosure: Notify of zoom changes
+      if (window.ProgressiveDisclosure && window.ProgressiveDisclosure.handleZoomChange) {
+        window.ProgressiveDisclosure.handleZoomChange(event.transform.k, {
+          svg,
+          container,
+          nodes,
+          links,
+          nodeEls,
+          linkEls,
+          themeEls
+        });
+      }
     });
 
   svg.call(zoomBehavior);
