@@ -123,7 +123,7 @@ SELECT
   id,
   email,
   user_id,
-  display_name,
+  name,
   is_hidden,
   profile_completed,
   onboarding_completed,
@@ -212,7 +212,7 @@ SELECT
   id,
   email,
   user_id,
-  display_name,
+  name,
   updated_at,
   NOW() - updated_at as age
 FROM community

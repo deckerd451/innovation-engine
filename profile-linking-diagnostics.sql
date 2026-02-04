@@ -23,7 +23,7 @@ WHERE user_id IS NULL;
 SELECT 
   id,
   email,
-  display_name,
+  name,
   username,
   onboarding_completed,
   profile_completed,
@@ -58,7 +58,7 @@ SELECT
   id,
   email,
   user_id,
-  display_name,
+  name,
   created_at,
   updated_at
 FROM community 
@@ -86,7 +86,7 @@ WHERE user_id IS NOT NULL
   AND (
     onboarding_completed = false 
     OR profile_completed = false
-    OR display_name IS NULL
+    OR name IS NULL
     OR username IS NULL
   );
 
@@ -95,7 +95,7 @@ SELECT
   id,
   email,
   user_id,
-  display_name,
+  name,
   username,
   onboarding_completed,
   profile_completed,
@@ -105,7 +105,7 @@ WHERE user_id IS NOT NULL
   AND (
     onboarding_completed = false 
     OR profile_completed = false
-    OR display_name IS NULL
+    OR name IS NULL
     OR username IS NULL
   )
 ORDER BY created_at DESC
@@ -259,7 +259,7 @@ SELECT
   id,
   email,
   user_id,
-  display_name,
+  name,
   onboarding_completed,
   profile_completed,
   is_hidden,
@@ -274,7 +274,7 @@ SELECT
   id,
   email,
   user_id,
-  display_name,
+  name,
   created_at,
   updated_at,
   updated_at - created_at as time_until_linked
@@ -302,7 +302,7 @@ ORDER BY updated_at DESC;
 -- 6.3: Find profile by display name
 -- Replace 'Display Name' with actual name
 -- SELECT * FROM community 
--- WHERE display_name ILIKE '%Display Name%'
+-- WHERE name ILIKE '%Display Name%'
 -- ORDER BY created_at DESC;
 
 -- ================================================================
