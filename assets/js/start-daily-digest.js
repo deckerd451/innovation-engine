@@ -506,7 +506,7 @@ class StartDailyDigest {
   }
 
   /**
-   * Render stat card
+   * Render stat card with helpful tooltip
    */
   renderStatCard(label, value, icon, color, handler) {
     const clickHandler = handler ? `onclick="window.StartDailyDigest.${handler}()" style="cursor: pointer;"` : '';
@@ -514,6 +514,16 @@ class StartDailyDigest {
       onmouseenter="this.style.transform='translateY(-2px)'; this.style.borderColor='${color}';"
       onmouseleave="this.style.transform='translateY(0)'; this.style.borderColor='${color}40';"
     ` : '';
+    
+    // Add helpful descriptions for each stat
+    const descriptions = {
+      'Connections': 'People you\'re connected with',
+      'Themes': 'Theme circles you\'ve joined',
+      'Projects': 'Projects you\'re involved in',
+      'Opportunities': 'Open projects seeking collaborators'
+    };
+    
+    const description = descriptions[label] || '';
     
     return `
       <div ${clickHandler} ${hoverStyle} style="
@@ -523,13 +533,17 @@ class StartDailyDigest {
         padding: 1rem;
         text-align: center;
         transition: all 0.2s;
-      ">
+        position: relative;
+      " title="${description}">
         <i class="fas fa-${icon}" style="color: ${color}; font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
         <div style="color: #fff; font-size: 1.8rem; font-weight: 700; margin-bottom: 0.25rem;">
           ${value}
         </div>
-        <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+        <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.25rem;">
           ${label}
+        </div>
+        <div style="color: rgba(255,255,255,0.4); font-size: 0.7rem; line-height: 1.2;">
+          ${description}
         </div>
       </div>
     `;

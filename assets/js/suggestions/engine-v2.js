@@ -644,7 +644,7 @@ export class DailySuggestionsEngineV2 {
           suggestion_type: 'theme',
           target_id: theme.id,
           score: 5,
-          why: ['High-activity theme'],
+          why: ['Active community with recent projects and discussions'],
           source: 'fallback',
           data: {
             suggestionType: 'theme',
@@ -846,7 +846,7 @@ export class DailySuggestionsEngineV2 {
     }
     
     if (reasons.length === 0) {
-      reasons.push('Keep engaging to unlock coordination insights');
+      reasons.push('Connect with people and join projects to discover collaboration opportunities');
     }
     
     // Use a deterministic UUID for "no signals" card
