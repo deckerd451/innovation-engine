@@ -296,7 +296,7 @@ function showLabel(nodeEl, nodeData) {
     .attr('opacity', 1);
   
   // Enforce label limit
-  enforceLabel Limit();
+  enforceLabelLimit();
 }
 
 function hideLabel(nodeEl, nodeData) {
