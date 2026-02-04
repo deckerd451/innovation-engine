@@ -21,7 +21,8 @@ let bridgeState = {
   activeSystem: null, // 'unified' or 'legacy'
   eventListeners: [],
   initAttempts: 0,
-  maxAttempts: 10
+  maxAttempts: 10,
+  preventCircularEmit: false // Prevent infinite event loops
 };
 
 /**
@@ -176,6 +177,23 @@ function setupLegacyToUnifiedBridge() {
     logger.debug('SynapseBridge', 'Legacy focus-node event → unified network', { nodeId });
     
     try {
+      // Check if node exists before trying to focus
+      const nodes = window.unifiedNetworkIntegration?.state?.nodes || [];
+      const nodeExists = nodes.some(n => n.id === nodeId);
+      
+      if (!nodeExists) {
+        logger.warn('SynapseBridge', 'Node not found, skipping focus to prevent infinite loop', { nodeId });
+        // Show notification to user (unless skipToast is true)
+        if (!skipToast && window.showSynapseNotification) {
+          window.showSynapseNotification(
+            'This person or resource is not currently visible in your network view.',
+            'info',
+            4000
+          );
+        }
+        return;
+      }
+      
       unifiedApi.focusNode(nodeId, { 
         duration: 750, 
         smooth: true,
@@ -197,6 +215,24 @@ function setupLegacyToUnifiedBridge() {
     try {
       // In unified network, themes are nodes too
       const themeNodeId = themeId.startsWith('theme:') ? themeId : `theme:${themeId}`;
+      
+      // Check if theme node exists before trying to focus
+      const nodes = window.unifiedNetworkIntegration?.state?.nodes || [];
+      const themeExists = nodes.some(n => n.id === themeNodeId);
+      
+      if (!themeExists) {
+        logger.warn('SynapseBridge', 'Theme node not found, skipping focus to prevent infinite loop', { themeNodeId });
+        // Show notification to user
+        if (window.showSynapseNotification) {
+          window.showSynapseNotification(
+            'This theme is not currently visible in your network view.',
+            'info',
+            4000
+          );
+        }
+        return;
+      }
+      
       unifiedApi.focusNode(themeNodeId, { duration: 750, smooth: true });
     } catch (error) {
       logger.error('SynapseBridge', 'Failed to focus theme in unified network', error);
@@ -235,6 +271,14 @@ function setupUnifiedToLegacyBridge() {
   // Forward unified network events to legacy event format
   unifiedApi.on('node-focused', ({ nodeId, nodeType }) => {
     logger.debug('SynapseBridge', 'Unified node-focused → legacy event', { nodeId, nodeType });
+    
+    // Don't re-emit events that would cause circular loops
+    // If this was triggered by a fallback (node not found), don't propagate
+    if (bridgeState.preventCircularEmit) {
+      logger.debug('SynapseBridge', 'Skipping circular event emission');
+      bridgeState.preventCircularEmit = false;
+      return;
+    }
     
     // Emit legacy-compatible event
     if (nodeType === 'theme') {
