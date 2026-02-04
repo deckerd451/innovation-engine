@@ -574,15 +574,13 @@
         const needsOnboarding = 
           !profile.onboarding_completed || 
           !profile.profile_completed ||
-          !profile.name ||
-          !profile.username;
+          !profile.name;
 
         if (needsOnboarding) {
           log("⚠️ [PROFILE-LINK] onboarding-forced: Profile", profile.id, "requires onboarding");
           log("   - onboarding_completed:", profile.onboarding_completed);
           log("   - profile_completed:", profile.profile_completed);
           log("   - name:", !!profile.name);
-          log("   - username:", !!profile.username);
           
           // Set flag for UI to show onboarding
           profile._needsOnboarding = true;
