@@ -1,0 +1,244 @@
+/* ================================================================
+   Quiet Mode v1 - Minimal, Calm, Focused
+   ================================================================ */
+
+/* ==========================================================================
+   SEARCH BAR
+   ========================================================================== */
+
+.quiet-search {
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  padding: 8px 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.quiet-search-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 16px;
+  padding: 8px 0;
+}
+
+.quiet-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ==========================================================================
+   CTA (Call To Action)
+   ========================================================================== */
+
+.quiet-cta {
+  animation: ctaSlideUp 0.2s ease-out;
+}
+
+@keyframes ctaSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.quiet-cta-button {
+  background: linear-gradient(135deg, #00e0ff, #0099cc);
+  color: #fff;
+  border: none;
+  border-radius: 24px;
+  padding: 14px 28px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 224, 255, 0.4);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px; /* Touch target */
+}
+
+.quiet-cta-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 224, 255, 0.6);
+}
+
+.quiet-cta-button:active {
+  transform: scale(0.98);
+}
+
+.quiet-cta-button i {
+  font-size: 18px;
+}
+
+/* ==========================================================================
+   NODE OVERRIDES (Quiet Mode Specific)
+   ========================================================================== */
+
+/* Remove all animations in quiet mode */
+.quiet-mode-active .node circle {
+  animation: none !important;
+}
+
+.quiet-mode-active .link {
+  animation: none !important;
+}
+
+/* Ensure smooth transitions only */
+.quiet-mode-active .node,
+.quiet-mode-active .link {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Touch hit areas */
+.touch-hit-area {
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   MOBILE OPTIMIZATIONS
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  .quiet-search {
+    width: calc(100% - 40px);
+    max-width: none;
+  }
+  
+  .quiet-search-input {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .quiet-cta-button {
+    padding: 12px 24px;
+    font-size: 15px;
+  }
+}
+
+/* ==========================================================================
+   HIDDEN ELEMENTS (Forbidden in Quiet Mode)
+   ========================================================================== */
+
+.quiet-mode-active .theme-ring,
+.quiet-mode-active .node-badge,
+.quiet-mode-active .node-icon,
+.quiet-mode-active .xp-badge,
+.quiet-mode-active .streak-badge,
+.quiet-mode-active .user-outer-ring,
+.quiet-mode-active .connection-indicator-ring,
+.quiet-mode-active .org-outer-ring,
+.quiet-mode-active .project-glow-bg {
+  display: none !important;
+}
+
+/* Hide mode switcher */
+.quiet-mode-active #synapse-mode-switcher,
+.quiet-mode-active .synapse-mode-switcher {
+  display: none !important;
+}
+
+/* Hide category toggles */
+.quiet-mode-active .category-toggle,
+.quiet-mode-active .filter-button,
+.quiet-mode-active .view-toggle {
+  display: none !important;
+}
+
+/* Hide gamification */
+.quiet-mode-active .xp-bar,
+.quiet-mode-active .streak-indicator,
+.quiet-mode-active .level-badge,
+.quiet-mode-active .leaderboard {
+  display: none !important;
+}
+
+/* Hide panels */
+.quiet-mode-active .floating-panel,
+.quiet-mode-active .sidebar,
+.quiet-mode-active .bottom-tray:not(#quiet-search) {
+  display: none !important;
+}
+
+/* ==========================================================================
+   PERFORMANCE
+   ========================================================================== */
+
+/* GPU acceleration for smooth 60fps */
+.quiet-cta,
+.quiet-search,
+.quiet-mode-active .node,
+.quiet-mode-active .link {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* ==========================================================================
+   ACCESSIBILITY
+   ========================================================================== */
+
+.quiet-cta-button:focus-visible {
+  outline: 2px solid rgba(0, 224, 255, 0.8);
+  outline-offset: 2px;
+}
+
+.quiet-search-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 224, 255, 0.5);
+  border-radius: 4px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .quiet-cta-button {
+    border: 2px solid #fff;
+  }
+  
+  .quiet-search {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .quiet-cta,
+  .quiet-mode-active .node,
+  .quiet-mode-active .link {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ==========================================================================
+   CALM VISUAL HIERARCHY
+   ========================================================================== */
+
+/* Ensure nothing competes with focused node */
+.quiet-mode-active .node:not(.focused):not(.current-user) {
+  opacity: 0.6;
+}
+
+.quiet-mode-active .node.focused {
+  opacity: 1;
+  z-index: 100;
+}
+
+.quiet-mode-active .node.current-user {
+  opacity: 1;
+  z-index: 99;
+}
+
+/* Single connection highlight */
+.quiet-mode-active .link.highlighted {
+  opacity: 0.8;
+  stroke-width: 2px;
+}
+
+.quiet-mode-active .link:not(.highlighted) {
+  opacity: 0.1;
+}

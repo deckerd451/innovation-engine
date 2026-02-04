@@ -32,6 +32,7 @@ import {
 } from "./themes.js";
 
 import ProgressiveDisclosure from "./progressive-disclosure.js";
+import QuietMode from "./quiet-mode.js";
 
 /* ==========================================================================
    STATE
@@ -142,27 +143,56 @@ export async function initSynapseView() {
   await reloadAllData();
   await buildGraph();
 
-  // Progressive Disclosure System (Mobile-First UX)
-  try {
-    console.log('🎨 Initializing Progressive Disclosure System...');
-    ProgressiveDisclosure.init({
-      svg,
-      container,
-      nodes,
-      links,
-      nodeEls,
-      linkEls,
-      themeEls,
-      projectEls,
-      zoomBehavior,
-      simulation
-    });
-    console.log('✅ Progressive Disclosure initialized');
-    
-    // Expose for debugging
-    window.ProgressiveDisclosure = ProgressiveDisclosure;
-  } catch (e) {
-    console.error('❌ Progressive Disclosure init failed:', e);
+  // Quiet Mode v1 (Default - Radical Simplification)
+  // Feature flag: quietMode overrides Progressive Disclosure
+  const quietMode = true; // Default to Quiet Mode
+  
+  if (quietMode) {
+    try {
+      console.log('🤫 Initializing Quiet Mode (v1)...');
+      QuietMode.init({
+        svg,
+        container,
+        nodes,
+        links,
+        nodeEls,
+        linkEls,
+        themeEls,
+        projectEls,
+        zoomBehavior,
+        simulation,
+        currentUserCommunityId
+      });
+      console.log('✅ Quiet Mode initialized');
+      
+      // Expose for debugging
+      window.QuietMode = QuietMode;
+    } catch (e) {
+      console.error('❌ Quiet Mode init failed:', e);
+    }
+  } else {
+    // Progressive Disclosure System (Mobile-First UX)
+    try {
+      console.log('🎨 Initializing Progressive Disclosure System...');
+      ProgressiveDisclosure.init({
+        svg,
+        container,
+        nodes,
+        links,
+        nodeEls,
+        linkEls,
+        themeEls,
+        projectEls,
+        zoomBehavior,
+        simulation
+      });
+      console.log('✅ Progressive Disclosure initialized');
+      
+      // Expose for debugging
+      window.ProgressiveDisclosure = ProgressiveDisclosure;
+    } catch (e) {
+      console.error('❌ Progressive Disclosure init failed:', e);
+    }
   }
 
   // Realtime refresh (connections/projects/themes)
