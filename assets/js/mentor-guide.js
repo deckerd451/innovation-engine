@@ -36,10 +36,8 @@ document.addEventListener('DOMContentLoaded', initMentorGuide);
 function initMentorGuide() {
   console.log('🧭 Initializing Mentor Guide');
 
-  // Wire up mentor navigation buttons
-  document.getElementById('mentor-btn-focus')?.addEventListener('click', () => openMentorPanel('focus'));
-  document.getElementById('mentor-btn-projects')?.addEventListener('click', () => openMentorPanel('projects'));
-  document.getElementById('mentor-btn-people')?.addEventListener('click', () => openMentorPanel('people'));
+  // Note: Mentor navigation buttons (mentor-btn-focus, mentor-btn-projects, mentor-btn-people) 
+  // are not currently in the UI. Panels can be opened programmatically if needed.
 
   // Initialize drag functionality for all mentor panels
   initializePanelDrag();
