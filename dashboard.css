@@ -1973,3 +1973,138 @@ button,
   transform: translateY(-2px);
   box-shadow: 0 0 30px rgba(0,224,255,0.4);
 }
+
+
+/* ========================================= */
+/* MENTOR PANEL RESPONSIVE IMPROVEMENTS */
+/* ========================================= */
+
+.mentor-panel {
+  /* Smooth transitions */
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+.mentor-panel-drag-handle {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  touch-action: none;
+}
+
+.mentor-panel-drag-handle:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mentor-panel-drag-handle:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Responsive adjustments for mentor panels */
+@media (max-width: 768px) {
+  .mentor-panel {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 80vh !important;
+    padding: 1.5rem !important;
+  }
+
+  .mentor-panel h2 {
+    font-size: 1.2rem !important;
+    margin-top: 2rem !important;
+  }
+
+  .mentor-panel p {
+    font-size: 0.85rem !important;
+  }
+
+  .mentor-panel-close {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 1rem !important;
+  }
+
+  .mentor-panel-drag-handle {
+    height: 2.5rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .mentor-panel {
+    width: 98vw !important;
+    max-width: 98vw !important;
+    max-height: 85vh !important;
+    padding: 1rem !important;
+    border-radius: 12px !important;
+  }
+
+  .mentor-panel h2 {
+    font-size: 1.1rem !important;
+  }
+
+  .mentor-panel p {
+    font-size: 0.8rem !important;
+  }
+}
+
+/* Landscape mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .mentor-panel {
+    max-height: 90vh !important;
+    padding: 1rem !important;
+  }
+
+  .mentor-panel h2 {
+    font-size: 1rem !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .mentor-panel p {
+    font-size: 0.75rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .mentor-panel-drag-handle {
+    height: 2rem !important;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .mentor-panel {
+    width: 85vw !important;
+    max-width: 600px !important;
+  }
+}
+
+/* Ensure panels stay within viewport on small screens */
+@media (max-width: 768px) {
+  .mentor-panel {
+    /* Reset transform to prevent panels from going off-screen */
+    top: 50% !important;
+    left: 50% !important;
+  }
+}
+
+/* Improve readability on all screens */
+.mentor-panel * {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Smooth scrolling for panel content */
+.mentor-panel {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Better touch targets on mobile */
+@media (max-width: 768px) {
+  .mentor-panel button {
+    min-height: 44px !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.9rem !important;
+  }
+}

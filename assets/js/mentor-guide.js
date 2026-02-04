@@ -41,6 +41,9 @@ function initMentorGuide() {
   document.getElementById('mentor-btn-projects')?.addEventListener('click', () => openMentorPanel('projects'));
   document.getElementById('mentor-btn-people')?.addEventListener('click', () => openMentorPanel('people'));
 
+  // Initialize drag functionality for all mentor panels
+  initializePanelDrag();
+
   // Load saved state from localStorage
   loadMentorState();
 
@@ -74,6 +77,127 @@ function initMentorGuide() {
     // Soft highlight the first unviewed panel
     highlightRecommendedPanel();
   });
+}
+
+// ================================================================
+// DRAG FUNCTIONALITY
+// ================================================================
+
+function initializePanelDrag() {
+  const panels = document.querySelectorAll('.mentor-panel-draggable');
+  
+  panels.forEach(panel => {
+    const dragHandle = panel.querySelector('.mentor-panel-drag-handle');
+    if (!dragHandle) return;
+
+    let isDragging = false;
+    let currentX;
+    let currentY;
+    let initialX;
+    let initialY;
+    let xOffset = 0;
+    let yOffset = 0;
+
+    // Mouse events
+    dragHandle.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+
+    // Touch events
+    dragHandle.addEventListener('touchstart', dragStart, { passive: false });
+    document.addEventListener('touchmove', drag, { passive: false });
+    document.addEventListener('touchend', dragEnd);
+
+    function dragStart(e) {
+      // Only drag if clicking on the handle itself
+      if (e.target !== dragHandle && !dragHandle.contains(e.target)) return;
+
+      if (e.type === 'touchstart') {
+        initialX = e.touches[0].clientX - xOffset;
+        initialY = e.touches[0].clientY - yOffset;
+      } else {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+      }
+
+      isDragging = true;
+      panel.style.transition = 'none';
+      dragHandle.style.cursor = 'grabbing';
+    }
+
+    function drag(e) {
+      if (!isDragging) return;
+
+      e.preventDefault();
+
+      if (e.type === 'touchmove') {
+        currentX = e.touches[0].clientX - initialX;
+        currentY = e.touches[0].clientY - initialY;
+      } else {
+        currentX = e.clientX - initialX;
+        currentY = e.clientY - initialY;
+      }
+
+      xOffset = currentX;
+      yOffset = currentY;
+
+      // Keep panel within viewport bounds
+      const rect = panel.getBoundingClientRect();
+      const maxX = window.innerWidth - rect.width;
+      const maxY = window.innerHeight - rect.height;
+
+      // Constrain to viewport
+      xOffset = Math.max(-rect.width / 2, Math.min(xOffset, maxX - rect.width / 2));
+      yOffset = Math.max(-rect.height / 2, Math.min(yOffset, maxY - rect.height / 2));
+
+      setTranslate(xOffset, yOffset, panel);
+    }
+
+    function dragEnd(e) {
+      if (!isDragging) return;
+
+      initialX = currentX;
+      initialY = currentY;
+
+      isDragging = false;
+      dragHandle.style.cursor = 'move';
+      
+      // Save position to localStorage
+      savePanelPosition(panel.id, xOffset, yOffset);
+    }
+
+    function setTranslate(xPos, yPos, el) {
+      el.style.transform = `translate(calc(-50% + ${xPos}px), calc(-50% + ${yPos}px))`;
+    }
+
+    // Restore saved position
+    const savedPosition = loadPanelPosition(panel.id);
+    if (savedPosition) {
+      xOffset = savedPosition.x;
+      yOffset = savedPosition.y;
+      setTranslate(xOffset, yOffset, panel);
+    }
+  });
+}
+
+function savePanelPosition(panelId, x, y) {
+  try {
+    const positions = JSON.parse(localStorage.getItem('mentor_panel_positions') || '{}');
+    positions[panelId] = { x, y };
+    localStorage.setItem('mentor_panel_positions', JSON.stringify(positions));
+  } catch (e) {
+    console.warn('Could not save panel position:', e);
+  }
+}
+
+function loadPanelPosition(panelId) {
+  try {
+    const positions = JSON.parse(localStorage.getItem('mentor_panel_positions') || '{}');
+    return positions[panelId] || null;
+  } catch (e) {
+    console.warn('Could not load panel position:', e);
+    return null;
+  }
 }
 
 // ================================================================
