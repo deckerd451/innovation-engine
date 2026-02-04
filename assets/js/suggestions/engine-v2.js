@@ -661,6 +661,7 @@ export class DailySuggestionsEngineV2 {
         .from('community')
         .select('id, name, bio, last_activity_date')
         .neq('id', profile.id)
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .order('last_activity_date', { ascending: false, nullsFirst: false })
         .limit(count - suggestions.length);
       

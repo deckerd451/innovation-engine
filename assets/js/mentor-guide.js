@@ -267,6 +267,7 @@ async function loadFocusContent(contentDiv) {
       .from('community')
       .select('*')
       .neq('id', userId)
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .limit(30);
 
     const peopleResult = await Promise.race([
@@ -484,6 +485,7 @@ async function loadPeopleContent(contentDiv) {
       .from('community')
       .select('*')
       .neq('id', userId)
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .limit(50);
 
     const result = await Promise.race([

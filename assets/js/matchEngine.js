@@ -54,6 +54,7 @@ export async function fetchSuggestions({ limit = 8 } = {}) {
     .from('community')
     .select('id, name, role, skills, interests')
     .neq('id', uid)
+    .or('is_hidden.is.null,is_hidden.eq.false')
     .limit(500);
 
   if (othersErr) return { me, list: [], reason: 'fetch_error' };

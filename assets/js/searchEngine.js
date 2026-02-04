@@ -71,6 +71,7 @@ async function loadCommunityData() {
     const { data, error } = await supabase
       .from('community')
       .select('id, name, email, image_url, skills, bio, availability, user_id, connection_count')
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .order('name');
 
     if (error) {

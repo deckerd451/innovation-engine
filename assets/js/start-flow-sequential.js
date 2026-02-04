@@ -382,6 +382,7 @@ async function loadPeople(supabase, currentUser) {
     .from('community')
     .select('id, name, bio, image_url')
     .neq('id', currentUser.id)
+    .or('is_hidden.is.null,is_hidden.eq.false')
     .limit(5);
 
   return data || [];

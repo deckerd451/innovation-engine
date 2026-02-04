@@ -1164,7 +1164,8 @@ async function getMutualConnections(userId) {
     const { data: mutuals } = await supabase
       .from('community')
       .select('id, name, image_url')
-      .in('id', mutualIds);
+      .in('id', mutualIds)
+      .or('is_hidden.is.null,is_hidden.eq.false');
 
     return mutuals || [];
 

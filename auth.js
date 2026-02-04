@@ -299,77 +299,232 @@
   }
 
   async function fetchUserProfile(user) {
-    log("🔍 Fetching profile for user_id:", user.id);
+    const uid = user.id;
+    const emailNorm = user.email ? user.email.toLowerCase().trim() : null;
+    
+    log("🔍 [PROFILE-LINK] Starting profile resolution for uid:", uid, "email:", emailNorm);
 
-    // First, try to find profile by user_id
-    const { data, error } = await withTimeout(
+    // ============================================================
+    // STEP 1: Try to find profile by user_id (primary lookup)
+    // ============================================================
+    const { data: uidData, error: uidError } = await withTimeout(
       window.supabase
         .from("community")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", uid)
         .limit(1),
       15000,
       "Database query timeout"
     );
 
-    if (error) {
-      err("❌ Database error fetching profile:", error);
-      throw error;
+    if (uidError) {
+      err("❌ [PROFILE-LINK] Database error fetching profile by user_id:", uidError);
+      throw uidError;
     }
 
-    let profile = Array.isArray(data) && data.length ? data[0] : null;
-    
-    // If no profile found by user_id, try to link to existing profile by email
-    if (!profile && user.email) {
-      log("🔗 No profile found by user_id, checking for existing profile by email:", user.email);
-      
-      const { data: emailData, error: emailError } = await withTimeout(
-        window.supabase
-          .from("community")
-          .select("*")
-          .eq("email", user.email)
-          .is("user_id", null) // Only link profiles that aren't already linked
-          .limit(1),
-        15000,
-        "Email lookup timeout"
-      );
+    if (uidData && uidData.length > 0) {
+      const profile = uidData[0];
+      log("✅ [PROFILE-LINK] found-by-uid:", profile.id, "email:", profile.email);
+      return profile;
+    }
 
-      if (!emailError && emailData && emailData.length > 0) {
-        const existingProfile = emailData[0];
-        log("✅ Found existing profile by email, linking to OAuth user:", existingProfile.id);
+    log("🔍 [PROFILE-LINK] No profile found by user_id, proceeding to email lookup");
+
+    // ============================================================
+    // STEP 2: Link by email (handle migrated profiles)
+    // ============================================================
+    if (!emailNorm) {
+      log("⚠️ [PROFILE-LINK] No email available, cannot link by email");
+      return null;
+    }
+
+    // Find all profiles with matching email (case-insensitive)
+    const { data: emailMatches, error: emailError } = await withTimeout(
+      window.supabase
+        .from("community")
+        .select("*")
+        .ilike("email", emailNorm)
+        .order("created_at", { ascending: true, nullsLast: true }),
+      15000,
+      "Email lookup timeout"
+    );
+
+    if (emailError) {
+      err("❌ [PROFILE-LINK] Error looking up profiles by email:", emailError);
+      throw emailError;
+    }
+
+    if (!emailMatches || emailMatches.length === 0) {
+      log("🔍 [PROFILE-LINK] No existing profiles found for email:", emailNorm);
+      return null;
+    }
+
+    log(`🔍 [PROFILE-LINK] Found ${emailMatches.length} profile(s) with email:`, emailNorm);
+
+    // ============================================================
+    // CASE A: Exactly one profile with this email
+    // ============================================================
+    if (emailMatches.length === 1) {
+      const row = emailMatches[0];
+      
+      // Sub-case: profile has no user_id (migrated profile) - link it
+      if (!row.user_id) {
+        log("🔗 [PROFILE-LINK] Linking migrated profile (user_id=NULL) to OAuth user:", row.id);
         
-        // Link the existing profile to this OAuth user
         const { data: updatedData, error: updateError } = await window.supabase
           .from("community")
           .update({ 
-            user_id: user.id,
+            user_id: uid,
             updated_at: new Date().toISOString()
           })
-          .eq("id", existingProfile.id)
+          .eq("id", row.id)
           .select()
           .single();
 
         if (updateError) {
-          err("❌ Failed to link existing profile:", updateError);
-        } else {
-          log("🎉 Successfully linked existing profile to OAuth user");
-          profile = updatedData;
-          
-          // Show notification to user
-          setTimeout(() => {
-            if (typeof window.showNotification === 'function') {
-              window.showNotification(
-                "Welcome back! Your existing profile has been linked to your OAuth account.",
-                "success"
-              );
-            }
-          }, 1000);
+          err("❌ [PROFILE-LINK] Failed to link migrated profile:", updateError);
+          return null;
         }
+
+        log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", row.id, "to uid:", uid);
+        
+        // Show notification to user
+        setTimeout(() => {
+          if (typeof window.showNotification === 'function') {
+            window.showNotification(
+              "Welcome back! Your existing profile has been linked to your OAuth account.",
+              "success"
+            );
+          }
+        }, 1000);
+        
+        return updatedData;
+      }
+      
+      // Sub-case: profile already has a different user_id (collision)
+      if (row.user_id !== uid) {
+        err("⚠️ [PROFILE-LINK] duplicate-email-collision: Profile", row.id, "already linked to different user_id:", row.user_id);
+        err("⚠️ [PROFILE-LINK] ADMIN WARNING: Email", emailNorm, "has collision between uid:", uid, "and existing uid:", row.user_id);
+        // Do NOT create another profile - return the existing one to prevent duplicates
+        return row;
+      }
+      
+      // Sub-case: profile already linked to this uid (shouldn't happen, but handle gracefully)
+      log("✅ [PROFILE-LINK] Profile already linked to this uid:", row.id);
+      return row;
+    }
+
+    // ============================================================
+    // CASE B: Multiple profiles with same email (duplicates)
+    // ============================================================
+    log("⚠️ [PROFILE-LINK] duplicate-email-detected: Found", emailMatches.length, "profiles for email:", emailNorm);
+    
+    // Choose canonical profile with priority:
+    // 1. profile_completed=true OR onboarding_completed=true
+    // 2. Else oldest created_at
+    let canonical = null;
+    
+    // First pass: look for completed profiles
+    for (const row of emailMatches) {
+      if (row.profile_completed === true || row.onboarding_completed === true) {
+        canonical = row;
+        log("🎯 [PROFILE-LINK] Selected canonical (completed):", row.id);
+        break;
+      }
+    }
+    
+    // Second pass: if no completed profile, use oldest
+    if (!canonical) {
+      canonical = emailMatches[0]; // Already sorted by created_at ASC
+      log("🎯 [PROFILE-LINK] Selected canonical (oldest):", canonical.id, "created_at:", canonical.created_at);
+    }
+
+    // Check if any row already has this uid but is NOT canonical (rehome scenario)
+    const uidRow = emailMatches.find(r => r.user_id === uid);
+    if (uidRow && uidRow.id !== canonical.id) {
+      log("🔄 [PROFILE-LINK] rehomed-uid: uid", uid, "currently on non-canonical profile", uidRow.id, "- rehoming to canonical", canonical.id);
+      
+      try {
+        // Transaction-like operation: first clear the old link, then set the new one
+        const { error: clearError } = await window.supabase
+          .from("community")
+          .update({ 
+            user_id: null,
+            is_hidden: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", uidRow.id);
+
+        if (clearError) {
+          err("❌ [PROFILE-LINK] Failed to clear old uid link:", clearError);
+        } else {
+          log("✅ [PROFILE-LINK] Cleared uid from non-canonical profile:", uidRow.id);
+        }
+      } catch (e) {
+        err("❌ [PROFILE-LINK] Exception during rehome clear:", e);
       }
     }
 
-    log("🔍 Profile query result:", profile ? "found" : "not found");
-    return profile;
+    // Link canonical profile to this uid (if not already linked)
+    if (!canonical.user_id) {
+      log("🔗 [PROFILE-LINK] Linking canonical profile", canonical.id, "to uid:", uid);
+      
+      const { data: updatedCanonical, error: updateError } = await window.supabase
+        .from("community")
+        .update({ 
+          user_id: uid,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", canonical.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        err("❌ [PROFILE-LINK] Failed to link canonical profile:", updateError);
+        return canonical; // Return unlinked canonical
+      }
+
+      canonical = updatedCanonical;
+      log("✅ [PROFILE-LINK] Successfully linked canonical profile to uid:", uid);
+    } else if (canonical.user_id !== uid) {
+      err("⚠️ [PROFILE-LINK] duplicate-email-collision: Canonical profile", canonical.id, "already linked to different uid:", canonical.user_id);
+      return canonical;
+    }
+
+    // Hide all non-canonical profiles
+    const nonCanonicalIds = emailMatches
+      .filter(r => r.id !== canonical.id)
+      .map(r => r.id);
+
+    if (nonCanonicalIds.length > 0) {
+      log("🗑️ [PROFILE-LINK] Hiding", nonCanonicalIds.length, "non-canonical duplicate profile(s):", nonCanonicalIds);
+      
+      const { error: hideError } = await window.supabase
+        .from("community")
+        .update({ 
+          is_hidden: true,
+          updated_at: new Date().toISOString()
+        })
+        .in("id", nonCanonicalIds);
+
+      if (hideError) {
+        err("❌ [PROFILE-LINK] Failed to hide non-canonical profiles:", hideError);
+      } else {
+        log("✅ [PROFILE-LINK] Successfully hid non-canonical profiles");
+      }
+    }
+
+    // Show notification about duplicate resolution
+    setTimeout(() => {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification(
+          "Welcome back! We've consolidated your duplicate profiles.",
+          "success"
+        );
+      }
+    }, 1000);
+
+    return canonical;
   }
 
   async function loadUserProfileOnce(user) {
@@ -379,20 +534,66 @@
     profileLoadPromise = (async () => {
       showProfileLoading(user);
       try {
-        const profile = await fetchUserProfile(user);
+        let profile = await fetchUserProfile(user);
 
-        if (profile) {
-          log("📋 Existing profile found:", profile);
-          window.currentUserProfile = profile;
-          setTimeout(() => emitProfileLoaded(user, profile), 10);
-          return profile;
+        // ============================================================
+        // STEP 3: Create new profile if no match found
+        // ============================================================
+        if (!profile) {
+          log("🆕 [PROFILE-LINK] created-new: No existing profile found, creating new profile for uid:", user.id);
+          
+          const newProfile = {
+            user_id: user.id,
+            email: user.email,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            onboarding_completed: false,
+            profile_completed: false,
+            is_hidden: false
+          };
+
+          const { data: insertedProfile, error: insertError } = await window.supabase
+            .from("community")
+            .insert([newProfile])
+            .select()
+            .single();
+
+          if (insertError) {
+            err("❌ [PROFILE-LINK] Failed to create new profile:", insertError);
+            setTimeout(() => emitProfileNew(user), 10);
+            return null;
+          }
+
+          profile = insertedProfile;
+          log("✅ [PROFILE-LINK] Successfully created new profile:", profile.id);
         }
 
-        log("🆕 New user — no profile row");
-        setTimeout(() => emitProfileNew(user), 10);
-        return null;
+        // ============================================================
+        // Enforce onboarding if needed
+        // ============================================================
+        const needsOnboarding = 
+          !profile.onboarding_completed || 
+          !profile.profile_completed ||
+          !profile.display_name ||
+          !profile.username;
+
+        if (needsOnboarding) {
+          log("⚠️ [PROFILE-LINK] onboarding-forced: Profile", profile.id, "requires onboarding");
+          log("   - onboarding_completed:", profile.onboarding_completed);
+          log("   - profile_completed:", profile.profile_completed);
+          log("   - display_name:", !!profile.display_name);
+          log("   - username:", !!profile.username);
+          
+          // Set flag for UI to show onboarding
+          profile._needsOnboarding = true;
+        }
+
+        log("📋 [PROFILE-LINK] Profile resolution complete:", profile.id);
+        window.currentUserProfile = profile;
+        setTimeout(() => emitProfileLoaded(user, profile), 10);
+        return profile;
       } catch (e) {
-        err("❌ Exception loading profile:", e);
+        err("❌ [PROFILE-LINK] Exception loading profile:", e);
         setTimeout(() => emitProfileNew(user), 10);
         return null;
       } finally {

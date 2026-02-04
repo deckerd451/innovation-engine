@@ -92,6 +92,7 @@ async function loadSearchData() {
     const { data: people, error: peopleError } = await supabase
       .from('community')
       .select('*')
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .order('name');
 
     if (!peopleError && people) {

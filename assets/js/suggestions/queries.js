@@ -121,6 +121,7 @@ export async function getCandidatePeople(communityId, excludeIds) {
     .from('community')
     .select('id, name, bio, interests, skills, last_activity_date, updated_at, connection_count')
     .neq('id', communityId)
+    .or('is_hidden.is.null,is_hidden.eq.false')
     .not('id', 'in', `(${excludeIds.join(',')})`)
     .order('last_activity_date', { ascending: false, nullsFirst: false })
     .limit(50);

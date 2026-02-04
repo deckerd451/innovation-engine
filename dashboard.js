@@ -18,6 +18,32 @@ window.addEventListener('profile-loaded', async (e) => {
   currentUser = user;
   currentUserProfile = profile;
   
+  // ============================================================
+  // ENFORCE ONBOARDING if profile is incomplete
+  // ============================================================
+  if (profile._needsOnboarding) {
+    console.log('⚠️ [ONBOARDING] Profile requires onboarding, redirecting...');
+    console.log('   - Profile ID:', profile.id);
+    console.log('   - Email:', profile.email);
+    console.log('   - Onboarding completed:', profile.onboarding_completed);
+    console.log('   - Profile completed:', profile.profile_completed);
+    
+    // Show notification
+    if (typeof window.showNotification === 'function') {
+      window.showNotification(
+        'Please complete your profile to continue.',
+        'info'
+      );
+    }
+    
+    // TODO: Redirect to onboarding UI or show onboarding modal
+    // For now, log the requirement - the UI team can implement the actual onboarding flow
+    console.log('🎯 [ONBOARDING] User should be shown onboarding UI');
+    
+    // Optionally, you can prevent dashboard loading until onboarding is complete:
+    // return;
+  }
+  
   console.log('🔄 Loading dashboard data...');
   
   try {
@@ -438,6 +464,7 @@ async function loadSuggestedConnections() {
       .from('community')
       .select('*')
       .neq('id', currentUserProfile.id)
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .limit(6);
     
     if (error) {
@@ -510,7 +537,8 @@ async function loadAllConnections() {
     
     const { data: users } = await window.supabase
       .from('community')
-      .select('*');
+      .select('*')
+      .or('is_hidden.is.null,is_hidden.eq.false');
     
     allUsers = users || [];
     

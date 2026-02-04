@@ -102,7 +102,8 @@ async function getPotentialConnections() {
     const { data: allUsers, error: usersError } = await supabase
       .from('community')
       .select('*')
-      .neq('id', currentUserProfile.id);
+      .neq('id', currentUserProfile.id)
+      .or('is_hidden.is.null,is_hidden.eq.false');
 
     if (usersError) throw usersError;
 

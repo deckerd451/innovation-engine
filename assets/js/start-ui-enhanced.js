@@ -705,7 +705,8 @@ class EnhancedStartUI {
               const { data: profiles } = await window.supabase
                 .from('community')
                 .select('id, name, email, bio, skills')
-                .in('id', Array.from(userIds));
+                .in('id', Array.from(userIds))
+                .or('is_hidden.is.null,is_hidden.eq.false');
               
               const profileMap = {};
               if (profiles) {
