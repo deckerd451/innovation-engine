@@ -42,19 +42,31 @@ export function showNavigationOverlay() {
   // Create overlay
   navigationOverlay = document.createElement('div');
   navigationOverlay.id = 'suggestion-navigation-overlay';
+  navigationOverlay.className = 'suggestion-nav-draggable';
+  
+  // Position contextually based on viewport size
+  const isMobile = window.innerWidth < 768;
+  const defaultPosition = isMobile 
+    ? { bottom: '1rem', left: '50%', transform: 'translateX(-50%)' }
+    : { bottom: '2rem', right: '2rem' };
+  
   navigationOverlay.style.cssText = `
     position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    background: linear-gradient(135deg, rgba(10,14,39,0.95), rgba(16,20,39,0.95));
-    border: 2px solid rgba(0,224,255,0.4);
+    ${defaultPosition.bottom ? `bottom: ${defaultPosition.bottom};` : ''}
+    ${defaultPosition.right ? `right: ${defaultPosition.right};` : ''}
+    ${defaultPosition.left ? `left: ${defaultPosition.left};` : ''}
+    ${defaultPosition.transform ? `transform: ${defaultPosition.transform};` : ''}
+    background: linear-gradient(135deg, rgba(10,14,39,0.65), rgba(16,20,39,0.65));
+    border: 2px solid rgba(0,224,255,0.25);
     border-radius: 16px;
-    padding: 1.5rem;
+    padding: 1.25rem;
     z-index: 10000;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-    backdrop-filter: blur(10px);
-    min-width: 280px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    backdrop-filter: blur(20px);
+    min-width: ${isMobile ? '90vw' : '280px'};
+    max-width: ${isMobile ? '90vw' : '350px'};
     animation: slideInUp 0.3s ease-out;
+    cursor: move;
   `;
   
   navigationOverlay.innerHTML = `
@@ -70,13 +82,42 @@ export function showNavigationOverlay() {
         }
       }
       
+      .suggestion-nav-draggable {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      
+      .nav-drag-handle {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: move;
+        padding: 0.5rem;
+      }
+      
+      .nav-drag-handle:hover {
+        background: rgba(255,255,255,0.03);
+      }
+      
+      .nav-drag-indicator {
+        width: 32px;
+        height: 3px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 2px;
+      }
+      
       .nav-button {
         background: linear-gradient(135deg, #00e0ff, #0080ff);
         border: none;
         border-radius: 8px;
         color: #000;
-        padding: 0.75rem 1.5rem;
-        font-size: 1rem;
+        padding: 0.6rem 1.25rem;
+        font-size: 0.9rem;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
@@ -84,6 +125,7 @@ export function showNavigationOverlay() {
         align-items: center;
         gap: 0.5rem;
         justify-content: center;
+        min-height: 44px;
       }
       
       .nav-button:hover {
@@ -98,21 +140,33 @@ export function showNavigationOverlay() {
       }
       
       .nav-button-secondary {
-        background: rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.08);
         color: #fff;
       }
       
       .nav-button-secondary:hover {
-        background: rgba(255,255,255,0.2);
-        box-shadow: 0 5px 20px rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.15);
+        box-shadow: 0 5px 20px rgba(255,255,255,0.15);
+      }
+      
+      @media (max-width: 768px) {
+        .nav-button {
+          font-size: 0.85rem;
+          padding: 0.5rem 1rem;
+        }
       }
     </style>
     
-    <div style="text-align: center; margin-bottom: 1rem;">
-      <div style="color: #00e0ff; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">
+    <!-- Drag Handle -->
+    <div class="nav-drag-handle">
+      <div class="nav-drag-indicator"></div>
+    </div>
+    
+    <div style="text-align: center; margin-bottom: 1rem; margin-top: 1.5rem;">
+      <div style="color: #00e0ff; font-size: clamp(0.85rem, 3vw, 0.9rem); font-weight: 600; margin-bottom: 0.5rem;">
         Your Focus Today
       </div>
-      <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+      <div style="color: rgba(255,255,255,0.6); font-size: clamp(0.75rem, 2.5vw, 0.85rem);">
         Suggestion ${current} of ${total}
       </div>
     </div>
@@ -141,7 +195,7 @@ export function showNavigationOverlay() {
       <button 
         class="nav-button nav-button-secondary" 
         onclick="window.returnToStartPanel()"
-        style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+        style="font-size: clamp(0.75rem, 2.5vw, 0.85rem); padding: 0.5rem 1rem;">
         <i class="fas fa-th-large"></i>
         View All
       </button>
@@ -149,21 +203,155 @@ export function showNavigationOverlay() {
       <button 
         class="nav-button nav-button-secondary" 
         onclick="window.hideNavigationOverlay()"
-        style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+        style="font-size: clamp(0.75rem, 2.5vw, 0.85rem); padding: 0.5rem 1rem;">
         <i class="fas fa-times"></i>
         Close
       </button>
     </div>
     
-    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
-      <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; text-align: center;">
+    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.08);">
+      <div style="color: rgba(255,255,255,0.4); font-size: clamp(0.7rem, 2vw, 0.75rem); text-align: center;">
         Complete this action, then click Next
       </div>
     </div>
   `;
   
   document.body.appendChild(navigationOverlay);
+  
+  // Initialize drag functionality
+  initNavigationDrag(navigationOverlay);
+  
+  // Restore saved position if exists
+  const savedPosition = loadNavigationPosition();
+  if (savedPosition) {
+    applyNavigationPosition(navigationOverlay, savedPosition);
+  }
+  
   console.log(`🎯 Navigation overlay shown (${current}/${total})`);
+}
+
+/**
+ * Initialize drag functionality for navigation overlay
+ */
+function initNavigationDrag(overlay) {
+  const dragHandle = overlay.querySelector('.nav-drag-handle');
+  if (!dragHandle) return;
+
+  let isDragging = false;
+  let currentX;
+  let currentY;
+  let initialX;
+  let initialY;
+  let xOffset = 0;
+  let yOffset = 0;
+
+  // Mouse events
+  dragHandle.addEventListener('mousedown', dragStart);
+  document.addEventListener('mousemove', drag);
+  document.addEventListener('mouseup', dragEnd);
+
+  // Touch events
+  dragHandle.addEventListener('touchstart', dragStart, { passive: false });
+  document.addEventListener('touchmove', drag, { passive: false });
+  document.addEventListener('touchend', dragEnd);
+
+  function dragStart(e) {
+    if (e.type === 'touchstart') {
+      initialX = e.touches[0].clientX - xOffset;
+      initialY = e.touches[0].clientY - yOffset;
+    } else {
+      initialX = e.clientX - xOffset;
+      initialY = e.clientY - yOffset;
+    }
+
+    isDragging = true;
+    overlay.style.transition = 'none';
+    dragHandle.style.cursor = 'grabbing';
+  }
+
+  function drag(e) {
+    if (!isDragging) return;
+
+    e.preventDefault();
+
+    if (e.type === 'touchmove') {
+      currentX = e.touches[0].clientX - initialX;
+      currentY = e.touches[0].clientY - initialY;
+    } else {
+      currentX = e.clientX - initialX;
+      currentY = e.clientY - initialY;
+    }
+
+    xOffset = currentX;
+    yOffset = currentY;
+
+    // Keep overlay within viewport bounds
+    const rect = overlay.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width;
+    const maxY = window.innerHeight - rect.height;
+
+    // Constrain to viewport
+    xOffset = Math.max(0, Math.min(xOffset, maxX));
+    yOffset = Math.max(0, Math.min(yOffset, maxY));
+
+    setNavigationTranslate(xOffset, yOffset, overlay);
+  }
+
+  function dragEnd(e) {
+    if (!isDragging) return;
+
+    initialX = currentX;
+    initialY = currentY;
+
+    isDragging = false;
+    dragHandle.style.cursor = 'move';
+    
+    // Save position to localStorage
+    saveNavigationPosition(xOffset, yOffset);
+  }
+
+  function setNavigationTranslate(xPos, yPos, el) {
+    el.style.left = `${xPos}px`;
+    el.style.top = `${yPos}px`;
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    el.style.transform = 'none';
+  }
+}
+
+/**
+ * Save navigation overlay position
+ */
+function saveNavigationPosition(x, y) {
+  try {
+    localStorage.setItem('suggestion_nav_position', JSON.stringify({ x, y }));
+  } catch (e) {
+    console.warn('Could not save navigation position:', e);
+  }
+}
+
+/**
+ * Load navigation overlay position
+ */
+function loadNavigationPosition() {
+  try {
+    const saved = localStorage.getItem('suggestion_nav_position');
+    return saved ? JSON.parse(saved) : null;
+  } catch (e) {
+    console.warn('Could not load navigation position:', e);
+    return null;
+  }
+}
+
+/**
+ * Apply saved position to overlay
+ */
+function applyNavigationPosition(overlay, position) {
+  overlay.style.left = `${position.x}px`;
+  overlay.style.top = `${position.y}px`;
+  overlay.style.right = 'auto';
+  overlay.style.bottom = 'auto';
+  overlay.style.transform = 'none';
 }
 
 /**
