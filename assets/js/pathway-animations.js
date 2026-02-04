@@ -363,7 +363,8 @@ export function animatePathway(sourceId, targetId, options = {}) {
       .attr("stroke-width", 4)
       .attr("opacity", 0)
       .attr("filter", `drop-shadow(0 0 ${glowIntensity}px ${color})`)
-      .style("cursor", "pointer"); // Make segments clickable
+      .style("cursor", "pointer") // Make segments clickable
+      .style("pointer-events", "all"); // Ensure they're interactive
 
     segments.push({ pathEl: seg, source: a, target: b });
   }
@@ -433,7 +434,7 @@ export function animatePathway(sourceId, targetId, options = {}) {
     segments[idx].pathEl
       .transition()
       .duration(Math.max(150, duration / segments.length))
-      .attr("opacity", 0.85)
+      .attr("opacity", 0.95) // Increased from 0.85 for better visibility
       .on("end", () => {
         idx++;
         step();
@@ -532,6 +533,24 @@ export function highlightRecommendedNodes(recommendations) {
       const g = D3.select(this);
       const baseRadius = d?.type === "project" ? 50 : (d?.isCurrentUser ? 35 : 28);
 
+      // CRITICAL: Make the node visible and bright (override Quiet Mode dimming)
+      g.style("opacity", 1)
+        .style("pointer-events", "auto")
+        .style("display", "block");
+      
+      // Brighten the node circle
+      g.select("circle")
+        .style("opacity", 1)
+        .style("filter", "brightness(1.2)");
+      
+      // Show the avatar/image if present
+      g.select("image")
+        .style("opacity", 1);
+      
+      // Show the label
+      g.select("text")
+        .style("opacity", 1);
+
       const glow = g
         .insert("circle", ":first-child")
         .attr("class", "recommendation-glow")
@@ -557,7 +576,7 @@ export function highlightRecommendedNodes(recommendations) {
     });
   }
 
-  console.log(`✨ Highlighted ${recommendations.length} recommended nodes`);
+  console.log(`✨ Highlighted ${recommendations.length} recommended nodes (made visible and bright)`);
 }
 
 /* ==========================================================================
