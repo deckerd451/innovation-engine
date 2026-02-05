@@ -294,7 +294,7 @@ async function renderThemeLensPanel(themeData) {
   const cleanThemeId = themeData.id ? themeData.id.replace(/^theme:/, '') : null;
   
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await window.bootstrapSession.getAuthUser();
     if (user) {
       const { data: currentUserProfile } = await supabase
         .from('community')
@@ -1414,7 +1414,7 @@ window.confirmEndorsement = async function(userId, skill, userName, button) {
   button.style.opacity = '0.5';
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await window.bootstrapSession.getAuthUser();
     if (!user) {
       alert('Please log in to endorse');
       return;
@@ -1514,7 +1514,7 @@ function showToastNotification(message, type = 'info') {
 
 window.inviteToProject = async function(userId) {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await window.bootstrapSession.getAuthUser();
     if (!user) {
       alert('Please log in to invite to projects');
       return;
@@ -1637,7 +1637,7 @@ window.confirmProjectInvitation = async function(userId, projectId, projectTitle
 
     // Log activity
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await window.bootstrapSession.getAuthUser();
       await supabase
         .from('activity_log')
         .insert({
@@ -1664,7 +1664,7 @@ window.confirmProjectInvitation = async function(userId, projectId, projectTitle
 
 window.joinProjectFromPanel = async function(projectId) {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await window.bootstrapSession.getAuthUser();
     if (!user) {
       alert('Please log in to join a project');
       return;
@@ -2187,7 +2187,7 @@ window.openProfileEditor = async function () {
     // Ensure we have the latest current user profile
     if (!currentUserProfile?.id) {
       // Try to hydrate from auth user_id
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await window.bootstrapSession.getAuthUser();
       if (!user) {
         alert("Please log in to edit your profile.");
         return;
@@ -2590,7 +2590,7 @@ async function createProjectInTheme(themeId, themeName) {
 // Join theme function
 window.joinTheme = async function(themeId, themeName) {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await window.bootstrapSession.getAuthUser();
     if (!user) {
       alert('Please log in to join themes');
       return;
@@ -2701,7 +2701,7 @@ window.leaveTheme = async function(themeId, themeName) {
   }
   
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await window.bootstrapSession.getAuthUser();
     if (!user) {
       alert('Please log in to leave themes');
       return;
@@ -2772,7 +2772,7 @@ window.deleteTheme = async function(themeId, themeName) {
   }
   
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await window.bootstrapSession.getAuthUser();
     if (!user) {
       alert('Please log in to delete themes');
       return;
