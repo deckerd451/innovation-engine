@@ -113,8 +113,7 @@ const DailyEngagement = (function () {
         if (!state.supabase) throw new Error("Supabase not available");
 
         // Get current user (fast + accurate)
-        const { data: { user }, error: userError } = await state.supabase.auth.getUser();
-        if (userError) throw userError;
+        const user = await window.bootstrapSession.getAuthUser();
         if (!user) throw new Error("No user logged in");
 
         state.currentUser = user;
@@ -749,7 +748,7 @@ window.DailyEngagement = DailyEngagement;
 
       if (!sb) return;
 
-      const { data: { user } } = await sb.auth.getUser();
+      const user = await sb.auth.getUser().then(r => r.data?.user);
       if (user) {
         // Let profile-loaded win if it arrives quickly; otherwise init after a short delay
         setTimeout(() => tryInit("getUser-fallback"), 400);
