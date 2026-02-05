@@ -1895,38 +1895,54 @@ async function adminSearchPeople(query) {
 
 // Admin function to toggle person visibility (remove/reinstate)
 async function adminTogglePersonVisibility(personId, shouldRemove, personName, currentlyRemoved) {
+  console.log('🔧 adminTogglePersonVisibility called:', { personId, shouldRemove, personName, currentlyRemoved });
+  
   try {
     // Show confirmation dialog for removal
     if (shouldRemove && !currentlyRemoved) {
-      const confirmed = confirm(`Are you sure you would like to remove this member?`);
+      const confirmed = confirm(`Are you sure you want to remove "${personName}" from the community?\n\nThey will no longer be visible or searchable, but can be reinstated by an admin.`);
       if (!confirmed) {
+        console.log('❌ User cancelled removal');
         return; // User cancelled
       }
     }
     
     const supabase = window.supabase;
-    if (!supabase) throw new Error('Supabase not available');
+    if (!supabase) {
+      console.error('❌ Supabase not available');
+      throw new Error('Supabase not available');
+    }
     
+    console.log('📝 Updating community record...');
     const { error } = await supabase
       .from('community')
       .update({ is_hidden: shouldRemove })
       .eq('id', personId);
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase error:', error);
+      throw error;
+    }
+    
+    console.log('✅ Successfully updated is_hidden to:', shouldRemove);
     
     // Show success message
     if (shouldRemove) {
-      alert('User has been removed from view. Note that the user is not accessible by the community but may be reinstated by an admin.');
+      alert(`✅ ${personName} has been removed from view.\n\nThey are no longer accessible to the community but can be reinstated by an admin.`);
+    } else {
+      alert(`✅ ${personName} has been reinstated to the community.`);
     }
     
     // Refresh the search results
     const searchInput = document.getElementById('admin-search-people');
     if (searchInput && searchInput.value) {
+      console.log('🔄 Refreshing search results...');
       await adminSearchPeople(searchInput.value);
     }
     
     // Refresh synapse if available
     if (typeof window.refreshSynapse === 'function') {
+      console.log('🔄 Refreshing synapse...');
       setTimeout(() => window.refreshSynapse(), 500);
     }
     
@@ -1938,9 +1954,11 @@ async function adminTogglePersonVisibility(personId, shouldRemove, personName, c
       );
     }
     
+    console.log('✅ adminTogglePersonVisibility completed successfully');
+    
   } catch (error) {
-    console.error('Error toggling visibility:', error);
-    alert('Error updating member status: ' + error.message);
+    console.error('❌ Error toggling visibility:', error);
+    alert(`Error updating member status:\n\n${error.message}\n\nPlease check the console for details.`);
   }
 }
 // Expose admin functions globally
