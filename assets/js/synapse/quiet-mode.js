@@ -370,6 +370,9 @@ function exitFocusState(synapseCore) {
    ========================================================================== */
 
 function showCTA(nodeData, nodeElement) {
+  // CTA disabled - messaging is available in the sidebar panel
+  return;
+  
   // Remove any existing CTA
   hideCTA();
   
