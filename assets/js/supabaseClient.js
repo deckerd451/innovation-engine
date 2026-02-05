@@ -46,6 +46,12 @@ if (window.supabase) {
           reconnectAfterMs: (tries) => {
             // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
             return Math.min(1000 * Math.pow(2, tries), 30000);
+          },
+          // Suppress WebSocket errors in console (we handle them gracefully)
+          logger: {
+            log: () => {}, // Suppress logs
+            error: () => {}, // Suppress errors (we handle them in our code)
+            warn: () => {} // Suppress warnings
           }
         },
         global: {
@@ -57,6 +63,7 @@ if (window.supabase) {
     );
     window.supabase = supabaseInstance;
     console.log("✅ Supabase client initialized");
+    console.log("ℹ️ WebSocket errors are expected and handled gracefully - system uses polling fallback");
   } catch (error) {
     console.error("❌ Failed to initialize Supabase client:", error);
     throw error;
