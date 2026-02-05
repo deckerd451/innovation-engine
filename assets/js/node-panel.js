@@ -980,6 +980,17 @@ async function renderProjectPanel(nodeData) {
 
   // Check if current user is the creator
   const isCreator = project.creator_id === currentUserProfile?.id;
+  
+  console.log('🔍 Project panel debug:', {
+    projectId: project.id,
+    projectTitle: project.title,
+    creatorId: project.creator_id,
+    currentUserId: currentUserProfile?.id,
+    isCreator,
+    isMember,
+    hasPendingRequest,
+    pendingRequestsCount: pendingRequests.length
+  });
 
   let html = `
     <div style="padding: 2rem; padding-bottom: 180px;">
