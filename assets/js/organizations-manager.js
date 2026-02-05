@@ -4,6 +4,8 @@
 // Manages organizations, opportunities, and integrates with START flow
 // ================================================================
 
+import { getAuthUser, getCommunityUser } from './bootstrapSession.js';
+
 console.log("%c🏢 Organizations Manager - Loading", "color:#ff6b6b; font-weight:bold;");
 
 // ================================================================
@@ -103,18 +105,13 @@ async function seedOrganizations() {
   ];
   
   try {
-    // Get current user for created_by field
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get current user profile
+    const user = await getAuthUser();
     if (!user) {
       throw new Error('User not authenticated');
     }
     
-    const { data: profile } = await supabase
-      .from('community')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-      
+    const profile = await getCommunityUser();
     if (!profile) {
       throw new Error('User profile not found');
     }
@@ -376,17 +373,12 @@ async function toggleOrganizationFollow(organizationId) {
     throw new Error('Supabase not available');
   }
   
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) {
     throw new Error('User not authenticated');
   }
   
-  const { data: profile } = await supabase
-    .from('community')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
-    
+  const profile = await getCommunityUser();
   if (!profile) {
     throw new Error('User profile not found');
   }
