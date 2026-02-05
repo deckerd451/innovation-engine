@@ -364,7 +364,27 @@
 
       /* Hide combined profile button on mobile */
       #user-profile-combined {
-        display: none !important;
+        display: flex !important; /* Show on mobile */
+        padding: 0.35rem 0.65rem 0.35rem 0.35rem !important;
+        gap: 0.5rem !important;
+      }
+      
+      #user-profile-combined > div:first-child {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.8rem !important;
+      }
+      
+      #user-profile-combined > div:last-child {
+        font-size: 0.7rem !important;
+      }
+      
+      #user-profile-combined > div:last-child > div:first-child {
+        font-size: 0.75rem !important;
+      }
+      
+      #user-profile-combined > div:last-child > div:last-child {
+        font-size: 0.65rem !important;
       }
 
       /* Level badge - hide on mobile (shown in dropdown) */
