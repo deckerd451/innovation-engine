@@ -21,6 +21,7 @@ export class PhysicsLoop {
     this._lastFPSUpdate = 0;
     this._currentFPS = 0;
     this._isPaused = false;
+    this._registeredWithLifecycle = false;
   }
 
   /**
@@ -196,18 +197,55 @@ export class PhysicsLoop {
    * @private
    */
   _setupVisibilityDetection() {
-    this._visibilityHandler = () => {
-      if (document.hidden) {
-        this._isPaused = true;
-        console.log('⏸️ PhysicsLoop paused (tab hidden)');
-      } else {
-        this._isPaused = false;
-        this._lastFrameTime = performance.now(); // Reset timing
-        console.log('▶️ PhysicsLoop resumed (tab visible)');
+    // Visibility detection now handled by Animation Lifecycle Controller
+    // Keep this method for backward compatibility but don't add listeners
+    console.log('ℹ️ Visibility detection delegated to Animation Lifecycle Controller');
+    
+    // Register with Animation Lifecycle if available
+    if (window.AnimationLifecycle) {
+      this._registerWithLifecycle();
+    } else {
+      // Wait for lifecycle to be available
+      setTimeout(() => {
+        if (window.AnimationLifecycle) {
+          this._registerWithLifecycle();
+        }
+      }, 500);
+    }
+  }
+  
+  /**
+   * Register with Animation Lifecycle Controller
+   * @private
+   */
+  _registerWithLifecycle() {
+    if (this._registeredWithLifecycle) return;
+    
+    const self = this;
+    
+    window.AnimationLifecycle.registerSystem({
+      name: 'PhysicsLoop',
+      
+      onActive() {
+        console.log('🔄 PhysicsLoop: ACTIVE state');
+        if (self._running) {
+          self._isPaused = false;
+        }
+      },
+      
+      onIdle() {
+        console.log('😴 PhysicsLoop: IDLE state - pausing physics');
+        self._isPaused = true;
+      },
+      
+      onSleep() {
+        console.log('💤 PhysicsLoop: SLEEP state - pausing physics');
+        self._isPaused = true;
       }
-    };
-
-    document.addEventListener('visibilitychange', this._visibilityHandler);
+    });
+    
+    this._registeredWithLifecycle = true;
+    console.log('✅ PhysicsLoop registered with Animation Lifecycle');
   }
 
   /**

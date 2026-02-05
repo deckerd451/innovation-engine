@@ -79,7 +79,16 @@ canvas.addEventListener('mousemove', e => {
   mouseY = e.clientY - rect.top;
 });
 
+let animationId = null;
+let isAnimating = false;
+
 function animate() {
+  // Stop if not animating
+  if (!isAnimating) {
+    animationId = null;
+    return;
+  }
+  
   ctx.clearRect(0, 0, width, height);
   nodes.forEach(n => n.update());
   connectNodes();
@@ -93,9 +102,71 @@ function animate() {
     }
   }
 
-  requestAnimationFrame(animate);
+  animationId = requestAnimationFrame(animate);
 }
 
-// Initialize nodes and start animation
+function startAnimation() {
+  if (isAnimating) return;
+  isAnimating = true;
+  animate();
+  console.log('🌌 Neural background animation started');
+}
+
+function stopAnimation() {
+  isAnimating = false;
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  console.log('🌌 Neural background animation stopped');
+}
+
+// Initialize nodes
 for (let i = 0; i < 80; i++) nodes.push(new Node(i + 1));
-animate();
+
+// Register with Animation Lifecycle Controller
+if (window.AnimationLifecycle) {
+  window.AnimationLifecycle.registerSystem({
+    name: 'NeuralBackground',
+    
+    onActive() {
+      startAnimation();
+    },
+    
+    onIdle() {
+      stopAnimation();
+    },
+    
+    onSleep() {
+      stopAnimation();
+    }
+  });
+  console.log('✅ Neural background registered with Animation Lifecycle');
+} else {
+  // Fallback: wait for lifecycle to be available
+  setTimeout(() => {
+    if (window.AnimationLifecycle) {
+      window.AnimationLifecycle.registerSystem({
+        name: 'NeuralBackground',
+        
+        onActive() {
+          startAnimation();
+        },
+        
+        onIdle() {
+          stopAnimation();
+        },
+        
+        onSleep() {
+          stopAnimation();
+        }
+      });
+      console.log('✅ Neural background registered with Animation Lifecycle');
+    } else {
+      // If lifecycle still not available, start animation (fallback)
+      console.warn('⚠️ Animation Lifecycle not available, starting neural background anyway');
+      startAnimation();
+    }
+  }, 1000);
+}
+
