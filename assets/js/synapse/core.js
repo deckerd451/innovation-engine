@@ -167,6 +167,25 @@ export async function initSynapseView() {
       
       // Expose for debugging
       window.QuietMode = QuietMode;
+      
+      // Initialize auto-disable functionality
+      if (window.QuietModeAutoDisable) {
+        console.log('🔇 Initializing Quiet Mode Auto-Disable...');
+        window.QuietModeAutoDisable.init({
+          svg,
+          container,
+          nodes,
+          links,
+          nodeEls,
+          linkEls,
+          themeEls,
+          projectEls,
+          zoomBehavior,
+          simulation,
+          currentUserCommunityId
+        });
+        console.log('✅ Quiet Mode Auto-Disable initialized');
+      }
     } catch (e) {
       console.error('❌ Quiet Mode init failed:', e);
     }
