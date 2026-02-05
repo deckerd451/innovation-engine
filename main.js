@@ -42,6 +42,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener('profile-loaded', async (e) => {
     const { user, profile } = e.detail;
     
+    // Initialize bootstrap session context
+    if (window.bootstrapSession && user && profile) {
+      log.debug('🔐 Bootstrap session context available');
+    }
+    
     if (user && window.unifiedNetworkIntegration) {
       log.debug('🧠 Attempting to initialize Unified Network Discovery...');
       
@@ -73,6 +78,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         log.info('✅ Presence tracking active');
       } catch (error) {
         log.error('❌ Presence tracking initialization failed:', error);
+      }
+    }
+    
+    // Delayed realtime startup (after shell render + bootstrap)
+    if (window.realtimeManager && window.bootstrapSession) {
+      log.debug('⏱️ Scheduling delayed realtime startup...');
+      
+      // Use requestIdleCallback for best performance, fallback to setTimeout
+      const startRealtime = async () => {
+        try {
+          const context = await window.bootstrapSession.getSessionContext();
+          if (context) {
+            await window.realtimeManager.startRealtime(context);
+            log.info('✅ Realtime subscriptions started');
+          }
+        } catch (error) {
+          log.error('❌ Realtime startup failed:', error);
+        }
+      };
+      
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(startRealtime, { timeout: 3000 });
+      } else {
+        setTimeout(startRealtime, 3000);
       }
     }
     
