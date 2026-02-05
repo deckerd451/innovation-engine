@@ -842,7 +842,7 @@
     <!-- Category Filter Buttons (Bottom Center) -->
     <div id="centered-search-container"
       style="position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
-      width:min(700px, 85vw); max-width:min(700px, 85vw); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
+      width:min(700px, 85vw); max-width:min(700px, 85vw); z-index:100; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
 
       <!-- Category Filter Buttons -->
       <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center; max-width:100%;">
@@ -1015,11 +1015,19 @@
     (function() {
       const searchContainer = document.getElementById('centered-search-container');
       
+      if (!searchContainer) {
+        console.warn('⚠️ Search container not found');
+        return;
+      }
+      
       // Function to check if any modal is open
       function updateSearchVisibility() {
         const anyModalOpen = document.querySelector('.modal.active');
+        const isModalOpen = !!anyModalOpen;
+        
         if (searchContainer) {
-          searchContainer.style.display = anyModalOpen ? 'none' : 'flex';
+          searchContainer.style.display = isModalOpen ? 'none' : 'flex';
+          console.log(`🔍 Search container ${isModalOpen ? 'hidden' : 'visible'} (modal ${isModalOpen ? 'open' : 'closed'})`);
         }
       }
       
