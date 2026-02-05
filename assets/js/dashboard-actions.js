@@ -1202,19 +1202,29 @@ function openAdminPanel() {
     </div>
 
     <!-- Tabs -->
-    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <button class="admin-tab active-admin-tab" data-tab="manage" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-users-cog"></i> Manage Community
-      </button>
-      <button class="admin-tab" data-tab="themes" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-bullseye"></i> Manage Themes
-      </button>
-      <button class="admin-tab" data-tab="projects" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-rocket"></i> Manage Projects
-      </button>
-      <button class="admin-tab" data-tab="organizations" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-building"></i> Manage Orgs
-      </button>
+    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center;">
+      <!-- Resource Management Dropdown -->
+      <div style="position: relative;">
+        <button id="resource-mgmt-dropdown-btn" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px 8px 0 0; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-tasks"></i> Resource Management
+          <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
+        </button>
+        <div id="resource-mgmt-dropdown" style="display: none; position: absolute; top: 100%; left: 0; min-width: 220px; background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98)); border: 2px solid rgba(0,224,255,0.4); border-radius: 0 8px 8px 8px; padding: 0.5rem; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
+          <button class="admin-tab active-admin-tab" data-tab="manage" style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,224,255,0.1); border: none; border-radius: 6px; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+            <i class="fas fa-users-cog"></i> Manage Community
+          </button>
+          <button class="admin-tab" data-tab="themes" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+            <i class="fas fa-bullseye"></i> Manage Themes
+          </button>
+          <button class="admin-tab" data-tab="projects" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+            <i class="fas fa-rocket"></i> Manage Projects
+          </button>
+          <button class="admin-tab" data-tab="organizations" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left;">
+            <i class="fas fa-building"></i> Manage Orgs
+          </button>
+        </div>
+      </div>
+      
       <button class="admin-tab" data-tab="system" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
         <i class="fas fa-cog"></i> System Settings
       </button>
@@ -1244,8 +1254,30 @@ function openAdminPanel() {
 
       const tabName = tab.dataset.tab;
       loadAdminTabContent(tabName);
+      
+      // Close dropdown after selection
+      const dropdown = document.getElementById('resource-mgmt-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
     });
   });
+  
+  // Wire up Resource Management dropdown
+  const dropdownBtn = document.getElementById('resource-mgmt-dropdown-btn');
+  const dropdown = document.getElementById('resource-mgmt-dropdown');
+  
+  if (dropdownBtn && dropdown) {
+    dropdownBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!dropdownBtn.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
+  }
 
   // Load initial tab
   loadAdminTabContent('manage');
@@ -1595,7 +1627,26 @@ function loadAdminTabContent(tabName) {
           </div>
         </div>
         
-        <!-- Future system settings can go here -->
+        <!-- Quiet Mode Settings -->
+        <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px;">
+          <h3 style="color: #a855f7; margin: 0 0 1rem 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-volume-mute"></i> Quiet Mode
+          </h3>
+          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; line-height: 1.6;">
+            Enable quiet mode to reduce visual noise and focus on key connections. This mode simplifies the network view and highlights relevant nodes.
+          </p>
+          
+          <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.75rem; background: rgba(168,85,247,0.1); border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(168,85,247,0.15)'" onmouseout="this.style.background='rgba(168,85,247,0.1)'">
+            <input type="checkbox" id="quiet-mode-toggle-admin" style="width: 20px; height: 20px; cursor: pointer;">
+            <span style="color: #fff; font-weight: 600;">Enable Quiet Mode</span>
+          </label>
+          
+          <div style="margin-top: 1rem; padding: 1rem; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px;">
+            <div style="color: #a855f7; font-size: 0.85rem; line-height: 1.5;">
+              <i class="fas fa-info-circle"></i> <strong>Note:</strong> Quiet mode will reload the page to apply changes. Your network will be simplified to show only the most relevant connections.
+            </div>
+          </div>
+        </div>
       </div>
     `;
     
@@ -1605,6 +1656,33 @@ function loadAdminTabContent(tabName) {
     const reloadBtn = document.getElementById('unified-network-reload-admin');
     const testBtn = document.getElementById('unified-network-test-admin');
     const status = document.getElementById('unified-network-status-admin');
+    const quietModeToggle = document.getElementById('quiet-mode-toggle-admin');
+    
+    // Check current quiet mode state
+    if (quietModeToggle) {
+      const isQuietMode = localStorage.getItem('quiet-mode-enabled') === 'true';
+      quietModeToggle.checked = isQuietMode;
+      
+      quietModeToggle.addEventListener('change', () => {
+        if (quietModeToggle.checked) {
+          localStorage.setItem('quiet-mode-enabled', 'true');
+          if (confirm('Enable Quiet Mode? This will reload the page to apply changes.')) {
+            window.location.reload();
+          } else {
+            quietModeToggle.checked = false;
+            localStorage.removeItem('quiet-mode-enabled');
+          }
+        } else {
+          localStorage.removeItem('quiet-mode-enabled');
+          if (confirm('Disable Quiet Mode? This will reload the page to apply changes.')) {
+            window.location.reload();
+          } else {
+            quietModeToggle.checked = true;
+            localStorage.setItem('quiet-mode-enabled', 'true');
+          }
+        }
+      });
+    }
     
     toggle.addEventListener('change', () => {
       if (toggle.checked) {
