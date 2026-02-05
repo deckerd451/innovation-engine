@@ -2082,10 +2082,14 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
       `;
     }
 
+    // Wait a moment for database to fully commit
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     // Reload panel if it's currently showing this project
     if (currentNodeData?.id === projectId) {
-      console.log('🔄 Reloading node panel...');
-      await loadNodeDetails(currentNodeData);
+      console.log('🔄 Reloading node panel with fresh data...');
+      // Force refetch by passing just the ID
+      await loadNodeDetails({ id: projectId, type: 'project' });
     }
 
     // Refresh synapse view to show updated project membership
@@ -2135,9 +2139,13 @@ window.declineJoinRequest = async function(projectId, requestId) {
       `;
     }
 
+    // Wait a moment for database to fully commit
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     // Reload panel if it's currently showing this project
     if (currentNodeData?.id === projectId) {
-      await loadNodeDetails(currentNodeData);
+      // Force refetch by passing just the ID
+      await loadNodeDetails({ id: projectId, type: 'project' });
     }
 
     // Refresh synapse view to show updated project membership
