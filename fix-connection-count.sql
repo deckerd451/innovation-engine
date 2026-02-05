@@ -10,7 +10,7 @@ SELECT
   (
     SELECT COUNT(*) 
     FROM connections conn
-    WHERE (conn.user_id = c.id OR conn.connected_user_id = c.id)
+    WHERE (conn.from_user_id = c.id OR conn.to_user_id = c.id)
     AND conn.status = 'accepted'
   ) as actual_count
 FROM community c
@@ -22,7 +22,7 @@ UPDATE community
 SET connection_count = (
   SELECT COUNT(*)
   FROM connections
-  WHERE (connections.user_id = community.id OR connections.connected_user_id = community.id)
+  WHERE (connections.from_user_id = community.id OR connections.to_user_id = community.id)
   AND connections.status = 'accepted'
 );
 
@@ -35,7 +35,7 @@ SELECT
   (
     SELECT COUNT(*) 
     FROM connections conn
-    WHERE (conn.user_id = c.id OR conn.connected_user_id = c.id)
+    WHERE (conn.from_user_id = c.id OR conn.to_user_id = c.id)
     AND conn.status = 'accepted'
   ) as verified_count
 FROM community c
@@ -49,7 +49,7 @@ SELECT
   conn.status,
   conn.created_at
 FROM connections conn
-JOIN community c1 ON conn.user_id = c1.id
-JOIN community c2 ON conn.connected_user_id = c2.id
+JOIN community c1 ON conn.from_user_id = c1.id
+JOIN community c2 ON conn.to_user_id = c2.id
 WHERE conn.status != 'accepted'
 ORDER BY conn.created_at DESC;
