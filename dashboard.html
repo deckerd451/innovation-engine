@@ -284,6 +284,12 @@
       display: none !important;
     }
 
+    /* Hide search container when profile modal is open */
+    .modal.active ~ #centered-search-container,
+    body:has(.modal.active) #centered-search-container {
+      display: none !important;
+    }
+
     /* Ensure profile modal content is not overlapped */
     #profile-modal .modal-content {
       z-index: 1000;
@@ -354,6 +360,11 @@
         gap: 0.5rem !important;
         align-items: center !important;
         max-width: calc(100vw - 120px) !important;
+      }
+
+      /* Hide combined profile button on mobile */
+      #user-profile-combined {
+        display: none !important;
       }
 
       /* Level badge - hide on mobile (shown in dropdown) */
@@ -606,19 +617,28 @@
         <i class="fas fa-crown" style="color:#ffa500; font-size:1.2rem;"></i>
       </div>
 
-      <!-- User Profile Button (Circular with initials) -->
-      <div id="user-profile-circle" style="cursor:pointer; width:48px; height:48px; border-radius:50%; 
-        background:linear-gradient(135deg,#00e0ff,#0080ff); border:2px solid rgba(0,224,255,0.5);
-        display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1rem; color:white;"
-        title="View your profile">
-        <span id="user-initials-left">DH</span>
+      <!-- Combined User Profile Button with Level Badge -->
+      <div id="user-profile-combined" style="cursor:pointer; display:flex; align-items:center; gap:0.75rem; 
+        padding:0.5rem 1rem 0.5rem 0.5rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); 
+        border-radius:25px; transition:all 0.3s;"
+        title="View your profile"
+        onmouseenter="this.style.background='rgba(0,224,255,0.15)'; this.style.borderColor='rgba(0,224,255,0.5)'"
+        onmouseleave="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
+        <!-- User Avatar Circle -->
+        <div style="width:40px; height:40px; border-radius:50%; 
+          background:linear-gradient(135deg,#00e0ff,#0080ff); border:2px solid rgba(0,224,255,0.5);
+          display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem; color:white;">
+          <span id="user-initials-left">DH</span>
+        </div>
+        <!-- Level Info -->
+        <div style="display:flex; flex-direction:column; line-height:1.2;">
+          <div style="color:#00e0ff; font-size:0.85rem; font-weight:700;">Level 6 <span style="color:#aaa; font-weight:400; font-size:0.75rem;">Leader</span></div>
+          <div style="color:#888; font-size:0.7rem;">3308 / 5000 XP</div>
+        </div>
       </div>
     </div>
 
     <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
-      <!-- Engagement Displays Container (for daily-engagement.js) -->
-      <div id="engagement-displays" style="display:flex; align-items:center; gap:0.75rem;"></div>
-
       <!-- START Button (Green Circle) -->
       <div id="btn-start-nav" style="cursor:pointer; padding:0.75rem; background:rgba(0,255,136,0.1);
         border:1px solid rgba(0,255,136,0.3); border-radius:50%; width:48px; height:48px;
@@ -1834,25 +1854,24 @@
 
       // Wire up new left-side user profile button
       setTimeout(() => {
-        const userProfileCircle = document.getElementById('user-profile-circle');
-        const userDropdown = document.getElementById('user-dropdown');
+        const userProfileCombined = document.getElementById('user-profile-combined');
         const adminBtnLeft = document.getElementById('btn-admin-top-left');
         
-        if (userProfileCircle) {
-          // Open profile panel when clicking the left-side profile button
-          userProfileCircle.addEventListener('click', (e) => {
+        if (userProfileCombined) {
+          // Open profile panel when clicking the combined profile button
+          userProfileCombined.addEventListener('click', (e) => {
             e.stopPropagation();
             
             // Open the profile panel
             if (typeof window.openProfileModal === 'function') {
-              console.log('🔵 Opening profile panel from left-side button');
+              console.log('🔵 Opening profile panel from combined button');
               window.openProfileModal();
             } else {
               console.warn('⚠️ openProfileModal function not available');
             }
           });
           
-          console.log('✅ Left-side user profile button initialized');
+          console.log('✅ Combined user profile button initialized');
         }
         
         // Wire up admin button on left side
