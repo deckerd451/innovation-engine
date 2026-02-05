@@ -166,7 +166,6 @@ function setupNetworkFilterListeners() {
   // Listen for custom network filter events
   window.addEventListener('network-filters-changed', handleNetworkFilterChange);
   window.addEventListener('synapse-filter-changed', handleNetworkFilterChange);
-  window.addEventListener('skills-filter-applied', handleSkillsFilterApplied);
   
   console.log('🔇 Listening for network filter events');
 }
@@ -206,19 +205,6 @@ function handleSearchFocus(event) {
 function handleNetworkFilterChange(event) {
   console.log('🔇 Network filter changed - disabling quiet mode');
   disableQuietMode('network_filter');
-}
-
-/**
- * Handle skills filter applied
- */
-function handleSkillsFilterApplied(event) {
-  const detail = event.detail || {};
-  
-  // Only disable if skills are actually selected
-  if (detail.active && detail.skills && detail.skills.length > 0) {
-    console.log('🔇 Skills filter applied - disabling quiet mode');
-    disableQuietMode('skills_filter');
-  }
 }
 
 /**
