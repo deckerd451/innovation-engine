@@ -322,37 +322,16 @@
   function setupRealtimeSubscription() {
     if (!currentUserProfile) return;
 
-    // Use the realtime helper for consistent error handling
-    if (window.realtimeHelper && window.realtimeHelper.subscribeToChannel) {
-      realtimeSubscription = window.realtimeHelper.subscribeToChannel(
-        window.supabase,
-        'notifications',
-        {
-          event: 'INSERT',
-          table: 'notifications',
-          filter: `user_id=eq.${currentUserProfile.id}`,
-          onData: (payload) => {
-            console.log('🔔 New notification received:', payload.new);
-            notifications.unshift(payload.new);
-            if (!payload.new.read) {
-              unreadCount++;
-            }
-            updateBellBadge();
-            showToast(payload.new.title);
-          }
-        }
-      );
-    } else {
-      // Fallback to direct subscription if helper not available
-      realtimeSubscription = window.supabase
-        .channel('notifications')
+    // Register subscription with realtimeManager (will start when realtime starts)
+    realtimeSubscription = window.realtimeManager?.subscribeOnce('notifications', (supabase, context) => {
+      return supabase._internalChannel('notifications')
         .on(
           'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
             table: 'notifications',
-            filter: `user_id=eq.${currentUserProfile.id}`
+            filter: `user_id=eq.${context.communityUser.id}`
           },
           (payload) => {
             console.log('🔔 New notification received:', payload.new);
@@ -374,7 +353,7 @@
             }
           }
         });
-    }
+    });
   }
 
   function showToast(message) {
