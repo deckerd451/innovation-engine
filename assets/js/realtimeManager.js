@@ -82,6 +82,12 @@
     sessionContext = context;
     isStarted = true;
 
+    // Track when realtime started
+    if (!window.__realtimeStartedAt) {
+      window.__realtimeStartedAt = Date.now();
+      console.log('[realtime] started', new Date(window.__realtimeStartedAt).toISOString());
+    }
+
     console.log('🔌 Starting realtime subscriptions...');
 
     // Subscribe to all configured channels
@@ -270,6 +276,9 @@
   // ============================================================================
   // PUBLIC API
   // ============================================================================
+
+  // Initialize realtime started timestamp
+  window.__realtimeStartedAt = null;
 
   window.realtimeManager = {
     initialize,

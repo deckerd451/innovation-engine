@@ -1,5 +1,5 @@
 /**
- * Startup Metrics Logger (Dev Only)
+ * Startup Metrics Logger
  * 
  * Tracks and reports database calls, realtime channels, and query patterns
  * during the first 10 seconds after page load.
@@ -10,10 +10,12 @@
 (() => {
   'use strict';
 
-  // Only run in dev mode
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return;
-  }
+  // Check if debug mode is enabled
+  const isDebugMode = 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' ||
+    window.location.search.includes('debug=1') ||
+    localStorage.getItem('DEBUG_METRICS') === '1';
 
   const GUARD = '__CH_STARTUP_METRICS_LOADED__';
   if (window[GUARD]) {
@@ -95,18 +97,56 @@
 
     const elapsed = Date.now() - metrics.startTime;
     
+    // Group by table
+    const byTable = {};
+    metrics.dbCalls.forEach(call => {
+      byTable[call.table] = (byTable[call.table] || 0) + 1;
+    });
+
+    // Top query keys
+    const queryKeys = {};
+    metrics.dbCalls.forEach(call => {
+      const key = `${call.table}.${call.operation}`;
+      queryKeys[key] = (queryKeys[key] || 0) + 1;
+    });
+
+    // Get realtime channels
+    function getRealtimeChannels() {
+      if (window.realtimeManager?.getActiveChannels) {
+        return window.realtimeManager.getActiveChannels();
+      }
+      return metrics.realtimeChannels.map(c => c.name);
+    }
+
+    // Store metrics globally for validation
+    window.__startupMetrics = {
+      totalDBCalls: metrics.dbCalls.length,
+      countsByTable: byTable,
+      countsByQueryKey: queryKeys,
+      realtimeChannelsActive: getRealtimeChannels(),
+      realtimeChannelCount: getRealtimeChannels().length,
+      authGetUserCalls: metrics.authGetUserCalls,
+      communityEmailQueries: metrics.communityEmailQueries.length,
+      forbiddenQueriesDetected: metrics.communityEmailQueries.length > 0,
+      elapsedMs: elapsed,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Alias for compatibility
+    window.__supabaseMetrics = window.__startupMetrics;
+
+    // Only print detailed report in debug mode
+    if (!isDebugMode) {
+      console.log(`📊 Startup metrics: ${metrics.dbCalls.length} DB calls, ${getRealtimeChannels().length} channels, ${metrics.authGetUserCalls} auth calls`);
+      return;
+    }
+    
     console.log('\n' + '='.repeat(80));
     console.log('📊 STARTUP METRICS REPORT (t=' + (elapsed / 1000).toFixed(1) + 's)');
     console.log('='.repeat(80));
 
     // Total DB calls
     console.log('\n📈 Database Calls: ' + metrics.dbCalls.length);
-    
-    // Group by table
-    const byTable = {};
-    metrics.dbCalls.forEach(call => {
-      byTable[call.table] = (byTable[call.table] || 0) + 1;
-    });
     
     console.log('\n📋 Calls by Table:');
     Object.entries(byTable)
@@ -115,13 +155,6 @@
       .forEach(([table, count]) => {
         console.log(`  ${table}: ${count}`);
       });
-
-    // Top query keys
-    const queryKeys = {};
-    metrics.dbCalls.forEach(call => {
-      const key = `${call.table}.${call.operation}`;
-      queryKeys[key] = (queryKeys[key] || 0) + 1;
-    });
     
     console.log('\n🔑 Top 5 Query Keys:');
     Object.entries(queryKeys)
@@ -132,9 +165,9 @@
       });
 
     // Realtime channels
-    console.log('\n🔌 Realtime Channels: ' + metrics.realtimeChannels.length);
-    if (metrics.realtimeChannels.length > 0) {
-      console.log('  Channels:', metrics.realtimeChannels.map(c => c.name).join(', '));
+    console.log('\n🔌 Realtime Channels: ' + getRealtimeChannels().length);
+    if (getRealtimeChannels().length > 0) {
+      console.log('  Channels:', getRealtimeChannels().join(', '));
     }
 
     // Auth calls
@@ -165,7 +198,7 @@
     // Summary
     console.log('\n📊 Summary:');
     console.log(`  Total DB calls: ${metrics.dbCalls.length}`);
-    console.log(`  Realtime channels: ${metrics.realtimeChannels.length}`);
+    console.log(`  Realtime channels: ${getRealtimeChannels().length}`);
     console.log(`  auth.getUser() calls: ${metrics.authGetUserCalls}`);
     console.log(`  Forbidden queries: ${metrics.communityEmailQueries.length}`);
     
@@ -174,9 +207,6 @@
     console.log('\n' + (passed ? '✅ PASS' : '❌ FAIL'));
     
     console.log('='.repeat(80) + '\n');
-
-    // Store for external access
-    window.__startupMetrics = metrics;
   }
 
   /**
@@ -188,7 +218,9 @@
       generateReport();
     }, 10000);
 
-    console.log('📊 Startup metrics tracking enabled (report at t=10s)');
+    if (isDebugMode) {
+      console.log('📊 Startup metrics tracking enabled (report at t=10s)');
+    }
   }
 
   // ============================================================================
@@ -270,7 +302,9 @@
       }
     }
 
-    console.log('🔍 Startup metrics interception enabled');
+    if (isDebugMode) {
+      console.log('🔍 Startup metrics interception enabled');
+    }
   }
 
   // ============================================================================
@@ -304,6 +338,12 @@
     isTracking: () => isTracking
   };
 
-  console.log('✅ Startup metrics module loaded (dev only)');
+  // Expose metrics for debugging/validation (safe + lightweight)
+  window.__startupMetrics = window.__startupMetrics || {};
+  window.__supabaseMetrics = window.__supabaseMetrics || window.__startupMetrics;
+
+  if (isDebugMode) {
+    console.log('✅ Startup metrics module loaded');
+  }
 
 })();
