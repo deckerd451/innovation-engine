@@ -4,7 +4,7 @@
 // Actionable side panel that appears when clicking network nodes
 // Shows profile details, mutual connections, and clear CTAs
 
-console.log("%c👤 Node Panel Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
+console.log("%c👤 Node Panel v2.1 (Project Approval Fix) - 2026-02-05", "color:#0ff; font-weight: bold; font-size: 16px");
 
 let currentNodeData = null;
 let panelElement = null;
@@ -1906,6 +1906,7 @@ window.editProjectFromPanel = async function(projectId) {
 };
 
 window.manageProjectRequests = async function(projectId) {
+  console.log('🔧 manageProjectRequests called for project:', projectId);
   try {
     // Ensure supabase is available
     if (!supabase) supabase = window.supabase;
