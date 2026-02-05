@@ -15,11 +15,13 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   console.log("🔍 showFullCommunity (Discovery Mode):", showFullCommunity);
 
   // Load all data first (exclude hidden users)
+  // ✅ EGRESS OPTIMIZATION: Only fetch fields needed for synapse visualization
   const { data: allMembers, error } = await supabase
     .from("community")
-    .select("id, name, email, image_url, skills, interests, bio, availability, x, y, connection_count, is_hidden")
+    .select("id, name, image_url, skills, interests, bio, availability, x, y, connection_count")
     .or("is_hidden.is.null,is_hidden.eq.false") // Only show non-hidden users
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500); // Add limit to prevent excessive data fetching
   if (error) throw error;
 
   // Discovery Mode: Show ALL users (no filtering)

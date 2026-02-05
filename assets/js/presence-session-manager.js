@@ -20,8 +20,20 @@
   let supabase = null;
   let communityProfileId = null; // Community profile ID, not auth user ID
 
-  const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-  const SESSION_TIMEOUT = 60000; // 1 minute (2x heartbeat)
+  // ✅ EGRESS OPTIMIZATION: Reduced heartbeat frequency (90% reduction in presence updates)
+  const HEARTBEAT_INTERVAL = 5 * 60 * 1000; // 5 minutes (was 30 seconds)
+  const SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes (2x heartbeat)
+  const IDLE_THRESHOLD = 2 * 60 * 1000; // 2 minutes of inactivity = idle
+
+  // Track user activity for idle detection
+  let lastActivity = Date.now();
+
+  // Setup activity listeners (passive for performance)
+  ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(event => {
+    document.addEventListener(event, () => {
+      lastActivity = Date.now();
+    }, { passive: true, capture: true });
+  });
 
   /**
    * Initialize presence tracking for current user
@@ -191,6 +203,13 @@
       return;
     }
 
+    // ✅ IDLE DETECTION: Skip update if user is idle
+    const idleTime = Date.now() - lastActivity;
+    if (idleTime > IDLE_THRESHOLD) {
+      console.log(`⏸️ User idle (${Math.floor(idleTime / 1000)}s), skipping presence update`);
+      return;
+    }
+
     try {
       const now = new Date().toISOString();
       const expiresAt = new Date(Date.now() + SESSION_TIMEOUT).toISOString();
@@ -210,6 +229,8 @@
         // Session might have been deleted, create a new one
         currentSessionId = null;
         await createPresenceSession();
+      } else {
+        console.log('💓 Presence heartbeat sent');
       }
     } catch (error) {
       console.error('Error updating presence session:', error);
@@ -228,7 +249,7 @@
       updatePresenceSession();
     }, HEARTBEAT_INTERVAL);
 
-    console.log('💓 Presence heartbeat started');
+    console.log(`💓 Presence heartbeat started (${HEARTBEAT_INTERVAL / 60000}min interval with idle detection)`);
   }
 
   /**
