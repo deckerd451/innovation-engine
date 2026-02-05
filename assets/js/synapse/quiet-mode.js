@@ -416,7 +416,7 @@ function handleCTAAction(nodeData) {
   
   // Open messaging or node panel
   if (window.openNodePanel) {
-    window.openNodePanel(nodeData.id);
+    window.openNodePanel(nodeData); // Pass the full nodeData object, not just the ID
   }
   
   hideCTA();

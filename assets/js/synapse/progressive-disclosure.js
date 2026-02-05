@@ -638,7 +638,7 @@ function handleLongPress(nodeData, synapseCore) {
   
   // Open node panel (full details)
   if (window.openNodePanel) {
-    window.openNodePanel(nodeData.id);
+    window.openNodePanel(nodeData); // Pass the full nodeData object
   }
 }
 
