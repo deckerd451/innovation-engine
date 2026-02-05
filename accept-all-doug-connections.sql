@@ -16,13 +16,13 @@ ORDER BY conn.created_at DESC;
 
 -- Now accept all of Doug's pending connections
 UPDATE connections
-SET status = 'accepted', updated_at = NOW()
+SET status = 'accepted'
 WHERE from_user_id = (SELECT id FROM community WHERE name = 'Doug Hamilton' LIMIT 1)
   AND status = 'pending';
 
 -- Also accept any pending connections TO Doug
 UPDATE connections
-SET status = 'accepted', updated_at = NOW()
+SET status = 'accepted'
 WHERE to_user_id = (SELECT id FROM community WHERE name = 'Doug Hamilton' LIMIT 1)
   AND status = 'pending';
 
