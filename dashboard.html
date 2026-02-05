@@ -284,9 +284,9 @@
       display: none !important;
     }
 
-    /* Hide search container when profile modal is open */
-    .modal.active ~ #centered-search-container,
-    body:has(.modal.active) #centered-search-container {
+    /* Hide search container when ANY modal is open */
+    .modal.active ~ * #centered-search-container,
+    .modal.active ~ #centered-search-container {
       display: none !important;
     }
 
@@ -1009,6 +1009,36 @@
       <div id="modal-profile-content"></div>
     </div>
   </div>
+
+  <script>
+    // Hide search container when any modal opens
+    (function() {
+      const searchContainer = document.getElementById('centered-search-container');
+      
+      // Function to check if any modal is open
+      function updateSearchVisibility() {
+        const anyModalOpen = document.querySelector('.modal.active');
+        if (searchContainer) {
+          searchContainer.style.display = anyModalOpen ? 'none' : 'flex';
+        }
+      }
+      
+      // Watch for modal class changes
+      const observer = new MutationObserver(() => {
+        updateSearchVisibility();
+      });
+      
+      // Observe all modals
+      document.querySelectorAll('.modal').forEach(modal => {
+        observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+      });
+      
+      // Also check on page load
+      setTimeout(updateSearchVisibility, 100);
+      
+      console.log('✅ Search container visibility controller initialized');
+    })();
+  </script>
 
   <!-- Messages Modal -->
   <div class="modal" id="messages-modal">
