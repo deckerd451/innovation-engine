@@ -43,14 +43,14 @@ export function initSkillsFilter() {
   
   supabase = window.supabase;
   if (!supabase) {
-    console.error('❌ Supabase not available');
+    console.warn('⚠️ Supabase not available yet, will retry after login');
     return;
   }
   
   // Get skills button
   skillsButton = document.getElementById('skills-filter-btn');
   if (!skillsButton) {
-    console.error('❌ Skills filter button not found');
+    console.warn('⚠️ Skills filter button not found yet, will initialize after login');
     return;
   }
   
@@ -60,8 +60,35 @@ export function initSkillsFilter() {
     loadAllSkills();
   });
   
+  // Also try to initialize after profile loaded (in case button wasn't ready first time)
+  window.addEventListener('profile-loaded', () => {
+    if (!skillsButton) {
+      setTimeout(() => {
+        skillsButton = document.getElementById('skills-filter-btn');
+        if (skillsButton) {
+          console.log('✅ Skills button found after profile load, completing initialization');
+          setupButtonHandlers();
+        }
+      }, 500);
+    }
+  });
+  
   // Create suggestions panel
   createSuggestionsPanel();
+  
+  // Setup button handlers if button exists
+  if (skillsButton) {
+    setupButtonHandlers();
+  }
+  
+  console.log('✅ Skills Filter initialized');
+}
+
+/**
+ * Setup button click handlers
+ */
+function setupButtonHandlers() {
+  if (!skillsButton) return;
   
   // Setup button click handler
   skillsButton.addEventListener('click', toggleSkillsFilter);
@@ -75,7 +102,7 @@ export function initSkillsFilter() {
     }
   });
   
-  console.log('✅ Skills Filter initialized');
+  console.log('✅ Skills button handlers attached');
 }
 
 /**
@@ -669,11 +696,21 @@ function showNotification(message, type = 'info') {
   }
 }
 
-// Auto-initialize when DOM is ready
+// Auto-initialize when DOM is ready (but don't block if button not found)
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initSkillsFilter);
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      initSkillsFilter();
+    } catch (err) {
+      console.warn('⚠️ Skills filter initialization deferred:', err.message);
+    }
+  });
 } else {
-  initSkillsFilter();
+  try {
+    initSkillsFilter();
+  } catch (err) {
+    console.warn('⚠️ Skills filter initialization deferred:', err.message);
+  }
 }
 
 // Export for manual initialization
