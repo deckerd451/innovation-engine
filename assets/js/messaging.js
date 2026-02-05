@@ -561,8 +561,9 @@ const MessagingModule = (function () {
       state.realtimeChannel = null;
     }
 
-    state.realtimeChannel = window.supabase
-      .channel("messaging")
+    // Register with realtimeManager (deduped, delayed)
+    state.realtimeChannel = window.realtimeManager?.subscribeOnce('messaging', (supabase, context) => {
+      return supabase._internalChannel("messaging")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
         const newMessage = payload.new;
         if (!newMessage) return;
@@ -599,22 +600,7 @@ const MessagingModule = (function () {
         await updateUnreadCount();
       })
       .subscribe();
-
-    window.__IE_MSG_RT_CHANNEL__ = state.realtimeChannel;
-
-    if (!window.__IE_MSG_RT_CLEANUP_REGISTERED__) {
-      window.__IE_MSG_RT_CLEANUP_REGISTERED__ = true;
-      window.addEventListener("beforeunload", () => {
-        try {
-          if (window.__IE_MSG_RT_CHANNEL__) {
-            window.supabase?.removeChannel(window.__IE_MSG_RT_CHANNEL__);
-            window.__IE_MSG_RT_CHANNEL__ = null;
-          }
-        } catch (e) {
-          console.warn("Failed to cleanup messaging channel:", e);
-        }
-      });
-    }
+    });
   }
 
   // ============================================================
