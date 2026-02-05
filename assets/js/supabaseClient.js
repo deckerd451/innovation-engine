@@ -58,6 +58,16 @@ if (window.supabase) {
     window.supabase = supabaseInstance;
     console.log("✅ Supabase client initialized");
     console.log("ℹ️ WebSocket errors are expected and handled gracefully - system uses polling fallback");
+    
+    // ✅ SUPABASE OPTIMIZATION: Initialize bootstrap session and realtime manager
+    if (window.bootstrapSession) {
+      window.bootstrapSession.initialize(supabaseInstance);
+      console.log("✅ Bootstrap session initialized");
+    }
+    if (window.realtimeManager) {
+      window.realtimeManager.initialize(supabaseInstance);
+      console.log("✅ Realtime manager initialized");
+    }
   } catch (error) {
     console.error("❌ Failed to initialize Supabase client:", error);
     throw error;
@@ -88,9 +98,23 @@ export async function signInWithGoogle() {
 }
 
 // ======================================================================
-// 3. ENSURE COMMUNITY USER EXISTS (NEVER OVERWRITE EXISTING DATA!)
+// 3. ENSURE COMMUNITY USER EXISTS (MIGRATED TO USE BOOTSTRAP SESSION)
 // ======================================================================
 export async function ensureCommunityUser() {
+  // ✅ SUPABASE OPTIMIZATION: Use bootstrap session if available
+  if (window.bootstrapSession?.isInitialized) {
+    console.log('✅ Using bootstrapSession.getCommunityUser()');
+    const communityUser = await window.bootstrapSession.getCommunityUser();
+    if (communityUser) {
+      console.log(`✅ Community user loaded via bootstrap: ${communityUser.email}`);
+      return communityUser;
+    }
+    // If bootstrap returns null, fall through to legacy logic
+  }
+
+  // LEGACY FALLBACK (will be removed after full migration)
+  console.warn('⚠️ Using legacy ensureCommunityUser (should migrate to bootstrap)');
+  
   // Use the global user set by auth.js to avoid calling getSession()
   const user = window.currentAuthUser;
 

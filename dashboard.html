@@ -1380,6 +1380,15 @@
   <!-- Cache-busting using git commit hash - changes on every deploy -->
   <script type="module" src="assets/js/supabaseClient.js?v=fc09b39b-1770146154f916933b2da"></script>
   
+  <!-- ✅ SUPABASE OPTIMIZATION: Bootstrap Session (Single Source of Truth) -->
+  <script src="assets/js/bootstrapSession.js?v=6e6a1b33"></script>
+  
+  <!-- ✅ SUPABASE OPTIMIZATION: Realtime Manager (Subscription Deduping) -->
+  <script src="assets/js/realtimeManager.js?v=6e6a1b33"></script>
+  
+  <!-- ✅ SUPABASE OPTIMIZATION: Startup Metrics (Dev Only) -->
+  <script src="assets/js/startupMetrics.js?v=6e6a1b33"></script>
+  
   <!-- Realtime Helper (load early for all subscriptions) -->
   <script type="module">
     import * as realtimeHelper from './assets/js/realtime-helper.js?v=fc09b39b-1770146154f916933b2da';
