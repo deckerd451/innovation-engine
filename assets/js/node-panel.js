@@ -4,7 +4,8 @@
 // Actionable side panel that appears when clicking network nodes
 // Shows profile details, mutual connections, and clear CTAs
 
-console.log("%c👤 Node Panel v2.1 (Project Approval Fix) - 2026-02-05", "color:#0ff; font-weight: bold; font-size: 16px");
+const NODE_PANEL_VERSION = 'v2.2-' + Date.now();
+console.log(`%c👤 Node Panel ${NODE_PANEL_VERSION} (Project Approval Fix)`, "color:#0ff; font-weight: bold; font-size: 16px");
 
 let currentNodeData = null;
 let panelElement = null;
