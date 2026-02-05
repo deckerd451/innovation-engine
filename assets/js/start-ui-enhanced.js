@@ -5,6 +5,8 @@
 // Integrates with START sequence report and synapse visualization
 // ================================================================
 
+import { getAuthUser, getCommunityUser } from './bootstrapSession.js';
+
 console.log('%c🎨 Enhanced START UI - Loading', 'color:#0f8; font-weight:bold;');
 
 // ================================================================
@@ -671,13 +673,9 @@ class EnhancedStartUI {
     let allOrganizations = [];
     
     try {
-      const { data: { user } } = await window.supabase.auth.getUser();
+      const user = await getAuthUser();
       if (user) {
-        const { data: userProfile } = await window.supabase
-          .from('community')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
+        const userProfile = await getCommunityUser();
         
         if (userProfile) {
           console.log('📊 Fetching network data for profile:', userProfile.id);
