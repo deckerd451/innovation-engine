@@ -1289,6 +1289,12 @@
   <!-- Required base modules -->
   <!-- Cache-busting using git commit hash - changes on every deploy -->
   <script type="module" src="assets/js/supabaseClient.js?v=fc09b39b-1770146154f916933b2da"></script>
+  
+  <!-- Realtime Helper (load early for all subscriptions) -->
+  <script type="module">
+    import * as realtimeHelper from './assets/js/realtime-helper.js?v=fc09b39b-1770146154f916933b2da';
+    window.realtimeHelper = realtimeHelper;
+  </script>
 
   <!-- Non-module scripts with commit-based cache-busting -->
   <script src="assets/js/ecosystem-connector.js?v=fc09b39b-1770146154f916933b2da"></script>

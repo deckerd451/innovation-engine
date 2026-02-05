@@ -322,29 +322,59 @@
   function setupRealtimeSubscription() {
     if (!currentUserProfile) return;
 
-    realtimeSubscription = window.supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
+    // Use the realtime helper for consistent error handling
+    if (window.realtimeHelper && window.realtimeHelper.subscribeToChannel) {
+      realtimeSubscription = window.realtimeHelper.subscribeToChannel(
+        window.supabase,
+        'notifications',
         {
           event: 'INSERT',
-          schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${currentUserProfile.id}`
-        },
-        (payload) => {
-          console.log('🔔 New notification received:', payload.new);
-          notifications.unshift(payload.new);
-          if (!payload.new.read) {
-            unreadCount++;
+          filter: `user_id=eq.${currentUserProfile.id}`,
+          onData: (payload) => {
+            console.log('🔔 New notification received:', payload.new);
+            notifications.unshift(payload.new);
+            if (!payload.new.read) {
+              unreadCount++;
+            }
+            updateBellBadge();
+            showToast(payload.new.title);
           }
-          updateBellBadge();
-          showToast(payload.new.title);
         }
-      )
-      .subscribe();
-
-    console.log('✅ Notification realtime subscription active');
+      );
+    } else {
+      // Fallback to direct subscription if helper not available
+      realtimeSubscription = window.supabase
+        .channel('notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${currentUserProfile.id}`
+          },
+          (payload) => {
+            console.log('🔔 New notification received:', payload.new);
+            notifications.unshift(payload.new);
+            if (!payload.new.read) {
+              unreadCount++;
+            }
+            updateBellBadge();
+            showToast(payload.new.title);
+          }
+        )
+        .subscribe((status, error) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Notification real-time updates active');
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.log('ℹ️ Notification real-time unavailable, using manual refresh');
+            if (error) {
+              console.debug('Real-time error details:', error);
+            }
+          }
+        });
+    }
   }
 
   function showToast(message) {
