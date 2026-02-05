@@ -427,39 +427,8 @@ function handleCTAAction(nodeData) {
    ========================================================================== */
 
 function setupQuietSearch(synapseCore) {
-  // Check if search bar exists
-  let searchBar = document.getElementById('quiet-search');
-  
-  if (!searchBar) {
-    // Create search bar
-    searchBar = document.createElement('div');
-    searchBar.id = 'quiet-search';
-    searchBar.className = 'quiet-search';
-    searchBar.innerHTML = `
-      <input 
-        type="text" 
-        placeholder="Search connections..." 
-        class="quiet-search-input"
-      />
-    `;
-    
-    // Position at bottom
-    searchBar.style.position = 'fixed';
-    searchBar.style.bottom = '20px';
-    searchBar.style.left = '50%';
-    searchBar.style.transform = 'translateX(-50%)';
-    searchBar.style.zIndex = '9999';
-    searchBar.style.width = 'calc(100% - 40px)';
-    searchBar.style.maxWidth = '400px';
-    
-    document.body.appendChild(searchBar);
-  }
-  
-  const input = searchBar.querySelector('.quiet-search-input');
-  
-  input.addEventListener('input', (e) => {
-    handleSearch(e.target.value, synapseCore);
-  });
+  // Search functionality removed - using main search bar instead
+  console.log('🔇 Quiet mode search disabled - use main search bar');
 }
 
 function handleSearch(query, synapseCore) {
