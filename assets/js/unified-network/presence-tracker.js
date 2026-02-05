@@ -70,17 +70,21 @@ export class PresenceEnergyTracker {
           },
           (payload) => this._handlePresenceChange(payload)
         )
-        .subscribe((status) => {
+        .subscribe((status, error) => {
           if (status === 'SUBSCRIBED') {
-            console.log('✅ Subscribed to presence updates');
+            console.log('✅ Subscribed to presence updates (real-time mode)');
             this._pollingFallback = false;
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.warn('⚠️ Presence subscription error, falling back to polling');
+            console.log('ℹ️ Real-time connection unavailable, using polling mode instead');
+            if (error) {
+              console.debug('Real-time error details:', error);
+            }
             this._enablePollingFallback();
           }
         });
     } catch (error) {
-      console.error('Error subscribing to presence:', error);
+      console.log('ℹ️ Real-time connection unavailable, using polling mode instead');
+      console.debug('Real-time error details:', error);
       this._enablePollingFallback();
     }
   }
@@ -93,7 +97,7 @@ export class PresenceEnergyTracker {
     if (this._pollingFallback) return;
 
     this._pollingFallback = true;
-    console.log('🔄 Enabling presence polling fallback');
+    console.log('🔄 Presence polling enabled (updates every 10s)');
 
     // Poll every 10 seconds
     this._pollingInterval = setInterval(() => {

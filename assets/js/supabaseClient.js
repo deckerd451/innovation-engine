@@ -37,6 +37,17 @@ if (window.supabase) {
           flowType: 'pkce', // Use PKCE flow for better security
           debug: false, // Disable debug to reduce noise
         },
+        realtime: {
+          params: {
+            eventsPerSecond: 10 // Limit events to prevent overwhelming the connection
+          },
+          timeout: 10000, // 10 second timeout for connection attempts
+          heartbeatIntervalMs: 30000, // Send heartbeat every 30 seconds
+          reconnectAfterMs: (tries) => {
+            // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
+            return Math.min(1000 * Math.pow(2, tries), 30000);
+          }
+        },
         global: {
           headers: {
             'X-Client-Info': 'charlestonhacks-dashboard'
