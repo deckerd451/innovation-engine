@@ -238,7 +238,7 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
         if (!supabase) throw new Error("Supabase not available");
 
         // Get current user's community ID
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await window.bootstrapSession.getAuthUser();
         if (!user) throw new Error("Not logged in");
 
         const { data: profile } = await supabase
@@ -288,7 +288,7 @@ async function showAddProjectToThemeModal(themeNode) {
   }
 
   // Get current user's projects that aren't already in this theme
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await window.bootstrapSession.getAuthUser();
   if (!user) {
     console.error("❌ User not logged in");
     throw new Error("Not logged in");
