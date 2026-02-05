@@ -134,6 +134,13 @@ export class NodeRenderer {
   render(nodes, state) {
     if (!this._nodeGroup || !nodes) return;
 
+    // ✅ PERFORMANCE: Only render if active OR if this is a forced render
+    // Skip continuous rendering when idle to reduce CPU usage
+    const forceRender = state?.forceRender || false;
+    if (!forceRender && window.AnimationLifecycle && !window.AnimationLifecycle.isActive()) {
+      return;
+    }
+
     // Apply spatial culling
     const visibleNodes = this._cullOffscreenNodes(nodes);
 

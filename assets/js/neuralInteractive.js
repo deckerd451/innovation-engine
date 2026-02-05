@@ -178,7 +178,14 @@ function drawNetwork(time=0) {
 }
 
 function animate(time) {
-  if (!document.hidden && time - lastFrame >= FRAME_INTERVAL) {
+  // ✅ PERFORMANCE: Stop animation when idle or hidden
+  if (document.hidden || (window.AnimationLifecycle && !window.AnimationLifecycle.isActive())) {
+    animationId = null;
+    animationStarted = false;
+    return;
+  }
+
+  if (time - lastFrame >= FRAME_INTERVAL) {
     drawNetwork(time);
     lastFrame = time;
   }
@@ -298,9 +305,23 @@ window.addEventListener('DOMContentLoaded', async()=>{
     if (topActions) topActions.style.display = isNetwork ? 'flex' : 'none';
 
     if (!isNetwork && animationId) {
-      cancelAnimationFrame(animationId); animationId = null;
-    } else if (isNetwork && !animationId) {
+      cancelAnimationFrame(animationId); 
+      animationId = null;
+      animationStarted = false;
+    } else if (isNetwork && !animationId && !animationStarted) {
+      animationStarted = true;
       animationId = requestAnimationFrame(animate);
+    }
+  });
+
+  // ✅ PERFORMANCE: Restart animation when page becomes active
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !animationId && neurons.length > 0) {
+      const isNetwork = document.getElementById('neural-canvas')?.style.display !== 'none';
+      if (isNetwork) {
+        animationStarted = true;
+        animationId = requestAnimationFrame(animate);
+      }
     }
   });
 

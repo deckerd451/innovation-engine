@@ -122,8 +122,9 @@ export class PerformanceManager {
       
       this.performanceMetrics.frameTime = frameTime;
       
-      // Continue monitoring
-      if (!this.isBackgrounded) {
+      // ✅ PERFORMANCE: Stop monitoring when idle or hidden
+      if (!this.isBackgrounded && !document.hidden && 
+          (!window.AnimationLifecycle || window.AnimationLifecycle.isActive())) {
         requestAnimationFrame(measureFrame);
       }
     };

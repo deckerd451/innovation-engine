@@ -215,6 +215,7 @@ class SynapseHighlighter {
 
   /**
    * Create pulse animation
+   * ✅ PERFORMANCE: Lifecycle-controlled animation
    */
   createPulseAnimation(element) {
     const shape = element.tagName === 'circle' ? element : element.querySelector('circle');
@@ -222,73 +223,108 @@ class SynapseHighlighter {
 
     const originalRadius = parseFloat(shape.getAttribute('r')) || 10;
     let phase = 0;
+    let frameId = null;
 
     const animate = () => {
+      // ✅ Stop animation when idle or hidden
+      if (document.hidden || (window.AnimationLifecycle && !window.AnimationLifecycle.isActive())) {
+        frameId = null;
+        return;
+      }
+
       phase += 0.05;
       const scale = 1 + Math.sin(phase) * 0.15;
       shape.setAttribute('r', originalRadius * scale);
       
-      return requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
     };
 
-    return animate();
+    frameId = requestAnimationFrame(animate);
+    return frameId;
   }
 
   /**
    * Create glow animation
+   * ✅ PERFORMANCE: Lifecycle-controlled animation
    */
   createGlowAnimation(element) {
     let phase = 0;
+    let frameId = null;
 
     const animate = () => {
+      // ✅ Stop animation when idle or hidden
+      if (document.hidden || (window.AnimationLifecycle && !window.AnimationLifecycle.isActive())) {
+        frameId = null;
+        return;
+      }
+
       phase += 0.03;
       const intensity = 0.5 + Math.sin(phase) * 0.5;
       const color = `rgba(0, 224, 255, ${intensity})`;
       
       element.style.filter = `drop-shadow(0 0 ${8 + intensity * 8}px ${color})`;
       
-      return requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
     };
 
-    return animate();
+    frameId = requestAnimationFrame(animate);
+    return frameId;
   }
 
   /**
    * Create highlight animation
+   * ✅ PERFORMANCE: Lifecycle-controlled animation
    */
   createHighlightAnimation(element) {
     let phase = 0;
+    let frameId = null;
 
     const animate = () => {
+      // ✅ Stop animation when idle or hidden
+      if (document.hidden || (window.AnimationLifecycle && !window.AnimationLifecycle.isActive())) {
+        frameId = null;
+        return;
+      }
+
       phase += 0.02;
       const intensity = 0.3 + Math.sin(phase) * 0.2;
       const color = `rgba(0, 255, 136, ${intensity})`;
       
       element.style.filter = `drop-shadow(0 0 ${6 + intensity * 6}px ${color})`;
       
-      return requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
     };
 
-    return animate();
+    frameId = requestAnimationFrame(animate);
+    return frameId;
   }
 
   /**
    * Create subtle glow animation
+   * ✅ PERFORMANCE: Lifecycle-controlled animation
    */
   createSubtleGlowAnimation(element) {
     let phase = 0;
+    let frameId = null;
 
     const animate = () => {
+      // ✅ Stop animation when idle or hidden
+      if (document.hidden || (window.AnimationLifecycle && !window.AnimationLifecycle.isActive())) {
+        frameId = null;
+        return;
+      }
+
       phase += 0.01;
       const intensity = 0.2 + Math.sin(phase) * 0.1;
       const color = `rgba(255, 170, 0, ${intensity})`;
       
       element.style.filter = `drop-shadow(0 0 ${4 + intensity * 4}px ${color})`;
       
-      return requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
     };
 
-    return animate();
+    frameId = requestAnimationFrame(animate);
+    return frameId;
   }
 
   /**

@@ -1856,6 +1856,11 @@ function clearThemeFocus() {
 function onNodeClick(event, d) {
   event.stopPropagation();
 
+  // ✅ PERFORMANCE: Record interaction to trigger ACTIVE state
+  if (window.AnimationLifecycle) {
+    window.AnimationLifecycle.recordInteraction();
+  }
+
   setFocusOnNode(d, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
 
   if (d.type === "theme") {
@@ -1905,6 +1910,11 @@ function onNodeClick(event, d) {
 let dragMoved = false;
 
 function dragStarted(event, d) {
+  // ✅ PERFORMANCE: Record interaction to trigger ACTIVE state
+  if (window.AnimationLifecycle) {
+    window.AnimationLifecycle.recordInteraction();
+  }
+  
   dragMoved = false;
   if (!event.active) simulation.alphaTarget(0.3).restart();
   d.fx = d.x;
@@ -1912,6 +1922,11 @@ function dragStarted(event, d) {
 }
 
 function dragged(event, d) {
+  // ✅ PERFORMANCE: Record interaction to keep ACTIVE state
+  if (window.AnimationLifecycle) {
+    window.AnimationLifecycle.recordInteraction();
+  }
+  
   dragMoved = true;
   d.fx = event.x;
   d.fy = event.y;
