@@ -233,6 +233,17 @@ export async function openNodePanel(nodeData) {
 
   // Load full data
   await loadNodeDetails(nodeData);
+  
+  // Update presence for this user (if it's a person)
+  if (nodeData.type === 'person' && window.PresenceUI) {
+    const userId = nodeData.user_id || nodeData.id;
+    window.PresenceUI.updatePresenceForUser(userId);
+    
+    // Dispatch event for presence UI
+    window.dispatchEvent(new CustomEvent('profile-panel-opened', {
+      detail: { userId }
+    }));
+  }
 }
 
 // Close panel
@@ -722,12 +733,29 @@ async function renderPersonPanel(nodeData) {
 
       <!-- Profile Header -->
       <div style="text-align: center; padding: 2rem; padding-bottom: 1.5rem;">
-        ${profile.image_url ?
-          `<img src="${profile.image_url}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff; margin-bottom: 1rem;">` :
-          `<div style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; color: white; margin: 0 auto 1rem; border: 3px solid #00e0ff;">${initials}</div>`
-        }
+        <div style="position: relative; display: inline-block; margin-bottom: 1rem;">
+          ${profile.image_url ?
+            `<img src="${profile.image_url}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff;">` :
+            `<div style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; color: white; border: 3px solid #00e0ff;">${initials}</div>`
+          }
+          <!-- Presence Indicator Dot -->
+          <div data-presence-user-id="${profile.user_id || profile.id}" 
+               style="width: 24px; height: 24px; border-radius: 50%; background-color: #666; border: 3px solid #0a0e27; position: absolute; bottom: 5px; right: 5px; z-index: 10; transition: all 0.3s ease;"
+               title="Offline"></div>
+        </div>
 
         <h2 style="color: #00e0ff; font-size: 1.75rem; margin-bottom: 0.5rem;">${profile.name}</h2>
+
+        <!-- Presence Status -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <i class="fas fa-circle" data-presence-status-user-id="${profile.user_id || profile.id}" style="font-size: 0.5rem; color: #666;"></i>
+          <span data-presence-status-user-id="${profile.user_id || profile.id}" style="color: #666; font-size: 0.85rem;">offline</span>
+        </div>
+
+        <!-- Last Seen -->
+        <div data-presence-lastseen-user-id="${profile.user_id || profile.id}" style="color: #888; font-size: 0.75rem; margin-bottom: 0.5rem;">
+          Last seen: unknown
+        </div>
 
         ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
 

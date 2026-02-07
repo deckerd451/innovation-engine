@@ -81,6 +81,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
     
+    // Initialize presence UI
+    if (window.PresenceUI && window.supabase) {
+      log.debug('👁️ Initializing presence UI...');
+      try {
+        await window.PresenceUI.init(window.supabase);
+        log.info('✅ Presence UI active');
+      } catch (error) {
+        log.error('❌ Presence UI initialization failed:', error);
+      }
+    }
+    
     // Delayed realtime startup (after shell render + bootstrap)
     if (window.realtimeManager && window.bootstrapSession) {
       log.debug('⏱️ Scheduling delayed realtime startup...');
