@@ -15,11 +15,16 @@ DECLARE
   user_skills TEXT[];
 BEGIN
   -- Get the community profile ID and skills for this auth user
-  SELECT id, COALESCE(skills, ARRAY[]::TEXT[]) 
+  SELECT id, skills
   INTO user_community_id, user_skills
   FROM community 
   WHERE user_id = auth_user_id 
   LIMIT 1;
+  
+  -- Ensure user_skills is an array (handle NULL case)
+  IF user_skills IS NULL THEN
+    user_skills := ARRAY[]::TEXT[];
+  END IF;
 
   -- If no community profile exists, return minimal data
   IF user_community_id IS NULL THEN
@@ -38,7 +43,7 @@ BEGIN
       'image_url', c.image_url,
       'bio', c.bio,
       'skills', COALESCE(c.skills, ARRAY[]::TEXT[]),
-      'interests', c.interests,
+      'interests', COALESCE(c.interests, ARRAY[]::TEXT[]),
       'user_role', c.user_role,
       'profile_completed', c.profile_completed
     ),
