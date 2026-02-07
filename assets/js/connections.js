@@ -118,6 +118,20 @@ export async function initConnections(supabaseClient) {
 
 export async function refreshCurrentUser() {
   try {
+    // ✅ CRITICAL FIX: Use profile already loaded by auth.js
+    // This ensures consistency and prevents loading wrong profile
+    if (window.currentUserProfile?.id && window.currentAuthUser?.id) {
+      console.log('✅ [CONNECTIONS] Using profile from auth.js:', {
+        profileId: window.currentUserProfile.id,
+        userId: window.currentAuthUser.id,
+        name: window.currentUserProfile.name
+      });
+      currentUserCommunityId = window.currentUserProfile.id;
+      currentUserId = window.currentAuthUser.id;
+      return { currentUserId, currentUserCommunityId };
+    }
+
+    // Fallback: Query database if auth.js profile not available yet
     if (!supabase?.auth?.getSession) return null;
 
     const {
@@ -141,11 +155,16 @@ export async function refreshCurrentUser() {
       .single();
 
     if (pErr) {
+      console.warn("⚠️ [CONNECTIONS] No profile found by user_id:", currentUserId);
       currentUserCommunityId = null;
       return { currentUserId, currentUserCommunityId: null };
     }
 
     currentUserCommunityId = profile?.id || null;
+    console.log('✅ [CONNECTIONS] Profile loaded from database:', {
+      profileId: currentUserCommunityId,
+      userId: currentUserId
+    });
     return { currentUserId, currentUserCommunityId };
   } catch (err) {
     console.warn("refreshCurrentUser error:", err);

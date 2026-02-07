@@ -24,7 +24,6 @@ SELECT
   id,
   email,
   name,
-  username,
   onboarding_completed,
   profile_completed,
   created_at,
@@ -87,7 +86,6 @@ WHERE user_id IS NOT NULL
     onboarding_completed = false 
     OR profile_completed = false
     OR name IS NULL
-    OR username IS NULL
   );
 
 -- 1.8: List profiles needing onboarding
@@ -96,7 +94,6 @@ SELECT
   email,
   user_id,
   name,
-  username,
   onboarding_completed,
   profile_completed,
   created_at
@@ -106,7 +103,6 @@ WHERE user_id IS NOT NULL
     onboarding_completed = false 
     OR profile_completed = false
     OR name IS NULL
-    OR username IS NULL
   )
 ORDER BY created_at DESC
 LIMIT 20;
