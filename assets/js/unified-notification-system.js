@@ -90,9 +90,14 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     if (!currentUserProfile) return;
 
     try {
-      // Load START sequence data
+      // Load START sequence data (with error handling)
       if (window.getStartSequenceData) {
-        unifiedData.startSequence = await window.getStartSequenceData(false);
+        try {
+          unifiedData.startSequence = await window.getStartSequenceData(false);
+        } catch (startError) {
+          console.warn('⚠️ START sequence data unavailable, continuing without it:', startError.message);
+          unifiedData.startSequence = null;
+        }
       }
 
       // Load messages
@@ -336,7 +341,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   function generatePanelContent() {
     let html = '';
 
-    // START Sequence Immediate Actions
+    // START Sequence Immediate Actions (only if data is available)
     if (unifiedData.startSequence?.immediate_actions) {
       const actions = unifiedData.startSequence.immediate_actions;
       
@@ -417,7 +422,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       );
     }
 
-    // START Sequence Opportunities
+    // START Sequence Opportunities (only if data is available)
     if (unifiedData.startSequence?.opportunities) {
       const opps = unifiedData.startSequence.opportunities;
       
