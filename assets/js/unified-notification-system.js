@@ -73,10 +73,17 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     const newButton = startButton.cloneNode(true);
     startButton.parentNode.replaceChild(newButton, startButton);
     
+    // Open the full START modal instead of small panel
     newButton.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      showUnifiedNotificationPanel();
+      
+      // Open the enhanced START UI (full modal)
+      if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
+        window.EnhancedStartUI.open();
+      } else {
+        console.error('EnhancedStartUI not available');
+      }
     });
 
     console.log('✅ START button replaced with notification button');
@@ -770,7 +777,12 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   window.UnifiedNotifications = {
     init,
     refresh: loadAllData,
-    show: showUnifiedNotificationPanel,
+    show: () => {
+      // Open the full START modal
+      if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
+        window.EnhancedStartUI.open();
+      }
+    },
     cleanup
   };
 
