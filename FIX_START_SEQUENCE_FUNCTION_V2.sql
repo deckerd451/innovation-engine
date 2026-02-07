@@ -56,7 +56,11 @@ BEGIN
       'image_url', c.image_url,
       'bio', c.bio,
       'skills', user_skills,
-      'interests', COALESCE(c.interests, ARRAY[]::TEXT[]),
+      'interests', CASE 
+        WHEN c.interests IS NULL THEN ARRAY[]::TEXT[]
+        WHEN c.interests::text LIKE '{%}' THEN c.interests
+        ELSE ARRAY[]::TEXT[]
+      END,
       'user_role', c.user_role,
       'profile_completed', c.profile_completed
     ),
@@ -165,7 +169,8 @@ BEGIN
           FROM community other
           WHERE other.id != user_community_id
           AND other.skills IS NOT NULL
-          AND array_length(other.skills, 1) > 0
+          AND other.skills::text != ''
+          AND other.skills::text != '{}'
           AND NOT EXISTS (
             SELECT 1 FROM connections conn
             WHERE ((conn.from_user_id = user_community_id AND conn.to_user_id = other.id)
