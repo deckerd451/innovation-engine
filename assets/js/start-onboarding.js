@@ -592,6 +592,7 @@ class StartOnboarding {
   // ================================================================
 
   async nextStep() {
+    console.log('🔄 Moving to next onboarding step:', this.currentStep + 1);
     this.currentStep++;
 
     // Update onboarding step in database
@@ -603,14 +604,24 @@ class StartOnboarding {
             auth_user_id: user.id,
             step_number: this.currentStep
           });
+          console.log('✅ Onboarding step updated in database');
         }
       } catch (error) {
-        console.warn('Failed to update onboarding step:', error);
+        console.warn('⚠️ Failed to update onboarding step:', error);
       }
     }
 
     // Re-render with updated step
-    await window.EnhancedStartUI.open();
+    try {
+      console.log('🎨 Re-rendering START UI with step:', this.currentStep);
+      await window.EnhancedStartUI.open();
+    } catch (error) {
+      console.error('❌ Failed to re-render START UI:', error);
+      // Fallback: just close the modal
+      if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
+        window.EnhancedStartUI.close();
+      }
+    }
   }
 
   async previousStep() {
