@@ -592,29 +592,75 @@ class StartOnboarding {
   // ================================================================
 
   async nextStep() {
-    console.log('🔄 Moving to next onboarding step:', this.currentStep + 1);
+    console.log('🔄 Moving to next onboarding step from', this.currentStep, 'to', this.currentStep + 1);
     this.currentStep++;
 
     // Update onboarding step in database
     if (window.supabase) {
       try {
-        const { data: { user } } = await window.supabase.auth.getUser();
-        if (user) {
-          await window.supabase.rpc('update_onboarding_step', {
-            auth_user_id: user.id,
-            step_number: this.currentStep
-          });
-          console.log('✅ Onboarding step updated in database');
+        const { data: { user }, error: userError } = await window.supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('❌ Failed to get user:', userError);
+          throw userError;
         }
+        
+        if (!user) {
+          console.error('❌ No user found');
+          throw new Error('User not authenticated');
+        }
+
+        console.log('📝 Calling update_onboarding_step with:', {
+          auth_user_id: user.id,
+          step_number: this.currentStep
+        });
+
+        const { data, error } = await window.supabase.rpc('update_onboarding_step', {
+          auth_user_id: user.id,
+          step_number: this.currentStep
+        });
+
+        if (error) {
+          console.error('❌ RPC error:', error);
+          throw error;
+        }
+
+        console.log('✅ Onboarding step updated in database:', data);
+        
       } catch (error) {
-        console.warn('⚠️ Failed to update onboarding step:', error);
+        console.error('❌ Failed to update onboarding step:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // Show error to user
+        if (window.EnhancedStartUI && window.EnhancedStartUI.showToast) {
+          window.EnhancedStartUI.showToast(
+            'Failed to save progress. Please try again.',
+            'error'
+          );
+        }
+        
+        // Don't proceed if database update failed
+        this.currentStep--; // Revert step increment
+        return;
       }
     }
 
     // Re-render with updated step
     try {
       console.log('🎨 Re-rendering START UI with step:', this.currentStep);
+      
+      // Clear the cache so we get fresh data
+      if (window.clearStartSequenceCache) {
+        window.clearStartSequenceCache();
+      }
+      
       await window.EnhancedStartUI.open();
+      
     } catch (error) {
       console.error('❌ Failed to re-render START UI:', error);
       // Fallback: just close the modal
