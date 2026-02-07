@@ -84,6 +84,15 @@ if (window.__SYNAPSE_INIT_HELPER_LOADED__) {
         window.__SYNAPSE_READY__ = true;
         window.dispatchEvent(new CustomEvent("synapse-ready"));
 
+        // 🔄 Refresh connection status to ensure UI is up-to-date
+        setTimeout(async () => {
+          if (typeof window.refreshSynapseConnections === 'function') {
+            console.log("🔄 Refreshing connection status after init...");
+            await window.refreshSynapseConnections();
+            console.log("✅ Connection status refreshed");
+          }
+        }, 1000);
+
         return true;
       } else {
         throw new Error("No synapse initialization method available");

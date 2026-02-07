@@ -5,7 +5,9 @@
 // Integrates with START sequence report and synapse visualization
 // ================================================================
 
-import { getAuthUser, getCommunityUser } from './bootstrapSession.js';
+// Import bootstrap session functions from window object
+// (bootstrapSession.js uses IIFE pattern, not ES6 exports)
+const { getAuthUser, getCommunityUser } = window.bootstrapSession || {};
 
 console.log('%c🎨 Enhanced START UI - Loading', 'color:#0f8; font-weight:bold;');
 
