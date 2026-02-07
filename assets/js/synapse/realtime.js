@@ -32,7 +32,7 @@ export function setupSynapseRealtime(sb, onRefresh) {
 
   // Register subscription with realtimeManager (deduped by key)
   const channel = window.realtimeManager?.subscribeOnce('synapse-realtime', (supabase, context) => {
-    return supabase._internalChannel("synapse-realtime")
+    return supabase.channel("synapse-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "connections" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "project_members" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, scheduleRefresh)

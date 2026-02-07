@@ -324,7 +324,7 @@
 
     // Register subscription with realtimeManager (will start when realtime starts)
     realtimeSubscription = window.realtimeManager?.subscribeOnce('notifications', (supabase, context) => {
-      return supabase._internalChannel('notifications')
+      return supabase.channel('notifications')
         .on(
           'postgres_changes',
           {
