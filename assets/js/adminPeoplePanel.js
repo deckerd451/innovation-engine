@@ -808,12 +808,12 @@ function renderPersonDrawer(person) {
         
         <div>
           <label style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">Skills (comma-separated)</label>
-          <input type="text" name="skills" value="${person.skills || ''}" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+          <input type="text" name="skills" value="${person.skills || ''}" placeholder="e.g., JavaScript, Python, Design" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
         </div>
         
         <div>
           <label style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">Interests (comma-separated)</label>
-          <input type="text" name="interests" value="${person.interests || ''}" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+          <input type="text" name="interests" value="${person.interests || ''}" placeholder="e.g., AI, Web Development, Gaming" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
         </div>
         
         <div>
@@ -903,19 +903,24 @@ async function handlePersonUpdate(personId, form) {
   const statusEl = document.getElementById('drawer-status');
   const formData = new FormData(form);
   
+  // Build patch object with proper data cleaning
   const patch = {
-    name: formData.get('name'),
-    email: formData.get('email'),
-    bio: formData.get('bio'),
-    skills: formData.get('skills'),
-    interests: formData.get('interests'),
-    availability: formData.get('availability'),
-    image_url: formData.get('image_url'),
+    name: formData.get('name')?.trim() || null,
+    email: formData.get('email')?.trim() || null,
+    bio: formData.get('bio')?.trim() || null,
+    skills: formData.get('skills')?.trim() || null,
+    interests: formData.get('interests')?.trim() || null,
+    availability: formData.get('availability')?.trim() || null,
+    image_url: formData.get('image_url')?.trim() || null,
     user_role: formData.get('user_role'),
     is_hidden: formData.get('is_hidden') === 'on',
     is_disabled: formData.get('is_disabled') === 'on',
     newsletter_opt_in: formData.get('newsletter_opt_in') === 'on'
   };
+  
+  // Remove null values for required fields
+  if (!patch.name) delete patch.name;
+  if (!patch.email) delete patch.email;
   
   // Check for self-demotion from Admin
   const currentUser = window.supabase?.auth?.user?.();

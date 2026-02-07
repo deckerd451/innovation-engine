@@ -136,11 +136,34 @@ export async function updatePerson(id, patch) {
     const supabase = window.supabase;
     if (!supabase) throw new Error('Supabase not available');
 
+    // Clean up the patch data
+    const updateData = { ...patch };
+    
+    // Handle array fields - convert empty strings to null or proper arrays
+    const arrayFields = ['skills', 'interests'];
+    arrayFields.forEach(field => {
+      if (field in updateData) {
+        const value = updateData[field];
+        if (value === '' || value === null) {
+          updateData[field] = null;
+        } else if (typeof value === 'string') {
+          // If it's a comma-separated string, keep it as-is (PostgreSQL will handle it)
+          // If it's already an array format, keep it
+          updateData[field] = value.trim();
+        }
+      }
+    });
+    
+    // Handle empty strings for text fields - convert to null
+    const textFields = ['bio', 'availability', 'image_url', 'image_path', 'avatar_storage_path'];
+    textFields.forEach(field => {
+      if (field in updateData && updateData[field] === '') {
+        updateData[field] = null;
+      }
+    });
+
     // Add updated_at timestamp
-    const updateData = {
-      ...patch,
-      updated_at: new Date().toISOString()
-    };
+    updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
       .from('community')
