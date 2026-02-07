@@ -563,7 +563,7 @@ const MessagingModule = (function () {
 
     // Register with realtimeManager (deduped, delayed)
     state.realtimeChannel = window.realtimeManager?.subscribeOnce('messaging', (supabase, context) => {
-      return supabase._internalChannel("messaging")
+      return supabase.channel("messaging")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
         const newMessage = payload.new;
         if (!newMessage) return;
