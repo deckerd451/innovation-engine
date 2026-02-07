@@ -60,33 +60,19 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       return;
     }
 
-    // Replace with notification button
-    startButton.innerHTML = `
-      <i class="fas fa-bell" style="font-size:1.2rem; color:#00e0ff;"></i>
-    `;
+    // Just update the icon to a bell (keep the existing onclick handler)
+    const icon = startButton.querySelector('i');
+    if (icon) {
+      icon.className = 'fas fa-bell';
+      icon.style.color = '#00e0ff';
+    }
     
     // Update styling
     startButton.style.background = 'rgba(0,224,255,0.1)';
     startButton.style.borderColor = 'rgba(0,224,255,0.3)';
-    
-    // Remove old click handler and add new one
-    const newButton = startButton.cloneNode(true);
-    startButton.parentNode.replaceChild(newButton, startButton);
-    
-    // Open the full START modal instead of small panel
-    newButton.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Open the enhanced START UI (full modal)
-      if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
-        window.EnhancedStartUI.open();
-      } else {
-        console.error('EnhancedStartUI not available');
-      }
-    });
+    startButton.title = 'View updates and notifications';
 
-    console.log('✅ START button replaced with notification button');
+    console.log('✅ START button icon changed to notification bell');
   }
 
   // ================================================================
