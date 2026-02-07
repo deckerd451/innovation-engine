@@ -795,6 +795,66 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     safeText("user-initials-left", initials || "?");
     safeText("user-name-dropdown", name);
     safeText("user-initials-dropdown", initials || "?");
+    
+    // Update level and XP display
+    updateLevelDisplay(p);
+  }
+  
+  function updateLevelDisplay(profile) {
+    if (!profile) return;
+    
+    // Get XP and calculate level
+    const xp = profile.xp || 0;
+    const level = calculateLevel(xp);
+    const levelTitle = getLevelTitle(level);
+    const nextLevelXP = xpForNextLevel(level);
+    const currentLevelXP = xpForLevel(level);
+    const progressXP = xp - currentLevelXP;
+    const requiredXP = nextLevelXP - currentLevelXP;
+    
+    // Update level display in profile button
+    const levelDisplay = document.querySelector('#user-profile-toggle-left .level-display');
+    if (levelDisplay) {
+      levelDisplay.innerHTML = `Level ${level} <span style="color:#aaa; font-weight:400; font-size:0.75rem;">${levelTitle}</span>`;
+    }
+    
+    // Update XP display in profile button
+    const xpDisplay = document.querySelector('#user-profile-toggle-left .xp-display');
+    if (xpDisplay) {
+      xpDisplay.textContent = `${progressXP} / ${requiredXP} XP`;
+    }
+  }
+  
+  function calculateLevel(xp) {
+    if (xp >= 10000) return 8;
+    if (xp >= 5000) return 7;
+    if (xp >= 2000) return 6;
+    if (xp >= 1000) return 5;
+    if (xp >= 500) return 4;
+    if (xp >= 200) return 3;
+    if (xp >= 100) return 2;
+    return 1;
+  }
+  
+  function getLevelTitle(level) {
+    if (level >= 8) return 'Pioneer';
+    if (level >= 7) return 'Visionary';
+    if (level >= 6) return 'Leader';
+    if (level >= 5) return 'Innovator';
+    if (level >= 4) return 'Collaborator';
+    if (level >= 3) return 'Builder';
+    if (level >= 2) return 'Explorer';
+    return 'Newcomer';
+  }
+  
+  function xpForLevel(level) {
+    const thresholds = [0, 0, 100, 200, 500, 1000, 2000, 5000, 10000];
+    return thresholds[level] || 0;
+  }
+  
+  function xpForNextLevel(level) {
+    const thresholds = [0, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+    return thresholds[level] || 20000;
   }
 
   // -----------------------------
