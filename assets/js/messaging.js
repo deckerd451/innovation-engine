@@ -250,6 +250,68 @@ const MessagingModule = (function () {
     header.insertBefore(btn, header.firstChild);
   }
 
+  function setupMobileKeyboardHandling() {
+    if (!isMobile()) return;
+
+    const messageInput = document.querySelector(".message-input");
+    const inputContainer = document.getElementById("message-input-container");
+    const messagesArea = document.getElementById("messages-area");
+    
+    if (!messageInput || !inputContainer || !messagesArea) return;
+
+    // Store original viewport height
+    let originalViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+    // Handle focus - keyboard opening
+    messageInput.addEventListener("focus", () => {
+      if (!window.visualViewport) return;
+      
+      // Scroll to bottom of messages when keyboard opens
+      setTimeout(() => {
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }, 300);
+    });
+
+    // Handle blur - keyboard closing
+    messageInput.addEventListener("blur", () => {
+      // Reset any adjustments when keyboard closes
+      if (inputContainer) {
+        inputContainer.style.transform = "";
+      }
+    });
+
+    // Use Visual Viewport API for better keyboard detection
+    if (window.visualViewport) {
+      const handleViewportResize = () => {
+        const currentHeight = window.visualViewport.height;
+        const heightDiff = originalViewportHeight - currentHeight;
+        
+        // If viewport shrunk significantly (keyboard opened)
+        if (heightDiff > 150) {
+          // Keyboard is open - ensure input is visible
+          if (inputContainer) {
+            // Scroll messages area to bottom
+            if (messagesArea) {
+              messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+          }
+        } else {
+          // Keyboard is closed
+          originalViewportHeight = currentHeight;
+        }
+      };
+
+      window.visualViewport.addEventListener("resize", handleViewportResize);
+      window.visualViewport.addEventListener("scroll", handleViewportResize);
+    }
+
+    // Auto-resize textarea as user types
+    messageInput.addEventListener("input", function() {
+      this.style.height = "auto";
+      this.style.height = Math.min(this.scrollHeight, 120) + "px";
+    });
+  }
+
   function applyResponsiveLayout() {
     // Called after render, and on resize.
     if (!document.getElementById("messages-container")) return;
@@ -746,7 +808,7 @@ const MessagingModule = (function () {
 
       <div class="messages-area" id="messages-area"></div>
 
-      <div class="message-input-container">
+      <div class="message-input-container" id="message-input-container">
         <div class="message-input-wrapper">
           <textarea class="message-input"
             placeholder="Type a message..."
@@ -761,6 +823,9 @@ const MessagingModule = (function () {
 
     // Mobile: inject back button
     ensureMobileBackButton();
+
+    // Setup keyboard handling for mobile
+    setupMobileKeyboardHandling();
 
     renderMessages();
   }
