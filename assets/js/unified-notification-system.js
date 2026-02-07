@@ -340,6 +340,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
 
   function generatePanelContent() {
     let html = '';
+    let hasContent = false;
 
     // START Sequence Immediate Actions (only if data is available)
     if (unifiedData.startSequence?.immediate_actions) {
@@ -360,6 +361,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
             }
           }))
         );
+        hasContent = true;
       }
 
       if (actions.bids_to_review?.count > 0) {
@@ -377,6 +379,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
             }
           }))
         );
+        hasContent = true;
       }
     }
 
@@ -399,6 +402,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           }
         }))
       );
+      hasContent = true;
     }
 
     // Other Notifications
@@ -420,42 +424,162 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           }
         }))
       );
+      hasContent = true;
     }
 
-    // START Sequence Opportunities (only if data is available)
-    if (unifiedData.startSequence?.opportunities) {
-      const opps = unifiedData.startSequence.opportunities;
-      
-      if (opps.skill_matched_projects?.count > 0) {
-        html += createNotificationSection(
-          'Opportunities',
-          'lightbulb',
-          '#00ff88',
-          opps.skill_matched_projects.items.slice(0, 3).map(proj => ({
-            title: proj.title || 'Project matches your skills',
-            subtitle: proj.matched_skills ? `Skills: ${proj.matched_skills.slice(0, 2).join(', ')}` : '',
-            icon: '💡',
-            onClick: () => {
-              // Open projects
-              document.getElementById('unified-notification-panel')?.remove();
-            }
-          }))
-        );
-      }
+    // If no urgent items, show helpful suggestions
+    if (!hasContent) {
+      html += createWelcomeSection();
     }
 
-    // Empty state
-    if (!html) {
-      html = `
-        <div style="text-align: center; padding: 3rem 1rem; color: rgba(255,255,255,0.5);">
-          <i class="fas fa-check-circle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; color: #00ff88;"></i>
-          <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">All caught up!</p>
-          <p style="font-size: 0.9rem;">No new updates at the moment</p>
-        </div>
-      `;
+    // Always show opportunities and network insights
+    html += createOpportunitiesSection();
+    html += createNetworkInsightsSection();
+
+    return html;
+  }
+
+  function createWelcomeSection() {
+    const profile = unifiedData.startSequence?.profile;
+    const streak = unifiedData.startSequence?.momentum?.streak;
+    
+    return `
+      <div style="text-align: center; padding: 2rem 1rem; border-bottom: 1px solid rgba(0,224,255,0.1);">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">☀️</div>
+        <h3 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.2rem;">
+          Welcome back${profile?.name ? ', ' + profile.name.split(' ')[0] : ''}!
+        </h3>
+        ${streak?.current > 0 ? `
+          <p style="color: rgba(255,255,255,0.7); margin: 0; font-size: 0.9rem;">
+            🔥 ${streak.current}-day streak! Keep it going!
+          </p>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function createOpportunitiesSection() {
+    if (!unifiedData.startSequence?.opportunities) return '';
+
+    const opps = unifiedData.startSequence.opportunities;
+    let html = '';
+
+    // Skill-matched projects
+    if (opps.skill_matched_projects?.count > 0) {
+      html += createNotificationSection(
+        'Opportunities For You',
+        'lightbulb',
+        '#00ff88',
+        [{
+          title: `${opps.skill_matched_projects.count} projects match your skills`,
+          subtitle: 'Discover collaboration opportunities',
+          icon: '💡',
+          onClick: () => {
+            // Open projects
+            document.getElementById('unified-notification-panel')?.remove();
+          }
+        }]
+      );
+    }
+
+    // Active themes
+    if (opps.active_themes?.count > 0) {
+      html += createNotificationSection(
+        'Explore Themes',
+        'palette',
+        '#ffaa00',
+        [{
+          title: `${opps.active_themes.count} active theme circles`,
+          subtitle: 'Join communities around topics you care about',
+          icon: '🎨',
+          onClick: () => {
+            // Open themes
+            document.getElementById('unified-notification-panel')?.remove();
+          }
+        }]
+      );
     }
 
     return html;
+  }
+
+  function createNetworkInsightsSection() {
+    if (!unifiedData.startSequence?.network_insights) return '';
+
+    const network = unifiedData.startSequence.network_insights;
+    const connections = network.connections?.total || 0;
+    const projects = network.active_projects?.count || 0;
+    const themes = network.participating_themes?.count || 0;
+
+    return `
+      <div style="margin: 1.5rem 0;">
+        <h4 style="
+          color: #00e0ff;
+          font-size: 0.9rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin: 0 0 0.75rem 0;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        ">
+          <i class="fas fa-chart-line"></i>
+          Your Network
+        </h4>
+        <div style="
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 0.75rem;
+        ">
+          <div style="
+            background: rgba(0,224,255,0.05);
+            border: 1px solid rgba(0,224,255,0.15);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+          ">
+            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">👥</div>
+            <div style="color: white; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">
+              ${connections}
+            </div>
+            <div style="color: rgba(255,255,255,0.6); font-size: 0.75rem;">
+              Connections
+            </div>
+          </div>
+          <div style="
+            background: rgba(255,170,0,0.05);
+            border: 1px solid rgba(255,170,0,0.15);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+          ">
+            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">🎯</div>
+            <div style="color: white; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">
+              ${themes}
+            </div>
+            <div style="color: rgba(255,255,255,0.6); font-size: 0.75rem;">
+              Themes
+            </div>
+          </div>
+          <div style="
+            background: rgba(0,255,136,0.05);
+            border: 1px solid rgba(0,255,136,0.15);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+          ">
+            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">🚀</div>
+            <div style="color: white; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">
+              ${projects}
+            </div>
+            <div style="color: rgba(255,255,255,0.6); font-size: 0.75rem;">
+              Projects
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   function createNotificationSection(title, icon, color, items) {
