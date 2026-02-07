@@ -1288,62 +1288,24 @@ function loadAdminTabContent(tabName) {
   if (!content) return;
 
   if (tabName === 'manage') {
-    content.innerHTML = `
-      <div style="max-height: 60vh; overflow-y: auto;">
-        <!-- Add Person Section -->
-        <div style="background: rgba(0,255,136,0.05); border: 2px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-          <h3 style="color: #00ff88; font-size: 1.25rem; margin-bottom: 1rem;">
-            <i class="fas fa-user-plus"></i> Add Person to Community
-          </h3>
-          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem; font-size: 0.9rem;">
-            Create a new profile with an email. The user will be able to connect to their profile when logging in for the first time.
-          </p>
-          <div style="display: flex; gap: 0.75rem; margin-bottom: 0.5rem;">
-            <input type="email" id="admin-add-email" placeholder="user@example.com" 
-              style="flex: 1; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,136,0.3); 
-              border-radius: 8px; color: white; font-size: 0.95rem;">
-            <button onclick="adminAddPerson()" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00ff88, #00e0ff); 
-              border: none; border-radius: 8px; color: #000; font-weight: 700; cursor: pointer; white-space: nowrap;">
-              <i class="fas fa-plus"></i> Add Person
-            </button>
-          </div>
-          <div id="admin-add-status" style="margin-top: 0.75rem; font-size: 0.85rem;"></div>
-        </div>
-
-        <!-- Search and Manage People Section -->
-        <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem;">
-          <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 1rem;">
-            <i class="fas fa-search"></i> Search and Manage People
-          </h3>
-          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem; font-size: 0.9rem;">
-            Search for people by name to remove them from view (makes them unsearchable and not accessible to the community). Removed members can be reinstated by an admin.
-          </p>
-          <div style="margin-bottom: 1rem;">
-            <input type="text" id="admin-search-people" placeholder="Search by name..." 
-              style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); 
-              border-radius: 8px; color: white; font-size: 0.95rem;">
-          </div>
-          <div id="admin-people-list" style="max-height: 400px; overflow-y: auto;">
-            <div style="text-align: center; color: rgba(255,255,255,0.5); padding: 2rem;">
-              <i class="fas fa-search" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
-              <p>Search for people to manage</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Wire up search
-    const searchInput = document.getElementById('admin-search-people');
-    if (searchInput) {
-      let searchTimeout;
-      searchInput.addEventListener('input', (e) => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-          adminSearchPeople(e.target.value);
-        }, 300);
-      });
-    }
+    // Load the new People Management panel
+    content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #00e0ff;"><i class="fas fa-spinner fa-spin"></i> Loading People Management...</div>';
+    
+    // Wait for module to be available
+    const checkModule = setInterval(() => {
+      if (typeof window.AdminPeoplePanel !== 'undefined' && typeof window.AdminPeoplePanel.renderPeoplePanel === 'function') {
+        clearInterval(checkModule);
+        window.AdminPeoplePanel.renderPeoplePanel(content);
+      }
+    }, 100);
+    
+    // Timeout after 5 seconds
+    setTimeout(() => {
+      clearInterval(checkModule);
+      if (!window.AdminPeoplePanel) {
+        content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load People Management panel. Please refresh the page.</div>';
+      }
+    }, 5000);
   } else if (tabName === 'themes') {
     content.innerHTML = `
       <div style="max-height: 70vh; overflow-y: auto;">
@@ -1961,10 +1923,10 @@ async function adminTogglePersonVisibility(personId, shouldRemove, personName, c
     alert(`Error updating member status:\n\n${error.message}\n\nPlease check the console for details.`);
   }
 }
-// Expose admin functions globally
-window.adminAddPerson = adminAddPerson;
-window.adminSearchPeople = adminSearchPeople;
-window.adminTogglePersonVisibility = adminTogglePersonVisibility;
+
+// NOTE: Legacy admin people functions (adminAddPerson, adminSearchPeople, adminTogglePersonVisibility)
+// have been replaced by the new Admin People Management system in adminPeoplePanel.js
+// These functions are kept for backward compatibility but are no longer used by the admin panel
 
 // ============================================================================
 // THEME MANAGEMENT FUNCTIONS
