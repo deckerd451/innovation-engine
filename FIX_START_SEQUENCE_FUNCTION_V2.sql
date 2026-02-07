@@ -62,7 +62,9 @@ BEGIN
         ELSE ARRAY[]::TEXT[]
       END,
       'user_role', c.user_role,
-      'profile_completed', c.profile_completed
+      'profile_completed', c.profile_completed,
+      'onboarding_completed', COALESCE(c.onboarding_completed, false),
+      'onboarding_step', COALESCE(c.onboarding_step, 0)
     ),
     
     'progress', json_build_object(
