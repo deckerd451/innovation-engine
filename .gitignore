@@ -72,6 +72,24 @@ backup.sql
 dump.sql
 
 # ============================================================================
+# SQL Files Protection
+# ============================================================================
+# All SQL files must be in /supabase/sql/ directory
+# Prevent accidental SQL files in root or other locations
+/*.sql
+!supabase/sql/**/*.sql
+
+# ============================================================================
+# Markdown Documentation Protection
+# ============================================================================
+# All markdown documentation must be in /docs/ directory
+# Prevent accidental markdown files in root (except README.md)
+/*.md
+!README.md
+!docs/**/*.md
+!supabase/sql/**/*.md
+
+# ============================================================================
 # Test Coverage
 # ============================================================================
 coverage/
