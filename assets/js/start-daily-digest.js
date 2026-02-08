@@ -295,9 +295,20 @@ class StartDailyDigest {
     const immediate = data.immediate_actions || {};
     let html = '';
 
+    // Debug logging
+    console.log('🔍 renderQuickActions - immediate_actions:', immediate);
+    console.log('🔍 pending_requests:', immediate.pending_requests);
+
     // Render detailed connection requests with Accept/Decline buttons
     if (immediate.pending_requests?.count > 0 && immediate.pending_requests?.items) {
+      console.log('✅ Rendering connection requests:', immediate.pending_requests.items);
       html += await this.renderConnectionRequests(immediate.pending_requests);
+    } else {
+      console.log('⚠️ No connection requests to render:', {
+        count: immediate.pending_requests?.count,
+        hasItems: !!immediate.pending_requests?.items,
+        items: immediate.pending_requests?.items
+      });
     }
 
     // Render other quick actions
@@ -441,7 +452,7 @@ class StartDailyDigest {
               </div>
               <div style="flex: 1; min-width: 0;">
                 <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">
-                  ${req.from_name || 'Someone'}
+                  ${req.from_user_name || req.from_name || 'Someone'}
                 </div>
                 <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
                   ${req.created_at ? this.getTimeAgo(new Date(req.created_at)) : 'Recently'}
