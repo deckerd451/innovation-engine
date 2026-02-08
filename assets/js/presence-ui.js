@@ -61,7 +61,7 @@
     try {
       const { data: sessions, error } = await supabase
         .from('presence_sessions')
-        .select('user_id, is_active, last_seen')
+        .select('user_id, is_active, last_seen, expires_at')
         .eq('is_active', true);
 
       if (error) {
@@ -73,7 +73,10 @@
       presenceCache.clear();
       (sessions || []).forEach(session => {
         const lastSeenTime = new Date(session.last_seen).getTime();
-        const isOnline = Date.now() - lastSeenTime < ONLINE_THRESHOLD;
+        const expiresAt = new Date(session.expires_at).getTime();
+        
+        // User is online if session hasn't expired yet
+        const isOnline = Date.now() < expiresAt;
         
         presenceCache.set(session.user_id, {
           isOnline,
@@ -99,7 +102,7 @@
       // Use order + limit instead of maybeSingle to handle duplicate sessions
       const { data: sessions, error } = await supabase
         .from('presence_sessions')
-        .select('user_id, is_active, last_seen')
+        .select('user_id, is_active, last_seen, expires_at')
         .eq('user_id', userId)
         .eq('is_active', true)
         .order('last_seen', { ascending: false })
@@ -114,7 +117,10 @@
 
       if (session) {
         const lastSeenTime = new Date(session.last_seen).getTime();
-        const isOnline = Date.now() - lastSeenTime < ONLINE_THRESHOLD;
+        const expiresAt = new Date(session.expires_at).getTime();
+        
+        // User is online if session hasn't expired yet
+        const isOnline = Date.now() < expiresAt;
         
         presenceCache.set(userId, {
           isOnline,
