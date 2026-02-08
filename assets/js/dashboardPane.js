@@ -813,13 +813,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     const requiredXP = nextLevelXP - currentLevelXP;
     
     // Update level display in profile button
-    const levelDisplay = document.querySelector('#user-profile-toggle-left .level-display');
+    const levelDisplay = document.querySelector('#user-profile-combined .level-display');
     if (levelDisplay) {
       levelDisplay.innerHTML = `Level ${level} <span style="color:#aaa; font-weight:400; font-size:0.75rem;">${levelTitle}</span>`;
     }
     
     // Update XP display in profile button
-    const xpDisplay = document.querySelector('#user-profile-toggle-left .xp-display');
+    const xpDisplay = document.querySelector('#user-profile-combined .xp-display');
     if (xpDisplay) {
       xpDisplay.textContent = `${progressXP} / ${requiredXP} XP`;
     }
