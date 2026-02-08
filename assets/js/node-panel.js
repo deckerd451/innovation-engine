@@ -871,7 +871,7 @@ async function renderPersonPanel(nodeData) {
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('mutual')">
             <div class="panel-section-title">
-              <i class="fas fa-user-friends"></i> ${mutualConnections.length} MUTUAL CONNECTION${mutualConnections.length !== 1 ? 'S' : ''}
+              <i class="fas fa-user-friends"></i> ${mutualConnections.length} ${profile.id === currentUserProfile?.id ? 'CONNECTION' : 'MUTUAL CONNECTION'}${mutualConnections.length !== 1 ? 'S' : ''}
             </div>
             <i class="fas fa-chevron-down panel-section-toggle" id="mutual-toggle"></i>
           </div>
@@ -906,7 +906,7 @@ async function renderPersonPanel(nodeData) {
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('projects')">
             <div class="panel-section-title">
-              <i class="fas fa-project-diagram"></i> SHARED PROJECTS
+              <i class="fas fa-project-diagram"></i> ${profile.id === currentUserProfile?.id ? 'PROJECTS' : 'SHARED PROJECTS'}
             </div>
             <i class="fas fa-chevron-down panel-section-toggle" id="projects-toggle"></i>
           </div>
