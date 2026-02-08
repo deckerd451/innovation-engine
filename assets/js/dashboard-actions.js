@@ -1517,7 +1517,9 @@ function loadAdminTabContent(tabName) {
     loadOrganizationsList();
   } else if (tabName === 'system') {
     const isEnabled = localStorage.getItem('enable-unified-network') === 'true';
-    const isDebug = localStorage.getItem('unified-network-debug') === 'true';
+    // Check both debug flags - if either is set, show as enabled
+    const isDebug = localStorage.getItem('unified-network-debug') === 'true' || 
+                    localStorage.getItem('DEBUG') === '1';
     
     content.innerHTML = `
       <div style="max-height: 60vh; overflow-y: auto;">
@@ -1660,9 +1662,17 @@ function loadAdminTabContent(tabName) {
     
     debugToggle.addEventListener('change', () => {
       if (debugToggle.checked) {
+        // Enable both unified network debug AND general debug mode
         localStorage.setItem('unified-network-debug', 'true');
+        localStorage.setItem('DEBUG', '1');
+        console.log('🐛 Debug mode enabled - verbose console logging activated');
+        console.log('   Reload the page to see full debug output');
       } else {
+        // Disable both debug modes
         localStorage.removeItem('unified-network-debug');
+        localStorage.removeItem('DEBUG');
+        console.log('🐛 Debug mode disabled - console logging minimized');
+        console.log('   Reload the page to apply changes');
       }
     });
     
