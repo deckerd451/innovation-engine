@@ -2175,7 +2175,7 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
     }
 
     // Wait a moment for database to fully commit
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Reload panel if it's currently showing this project
     if (currentNodeData?.id === projectId) {
@@ -2190,6 +2190,16 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
       await window.refreshSynapseConnections();
     } else {
       console.warn('⚠️ window.refreshSynapseConnections not available');
+    }
+
+    // Close the modal if all requests have been processed
+    const remainingRequests = document.querySelectorAll('[data-request-id]');
+    if (remainingRequests.length === 0) {
+      console.log('✅ All requests processed, closing modal...');
+      const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
+      if (modal) {
+        modal.remove();
+      }
     }
 
   } catch (error) {
@@ -2232,7 +2242,7 @@ window.declineJoinRequest = async function(projectId, requestId) {
     }
 
     // Wait a moment for database to fully commit
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Reload panel if it's currently showing this project
     if (currentNodeData?.id === projectId) {
@@ -2243,6 +2253,16 @@ window.declineJoinRequest = async function(projectId, requestId) {
     // Refresh synapse view to show updated project membership
     if (typeof window.refreshSynapseConnections === 'function') {
       await window.refreshSynapseConnections();
+    }
+
+    // Close the modal if all requests have been processed
+    const remainingRequests = document.querySelectorAll('[data-request-id]');
+    if (remainingRequests.length === 0) {
+      console.log('✅ All requests processed, closing modal...');
+      const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
+      if (modal) {
+        modal.remove();
+      }
     }
 
   } catch (error) {
