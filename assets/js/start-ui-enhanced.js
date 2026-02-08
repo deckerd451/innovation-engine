@@ -525,9 +525,15 @@ class EnhancedStartUI {
     setTimeout(() => {
       const handlers = {
         openConnectionRequests: () => {
-          // Filter synapse to show only people with pending requests
-          if (window.filterByNodeType) {
-            window.filterByNodeType('person');
+          // Open the connection requests panel
+          if (typeof window.toggleConnectionsPanel === 'function') {
+            window.toggleConnectionsPanel();
+          } else {
+            // Fallback: Filter synapse to show only people with pending requests
+            if (window.filterByNodeType) {
+              window.filterByNodeType('person');
+            }
+            this.showToast('Connection requests panel not available. Showing people in network.', 'info');
           }
         },
         openMessaging: () => {
