@@ -229,6 +229,98 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   }
 
   // ================================================================
+  // CONNECTION REQUEST HANDLERS
+  // ================================================================
+
+  async function handleAcceptConnection(connectionId) {
+    try {
+      // Import the accept function
+      const { acceptConnectionRequest } = await import('./connections.js');
+      
+      // Show loading state
+      showToast('Accepting connection...', 'info');
+      
+      // Accept the connection
+      const result = await acceptConnectionRequest(connectionId);
+      
+      if (result.success) {
+        showToast('Connection accepted!', 'success');
+        
+        // Refresh data
+        await loadAllData();
+        
+        // Close and reopen panel to show updated state
+        const panel = document.getElementById('unified-notification-panel');
+        if (panel) {
+          panel.remove();
+          setTimeout(() => showUnifiedNotificationPanel(), 300);
+        }
+      } else {
+        showToast('Failed to accept connection', 'error');
+      }
+    } catch (error) {
+      console.error('Error accepting connection:', error);
+      showToast('Error accepting connection', 'error');
+    }
+  }
+
+  async function handleDeclineConnection(connectionId) {
+    try {
+      // Import the decline function
+      const { declineConnectionRequest } = await import('./connections.js');
+      
+      // Show loading state
+      showToast('Declining connection...', 'info');
+      
+      // Decline the connection
+      const result = await declineConnectionRequest(connectionId);
+      
+      if (result.success) {
+        showToast('Connection declined', 'info');
+        
+        // Refresh data
+        await loadAllData();
+        
+        // Close and reopen panel to show updated state
+        const panel = document.getElementById('unified-notification-panel');
+        if (panel) {
+          panel.remove();
+          setTimeout(() => showUnifiedNotificationPanel(), 300);
+        }
+      } else {
+        showToast('Failed to decline connection', 'error');
+      }
+    } catch (error) {
+      console.error('Error declining connection:', error);
+      showToast('Error declining connection', 'error');
+    }
+  }
+
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: ${type === 'error' ? '#f44336' : type === 'success' ? '#4caf50' : '#00e0ff'};
+      color: #fff;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 10001;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.3s ease-out;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.animation = 'slideOut 0.3s ease-out';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  // ================================================================
   // SHOW UNIFIED NOTIFICATION PANEL
   // ================================================================
 
@@ -328,7 +420,55 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       panel.remove();
     });
 
+    // Setup action button handlers
+    setupActionButtonHandlers(panel);
+
     return panel;
+  }
+
+  function setupActionButtonHandlers(panel) {
+    // Get all action buttons
+    const actionButtons = panel.querySelectorAll('.notification-action-btn');
+    
+    actionButtons.forEach(button => {
+      button.addEventListener('click', async (e) => {
+        e.stopPropagation(); // Prevent item click
+        
+        const itemIndex = parseInt(button.dataset.itemIndex);
+        const actionIndex = parseInt(button.dataset.actionIndex);
+        
+        // Find the corresponding item and action
+        const items = unifiedData.startSequence?.immediate_actions?.pending_requests?.items || [];
+        const item = items[itemIndex];
+        
+        if (!item) return;
+        
+        // Get the action from the item's actions array
+        const actions = [
+          {
+            onClick: async () => await handleAcceptConnection(item.id)
+          },
+          {
+            onClick: async () => await handleDeclineConnection(item.id)
+          }
+        ];
+        
+        const action = actions[actionIndex];
+        if (action && action.onClick) {
+          // Disable button and show loading
+          button.disabled = true;
+          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+          
+          try {
+            await action.onClick();
+          } catch (error) {
+            console.error('Action error:', error);
+            button.disabled = false;
+            button.innerHTML = button.dataset.originalHtml;
+          }
+        }
+      });
+    });
   }
 
   function generatePanelContent() {
@@ -348,10 +488,25 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
             title: `${req.from_name || 'Someone'} wants to connect`,
             subtitle: req.created_at ? getTimeAgo(new Date(req.created_at)) : '',
             icon: '🤝',
-            onClick: () => {
-              window.location.href = '#connections';
-              document.getElementById('unified-notification-panel')?.remove();
-            }
+            connectionId: req.id,
+            actions: [
+              {
+                label: 'Accept',
+                icon: 'check',
+                color: '#00ff88',
+                onClick: async () => {
+                  await handleAcceptConnection(req.id);
+                }
+              },
+              {
+                label: 'Decline',
+                icon: 'times',
+                color: '#ff3b30',
+                onClick: async () => {
+                  await handleDeclineConnection(req.id);
+                }
+              }
+            ]
           }))
         );
         hasContent = true;
@@ -594,54 +749,93 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           <i class="fas fa-${icon}"></i>
           ${title}
         </h4>
-        ${items.map(item => `
-          <div onclick="${item.onClick ? `(${item.onClick.toString()})()` : ''}" style="
+        ${items.map((item, index) => `
+          <div class="notification-item" data-index="${index}" style="
             padding: 0.75rem;
             margin-bottom: 0.5rem;
             background: rgba(0,224,255,0.05);
             border: 1px solid rgba(0,224,255,0.15);
             border-radius: 8px;
-            cursor: ${item.onClick ? 'pointer' : 'default'};
+            cursor: ${item.onClick && !item.actions ? 'pointer' : 'default'};
             transition: all 0.2s;
             display: flex;
-            align-items: start;
-            gap: 0.75rem;
-          " onmouseover="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'"
-             onmouseout="this.style.background='rgba(0,224,255,0.05)'; this.style.borderColor='rgba(0,224,255,0.15)'">
-            <div style="font-size: 1.5rem; flex-shrink: 0;">
-              ${item.icon}
-            </div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="
-                color: white;
-                font-weight: 500;
-                margin-bottom: 0.25rem;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-              ">
-                ${item.title}
+            flex-direction: column;
+            gap: 0.5rem;
+          " ${item.onClick && !item.actions ? `onclick="(${item.onClick.toString()})()"` : ''}
+             onmouseover="if(!this.querySelector('.action-buttons')) { this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'; }"
+             onmouseout="if(!this.querySelector('.action-buttons')) { this.style.background='rgba(0,224,255,0.05)'; this.style.borderColor='rgba(0,224,255,0.15)'; }">
+            <div style="display: flex; align-items: start; gap: 0.75rem;">
+              <div style="font-size: 1.5rem; flex-shrink: 0;">
+                ${item.icon}
               </div>
-              ${item.subtitle ? `
+              <div style="flex: 1; min-width: 0;">
                 <div style="
-                  color: rgba(255,255,255,0.6);
-                  font-size: 0.85rem;
+                  color: white;
+                  font-weight: 500;
+                  margin-bottom: 0.25rem;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
                 ">
-                  ${item.subtitle}
+                  ${item.title}
+                </div>
+                ${item.subtitle ? `
+                  <div style="
+                    color: rgba(255,255,255,0.6);
+                    font-size: 0.85rem;
+                  ">
+                    ${item.subtitle}
+                  </div>
+                ` : ''}
+              </div>
+              ${item.badge ? `
+                <div style="
+                  background: #ff3b30;
+                  color: white;
+                  border-radius: 12px;
+                  padding: 2px 8px;
+                  font-size: 0.75rem;
+                  font-weight: bold;
+                  flex-shrink: 0;
+                ">
+                  ${item.badge}
                 </div>
               ` : ''}
             </div>
-            ${item.badge ? `
-              <div style="
-                background: #ff3b30;
-                color: white;
-                border-radius: 12px;
-                padding: 2px 8px;
-                font-size: 0.75rem;
-                font-weight: bold;
-                flex-shrink: 0;
+            ${item.actions ? `
+              <div class="action-buttons" style="
+                display: flex;
+                gap: 0.5rem;
+                margin-top: 0.25rem;
               ">
-                ${item.badge}
+                ${item.actions.map((action, actionIndex) => `
+                  <button 
+                    class="notification-action-btn"
+                    data-item-index="${index}"
+                    data-action-index="${actionIndex}"
+                    style="
+                      flex: 1;
+                      padding: 0.5rem 1rem;
+                      background: ${action.color || '#00e0ff'};
+                      color: white;
+                      border: none;
+                      border-radius: 6px;
+                      font-weight: 600;
+                      font-size: 0.85rem;
+                      cursor: pointer;
+                      transition: all 0.2s;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      gap: 0.5rem;
+                    "
+                    onmouseover="this.style.opacity='0.8'; this.style.transform='translateY(-1px)'"
+                    onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'"
+                  >
+                    <i class="fas fa-${action.icon}"></i>
+                    ${action.label}
+                  </button>
+                `).join('')}
               </div>
             ` : ''}
           </div>

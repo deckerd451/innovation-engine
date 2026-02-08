@@ -152,6 +152,18 @@ const NavigationHandler = (function() {
   // Handle URL hash changes
   function handleHashChange() {
     const hash = window.location.hash.substring(1);
+    
+    // Handle special hash routes
+    if (hash === 'connections') {
+      // Open connections panel
+      if (typeof window.toggleConnectionsPanel === 'function') {
+        window.toggleConnectionsPanel();
+      }
+      // Clear hash
+      history.replaceState(null, null, ' ');
+      return;
+    }
+    
     if (hash && hash !== 'login-section') {
       const targetPane = document.getElementById(hash);
       if (targetPane) {
