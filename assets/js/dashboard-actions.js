@@ -1228,6 +1228,10 @@ function openAdminPanel() {
       <button class="admin-tab" data-tab="system" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
         <i class="fas fa-cog"></i> System Settings
       </button>
+      
+      <button class="admin-tab" data-tab="analytics" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <i class="fas fa-chart-line"></i> Analytics
+      </button>
     </div>
 
     <!-- Tab Content -->
@@ -1718,6 +1722,67 @@ function loadAdminTabContent(tabName) {
         testBtn.disabled = false;
       }
     });
+  } else if (tabName === 'analytics') {
+    // Analytics tab - show embedded analytics dashboard
+    content.innerHTML = `
+      <div style="max-height: 70vh; overflow-y: auto;">
+        <div style="background: rgba(255,107,107,0.05); border: 2px solid rgba(255,107,107,0.3); border-radius: 12px; padding: 1.5rem;">
+          <h3 style="color: #ff6b6b; font-size: 1.25rem; margin-bottom: 0.5rem;">
+            <i class="fas fa-chart-line"></i> Ecosystem Analytics
+          </h3>
+          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
+            View comprehensive analytics about your community, connections, and network health.
+          </p>
+          
+          <button id="open-analytics-dashboard-btn" style="
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #ff6b6b, #ff8c8c);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255, 107, 107, 0.6)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 12px rgba(255, 107, 107, 0.4)'">
+            <i class="fas fa-chart-bar"></i> Open Analytics Dashboard
+          </button>
+          
+          <div style="margin-top: 2rem; padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px;">
+            <div style="color: #00e0ff; font-size: 0.85rem; line-height: 1.5;">
+              <i class="fas fa-info-circle"></i> <strong>Analytics includes:</strong>
+              <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8;">
+                <li>Total members, connections, and projects</li>
+                <li>Network density and health metrics</li>
+                <li>Key connectors and isolated nodes</li>
+                <li>Top skills in the community</li>
+                <li>Suggested introductions to strengthen the network</li>
+                <li>Growth metrics (last 30 days)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Wire up the analytics button
+    const analyticsBtn = document.getElementById('open-analytics-dashboard-btn');
+    if (analyticsBtn) {
+      analyticsBtn.addEventListener('click', () => {
+        // Close admin panel
+        const adminPanel = document.getElementById('admin-panel');
+        if (adminPanel) adminPanel.remove();
+        
+        // Open analytics modal
+        if (typeof window.openAnalyticsModal === 'function') {
+          window.openAnalyticsModal();
+        } else {
+          console.error('❌ Analytics modal not available');
+          alert('Analytics dashboard is not available. Please refresh the page and try again.');
+        }
+      });
+    }
   }
 }
 

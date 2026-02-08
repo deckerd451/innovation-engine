@@ -23,6 +23,10 @@ export function initAdminAnalytics() {
   });
 
   createAnalyticsModal();
+  
+  // Expose functions globally immediately
+  window.openAnalyticsModal = openAnalyticsModal;
+  window.closeAnalyticsModal = closeAnalyticsModal;
 
   console.log('✅ Admin analytics initialized');
 }
@@ -499,9 +503,6 @@ function closeAnalyticsModal() {
     analyticsModal.style.display = 'none';
   }, 300);
 }
-
-window.openAnalyticsModal = openAnalyticsModal;
-window.closeAnalyticsModal = closeAnalyticsModal;
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
