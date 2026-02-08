@@ -962,9 +962,14 @@ async function renderPersonPanel(nodeData) {
         </div>
 
         ${connectionStatus === 'accepted' ? `
-          <button onclick="inviteToProject('${profile.id}')" style="width: 100%; padding: 0.75rem; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; font-weight: bold; cursor: pointer;">
-            <i class="fas fa-plus-circle"></i> Invite to Project
-          </button>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <button onclick="inviteToProject('${profile.id}')" style="padding: 0.75rem; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; font-weight: bold; cursor: pointer;">
+              <i class="fas fa-plus-circle"></i> Invite to Project
+            </button>
+            <button onclick="removeConnectionFromPanel('${connectionId}')" style="padding: 0.75rem; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(255,107,107,0.1)'">
+              <i class="fas fa-user-times"></i> Disconnect
+            </button>
+          </div>
         ` : ''}
       `}
     </div>
@@ -1342,6 +1347,52 @@ window.withdrawConnectionFromPanel = async function(userId) {
   } catch (error) {
     console.error('Error withdrawing connection:', error);
     alert('Failed to withdraw connection request: ' + error.message);
+  }
+};
+
+window.removeConnectionFromPanel = async function(connectionId) {
+  try {
+    if (!currentUserProfile) {
+      alert('Please log in to remove connections');
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = confirm(
+      '⚠️ Are you sure you want to remove this connection?\n\n' +
+      'This will permanently disconnect you from this person. ' +
+      'You will need to send a new connection request to reconnect.'
+    );
+
+    if (!confirmed) {
+      return; // User cancelled
+    }
+
+    // Delete the connection
+    const { error: deleteError } = await supabase
+      .from('connections')
+      .delete()
+      .eq('id', connectionId);
+
+    if (deleteError) {
+      console.error('Error removing connection:', deleteError);
+      alert('Failed to remove connection');
+      return;
+    }
+
+    showToastNotification('✓ Connection removed', 'info');
+
+    // Close panel and refresh network view
+    closeNodePanel();
+    
+    // Refresh the network visualization
+    if (window.refreshNetworkView) {
+      await window.refreshNetworkView();
+    }
+
+  } catch (error) {
+    console.error('Error removing connection:', error);
+    alert('Failed to remove connection: ' + error.message);
   }
 };
 
