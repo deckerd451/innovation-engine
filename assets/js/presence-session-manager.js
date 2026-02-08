@@ -117,6 +117,19 @@
    */
   async function createPresenceSession() {
     try {
+      // First, delete any existing active sessions for this user to prevent duplicates
+      const { error: deleteError } = await supabase
+        .from('presence_sessions')
+        .delete()
+        .eq('user_id', communityProfileId)
+        .eq('is_active', true);
+      
+      if (deleteError) {
+        console.warn('⚠️ Could not delete existing sessions:', deleteError);
+      } else {
+        console.log('🧹 Cleaned up any existing sessions');
+      }
+      
       const now = new Date().toISOString();
       const expiresAt = new Date(Date.now() + SESSION_TIMEOUT).toISOString();
       

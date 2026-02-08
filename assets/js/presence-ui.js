@@ -91,17 +91,21 @@
     if (!supabase || !userId) return;
 
     try {
-      const { data: session, error } = await supabase
+      // Use order + limit instead of maybeSingle to handle duplicate sessions
+      const { data: sessions, error } = await supabase
         .from('presence_sessions')
         .select('user_id, is_active, last_seen')
         .eq('user_id', userId)
         .eq('is_active', true)
-        .maybeSingle();
+        .order('last_seen', { ascending: false })
+        .limit(1);
 
       if (error) {
         console.error('Error fetching user presence:', error);
         return;
       }
+
+      const session = sessions && sessions.length > 0 ? sessions[0] : null;
 
       if (session) {
         const lastSeenTime = new Date(session.last_seen).getTime();
