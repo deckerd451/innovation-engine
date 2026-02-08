@@ -27,9 +27,14 @@
   /**
    * Initialize presence UI system
    */
-  async function init(supabaseClient) {
+  async function init(supabaseClient, currentUserId = null) {
     supabase = supabaseClient;
     console.log('👁️ Initializing presence UI system...');
+
+    // Store current user ID globally for presence checks
+    if (currentUserId) {
+      window.__currentUserId = currentUserId;
+    }
 
     // Initial load
     await updateAllPresence();
@@ -174,8 +179,14 @@
    * Update a presence dot element
    */
   function updatePresenceDot(element, userId) {
+    // Get current user ID
+    const currentUserId = window.supabase?.auth?.getUser?.()?.then(u => u.data?.user?.id);
+    
+    // Check if this is the current user's dot
+    const isCurrentUser = userId && window.__currentUserId && userId === window.__currentUserId;
+    
     const presence = presenceCache.get(userId);
-    const isOnline = presence?.isOnline || false;
+    const isOnline = isCurrentUser || presence?.isOnline || false; // Current user is always online
 
     // Update dot color
     element.style.backgroundColor = isOnline ? '#00ff88' : '#666';
@@ -189,8 +200,11 @@
    * Update a presence status text element
    */
   function updatePresenceStatus(element, userId) {
+    // Check if this is the current user
+    const isCurrentUser = userId && window.__currentUserId && userId === window.__currentUserId;
+    
     const presence = presenceCache.get(userId);
-    const isOnline = presence?.isOnline || false;
+    const isOnline = isCurrentUser || presence?.isOnline || false; // Current user is always online
 
     element.textContent = isOnline ? 'available' : 'offline';
     element.style.color = isOnline ? '#00ff88' : '#666';
@@ -200,6 +214,16 @@
    * Update a "last seen" text element
    */
   function updateLastSeenText(element, userId) {
+    // Check if this is the current user
+    const isCurrentUser = userId && window.__currentUserId && userId === window.__currentUserId;
+    
+    // Current user is always "Active now"
+    if (isCurrentUser) {
+      element.textContent = 'Active now';
+      element.style.color = '#00ff88';
+      return;
+    }
+    
     const presence = presenceCache.get(userId);
     
     if (!presence) {

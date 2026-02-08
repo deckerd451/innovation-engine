@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (window.PresenceUI && window.supabase) {
       log.debug('👁️ Initializing presence UI...');
       try {
-        await window.PresenceUI.init(window.supabase);
+        await window.PresenceUI.init(window.supabase, profile?.id);
         log.info('✅ Presence UI active');
       } catch (error) {
         log.error('❌ Presence UI initialization failed:', error);
