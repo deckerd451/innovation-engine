@@ -666,11 +666,12 @@ async function renderPersonPanel(nodeData) {
   // Get connection status
   let connectionStatus = 'none';
   let connectionId = null;
+  let connectionDirection = null; // 'incoming' or 'outgoing'
 
   if (currentUserProfile && profile.id !== currentUserProfile.id) {
     const { data: connections } = await supabase
       .from('connections')
-      .select('id, status')
+      .select('id, status, from_user_id, to_user_id')
       .or(`and(from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${profile.id}),and(from_user_id.eq.${profile.id},to_user_id.eq.${currentUserProfile.id})`)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -678,6 +679,13 @@ async function renderPersonPanel(nodeData) {
     if (connections && connections.length > 0) {
       connectionStatus = connections[0].status;
       connectionId = connections[0].id;
+      
+      // Determine direction
+      if (connections[0].from_user_id === currentUserProfile.id) {
+        connectionDirection = 'outgoing'; // I sent the request
+      } else {
+        connectionDirection = 'incoming'; // They sent me the request
+      }
     }
   }
 
@@ -950,7 +958,16 @@ async function renderPersonPanel(nodeData) {
             <button onclick="endorseSkill('${profile.id}')" style="padding: 0.75rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #00e0ff; font-weight: bold; cursor: pointer;">
               <i class="fas fa-star"></i> Endorse
             </button>
-          ` : connectionStatus === 'pending' ? `
+          ` : connectionStatus === 'pending' && connectionDirection === 'incoming' ? `
+            <!-- Incoming request: Show Accept/Decline -->
+            <button onclick="acceptConnectionFromPanel('${connectionId}')" style="padding: 0.75rem; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; color: #00ff88; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,255,136,0.2)'" onmouseout="this.style.background='rgba(0,255,136,0.1)'">
+              <i class="fas fa-check"></i> Accept
+            </button>
+            <button onclick="declineConnectionFromPanel('${connectionId}')" style="padding: 0.75rem; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(255,107,107,0.1)'">
+              <i class="fas fa-times"></i> Decline
+            </button>
+          ` : connectionStatus === 'pending' && connectionDirection === 'outgoing' ? `
+            <!-- Outgoing request: Show Withdraw -->
             <button onclick="withdrawConnectionFromPanel('${profile.id}')" style="padding: 0.75rem; background: rgba(255,170,0,0.2); border: 1px solid rgba(255,170,0,0.5); border-radius: 8px; color: #ffaa00; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,170,0,0.3)'" onmouseout="this.style.background='rgba(255,170,0,0.2)'">
               <i class="fas fa-times-circle"></i> Withdraw
             </button>
@@ -1347,6 +1364,72 @@ window.withdrawConnectionFromPanel = async function(userId) {
   } catch (error) {
     console.error('Error withdrawing connection:', error);
     alert('Failed to withdraw connection request: ' + error.message);
+  }
+};
+
+window.acceptConnectionFromPanel = async function(connectionId) {
+  try {
+    if (!currentUserProfile) {
+      alert('Please log in to accept connection requests');
+      return;
+    }
+
+    // Import the accept function from connections.js
+    const { acceptConnectionRequest } = await import('./connections.js');
+    
+    // Accept the connection
+    const result = await acceptConnectionRequest(connectionId);
+    
+    if (result.success) {
+      showToastNotification('✓ Connection accepted!', 'success');
+      
+      // Reload panel to update connection status
+      await loadNodeDetails(currentNodeData);
+    } else {
+      throw new Error(result.error?.message || 'Failed to accept connection');
+    }
+
+  } catch (error) {
+    console.error('Error accepting connection:', error);
+    alert('Failed to accept connection request: ' + error.message);
+  }
+};
+
+window.declineConnectionFromPanel = async function(connectionId) {
+  try {
+    if (!currentUserProfile) {
+      alert('Please log in to decline connection requests');
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = confirm(
+      'Are you sure you want to decline this connection request?\n\n' +
+      'The person will not be notified, but they can send another request in the future.'
+    );
+
+    if (!confirmed) {
+      return; // User cancelled
+    }
+
+    // Import the decline function from connections.js
+    const { declineConnectionRequest } = await import('./connections.js');
+    
+    // Decline the connection
+    const result = await declineConnectionRequest(connectionId);
+    
+    if (result.success) {
+      showToastNotification('Connection request declined', 'info');
+      
+      // Reload panel to update connection status
+      await loadNodeDetails(currentNodeData);
+    } else {
+      throw new Error(result.error?.message || 'Failed to decline connection');
+    }
+
+  } catch (error) {
+    console.error('Error declining connection:', error);
+    alert('Failed to decline connection request: ' + error.message);
   }
 };
 
