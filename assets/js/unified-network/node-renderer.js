@@ -21,6 +21,12 @@ export class NodeRenderer {
     this._nodeGroup = null;
     this._viewport = { width: window.innerWidth, height: window.innerHeight };
     this._cullingMargin = 100;
+    
+    // Throttled logging state
+    this._lastLogTime = 0;
+    this._lastLoggedVisible = -1;
+    this._lastLoggedTotal = -1;
+    this._logThrottleMs = 2000; // Log at most once per 2 seconds
   }
 
   /**
@@ -37,12 +43,27 @@ export class NodeRenderer {
     }
 
     // Update viewport on resize
-    window.addEventListener('resize', () => {
-      this._viewport = {
-        width: window.innerWidth,
-        height: window.innerHeight
-      };
+    const updateViewport = () => {
+      const rect = svg.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        this._viewport = {
+          width: rect.width,
+          height: rect.height
+        };
+      }
+    };
+    
+    window.addEventListener('resize', updateViewport);
+    
+    // Update viewport on visibility change (tab switching)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        updateViewport();
+      }
     });
+    
+    // Initial viewport update
+    updateViewport();
 
     console.log('✅ NodeRenderer initialized');
   }
@@ -133,6 +154,19 @@ export class NodeRenderer {
    */
   render(nodes, state) {
     if (!this._nodeGroup || !nodes) return;
+
+    // ✅ VIEWPORT READINESS CHECK: Skip if container not measurable
+    const containerRect = this._svg?.getBoundingClientRect();
+    if (!containerRect || containerRect.width < 2 || containerRect.height < 2) {
+      // Container not ready - skip render without logging spam
+      return;
+    }
+
+    // Update viewport dimensions from actual container
+    this._viewport = {
+      width: containerRect.width,
+      height: containerRect.height
+    };
 
     // ✅ PERFORMANCE: Only render if active OR if this is a forced render
     // Skip continuous rendering when idle to reduce CPU usage
@@ -230,7 +264,8 @@ export class NodeRenderer {
     // Exit
     nodeSelection.exit().remove();
 
-    console.log(`🎨 Rendered ${visibleNodes.length} nodes (${nodes.length - visibleNodes.length} culled)`);
+    // ✅ THROTTLED LOGGING: Only log when debug mode enabled or significant change
+    this._logRenderStats(visibleNodes.length, nodes.length);
   }
 
   /**
@@ -298,19 +333,58 @@ export class NodeRenderer {
   _cullOffscreenNodes(nodes) {
     if (!nodes || !Array.isArray(nodes)) return [];
 
-    const margin = this._cullingMargin;
-    const { width, height } = this._viewport;
-
+    // ✅ DISABLE CULLING: For now, render all nodes to avoid coordinate space issues
+    // The real issue is that nodes are in world space but culling uses viewport space
+    // Without proper transform tracking, culling will incorrectly hide visible nodes
+    // TODO: Implement proper world-to-screen coordinate transformation for culling
     return nodes.filter(node => {
-      if (node.x === undefined || node.y === undefined) return true;
-      
-      return (
-        node.x >= -margin &&
-        node.x <= width + margin &&
-        node.y >= -margin &&
-        node.y <= height + margin
-      );
+      // Only filter out nodes with invalid positions
+      return node.x !== undefined && 
+             node.y !== undefined && 
+             !isNaN(node.x) && 
+             !isNaN(node.y) &&
+             isFinite(node.x) &&
+             isFinite(node.y);
     });
+  }
+
+  /**
+   * Log render statistics (throttled)
+   * @param {number} visibleCount - Number of visible nodes
+   * @param {number} totalCount - Total number of nodes
+   * @private
+   */
+  _logRenderStats(visibleCount, totalCount) {
+    const now = Date.now();
+    const timeSinceLastLog = now - this._lastLogTime;
+    
+    // Check if debug mode is enabled
+    const debugMode = window.location.search.includes('debug=1') || 
+                     window.localStorage.getItem('debug_mode') === 'true';
+    
+    // Only log if:
+    // 1. Debug mode is enabled, OR
+    // 2. Significant change in visible nodes (>10% difference), OR
+    // 3. Enough time has passed since last log (throttle)
+    const significantChange = Math.abs(visibleCount - this._lastLoggedVisible) > (totalCount * 0.1);
+    const shouldLog = debugMode || significantChange || timeSinceLastLog > this._logThrottleMs;
+    
+    if (shouldLog) {
+      const culledCount = totalCount - visibleCount;
+      
+      // Only log if there are actually nodes to render
+      if (totalCount > 0) {
+        if (visibleCount === 0 && culledCount > 0) {
+          console.warn(`⚠️ Rendered 0 nodes (${culledCount} culled) - possible viewport/transform issue`);
+        } else {
+          console.log(`🎨 Rendered ${visibleCount} nodes (${culledCount} culled)`);
+        }
+      }
+      
+      this._lastLogTime = now;
+      this._lastLoggedVisible = visibleCount;
+      this._lastLoggedTotal = totalCount;
+    }
   }
 
   /**
