@@ -718,25 +718,17 @@
       const code = url.searchParams.get("code");
       if (code) {
         log("🔄 OAuth callback detected, exchanging code for session...");
-        setHint("Completing login...");
         try {
-          const { data, error } = await window.supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          
+          await window.supabase.auth.exchangeCodeForSession(code);
           log("✅ Code exchanged successfully");
-          
-          // Clean URL immediately (don't reload - let auth subscription handle it)
-          window.history.replaceState({}, document.title, url.pathname);
-          
-          // Auth subscription will fire and bootstrap the app
-          // No need to reload - just wait for the SIGNED_IN event
+          // Clean URL and reload
+          cleanOAuthUrlNow();
+          setTimeout(() => window.location.reload(), 100);
           return;
         } catch (e) {
           err("❌ Failed to exchange code:", e);
           cleanOAuthUrlNow();
-          showNotification("Login failed. Please try again.", "error");
-          showLoginUI();
-          return;
+          // Continue to show login UI
         }
       }
 
