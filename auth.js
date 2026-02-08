@@ -243,8 +243,11 @@
 
     setHint("Opening provider…");
 
-    // Stable redirect target (align with your app)
-    const redirectTo = window.location.origin + "/dashboard.html";
+    // Handle GitHub Pages subdirectory deployment
+    const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
+    const redirectTo = baseUrl.includes('github.io') 
+      ? baseUrl + '/dashboard.html'
+      : window.location.origin + "/dashboard.html";
 
     const { error } = await window.supabase.auth.signInWithOAuth({
       provider,
@@ -718,17 +721,25 @@
       const code = url.searchParams.get("code");
       if (code) {
         log("🔄 OAuth callback detected, exchanging code for session...");
+        setHint("Completing login...");
         try {
-          await window.supabase.auth.exchangeCodeForSession(code);
+          const { data, error } = await window.supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          
           log("✅ Code exchanged successfully");
-          // Clean URL and reload
-          cleanOAuthUrlNow();
-          setTimeout(() => window.location.reload(), 100);
+          
+          // Clean URL immediately (don't reload - let auth subscription handle it)
+          window.history.replaceState({}, document.title, url.pathname);
+          
+          // Auth subscription will fire and bootstrap the app
+          // No need to reload - just wait for the SIGNED_IN event
           return;
         } catch (e) {
           err("❌ Failed to exchange code:", e);
           cleanOAuthUrlNow();
-          // Continue to show login UI
+          showNotification("Login failed. Please try again.", "error");
+          showLoginUI();
+          return;
         }
       }
 
