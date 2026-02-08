@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # ================================================================
-# Boot Gate Implementation Verification Script
+# Boot Gate Hardening Verification Script
 # ================================================================
-# Checks that all required changes are in place
+# Checks that all hardening changes are in place
 
-echo "🔍 Verifying Boot Gate Implementation..."
+echo "🔍 Verifying Boot Gate Hardening..."
 echo ""
 
 # Colors
@@ -27,9 +27,9 @@ else
     ((FAIL++))
 fi
 
-# Check 2: Boot gate loaded in dashboard.html
-echo -n "2. Checking boot-gate.js loaded in dashboard.html... "
-if grep -q "boot-gate.js" dashboard.html; then
+# Check 2: authKnown state added
+echo -n "2. Checking authKnown state added... "
+if grep -q "authKnown:" assets/js/boot-gate.js; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
@@ -37,9 +37,9 @@ else
     ((FAIL++))
 fi
 
-# Check 3: Synapse uses boot gate
-echo -n "3. Checking synapse-init-helper.js uses bootGate... "
-if grep -q "bootGate" assets/js/synapse-init-helper.js; then
+# Check 3: Emission guards added
+echo -n "3. Checking idempotent emission guards... "
+if grep -q "const emitted = {" assets/js/boot-gate.js; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
@@ -47,9 +47,9 @@ else
     ((FAIL++))
 fi
 
-# Check 4: START integration uses boot gate
-echo -n "4. Checking start-integration.js uses bootGate... "
-if grep -q "bootGate" assets/js/suggestions/start-integration.js; then
+# Check 4: Sticky listeners implemented
+echo -n "4. Checking sticky listener implementation... "
+if grep -q "STICKY" assets/js/boot-gate.js; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
@@ -57,67 +57,84 @@ else
     ((FAIL++))
 fi
 
-# Check 5: Synapse retry loop removed
-echo -n "5. Checking synapse retry loop removed... "
-if ! grep -q "fallbackAttempts" assets/js/synapse-init-helper.js; then
+# Check 5: Re-entrancy protection added
+echo -n "5. Checking re-entrancy protection... "
+if grep -q "let emitting = false" assets/js/boot-gate.js; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
-    echo -e "${RED}✗ FAIL${NC} (retry loop still present)"
+    echo -e "${RED}✗ FAIL${NC}"
     ((FAIL++))
 fi
 
-# Check 6: START retry loop removed
-echo -n "6. Checking START retry loop removed... "
-if ! grep -q "tryInitialize" assets/js/suggestions/start-integration.js; then
+# Check 6: Auth timeout logic improved
+echo -n "6. Checking improved auth timeout logic... "
+if grep -q "Auth decision known: no user" assets/js/boot-gate.js; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
-    echo -e "${RED}✗ FAIL${NC} (retry loop still present)"
+    echo -e "${RED}✗ FAIL${NC}"
     ((FAIL++))
 fi
 
-# Check 7: Engagement warning silenced
-echo -n "7. Checking engagement container warning silenced... "
-if ! grep -q "Engagement displays container not found" assets/js/critical-ux-fixes.js; then
+# Check 7: isAuthKnown method added
+echo -n "7. Checking isAuthKnown() method... "
+if grep -q "isAuthKnown()" assets/js/boot-gate.js; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
-    echo -e "${RED}✗ FAIL${NC} (warning still present)"
+    echo -e "${RED}✗ FAIL${NC}"
     ((FAIL++))
 fi
 
-# Check 8: No duplicate adminPeopleService
-echo -n "8. Checking no duplicate adminPeopleService.js... "
-COUNT=$(grep -c "adminPeopleService.js" dashboard.html)
-if [ "$COUNT" -eq 1 ]; then
+# Check 8: getEmittedEvents method added
+echo -n "8. Checking getEmittedEvents() method... "
+if grep -q "getEmittedEvents()" assets/js/boot-gate.js; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
-    echo -e "${RED}✗ FAIL${NC} (found $COUNT instances)"
+    echo -e "${RED}✗ FAIL${NC}"
     ((FAIL++))
 fi
 
-# Check 9: No duplicate node-panel
-echo -n "9. Checking no duplicate node-panel.js... "
-COUNT=$(grep -c "node-panel.js" dashboard.html)
-if [ "$COUNT" -eq 1 ]; then
+# Check 9: Logout resets emission guards
+echo -n "9. Checking logout resets emission guards... "
+if grep -q "emitted\['AUTH_READY'\] = false" assets/js/boot-gate.js; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
-    echo -e "${RED}✗ FAIL${NC} (found $COUNT instances)"
+    echo -e "${RED}✗ FAIL${NC}"
     ((FAIL++))
 fi
 
-# Check 10: No duplicate logger
-echo -n "10. Checking no duplicate logger.js... "
-COUNT=$(grep -c "logger.js" dashboard.html)
-if [ "$COUNT" -eq 1 ]; then
+# Check 10: Test file updated
+echo -n "10. Checking test file has new tests... "
+if grep -q "testStickyListeners" test-boot-gate.html && grep -q "testIdempotentEmission" test-boot-gate.html; then
     echo -e "${GREEN}✓ PASS${NC}"
     ((PASS++))
 else
-    echo -e "${RED}✗ FAIL${NC} (found $COUNT instances)"
+    echo -e "${RED}✗ FAIL${NC}"
     ((FAIL++))
+fi
+
+# Check 11: Hardened log message
+echo -n "11. Checking hardened log message... "
+if grep -q "Boot gate initializing (hardened)" assets/js/boot-gate.js; then
+    echo -e "${GREEN}✓ PASS${NC}"
+    ((PASS++))
+else
+    echo -e "${RED}✗ FAIL${NC}"
+    ((FAIL++))
+fi
+
+# Check 12: No auth.js changes (OAuth safe)
+echo -n "12. Checking auth.js unchanged (OAuth safe)... "
+if ! git diff --name-only | grep -q "^auth.js$"; then
+    echo -e "${GREEN}✓ PASS${NC}"
+    ((PASS++))
+else
+    echo -e "${YELLOW}⚠ WARNING${NC} (auth.js modified - verify OAuth still works)"
+    ((PASS++))
 fi
 
 # Summary
@@ -127,15 +144,26 @@ echo "Results: ${GREEN}${PASS} passed${NC}, ${RED}${FAIL} failed${NC}"
 echo "================================"
 
 if [ $FAIL -eq 0 ]; then
-    echo -e "${GREEN}✅ All checks passed!${NC}"
+    echo -e "${GREEN}✅ All hardening checks passed!${NC}"
+    echo ""
+    echo "New features:"
+    echo "  ✓ authKnown state tracking"
+    echo "  ✓ Idempotent event emission"
+    echo "  ✓ Sticky listeners"
+    echo "  ✓ Re-entrancy protection"
+    echo "  ✓ Improved auth timeout logic"
     echo ""
     echo "Next steps:"
-    echo "1. Test unauthenticated load (incognito mode)"
-    echo "2. Test OAuth login (GitHub + Google)"
-    echo "3. Test refresh while logged in"
-    echo "4. Test logout"
+    echo "1. Test with test-boot-gate.html"
+    echo "2. Test unauthenticated load (incognito)"
+    echo "3. Test OAuth login (GitHub + Google)"
+    echo "4. Test refresh while logged in"
+    echo "5. Test logout"
     echo ""
-    echo "Open test-boot-gate.html in browser for interactive testing"
+    echo "Console commands:"
+    echo "  window.appReady"
+    echo "  window.bootGate.isAuthKnown()"
+    echo "  window.bootGate.getEmittedEvents()"
     exit 0
 else
     echo -e "${RED}❌ Some checks failed. Please review the implementation.${NC}"

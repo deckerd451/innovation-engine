@@ -42,6 +42,8 @@
     <button onclick="testUnauthenticated()">Test Unauthenticated Flow</button>
     <button onclick="testAuthenticated()">Test Authenticated Flow</button>
     <button onclick="testSynapseInit()">Test Synapse Init</button>
+    <button onclick="testStickyListeners()">Test Sticky Listeners</button>
+    <button onclick="testIdempotentEmission()">Test Idempotent Emission</button>
     <button onclick="clearLogs()">Clear Logs</button>
   </div>
 
@@ -88,22 +90,45 @@
     async function testUnauthenticated() {
       log('=== Testing Unauthenticated Flow ===', 'log');
       
-      // Simulate no auth
-      window.appReady.auth = false;
-      window.appReady.user = null;
+      // Reset state
+      if (window.bootGate.resetForTesting) {
+        window.bootGate.resetForTesting();
+      }
       
-      log('Attempting to wait for auth (should timeout)...', 'log');
+      // Simulate auth system ready with no user
+      window.appReady.authKnown = false;
+      
+      log('Simulating auth-ready event (no user)...', 'log');
+      window.dispatchEvent(new CustomEvent('auth-ready'));
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      log('Attempting to wait for auth (should return null immediately)...', 'log');
       const user = await window.bootGate.waitForAuth(2000);
       
-      if (!user) {
+      if (!user && window.appReady.authKnown) {
         log('✅ Correctly returned null for unauthenticated state', 'success');
+        log('✅ authKnown is true (decision was made)', 'success');
       } else {
-        log('❌ Should have returned null', 'error');
+        log('❌ Should have returned null with authKnown=true', 'error');
+      }
+      
+      // Check that AUTH_NONE was emitted
+      const events = window.bootGate.getEmittedEvents();
+      if (events.AUTH_NONE) {
+        log('✅ AUTH_NONE event was emitted', 'success');
+      } else {
+        log('❌ AUTH_NONE should have been emitted', 'error');
       }
     }
 
     async function testAuthenticated() {
       log('=== Testing Authenticated Flow ===', 'log');
+      
+      // Reset state
+      if (window.bootGate.resetForTesting) {
+        window.bootGate.resetForTesting();
+      }
       
       // Simulate authentication after 1 second
       setTimeout(() => {
@@ -117,15 +142,29 @@
       log('Waiting for authentication...', 'log');
       const user = await window.bootGate.waitForAuth(5000);
       
-      if (user) {
+      if (user && window.appReady.authKnown) {
         log(`✅ User authenticated: ${user.email}`, 'success');
+        log('✅ authKnown is true', 'success');
       } else {
-        log('❌ Authentication failed', 'error');
+        log('❌ Authentication failed or authKnown not set', 'error');
+      }
+      
+      // Check that AUTH_READY was emitted
+      const events = window.bootGate.getEmittedEvents();
+      if (events.AUTH_READY) {
+        log('✅ AUTH_READY event was emitted', 'success');
+      } else {
+        log('❌ AUTH_READY should have been emitted', 'error');
       }
     }
 
     async function testSynapseInit() {
       log('=== Testing Synapse Initialization ===', 'log');
+      
+      // Reset state
+      if (window.bootGate.resetForTesting) {
+        window.bootGate.resetForTesting();
+      }
       
       // First authenticate
       log('Step 1: Authenticating...', 'log');
@@ -136,10 +175,11 @@
       
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      if (window.bootGate.isAuthenticated()) {
+      if (window.bootGate.isAuthenticated() && window.appReady.authKnown) {
         log('✅ User is authenticated', 'success');
+        log('✅ authKnown is true', 'success');
       } else {
-        log('❌ User should be authenticated', 'error');
+        log('❌ User should be authenticated with authKnown=true', 'error');
         return;
       }
       
@@ -158,13 +198,103 @@
       } else {
         log('❌ Synapse should be ready', 'error');
       }
+      
+      // Check that SYNAPSE_READY was emitted
+      const events = window.bootGate.getEmittedEvents();
+      if (events.SYNAPSE_READY) {
+        log('✅ SYNAPSE_READY event was emitted', 'success');
+      } else {
+        log('❌ SYNAPSE_READY should have been emitted', 'error');
+      }
+    }
+
+    async function testStickyListeners() {
+      log('=== Testing Sticky Listeners ===', 'log');
+      
+      // Reset state
+      if (window.bootGate.resetForTesting) {
+        window.bootGate.resetForTesting();
+      }
+      
+      // Authenticate first
+      log('Step 1: Authenticating...', 'log');
+      const mockUser = { id: '123', email: 'test@example.com' };
+      window.dispatchEvent(new CustomEvent('authenticated-user', { 
+        detail: { user: mockUser } 
+      }));
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Now register a late listener
+      log('Step 2: Registering late listener for AUTH_READY...', 'log');
+      let lateCallbackFired = false;
+      
+      window.bootGate.on('AUTH_READY', (detail) => {
+        lateCallbackFired = true;
+        log('Late listener callback fired!', 'log');
+      });
+      
+      // Wait for async sticky callback
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (lateCallbackFired) {
+        log('✅ Sticky listener fired for late subscriber', 'success');
+      } else {
+        log('❌ Sticky listener should have fired', 'error');
+      }
+    }
+
+    async function testIdempotentEmission() {
+      log('=== Testing Idempotent Emission ===', 'log');
+      
+      // Reset state
+      if (window.bootGate.resetForTesting) {
+        window.bootGate.resetForTesting();
+      }
+      
+      let callbackCount = 0;
+      
+      window.bootGate.on('AUTH_READY', () => {
+        callbackCount++;
+        log(`AUTH_READY callback fired (count: ${callbackCount})`, 'log');
+      });
+      
+      // Try to emit AUTH_READY multiple times
+      log('Attempting to emit AUTH_READY multiple times...', 'log');
+      const mockUser = { id: '123', email: 'test@example.com' };
+      
+      window.dispatchEvent(new CustomEvent('authenticated-user', { 
+        detail: { user: mockUser } 
+      }));
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Try to emit again (should be blocked)
+      window.dispatchEvent(new CustomEvent('authenticated-user', { 
+        detail: { user: mockUser } 
+      }));
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (callbackCount === 1) {
+        log('✅ Event emitted only once (idempotent)', 'success');
+      } else {
+        log(`❌ Event emitted ${callbackCount} times (should be 1)`, 'error');
+      }
     }
 
     // Initial state check
     log('Boot gate loaded. Initial state:', 'log');
     log(`  - Auth: ${window.appReady.auth}`, 'log');
+    log(`  - AuthKnown: ${window.appReady.authKnown}`, 'log');
     log(`  - User: ${window.appReady.user}`, 'log');
     log(`  - Synapse: ${window.appReady.synapse}`, 'log');
+    log('', 'log');
+    log('New features:', 'log');
+    log('  - authKnown: Tracks if auth decision has been made', 'log');
+    log('  - Sticky listeners: Late subscribers get immediate callback', 'log');
+    log('  - Idempotent emission: Each event fires only once', 'log');
+    log('  - Re-entrancy protection: No duplicate emits from handlers', 'log');
   </script>
 </body>
 </html>
