@@ -256,25 +256,32 @@ const MessagingModule = (function () {
     const messageInput = document.querySelector(".message-input");
     const inputContainer = document.getElementById("message-input-container");
     const messagesArea = document.getElementById("messages-area");
+    const chatPanel = document.querySelector(".chat-panel");
     
     if (!messageInput || !inputContainer || !messagesArea) return;
 
-    // Store original viewport height
-    let originalViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
     // Handle focus - keyboard opening
     messageInput.addEventListener("focus", () => {
-      if (!window.visualViewport) return;
-      
       // Add class to indicate keyboard is open
       inputContainer.classList.add('keyboard-open');
       
-      // Scroll to bottom of messages when keyboard opens
+      // Scroll to bottom of messages immediately
       setTimeout(() => {
-        messagesArea.scrollTop = messagesArea.scrollHeight;
-        // Scroll the input into view
-        messageInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 300);
+        if (messagesArea) {
+          messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+      }, 100);
+      
+      // Scroll again after keyboard animation completes
+      setTimeout(() => {
+        if (messagesArea) {
+          messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+        // Ensure input is in view
+        if (inputContainer) {
+          inputContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+      }, 400);
     });
 
     // Handle blur - keyboard closing
@@ -285,36 +292,39 @@ const MessagingModule = (function () {
 
     // Use Visual Viewport API for better keyboard detection
     if (window.visualViewport) {
-      const handleViewportResize = () => {
+      let lastHeight = window.visualViewport.height;
+      
+      const handleViewportChange = () => {
         const currentHeight = window.visualViewport.height;
-        const heightDiff = originalViewportHeight - currentHeight;
+        const heightDiff = lastHeight - currentHeight;
         
         // If viewport shrunk significantly (keyboard opened)
         if (heightDiff > 150) {
-          // Keyboard is open - ensure input is visible
           inputContainer.classList.add('keyboard-open');
           
-          // Scroll messages area to bottom
-          if (messagesArea) {
-            setTimeout(() => {
+          // Scroll messages to bottom
+          setTimeout(() => {
+            if (messagesArea) {
               messagesArea.scrollTop = messagesArea.scrollHeight;
-            }, 100);
-          }
-        } else {
-          // Keyboard is closed
+            }
+          }, 100);
+        } else if (heightDiff < -150) {
+          // Keyboard closed
           inputContainer.classList.remove('keyboard-open');
-          originalViewportHeight = currentHeight;
         }
+        
+        lastHeight = currentHeight;
       };
 
-      window.visualViewport.addEventListener("resize", handleViewportResize);
-      window.visualViewport.addEventListener("scroll", handleViewportResize);
+      window.visualViewport.addEventListener("resize", handleViewportChange);
+      window.visualViewport.addEventListener("scroll", handleViewportChange);
     }
 
     // Auto-resize textarea as user types
     messageInput.addEventListener("input", function() {
       this.style.height = "auto";
-      this.style.height = Math.min(this.scrollHeight, 120) + "px";
+      const newHeight = Math.min(this.scrollHeight, 120);
+      this.style.height = newHeight + "px";
     });
   }
 

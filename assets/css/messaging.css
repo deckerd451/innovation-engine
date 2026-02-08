@@ -726,9 +726,10 @@
     padding-top: calc(0.75rem + var(--safe-top)) !important;
     padding-bottom: 0.75rem !important;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+    flex-shrink: 0 !important;
   }
 
-  /* Message list = only scroll region */
+  /* Message list = scrollable area with proper spacing */
   #messages-container .messages-area {
     flex: 1 1 auto !important;
     min-height: 0 !important;
@@ -736,32 +737,32 @@
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: contain !important;
     padding: 1rem !important;
-    /* Add extra padding at bottom for fixed input + extra space */
-    padding-bottom: 120px !important;
+    /* Large bottom padding to ensure messages are never hidden by input */
+    padding-bottom: 140px !important;
   }
 
-  /* Composer pinned to bottom with better positioning */
+  /* Composer - NOT fixed, part of flex layout */
   #messages-container .message-input-container {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    flex-shrink: 0 !important;
     z-index: 6 !important;
-    /* Increased padding for better thumb reach */
-    padding: 1rem 1rem calc(1rem + var(--safe-bottom)) !important;
+    /* Generous padding for better thumb reach */
+    padding: 1.25rem 1rem calc(1.25rem + var(--safe-bottom)) !important;
     background: rgba(10,14,39,0.98) !important;
     backdrop-filter: blur(10px) !important;
     border-top: 1px solid rgba(0,224,255,0.2) !important;
-    transition: transform 0.2s ease-out !important;
     box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
+    /* Ensure it stays at bottom of flex container */
+    margin-top: auto !important;
   }
 
-  /* When keyboard is open, shift input up slightly for better visibility */
+  /* When keyboard opens, the whole viewport shrinks and input stays visible */
   #messages-container .message-input-container.keyboard-open {
-    transform: translateY(0) !important;
-    /* Ensure it stays visible above keyboard */
-    position: fixed !important;
-    bottom: 0 !important;
+    /* No transform needed - browser handles it */
+    background: rgba(10,14,39,1) !important;
   }
 
   /* Prevent iOS zoom on input focus */
@@ -771,15 +772,17 @@
     overflow-y: auto !important;
     resize: none !important;
     /* Better touch target */
-    min-height: 44px !important;
+    min-height: 48px !important;
     padding: 0.875rem 1rem !important;
+    line-height: 1.5 !important;
   }
 
   /* Make send button thumb-friendly */
   #messages-container .send-button {
-    min-height: 44px !important;
-    min-width: 44px !important;
+    min-height: 48px !important;
+    min-width: 48px !important;
     padding: 0.875rem 1.25rem !important;
+    flex-shrink: 0 !important;
   }
 
   /* Improve input wrapper spacing */
@@ -791,5 +794,14 @@
   /* Better gap between input and send button */
   #messages-container .message-input-container {
     gap: 0.75rem !important;
+    display: flex !important;
+    align-items: flex-end !important;
+  }
+
+  /* Ensure chat panel uses full height properly */
+  #messages-container .chat-panel.mobile-show {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 }
