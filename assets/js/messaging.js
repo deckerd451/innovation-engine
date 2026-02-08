@@ -266,18 +266,21 @@ const MessagingModule = (function () {
     messageInput.addEventListener("focus", () => {
       if (!window.visualViewport) return;
       
+      // Add class to indicate keyboard is open
+      inputContainer.classList.add('keyboard-open');
+      
       // Scroll to bottom of messages when keyboard opens
       setTimeout(() => {
         messagesArea.scrollTop = messagesArea.scrollHeight;
+        // Scroll the input into view
+        messageInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 300);
     });
 
     // Handle blur - keyboard closing
     messageInput.addEventListener("blur", () => {
-      // Reset any adjustments when keyboard closes
-      if (inputContainer) {
-        inputContainer.style.transform = "";
-      }
+      // Remove keyboard open class
+      inputContainer.classList.remove('keyboard-open');
     });
 
     // Use Visual Viewport API for better keyboard detection
@@ -289,14 +292,17 @@ const MessagingModule = (function () {
         // If viewport shrunk significantly (keyboard opened)
         if (heightDiff > 150) {
           // Keyboard is open - ensure input is visible
-          if (inputContainer) {
-            // Scroll messages area to bottom
-            if (messagesArea) {
+          inputContainer.classList.add('keyboard-open');
+          
+          // Scroll messages area to bottom
+          if (messagesArea) {
+            setTimeout(() => {
               messagesArea.scrollTop = messagesArea.scrollHeight;
-            }
+            }, 100);
           }
         } else {
           // Keyboard is closed
+          inputContainer.classList.remove('keyboard-open');
           originalViewportHeight = currentHeight;
         }
       };
