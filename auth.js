@@ -243,11 +243,8 @@
 
     setHint("Opening provider…");
 
-    // Handle GitHub Pages subdirectory deployment
-    const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
-    const redirectTo = baseUrl.includes('github.io') 
-      ? baseUrl + '/dashboard.html'
-      : window.location.origin + "/dashboard.html";
+    // Stable redirect target (align with your app)
+    const redirectTo = window.location.origin + "/dashboard.html";
 
     const { error } = await window.supabase.auth.signInWithOAuth({
       provider,

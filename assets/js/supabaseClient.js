@@ -80,31 +80,19 @@ export const supabaseClient = supabaseInstance;
 // 2. OAUTH PROVIDERS
 // ======================================================================
 export async function signInWithGitHub() {
-  // Handle GitHub Pages subdirectory deployment
-  const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
-  const redirectUrl = baseUrl.includes('github.io') 
-    ? baseUrl + '/dashboard.html'
-    : window.location.origin + "/dashboard.html";
-    
   return await supabase.auth.signInWithOAuth({
     provider: "github",
     options: {
-      redirectTo: redirectUrl,
+      redirectTo: window.location.origin + "/dashboard.html",
     },
   });
 }
 
 export async function signInWithGoogle() {
-  // Handle GitHub Pages subdirectory deployment
-  const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
-  const redirectUrl = baseUrl.includes('github.io') 
-    ? baseUrl + '/dashboard.html'
-    : window.location.origin + "/dashboard.html";
-    
   return await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: redirectUrl,
+      redirectTo: window.location.origin + "/dashboard.html",
     },
   });
 }
