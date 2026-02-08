@@ -550,7 +550,7 @@ function renderOrganizationContent(org, members) {
   const initials = org.name ? org.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'ORG';
 
   let html = `
-    <div style="padding: 2rem; padding-bottom: 180px;">
+    <div style="padding: 2rem; padding-bottom: 220px;">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
         <i class="fas fa-times"></i>
@@ -725,7 +725,7 @@ async function renderPersonPanel(nodeData) {
   const initials = profile.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
   let html = `
-    <div style="padding-bottom: 180px;">
+    <div style="padding-bottom: 220px;">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; transition: all 0.2s; z-index: 10;">
         <i class="fas fa-times"></i>
@@ -1027,7 +1027,7 @@ async function renderProjectPanel(nodeData) {
   });
 
   let html = `
-    <div style="padding: 2rem; padding-bottom: 180px;">
+    <div style="padding: 2rem; padding-bottom: 220px;">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
         <i class="fas fa-times"></i>
