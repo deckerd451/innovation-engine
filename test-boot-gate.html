@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boot Gate Test</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #0a0e27;
+      color: #00e0ff;
+    }
+    .log {
+      margin: 5px 0;
+      padding: 5px;
+      background: rgba(0,224,255,0.1);
+      border-left: 3px solid #00e0ff;
+    }
+    .success { border-left-color: #00ff88; color: #00ff88; }
+    .error { border-left-color: #ff6b6b; color: #ff6b6b; }
+    .warning { border-left-color: #ffaa00; color: #ffaa00; }
+    button {
+      margin: 10px 5px;
+      padding: 10px 20px;
+      background: #00e0ff;
+      border: none;
+      border-radius: 5px;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #00ff88;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚪 Boot Gate Test</h1>
+  
+  <div>
+    <button onclick="testUnauthenticated()">Test Unauthenticated Flow</button>
+    <button onclick="testAuthenticated()">Test Authenticated Flow</button>
+    <button onclick="testSynapseInit()">Test Synapse Init</button>
+    <button onclick="clearLogs()">Clear Logs</button>
+  </div>
+
+  <div id="logs"></div>
+
+  <script src="assets/js/boot-gate.js"></script>
+  
+  <script>
+    const logsDiv = document.getElementById('logs');
+    
+    function log(message, type = 'log') {
+      const div = document.createElement('div');
+      div.className = `log ${type}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logsDiv.appendChild(div);
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+    }
+
+    function clearLogs() {
+      logsDiv.innerHTML = '';
+    }
+
+    // Override console methods to capture logs
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      log(args.join(' '), 'log');
+    };
+
+    console.warn = function(...args) {
+      originalWarn.apply(console, args);
+      log(args.join(' '), 'warning');
+    };
+
+    console.error = function(...args) {
+      originalError.apply(console, args);
+      log(args.join(' '), 'error');
+    };
+
+    // Test functions
+    async function testUnauthenticated() {
+      log('=== Testing Unauthenticated Flow ===', 'log');
+      
+      // Simulate no auth
+      window.appReady.auth = false;
+      window.appReady.user = null;
+      
+      log('Attempting to wait for auth (should timeout)...', 'log');
+      const user = await window.bootGate.waitForAuth(2000);
+      
+      if (!user) {
+        log('✅ Correctly returned null for unauthenticated state', 'success');
+      } else {
+        log('❌ Should have returned null', 'error');
+      }
+    }
+
+    async function testAuthenticated() {
+      log('=== Testing Authenticated Flow ===', 'log');
+      
+      // Simulate authentication after 1 second
+      setTimeout(() => {
+        log('Simulating user authentication...', 'log');
+        const mockUser = { id: '123', email: 'test@example.com' };
+        window.dispatchEvent(new CustomEvent('authenticated-user', { 
+          detail: { user: mockUser } 
+        }));
+      }, 1000);
+      
+      log('Waiting for authentication...', 'log');
+      const user = await window.bootGate.waitForAuth(5000);
+      
+      if (user) {
+        log(`✅ User authenticated: ${user.email}`, 'success');
+      } else {
+        log('❌ Authentication failed', 'error');
+      }
+    }
+
+    async function testSynapseInit() {
+      log('=== Testing Synapse Initialization ===', 'log');
+      
+      // First authenticate
+      log('Step 1: Authenticating...', 'log');
+      const mockUser = { id: '123', email: 'test@example.com' };
+      window.dispatchEvent(new CustomEvent('authenticated-user', { 
+        detail: { user: mockUser } 
+      }));
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (window.bootGate.isAuthenticated()) {
+        log('✅ User is authenticated', 'success');
+      } else {
+        log('❌ User should be authenticated', 'error');
+        return;
+      }
+      
+      // Simulate Synapse initialization
+      log('Step 2: Simulating Synapse init after 1 second...', 'log');
+      setTimeout(() => {
+        log('Synapse initialized!', 'log');
+        window.dispatchEvent(new CustomEvent('synapse-ready'));
+      }, 1000);
+      
+      log('Waiting for Synapse...', 'log');
+      const synapseReady = await window.bootGate.waitForSynapse(5000);
+      
+      if (synapseReady) {
+        log('✅ Synapse is ready', 'success');
+      } else {
+        log('❌ Synapse should be ready', 'error');
+      }
+    }
+
+    // Initial state check
+    log('Boot gate loaded. Initial state:', 'log');
+    log(`  - Auth: ${window.appReady.auth}`, 'log');
+    log(`  - User: ${window.appReady.user}`, 'log');
+    log(`  - Synapse: ${window.appReady.synapse}`, 'log');
+  </script>
+</body>
+</html>

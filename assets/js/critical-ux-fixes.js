@@ -22,7 +22,7 @@
   function ensureEngagementContainers() {
     const container = document.getElementById('engagement-displays');
     if (!container) {
-      console.warn('⚠️ Engagement displays container not found');
+      // Silently return - container is optional
       return;
     }
 

@@ -478,35 +478,60 @@ window.showSuggestionWhy = function(cardElement) {
 };
 
 // ================================================================
-// AUTO-INITIALIZATION
+// AUTO-INITIALIZATION (EVENT-DRIVEN, NO RETRY LOOPS)
 // ================================================================
 
-// Wait for both Daily Suggestions Engine and START UI to be ready
-let initAttempts = 0;
-const maxAttempts = 50; // 5 seconds max wait
-
-function tryInitialize() {
-  initAttempts++;
+// Wait for authentication AND Synapse readiness before initializing START
+async function initializeWhenReady() {
+  console.log('🔗 [START] Waiting for authentication and Synapse...');
   
-  if (window.DailySuggestionsUI && window.StartDailyDigest) {
-    enhanceStartDailyDigest();
-  } else if (initAttempts < maxAttempts) {
-    setTimeout(tryInitialize, 100);
-  } else {
-    console.warn('⚠️ Could not initialize Daily Suggestions START integration (timeout)');
+  // Check if boot gate is available
+  if (!window.bootGate) {
+    console.warn('⚠️ Boot gate not available, START integration disabled');
+    return;
   }
+
+  // Wait for authentication
+  const user = await window.bootGate.waitForAuth(10000);
+  if (!user) {
+    console.log('🔗 [START] Not authenticated, skipping START integration');
+    return;
+  }
+
+  console.log('🔗 [START] User authenticated, waiting for Synapse...');
+
+  // Wait for Synapse to be ready
+  const synapseReady = await window.bootGate.waitForSynapse(15000);
+  if (!synapseReady) {
+    console.warn('⚠️ [START] Synapse not ready, START integration may be limited');
+  }
+
+  // Check if required modules are loaded
+  if (!window.DailySuggestionsUI) {
+    console.warn('⚠️ [START] Daily Suggestions Engine not ready yet');
+    return;
+  }
+
+  if (!window.StartDailyDigest) {
+    console.warn('⚠️ [START] StartDailyDigest not ready yet');
+    return;
+  }
+
+  // Initialize START integration
+  console.log('🔗 [START] All dependencies ready, enhancing START UI...');
+  enhanceStartDailyDigest();
 }
 
-// Start trying to initialize
+// Start initialization when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', tryInitialize);
+  document.addEventListener('DOMContentLoaded', initializeWhenReady);
 } else {
-  tryInitialize();
+  initializeWhenReady();
 }
 
-// Also listen for the daily-suggestions-ready event
+// Also listen for the daily-suggestions-ready event (fallback)
 window.addEventListener('daily-suggestions-ready', () => {
-  if (window.StartDailyDigest) {
+  if (window.bootGate?.isAuthenticated() && window.StartDailyDigest) {
     enhanceStartDailyDigest();
   }
 });

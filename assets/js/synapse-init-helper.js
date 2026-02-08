@@ -121,9 +121,8 @@ if (window.__SYNAPSE_INIT_HELPER_LOADED__) {
       if (!window.d3) missing.push("d3");
       if (!document.getElementById("synapse-svg")) missing.push("synapse-svg");
 
-      // Check for user authentication via the global set by auth.js
-      // This avoids calling auth methods that can cause lock contention
-      if (!window.currentAuthUser) missing.push("authenticated-user");
+      // Use boot gate to check auth (event-driven, not polling)
+      if (!window.bootGate?.isAuthenticated()) missing.push("authenticated-user");
 
       if (missing.length === 0) {
         return { success: true, missing: [] };
@@ -185,42 +184,22 @@ if (window.__SYNAPSE_INIT_HELPER_LOADED__) {
     }, 10000);
   }
 
-  // Initialize on multiple events to ensure reliability
-  document.addEventListener("DOMContentLoaded", () => {
-    // Try initialization after DOM is ready
-    setTimeout(() => window.ensureSynapseInitialized(), 1000);
-  });
+  // ============================================================================
+  // EVENT-DRIVEN INITIALIZATION (NO RETRY LOOPS)
+  // ============================================================================
 
-  window.addEventListener("profile-loaded", () => {
-    // Try initialization after profile is loaded
-    setTimeout(() => window.ensureSynapseInitialized(), 500);
-  });
-
-  window.addEventListener("app-ready", () => {
-    // Try initialization after app is ready
-    setTimeout(() => window.ensureSynapseInitialized(), 200);
-  });
-
-  // Fallback: try initialization periodically until successful
-  let fallbackAttempts = 0;
-  const maxFallbackAttempts = 20;
-
-  const fallbackTimer = setInterval(() => {
-    fallbackAttempts++;
-
-    if (synapseInitialized || fallbackAttempts > maxFallbackAttempts) {
-      clearInterval(fallbackTimer);
-      return;
-    }
-
-    // Only try if we have basic requirements
-    if (window.supabase && window.d3 && document.getElementById("synapse-svg")) {
-      console.log(
-        `🔄 Fallback synapse init attempt ${fallbackAttempts}/${maxFallbackAttempts}`
-      );
-      window.ensureSynapseInitialized();
-    }
-  }, 2000);
+  // Wait for authentication before initializing Synapse
+  if (window.bootGate) {
+    window.bootGate.whenAuthenticated((user) => {
+      console.log('🧠 [SYNAPSE] User authenticated, initializing Synapse...');
+      setTimeout(() => window.ensureSynapseInitialized(), 500);
+    });
+  } else {
+    console.warn('⚠️ Boot gate not available, falling back to profile-loaded event');
+    window.addEventListener("profile-loaded", () => {
+      setTimeout(() => window.ensureSynapseInitialized(), 500);
+    });
+  }
 
   console.log("✅ Synapse initialization helper loaded");
 } // End of initialization guard
