@@ -1517,7 +1517,7 @@ window.confirmEndorsement = async function(userId, skill, userName, button) {
       .eq('endorser_community_id', endorserProfile.id)
       .eq('endorsed_community_id', userId)
       .eq('skill', skill)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       alert('You already endorsed this skill!');
