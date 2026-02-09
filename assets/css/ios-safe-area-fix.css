@@ -1,0 +1,39 @@
+/* ================================================================
+   iOS SAFE AREA FIX - Mobile Only
+   ================================================================
+   Fixes top HUD elements being obscured by iOS notch/status bar
+   on iPhone devices. Desktop layout remains unchanged.
+*/
+
+/* Define safe-area variable for mobile only */
+@media (max-width: 768px) {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Fix top-left elements (Admin button, User profile) */
+  #main-content > div:first-child {
+    top: calc(10px + var(--safe-top)) !important;
+  }
+
+  /* Fix top-right elements (START, Refresh, Logout buttons) */
+  #main-content > div:nth-child(2) {
+    top: calc(10px + var(--safe-top)) !important;
+  }
+
+  /* Fix bottom search container if needed */
+  #centered-search-container {
+    bottom: calc(20px + var(--safe-bottom)) !important;
+  }
+
+  /* Fix bottom stats bar if present */
+  .bottom-stats-bar {
+    bottom: calc(78px + var(--safe-bottom)) !important;
+  }
+
+  /* Fix floating refresh button (mobile repositioned version) */
+  #btn-refresh-network[style*="bottom"] {
+    bottom: calc(80px + var(--safe-bottom)) !important;
+  }
+}
