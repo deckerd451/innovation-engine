@@ -188,7 +188,16 @@ document.getElementById('btn-view-controls')?.addEventListener('click', () => {
 // -----------------------------
 function isAdminUser() {
   // Known admin emails (add more as needed)
-  const adminEmails = ['dmhamilton1@live.com', 'hojaaya@gmail.com', 'deckerdb26354@gmail.com'];
+  const adminEmails = [
+    'dmhamilton1@live.com',
+    'hojaaya@gmail.com',
+    'deckerdb26354@gmail.com',
+    'vramshesh@gmail.com',
+    'bradleydaltonoates@gmail.com',
+    'jody_stoehr@hotmail.com',
+    'dave.a.ingram@gmail.com',
+    'will@gdna.io'
+  ];
 
   // Try to get current user email from Supabase auth
   try {
