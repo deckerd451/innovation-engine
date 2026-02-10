@@ -309,7 +309,7 @@
 
       // Update local state
       notifications.forEach(n => n.read = true);
-      unreadCount = 0;
+      // unreadCount tracks messages, not notifications
       updateBellBadge();
 
     } catch (err) {
