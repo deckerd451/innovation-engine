@@ -1,4 +1,7 @@
-const CACHE_NAME = "innovation-engine-shell-v1";
+/* sw.js — Innovation Engine (safe, same-origin-only) */
+
+const VERSION = "v2";
+const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep this list tight and stable
 const APP_SHELL = [
@@ -10,68 +13,112 @@ const APP_SHELL = [
   "./images/bubbleh512.png",
 ];
 
+// ---- helpers ----
+function isHttp(url) {
+  return url.protocol === "http:" || url.protocol === "https:";
+}
+
+function isSameOrigin(url) {
+  return url.origin === self.location.origin;
+}
+
+function isSupabase(url) {
+  return url.hostname.endsWith("supabase.co");
+}
+
+function shouldHandleRequest(request) {
+  if (request.method !== "GET") return false;
+
+  const url = new URL(request.url);
+
+  // Never touch non-http(s) like chrome-extension://
+  if (!isHttp(url)) return false;
+
+  // Only cache/handle requests to *this* site
+  if (!isSameOrigin(url)) return false;
+
+  // Never cache Supabase
+  if (isSupabase(url)) return false;
+
+  return true;
+}
+
+function isNavigationRequest(request) {
+  // Covers normal navigations and many SPA loads
+  return request.mode === "navigate" || request.destination === "document";
+}
+
+async function safeCachePut(cache, request, response) {
+  // Don’t cache opaque, errors, or partials
+  if (!response) return;
+  if (response.type === "opaque") return;
+  if (!response.ok) return;
+
+  try {
+    await cache.put(request, response.clone());
+  } catch {
+    // Swallow cache errors (quota, unsupported schemes, etc.)
+  }
+}
+
+// ---- lifecycle ----
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.addAll(APP_SHELL);
+      await self.skipWaiting();
+    })()
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(
-        keys.map((key) => (key === CACHE_NAME ? null : caches.delete(key)))
-      );
+      await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
       await self.clients.claim();
     })()
   );
 });
 
+// ---- fetch strategy ----
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+
+  // Ignore anything we shouldn’t handle (including chrome-extension://)
+  if (!shouldHandleRequest(req)) return;
+
   const url = new URL(req.url);
 
-  // (3) NEVER cache Supabase (auth, db, realtime, storage)
-  if (url.hostname.endsWith("supabase.co")) {
-    return;
-  }
-
-  // Only handle GET requests
-  if (req.method !== "GET") return;
-
-  const acceptsHTML = req.headers.get("accept")?.includes("text/html");
-
-  // Network-first for HTML (so updates deploy cleanly)
-  if (acceptsHTML) {
+  // Network-first for HTML / navigations (deploy updates cleanly)
+  if (isNavigationRequest(req) || req.headers.get("accept")?.includes("text/html")) {
     event.respondWith(
       (async () => {
+        const cache = await caches.open(CACHE_NAME);
+
         try {
           const fresh = await fetch(req);
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(req, fresh.clone());
+          await safeCachePut(cache, req, fresh);
           return fresh;
         } catch {
-          return (
-            (await caches.match(req)) ||
-            (await caches.match("./index.html"))
-          );
+          // Fallback to cached page, then shell index
+          return (await caches.match(req)) || (await caches.match("./index.html"));
         }
       })()
     );
     return;
   }
 
-  // Cache-first for static assets (CSS, JS, images)
+  // Cache-first for static assets (js/css/img/etc)
   event.respondWith(
     (async () => {
       const cached = await caches.match(req);
       if (cached) return cached;
 
-      const fresh = await fetch(req);
       const cache = await caches.open(CACHE_NAME);
-      cache.put(req, fresh.clone());
+      const fresh = await fetch(req);
+      await safeCachePut(cache, req, fresh);
       return fresh;
     })()
   );
