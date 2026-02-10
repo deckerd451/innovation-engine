@@ -1,6 +1,6 @@
-const CACHE_NAME = "ie-shell-v1";
+const CACHE_NAME = "innovation-engine-shell-v1";
 
-// Keep this list tight: only stable, critical shell assets
+// Keep this list tight and stable
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -21,7 +21,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
+      await Promise.all(
+        keys.map((key) => (key === CACHE_NAME ? null : caches.delete(key)))
+      );
       await self.clients.claim();
     })()
   );
@@ -29,11 +31,19 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+  const url = new URL(req.url);
+
+  // (3) NEVER cache Supabase (auth, db, realtime, storage)
+  if (url.hostname.endsWith("supabase.co")) {
+    return;
+  }
+
+  // Only handle GET requests
   if (req.method !== "GET") return;
 
-  // Network-first for HTML (so updates deploy cleanly)
   const acceptsHTML = req.headers.get("accept")?.includes("text/html");
 
+  // Network-first for HTML (so updates deploy cleanly)
   if (acceptsHTML) {
     event.respondWith(
       (async () => {
@@ -43,19 +53,22 @@ self.addEventListener("fetch", (event) => {
           cache.put(req, fresh.clone());
           return fresh;
         } catch {
-          const cached = await caches.match(req);
-          return cached || caches.match("./index.html");
+          return (
+            (await caches.match(req)) ||
+            (await caches.match("./index.html"))
+          );
         }
       })()
     );
     return;
   }
 
-  // Cache-first for everything else (CSS/JS/images)
+  // Cache-first for static assets (CSS, JS, images)
   event.respondWith(
     (async () => {
       const cached = await caches.match(req);
       if (cached) return cached;
+
       const fresh = await fetch(req);
       const cache = await caches.open(CACHE_NAME);
       cache.put(req, fresh.clone());
