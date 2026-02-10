@@ -72,7 +72,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       oscillator.stop(audioContext.currentTime + 0.3);
 
       // Animate notification bell
-      const bell = $("notifications-bell");
+      const bell = $("notification-bell");
       if (bell) {
         bell.style.animation = "bellRing 0.5s ease-in-out 3";
         setTimeout(() => {
@@ -209,7 +209,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     // Header actions
     on($("user-menu"), "click", () => window.openProfileModal());
     // Notification bell now opens messages modal
-    on($("notifications-bell"), "click", async () => {
+    on($("notification-bell"), "click", async () => {
       if (typeof window.openMessagesModal === "function") {
         window.openMessagesModal();
       } else {
