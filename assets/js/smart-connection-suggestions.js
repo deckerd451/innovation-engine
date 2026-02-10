@@ -30,7 +30,15 @@ const SKILL_CATEGORIES = {
 };
 
 // Initialize smart suggestions system
+let smartConnectionSuggestionsInitialized = false;
+
 export function initSmartConnectionSuggestions() {
+  if (smartConnectionSuggestionsInitialized) {
+    console.log('⚠️ Smart Connection Suggestions already initialized, skipping');
+    return;
+  }
+  smartConnectionSuggestionsInitialized = true;
+  
   supabase = window.supabase;
   
   // Listen for profile loaded

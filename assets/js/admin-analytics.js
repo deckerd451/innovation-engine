@@ -10,7 +10,15 @@ let supabase = null;
 let currentUserProfile = null;
 
 // Initialize analytics
+let adminAnalyticsInitialized = false;
+
 export function initAdminAnalytics() {
+  if (adminAnalyticsInitialized) {
+    console.log('⚠️ Admin Analytics already initialized, skipping');
+    return;
+  }
+  adminAnalyticsInitialized = true;
+  
   supabase = window.supabase;
 
   window.addEventListener('profile-loaded', (e) => {

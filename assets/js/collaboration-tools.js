@@ -19,7 +19,15 @@ const COLLABORATION_FEATURES = {
 };
 
 // Initialize collaboration tools
+let collaborationToolsInitialized = false;
+
 export function initCollaborationTools() {
+  if (collaborationToolsInitialized) {
+    console.log('⚠️ Collaboration Tools already initialized, skipping');
+    return;
+  }
+  collaborationToolsInitialized = true;
+  
   supabase = window.supabase;
   
   // Listen for profile loaded

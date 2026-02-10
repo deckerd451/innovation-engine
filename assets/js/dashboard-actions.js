@@ -3287,8 +3287,6 @@ window.editOrganization = async function(orgId) {
   });
 };
 
-console.log("✅ Dashboard Actions ready");
-
 // -----------------------------
 // Organizations Panel
 // -----------------------------

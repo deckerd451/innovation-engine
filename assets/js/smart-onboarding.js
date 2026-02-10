@@ -92,7 +92,15 @@ const ONBOARDING_FLOWS = {
 };
 
 // Initialize smart onboarding
+let smartOnboardingInitialized = false;
+
 export function initSmartOnboarding() {
+  if (smartOnboardingInitialized) {
+    console.log('⚠️ Smart Onboarding already initialized, skipping');
+    return;
+  }
+  smartOnboardingInitialized = true;
+  
   supabase = window.supabase;
   
   // Listen for profile loaded

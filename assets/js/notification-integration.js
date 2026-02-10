@@ -14,7 +14,15 @@ let currentUserId = null;
 let realtimeChannel = null;
 
 // Initialize notification integration
+let notificationIntegrationInitialized = false;
+
 export async function initNotificationIntegration() {
+  if (notificationIntegrationInitialized) {
+    console.log('⚠️ Notification Integration already initialized, skipping');
+    return;
+  }
+  notificationIntegrationInitialized = true;
+  
   console.log('🔗 Initializing notification integration...');
 
   // Wait for dependencies

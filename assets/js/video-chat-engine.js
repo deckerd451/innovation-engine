@@ -37,7 +37,15 @@ let currentCallState = CALL_STATES.IDLE;
 let currentCall = null;
 
 // Initialize video chat engine
+let videoChatEngineInitialized = false;
+
 export function initVideoChatEngine() {
+  if (videoChatEngineInitialized) {
+    console.log('⚠️ Video Chat Engine already initialized, skipping');
+    return;
+  }
+  videoChatEngineInitialized = true;
+  
   supabase = window.supabase;
   
   // Listen for profile loaded

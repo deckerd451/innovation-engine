@@ -33,7 +33,16 @@ function normalizeToArray(value) {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', initMentorGuide);
 
+// Initialization guard to prevent double init
+let mentorGuideInitialized = false;
+
 function initMentorGuide() {
+  if (mentorGuideInitialized) {
+    console.log('⚠️ Mentor Guide already initialized, skipping');
+    return;
+  }
+  mentorGuideInitialized = true;
+  
   console.log('🧭 Initializing Mentor Guide');
 
   // Note: Mentor navigation buttons (mentor-btn-focus, mentor-btn-projects, mentor-btn-people) 

@@ -31,7 +31,15 @@ const ACTIVITY_TYPES = {
 };
 
 // Initialize live activity feed
+let liveActivityFeedInitialized = false;
+
 export function initLiveActivityFeed() {
+  if (liveActivityFeedInitialized) {
+    console.log('⚠️ Live Activity Feed already initialized, skipping');
+    return;
+  }
+  liveActivityFeedInitialized = true;
+  
   supabase = window.supabase;
   
   // Listen for profile loaded

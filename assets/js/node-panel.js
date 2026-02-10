@@ -13,7 +13,15 @@ let supabase = null;
 let currentUserProfile = null;
 
 // Initialize panel
+let nodePanelInitialized = false;
+
 export function initNodePanel() {
+  if (nodePanelInitialized) {
+    console.log('⚠️ Node Panel already initialized, skipping');
+    return;
+  }
+  nodePanelInitialized = true;
+  
   supabase = window.supabase;
   createPanelElement();
 
@@ -2697,9 +2705,8 @@ async function saveProfileEditor() {
 
     setEditorStatus("✅ Saved! Updating UI…");
 
-    // Let the rest of the app re-hydrate the profile
+    // Let the rest of the app know the profile was updated (NOT profile-loaded, which is for initial load only)
     try {
-      window.dispatchEvent(new CustomEvent("profile-loaded", { detail: { profile: currentUserProfile } }));
       window.dispatchEvent(new CustomEvent("profile-updated", { detail: { profile: currentUserProfile } }));
     } catch {}
 

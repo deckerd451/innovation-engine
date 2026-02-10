@@ -59,7 +59,15 @@ const FILTER_OPTIONS = {
 };
 
 // Initialize enhanced search system
+let enhancedSearchInitialized = false;
+
 export function initEnhancedSearchDiscovery() {
+  if (enhancedSearchInitialized) {
+    console.log('⚠️ Enhanced Search & Discovery already initialized, skipping');
+    return;
+  }
+  enhancedSearchInitialized = true;
+  
   supabase = window.supabase;
   
   // Listen for profile loaded

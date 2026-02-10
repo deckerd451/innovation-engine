@@ -1406,7 +1406,8 @@
 
   <!-- Feature modules with commit-based cache-busting -->
   <script type="module" src="assets/js/onboarding.js?v=fc09b39b-1770146154f916933b2da"></script>
-  <script type="module" src="assets/js/node-panel.js?v=66d4b925-20260205"></script>
+  <!-- node-panel.js loaded dynamically by dashboardPane.js -->
+  <!--  <script type="module" src="assets/js/node-panel.js?v=66d4b925-20260205"></script> -->
   <script type="module" src="assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="assets/js/graph-legend.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="assets/js/admin-analytics.js?v=fc09b39b-1770146154f916933b2da"></script>
@@ -1446,8 +1447,8 @@
   <!-- Non-module controllers with commit-based cache-busting -->
   <script src="assets/js/dashboard-actions.js?v=fc09b39b-1770146154f916933b2da"></script>
 
-  <!-- Admin People Management Modules -->
-  <script type="module" src="assets/js/adminPeopleService.js?v=fc09b39b-17701461543"></script>
+  <!-- adminPeopleService.js imported by adminPeoplePanel.js -->
+  <!--  <!-- Admin People Management Modules --> -->
   <script type="module" src="assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543"></script>
 
   <!-- Synapse boot with commit-based cache-busting -->
