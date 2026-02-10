@@ -57,10 +57,12 @@
       }
 
       notifications = data || [];
-      unreadCount = notifications.filter(n => !n.read).length;
+      // Get unread MESSAGE count from messaging system
+      const { data: messageCount, error: countError } = await window.supabase.rpc('get_unread_count');
+      unreadCount = (!countError && messageCount !== null) ? messageCount : 0;
 
       updateBellBadge();
-      console.log(`📬 Loaded ${notifications.length} notifications (${unreadCount} unread)`);
+      console.log(`📬 Loaded ${notifications.length} notifications (${unreadCount} unread messages)`);
 
     } catch (err) {
       console.error('Error loading notifications:', err);
