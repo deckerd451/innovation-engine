@@ -139,17 +139,19 @@ export async function updatePerson(id, patch) {
     // Clean up the patch data
     const updateData = { ...patch };
     
-    // Handle array fields - convert empty strings to null or proper arrays
+    // Handle array fields - convert to proper arrays
     const arrayFields = ['skills', 'interests'];
     arrayFields.forEach(field => {
       if (field in updateData) {
         const value = updateData[field];
         if (value === '' || value === null) {
           updateData[field] = null;
+        } else if (Array.isArray(value)) {
+          // Already an array, keep it
+          updateData[field] = value;
         } else if (typeof value === 'string') {
-          // If it's a comma-separated string, keep it as-is (PostgreSQL will handle it)
-          // If it's already an array format, keep it
-          updateData[field] = value.trim();
+          // Convert comma-separated string to array
+          updateData[field] = value.split(',').map(s => s.trim()).filter(s => s);
         }
       }
     });
