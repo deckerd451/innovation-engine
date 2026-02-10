@@ -588,6 +588,11 @@
 
         log("📋 [PROFILE-LINK] Profile resolution complete:", profile.id);
         window.currentUserProfile = profile;
+        // Set role for admin check
+        window.communityProfile = profile;
+        if (profile.user_role) {
+          window.userRole = profile.user_role;
+        }
         setTimeout(() => emitProfileLoaded(user, profile), 10);
         return profile;
       } catch (e) {
