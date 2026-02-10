@@ -476,7 +476,7 @@
             <i class="fas fa-user-edit"></i> Edit Profile
           </button>
 
-          <button id="btn-logout" class="btn ch-btn-secondary">
+          <button id="logout-btn" class="btn ch-btn-secondary">
             <i class="fas fa-sign-out-alt"></i> Log out
           </button>
         </div>
@@ -499,7 +499,7 @@
       { once: true }
     );
 
-    $("btn-logout")?.addEventListener(
+    $("logout-btn")?.addEventListener(
       "click",
       () => window.handleLogout?.(),
       { once: true }
@@ -763,7 +763,7 @@
           () => window.openProfileEditor?.(),
           { once: true }
         );
-        $("btn-logout")?.addEventListener(
+        $("logout-btn")?.addEventListener(
           "click",
           () => window.handleLogout?.(),
           { once: true }
