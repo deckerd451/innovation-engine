@@ -1,189 +1,294 @@
 /**
  * Unified Network Discovery - Dashboard Integration
- * 
- * This module integrates the new Unified Network Discovery system
- * with the existing dashboard, providing a smooth transition path.
- * 
- * Features:
- * - Feature flag for gradual rollout
- * - Backward compatibility with existing synapse
- * - Event bridging between systems
- * - Graceful fallback on errors
+ *
+ * This module integrates the Unified Network Discovery system with the existing dashboard.
+ *
+ * Key properties of this integration file:
+ * - SAFE/IDEMPOTENT: It can be loaded multiple times without duplicating listeners/UI.
+ * - FEATURE-FLAGGED: Unified network can be enabled via localStorage.
+ * - GRACEFUL FALLBACK: Errors fall back to legacy synapse.
  */
 
 import { unifiedNetworkApi } from './unified-network/api.js';
 import { logger } from './logger.js';
 import { initializeErrorHandling } from './unified-network/error-integration.js';
 
-// Feature flag - can be controlled via localStorage or server config
-const FEATURE_FLAGS = {
-  ENABLE_UNIFIED_NETWORK: localStorage.getItem('enable-unified-network') === 'true',
-  DEBUG_MODE: localStorage.getItem('unified-network-debug') === 'true'
-};
+// ------------------------------------------------------------------
+// Feature flags (read dynamically so changes apply without redeploy)
+// ------------------------------------------------------------------
+function getFeatureFlags() {
+  return {
+    ENABLE_UNIFIED_NETWORK: localStorage.getItem('enable-unified-network') === 'true',
+    DEBUG_MODE: localStorage.getItem('unified-network-debug') === 'true'
+  };
+}
 
-// Integration state
+// ------------------------------------------------------------------
+// Integration state (kept in module scope)
+// ------------------------------------------------------------------
 let integrationState = {
   initialized: false,
+  initializing: false,
   usingUnifiedNetwork: false,
   fallbackToLegacy: false,
-  error: null
+  error: null,
+  userId: null,
+  containerId: null
 };
 
+// ------------------------------------------------------------------
+// Idempotent guards (protect against duplicate script/module loads)
+// ------------------------------------------------------------------
+const GUARDS = {
+  styleInjected: false,
+  bridgesWired: false,
+  uiWired: false,
+  shortcutsWired: false,
+  searchWired: false,
+  perfIntervalId: null
+};
+
+const INTEGRATION_NS = 'UnifiedNetworkIntegration';
+
 /**
- * Initialize the unified network system
+ * Initialize the unified network system (idempotent).
+ *
+ * Returns:
+ *  - true  => unified network is active
+ *  - false => feature disabled OR fallback to legacy
  */
 export async function initUnifiedNetwork(userId, containerId = 'synapse-svg') {
-  // Check feature flag
-  if (!FEATURE_FLAGS.ENABLE_UNIFIED_NETWORK) {
-    logger.info('UnifiedNetworkIntegration', 'Feature disabled, using legacy synapse');
+  const FLAGS = getFeatureFlags();
+
+  // Feature disabled => explicit legacy mode
+  if (!FLAGS.ENABLE_UNIFIED_NETWORK) {
+    logger.info(INTEGRATION_NS, 'Feature disabled, using legacy synapse');
     integrationState.usingUnifiedNetwork = false;
+    integrationState.fallbackToLegacy = false;
+    integrationState.initialized = false;
+    integrationState.initializing = false;
+    integrationState.error = null;
     return false;
   }
-  
-  logger.info('UnifiedNetworkIntegration', 'Initializing unified network discovery');
-  
+
+  // If already initialized for the same user/container, short-circuit.
+  if (
+    integrationState.initialized &&
+    integrationState.usingUnifiedNetwork &&
+    integrationState.userId === userId &&
+    integrationState.containerId === containerId
+  ) {
+    logger.debug(INTEGRATION_NS, 'Already initialized (same user/container) — skipping.');
+    return true;
+  }
+
+  // If a prior init is in-flight, wait for it.
+  if (integrationState.initializing) {
+    logger.debug(INTEGRATION_NS, 'Initialization already in progress — awaiting...');
+    await waitForInitToSettle();
+    return integrationState.usingUnifiedNetwork && integrationState.initialized;
+  }
+
+  logger.info(INTEGRATION_NS, 'Initializing unified network discovery');
+
+  integrationState.initializing = true;
+  integrationState.error = null;
+  integrationState.fallbackToLegacy = false;
+  integrationState.userId = userId;
+  integrationState.containerId = containerId;
+
   try {
-    // Initialize error handling FIRST
+    // Validate container before boot (prevents confusing downstream errors)
+    const container = document.getElementById(containerId);
+    if (!container) {
+      throw new Error(`Unified network container not found: #${containerId}`);
+    }
+
+    // Initialize error handling FIRST (safe if called multiple times, but we call once here)
     initializeErrorHandling(unifiedNetworkApi);
-    
+
     // Initialize the unified network API
     await unifiedNetworkApi.initialize(containerId, userId);
-    
-    // Setup event bridges
+
+    // Setup event bridges (idempotent)
     setupEventBridges();
-    
-    // Setup UI integrations
+
+    // Setup UI integrations (idempotent)
     setupUIIntegrations();
-    
+
+    // Inject CSS animations once
+    injectStylesOnce();
+
     // Mark as initialized
     integrationState.initialized = true;
     integrationState.usingUnifiedNetwork = true;
-    
-    logger.info('UnifiedNetworkIntegration', '✅ Unified network initialized successfully');
-    
+
+    logger.info(INTEGRATION_NS, '✅ Unified network initialized successfully');
+
     // Emit custom event for other systems
-    window.dispatchEvent(new CustomEvent('unified-network-ready', {
-      detail: { userId, containerId }
-    }));
-    
+    window.dispatchEvent(
+      new CustomEvent('unified-network-ready', {
+        detail: { userId, containerId }
+      })
+    );
+
     return true;
-    
   } catch (error) {
-    logger.error('UnifiedNetworkIntegration', 'Failed to initialize unified network', error);
-    
+    logger.error(INTEGRATION_NS, 'Failed to initialize unified network', error);
+
     integrationState.error = error;
     integrationState.fallbackToLegacy = true;
-    
+    integrationState.usingUnifiedNetwork = false;
+    integrationState.initialized = false;
+
+    // Best-effort cleanup
+    safelyStopPerfInterval();
+
     // Show user-friendly error
     showErrorNotification('Network visualization failed to load. Using fallback mode.');
-    
+
     return false;
+  } finally {
+    integrationState.initializing = false;
   }
 }
 
+// Wait for init to complete (used when init called twice quickly)
+function waitForInitToSettle(timeoutMs = 8000) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const tick = () => {
+      if (!integrationState.initializing) return resolve();
+      if (Date.now() - start > timeoutMs) return resolve();
+      setTimeout(tick, 50);
+    };
+    tick();
+  });
+}
+
 /**
- * Setup event bridges between unified network and dashboard
+ * Setup event bridges between unified network and dashboard (idempotent).
  */
 function setupEventBridges() {
+  if (GUARDS.bridgesWired) return;
+  GUARDS.bridgesWired = true;
+
   // Discovery triggered
   unifiedNetworkApi.on('discovery-triggered', ({ reasons }) => {
-    logger.debug('UnifiedNetworkIntegration', 'Discovery triggered', { reasons });
-    
-    // Could show a subtle notification
-    if (FEATURE_FLAGS.DEBUG_MODE) {
-      console.log('🔍 Discovery activated:', reasons.join(', '));
-    }
+    logger.debug(INTEGRATION_NS, 'Discovery triggered', { reasons });
+    const FLAGS = getFeatureFlags();
+    if (FLAGS.DEBUG_MODE) console.log('🔍 Discovery activated:', (reasons || []).join(', '));
   });
-  
+
   // Action completed
-  unifiedNetworkApi.on('action-completed', ({ nodeId, actionType, result }) => {
-    logger.info('UnifiedNetworkIntegration', 'Action completed', { nodeId, actionType });
-    
+  unifiedNetworkApi.on('action-completed', ({ nodeId, actionType }) => {
+    logger.info(INTEGRATION_NS, 'Action completed', { nodeId, actionType });
+
     // Refresh dashboard stats
-    if (window.loadCommunityStats) {
+    if (typeof window.loadCommunityStats === 'function') {
       window.loadCommunityStats();
     }
-    
-    // Show success notification
+
     const messages = {
-      'connect': 'Connection established!',
+      connect: 'Connection established!',
       'join-project': 'Joined project successfully!',
       'explore-theme': 'Theme added to your interests!'
     };
-    
+
     showSuccessNotification(messages[actionType] || 'Action completed!');
   });
-  
+
   // Action failed
   unifiedNetworkApi.on('action-failed', ({ nodeId, actionType, error }) => {
-    logger.error('UnifiedNetworkIntegration', 'Action failed', { nodeId, actionType, error });
-    
+    logger.error(INTEGRATION_NS, 'Action failed', { nodeId, actionType, error });
     showErrorNotification('Action failed. Please try again.');
   });
-  
-  // Node focused
+
+  // Node focused (kept for future)
   unifiedNetworkApi.on('node-focused', ({ nodeId }) => {
-    logger.debug('UnifiedNetworkIntegration', 'Node focused', { nodeId });
-    
-    // Could open node panel if needed
-    // if (window.openNodePanel) {
-    //   window.openNodePanel(nodeId);
-    // }
+    logger.debug(INTEGRATION_NS, 'Node focused', { nodeId });
   });
-  
+
   // Background paused/resumed
   unifiedNetworkApi.on('background-paused', () => {
-    logger.debug('UnifiedNetworkIntegration', 'App backgrounded - physics paused');
+    logger.debug(INTEGRATION_NS, 'App backgrounded - physics paused');
   });
-  
+
   unifiedNetworkApi.on('background-resumed', () => {
-    logger.debug('UnifiedNetworkIntegration', 'App foregrounded - physics resumed');
+    logger.debug(INTEGRATION_NS, 'App foregrounded - physics resumed');
   });
-  
-  // Performance monitoring
-  if (FEATURE_FLAGS.DEBUG_MODE) {
-    setInterval(() => {
-      const metrics = unifiedNetworkApi.getPerformanceMetrics();
-      logger.debug('UnifiedNetworkIntegration', 'Performance', {
+
+  // Performance monitoring (debug)
+  maybeStartPerfLogging();
+}
+
+function maybeStartPerfLogging() {
+  const FLAGS = getFeatureFlags();
+  if (!FLAGS.DEBUG_MODE) {
+    safelyStopPerfInterval();
+    return;
+  }
+  if (GUARDS.perfIntervalId) return;
+
+  GUARDS.perfIntervalId = setInterval(() => {
+    try {
+      const metrics = unifiedNetworkApi.getPerformanceMetrics?.();
+      if (!metrics) return;
+      logger.debug(INTEGRATION_NS, 'Performance', {
         fps: metrics.fps,
-        memory: `${(metrics.memoryUsage / (1024 * 1024)).toFixed(2)}MB`
+        memory: typeof metrics.memoryUsage === 'number'
+          ? `${(metrics.memoryUsage / (1024 * 1024)).toFixed(2)}MB`
+          : 'n/a'
       });
-    }, 30000); // Every 30 seconds
+    } catch (_) {
+      // no-op
+    }
+  }, 30000);
+}
+
+function safelyStopPerfInterval() {
+  if (GUARDS.perfIntervalId) {
+    clearInterval(GUARDS.perfIntervalId);
+    GUARDS.perfIntervalId = null;
   }
 }
 
 /**
- * Setup UI integrations
+ * Setup UI integrations (idempotent).
  */
 function setupUIIntegrations() {
-  // Add preferences button to dashboard
+  if (GUARDS.uiWired) return;
+  GUARDS.uiWired = true;
+
   addPreferencesButton();
-  
-  // Setup search integration
   setupSearchIntegration();
-  
-  // Setup keyboard shortcuts
   setupKeyboardShortcuts();
 }
 
 /**
- * Add discovery preferences button to dashboard
+ * Add discovery preferences button to dashboard (idempotent).
  */
 function addPreferencesButton() {
-  // Find a good place to add the button (e.g., in the header or settings)
-  const header = document.querySelector('.dashboard-header') || 
-                 document.querySelector('header') ||
-                 document.querySelector('.top-bar');
-  
+  // Avoid duplicates
+  if (document.querySelector('.unified-network-preferences-btn')) return;
+
+  const header =
+    document.querySelector('.dashboard-header') ||
+    document.querySelector('header') ||
+    document.querySelector('.top-bar');
+
   if (!header) {
-    logger.debug('UnifiedNetworkIntegration', 'No header found for preferences button - skipping UI integration');
+    logger.debug(INTEGRATION_NS, 'No header found for preferences button - skipping UI integration');
     return;
   }
-  
+
   const button = document.createElement('button');
   button.className = 'unified-network-preferences-btn';
+  button.type = 'button';
   button.innerHTML = '<i class="fas fa-cog"></i> Discovery';
   button.title = 'Discovery Preferences';
+
+  // Keep styling inline to avoid touching global CSS
   button.style.cssText = `
     background: rgba(68, 136, 255, 0.2);
     border: 1px solid rgba(68, 136, 255, 0.5);
@@ -194,103 +299,114 @@ function addPreferencesButton() {
     font-size: 14px;
     transition: all 0.2s;
     margin-left: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   `;
-  
+
   button.addEventListener('click', () => {
-    unifiedNetworkApi.showPreferencesPanel();
+    try {
+      unifiedNetworkApi.showPreferencesPanel?.();
+    } catch (e) {
+      logger.error(INTEGRATION_NS, 'Failed to open preferences panel', e);
+    }
   });
-  
+
   button.addEventListener('mouseenter', () => {
     button.style.background = 'rgba(68, 136, 255, 0.3)';
     button.style.borderColor = 'rgba(68, 136, 255, 0.8)';
   });
-  
+
   button.addEventListener('mouseleave', () => {
     button.style.background = 'rgba(68, 136, 255, 0.2)';
     button.style.borderColor = 'rgba(68, 136, 255, 0.5)';
   });
-  
+
   header.appendChild(button);
-  
-  logger.debug('UnifiedNetworkIntegration', 'Preferences button added');
+
+  logger.debug(INTEGRATION_NS, 'Preferences button added');
 }
 
 /**
- * Setup search integration
+ * Setup search integration (idempotent).
  */
 function setupSearchIntegration() {
-  // Listen for search results and focus nodes
+  if (GUARDS.searchWired) return;
+  GUARDS.searchWired = true;
+
   window.addEventListener('search-result-selected', (event) => {
-    const { nodeId } = event.detail;
-    
-    if (nodeId && integrationState.usingUnifiedNetwork) {
-      unifiedNetworkApi.focusNode(nodeId, { duration: 750, smooth: true });
+    const nodeId = event?.detail?.nodeId;
+    if (!nodeId) return;
+
+    if (integrationState.usingUnifiedNetwork && integrationState.initialized) {
+      try {
+        unifiedNetworkApi.focusNode?.(nodeId, { duration: 750, smooth: true });
+      } catch (e) {
+        logger.error(INTEGRATION_NS, 'Failed to focus node from search', e);
+      }
     }
   });
-  
-  logger.debug('UnifiedNetworkIntegration', 'Search integration setup');
+
+  logger.debug(INTEGRATION_NS, 'Search integration setup');
 }
 
 /**
- * Setup keyboard shortcuts
+ * Setup keyboard shortcuts (idempotent).
+ * NOTE: These are active ONLY when unified network is active.
  */
 function setupKeyboardShortcuts() {
+  if (GUARDS.shortcutsWired) return;
+  GUARDS.shortcutsWired = true;
+
   document.addEventListener('keydown', (event) => {
+    if (!integrationState.usingUnifiedNetwork || !integrationState.initialized) return;
+
     // Ctrl/Cmd + D: Trigger discovery
     if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
       event.preventDefault();
-      unifiedNetworkApi.triggerDiscovery();
+      unifiedNetworkApi.triggerDiscovery?.();
     }
-    
+
     // Ctrl/Cmd + H: Go to My Network
     if ((event.ctrlKey || event.metaKey) && event.key === 'h') {
       event.preventDefault();
-      unifiedNetworkApi.resetToMyNetwork();
+      unifiedNetworkApi.resetToMyNetwork?.();
     }
-    
+
     // Ctrl/Cmd + P: Show preferences
     if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
       event.preventDefault();
-      unifiedNetworkApi.showPreferencesPanel();
+      unifiedNetworkApi.showPreferencesPanel?.();
     }
   });
-  
-  logger.debug('UnifiedNetworkIntegration', 'Keyboard shortcuts setup');
+
+  logger.debug(INTEGRATION_NS, 'Keyboard shortcuts setup');
 }
 
 /**
- * Show success notification
+ * Notifications
  */
 function showSuccessNotification(message) {
-  // Use existing notification system if available
-  if (window.showSynapseNotification) {
+  if (typeof window.showSynapseNotification === 'function') {
     window.showSynapseNotification(message, 'success');
   } else {
-    // Fallback to simple notification
     showSimpleNotification(message, 'success');
   }
 }
 
-/**
- * Show error notification
- */
 function showErrorNotification(message) {
-  // Use existing notification system if available
-  if (window.showSynapseNotification) {
+  if (typeof window.showSynapseNotification === 'function') {
     window.showSynapseNotification(message, 'error');
   } else {
-    // Fallback to simple notification
     showSimpleNotification(message, 'error');
   }
 }
 
-/**
- * Simple notification fallback
- */
 function showSimpleNotification(message, type = 'info') {
   const notification = document.createElement('div');
   notification.className = `unified-network-notification ${type}`;
   notification.textContent = message;
+
   notification.style.cssText = `
     position: fixed;
     top: 20px;
@@ -301,17 +417,15 @@ function showSimpleNotification(message, type = 'info') {
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     z-index: 10000;
-    animation: slideIn 0.3s ease-out;
+    animation: unetSlideIn 0.3s ease-out;
   `;
-  
+
   document.body.appendChild(notification);
-  
+
   setTimeout(() => {
-    notification.style.animation = 'slideOut 0.3s ease-out';
+    notification.style.animation = 'unetSlideOut 0.3s ease-out';
     setTimeout(() => {
-      if (notification.parentElement) {
-        notification.parentElement.removeChild(notification);
-      }
+      notification.remove();
     }, 300);
   }, 3000);
 }
@@ -335,8 +449,7 @@ export function getIntegrationState() {
  */
 export function enableUnifiedNetwork() {
   localStorage.setItem('enable-unified-network', 'true');
-  logger.info('UnifiedNetworkIntegration', 'Unified network enabled - reload page to activate');
-  
+  logger.info(INTEGRATION_NS, 'Unified network enabled - reload page to activate');
   showSuccessNotification('Unified Network enabled! Reload the page to activate.');
 }
 
@@ -345,8 +458,7 @@ export function enableUnifiedNetwork() {
  */
 export function disableUnifiedNetwork() {
   localStorage.removeItem('enable-unified-network');
-  logger.info('UnifiedNetworkIntegration', 'Unified network disabled - reload page to use legacy');
-  
+  logger.info(INTEGRATION_NS, 'Unified network disabled - reload page to use legacy');
   showSuccessNotification('Unified Network disabled! Reload the page to use legacy mode.');
 }
 
@@ -356,15 +468,19 @@ export function disableUnifiedNetwork() {
 export function toggleDebugMode() {
   const current = localStorage.getItem('unified-network-debug') === 'true';
   localStorage.setItem('unified-network-debug', (!current).toString());
-  
-  logger.info('UnifiedNetworkIntegration', `Debug mode ${!current ? 'enabled' : 'disabled'}`);
-  
+  logger.info(INTEGRATION_NS, `Debug mode ${!current ? 'enabled' : 'disabled'}`);
   showSuccessNotification(`Debug mode ${!current ? 'enabled' : 'disabled'}!`);
+
+  // Apply immediately if already running
+  maybeStartPerfLogging();
 }
 
-// Export for global access
+// ------------------------------------------------------------------
+// Global export (idempotent) — do not overwrite existing object
+// ------------------------------------------------------------------
 if (typeof window !== 'undefined') {
-  window.unifiedNetworkIntegration = {
+  window.unifiedNetworkIntegration = window.unifiedNetworkIntegration || {};
+  Object.assign(window.unifiedNetworkIntegration, {
     init: initUnifiedNetwork,
     isActive: isUnifiedNetworkActive,
     getState: getIntegrationState,
@@ -372,34 +488,31 @@ if (typeof window !== 'undefined') {
     disable: disableUnifiedNetwork,
     toggleDebug: toggleDebugMode,
     api: unifiedNetworkApi
-  };
+  });
 }
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes slideIn {
-    from {
-      transform: translateX(400px);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes slideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(400px);
-      opacity: 0;
-    }
-  }
-`;
-document.head.appendChild(style);
+/**
+ * Inject CSS animations once (namespaced to avoid collisions).
+ */
+function injectStylesOnce() {
+  if (GUARDS.styleInjected) return;
+  GUARDS.styleInjected = true;
 
-logger.info('UnifiedNetworkIntegration', 'Integration module loaded');
+  if (document.getElementById('unified-network-integration-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'unified-network-integration-styles';
+  style.textContent = `
+    @keyframes unetSlideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes unetSlideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to   { transform: translateX(400px); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+logger.info(INTEGRATION_NS, 'Integration module loaded (idempotent)');
