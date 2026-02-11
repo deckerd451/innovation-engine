@@ -498,7 +498,7 @@ async function loadFocusContent(contentDiv) {
     <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1); text-align:center;">
       <button onclick="closeAllMentorPanels();" style="padding:0.75rem 2rem; background:linear-gradient(135deg, #00e0ff, #0080ff); border:none; border-radius:8px; color:#000; font-weight:600; cursor:pointer; font-size:0.9rem; transition:all 0.2s;">
         <i class="fas fa-network-wired" style="margin-right:0.5rem;"></i>
-        Explore this in the network
+        Explore Network
       </button>
     </div>
   `;

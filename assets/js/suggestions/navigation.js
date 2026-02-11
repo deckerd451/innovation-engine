@@ -208,12 +208,6 @@ export function showNavigationOverlay() {
         Close
       </button>
     </div>
-    
-    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.08);">
-      <div style="color: rgba(255,255,255,0.4); font-size: clamp(0.7rem, 2vw, 0.75rem); text-align: center;">
-        Complete this action, then click Next
-      </div>
-    </div>
   `;
   
   document.body.appendChild(navigationOverlay);
