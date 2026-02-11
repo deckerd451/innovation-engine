@@ -2599,7 +2599,7 @@ async function handleAdminManageProjects(themeId) {
 
     if (action === 'assign' && num > 0 && num <= availableProjects.length) {
       const project = availableProjects[num - 1];
-      await assignProjectToTheme(project.id, themeId, project.title);
+      await assignProjectToThemeByIds(project.id, themeId, project.title);
     } else if (action === 'remove' && num > 0 && num <= assignedProjects.length) {
       const project = assignedProjects[num - 1];
       await unassignProjectFromTheme(project.id, project.title);
@@ -2613,7 +2613,9 @@ async function handleAdminManageProjects(themeId) {
   }
 }
 
-async function assignProjectToTheme(projectId, themeId, projectTitle) {
+// Theme assignment function - Command/flow version (3 args: projectId, themeId, projectTitle)
+// Called by command parser and internal flows
+async function assignProjectToThemeByIds(projectId, themeId, projectTitle) {
   const supabase = window.supabase;
   if (!supabase) return;
 
@@ -3881,7 +3883,9 @@ if (typeof window.showNotification !== 'function') {
   };
 }
 
-// Theme assignment functions (defined here, exposed to window below)
+// Theme assignment function - UI version (1 arg: projectId)
+// Called by inline HTML onclick="assignProjectToTheme(projectId)"
+// Reads themeId from DOM select element
 async function assignProjectToTheme(projectId) {
   try {
     const supabase = window.supabase;
@@ -3973,7 +3977,8 @@ async function removeProjectFromTheme(projectId) {
 }
 
 // Make functions globally available
-window.assignProjectToTheme = assignProjectToTheme;
+window.assignProjectToTheme = assignProjectToTheme;  // UI version (1 arg)
+window.assignProjectToThemeByIds = assignProjectToThemeByIds;  // Command version (3 args)
 window.removeProjectFromTheme = removeProjectFromTheme;
 
   // Close the initialization guard block
