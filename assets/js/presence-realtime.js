@@ -125,8 +125,14 @@
     // Use internal channel method if dev guard is active
     const channelFn = supabaseClient._internalChannel || supabaseClient.channel;
     
-    // Create channel WITHOUT presence config (we'll set key in track())
-    presenceChannel = channelFn.call(supabaseClient, CONFIG.CHANNEL_NAME);
+    // Create channel with presence config - key must be set here, not in track()
+    presenceChannel = channelFn.call(supabaseClient, CONFIG.CHANNEL_NAME, {
+      config: {
+        presence: {
+          key: profileId, // This is the correct way to set the key
+        },
+      },
+    });
 
     // Track presence state
     presenceChannel
@@ -147,13 +153,15 @@
           isRealtimeConnected = true;
           console.log('✅ [Presence] Realtime connected');
           console.log('📊 [Presence] Mode: Realtime (ephemeral)');
-          console.log('🆔 [Presence] Tracking with profile ID:', profileId);
+          console.log('🆔 [Presence] Using profile ID as key:', profileId);
           
-          // Track current user as online with explicit key
+          // Track current user as online (key is already set in channel config)
           await presenceChannel.track({
             profile_id: profileId,
             online_at: new Date().toISOString(),
-          }, { key: profileId }); // IMPORTANT: Set key explicitly
+          });
+          
+          console.log('✅ [Presence] Tracked with profile ID:', profileId);
           
           // Cancel mobile fallback
           if (pollingInterval) {
@@ -359,12 +367,12 @@
       updateLastSeen();
     } else {
       console.log('👀 [Presence] Tab visible');
-      // Re-track presence when tab becomes visible
+      // Re-track presence when tab becomes visible (key is already set in channel config)
       if (presenceChannel && isRealtimeConnected) {
         presenceChannel.track({
           profile_id: communityProfileId,
           online_at: new Date().toISOString(),
-        }, { key: communityProfileId }); // IMPORTANT: Set key explicitly
+        });
       }
     }
   }
