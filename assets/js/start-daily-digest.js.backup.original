@@ -6,7 +6,7 @@
 
 console.log('%c📰 START Sequential Digest - Loading', 'color:#0f8; font-weight:bold;');
 
-class StartDailyDigest {
+class StartSequentialDigest {
   constructor() {
     this.userData = null;
     this.currentStep = 0;
@@ -184,7 +184,7 @@ class StartDailyDigest {
             cursor: pointer;
             transition: all 0.3s;
           "
-          onclick="window.StartDailyDigest.openMessaging()"
+          onclick="window.StartSequentialDigest.openMessaging()"
           onmouseenter="this.style.background='linear-gradient(135deg, rgba(255,170,0,0.3), rgba(255,136,0,0.2))'; this.style.transform='translateY(-2px)';"
           onmouseleave="this.style.background='linear-gradient(135deg, rgba(255,170,0,0.2), rgba(255,136,0,0.1))'; this.style.transform='translateY(0)';"
           >
@@ -239,7 +239,7 @@ class StartDailyDigest {
         
         <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
           <button
-            onclick="window.StartDailyDigest.previousStep()"
+            onclick="window.StartSequentialDigest.previousStep()"
             style="
               background: rgba(255,255,255,0.1);
               border: 1px solid rgba(255,255,255,0.3);
@@ -258,7 +258,7 @@ class StartDailyDigest {
           </button>
           
           <button
-            onclick="window.StartDailyDigest.closeAndExplore()"
+            onclick="window.StartSequentialDigest.closeAndExplore()"
             style="
               background: linear-gradient(135deg, #00e0ff, #00ff88);
               border: none;
@@ -278,7 +278,7 @@ class StartDailyDigest {
           </button>
           
           <button
-            onclick="window.StartDailyDigest.downloadReport()"
+            onclick="window.StartSequentialDigest.downloadReport()"
             style="
               background: rgba(255,170,0,0.2);
               border: 2px solid rgba(255,170,0,0.4);
@@ -319,7 +319,7 @@ class StartDailyDigest {
       ">
         <button
           id="prev-step-btn"
-          onclick="window.StartDailyDigest.previousStep()"
+          onclick="window.StartSequentialDigest.previousStep()"
           style="
             background: ${isFirst ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)'};
             border: 1px solid rgba(255,255,255,0.2);
@@ -352,7 +352,7 @@ class StartDailyDigest {
         
         <button
           id="next-step-btn"
-          onclick="window.StartDailyDigest.nextStep()"
+          onclick="window.StartSequentialDigest.nextStep()"
           style="
             background: linear-gradient(135deg, #00e0ff, #00ff88);
             border: none;
@@ -433,7 +433,7 @@ class StartDailyDigest {
   }
 
   renderStatCard(label, value, icon, color, handler) {
-    const clickHandler = handler ? `onclick="window.StartDailyDigest.${handler}()" style="cursor: pointer;"` : '';
+    const clickHandler = handler ? `onclick="window.StartSequentialDigest.${handler}()" style="cursor: pointer;"` : '';
     const hoverStyle = handler ? `
       onmouseenter="this.style.transform='translateY(-2px)'; this.style.borderColor='${color}';"
       onmouseleave="this.style.transform='translateY(0)'; this.style.borderColor='${color}40';"
@@ -628,7 +628,7 @@ class StartDailyDigest {
 // GLOBAL INSTANCE & STYLES
 // ============================================================================
 
-window.StartDailyDigest = new StartDailyDigest();
+window.StartSequentialDigest = new StartSequentialDigest();
 
 // Add CSS animations
 const style = document.createElement('style');

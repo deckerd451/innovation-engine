@@ -78,18 +78,13 @@ class EnhancedStartUI {
       backdrop.style.opacity = '1';
     }, 10);
 
-    // Show loading content
+    // Show minimal loading content (no "Analyzing Your Network" screen)
     container.innerHTML = `
       <div style="text-align: center; padding: 3rem 2rem; color: rgba(255,255,255,0.6);">
-        <div style="font-size: 3rem; margin-bottom: 1rem; animation: pulse 2s ease-in-out infinite;">
-          🧠
-        </div>
-        <h3 style="color: #00e0ff; margin-bottom: 0.5rem;">Analyzing Your Network</h3>
-        <p style="margin-bottom: 1.5rem;">Gathering actionable insights...</p>
         <div class="loading-dots" style="display: flex; justify-content: center; gap: 0.5rem;">
-          <div style="width: 8px; height: 8px; background: #00e0ff; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite both;"></div>
-          <div style="width: 8px; height: 8px; background: #00e0ff; border-radius: 50%; animation: bounce 1.4s ease-in-out 0.16s infinite both;"></div>
-          <div style="width: 8px; height: 8px; background: #00e0ff; border-radius: 50%; animation: bounce 1.4s ease-in-out 0.32s infinite both;"></div>
+          <div style="width: 12px; height: 12px; background: #00e0ff; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite both;"></div>
+          <div style="width: 12px; height: 12px; background: #00e0ff; border-radius: 50%; animation: bounce 1.4s ease-in-out 0.16s infinite both;"></div>
+          <div style="width: 12px; height: 12px; background: #00e0ff; border-radius: 50%; animation: bounce 1.4s ease-in-out 0.32s infinite both;"></div>
         </div>
       </div>
     `;
