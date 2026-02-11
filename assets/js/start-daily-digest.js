@@ -168,6 +168,34 @@ class StartDailyDigest {
             ${this.renderStatCard('Themes', counts.themes, 'bullseye', '#ffaa00', 'viewThemes')}
             ${this.renderStatCard('Opportunities', counts.opportunities, 'briefcase', '#00ff88', 'viewOpportunities')}
           </div>
+
+          <!-- Explore Opportunities Button -->
+          <div style="text-align: center; margin-top: 1.5rem;">
+            <a 
+              href="/innovation-engine/explore.html"
+              style="
+                display: inline-block;
+                background: linear-gradient(135deg, #00e0ff, #00ff88);
+                border: none;
+                border-radius: 12px;
+                color: #000;
+                padding: 1rem 2rem;
+                font-weight: 700;
+                font-size: 1rem;
+                cursor: pointer;
+                text-decoration: none;
+                transition: all 0.3s;
+                box-shadow: 0 4px 15px rgba(0,224,255,0.4);
+                width: 100%;
+                max-width: 400px;
+              "
+              onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,224,255,0.6)';"
+              onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,224,255,0.4)';"
+            >
+              <i class="fas fa-compass" style="margin-right: 0.5rem;"></i>
+              Explore Opportunities
+            </a>
+          </div>
         </div>
 
         <!-- Unread Messages (if any) -->
