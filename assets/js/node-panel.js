@@ -2245,6 +2245,20 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
       throw new Error('Database connection not available');
     }
 
+    // First, verify the request exists
+    const { data: existingRequest, error: checkError } = await supabase
+      .from('project_members')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (checkError) {
+      console.error('❌ Error checking request:', checkError);
+      throw new Error('Request not found: ' + checkError.message);
+    }
+
+    console.log('📋 Found request to approve:', existingRequest);
+
     // Update role from 'pending' to 'member'
     const { data, error } = await supabase
       .from('project_members')
@@ -2255,6 +2269,11 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
     if (error) {
       console.error('❌ Error updating project_members:', error);
       throw error;
+    }
+
+    if (!data || data.length === 0) {
+      console.error('❌ Update returned no data - request may not exist');
+      throw new Error('Failed to update request - no rows affected');
     }
 
     console.log('✅ Successfully approved request:', data);
@@ -2325,13 +2344,30 @@ window.declineJoinRequest = async function(projectId, requestId) {
       throw new Error('Database connection not available');
     }
 
+    // First, verify the request exists
+    const { data: existingRequest, error: checkError } = await supabase
+      .from('project_members')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (checkError) {
+      console.error('❌ Error checking request:', checkError);
+      throw new Error('Request not found: ' + checkError.message);
+    }
+
+    console.log('📋 Found request to decline:', existingRequest);
+
     // Delete the pending request
     const { error } = await supabase
       .from('project_members')
       .delete()
       .eq('id', requestId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error deleting request:', error);
+      throw error;
+    }
 
     showToastNotification('Request declined', 'info');
 
