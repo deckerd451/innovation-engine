@@ -144,7 +144,7 @@ export class GraphDataStore {
     const { data: userOrgs, error: orgError } = await this._supabase
       .from('organization_members')
       .select('organization_id')
-      .eq('user_id', this._userId);
+      .eq('community_id', this._userId);
 
     if (!orgError && userOrgs) {
       const orgIds = userOrgs.map(o => o.organization_id);
@@ -153,13 +153,13 @@ export class GraphDataStore {
         // Get all members of these organizations
         const { data: orgMembers, error: omError } = await this._supabase
           .from('organization_members')
-          .select('user_id')
+          .select('community_id')
           .in('organization_id', orgIds);
 
         if (!omError && orgMembers) {
           orgMembers.forEach(om => {
-            const node = this._nodes.get(om.user_id);
-            if (node && om.user_id !== this._userId) {
+            const node = this._nodes.get(om.community_id);
+            if (node && om.community_id !== this._userId) {
               node.isMyNetwork = true;
             }
           });
@@ -318,7 +318,7 @@ export class GraphDataStore {
     try {
       const { data: orgMembers, error: omError } = await this._supabase
         .from('organization_members')
-        .select('organization_id, user_id');
+        .select('organization_id, community_id');
 
       if (omError) {
         console.error('Error loading org member edges:', omError);
@@ -329,7 +329,7 @@ export class GraphDataStore {
           if (!orgGroups[om.organization_id]) {
             orgGroups[om.organization_id] = [];
           }
-          orgGroups[om.organization_id].push(om.user_id);
+          orgGroups[om.organization_id].push(om.community_id);
         });
 
         // Create edges between members of the same organization
