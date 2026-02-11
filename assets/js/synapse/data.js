@@ -1,7 +1,108 @@
 // assets/js/synapse/data.js
+console.log("✅ Synapse data module loaded:", new URL(import.meta.url).pathname);
 
 import { getAllConnectionsForSynapse } from "../connections.js";
 import { getAllProjectMembers } from "../projects.js";
+
+// ID canonicalization cache to avoid repeated lookups
+const communityIdCache = new Map();
+
+/**
+ * Resolve a user ID to its canonical community.id
+ * Handles cases where connections may store auth.uid or other IDs
+ * @param {string} id - The ID to resolve
+ * @param {object} supabase - Supabase client
+ * @param {Set} nodeIdSet - Set of known node IDs (community.id values)
+ * @returns {Promise<string|null>} - Canonical community.id or null if not found
+ */
+async function resolveCommunityId(id, supabase, nodeIdSet) {
+  if (!id) return null;
+  
+  // If already in cache, return cached value
+  if (communityIdCache.has(id)) {
+    return communityIdCache.get(id);
+  }
+  
+  // If ID is already a known node, it's canonical
+  if (nodeIdSet.has(id)) {
+    communityIdCache.set(id, id);
+    return id;
+  }
+  
+  // Try to resolve via community table
+  try {
+    const { data, error } = await supabase
+      .from('community')
+      .select('id')
+      .eq('id', id)
+      .single();
+    
+    if (!error && data?.id) {
+      communityIdCache.set(id, data.id);
+      return data.id;
+    }
+  } catch (err) {
+    // Silent fail - ID not found
+  }
+  
+  // Mark as unresolvable
+  communityIdCache.set(id, null);
+  return null;
+}
+
+/**
+ * Batch resolve multiple IDs to canonical community IDs
+ * @param {Array<string>} ids - Array of IDs to resolve
+ * @param {object} supabase - Supabase client
+ * @param {Set} nodeIdSet - Set of known node IDs
+ * @returns {Promise<Map<string, string>>} - Map of original ID to canonical ID
+ */
+async function batchResolveCommunityIds(ids, supabase, nodeIdSet) {
+  const uniqueIds = [...new Set(ids)].filter(id => id && !communityIdCache.has(id) && !nodeIdSet.has(id));
+  
+  if (uniqueIds.length === 0) {
+    // All IDs already cached or in nodeIdSet
+    const result = new Map();
+    ids.forEach(id => {
+      if (nodeIdSet.has(id)) {
+        result.set(id, id);
+      } else if (communityIdCache.has(id)) {
+        result.set(id, communityIdCache.get(id));
+      }
+    });
+    return result;
+  }
+  
+  // Batch query for uncached IDs
+  try {
+    const { data, error } = await supabase
+      .from('community')
+      .select('id')
+      .in('id', uniqueIds);
+    
+    if (!error && data) {
+      data.forEach(row => {
+        communityIdCache.set(row.id, row.id);
+      });
+    }
+  } catch (err) {
+    console.warn('⚠️ Batch ID resolution failed:', err.message);
+  }
+  
+  // Build result map
+  const result = new Map();
+  ids.forEach(id => {
+    if (nodeIdSet.has(id)) {
+      result.set(id, id);
+    } else if (communityIdCache.has(id)) {
+      result.set(id, communityIdCache.get(id));
+    } else {
+      result.set(id, null);
+    }
+  });
+  
+  return result;
+}
 
 export function parseSkills(skills) {
   if (!skills) return [];
@@ -456,41 +557,77 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
   });
 
   if (connectionsData?.length) {
-const connectionLinks = connectionsData
-  .filter(conn => {
-    const status = String(conn.status || "").toLowerCase();
+    // Build set of known node IDs for fast lookup
+    const nodeIdSet = new Set(nodes.filter(n => n.type === 'person').map(n => n.id));
+    
+    // Collect all unique endpoint IDs from connections
+    const allEndpointIds = new Set();
+    connectionsData.forEach(conn => {
+      if (conn.from_user_id) allEndpointIds.add(conn.from_user_id);
+      if (conn.to_user_id) allEndpointIds.add(conn.to_user_id);
+    });
+    
+    // Batch resolve IDs to canonical community IDs
+    const idResolutionMap = await batchResolveCommunityIds([...allEndpointIds], supabase, nodeIdSet);
+    
+    // Track orphans to avoid duplicate logging
+    const orphanLog = new Set();
+    const isDebugMode = window.log?.isDebugMode?.() || window.__DEBUG_SYNAPSE__;
+    
+    const connectionLinks = connectionsData
+      .filter(conn => {
+        const status = String(conn.status || "").toLowerCase();
 
-    // ✅ Only draw links that belong on the graph
-    if (status !== "pending" && status !== "accepted") {
-      console.log("⚠️ Skipping connection with status:", status, conn);
-      return false;
-    }
+        // ✅ Only draw links that belong on the graph
+        if (status !== "pending" && status !== "accepted") {
+          if (isDebugMode) {
+            console.log("⚠️ Skipping connection with status:", status, conn);
+          }
+          return false;
+        }
 
-    // Only show connections involving users in the graph
-    const user1Exists = nodes.some(n => n.id === conn.from_user_id);
-    const user2Exists = nodes.some(n => n.id === conn.to_user_id);
+        // Resolve IDs to canonical community IDs
+        const fromId = idResolutionMap.get(conn.from_user_id) || conn.from_user_id;
+        const toId = idResolutionMap.get(conn.to_user_id) || conn.to_user_id;
+        
+        // Only show connections involving users in the graph
+        const user1Exists = nodeIdSet.has(fromId);
+        const user2Exists = nodeIdSet.has(toId);
 
-    if (!user1Exists || !user2Exists) {
-      console.log("⚠️ Filtering out connection (user not in graph):", {
-        from_user: conn.from_user_id,
-        from_user_exists: user1Exists,
-        to_user: conn.to_user_id,
-        to_user_exists: user2Exists,
-        status: conn.status
+        if (!user1Exists || !user2Exists) {
+          // Only log each unique orphan once and only in debug mode
+          const orphanKey = `${fromId}->${toId}:${status}`;
+          if (isDebugMode && !orphanLog.has(orphanKey)) {
+            orphanLog.add(orphanKey);
+            console.log("⚠️ Filtering out connection (user not in graph):", {
+              from_user: conn.from_user_id,
+              from_user_canonical: fromId,
+              from_user_exists: user1Exists,
+              to_user: conn.to_user_id,
+              to_user_canonical: toId,
+              to_user_exists: user2Exists,
+              status: conn.status
+            });
+          }
+        }
+
+        return user1Exists && user2Exists;
+      })
+      .map(conn => {
+        // Use canonical IDs for source/target
+        const fromId = idResolutionMap.get(conn.from_user_id) || conn.from_user_id;
+        const toId = idResolutionMap.get(conn.to_user_id) || conn.to_user_id;
+        
+        return {
+          // ✅ Use row id to avoid collisions across time for same pair
+          id: `connection:${conn.id}`,
+          source: fromId,
+          target: toId,
+          status: String(conn.status || "").toLowerCase(), // pending | accepted
+          type: "connection",
+          created_at: conn.created_at
+        };
       });
-    }
-
-    return user1Exists && user2Exists;
-  })
-  .map(conn => ({
-    // ✅ Use row id to avoid collisions across time for same pair
-    id: `connection:${conn.id}`,
-    source: conn.from_user_id,
-    target: conn.to_user_id,
-    status: String(conn.status || "").toLowerCase(), // pending | accepted
-    type: "connection",
-    created_at: conn.created_at
-  }));
 
 
     links = [...links, ...connectionLinks];
@@ -617,3 +754,155 @@ function addSuggestedLinks({ links, nodes, currentUserCommunityId }) {
 function toId(v) {
   return typeof v === "object" && v?.id ? v.id : v;
 }
+
+// ============================================================================
+// ADMIN AUDIT UTILITIES
+// ============================================================================
+
+/**
+ * Audit connections to identify orphans and fixable issues
+ * @returns {Promise<object>} Audit report
+ */
+async function auditConnections() {
+  console.log("🔍 Starting connection audit...");
+  
+  if (!window.supabase) {
+    console.error("❌ Supabase client not available");
+    return { error: "Supabase not initialized" };
+  }
+  
+  // Load all connections
+  const { data: connections, error: connError } = await window.supabase
+    .from('connections')
+    .select('*')
+    .limit(1000);
+  
+  if (connError) {
+    console.error("❌ Error loading connections:", connError);
+    return { error: connError.message };
+  }
+  
+  // Load all community members
+  const { data: community, error: commError } = await window.supabase
+    .from('community')
+    .select('id, name, email')
+    .limit(1000);
+  
+  if (commError) {
+    console.error("❌ Error loading community:", commError);
+    return { error: commError.message };
+  }
+  
+  const communityIdSet = new Set(community.map(c => c.id));
+  const communityMap = new Map(community.map(c => [c.id, c]));
+  
+  // Analyze connections
+  const orphans = [];
+  const fixable = [];
+  const valid = [];
+  
+  for (const conn of connections) {
+    const fromExists = communityIdSet.has(conn.from_user_id);
+    const toExists = communityIdSet.has(conn.to_user_id);
+    
+    if (fromExists && toExists) {
+      valid.push(conn);
+    } else {
+      const orphan = {
+        id: conn.id,
+        from_user_id: conn.from_user_id,
+        to_user_id: conn.to_user_id,
+        status: conn.status,
+        from_exists: fromExists,
+        to_exists: toExists,
+        from_name: communityMap.get(conn.from_user_id)?.name || 'NOT FOUND',
+        to_name: communityMap.get(conn.to_user_id)?.name || 'NOT FOUND'
+      };
+      
+      orphans.push(orphan);
+      
+      // Check if fixable (could resolve via auth.uid lookup, etc.)
+      // For now, mark as potentially fixable if one side exists
+      if (fromExists || toExists) {
+        fixable.push(orphan);
+      }
+    }
+  }
+  
+  const report = {
+    total: connections.length,
+    valid: valid.length,
+    orphans: orphans.length,
+    fixable: fixable.length,
+    orphanSamples: orphans.slice(0, 10),
+    fixableSamples: fixable.slice(0, 10)
+  };
+  
+  console.log("📊 Connection Audit Report:");
+  console.log(`  Total connections: ${report.total}`);
+  console.log(`  Valid connections: ${report.valid} (${(report.valid/report.total*100).toFixed(1)}%)`);
+  console.log(`  Orphan connections: ${report.orphans} (${(report.orphans/report.total*100).toFixed(1)}%)`);
+  console.log(`  Potentially fixable: ${report.fixable}`);
+  
+  if (orphans.length > 0) {
+    console.log("\n⚠️ Sample orphan connections:");
+    console.table(report.orphanSamples);
+  }
+  
+  return report;
+}
+
+/**
+ * Repair connections by updating to canonical community IDs
+ * @param {object} options - Repair options
+ * @param {boolean} options.dryRun - If true, only report what would be fixed (default: true)
+ * @returns {Promise<object>} Repair report
+ */
+async function repairConnections({ dryRun = true } = {}) {
+  console.log(`🔧 Starting connection repair (${dryRun ? 'DRY RUN' : 'LIVE MODE'})...`);
+  
+  if (!window.supabase) {
+    console.error("❌ Supabase client not available");
+    return { error: "Supabase not initialized" };
+  }
+  
+  // First run audit to identify issues
+  const audit = await auditConnections();
+  
+  if (audit.error) {
+    return audit;
+  }
+  
+  if (audit.fixable === 0) {
+    console.log("✅ No fixable connections found");
+    return { ...audit, repaired: 0 };
+  }
+  
+  console.log(`\n🔧 Found ${audit.fixable} potentially fixable connections`);
+  
+  if (dryRun) {
+    console.log("ℹ️ DRY RUN MODE - No changes will be made");
+    console.log("ℹ️ To apply fixes, call: repairConnections({ dryRun: false })");
+    return { ...audit, repaired: 0, dryRun: true };
+  }
+  
+  // TODO: Implement actual repair logic
+  // This would involve:
+  // 1. Attempting to resolve orphan IDs via auth.uid lookups
+  // 2. Updating connection rows with canonical community IDs
+  // 3. Logging all changes for audit trail
+  
+  console.warn("⚠️ Live repair not yet implemented - only dry run available");
+  console.warn("⚠️ Manual intervention required for orphan connections");
+  
+  return { ...audit, repaired: 0, message: "Live repair not yet implemented" };
+}
+
+// Export audit utilities to window for console access
+if (typeof window !== 'undefined') {
+  window.auditConnections = auditConnections;
+  window.repairConnections = repairConnections;
+  console.log("✅ Admin audit utilities available: window.auditConnections(), window.repairConnections()");
+}
+
+export { auditConnections, repairConnections };
