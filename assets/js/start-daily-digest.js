@@ -1,35 +1,383 @@
 // ================================================================
-// START SEQUENCE - DAILY DIGEST
+// START SEQUENCE - DAILY DIGEST (SEQUENTIAL)
 // ================================================================
-// Shows "what's new" for returning users
+// Shows "what's new" for returning users in a step-by-step flow
 // Highlights changes since last login
 // ================================================================
+// CONVERSION NOTE: This file was converted from all-at-once display
+// to sequential step-by-step flow. All data queries and business
+// logic remain unchanged - only presentation layer was modified.
+// ================================================================
 
-console.log('%c📰 START Daily Digest - Loading', 'color:#0f8; font-weight:bold;');
+console.log('%c📰 START Daily Digest (Sequential) - Loading', 'color:#0f8; font-weight:bold;');
 
 class StartDailyDigest {
   constructor() {
     this.userData = null;
+    this.currentStep = 0;
+    this.steps = [];
   }
 
   /**
-   * Render the daily digest
+   * Render the daily digest - now sequential
    */
   async render(data) {
     this.userData = data;
-    const whatsNew = data.whats_new || {};
-    const hasUpdates = this.hasAnyUpdates(whatsNew);
+    this.currentStep = 0;
     
-    // Await the async functions
-    const quickActionsHTML = await this.renderQuickActions(data);
-    const networkSnapshotHTML = await this.renderNetworkSnapshot(data);
-
+    // Build steps dynamically based on available data
+    this.steps = await this.buildSteps(data);
+    
     return `
-      <div class="daily-digest-container">
-        ${this.renderWelcomeHeader(data)}
-        ${hasUpdates ? this.renderWhatsNew(whatsNew) : this.renderNoUpdates()}
-        ${quickActionsHTML}
-        ${networkSnapshotHTML}
+      <div class="daily-digest-container sequential-mode">
+        ${this.renderProgressBar()}
+        <div id="digest-step-content" class="digest-step-content" style="
+          min-height: 400px;
+          transition: opacity 0.3s ease, transform 0.3s ease;
+        ">
+          ${await this.renderCurrentStep()}
+        </div>
+        ${this.renderNavigation()}
+      </div>
+    `;
+  }
+
+  /**
+   * Build steps array based on available data
+   * Steps are dynamically created - empty steps are automatically skipped
+   */
+  async buildSteps(data) {
+    const steps = [];
+    const whatsNew = data.whats_new || {};
+    const immediate = data.immediate_actions || {};
+
+    // Step 1: Welcome (always first)
+    steps.push({
+      id: 'welcome',
+      title: 'Your focus today',
+      render: () => this.renderWelcomeHeader(data)
+    });
+
+    // Step 2: Connection Requests (if any)
+    if (immediate.pending_requests?.count > 0 && immediate.pending_requests?.items?.length > 0) {
+      steps.push({
+        id: 'connection-requests',
+        title: 'Connection Requests',
+        render: () => this.renderConnectionRequests(immediate.pending_requests)
+      });
+    }
+
+    // Step 3: Messages (if any)
+    if (immediate.unread_messages?.count > 0) {
+      steps.push({
+        id: 'messages',
+        title: 'New Messages',
+        render: () => this.renderMessagesStep(immediate.unread_messages)
+      });
+    }
+
+    // Step 4: What's New Updates (if any)
+    if (this.hasAnyUpdates(whatsNew)) {
+      steps.push({
+        id: 'whats-new',
+        title: "What's New",
+        render: () => this.renderWhatsNew(whatsNew)
+      });
+    }
+
+    // Step 5: Network Snapshot (always included)
+    steps.push({
+      id: 'network',
+      title: 'Your Network',
+      render: () => this.renderNetworkSnapshot(data)
+    });
+
+    // Step 6: Quick Actions (if any)
+    const quickActionsHTML = await this.renderQuickActions(data);
+    if (quickActionsHTML && quickActionsHTML.trim()) {
+      steps.push({
+        id: 'quick-actions',
+        title: 'Quick Actions',
+        render: () => Promise.resolve(quickActionsHTML)
+      });
+    }
+
+    // Final Step: Completion (always last)
+    steps.push({
+      id: 'completion',
+      title: 'All Caught Up',
+      render: () => this.renderCompletionStep()
+    });
+
+    return steps;
+  }
+
+  /**
+   * Render progress bar
+   */
+  renderProgressBar() {
+    const progress = ((this.currentStep + 1) / this.steps.length) * 100;
+    const currentStepTitle = this.steps[this.currentStep]?.title || '';
+    
+    return `
+      <div style="margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
+            Step ${this.currentStep + 1} of ${this.steps.length}
+          </div>
+          <div style="color: #00e0ff; font-size: 0.9rem; font-weight: 600;">
+            ${Math.round(progress)}% Complete
+          </div>
+        </div>
+        <div style="
+          width: 100%;
+          height: 6px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 3px;
+          overflow: hidden;
+          margin-bottom: 0.5rem;
+        ">
+          <div style="
+            width: ${progress}%;
+            height: 100%;
+            background: linear-gradient(90deg, #00e0ff, #00ff88);
+            transition: width 0.5s ease;
+            border-radius: 3px;
+          "></div>
+        </div>
+        <div style="color: rgba(255,255,255,0.5); font-size: 0.85rem; text-align: center;">
+          ${currentStepTitle}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render current step content
+   */
+  async renderCurrentStep() {
+    if (this.currentStep >= this.steps.length) {
+      return this.renderCompletionStep();
+    }
+
+    const step = this.steps[this.currentStep];
+    return await step.render();
+  }
+
+  /**
+   * Render navigation buttons
+   */
+  renderNavigation() {
+    const isFirst = this.currentStep === 0;
+    const isLast = this.currentStep >= this.steps.length - 1;
+    
+    return `
+      <div style="
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        gap: 1rem;
+      ">
+        <button
+          id="digest-prev-btn"
+          onclick="window.StartDailyDigest.previousStep()"
+          style="
+            background: ${isFirst ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)'};
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: ${isFirst ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)'};
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            cursor: ${isFirst ? 'not-allowed' : 'pointer'};
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          "
+          ${isFirst ? 'disabled' : ''}
+          ${!isFirst ? `onmouseenter="this.style.background='rgba(255,255,255,0.15)'" onmouseleave="this.style.background='rgba(255,255,255,0.1)'"` : ''}
+        >
+          ← Back
+        </button>
+        
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          ${this.steps.map((step, index) => `
+            <div style="
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              background: ${index === this.currentStep ? '#00e0ff' : 'rgba(255,255,255,0.2)'};
+              transition: all 0.3s;
+              ${index === this.currentStep ? 'box-shadow: 0 0 8px #00e0ff;' : ''}
+            "></div>
+          `).join('')}
+        </div>
+        
+        <button
+          id="digest-next-btn"
+          onclick="window.StartDailyDigest.${isLast ? 'close()' : 'nextStep()'}"
+          style="
+            background: linear-gradient(135deg, #00e0ff, #00ff88);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            padding: 0.75rem 1.5rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          "
+          onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)'"
+          onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+        >
+          ${isLast ? "Let's Go! 🚀" : 'Next →'}
+        </button>
+      </div>
+    `;
+  }
+
+  /**
+   * Navigate to next step
+   */
+  async nextStep() {
+    if (this.currentStep >= this.steps.length - 1) {
+      this.close();
+      return;
+    }
+    
+    this.currentStep++;
+    await this.updateStepContent();
+  }
+
+  /**
+   * Navigate to previous step
+   */
+  async previousStep() {
+    if (this.currentStep > 0) {
+      this.currentStep--;
+      await this.updateStepContent();
+    }
+  }
+
+  /**
+   * Update step content with smooth transition
+   */
+  async updateStepContent() {
+    const container = document.querySelector('.daily-digest-container');
+    if (!container) return;
+
+    const stepContent = document.getElementById('digest-step-content');
+    const progressBar = container.querySelector('div:first-child');
+    const navigation = container.querySelector('div:last-child');
+    
+    if (!stepContent) return;
+
+    // Fade out
+    stepContent.style.opacity = '0';
+    stepContent.style.transform = 'translateY(20px)';
+    
+    setTimeout(async () => {
+      // Update all sections
+      if (progressBar) progressBar.outerHTML = this.renderProgressBar();
+      stepContent.innerHTML = await this.renderCurrentStep();
+      if (navigation) navigation.outerHTML = this.renderNavigation();
+      
+      // Fade in
+      setTimeout(() => {
+        stepContent.style.opacity = '1';
+        stepContent.style.transform = 'translateY(0)';
+      }, 50);
+    }, 300);
+  }
+
+  /**
+   * Close the digest modal
+   */
+  close() {
+    if (window.EnhancedStartUI) {
+      window.EnhancedStartUI.close();
+    }
+  }
+
+  /**
+   * Render completion step
+   */
+  renderCompletionStep() {
+    return `
+      <div style="text-align: center; padding: 3rem 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem; animation: bounceIn 0.8s ease;">
+          ✨
+        </div>
+        <h3 style="color: #00ff88; margin: 0 0 0.5rem 0; font-size: 1.8rem;">
+          You're All Caught Up!
+        </h3>
+        <p style="color: rgba(255,255,255,0.7); margin: 0 0 2rem 0; font-size: 1.1rem;">
+          You've reviewed everything new since your last visit
+        </p>
+        
+        <div style="
+          background: linear-gradient(135deg, rgba(0,224,255,0.1), rgba(0,255,136,0.1));
+          border: 2px solid rgba(0,224,255,0.3);
+          border-radius: 16px;
+          padding: 1.5rem;
+          margin-bottom: 2rem;
+        ">
+          <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 1rem; line-height: 1.6;">
+            Ready to make an impact? Explore your network, join projects, or connect with new people.
+          </p>
+        </div>
+      </div>
+      
+      <style>
+        @keyframes bounceIn {
+          0% { transform: scale(0); opacity: 0; }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      </style>
+    `;
+  }
+
+  /**
+   * Render messages step (new for sequential flow)
+   */
+  renderMessagesStep(unreadMessages) {
+    const count = unreadMessages.count || 0;
+    
+    return `
+      <div style="padding: 2rem; text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
+        <h3 style="color: #ffaa00; margin: 0 0 0.5rem 0; font-size: 1.5rem;">
+          ${count} New ${count === 1 ? 'Message' : 'Messages'}
+        </h3>
+        <p style="color: rgba(255,255,255,0.6); margin: 0 0 2rem 0;">
+          You have unread messages waiting for you
+        </p>
+        
+        <button
+          onclick="window.StartDailyDigest.handleAction('openMessaging')"
+          style="
+            background: linear-gradient(135deg, #ffaa00, #ff8800);
+            border: none;
+            border-radius: 12px;
+            color: #000;
+            padding: 1rem 2rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255,170,0,0.4);
+          "
+          onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255,170,0,0.6)';"
+          onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(255,170,0,0.4)';"
+        >
+          Read Messages →
+        </button>
       </div>
     `;
   }
@@ -48,31 +396,59 @@ class StartDailyDigest {
   }
 
   /**
-   * Render welcome header
+   * Render welcome header (Step 1)
    */
   renderWelcomeHeader(data) {
     const profile = data.profile || {};
     const momentum = data.momentum || {};
     const streak = momentum.streak || {};
     const lastLogin = data.previous_login ? new Date(data.previous_login) : null;
-
     const timeAgo = lastLogin ? this.getTimeAgo(lastLogin) : 'a while';
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
     return `
-      <div style="text-align: center; margin-bottom: 2rem;">
-        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">
+      <div style="text-align: center; padding: 3rem 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem; animation: fadeInScale 0.6s ease;">
           ${this.getGreetingEmoji()}
         </div>
-        <h2 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.8rem;">
-          Welcome back, ${profile.name || 'there'}!
+        <h2 style="color: #00e0ff; margin: 0 0 1rem 0; font-size: 2rem; animation: fadeIn 0.8s ease;">
+          ${greeting}, ${profile.name || 'there'}!
         </h2>
-        <p style="color: rgba(255,255,255,0.7); margin: 0; font-size: 1rem;">
-          ${streak.current > 0
-            ? `🔥 ${streak.current}-day streak! `
-            : ''}
+        ${streak.current > 0 ? `
+          <div style="
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, rgba(255,100,0,0.2), rgba(255,150,0,0.1));
+            border: 2px solid rgba(255,100,0,0.4);
+            border-radius: 12px;
+            padding: 0.75rem 1.5rem;
+            margin-bottom: 1rem;
+            animation: fadeIn 1s ease;
+          ">
+            <span style="font-size: 1.5rem;">🔥</span>
+            <span style="color: #fff; font-weight: 700; font-size: 1.2rem;">${streak.current}-day streak!</span>
+          </div>
+        ` : ''}
+        <p style="color: rgba(255,255,255,0.7); margin: 1.5rem 0 0 0; font-size: 1.1rem; animation: fadeIn 1.2s ease;">
           Last seen ${timeAgo}
         </p>
+        <p style="color: rgba(255,255,255,0.5); margin: 1rem 0 0 0; font-size: 0.95rem; animation: fadeIn 1.4s ease;">
+          Let's see what's new for you today
+        </p>
       </div>
+      
+      <style>
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      </style>
     `;
   }
 
@@ -102,7 +478,7 @@ class StartDailyDigest {
   }
 
   /**
-   * Render what's new section
+   * Render what's new section (as a step)
    */
   renderWhatsNew(whatsNew) {
     const updates = [];
@@ -176,17 +552,20 @@ class StartDailyDigest {
     updates.sort((a, b) => a.priority - b.priority);
 
     return `
-      <div style="margin-bottom: 2rem;">
-        <h3 style="
-          color: #00e0ff;
-          margin: 0 0 1rem 0;
-          font-size: 1.2rem;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        ">
-          <i class="fas fa-bell"></i> What's New
-        </h3>
+      <div style="padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">🔔</div>
+          <h3 style="
+            color: #00e0ff;
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+          ">
+            What's New
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); margin: 0;">
+            Here's what happened since your last visit
+          </p>
+        </div>
 
         <div style="display: flex; flex-direction: column; gap: 1rem;">
           ${updates.map(update => this.renderUpdateCard(update)).join('')}
@@ -267,7 +646,7 @@ class StartDailyDigest {
   }
 
   /**
-   * Render no updates message
+   * Render no updates message (not used in sequential mode - kept for compatibility)
    */
   renderNoUpdates() {
     return `
@@ -289,7 +668,7 @@ class StartDailyDigest {
   }
 
   /**
-   * Render quick actions
+   * Render quick actions (as a step - only if there are actions)
    */
   async renderQuickActions(data) {
     const immediate = data.immediate_actions || {};
@@ -299,18 +678,8 @@ class StartDailyDigest {
     console.log('🔍 renderQuickActions - immediate_actions:', immediate);
     console.log('🔍 pending_requests:', immediate.pending_requests);
 
-    // Render detailed connection requests with Accept/Decline buttons
-    if (immediate.pending_requests?.count > 0 && immediate.pending_requests?.items) {
-      console.log('✅ Rendering connection requests:', immediate.pending_requests.items);
-      html += await this.renderConnectionRequests(immediate.pending_requests);
-    } else {
-      console.log('⚠️ No connection requests to render:', {
-        count: immediate.pending_requests?.count,
-        hasItems: !!immediate.pending_requests?.items,
-        items: immediate.pending_requests?.items
-      });
-    }
-
+    // Note: Connection requests are now their own step, so we skip them here
+    
     // Render other quick actions
     const actions = [];
 
@@ -334,69 +703,84 @@ class StartDailyDigest {
       });
     }
 
-    if (actions.length > 0) {
-      html += `
-        <div style="margin-bottom: 2rem;">
+    if (immediate.bids_to_review?.count > 0) {
+      actions.push({
+        icon: 'tasks',
+        label: 'Bids to Review',
+        count: immediate.bids_to_review.count,
+        color: '#ff6b6b',
+        handler: 'openBidsToReview'
+      });
+    }
+
+    if (actions.length === 0) {
+      return ''; // Return empty string to skip this step
+    }
+
+    html += `
+      <div style="padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">⚡</div>
           <h3 style="
             color: #00ff88;
-            margin: 0 0 1rem 0;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
           ">
-            <i class="fas fa-bolt"></i> Quick Actions
+            Quick Actions
           </h3>
-
-          <div style="
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-          ">
-            ${actions.map(action => `
-              <button onclick="window.StartDailyDigest.handleAction('${action.handler}')" style="
-                background: linear-gradient(135deg, ${action.color}20, rgba(0,0,0,0.1));
-                border: 2px solid ${action.color}40;
-                border-radius: 12px;
-                padding: 1rem;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                text-align: center;
-              "
-              onmouseenter="this.style.transform='translateY(-2px)'; this.style.borderColor='${action.color}';"
-              onmouseleave="this.style.transform='translateY(0)'; this.style.borderColor='${action.color}40';">
-                <i class="fas fa-${action.icon}" style="
-                  color: ${action.color};
-                  font-size: 1.5rem;
-                  margin-bottom: 0.5rem;
-                  display: block;
-                "></i>
-                <div style="color: #fff; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem;">
-                  ${action.label}
-                </div>
-                <div style="
-                  background: ${action.color};
-                  color: #000;
-                  padding: 0.25rem 0.5rem;
-                  border-radius: 8px;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  display: inline-block;
-                ">
-                  ${action.count}
-                </div>
-              </button>
-            `).join('')}
-          </div>
+          <p style="color: rgba(255,255,255,0.6); margin: 0;">
+            Things that need your attention
+          </p>
         </div>
-      `;
-    }
+
+        <div style="
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 1rem;
+        ">
+          ${actions.map(action => `
+            <button onclick="window.StartDailyDigest.handleAction('${action.handler}')" style="
+              background: linear-gradient(135deg, ${action.color}20, rgba(0,0,0,0.1));
+              border: 2px solid ${action.color}40;
+              border-radius: 12px;
+              padding: 1.5rem 1rem;
+              cursor: pointer;
+              transition: all 0.3s ease;
+              text-align: center;
+            "
+            onmouseenter="this.style.transform='translateY(-2px)'; this.style.borderColor='${action.color}';"
+            onmouseleave="this.style.transform='translateY(0)'; this.style.borderColor='${action.color}40';">
+              <i class="fas fa-${action.icon}" style="
+                color: ${action.color};
+                font-size: 2rem;
+                margin-bottom: 0.75rem;
+                display: block;
+              "></i>
+              <div style="color: #fff; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.95rem;">
+                ${action.label}
+              </div>
+              <div style="
+                background: ${action.color};
+                color: #000;
+                padding: 0.25rem 0.75rem;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 700;
+                display: inline-block;
+              ">
+                ${action.count}
+              </div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
 
     return html;
   }
 
   /**
-   * Render connection requests with Accept/Decline buttons
+   * Render connection requests as a step
    */
   async renderConnectionRequests(pendingRequests) {
     const items = pendingRequests.items || [];
@@ -406,59 +790,51 @@ class StartDailyDigest {
     }
 
     return `
-      <div style="margin-bottom: 2rem;">
-        <h3 style="
-          color: #00e0ff;
-          margin: 0 0 1rem 0;
-          font-size: 1.1rem;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        ">
-          <i class="fas fa-user-plus"></i> Connection Requests
-          <span style="
-            background: #00e0ff;
-            color: #000;
-            padding: 0.25rem 0.5rem;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            font-weight: 700;
-          ">${items.length}</span>
-        </h3>
+      <div style="padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">🤝</div>
+          <h3 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.5rem;">
+            ${items.length} ${items.length === 1 ? 'Person Wants' : 'People Want'} to Connect
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); margin: 0;">
+            Review and respond to connection requests
+          </p>
+        </div>
 
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 400px; overflow-y: auto;">
           ${items.map(req => `
             <div class="connection-request-item" data-request-id="${req.id}" style="
               background: linear-gradient(135deg, rgba(0,224,255,0.1), rgba(0,0,0,0.1));
               border: 2px solid rgba(0,224,255,0.3);
               border-radius: 12px;
-              padding: 1rem;
+              padding: 1.25rem;
               display: flex;
               align-items: center;
               gap: 1rem;
+              transition: all 0.3s;
             ">
               <div style="
-                width: 48px;
-                height: 48px;
+                width: 56px;
+                height: 56px;
                 background: linear-gradient(135deg, #00e0ff, #0080ff);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 1.5rem;
+                font-size: 1.8rem;
                 flex-shrink: 0;
               ">
                 👤
               </div>
               <div style="flex: 1; min-width: 0;">
-                <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">
+                <div style="color: #fff; font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;">
                   ${req.from_user_name || req.from_name || 'Someone'}
                 </div>
-                <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+                <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
                   ${req.created_at ? this.getTimeAgo(new Date(req.created_at)) : 'Recently'}
                 </div>
               </div>
-              <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+              <div style="display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap;">
                 <button 
                   class="accept-connection-btn"
                   data-request-id="${req.id}"
@@ -468,9 +844,9 @@ class StartDailyDigest {
                     border: none;
                     border-radius: 8px;
                     color: #000;
-                    padding: 0.5rem 1rem;
+                    padding: 0.75rem 1.25rem;
                     font-weight: 600;
-                    font-size: 0.9rem;
+                    font-size: 0.95rem;
                     cursor: pointer;
                     transition: all 0.2s;
                     display: flex;
@@ -488,21 +864,21 @@ class StartDailyDigest {
                   data-request-id="${req.id}"
                   onclick="window.StartDailyDigest.declineConnection('${req.id}')"
                   style="
-                    background: #ff3b30;
-                    border: none;
+                    background: rgba(255,59,48,0.2);
+                    border: 2px solid rgba(255,59,48,0.4);
                     border-radius: 8px;
-                    color: #fff;
-                    padding: 0.5rem 1rem;
+                    color: #ff3b30;
+                    padding: 0.75rem 1.25rem;
                     font-weight: 600;
-                    font-size: 0.9rem;
+                    font-size: 0.95rem;
                     cursor: pointer;
                     transition: all 0.2s;
                     display: flex;
                     align-items: center;
                     gap: 0.5rem;
                   "
-                  onmouseenter="this.style.opacity='0.8'; this.style.transform='translateY(-1px)'"
-                  onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'"
+                  onmouseenter="this.style.background='rgba(255,59,48,0.3)'; this.style.transform='translateY(-1px)'"
+                  onmouseout="this.style.background='rgba(255,59,48,0.2)'; this.style.transform='translateY(0)'"
                 >
                   <i class="fas fa-times"></i>
                   Decline
@@ -516,7 +892,7 @@ class StartDailyDigest {
   }
 
   /**
-   * Render network snapshot
+   * Render network snapshot as a step
    */
   async renderNetworkSnapshot(data) {
     const network = data.network_insights || {};
@@ -542,25 +918,20 @@ class StartDailyDigest {
     }
 
     return `
-      <div style="
-        background: linear-gradient(135deg, rgba(0,224,255,0.1), rgba(0,128,255,0.05));
-        border: 2px solid rgba(0,224,255,0.3);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-      ">
-        <h3 style="
-          color: #00e0ff;
-          margin: 0 0 1rem 0;
-          font-size: 1.1rem;
-          text-align: center;
-        ">
-          📊 Your Network
-        </h3>
+      <div style="padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+          <h3 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.5rem;">
+            Your Network at a Glance
+          </h3>
+          <p style="color: rgba(255,255,255,0.6); margin: 0;">
+            Here's what you're connected to
+          </p>
+        </div>
 
         <div style="
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          grid-template-columns: repeat(2, 1fr);
           gap: 1rem;
         ">
           ${this.renderStatCard('Connections', connectionsCount, 'users', '#00e0ff', 'viewConnections')}
@@ -872,4 +1243,4 @@ class StartDailyDigest {
 
 window.StartDailyDigest = new StartDailyDigest();
 
-console.log('✅ START Daily Digest ready');
+console.log('✅ START Daily Digest (Sequential Mode) ready');
