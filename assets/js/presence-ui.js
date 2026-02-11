@@ -122,6 +122,13 @@
   }
 
   /**
+   * Update presence for a specific user (alias for backward compatibility)
+   */
+  function updatePresenceForUser(userId) {
+    updateIndicatorsForUser(userId);
+  }
+
+  /**
    * Update a presence dot element
    */
   function updatePresenceDot(element, userId) {
@@ -246,6 +253,7 @@
     init,
     updateAllIndicators,
     updateIndicatorsForUser,
+    updatePresenceForUser, // Backward compatibility
     createPresenceDot,
     addPresenceDotToAvatar,
     getTimeAgo,
