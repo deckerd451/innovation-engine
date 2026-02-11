@@ -17,7 +17,7 @@
 
   const GUARD = '__CH_PRESENCE_SESSION_MANAGER_LOADED__';
   if (window[GUARD]) {
-    console.log('⚠️ Presence session manager already loaded');
+    // Already loaded, exit silently
     return;
   }
   window[GUARD] = true;
@@ -71,6 +71,9 @@
     }
   };
 
-  console.log('✅ Presence session manager (deprecated stub) loaded');
+  // Only log in debug mode
+  if (isDebug) {
+    console.log('✅ Presence session manager (deprecated stub) loaded');
+  }
 
 })();
