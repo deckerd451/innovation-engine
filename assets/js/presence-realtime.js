@@ -120,18 +120,13 @@
       return null;
     }
 
-    console.log('🔌 [Presence] Creating Realtime Presence channel');
+    console.log('🔌 [Presence] Creating Realtime Presence channel for profile:', profileId);
 
     // Use internal channel method if dev guard is active
     const channelFn = supabaseClient._internalChannel || supabaseClient.channel;
     
-    presenceChannel = channelFn.call(supabaseClient, CONFIG.CHANNEL_NAME, {
-      config: {
-        presence: {
-          key: profileId, // Use community.id as identity key
-        },
-      },
-    });
+    // Create channel WITHOUT presence config (we'll set key in track())
+    presenceChannel = channelFn.call(supabaseClient, CONFIG.CHANNEL_NAME);
 
     // Track presence state
     presenceChannel
@@ -152,12 +147,13 @@
           isRealtimeConnected = true;
           console.log('✅ [Presence] Realtime connected');
           console.log('📊 [Presence] Mode: Realtime (ephemeral)');
+          console.log('🆔 [Presence] Tracking with profile ID:', profileId);
           
-          // Track current user as online
+          // Track current user as online with explicit key
           await presenceChannel.track({
             profile_id: profileId,
             online_at: new Date().toISOString(),
-          });
+          }, { key: profileId }); // IMPORTANT: Set key explicitly
           
           // Cancel mobile fallback
           if (pollingInterval) {
@@ -368,7 +364,7 @@
         presenceChannel.track({
           profile_id: communityProfileId,
           online_at: new Date().toISOString(),
-        });
+        }, { key: communityProfileId }); // IMPORTANT: Set key explicitly
       }
     }
   }
