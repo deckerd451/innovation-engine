@@ -22,25 +22,52 @@
   }
   window[GUARD] = true;
 
-  console.warn('⚠️ [DEPRECATED] presence-session-manager.js is deprecated. Use presence-realtime.js instead.');
+  // Only log deprecation warning in debug mode
+  const isDebug = window.log?.isDebugMode?.() || 
+                  localStorage.getItem('DEBUG') === '1' || 
+                  window.location.search.includes('debug=1');
+  
+  if (isDebug) {
+    console.warn('⚠️ [DEPRECATED] presence-session-manager.js is deprecated. Use presence-realtime.js instead.');
+  }
 
-  // Stub API for backward compatibility
+  // Stub API for backward compatibility - delegate to PresenceRealtime if available
   window.PresenceSessionManager = {
     initialize: () => {
-      console.warn('⚠️ PresenceSessionManager.initialize() is deprecated. Use PresenceRealtime.initialize() instead.');
+      if (isDebug) {
+        console.warn('⚠️ PresenceSessionManager.initialize() is deprecated. Use PresenceRealtime.initialize() instead.');
+      }
+      // Delegate to PresenceRealtime if available
+      if (window.PresenceRealtime?.initialize) {
+        return window.PresenceRealtime.initialize(...arguments);
+      }
     },
     cleanup: () => {
-      console.warn('⚠️ PresenceSessionManager.cleanup() is deprecated. Use PresenceRealtime.cleanup() instead.');
+      if (isDebug) {
+        console.warn('⚠️ PresenceSessionManager.cleanup() is deprecated. Use PresenceRealtime.cleanup() instead.');
+      }
+      if (window.PresenceRealtime?.cleanup) {
+        return window.PresenceRealtime.cleanup();
+      }
     },
     getSessionInfo: () => {
-      console.warn('⚠️ PresenceSessionManager.getSessionInfo() is deprecated. Use PresenceRealtime.getDebugInfo() instead.');
+      if (isDebug) {
+        console.warn('⚠️ PresenceSessionManager.getSessionInfo() is deprecated. Use PresenceRealtime.getDebugInfo() instead.');
+      }
+      if (window.PresenceRealtime?.getDebugInfo) {
+        return window.PresenceRealtime.getDebugInfo();
+      }
       return { sessionId: null, communityProfileId: null, isActive: false };
     },
     markActive: () => {
-      console.warn('⚠️ PresenceSessionManager.markActive() is deprecated.');
+      if (isDebug) {
+        console.warn('⚠️ PresenceSessionManager.markActive() is deprecated.');
+      }
     },
     markInactive: () => {
-      console.warn('⚠️ PresenceSessionManager.markInactive() is deprecated.');
+      if (isDebug) {
+        console.warn('⚠️ PresenceSessionManager.markInactive() is deprecated.');
+      }
     }
   };
 

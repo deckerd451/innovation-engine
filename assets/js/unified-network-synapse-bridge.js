@@ -22,7 +22,8 @@ let bridgeState = {
   eventListeners: [],
   initAttempts: 0,
   maxAttempts: 10,
-  preventCircularEmit: false // Prevent infinite event loops
+  preventCircularEmit: false, // Prevent infinite event loops
+  alreadyInitializedLogged: false // Track if we've logged "already initialized" once
 };
 
 /**
@@ -56,7 +57,11 @@ function checkSystemAvailability() {
  */
 export function initSynapseBridge() {
   if (bridgeState.initialized) {
-    logger.warn('SynapseBridge', 'Already initialized');
+    // Only log once per page load, and at debug level
+    if (!bridgeState.alreadyInitializedLogged) {
+      bridgeState.alreadyInitializedLogged = true;
+      logger.debug('SynapseBridge', 'Already initialized');
+    }
     return true;
   }
   

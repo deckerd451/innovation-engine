@@ -59,6 +59,9 @@ export class GraphDataStore {
       nodes.forEach(node => this._nodes.set(node.id, node));
       this._edges = edges;
 
+      // Mark nodes as "My Network" based on connections
+      await this._markMyNetworkNodes();
+
       console.log(`✅ Loaded ${nodes.length} nodes and ${edges.length} edges`);
 
       return { nodes, edges };
@@ -71,6 +74,105 @@ export class GraphDataStore {
         edges: this._edges
       };
     }
+  }
+
+  /**
+   * Mark nodes as "My Network" based on connections
+   * @private
+   */
+  async _markMyNetworkNodes() {
+    // Current user is always in their network
+    const currentUserNode = this._nodes.get(this._userId);
+    if (currentUserNode) {
+      currentUserNode.isMyNetwork = true;
+    }
+
+    // Get user's connections
+    const { data: userConnections, error } = await this._supabase
+      .from('connections')
+      .select('from_user_id, to_user_id')
+      .or(`from_user_id.eq.${this._userId},to_user_id.eq.${this._userId}`)
+      .eq('status', 'accepted');
+
+    if (error) {
+      console.error('Error loading user connections for My Network:', error);
+      return;
+    }
+
+    // Mark connected users as "My Network"
+    if (userConnections) {
+      userConnections.forEach(conn => {
+        const connectedUserId = conn.from_user_id === this._userId 
+          ? conn.to_user_id 
+          : conn.from_user_id;
+        
+        const node = this._nodes.get(connectedUserId);
+        if (node) {
+          node.isMyNetwork = true;
+        }
+      });
+    }
+
+    // Get user's project memberships
+    const { data: userProjects, error: projError } = await this._supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', this._userId);
+
+    if (!projError && userProjects) {
+      const projectIds = userProjects.map(p => p.project_id);
+      
+      if (projectIds.length > 0) {
+        // Get all members of these projects
+        const { data: projectMembers, error: pmError } = await this._supabase
+          .from('project_members')
+          .select('user_id')
+          .in('project_id', projectIds);
+
+        if (!pmError && projectMembers) {
+          projectMembers.forEach(pm => {
+            const node = this._nodes.get(pm.user_id);
+            if (node && pm.user_id !== this._userId) {
+              node.isMyNetwork = true;
+            }
+          });
+        }
+      }
+    }
+
+    // Get user's organization memberships
+    const { data: userOrgs, error: orgError } = await this._supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', this._userId);
+
+    if (!orgError && userOrgs) {
+      const orgIds = userOrgs.map(o => o.organization_id);
+      
+      if (orgIds.length > 0) {
+        // Get all members of these organizations
+        const { data: orgMembers, error: omError } = await this._supabase
+          .from('organization_members')
+          .select('user_id')
+          .in('organization_id', orgIds);
+
+        if (!omError && orgMembers) {
+          orgMembers.forEach(om => {
+            const node = this._nodes.get(om.user_id);
+            if (node && om.user_id !== this._userId) {
+              node.isMyNetwork = true;
+            }
+          });
+        }
+      }
+    }
+
+    // All other nodes are "Discovery"
+    this._nodes.forEach(node => {
+      if (!node.isMyNetwork) {
+        node.isDiscovery = true;
+      }
+    });
   }
 
   /**
@@ -125,24 +227,144 @@ export class GraphDataStore {
    * @private
    */
   async _loadEdges() {
-    const { data, error } = await this._supabase
-      .from('connections')
-      .select('*')
-      .or(`from_user_id.eq.${this._userId},to_user_id.eq.${this._userId}`);
+    const edges = [];
+    
+    // 1. Load connection edges (all connections, not just user's)
+    try {
+      const { data: connections, error: connError } = await this._supabase
+        .from('connections')
+        .select('*')
+        .eq('status', 'accepted'); // Only accepted connections create visible edges
 
-    if (error) {
-      console.error('Error loading edges:', error);
-      return [];
+      if (connError) {
+        console.error('Error loading connection edges:', connError);
+      } else if (connections) {
+        // Check if both nodes exist before adding edge
+        connections.forEach(conn => {
+          const fromExists = this._nodes.has(conn.from_user_id);
+          const toExists = this._nodes.has(conn.to_user_id);
+          
+          if (fromExists && toExists) {
+            edges.push({
+              source: conn.from_user_id,
+              target: conn.to_user_id,
+              type: 'connection',
+              strength: 0.5,
+              createdAt: new Date(conn.created_at)
+            });
+          } else {
+            // Only log in debug mode
+            if (window.log?.isDebugMode?.()) {
+              console.debug(`Skipping connection edge: from_user_exists: ${fromExists}, to_user_exists: ${toExists}`);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Error loading connections:', e);
     }
 
-    // Transform to edge format
-    return data.map(conn => ({
-      source: conn.from_user_id,
-      target: conn.to_user_id,
-      type: 'connection',
-      strength: 0.5,
-      createdAt: new Date(conn.created_at)
-    }));
+    // 2. Load project membership edges
+    try {
+      const { data: projectMembers, error: pmError } = await this._supabase
+        .from('project_members')
+        .select('project_id, user_id');
+
+      if (pmError) {
+        console.error('Error loading project member edges:', pmError);
+      } else if (projectMembers) {
+        // Group by project to create edges between project members
+        const projectGroups = {};
+        projectMembers.forEach(pm => {
+          if (!projectGroups[pm.project_id]) {
+            projectGroups[pm.project_id] = [];
+          }
+          projectGroups[pm.project_id].push(pm.user_id);
+        });
+
+        // Create edges between members of the same project
+        Object.values(projectGroups).forEach(members => {
+          for (let i = 0; i < members.length; i++) {
+            for (let j = i + 1; j < members.length; j++) {
+              const user1 = members[i];
+              const user2 = members[j];
+              
+              if (this._nodes.has(user1) && this._nodes.has(user2)) {
+                // Check if edge already exists
+                const exists = edges.some(e => 
+                  (e.source === user1 && e.target === user2) ||
+                  (e.source === user2 && e.target === user1)
+                );
+                
+                if (!exists) {
+                  edges.push({
+                    source: user1,
+                    target: user2,
+                    type: 'project',
+                    strength: 0.3,
+                    createdAt: new Date()
+                  });
+                }
+              }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Error loading project members:', e);
+    }
+
+    // 3. Load organization membership edges
+    try {
+      const { data: orgMembers, error: omError } = await this._supabase
+        .from('organization_members')
+        .select('organization_id, user_id');
+
+      if (omError) {
+        console.error('Error loading org member edges:', omError);
+      } else if (orgMembers) {
+        // Group by organization
+        const orgGroups = {};
+        orgMembers.forEach(om => {
+          if (!orgGroups[om.organization_id]) {
+            orgGroups[om.organization_id] = [];
+          }
+          orgGroups[om.organization_id].push(om.user_id);
+        });
+
+        // Create edges between members of the same organization
+        Object.values(orgGroups).forEach(members => {
+          for (let i = 0; i < members.length; i++) {
+            for (let j = i + 1; j < members.length; j++) {
+              const user1 = members[i];
+              const user2 = members[j];
+              
+              if (this._nodes.has(user1) && this._nodes.has(user2)) {
+                // Check if edge already exists
+                const exists = edges.some(e => 
+                  (e.source === user1 && e.target === user2) ||
+                  (e.source === user2 && e.target === user1)
+                );
+                
+                if (!exists) {
+                  edges.push({
+                    source: user1,
+                    target: user2,
+                    type: 'organization',
+                    strength: 0.2,
+                    createdAt: new Date()
+                  });
+                }
+              }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Error loading organization members:', e);
+    }
+
+    return edges;
   }
 
   /**

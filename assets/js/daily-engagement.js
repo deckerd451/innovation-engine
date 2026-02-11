@@ -341,7 +341,10 @@ const DailyEngagement = (function () {
   function initXPDisplay() {
     const container = document.getElementById("engagement-displays");
     if (!container) {
-      console.warn("Engagement displays container not found");
+      // Only log in debug mode - container is optional
+      if (window.log?.isDebugMode?.()) {
+        console.debug("Engagement displays container not found - XP display skipped");
+      }
       return;
     }
 
@@ -392,7 +395,10 @@ const DailyEngagement = (function () {
   function initStreakDisplay() {
     const container = document.getElementById("engagement-displays");
     if (!container) {
-      console.warn("Engagement displays container not found");
+      // Only log in debug mode - container is optional
+      if (window.log?.isDebugMode?.()) {
+        console.debug("Engagement displays container not found - streak display skipped");
+      }
       return;
     }
 

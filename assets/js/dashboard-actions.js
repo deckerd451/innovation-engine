@@ -4,13 +4,14 @@
 
 // Prevent duplicate initialization
 if (window.__DASHBOARD_ACTIONS_INITIALIZED__) {
-  console.log("⚠️ Dashboard Actions already initialized, skipping...");
-  // Exit early to prevent duplicate initialization
-  throw new Error('Dashboard Actions already initialized');
-}
-
-window.__DASHBOARD_ACTIONS_INITIALIZED__ = true;
-console.log("%c🎮 Dashboard Actions Loading", "color:#0ff; font-weight:bold;");
+  if (window.log?.isDebugMode?.()) {
+    console.debug("⚠️ Dashboard Actions already initialized, skipping...");
+  }
+  // Exit early to prevent duplicate initialization - use a no-op instead of throwing
+  // (throwing breaks the script loading chain)
+} else {
+  window.__DASHBOARD_ACTIONS_INITIALIZED__ = true;
+  console.log("%c🎮 Dashboard Actions Loading", "color:#0ff; font-weight:bold;");
 
 // Wire up Quick Connect button
 document.getElementById('btn-quickconnect')?.addEventListener('click', () => {
@@ -3975,11 +3976,11 @@ async function removeProjectFromTheme(projectId) {
 window.assignProjectToTheme = assignProjectToTheme;
 window.removeProjectFromTheme = removeProjectFromTheme;
 
-// Dashboard Actions initialization complete
-if (window.__DASHBOARD_ACTIONS_INITIALIZED__) {
+  // Close the initialization guard block
   console.log("✅ Dashboard Actions ready");
 }
 
+// Dashboard Actions initialization complete (outside guard for debugging)
 // Connection status checker
 window.checkSupabaseStatus = async function() {
   const statusDiv = document.createElement('div');
