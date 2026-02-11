@@ -122,13 +122,13 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Presence tracking init (single-flight)
   // ------------------------------
-  if (!window.__IE_PRESENCE_INIT__ && profile?.id && window.PresenceSessionManager && window.supabase) {
+  if (!window.__IE_PRESENCE_INIT__ && profile?.id && window.PresenceRealtime && window.supabase) {
     window.__IE_PRESENCE_INIT__ = true;
-    log.debug("👋 Initializing presence tracking...");
+    log.debug("👋 Initializing presence tracking (Realtime)...");
 
     try {
-      await window.PresenceSessionManager.initialize(window.supabase, profile.id);
-      log.info("✅ Presence tracking active");
+      await window.PresenceRealtime.initialize(window.supabase, profile.id);
+      log.info("✅ Presence tracking active (Realtime + low-frequency DB)");
     } catch (error) {
       window.__IE_PRESENCE_INIT__ = false;
       log.error("❌ Presence tracking initialization failed:", error);

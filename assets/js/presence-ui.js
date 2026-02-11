@@ -5,6 +5,8 @@
  * - Green/gray dots next to avatars
  * - "available" status in profiles
  * - "Last seen X minutes ago" text
+ * 
+ * Uses PresenceRealtime for data (Realtime Presence + fallback polling)
  */
 
 (() => {
@@ -17,125 +19,63 @@
   }
   window[GUARD] = true;
 
-  let supabase = null;
-  let presenceCache = new Map(); // userId -> { isOnline, lastSeen }
   let updateInterval = null;
-
-  const ONLINE_THRESHOLD = 10 * 60 * 1000; // 10 minutes
-  const UPDATE_INTERVAL = 30 * 1000; // Update UI every 30 seconds
+  const UPDATE_INTERVAL = 5 * 1000; // Update UI every 5 seconds
 
   /**
    * Initialize presence UI system
    */
   async function init(supabaseClient, currentUserId = null) {
-    supabase = supabaseClient;
-    console.log('👁️ Initializing presence UI system...');
+    console.log('👁️ [PresenceUI] Initializing...');
 
     // Store current user ID globally for presence checks
     if (currentUserId) {
       window.__currentUserId = currentUserId;
     }
 
-    // Initial load
-    await updateAllPresence();
+    // Wait for PresenceRealtime to be available
+    if (!window.PresenceRealtime) {
+      console.warn('⚠️ [PresenceUI] PresenceRealtime not loaded yet, waiting...');
+      await waitForPresenceRealtime();
+    }
 
-    // Update periodically
-    updateInterval = setInterval(updateAllPresence, UPDATE_INTERVAL);
+    // Initial update
+    updateAllIndicators();
+
+    // Update periodically (UI refresh only, no network calls)
+    updateInterval = setInterval(() => {
+      updateAllIndicators();
+    }, UPDATE_INTERVAL);
+
+    // Listen for presence updates from PresenceRealtime
+    window.addEventListener('presence-updated', () => {
+      updateAllIndicators();
+    });
 
     // Listen for profile panels opening
     document.addEventListener('profile-panel-opened', (e) => {
       if (e.detail?.userId) {
-        updatePresenceForUser(e.detail.userId);
+        updateIndicatorsForUser(e.detail.userId);
       }
     });
 
-    console.log('✅ Presence UI system initialized');
+    console.log('✅ [PresenceUI] Initialized');
   }
 
   /**
-   * Fetch presence data for all users
+   * Wait for PresenceRealtime to load
    */
-  async function updateAllPresence() {
-    if (!supabase) return;
-
-    try {
-      const { data: sessions, error } = await supabase
-        .from('presence_sessions')
-        .select('user_id, is_active, last_seen, expires_at')
-        .eq('is_active', true);
-
-      if (error) {
-        console.error('Error fetching presence:', error);
-        return;
-      }
-
-      // Update cache
-      presenceCache.clear();
-      (sessions || []).forEach(session => {
-        const lastSeenTime = new Date(session.last_seen).getTime();
-        const expiresAt = new Date(session.expires_at).getTime();
-        
-        // User is online if session hasn't expired yet
-        const isOnline = Date.now() < expiresAt;
-        
-        presenceCache.set(session.user_id, {
-          isOnline,
-          lastSeen: lastSeenTime
-        });
-      });
-
-      // Update all visible presence indicators
-      updateAllIndicators();
-
-    } catch (error) {
-      console.error('Error updating presence:', error);
-    }
-  }
-
-  /**
-   * Update presence for a specific user
-   */
-  async function updatePresenceForUser(userId) {
-    if (!supabase || !userId) return;
-
-    try {
-      // Use order + limit instead of maybeSingle to handle duplicate sessions
-      const { data: sessions, error } = await supabase
-        .from('presence_sessions')
-        .select('user_id, is_active, last_seen, expires_at')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('last_seen', { ascending: false })
-        .limit(1);
-
-      if (error) {
-        console.error('Error fetching user presence:', error);
-        return;
-      }
-
-      const session = sessions && sessions.length > 0 ? sessions[0] : null;
-
-      if (session) {
-        const lastSeenTime = new Date(session.last_seen).getTime();
-        const expiresAt = new Date(session.expires_at).getTime();
-        
-        // User is online if session hasn't expired yet
-        const isOnline = Date.now() < expiresAt;
-        
-        presenceCache.set(userId, {
-          isOnline,
-          lastSeen: lastSeenTime
-        });
-      } else {
-        presenceCache.delete(userId);
-      }
-
-      // Update indicators for this user
-      updateIndicatorsForUser(userId);
-
-    } catch (error) {
-      console.error('Error updating user presence:', error);
-    }
+  function waitForPresenceRealtime() {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (window.PresenceRealtime) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
   }
 
   /**
@@ -185,14 +125,9 @@
    * Update a presence dot element
    */
   function updatePresenceDot(element, userId) {
-    // Get current user ID
-    const currentUserId = window.supabase?.auth?.getUser?.()?.then(u => u.data?.user?.id);
+    if (!window.PresenceRealtime) return;
     
-    // Check if this is the current user's dot
-    const isCurrentUser = userId && window.__currentUserId && userId === window.__currentUserId;
-    
-    const presence = presenceCache.get(userId);
-    const isOnline = isCurrentUser || presence?.isOnline || false; // Current user is always online
+    const isOnline = window.PresenceRealtime.isOnline(userId);
 
     // Update dot color
     element.style.backgroundColor = isOnline ? '#00ff88' : '#666';
@@ -206,11 +141,9 @@
    * Update a presence status text element
    */
   function updatePresenceStatus(element, userId) {
-    // Check if this is the current user
-    const isCurrentUser = userId && window.__currentUserId && userId === window.__currentUserId;
+    if (!window.PresenceRealtime) return;
     
-    const presence = presenceCache.get(userId);
-    const isOnline = isCurrentUser || presence?.isOnline || false; // Current user is always online
+    const isOnline = window.PresenceRealtime.isOnline(userId);
 
     element.textContent = isOnline ? 'available' : 'offline';
     element.style.color = isOnline ? '#00ff88' : '#666';
@@ -220,31 +153,21 @@
    * Update a "last seen" text element
    */
   function updateLastSeenText(element, userId) {
-    // Check if this is the current user
-    const isCurrentUser = userId && window.__currentUserId && userId === window.__currentUserId;
+    if (!window.PresenceRealtime) return;
     
-    // Current user is always "Active now"
-    if (isCurrentUser) {
+    const isOnline = window.PresenceRealtime.isOnline(userId);
+    const lastSeen = window.PresenceRealtime.getLastSeen(userId);
+    
+    if (isOnline) {
       element.textContent = 'Active now';
       element.style.color = '#00ff88';
-      return;
-    }
-    
-    const presence = presenceCache.get(userId);
-    
-    if (!presence) {
-      element.textContent = 'Last seen: unknown';
-      element.style.color = '#666';
-      return;
-    }
-
-    if (presence.isOnline) {
-      element.textContent = 'Active now';
-      element.style.color = '#00ff88';
-    } else {
-      const timeAgo = getTimeAgo(presence.lastSeen);
+    } else if (lastSeen) {
+      const timeAgo = getTimeAgo(lastSeen);
       element.textContent = `Last seen ${timeAgo}`;
       element.style.color = '#888';
+    } else {
+      element.textContent = 'Last seen: unknown';
+      element.style.color = '#666';
     }
   }
 
@@ -321,12 +244,12 @@
   // Expose public API
   window.PresenceUI = {
     init,
-    updateAllPresence,
-    updatePresenceForUser,
+    updateAllIndicators,
+    updateIndicatorsForUser,
     createPresenceDot,
     addPresenceDotToAvatar,
     getTimeAgo,
-    isOnline: (userId) => presenceCache.get(userId)?.isOnline || false
+    isOnline: (userId) => window.PresenceRealtime?.isOnline(userId) || false
   };
 
   console.log('✅ Presence UI module loaded');
