@@ -593,6 +593,9 @@ const MessagingModule = (function () {
         })
         .eq("id", state.activeConversation.id);
 
+      // Dispatch event for message badges
+      window.dispatchEvent(new CustomEvent('messages-updated'));
+
       // Scroll to bottom
       setTimeout(() => {
         const area = document.querySelector(".messages-area");
@@ -619,6 +622,9 @@ const MessagingModule = (function () {
       .eq("conversation_id", conversationId)
       .neq("sender_id", state.currentUser.communityId)
       .eq("read", false);
+
+    // Dispatch event for message badges
+    window.dispatchEvent(new CustomEvent('messages-updated'));
   }
 
   // ============================================================
@@ -676,6 +682,9 @@ const MessagingModule = (function () {
         await loadConversations();
         renderConversationsList();
         await updateUnreadCount();
+        
+        // Dispatch event for message badges
+        window.dispatchEvent(new CustomEvent('messages-updated'));
       })
       .subscribe();
     });

@@ -32,6 +32,12 @@
     // Setup realtime subscription
     setupRealtimeSubscription();
 
+    // Listen for total unread message updates from SynapseMessageBadges
+    window.addEventListener('total-unread-messages-updated', (event) => {
+      unreadCount = event.detail.count;
+      updateBellBadge();
+    });
+
     // Refresh every 30 seconds
     setInterval(loadNotifications, 30000);
   }
@@ -57,9 +63,15 @@
       }
 
       notifications = data || [];
-      // Get unread MESSAGE count from messaging system
-      const { data: messageCount, error: countError } = await window.supabase.rpc('get_unread_count');
-      unreadCount = (!countError && messageCount !== null) ? messageCount : 0;
+      
+      // Get unread MESSAGE count from SynapseMessageBadges if available
+      if (window.SynapseMessageBadges?.getTotalUnreadCount) {
+        unreadCount = window.SynapseMessageBadges.getTotalUnreadCount();
+      } else {
+        // Fallback to RPC if message badges not loaded yet
+        const { data: messageCount, error: countError } = await window.supabase.rpc('get_unread_count');
+        unreadCount = (!countError && messageCount !== null) ? messageCount : 0;
+      }
 
       updateBellBadge();
       console.log(`📬 Loaded ${notifications.length} notifications (${unreadCount} unread messages)`);
