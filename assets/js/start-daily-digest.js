@@ -272,8 +272,6 @@ class StartDailyDigest {
     if (!container) return;
 
     const stepContent = document.getElementById('digest-step-content');
-    const progressBar = container.querySelector('div:first-child');
-    const navigation = container.querySelector('div:last-child');
     
     if (!stepContent) return;
 
@@ -282,15 +280,31 @@ class StartDailyDigest {
     stepContent.style.transform = 'translateY(20px)';
     
     setTimeout(async () => {
-      // Update all sections
-      if (progressBar) progressBar.outerHTML = this.renderProgressBar();
-      stepContent.innerHTML = await this.renderCurrentStep();
-      if (navigation) navigation.outerHTML = this.renderNavigation();
+      // Re-render the entire container to ensure proper state
+      const newHTML = `
+        ${this.renderProgressBar()}
+        <div id="digest-step-content" class="digest-step-content" style="
+          min-height: 400px;
+          transition: opacity 0.3s ease, transform 0.3s ease;
+          opacity: 0;
+          transform: translateY(20px);
+        ">
+          ${await this.renderCurrentStep()}
+        </div>
+        ${this.renderNavigation()}
+      `;
+      
+      container.innerHTML = newHTML;
+      
+      // Get the new step content element
+      const newStepContent = document.getElementById('digest-step-content');
       
       // Fade in
       setTimeout(() => {
-        stepContent.style.opacity = '1';
-        stepContent.style.transform = 'translateY(0)';
+        if (newStepContent) {
+          newStepContent.style.opacity = '1';
+          newStepContent.style.transform = 'translateY(0)';
+        }
       }, 50);
     }, 300);
   }
