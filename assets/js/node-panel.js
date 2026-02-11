@@ -2260,20 +2260,26 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
     console.log('📋 Found request to approve:', existingRequest);
 
     // Update role from 'pending' to 'member'
+    // Note: We need to update by matching project_id, user_id, and role='pending'
+    // because RLS policies might not allow updates by id alone
     const { data, error } = await supabase
       .from('project_members')
       .update({ role: 'member' })
-      .eq('id', requestId)
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .eq('role', 'pending')
       .select();
 
     if (error) {
       console.error('❌ Error updating project_members:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
 
     if (!data || data.length === 0) {
-      console.error('❌ Update returned no data - request may not exist');
-      throw new Error('Failed to update request - no rows affected');
+      console.error('❌ Update returned no data - this is likely an RLS policy issue');
+      console.error('❌ Current user can read but not update project_members table');
+      throw new Error('Permission denied: Unable to approve request. Check RLS policies.');
     }
 
     console.log('✅ Successfully approved request:', data);
@@ -2359,13 +2365,18 @@ window.declineJoinRequest = async function(projectId, requestId) {
     console.log('📋 Found request to decline:', existingRequest);
 
     // Delete the pending request
+    // Note: We need to match by project_id, user_id, and role='pending'
+    // because RLS policies might not allow deletes by id alone
     const { error } = await supabase
       .from('project_members')
       .delete()
-      .eq('id', requestId);
+      .eq('project_id', projectId)
+      .eq('id', requestId)
+      .eq('role', 'pending');
 
     if (error) {
       console.error('❌ Error deleting request:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
 
