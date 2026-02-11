@@ -2268,36 +2268,31 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
       console.log('✅ Removed request card from UI');
     }
 
-    // Check if container is now empty
-    const container = document.getElementById('requests-container');
-    if (container && container.children.length === 0) {
-      container.innerHTML = `
-        <div style="text-align: center; color: #aaa; padding: 3rem;">
-          <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
-          <p style="margin-top: 1rem;">No pending requests</p>
-        </div>
-      `;
-    }
-
-    // Check if there are any remaining requests in the modal
+    // Check if there are any remaining request cards in the modal
     const remainingRequests = document.querySelectorAll('[data-request-id]');
+    console.log('📊 Remaining requests after removal:', remainingRequests.length);
+    
     const shouldCloseModal = remainingRequests.length === 0;
 
+    // Update container if empty
     if (shouldCloseModal) {
-      console.log('✅ All requests processed, closing modal...');
-      const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
-      if (modal) {
-        modal.remove();
+      const container = document.getElementById('requests-container');
+      if (container) {
+        container.innerHTML = `
+          <div style="text-align: center; color: #aaa; padding: 3rem;">
+            <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p style="margin-top: 1rem;">No pending requests</p>
+          </div>
+        `;
       }
     }
 
-    // Wait a moment for database to fully commit
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Wait for database to commit before refreshing
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Reload panel if it's currently showing this project
+    // Reload panel if it's currently showing this project - this will update the button count
     if (currentNodeData?.id === projectId) {
       console.log('🔄 Reloading node panel with fresh data...');
-      // Force refetch by passing just the ID
       await loadNodeDetails({ id: projectId, type: 'project' });
     }
 
@@ -2305,8 +2300,15 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
     if (typeof window.refreshSynapseConnections === 'function') {
       console.log('🔄 Refreshing synapse connections...');
       await window.refreshSynapseConnections();
-    } else {
-      console.warn('⚠️ window.refreshSynapseConnections not available');
+    }
+
+    // Close modal after panel refresh if no more requests
+    if (shouldCloseModal) {
+      console.log('✅ All requests processed, closing modal...');
+      const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
+      if (modal) {
+        modal.remove();
+      }
     }
 
   } catch (error) {
@@ -2337,41 +2339,45 @@ window.declineJoinRequest = async function(projectId, requestId) {
     const card = document.querySelector(`[data-request-id="${requestId}"]`);
     if (card) card.remove();
 
-    // Check if container is now empty
-    const container = document.getElementById('requests-container');
-    if (container && container.children.length === 0) {
-      container.innerHTML = `
-        <div style="text-align: center; color: #aaa; padding: 3rem;">
-          <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
-          <p style="margin-top: 1rem;">No pending requests</p>
-        </div>
-      `;
-    }
-
-    // Check if there are any remaining requests in the modal
+    // Check if there are any remaining request cards in the modal
     const remainingRequests = document.querySelectorAll('[data-request-id]');
+    console.log('📊 Remaining requests after decline:', remainingRequests.length);
+    
     const shouldCloseModal = remainingRequests.length === 0;
 
+    // Update container if empty
+    if (shouldCloseModal) {
+      const container = document.getElementById('requests-container');
+      if (container) {
+        container.innerHTML = `
+          <div style="text-align: center; color: #aaa; padding: 3rem;">
+            <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p style="margin-top: 1rem;">No pending requests</p>
+          </div>
+        `;
+      }
+    }
+
+    // Wait for database to commit before refreshing
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Reload panel if it's currently showing this project - this will update the button count
+    if (currentNodeData?.id === projectId) {
+      await loadNodeDetails({ id: projectId, type: 'project' });
+    }
+
+    // Refresh synapse view
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
+    }
+
+    // Close modal after panel refresh if no more requests
     if (shouldCloseModal) {
       console.log('✅ All requests processed, closing modal...');
       const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
       if (modal) {
         modal.remove();
       }
-    }
-
-    // Wait a moment for database to fully commit
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Reload panel if it's currently showing this project
-    if (currentNodeData?.id === projectId) {
-      // Force refetch by passing just the ID
-      await loadNodeDetails({ id: projectId, type: 'project' });
-    }
-
-    // Refresh synapse view to show updated project membership
-    if (typeof window.refreshSynapseConnections === 'function') {
-      await window.refreshSynapseConnections();
     }
 
   } catch (error) {
