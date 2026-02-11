@@ -2279,8 +2279,20 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
       `;
     }
 
+    // Check if there are any remaining requests in the modal
+    const remainingRequests = document.querySelectorAll('[data-request-id]');
+    const shouldCloseModal = remainingRequests.length === 0;
+
+    if (shouldCloseModal) {
+      console.log('✅ All requests processed, closing modal...');
+      const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
     // Wait a moment for database to fully commit
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     // Reload panel if it's currently showing this project
     if (currentNodeData?.id === projectId) {
@@ -2295,16 +2307,6 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
       await window.refreshSynapseConnections();
     } else {
       console.warn('⚠️ window.refreshSynapseConnections not available');
-    }
-
-    // Close the modal if all requests have been processed
-    const remainingRequests = document.querySelectorAll('[data-request-id]');
-    if (remainingRequests.length === 0) {
-      console.log('✅ All requests processed, closing modal...');
-      const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
-      if (modal) {
-        modal.remove();
-      }
     }
 
   } catch (error) {
@@ -2346,8 +2348,20 @@ window.declineJoinRequest = async function(projectId, requestId) {
       `;
     }
 
+    // Check if there are any remaining requests in the modal
+    const remainingRequests = document.querySelectorAll('[data-request-id]');
+    const shouldCloseModal = remainingRequests.length === 0;
+
+    if (shouldCloseModal) {
+      console.log('✅ All requests processed, closing modal...');
+      const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
     // Wait a moment for database to fully commit
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     // Reload panel if it's currently showing this project
     if (currentNodeData?.id === projectId) {
@@ -2358,16 +2372,6 @@ window.declineJoinRequest = async function(projectId, requestId) {
     // Refresh synapse view to show updated project membership
     if (typeof window.refreshSynapseConnections === 'function') {
       await window.refreshSynapseConnections();
-    }
-
-    // Close the modal if all requests have been processed
-    const remainingRequests = document.querySelectorAll('[data-request-id]');
-    if (remainingRequests.length === 0) {
-      console.log('✅ All requests processed, closing modal...');
-      const modal = document.querySelector('div[style*="position: fixed"][style*="z-index: 10000"]');
-      if (modal) {
-        modal.remove();
-      }
     }
 
   } catch (error) {
