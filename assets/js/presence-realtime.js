@@ -186,11 +186,16 @@
     onlineUsers.clear();
     
     let count = 0;
-    for (const profileId in state) {
-      const presences = state[profileId];
+    for (const key in state) {
+      const presences = state[key];
       if (presences && presences.length > 0) {
-        onlineUsers.set(profileId, presences[0]);
-        count++;
+        // Use profile_id from the presence data, not the key
+        const presence = presences[0];
+        const profileId = presence.profile_id;
+        if (profileId) {
+          onlineUsers.set(profileId, presence);
+          count++;
+        }
       }
     }
 
@@ -205,8 +210,14 @@
    */
   function handlePresenceJoin(key, newPresences) {
     if (newPresences && newPresences.length > 0) {
-      onlineUsers.set(key, newPresences[0]);
-      notifyPresenceUpdate();
+      // Use profile_id from the presence data, not the key
+      const presence = newPresences[0];
+      const profileId = presence.profile_id;
+      if (profileId) {
+        onlineUsers.set(profileId, presence);
+        console.log('👋 [Presence] User joined with profile ID:', profileId);
+        notifyPresenceUpdate();
+      }
     }
   }
 
@@ -214,8 +225,16 @@
    * Handle presence leave event
    */
   function handlePresenceLeave(key, leftPresences) {
-    onlineUsers.delete(key);
-    notifyPresenceUpdate();
+    if (leftPresences && leftPresences.length > 0) {
+      // Use profile_id from the presence data, not the key
+      const presence = leftPresences[0];
+      const profileId = presence.profile_id;
+      if (profileId) {
+        onlineUsers.delete(profileId);
+        console.log('👋 [Presence] User left with profile ID:', profileId);
+        notifyPresenceUpdate();
+      }
+    }
   }
 
   // ============================================================================
