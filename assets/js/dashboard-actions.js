@@ -86,74 +86,65 @@ document.getElementById('btn-admin-top')?.addEventListener('click', () => {
   openAdminPanel();
 });
 
-// Ensure admin button shows for admin users (multiple checks)
-function ensureAdminButtonVisible() {
-  const isAdmin = isAdminUser();
-  console.log('🔍 Checking admin status:', isAdmin);
-  
-  if (isAdmin) {
-    const adminBtn = document.getElementById('btn-admin-top');
-    if (adminBtn) {
-      adminBtn.style.display = 'flex';
-      console.log('👑 Admin button shown');
-    } else {
-      console.warn('⚠️ Admin button element not found');
-    }
-    
-    // Show admin badge in header
-    const adminBadge = document.getElementById('admin-badge-header');
-    if (adminBadge) {
-      adminBadge.style.display = 'inline-block';
-      console.log('👑 Admin badge in header shown');
-    } else {
-      console.warn('⚠️ Admin badge element not found');
-    }
-    
-    // Show admin indicator in settings dropdown
-    const adminSettingsIndicator = document.getElementById('admin-settings-indicator');
-    if (adminSettingsIndicator) {
-      adminSettingsIndicator.style.display = 'inline-block';
-      console.log('👑 Admin settings indicator shown');
-    } else {
-      console.warn('⚠️ Admin settings indicator element not found');
-    }
-  } else {
-    console.log('ℹ️ User is not an admin');
+// -----------------------------
+// Admin UI Application (Idempotent)
+// -----------------------------
+// Apply admin UI elements once per page load
+function applyAdminUIOnce(reason = "") {
+  // Already applied - skip
+  if (window.__ADMIN_UI_APPLIED__) {
+    return;
+  }
+
+  // Check if user is admin
+  const isAdmin = window.isAdminUser?.() === true;
+  if (!isAdmin) {
+    return;
+  }
+
+  // Mark as applied
+  window.__ADMIN_UI_APPLIED__ = true;
+
+  // Apply UI changes
+  const adminBtn = document.getElementById('btn-admin-top');
+  if (adminBtn) {
+    adminBtn.style.display = 'flex';
+  }
+
+  const adminBadge = document.getElementById('admin-badge-header');
+  if (adminBadge) {
+    adminBadge.style.display = 'inline-block';
+  }
+
+  const adminSettingsIndicator = document.getElementById('admin-settings-indicator');
+  if (adminSettingsIndicator) {
+    adminSettingsIndicator.style.display = 'inline-block';
+  }
+
+  // Only log in debug mode
+  if (window.log?.isDebugMode?.() || window.__DEBUG_ADMIN_CHECKS__) {
+    console.log(`👑 Admin UI applied (${reason})`);
   }
 }
 
-// Check immediately and on multiple events
-setTimeout(ensureAdminButtonVisible, 100);
-setTimeout(ensureAdminButtonVisible, 500);
-setTimeout(ensureAdminButtonVisible, 1500);
-setTimeout(ensureAdminButtonVisible, 3000);
+// Canonical trigger: profile-loaded event (once)
+document.addEventListener('profile-loaded', () => applyAdminUIOnce('profile-loaded'), { once: true });
 
-// Check when DOM is fully loaded
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', ensureAdminButtonVisible);
-} else {
-  ensureAdminButtonVisible();
-}
+// Fallback trigger: DOMContentLoaded (once)
+document.addEventListener('DOMContentLoaded', () => applyAdminUIOnce('DOMContentLoaded-fallback'), { once: true });
 
-// Check when profile is loaded
-document.addEventListener('profile-loaded', ensureAdminButtonVisible);
+// Backward compatibility: expose as ensureAdminButtonVisible
+window.ensureAdminButtonVisible = applyAdminUIOnce;
 
-// Check when user data changes
-window.addEventListener('user-data-loaded', ensureAdminButtonVisible);
+// Manual trigger for debugging
+window.showAdminUI = () => applyAdminUIOnce('manual');
 
-// Expose function globally so it can be called from other modules
-window.ensureAdminButtonVisible = ensureAdminButtonVisible;
-
-// Expose a manual trigger for debugging
-window.showAdminUI = function() {
-  console.log('🔧 Manually triggering admin UI...');
-  ensureAdminButtonVisible();
-};
-
-// Also expose isAdminUser for debugging
+// Debug helper: check admin status without spam
 window.checkAdminStatus = function() {
   const isAdmin = isAdminUser();
-  console.log('Admin status:', isAdmin);
+  if (window.log?.isDebugMode?.() || window.__DEBUG_ADMIN_CHECKS__) {
+    console.log('Admin status:', isAdmin);
+  }
   return isAdmin;
 };
 
@@ -168,7 +159,9 @@ document.getElementById('dropdown-settings')?.addEventListener('click', () => {
   // Check if user is admin
   if (isAdminUser()) {
     // Open admin panel for admins
-    console.log('👑 Opening admin panel from settings (admin user)');
+    if (window.log?.isDebugMode?.()) {
+      console.log('👑 Opening admin panel from settings (admin user)');
+    }
     openAdminPanel();
   } else {
     // Show "coming soon" message for non-admins
@@ -188,6 +181,13 @@ document.getElementById('btn-view-controls')?.addEventListener('click', () => {
 // Admin detection (enhanced)
 // -----------------------------
 function isAdminUser() {
+  // Helper to log admin grant only once per page load
+  function logAdminGrantedOnce(...args) {
+    if (window.__ADMIN_GRANTED_LOGGED__) return;
+    window.__ADMIN_GRANTED_LOGGED__ = true;
+    console.log(...args);
+  }
+
   // Known admin emails (add more as needed)
   const adminEmails = [
     'dmhamilton1@live.com',
@@ -210,7 +210,7 @@ function isAdminUser() {
         const parsed = JSON.parse(data);
         const email = parsed?.currentSession?.user?.email || parsed?.user?.email;
         if (email && adminEmails.includes(email.toLowerCase())) {
-          console.log('✅ Admin access granted for:', email);
+          logAdminGrantedOnce('✅ Admin access granted for:', email);
           return true;
         }
       }
@@ -230,24 +230,31 @@ function isAdminUser() {
   if (typeof role === "string") {
     const r = role.toLowerCase();
     if (r === "admin" || r === "superadmin" || r === "owner") {
-      console.log('✅ Admin access granted via role:', r);
+      logAdminGrantedOnce('✅ Admin access granted via role:', r);
       return true;
     }
   }
 
   // If you have a boolean somewhere
   if (window?.appState?.isAdmin === true) {
-    console.log('✅ Admin access granted via appState.isAdmin');
+    logAdminGrantedOnce('✅ Admin access granted via appState.isAdmin');
     return true;
   }
 
-  // For development: always allow if dmhamilton1@live.com is in any storage
-  const storageCheck =
+  // For development: check storage safely (avoid costly JSON.stringify)
+  const storageCheck = 
     document.cookie.toLowerCase().includes('dmhamilton1@live.com') ||
-    JSON.stringify(localStorage).toLowerCase().includes('dmhamilton1@live.com');
+    Object.keys(localStorage).some(k => {
+      try {
+        const val = localStorage.getItem(k) || '';
+        return val.toLowerCase().includes('dmhamilton1@live.com');
+      } catch (e) {
+        return false;
+      }
+    });
 
   if (storageCheck) {
-    console.log('✅ Admin access granted via storage check');
+    logAdminGrantedOnce('✅ Admin access granted via storage check');
     return true;
   }
 
