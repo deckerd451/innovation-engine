@@ -438,21 +438,6 @@ class EnhancedStartUI {
 
     return `
       <div class="start-actions-container" style="margin-top: 2rem; text-align: center; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-        <button onclick="window.EnhancedStartUI.close()" style="
-          background: linear-gradient(135deg, #00e0ff, #0080ff);
-          border: none;
-          border-radius: 12px;
-          color: #000;
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s;
-          flex: 1;
-          min-width: 200px;
-        ">
-          🎯 Go to Dashboard
-        </button>
         <button onclick="window.EnhancedStartUI.downloadReport()" style="
           background: transparent;
           border: 2px solid rgba(0,224,255,0.4);
@@ -464,7 +449,7 @@ class EnhancedStartUI {
           cursor: pointer;
           transition: all 0.2s;
           flex: 1;
-          min-width: 200px;
+          max-width: 400px;
         ">
           📥 Download Report
         </button>
@@ -472,12 +457,9 @@ class EnhancedStartUI {
 
       <style>
         @media (max-width: 768px) {
-          .start-actions-container {
-            flex-direction: column !important;
-          }
           .start-actions-container button {
             width: 100% !important;
-            min-width: auto !important;
+            max-width: none !important;
           }
         }
       </style>
