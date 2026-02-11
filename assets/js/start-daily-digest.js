@@ -630,94 +630,97 @@ class StartDailyDigest {
 
 window.StartDailyDigest = new StartDailyDigest();
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-  .step-content {
-    transition: opacity 0.3s ease, transform 0.3s ease;
-  }
+// Add CSS animations (idempotent)
+if (!document.getElementById('start-daily-digest-styles')) {
+  const styleEl = document.createElement('style');
+  styleEl.id = 'start-daily-digest-styles';
+  styleEl.textContent = `
+    .step-content {
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
 
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
 
-  @keyframes fadeInScale {
-    from {
-      opacity: 0;
-      transform: scale(0.8);
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
 
-  @keyframes bounceIn {
-    0% {
-      opacity: 0;
-      transform: scale(0.3);
+    @keyframes bounceIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.3);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+      70% {
+        transform: scale(0.9);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
-    50% {
-      transform: scale(1.05);
-    }
-    70% {
-      transform: scale(0.9);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
 
-  @keyframes slideIn {
-    from {
-      transform: translateX(400px);
-      opacity: 0;
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
     }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
 
-  @keyframes slideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(400px);
+        opacity: 0;
+      }
     }
-    to {
-      transform: translateX(400px);
-      opacity: 0;
-    }
-  }
 
-  @keyframes zoomIn {
-    from {
-      opacity: 0;
-      transform: scale(0.5);
+    @keyframes zoomIn {
+      from {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
 
-  @keyframes fadeOut {
-    from {
-      opacity: 1;
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+      }
+      to {
+        opacity: 0;
+      }
     }
-    to {
-      opacity: 0;
-    }
-  }
-`;
-document.head.appendChild(style);
+  `;
+  document.head.appendChild(styleEl);
+}
 
-console.log('✅ START Sequential Digest ready (Refactored: 2-step flow)');
+console.log('✅ START Daily Digest ready (Refactored: 2-step flow)');

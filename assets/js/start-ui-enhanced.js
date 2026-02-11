@@ -120,6 +120,51 @@ class EnhancedStartUI {
   }
 
   /**
+   * Wait for a module to be ready and render
+   */
+  async waitForModuleAndRender(data, moduleName, maxWaitMs = 2000) {
+    const startTime = Date.now();
+    const pollInterval = 100;
+    
+    while (Date.now() - startTime < maxWaitMs) {
+      if (window[moduleName] && typeof window[moduleName].render === 'function') {
+        console.log(`✅ ${moduleName} ready after ${Date.now() - startTime}ms`);
+        return await window[moduleName].render(data);
+      }
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+    
+    console.error(`❌ ${moduleName} not ready after ${maxWaitMs}ms`);
+    return this.renderFallback(moduleName);
+  }
+
+  /**
+   * Render fallback UI when module isn't ready
+   */
+  renderFallback(moduleName) {
+    return `
+      <div style="text-align: center; padding: 3rem 2rem; color: rgba(255,255,255,0.6);">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+        <h3 style="color: #00e0ff; margin-bottom: 0.5rem;">Loading START...</h3>
+        <p style="margin-bottom: 1.5rem;">
+          ${moduleName} is initializing
+        </p>
+        <button onclick="window.EnhancedStartUI.open()" style="
+          background: linear-gradient(135deg, #00e0ff, #0080ff);
+          border: none;
+          border-radius: 8px;
+          color: #000;
+          padding: 0.75rem 1.5rem;
+          font-weight: 600;
+          cursor: pointer;
+        ">
+          Retry
+        </button>
+      </div>
+    `;
+  }
+
+  /**
    * Render the enhanced START UI
    */
   async render(data) {
@@ -132,11 +177,21 @@ class EnhancedStartUI {
     let contentHTML = '';
 
     if (isNewUser) {
-      // Show onboarding flow
-      contentHTML = await window.StartOnboarding.render(data);
+      // Show onboarding flow with safety check
+      if (window.StartOnboarding && typeof window.StartOnboarding.render === 'function') {
+        contentHTML = await window.StartOnboarding.render(data);
+      } else {
+        console.warn('⚠️ StartOnboarding not ready');
+        contentHTML = await this.renderFallback('onboarding');
+      }
     } else {
-      // Show daily digest
-      contentHTML = await window.StartDailyDigest.render(data);
+      // Show daily digest with safety check and retry logic
+      if (window.StartDailyDigest && typeof window.StartDailyDigest.render === 'function') {
+        contentHTML = await window.StartDailyDigest.render(data);
+      } else {
+        console.warn('⚠️ StartDailyDigest not ready, attempting retry...');
+        contentHTML = await this.waitForModuleAndRender(data, 'StartDailyDigest', 2000);
+      }
     }
 
     container.innerHTML = `
