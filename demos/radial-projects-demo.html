@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radial Projects Inside Themes - Demo</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .demo-section {
+            background: rgba(0,224,255,0.05);
+            border: 1px solid rgba(0,224,255,0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .before, .after {
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+        
+        .before {
+            background: rgba(255,107,107,0.1);
+            border: 1px solid rgba(255,107,107,0.3);
+        }
+        
+        .after {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid rgba(0,255,136,0.3);
+        }
+        
+        .circle-demo {
+            width: 300px;
+            height: 300px;
+            border: 2px solid #00e0ff;
+            border-radius: 50%;
+            margin: 1rem auto;
+            position: relative;
+            background: radial-gradient(circle, rgba(0,224,255,0.1) 0%, rgba(0,224,255,0.02) 100%);
+        }
+        
+        .circle-demo.before-demo {
+            border-color: #ff6b6b;
+            background: radial-gradient(circle, rgba(255,107,107,0.1) 0%, rgba(255,107,107,0.02) 100%);
+        }
+        
+        .center-info {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,224,255,0.3);
+            border-radius: 50px;
+            padding: 0.75rem;
+            color: #00e0ff;
+            font-size: 0.8rem;
+            backdrop-filter: blur(4px);
+        }
+        
+        .project-dot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #00e0ff;
+            border: 2px solid #fff;
+            border-radius: 3px;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .project-dot:hover {
+            transform: rotate(45deg) scale(1.2);
+            box-shadow: 0 0 10px rgba(0,224,255,0.5);
+        }
+        
+        .project-dot.before-style {
+            background: #ff6b6b;
+            border-color: #fff;
+        }
+        
+        /* Before positioning - far from center */
+        .before-demo .project-dot:nth-child(2) { top: 20%; left: 70%; }
+        .before-demo .project-dot:nth-child(3) { top: 40%; left: 85%; }
+        .before-demo .project-dot:nth-child(4) { top: 70%; left: 80%; }
+        .before-demo .project-dot:nth-child(5) { top: 80%; left: 50%; }
+        .before-demo .project-dot:nth-child(6) { top: 70%; left: 20%; }
+        .before-demo .project-dot:nth-child(7) { top: 40%; left: 15%; }
+        
+        /* After positioning - radially around center */
+        .after .project-dot:nth-child(2) { top: 30%; left: 50%; transform: translate(-50%, -50%) rotate(45deg); }
+        .after .project-dot:nth-child(3) { top: 40%; left: 65%; transform: translate(-50%, -50%) rotate(45deg); }
+        .after .project-dot:nth-child(4) { top: 60%; left: 65%; transform: translate(-50%, -50%) rotate(45deg); }
+        .after .project-dot:nth-child(5) { top: 70%; left: 50%; transform: translate(-50%, -50%) rotate(45deg); }
+        .after .project-dot:nth-child(6) { top: 60%; left: 35%; transform: translate(-50%, -50%) rotate(45deg); }
+        .after .project-dot:nth-child(7) { top: 40%; left: 35%; transform: translate(-50%, -50%) rotate(45deg); }
+        
+        .improvement-list {
+            background: rgba(0,255,136,0.1);
+            border-left: 3px solid #00ff88;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+        
+        .highlight {
+            background: rgba(255,215,0,0.2);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            color: #ffd700;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .feature-card {
+            background: rgba(0,0,0,0.2);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 3px solid #00e0ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1 style="color: #00e0ff; text-align: center;">
+            <i class="fas fa-project-diagram"></i> Radial Projects Inside Themes Implementation
+        </h1>
+        
+        <div class="demo-section">
+            <h2 style="color: #00ff88;">✅ Change Implemented</h2>
+            <p>Based on the yellow annotation, I've repositioned projects to appear radially around the center of theme circles, creating a more organized and scalable layout.</p>
+            
+            <div class="comparison">
+                <div class="before">
+                    <h3 style="color: #ff6b6b;">❌ Before (Edge Positioning)</h3>
+                    <div class="circle-demo before-demo">
+                        <div class="center-info">
+                            🚀<br>
+                            <strong>AI Theme</strong><br>
+                            5 people • 6 projects
+                        </div>
+                        <div class="project-dot before-style">🚀</div>
+                        <div class="project-dot before-style">⚡</div>
+                        <div class="project-dot before-style">💡</div>
+                        <div class="project-dot before-style">🚀</div>
+                        <div class="project-dot before-style">⚡</div>
+                        <div class="project-dot before-style">💡</div>
+                    </div>
+                    <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                        Projects positioned at 60% radius, creating crowded edges and poor scalability.
+                    </p>
+                </div>
+                
+                <div class="after">
+                    <h3 style="color: #00ff88;">✅ After (Radial Positioning)</h3>
+                    <div class="circle-demo">
+                        <div class="center-info">
+                            🚀<br>
+                            <strong>AI Theme</strong><br>
+                            5 people • 6 projects
+                        </div>
+                        <div class="project-dot">🚀</div>
+                        <div class="project-dot">⚡</div>
+                        <div class="project-dot">💡</div>
+                        <div class="project-dot">🚀</div>
+                        <div class="project-dot">⚡</div>
+                        <div class="project-dot">💡</div>
+                    </div>
+                    <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                        Projects positioned radially around center at 35% radius, with multiple rings for scalability.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 style="color: #00e0ff;">🔧 Technical Implementation</h2>
+            
+            <div class="improvement-list">
+                <h3>Key Improvements Made:</h3>
+                <ul>
+                    <li><strong>Radial Positioning:</strong> Projects arranged in circles around theme center</li>
+                    <li><strong>Multi-Ring Support:</strong> Automatic ring creation for themes with many projects</li>
+                    <li><strong>Enhanced Visuals:</strong> Larger hexagons with glow effects and hover interactions</li>
+                    <li><strong>Individual Interactions:</strong> Each project is clickable with hover effects</li>
+                    <li><strong>Smart Spacing:</strong> Optimal distribution based on project count</li>
+                </ul>
+            </div>
+
+            <h3>Positioning Algorithm:</h3>
+            <div class="code-block">
+<span class="highlight">// Calculate optimal radial positioning</span>
+const baseDistance = Math.min(radius * 0.35, 80); // 35% of radius, max 80px
+const maxProjectsPerRing = 8; // Max projects per ring
+const ring = Math.floor(index / maxProjectsPerRing);
+const ringDistance = baseDistance + (ring * 40); // Multiple rings
+
+<span class="highlight">// Position projects in circular pattern</span>
+const angleStep = (2 * Math.PI) / projectsInThisRing;
+const projectAngle = positionInRing * angleStep;
+const projectX = Math.cos(projectAngle) * ringDistance;
+const projectY = Math.sin(projectAngle) * ringDistance;
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 style="color: #ffd700;">🎨 Enhanced Features</h2>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4 style="color: #00e0ff; margin-top: 0;">📍 Smart Positioning</h4>
+                    <p style="font-size: 0.9rem;">Projects positioned at 35% of theme radius, creating optimal balance between center info and project visibility.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4 style="color: #00e0ff; margin-top: 0;">🔄 Multi-Ring Layout</h4>
+                    <p style="font-size: 0.9rem;">Supports up to 8 projects per ring, automatically creating additional rings for themes with many projects.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4 style="color: #00e0ff; margin-top: 0;">✨ Enhanced Visuals</h4>
+                    <p style="font-size: 0.9rem;">Larger hexagons (16px vs 12px) with glow effects, better icons, and smooth hover animations.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4 style="color: #00e0ff; margin-top: 0;">🎯 Individual Interactions</h4>
+                    <p style="font-size: 0.9rem;">Each project is clickable with hover effects showing project titles and enhanced visual feedback.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4 style="color: #00e0ff; margin-top: 0;">📱 Scalable Design</h4>
+                    <p style="font-size: 0.9rem;">Automatically adapts to any number of projects, maintaining visual clarity and organization.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4 style="color: #00e0ff; margin-top: 0;">🎪 Smooth Animations</h4>
+                    <p style="font-size: 0.9rem;">Projects appear with fade-in animation and have smooth hover effects with scaling and glow.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 style="color: #00e0ff;">📊 Layout Examples</h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 2rem 0;">
+                <div style="text-align: center;">
+                    <h4 style="color: #00ff88;">3 Projects</h4>
+                    <div style="width: 150px; height: 150px; border: 2px solid #00e0ff; border-radius: 50%; margin: 0 auto; position: relative; background: radial-gradient(circle, rgba(0,224,255,0.1) 0%, rgba(0,224,255,0.02) 100%);">
+                        <div style="position: absolute; top: 25%; left: 50%; width: 12px; height: 12px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 60%; left: 70%; width: 12px; height: 12px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 60%; left: 30%; width: 12px; height: 12px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                    </div>
+                    <p style="font-size: 0.8rem; color: #888;">Single ring, evenly spaced</p>
+                </div>
+                
+                <div style="text-align: center;">
+                    <h4 style="color: #00ff88;">6 Projects</h4>
+                    <div style="width: 150px; height: 150px; border: 2px solid #00e0ff; border-radius: 50%; margin: 0 auto; position: relative; background: radial-gradient(circle, rgba(0,224,255,0.1) 0%, rgba(0,224,255,0.02) 100%);">
+                        <div style="position: absolute; top: 20%; left: 50%; width: 10px; height: 10px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 35%; left: 75%; width: 10px; height: 10px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 65%; left: 75%; width: 10px; height: 10px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 80%; left: 50%; width: 10px; height: 10px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 65%; left: 25%; width: 10px; height: 10px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 35%; left: 25%; width: 10px; height: 10px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                    </div>
+                    <p style="font-size: 0.8rem; color: #888;">Single ring, hexagonal pattern</p>
+                </div>
+                
+                <div style="text-align: center;">
+                    <h4 style="color: #00ff88;">12 Projects</h4>
+                    <div style="width: 150px; height: 150px; border: 2px solid #00e0ff; border-radius: 50%; margin: 0 auto; position: relative; background: radial-gradient(circle, rgba(0,224,255,0.1) 0%, rgba(0,224,255,0.02) 100%);">
+                        <!-- Inner ring -->
+                        <div style="position: absolute; top: 30%; left: 50%; width: 8px; height: 8px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 45%; left: 65%; width: 8px; height: 8px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 70%; left: 50%; width: 8px; height: 8px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 45%; left: 35%; width: 8px; height: 8px; background: #00e0ff; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <!-- Outer ring -->
+                        <div style="position: absolute; top: 15%; left: 50%; width: 8px; height: 8px; background: #00ff88; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 25%; left: 75%; width: 8px; height: 8px; background: #00ff88; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 50%; left: 85%; width: 8px; height: 8px; background: #00ff88; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 75%; left: 75%; width: 8px; height: 8px; background: #00ff88; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 85%; left: 50%; width: 8px; height: 8px; background: #00ff88; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 75%; left: 25%; width: 8px; height: 8px; background: #00ff88; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 50%; left: 15%; width: 8px; height: 8px; background: #00ff88; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                        <div style="position: absolute; top: 25%; left: 25%; width: 8px; height: 8px; background: #00ff88; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                    </div>
+                    <p style="font-size: 0.8rem; color: #888;">Two rings: inner (blue) + outer (green)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 style="color: #00ff88;">🚀 Ready to Test</h2>
+            <p>The radial project positioning has been implemented in <code>assets/js/synapse/render.js</code>. When you refresh your dashboard, you should see:</p>
+            
+            <ul style="line-height: 1.8;">
+                <li>✅ Projects positioned radially around theme centers (not at edges)</li>
+                <li>✅ Larger, more interactive project hexagons with hover effects</li>
+                <li>✅ Automatic multi-ring layout for themes with many projects</li>
+                <li>✅ Individual project click handlers and title display on hover</li>
+                <li>✅ Smooth animations and visual feedback</li>
+                <li>✅ Better scalability for themes with varying project counts</li>
+            </ul>
+            
+            <div style="text-align: center; margin-top: 2rem;">
+                <button onclick="window.open('https://charlestonhacks.com/dashboard.html', '_blank')" 
+                        style="background: linear-gradient(135deg, #00ff88, #00e0ff); border: none; border-radius: 8px; color: #000; padding: 1rem 2rem; font-weight: 600; cursor: pointer; font-size: 1.1rem;">
+                    <i class="fas fa-external-link-alt"></i> Test Radial Projects on Live Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
+    
+    <script>
+        // Add some interactive hover effects to the demo
+        document.querySelectorAll('.project-dot').forEach(dot => {
+            dot.addEventListener('mouseenter', function() {
+                this.style.transform = this.style.transform.replace('scale(1)', 'scale(1.3)');
+                this.style.boxShadow = '0 0 15px rgba(0,224,255,0.8)';
+            });
+            
+            dot.addEventListener('mouseleave', function() {
+                this.style.transform = this.style.transform.replace('scale(1.3)', 'scale(1)');
+                this.style.boxShadow = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

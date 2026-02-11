@@ -1,0 +1,132 @@
+/*
+ * events.css
+ *
+ * Styles for the stand‑alone upcoming events page.  The palette and
+ * typography are inspired by the existing CharlestonHacks theme found
+ * throughout the site.  The layout is responsive and designed to
+ * allow long lists of events to scroll within the viewport without
+ * causing the entire page to scroll.
+ */
+
+/* Theme variables.  Feel free to adjust these to better match your
+   brand colours. */
+:root {
+  --bg-color: #0d1b2a;
+  --fg-color: #f5f7fa;
+  --section-bg: #1e324d;
+  --card-bg: #162945;
+  --accent-color: #ffc678;
+  --muted-color: #8fa3bf;
+}
+
+/* Global resets */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--fg-color);
+  line-height: 1.5;
+}
+
+.container {
+  width: 90%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1rem 0 3rem;
+}
+
+h1 {
+  margin: 1rem 0 0.5rem;
+  text-align: center;
+  font-size: 2rem;
+  color: var(--accent-color);
+}
+
+#lastUpdated {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--muted-color);
+}
+
+/* Scrollable list container.  The height is calculated relative to the
+   viewport so that the page header remains visible.  Adjust the
+   subtraction value if the header size changes. */
+#events-list {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.section {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--accent-color);
+}
+
+.event-card {
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.event-title {
+  font-size: 1.25rem;
+  margin: 0 0 0.25rem 0;
+  color: var(--fg-color);
+}
+
+.event-date,
+.event-location,
+.event-source {
+  font-size: 0.9rem;
+  margin: 0.25rem 0;
+  color: var(--muted-color);
+}
+
+.event-description {
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  color: var(--fg-color);
+}
+
+.event-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.event-link:hover {
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  #events-list {
+    max-height: calc(100vh - 180px);
+  }
+  h1 {
+    font-size: 1.6rem;
+  }
+  .section-header {
+    font-size: 1.3rem;
+  }
+  .event-title {
+    font-size: 1.1rem;
+  }
+}

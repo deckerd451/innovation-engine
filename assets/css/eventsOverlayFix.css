@@ -1,0 +1,7 @@
+/* Scrollable events list for the overlay. This small stylesheet fixes
+   the default events modal so that long lists don’t overflow the screen. */
+#events-overlay .events-modal #events-list {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}

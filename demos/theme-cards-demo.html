@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Theme Strategy Demo - Charleston Hacks</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .demo-header {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid rgba(0, 224, 255, 0.3);
+        }
+
+        .demo-header h1 {
+            color: #00e0ff;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .demo-header p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .strategy-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .strategy-section {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            padding: 2rem;
+            border: 2px solid rgba(0, 224, 255, 0.2);
+        }
+
+        .strategy-section h2 {
+            color: #00e0ff;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .old-strategy {
+            border-color: rgba(255, 107, 107, 0.3);
+        }
+
+        .old-strategy h2 {
+            color: #ff6b6b;
+        }
+
+        .new-strategy {
+            border-color: rgba(0, 255, 136, 0.3);
+        }
+
+        .new-strategy h2 {
+            color: #00ff88;
+        }
+
+        .strategy-list {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .strategy-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            line-height: 1.5;
+        }
+
+        .strategy-list li i {
+            margin-top: 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .old-strategy .strategy-list li i {
+            color: #ff6b6b;
+        }
+
+        .new-strategy .strategy-list li i {
+            color: #00ff88;
+        }
+
+        .demo-button {
+            background: linear-gradient(135deg, #00e0ff, #0099cc);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 224, 255, 0.4);
+        }
+
+        .demo-button.secondary {
+            background: linear-gradient(135deg, rgba(0, 224, 255, 0.2), rgba(0, 224, 255, 0.1));
+            color: #00e0ff;
+            border: 2px solid #00e0ff;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .benefit-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .benefit-card .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .benefit-card h3 {
+            color: #00ff88;
+            font-size: 1.3rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .benefit-card p {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.5;
+        }
+
+        .implementation-section {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 3rem 2rem;
+            text-align: center;
+            border-top: 2px solid rgba(0, 224, 255, 0.3);
+        }
+
+        .implementation-section h2 {
+            color: #00e0ff;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .implementation-section p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1rem;
+            max-width: 800px;
+            margin: 0 auto 2rem auto;
+            line-height: 1.6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .strategy-comparison {
+                grid-template-columns: 1fr;
+            }
+            
+            .demo-header h1 {
+                font-size: 2rem;
+            }
+            
+            .demo-header p {
+                font-size: 1rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-header">
+        <h1>🎯 New Theme Strategy</h1>
+        <p>Solving the theme circle click blocking issue with a modern, accessible card-based interface</p>
+    </div>
+
+    <div class="strategy-comparison">
+        <div class="strategy-section old-strategy">
+            <h2><i class="fas fa-times-circle"></i> Old Strategy: Concentric Circles</h2>
+            <ul class="strategy-list">
+                <li><i class="fas fa-bug"></i> <strong>Click Blocking:</strong> Outer circles block clicks to inner circles due to SVG layering</li>
+                <li><i class="fas fa-mobile-alt"></i> <strong>Mobile Issues:</strong> Hard to interact with on touch devices</li>
+                <li><i class="fas fa-eye-slash"></i> <strong>Accessibility:</strong> Poor screen reader support and keyboard navigation</li>
+                <li><i class="fas fa-cache"></i> <strong>Caching Problems:</strong> Browser aggressively caches SVG modules</li>
+                <li><i class="fas fa-code"></i> <strong>Complex Code:</strong> Custom hit detection, z-index management, SVG transforms</li>
+                <li><i class="fas fa-search"></i> <strong>Limited Features:</strong> Hard to add search, filtering, or sorting</li>
+            </ul>
+            <a href="dashboard.html" class="demo-button secondary">
+                <i class="fas fa-eye"></i> View Old System
+            </a>
+        </div>
+
+        <div class="strategy-section new-strategy">
+            <h2><i class="fas fa-check-circle"></i> New Strategy: Theme Cards</h2>
+            <ul class="strategy-list">
+                <li><i class="fas fa-mouse-pointer"></i> <strong>Always Clickable:</strong> Each card is a separate DOM element, no layering issues</li>
+                <li><i class="fas fa-mobile-alt"></i> <strong>Mobile First:</strong> Responsive grid that works perfectly on all devices</li>
+                <li><i class="fas fa-universal-access"></i> <strong>Accessible:</strong> Proper focus management, screen reader friendly</li>
+                <li><i class="fas fa-rocket"></i> <strong>No Caching Issues:</strong> Standard HTML/CSS, no complex module dependencies</li>
+                <li><i class="fas fa-code"></i> <strong>Clean Code:</strong> Simple, maintainable implementation</li>
+                <li><i class="fas fa-plus"></i> <strong>Feature Rich:</strong> Easy to add search, filters, sorting, animations</li>
+            </ul>
+            <button class="demo-button" onclick="loadNewStrategy()">
+                <i class="fas fa-play"></i> Try New Strategy
+            </button>
+        </div>
+    </div>
+
+    <div class="benefits-grid">
+        <div class="benefit-card">
+            <span class="icon">🎯</span>
+            <h3>Better User Experience</h3>
+            <p>Clear, intuitive interface that users can navigate without confusion or frustration</p>
+        </div>
+        <div class="benefit-card">
+            <span class="icon">📱</span>
+            <h3>Mobile Responsive</h3>
+            <p>Works seamlessly on phones, tablets, and desktops with touch-friendly interactions</p>
+        </div>
+        <div class="benefit-card">
+            <span class="icon">⚡</span>
+            <h3>Better Performance</h3>
+            <p>Faster rendering, no complex SVG calculations, and efficient DOM updates</p>
+        </div>
+        <div class="benefit-card">
+            <span class="icon">🔧</span>
+            <h3>Easy Maintenance</h3>
+            <p>Simple HTML/CSS structure that's easy to debug, modify, and extend</p>
+        </div>
+        <div class="benefit-card">
+            <span class="icon">🌟</span>
+            <h3>Rich Features</h3>
+            <p>Room for animations, search, filtering, sorting, and other enhancements</p>
+        </div>
+        <div class="benefit-card">
+            <span class="icon">♿</span>
+            <h3>Accessibility</h3>
+            <p>WCAG compliant with proper focus management and screen reader support</p>
+        </div>
+    </div>
+
+    <div class="implementation-section">
+        <h2>🚀 Implementation Options</h2>
+        <p>
+            The new strategy offers three display modes to suit different user preferences and use cases.
+            You can switch between them seamlessly without losing functionality.
+        </p>
+        
+        <div class="button-group">
+            <button class="demo-button" onclick="showMode('cards')">
+                <i class="fas fa-th-large"></i> Cards Mode
+            </button>
+            <button class="demo-button" onclick="showMode('sidebar')">
+                <i class="fas fa-sidebar"></i> Sidebar Mode
+            </button>
+            <button class="demo-button" onclick="showMode('hybrid')">
+                <i class="fas fa-layer-group"></i> Hybrid Mode
+            </button>
+        </div>
+    </div>
+
+    <div id="demo-area" style="min-height: 400px; padding: 2rem; display: none;">
+        <!-- Demo content will be loaded here -->
+    </div>
+
+    <script>
+        function loadNewStrategy() {
+            alert('🎯 New strategy implementation ready!\n\nTo implement:\n1. Replace core.js import with core-cards.js\n2. Update cache version\n3. Deploy changes\n\nThis will eliminate all click blocking issues and provide a much better user experience.');
+        }
+
+        function showMode(mode) {
+            const demoArea = document.getElementById('demo-area');
+            demoArea.style.display = 'block';
+            
+            const modeDescriptions = {
+                cards: {
+                    title: '📋 Cards Mode',
+                    description: 'Full-screen grid of theme cards. Perfect for discovery and detailed theme information.',
+                    features: ['Large, detailed cards', 'Rich project previews', 'Participant avatars', 'Full theme descriptions']
+                },
+                sidebar: {
+                    title: '📱 Sidebar Mode', 
+                    description: 'Compact theme cards in a sidebar with people/project network in the background.',
+                    features: ['Space-efficient', 'Network visualization', 'Quick theme access', 'Dual-pane interface']
+                },
+                hybrid: {
+                    title: '🔀 Hybrid Mode',
+                    description: 'Compact theme cards at the top with people/project network below.',
+                    features: ['Best of both worlds', 'Contextual themes', 'Network relationships', 'Flexible layout']
+                }
+            };
+
+            const info = modeDescriptions[mode];
+            
+            demoArea.innerHTML = `
+                <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+                    <h3 style="color: #00e0ff; font-size: 2rem; margin-bottom: 1rem;">${info.title}</h3>
+                    <p style="color: rgba(255, 255, 255, 0.8); font-size: 1.2rem; margin-bottom: 2rem; line-height: 1.6;">
+                        ${info.description}
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                        ${info.features.map(feature => `
+                            <div style="background: rgba(0, 224, 255, 0.1); border: 1px solid rgba(0, 224, 255, 0.3); border-radius: 8px; padding: 1rem;">
+                                <i class="fas fa-check" style="color: #00ff88; margin-right: 0.5rem;"></i>
+                                ${feature}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="demo-button" onclick="implementMode('${mode}')">
+                        <i class="fas fa-rocket"></i> Implement ${info.title}
+                    </button>
+                </div>
+            `;
+            
+            demoArea.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function implementMode(mode) {
+            alert(`🚀 Ready to implement ${mode} mode!\n\nImplementation steps:\n1. Set themeDisplayMode = '${mode}' in core-cards.js\n2. Update dashboard.html to import core-cards.js\n3. Test the new interface\n4. Deploy when satisfied\n\nThis will provide a much better user experience!`);
+        }
+
+        // Add some interactive animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.benefit-card, .strategy-section');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.animation = 'slideInUp 0.6s ease-out';
+                    }
+                });
+            });
+
+            cards.forEach(card => observer.observe(card));
+        });
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

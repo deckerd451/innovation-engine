@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Diagnostics - CharlestonHacks</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        .diagnostics-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .diagnostic-section {
+            background: rgba(0,224,255,0.05);
+            border: 1px solid rgba(0,224,255,0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .status-good { color: #00ff88; }
+        .status-warning { color: #ffaa00; }
+        .status-error { color: #ff6b6b; }
+        .status-info { color: #00e0ff; }
+        
+        .system-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .system-card {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .system-card:hover {
+            border-color: rgba(0,224,255,0.3);
+            background: rgba(0,224,255,0.05);
+        }
+        
+        .system-card.working {
+            border-left: 4px solid #00ff88;
+        }
+        
+        .system-card.warning {
+            border-left: 4px solid #ffaa00;
+        }
+        
+        .system-card.error {
+            border-left: 4px solid #ff6b6b;
+        }
+        
+        .diagnostic-button {
+            background: linear-gradient(135deg, #00ff88, #00e0ff);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            padding: 1rem 2rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            transition: all 0.2s;
+        }
+        
+        .diagnostic-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+        }
+        
+        .diagnostic-button.secondary {
+            background: rgba(0,224,255,0.1);
+            border: 1px solid rgba(0,224,255,0.3);
+            color: #00e0ff;
+        }
+        
+        .log-output {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        
+        .issue-item {
+            background: rgba(255,107,107,0.1);
+            border-left: 3px solid #ff6b6b;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .fix-item {
+            background: rgba(0,255,136,0.1);
+            border-left: 3px solid #00ff88;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 0 6px 6px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="diagnostics-container">
+        <h1 class="status-info">🔍 System Diagnostics</h1>
+        <p>Based on your console logs, here's an analysis of what's initialized and what might not be working properly.</p>
+        
+        <div class="diagnostic-section">
+            <h2 class="status-good">✅ Systems Working Correctly</h2>
+            
+            <div class="system-grid">
+                <div class="system-card working">
+                    <h3><i class="fas fa-brain"></i> Synapse Core</h3>
+                    <p><strong>Status:</strong> <span class="status-good">✅ Working</span></p>
+                    <p>Graph built in 20.50ms with 34 DOM elements. Theme-centric model loaded successfully.</p>
+                </div>
+                
+                <div class="system-card working">
+                    <h3><i class="fas fa-user-shield"></i> Authentication</h3>
+                    <p><strong>Status:</strong> <span class="status-good">✅ Working</span></p>
+                    <p>User logged in successfully, profile loaded, admin access granted.</p>
+                </div>
+                
+                <div class="system-card working">
+                    <h3><i class="fas fa-database"></i> Data Loading</h3>
+                    <p><strong>Status:</strong> <span class="status-good">✅ Working</span></p>
+                    <p>16 theme nodes, 2 people nodes, 8 theme participation links created.</p>
+                </div>
+                
+                <div class="system-card working">
+                    <h3><i class="fas fa-play-circle"></i> START Flow</h3>
+                    <p><strong>Status:</strong> <span class="status-good">✅ Working</span></p>
+                    <p>Initialized with profile data, button visibility updated.</p>
+                </div>
+                
+                <div class="system-card working">
+                    <h3><i class="fas fa-chart-line"></i> Daily Engagement</h3>
+                    <p><strong>Status:</strong> <span class="status-good">✅ Working</span></p>
+                    <p>Profile loaded, already checked in today, stats initialized.</p>
+                </div>
+                
+                <div class="system-card working">
+                    <h3><i class="fas fa-crown"></i> Admin System</h3>
+                    <p><strong>Status:</strong> <span class="status-good">✅ Working</span></p>
+                    <p>Admin access granted, button shown, analytics integrated.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h2 class="status-warning">⚠️ Potential Issues Identified</h2>
+            
+            <div class="issue-item">
+                <h3><i class="fas fa-filter"></i> Network Filters</h3>
+                <p><strong>Issue:</strong> Shows "Loading..." but no completion message in logs</p>
+                <p><strong>Impact:</strong> Filter functionality may not be working</p>
+                <p><strong>Expected:</strong> Should show "✅ Network filters initialized"</p>
+            </div>
+            
+            <div class="issue-item">
+                <h3><i class="fas fa-sync-alt"></i> Multiple Initializations</h3>
+                <p><strong>Issue:</strong> Some systems initialize multiple times (duplicate events)</p>
+                <p><strong>Impact:</strong> Performance overhead, potential memory leaks</p>
+                <p><strong>Examples:</strong> Admin access granted 4 times, Profile loaded 4 times</p>
+            </div>
+            
+            <div class="issue-item">
+                <h3><i class="fas fa-plug"></i> Connection Status Helper</h3>
+                <p><strong>Issue:</strong> Connection status indicator not showing in logs</p>
+                <p><strong>Impact:</strong> Users don't see loading feedback</p>
+                <p><strong>Expected:</strong> Should show connection status updates</p>
+            </div>
+            
+            <div class="issue-item">
+                <h3><i class="fas fa-brain"></i> Synapse Helper</h3>
+                <p><strong>Issue:</strong> Synapse initialization helper not logging</p>
+                <p><strong>Impact:</strong> Fallback initialization may not be working</p>
+                <p><strong>Expected:</strong> Should show "✅ Synapse initialization helper loaded"</p>
+            </div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h2 class="status-info">🔧 Diagnostic Tools</h2>
+            
+            <button class="diagnostic-button" onclick="runNetworkFiltersTest()">
+                <i class="fas fa-filter"></i> Test Network Filters
+            </button>
+            
+            <button class="diagnostic-button secondary" onclick="checkDuplicateInitializations()">
+                <i class="fas fa-copy"></i> Check Duplicate Inits
+            </button>
+            
+            <button class="diagnostic-button secondary" onclick="testConnectionStatus()">
+                <i class="fas fa-wifi"></i> Test Connection Status
+            </button>
+            
+            <button class="diagnostic-button secondary" onclick="testSynapseHelper()">
+                <i class="fas fa-brain"></i> Test Synapse Helper
+            </button>
+            
+            <div id="diagnostic-output" class="log-output" style="display: none;"></div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h2 class="status-good">🛠️ Recommended Fixes</h2>
+            
+            <div class="fix-item">
+                <h3>1. Fix Network Filters Initialization</h3>
+                <p>Add proper completion logging to network-filters.js to confirm it's working.</p>
+                <pre style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; font-size: 0.8rem;">
+console.log("✅ Network filters ready");
+                </pre>
+            </div>
+            
+            <div class="fix-item">
+                <h3>2. Prevent Duplicate Initializations</h3>
+                <p>Add initialization guards to prevent multiple event listeners and duplicate processing.</p>
+                <pre style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; font-size: 0.8rem;">
+if (window.__MODULE_INITIALIZED__) return;
+window.__MODULE_INITIALIZED__ = true;
+                </pre>
+            </div>
+            
+            <div class="fix-item">
+                <h3>3. Enable Connection Status Indicator</h3>
+                <p>Ensure connection-status.js is properly loaded and showing status updates.</p>
+            </div>
+            
+            <div class="fix-item">
+                <h3>4. Verify Synapse Helper Loading</h3>
+                <p>Check that synapse-init-helper.js is properly included and executing.</p>
+            </div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h2 class="status-info">📊 Performance Analysis</h2>
+            
+            <div class="system-grid">
+                <div class="system-card working">
+                    <h4>Synapse Performance</h4>
+                    <p><strong>Build Time:</strong> 20.50ms ✅</p>
+                    <p><strong>DOM Elements:</strong> 34 ✅</p>
+                    <p><strong>Status:</strong> Excellent performance</p>
+                </div>
+                
+                <div class="system-card warning">
+                    <h4>Initialization Events</h4>
+                    <p><strong>Duplicate Events:</strong> ~4x ⚠️</p>
+                    <p><strong>Impact:</strong> Performance overhead</p>
+                    <p><strong>Recommendation:</strong> Add event deduplication</p>
+                </div>
+                
+                <div class="system-card working">
+                    <h4>Data Loading</h4>
+                    <p><strong>Theme Nodes:</strong> 16 ✅</p>
+                    <p><strong>People Nodes:</strong> 2 ✅</p>
+                    <p><strong>Links:</strong> 8 + 1 suggestion ✅</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let diagnosticOutput = null;
+
+        function log(message, type = 'info') {
+            if (!diagnosticOutput) {
+                diagnosticOutput = document.getElementById('diagnostic-output');
+                diagnosticOutput.style.display = 'block';
+            }
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: '#00e0ff',
+                success: '#00ff88',
+                warning: '#ffaa00',
+                error: '#ff6b6b'
+            };
+            
+            diagnosticOutput.innerHTML += `<div style="color: ${colors[type] || colors.info};">[${timestamp}] ${message}</div>`;
+            diagnosticOutput.scrollTop = diagnosticOutput.scrollHeight;
+        }
+
+        function runNetworkFiltersTest() {
+            log('🔍 Testing Network Filters...', 'info');
+            
+            // Check if network filters are available
+            if (typeof window.filterSynapseNodes === 'function') {
+                log('✅ Network filter function available', 'success');
+                
+                // Test filter functionality
+                try {
+                    const testFilter = { people: true, projects: true, connections: true };
+                    window.filterSynapseNodes(testFilter);
+                    log('✅ Network filters working correctly', 'success');
+                } catch (error) {
+                    log(`❌ Network filter test failed: ${error.message}`, 'error');
+                }
+            } else {
+                log('⚠️ Network filter function not available', 'warning');
+                log('💡 This may indicate the network filters module is not fully initialized', 'info');
+            }
+            
+            // Check for filter UI elements
+            const filterElements = document.querySelectorAll('[data-filter]');
+            if (filterElements.length > 0) {
+                log(`✅ Found ${filterElements.length} filter UI elements`, 'success');
+            } else {
+                log('⚠️ No filter UI elements found', 'warning');
+            }
+        }
+
+        function checkDuplicateInitializations() {
+            log('🔍 Checking for duplicate initializations...', 'info');
+            
+            // This would need to be run from the actual dashboard page
+            log('⚠️ This test needs to be run from the dashboard page', 'warning');
+            log('💡 Look for repeated messages in console like:', 'info');
+            log('  - "Admin access granted" (appeared 4 times)', 'info');
+            log('  - "Profile loaded" (appeared 4 times)', 'info');
+            log('  - "Analytics button integrated" (appeared 4 times)', 'info');
+            
+            log('🛠️ Recommended fix: Add initialization guards', 'info');
+        }
+
+        function testConnectionStatus() {
+            log('🔍 Testing Connection Status Indicator...', 'info');
+            
+            if (typeof window.connectionStatus === 'object') {
+                log('✅ Connection status object available', 'success');
+                
+                // Test status updates
+                try {
+                    window.connectionStatus.update('ready', 'Test message');
+                    log('✅ Connection status update working', 'success');
+                    
+                    setTimeout(() => {
+                        window.connectionStatus.hide();
+                        log('✅ Connection status hide working', 'success');
+                    }, 2000);
+                } catch (error) {
+                    log(`❌ Connection status test failed: ${error.message}`, 'error');
+                }
+            } else {
+                log('❌ Connection status not available', 'error');
+                log('💡 Check if connection-status.js is properly loaded', 'info');
+            }
+        }
+
+        function testSynapseHelper() {
+            log('🔍 Testing Synapse Initialization Helper...', 'info');
+            
+            if (typeof window.ensureSynapseInitialized === 'function') {
+                log('✅ Synapse helper function available', 'success');
+                
+                // Test helper functionality
+                try {
+                    window.ensureSynapseInitialized().then(() => {
+                        log('✅ Synapse helper working correctly', 'success');
+                    }).catch((error) => {
+                        log(`⚠️ Synapse helper completed with issues: ${error.message}`, 'warning');
+                    });
+                } catch (error) {
+                    log(`❌ Synapse helper test failed: ${error.message}`, 'error');
+                }
+            } else {
+                log('❌ Synapse helper function not available', 'error');
+                log('💡 Check if synapse-init-helper.js is properly loaded', 'info');
+            }
+        }
+
+        // Show initial analysis
+        setTimeout(() => {
+            log('🚀 System diagnostics loaded', 'success');
+            log('📋 Based on your console logs, most systems are working correctly', 'info');
+            log('⚠️ Main issues: Network Filters completion, duplicate initializations', 'warning');
+            log('💡 Use the buttons above to run specific tests', 'info');
+        }, 500);
+    </script>
+</body>
+</html>

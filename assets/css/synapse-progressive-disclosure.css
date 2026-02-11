@@ -1,0 +1,597 @@
+/* ================================================================
+   Synapse Progressive Disclosure Styles
+   ================================================================
+   Mobile-first, calm, guided network visualization
+   ================================================================ */
+
+/* ==========================================================================
+   MODE SWITCHER
+   ========================================================================== */
+
+.synapse-mode-switcher {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+/* Mobile: Bottom navigation */
+@media (max-width: 767px) {
+  .synapse-mode-switcher {
+    top: auto;
+    bottom: 20px;
+    right: 50%;
+    transform: translateX(50%);
+    flex-direction: row;
+    width: calc(100% - 40px);
+    max-width: 400px;
+    padding: 8px;
+  }
+}
+
+.mode-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+  text-align: left;
+}
+
+@media (max-width: 767px) {
+  .mode-button {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+.mode-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(100, 200, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+}
+
+.mode-button:active {
+  transform: translateY(0);
+}
+
+.mode-button.active {
+  background: rgba(100, 200, 255, 0.15);
+  border-color: rgba(100, 200, 255, 0.5);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(100, 200, 255, 0.3);
+}
+
+.mode-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .mode-name {
+    font-size: 12px;
+    margin-bottom: 0;
+  }
+}
+
+.mode-description {
+  font-size: 11px;
+  opacity: 0.7;
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .mode-description {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   FIRST-TIME EXPERIENCE
+   ========================================================================== */
+
+.synapse-first-time-helper {
+  position: fixed;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.synapse-first-time-helper.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.helper-content {
+  background: linear-gradient(135deg, rgba(100, 200, 255, 0.95), rgba(80, 150, 255, 0.95));
+  color: #fff;
+  padding: 20px 24px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  text-align: center;
+  max-width: 300px;
+  animation: helperPulse 2s ease-in-out infinite;
+}
+
+@media (max-width: 767px) {
+  .helper-content {
+    padding: 16px 20px;
+    max-width: calc(100vw - 40px);
+  }
+}
+
+@keyframes helperPulse {
+  0%, 100% {
+    box-shadow: 0 8px 32px rgba(100, 200, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 8px 40px rgba(100, 200, 255, 0.6);
+  }
+}
+
+.helper-content p {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+@media (max-width: 767px) {
+  .helper-content p {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+}
+
+.helper-dismiss {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.helper-dismiss:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.helper-dismiss:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================================================
+   NODE VISUAL STATES
+   ========================================================================== */
+
+/* Dormant state (default) */
+.node.dormant circle {
+  opacity: 0.25;
+  filter: grayscale(80%) brightness(0.7);
+  transition: all 0.3s ease;
+}
+
+.node.dormant image {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.node.dormant text {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.node.dormant .node-icon,
+.node.dormant .node-badge {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Aware state (hover/proximity) */
+.node.aware circle {
+  opacity: 0.7;
+  filter: grayscale(40%) brightness(1.1) drop-shadow(0 0 8px rgba(100, 200, 255, 0.3));
+  transition: all 0.3s ease;
+}
+
+.node.aware image {
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.node.aware text {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Active state (selected/focused) */
+.node.active circle {
+  opacity: 1;
+  filter: grayscale(0%) brightness(1.2) drop-shadow(0 0 12px rgba(100, 200, 255, 0.6));
+  transition: all 0.3s ease;
+}
+
+.node.active image {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.node.active text {
+  opacity: 1;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.node.active .node-icon,
+.node.active .node-badge {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Current user (always active) */
+.node.current-user circle {
+  opacity: 1 !important;
+  filter: grayscale(0%) brightness(1.2) drop-shadow(0 0 16px rgba(100, 200, 255, 0.8)) !important;
+}
+
+.node.current-user image {
+  opacity: 1 !important;
+}
+
+.node.current-user text {
+  opacity: 1 !important;
+  font-weight: 700 !important;
+}
+
+/* ==========================================================================
+   LINK STATES
+   ========================================================================== */
+
+.link {
+  opacity: 0.1;
+  transition: opacity 0.3s ease;
+}
+
+.link.active {
+  opacity: 0.6;
+  stroke-width: 2px;
+  transition: all 0.3s ease;
+}
+
+.link.connected {
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+/* ==========================================================================
+   RESPONSIVE LABELS
+   ========================================================================== */
+
+.node text {
+  font-size: 12px;
+  fill: #fff;
+  text-anchor: middle;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 767px) {
+  .node text {
+    font-size: 11px;
+  }
+}
+
+/* Prevent label overflow on mobile */
+@media (max-width: 767px) {
+  .node text {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ==========================================================================
+   ICONS & BADGES (Close Zoom Only)
+   ========================================================================== */
+
+.node-icon,
+.node-badge {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+/* Only show at close zoom */
+.zoom-close .node.active .node-icon,
+.zoom-close .node.active .node-badge {
+  opacity: 1;
+}
+
+/* Badge positioning */
+.xp-badge {
+  transform: translate(15px, -15px);
+}
+
+.streak-badge {
+  transform: translate(15px, 5px);
+}
+
+.theme-icon {
+  transform: translate(-15px, -15px);
+}
+
+/* Mobile: smaller badges */
+@media (max-width: 767px) {
+  .node-badge {
+    transform: scale(0.8);
+  }
+}
+
+/* ==========================================================================
+   ZOOM TIERS
+   ========================================================================== */
+
+/* Far zoom: abstract dots */
+.zoom-far .node circle {
+  r: 4px !important;
+}
+
+.zoom-far .node image,
+.zoom-far .node text,
+.zoom-far .node-icon,
+.zoom-far .node-badge {
+  opacity: 0 !important;
+}
+
+/* Mid zoom: selective labels */
+.zoom-mid .node image {
+  opacity: 0.6;
+}
+
+.zoom-mid .node text {
+  opacity: 0;
+}
+
+.zoom-mid .node.important text,
+.zoom-mid .node.current-user text,
+.zoom-mid .node.active text {
+  opacity: 1;
+}
+
+/* Close zoom: full details */
+.zoom-close .node image {
+  opacity: 1;
+}
+
+.zoom-close .node text {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   TOUCH TARGETS (Mobile)
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  /* Ensure minimum 44px touch targets */
+  .node circle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  /* Add invisible larger hit area */
+  .node::before {
+    content: '';
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    pointer-events: all;
+  }
+}
+
+/* ==========================================================================
+   FOCUS MODE
+   ========================================================================== */
+
+.synapse-focus-mode .node:not(.focused):not(.connected) {
+  opacity: 0.1 !important;
+  filter: grayscale(100%) !important;
+}
+
+.synapse-focus-mode .link:not(.focused-path) {
+  opacity: 0.05 !important;
+}
+
+.synapse-focus-mode .theme-circle:not(.focused) {
+  opacity: 0.1 !important;
+}
+
+/* ==========================================================================
+   MOTION PREFERENCES
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .node,
+  .link,
+  .mode-button,
+  .helper-content {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  .node circle {
+    filter: none !important;
+  }
+}
+
+/* ==========================================================================
+   THEME CIRCLES (Discovery Mode Only)
+   ========================================================================== */
+
+.theme-circle {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.synapse-discovery-mode .theme-circle {
+  opacity: 0.6;
+}
+
+.synapse-discovery-mode .theme-circle.active {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   LOADING & TRANSITIONS
+   ========================================================================== */
+
+.synapse-loading .node,
+.synapse-loading .link {
+  opacity: 0;
+}
+
+.synapse-ready .node,
+.synapse-ready .link {
+  opacity: 1;
+  transition: opacity 0.6s ease;
+}
+
+/* ==========================================================================
+   ACCESSIBILITY
+   ========================================================================== */
+
+/* Focus indicators for keyboard navigation */
+.node:focus-visible {
+  outline: 2px solid rgba(100, 200, 255, 0.8);
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+.mode-button:focus-visible {
+  outline: 2px solid rgba(100, 200, 255, 0.8);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .node circle {
+    stroke: #fff;
+    stroke-width: 2px;
+  }
+  
+  .link {
+    stroke: #fff;
+    opacity: 0.5;
+  }
+  
+  .mode-button {
+    border-width: 2px;
+  }
+}
+
+/* ==========================================================================
+   DARK MODE ADJUSTMENTS
+   ========================================================================== */
+
+@media (prefers-color-scheme: light) {
+  .synapse-mode-switcher {
+    background: rgba(255, 255, 255, 0.95);
+  }
+  
+  .mode-button {
+    color: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .mode-button:hover {
+    color: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.1);
+  }
+  
+  .mode-button.active {
+    color: #000;
+    background: rgba(100, 200, 255, 0.2);
+    border-color: rgba(100, 200, 255, 0.6);
+  }
+  
+  .node text {
+    fill: #000;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* ==========================================================================
+   TABLET BREAKPOINT
+   ========================================================================== */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .synapse-mode-switcher {
+    top: 70px;
+    right: 16px;
+    padding: 10px;
+  }
+  
+  .mode-button {
+    padding: 10px 14px;
+    min-width: 120px;
+  }
+  
+  .mode-name {
+    font-size: 13px;
+  }
+  
+  .mode-description {
+    font-size: 10px;
+  }
+}
+
+/* ==========================================================================
+   DESKTOP ENHANCEMENTS
+   ========================================================================== */
+
+@media (min-width: 1025px) {
+  /* Smoother hover effects on desktop */
+  .node:hover circle {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+  }
+  
+  .mode-button:hover {
+    transform: translateY(-3px);
+  }
+  
+  /* Show more details on desktop */
+  .node.active .node-icon,
+  .node.active .node-badge {
+    opacity: 1;
+  }
+}

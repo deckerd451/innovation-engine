@@ -1,0 +1,1276 @@
+// ================================================================
+// REAL-TIME COLLABORATION SYSTEM
+// ================================================================
+// Live messaging, notifications, presence indicators, and collaborative features
+
+console.log("%c🔄 Real-time Collaboration Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
+
+let supabase = null;
+let currentUserProfile = null;
+let realtimeChannel = null;
+let presenceChannel = null;
+let activeConversations = new Map();
+let unreadCounts = new Map();
+let typingIndicators = new Map();
+
+// Collaboration event types
+const COLLAB_EVENTS = {
+  MESSAGE_SENT: 'message_sent',
+  MESSAGE_READ: 'message_read',
+  USER_TYPING: 'user_typing',
+  USER_ONLINE: 'user_online',
+  USER_OFFLINE: 'user_offline',
+  PROJECT_UPDATE: 'project_update',
+  TEAM_INVITE: 'team_invite',
+  CONNECTION_REQUEST: 'connection_request'
+};
+
+// Message types
+const MESSAGE_TYPES = {
+  TEXT: 'text',
+  IMAGE: 'image',
+  FILE: 'file',
+  SYSTEM: 'system',
+  PROJECT_INVITE: 'project_invite',
+  CONNECTION_REQUEST: 'connection_request'
+};
+
+// Initialize real-time collaboration
+export function initRealtimeCollaboration() {
+  supabase = window.supabase;
+  
+  // Listen for profile loaded
+  window.addEventListener('profile-loaded', (e) => {
+    currentUserProfile = e.detail.profile;
+    setupRealtimeChannels();
+  });
+
+  // Expose functions globally
+  window.openMessagingInterface = openMessagingInterface;
+  window.closeMessagingInterface = closeMessagingInterface;
+  window.sendDirectMessage = sendDirectMessage;
+  window.markMessagesAsRead = markMessagesAsRead;
+  window.showUserPresence = showUserPresence;
+  window.startTypingIndicator = startTypingIndicator;
+  window.stopTypingIndicator = stopTypingIndicator;
+
+  console.log('✅ Real-time collaboration initialized');
+}
+
+// Setup real-time channels
+async function setupRealtimeChannels() {
+  if (!supabase || !currentUserProfile) return;
+
+  console.log('🔄 Setting up real-time channels for user:', currentUserProfile.name);
+
+  try {
+    // Main collaboration channel
+    realtimeChannel = supabase
+      .channel('collaboration-main')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages'
+      }, handleNewMessage)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversations'
+      }, handleConversationUpdate)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'project_members'
+      }, handleTeamInvite)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'connections'
+      }, handleConnectionRequest)
+      .subscribe();
+
+    // Presence channel for online status
+    presenceChannel = supabase
+      .channel('user-presence')
+      .on('presence', { event: 'sync' }, handlePresenceSync)
+      .on('presence', { event: 'join' }, handlePresenceJoin)
+      .on('presence', { event: 'leave' }, handlePresenceLeave)
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          // Track user presence
+          await presenceChannel.track({
+            user_id: currentUserProfile.id,
+            name: currentUserProfile.name,
+            avatar: currentUserProfile.image_url,
+            online_at: new Date().toISOString()
+          });
+          console.log('✅ Presence tracking started');
+        }
+      });
+
+    // Load initial data
+    await loadActiveConversations();
+    await loadUnreadCounts();
+
+    console.log('✅ Real-time channels established');
+
+  } catch (error) {
+    console.error('❌ Error setting up real-time channels:', error);
+  }
+}
+
+// Handle new message
+function handleNewMessage(payload) {
+  const message = payload.new;
+  console.log('📨 New message received:', message);
+
+  // Update conversation in UI if open
+  if (activeConversations.has(message.conversation_id)) {
+    appendMessageToConversation(message.conversation_id, message);
+  }
+
+  // Update unread count
+  if (message.sender_id !== currentUserProfile.id) {
+    updateUnreadCount(message.conversation_id, 1);
+    showMessageNotification(message);
+  }
+
+  // Play notification sound
+  playNotificationSound();
+}
+
+// Handle conversation updates
+function handleConversationUpdate(payload) {
+  const conversation = payload.new;
+  console.log('💬 Conversation updated:', conversation);
+
+  // Update conversation list if messaging interface is open
+  if (document.getElementById('messaging-interface')) {
+    refreshConversationList();
+  }
+}
+
+// Handle team invitations
+function handleTeamInvite(payload) {
+  const invite = payload.new;
+  
+  if (invite.user_id === currentUserProfile.id && invite.role === 'pending') {
+    console.log('👥 New team invitation received:', invite);
+    showTeamInviteNotification(invite);
+  }
+}
+
+// Handle connection requests
+function handleConnectionRequest(payload) {
+  const connection = payload.new;
+  
+  if (connection.to_user_id === currentUserProfile.id && connection.status === 'pending') {
+    console.log('🤝 New connection request received:', connection);
+    showConnectionRequestNotification(connection);
+  }
+}
+
+// Presence handlers
+function handlePresenceSync() {
+  const state = presenceChannel.presenceState();
+  console.log('👥 Presence sync:', Object.keys(state).length, 'users online');
+  updateOnlineUsersList(state);
+}
+
+function handlePresenceJoin({ key, newPresences }) {
+  console.log('✅ User joined:', newPresences);
+  updateUserOnlineStatus(newPresences, true);
+}
+
+function handlePresenceLeave({ key, leftPresences }) {
+  console.log('👋 User left:', leftPresences);
+  updateUserOnlineStatus(leftPresences, false);
+}
+
+// Open messaging interface
+export async function openMessagingInterface(conversationId = null) {
+  console.log('💬 Opening messaging interface...');
+
+  // Remove existing interface if present
+  const existing = document.getElementById('messaging-interface');
+  if (existing) existing.remove();
+
+  // Create messaging interface
+  const messagingInterface = document.createElement('div');
+  messagingInterface.id = 'messaging-interface';
+  messagingInterface.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 1rem;
+  `;
+
+  messagingInterface.innerHTML = `
+    <div class="messaging-container" style="
+      background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
+      border: 2px solid rgba(0, 224, 255, 0.5);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+      max-width: 1200px;
+      width: 100%;
+      height: 80vh;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+    ">
+      <!-- Conversations Sidebar -->
+      <div class="conversations-sidebar" style="
+        width: 350px;
+        border-right: 1px solid rgba(0, 224, 255, 0.2);
+        display: flex;
+        flex-direction: column;
+      ">
+        <!-- Header -->
+        <div style="
+          padding: 1.5rem;
+          border-bottom: 1px solid rgba(0, 224, 255, 0.2);
+          flex-shrink: 0;
+        ">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="color: #00e0ff; margin: 0; font-size: 1.2rem;">
+              <i class="fas fa-comments"></i> Messages
+            </h3>
+            <button onclick="closeMessagingInterface()" style="
+              background: rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.2);
+              color: white;
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              cursor: pointer;
+              font-size: 1rem;
+            ">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <!-- New Message Button -->
+          <button onclick="showNewMessageDialog()" style="
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: rgba(0, 224, 255, 0.1);
+            border: 1px solid rgba(0, 224, 255, 0.3);
+            border-radius: 8px;
+            color: #00e0ff;
+            cursor: pointer;
+            font-weight: 600;
+          ">
+            <i class="fas fa-plus"></i> New Message
+          </button>
+        </div>
+
+        <!-- Conversations List -->
+        <div id="conversations-list" style="
+          flex: 1;
+          overflow-y: auto;
+          padding: 1rem;
+        ">
+          <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
+            <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+            <p>Loading conversations...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Area -->
+      <div class="chat-area" style="
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      ">
+        <!-- Chat Header -->
+        <div id="chat-header" style="
+          padding: 1.5rem;
+          border-bottom: 1px solid rgba(0, 224, 255, 0.2);
+          flex-shrink: 0;
+          display: none;
+        ">
+          <!-- Chat header content will be populated -->
+        </div>
+
+        <!-- Messages Area -->
+        <div id="messages-area" style="
+          flex: 1;
+          overflow-y: auto;
+          padding: 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div style="text-align: center; color: rgba(255, 255, 255, 0.6);">
+            <i class="fas fa-comments" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+            <h3 style="color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem;">Select a conversation</h3>
+            <p>Choose a conversation from the sidebar or start a new one</p>
+          </div>
+        </div>
+
+        <!-- Message Input -->
+        <div id="message-input-area" style="
+          padding: 1.5rem;
+          border-top: 1px solid rgba(0, 224, 255, 0.2);
+          flex-shrink: 0;
+          display: none;
+        ">
+          <div style="display: flex; gap: 1rem; align-items: end;">
+            <div style="flex: 1;">
+              <textarea id="message-input" placeholder="Type your message..." style="
+                width: 100%;
+                min-height: 60px;
+                max-height: 120px;
+                padding: 0.75rem;
+                background: rgba(0, 224, 255, 0.05);
+                border: 1px solid rgba(0, 224, 255, 0.3);
+                border-radius: 8px;
+                color: white;
+                font-size: 1rem;
+                resize: vertical;
+                font-family: inherit;
+              "></textarea>
+              <div id="typing-indicator" style="
+                margin-top: 0.5rem;
+                color: rgba(255, 255, 255, 0.6);
+                font-size: 0.85rem;
+                font-style: italic;
+                min-height: 1.2rem;
+              "></div>
+            </div>
+            <button onclick="sendMessage()" style="
+              padding: 0.75rem 1.5rem;
+              background: linear-gradient(135deg, #00e0ff, #0080ff);
+              border: none;
+              border-radius: 8px;
+              color: white;
+              cursor: pointer;
+              font-weight: 600;
+              height: fit-content;
+            ">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Add styles
+  const style = document.createElement('style');
+  style.textContent = `
+    .conversation-item {
+      padding: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 0.5rem;
+      border: 1px solid transparent;
+    }
+
+    .conversation-item:hover {
+      background: rgba(0, 224, 255, 0.05);
+      border-color: rgba(0, 224, 255, 0.2);
+    }
+
+    .conversation-item.active {
+      background: rgba(0, 224, 255, 0.1);
+      border-color: rgba(0, 224, 255, 0.4);
+    }
+
+    .message-bubble {
+      max-width: 70%;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      margin-bottom: 0.75rem;
+      word-wrap: break-word;
+    }
+
+    .message-bubble.own {
+      background: linear-gradient(135deg, #00e0ff, #0080ff);
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message-bubble.other {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      margin-right: auto;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message-time {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+
+    .unread-badge {
+      background: #ff4444;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+
+    .online-indicator {
+      width: 8px;
+      height: 8px;
+      background: #00ff88;
+      border-radius: 50%;
+      border: 2px solid white;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+    }
+
+    #messages-area::-webkit-scrollbar {
+      width: 8px;
+    }
+    #messages-area::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+    #messages-area::-webkit-scrollbar-thumb {
+      background: rgba(0, 224, 255, 0.3);
+      border-radius: 4px;
+    }
+  `;
+  document.head.appendChild(style);
+
+  document.body.appendChild(messagingInterface);
+
+  // Setup event listeners
+  setupMessagingEventListeners();
+
+  // Load conversations
+  await loadConversationsList();
+
+  // Open specific conversation if provided
+  if (conversationId) {
+    await openConversation(conversationId);
+  }
+
+  console.log('✅ Messaging interface opened');
+}
+
+// Setup messaging event listeners
+function setupMessagingEventListeners() {
+  // Message input handling
+  const messageInput = document.getElementById('message-input');
+  if (messageInput) {
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Typing indicators
+    let typingTimeout;
+    messageInput.addEventListener('input', () => {
+      startTypingIndicator();
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        stopTypingIndicator();
+      }, 2000);
+    });
+  }
+
+  // Close on backdrop click
+  const messagingInterface = document.getElementById('messaging-interface');
+  if (messagingInterface) {
+    messagingInterface.addEventListener('click', (e) => {
+      if (e.target === messagingInterface) {
+        closeMessagingInterface();
+      }
+    });
+  }
+}
+
+// Helper function to format message timestamps
+function formatMessageTime(timestamp) {
+  if (!timestamp) return '';
+  
+  const now = new Date();
+  const messageTime = new Date(timestamp);
+  const diffInSeconds = Math.floor((now - messageTime) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  
+  const diffInDays = Math.floor(diffInSeconds / 86400);
+  if (diffInDays === 1) return 'Yesterday';
+  if (diffInDays < 7) return `${diffInDays}d ago`;
+  
+  return messageTime.toLocaleDateString();
+}
+
+// Load conversations list
+async function loadConversationsList() {
+  const container = document.getElementById('conversations-list');
+  if (!container || !currentUserProfile) return;
+
+  try {
+    console.log('📋 Loading conversations for user:', currentUserProfile.id);
+
+    // First, let's try a simpler query to check if conversations table exists
+    const { data: conversations, error } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        participant1:community!participant1_id(id, name, image_url),
+        participant2:community!participant2_id(id, name, image_url)
+      `)
+      .or(`participant1_id.eq.${currentUserProfile.id},participant2_id.eq.${currentUserProfile.id}`)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.warn('📋 Conversations query failed, checking if table exists:', error);
+      
+      // If conversations table doesn't exist, show a helpful message
+      if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('does not exist')) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
+            <i class="fas fa-database" style="font-size: 2rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+            <h4 style="color: #00e0ff; margin-bottom: 0.5rem;">Messaging Setup Required</h4>
+            <p style="margin-bottom: 1rem;">The messaging system requires database setup.</p>
+            <p style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.5);">
+              Please run the database migrations to enable messaging.
+            </p>
+          </div>
+        `;
+        return;
+      }
+      
+      throw error;
+    }
+
+    if (!conversations || conversations.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
+          <i class="fas fa-inbox" style="font-size: 2rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+          <h4 style="color: #00e0ff; margin-bottom: 0.5rem;">No conversations yet</h4>
+          <p style="margin-bottom: 1rem;">Start connecting with community members!</p>
+          <button onclick="closeMessaging(); window.openEnhancedSearch?.('', 'people')" style="
+            background: linear-gradient(135deg, #00e0ff, #0080ff);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+          ">
+            <i class="fas fa-search"></i> Find People to Message
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    console.log(`📋 Loaded ${conversations.length} conversations`);
+
+    // Get last messages for each conversation
+    const conversationIds = conversations.map(c => c.id);
+    let lastMessages = new Map();
+    
+    if (conversationIds.length > 0) {
+      try {
+        const { data: messages } = await supabase
+          .from('messages')
+          .select('conversation_id, content, created_at, sender_id')
+          .in('conversation_id', conversationIds)
+          .order('created_at', { ascending: false });
+        
+        if (messages) {
+          // Group messages by conversation and get the latest one
+          messages.forEach(msg => {
+            if (!lastMessages.has(msg.conversation_id)) {
+              lastMessages.set(msg.conversation_id, msg);
+            }
+          });
+        }
+      } catch (msgError) {
+        console.warn('📋 Could not load last messages:', msgError);
+      }
+    }
+
+    let html = '';
+    conversations.forEach(conversation => {
+      const otherUser = conversation.participant1_id === currentUserProfile.id 
+        ? conversation.participant2 
+        : conversation.participant1;
+      
+      if (!otherUser) {
+        console.warn('📋 Skipping conversation with missing user data:', conversation.id);
+        return;
+      }
+      
+      const lastMessage = lastMessages.get(conversation.id);
+      const unreadCount = unreadCounts.get(conversation.id) || 0;
+      
+      html += `
+        <div class="conversation-item" onclick="openConversation('${conversation.id}')" data-conversation-id="${conversation.id}">
+          <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" 
+               onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'" 
+               onmouseout="this.style.background='transparent'">
+            <div style="position: relative;">
+              ${otherUser.image_url 
+                ? `<img src="${otherUser.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
+                : `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 1.2rem;">${otherUser.name?.[0] || '?'}</div>`
+              }
+              <div class="online-indicator" style="display: none;"></div>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                <h4 style="color: white; margin: 0; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${otherUser.name || 'Unknown User'}</h4>
+                ${unreadCount > 0 ? `<div class="unread-badge" style="background: #ff6b6b; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold;">${unreadCount}</div>` : ''}
+              </div>
+              <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${lastMessage ? (lastMessage.content.length > 50 ? lastMessage.content.substring(0, 50) + '...' : lastMessage.content) : 'No messages yet - start the conversation!'}
+              </p>
+              ${lastMessage ? `
+                <div style="color: rgba(255, 255, 255, 0.5); font-size: 0.75rem; margin-top: 0.25rem;">
+                  ${formatMessageTime(lastMessage.created_at)}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+    console.log('✅ Conversations list rendered successfully');
+
+  } catch (error) {
+    console.error('❌ Error loading conversations:', error);
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: #ff6666;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; margin-bottom: 1rem;"></i>
+        <h4 style="color: #ff6b6b; margin-bottom: 0.5rem;">Connection Error</h4>
+        <p style="margin-bottom: 1rem;">Unable to load conversations</p>
+        <button onclick="loadConversationsList()" style="
+          background: rgba(255, 107, 107, 0.2);
+          border: 1px solid rgba(255, 107, 107, 0.4);
+          border-radius: 8px;
+          color: #ff6b6b;
+          padding: 0.5rem 1rem;
+          cursor: pointer;
+        ">
+          <i class="fas fa-redo"></i> Try Again
+        </button>
+      </div>
+    `;
+  }
+}
+
+// Open specific conversation
+async function openConversation(conversationId) {
+  console.log('💬 Opening conversation:', conversationId);
+
+  // Update active conversation
+  activeConversations.set(conversationId, true);
+
+  // Update UI selection
+  document.querySelectorAll('.conversation-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  const selectedItem = document.querySelector(`[data-conversation-id="${conversationId}"]`);
+  if (selectedItem) {
+    selectedItem.classList.add('active');
+  }
+
+  // Show chat header and input
+  document.getElementById('chat-header').style.display = 'block';
+  document.getElementById('message-input-area').style.display = 'block';
+
+  // Load conversation details and messages
+  await loadConversationMessages(conversationId);
+
+  // Mark messages as read
+  await markMessagesAsRead(conversationId);
+}
+
+// Load messages for conversation
+async function loadConversationMessages(conversationId) {
+  const messagesArea = document.getElementById('messages-area');
+  if (!messagesArea) return;
+
+  try {
+    // Get conversation details
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        participant1:community!conversations_participant1_id_fkey(id, name, image_url),
+        participant2:community!conversations_participant2_id_fkey(id, name, image_url)
+      `)
+      .eq('id', conversationId)
+      .single();
+
+    if (convError) throw convError;
+
+    const otherUser = conversation.participant1_id === currentUserProfile.id 
+      ? conversation.participant2 
+      : conversation.participant1;
+
+    // Update chat header
+    const chatHeader = document.getElementById('chat-header');
+    chatHeader.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="position: relative;">
+          ${otherUser.image_url 
+            ? `<img src="${otherUser.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
+            : `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 1.2rem;">${otherUser.name[0]}</div>`
+          }
+          <div class="online-indicator" style="display: none;"></div>
+        </div>
+        <div>
+          <h3 style="color: white; margin: 0; font-size: 1.1rem;">${otherUser.name}</h3>
+          <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem;">
+            <span id="user-status">Last seen recently</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Get messages
+    const { data: messages, error: msgError } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+
+    if (msgError) throw msgError;
+
+    // Render messages
+    let messagesHtml = '<div style="display: flex; flex-direction: column; width: 100%; padding: 1rem;">';
+    
+    if (!messages || messages.length === 0) {
+      messagesHtml += `
+        <div style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 2rem;">
+          <i class="fas fa-comment" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+          <p>No messages yet. Start the conversation!</p>
+        </div>
+      `;
+    } else {
+      messages.forEach(message => {
+        const isOwn = message.sender_id === currentUserProfile.id;
+        const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        messagesHtml += `
+          <div class="message-bubble ${isOwn ? 'own' : 'other'}">
+            <div>${message.content}</div>
+            <div class="message-time">${time}</div>
+          </div>
+        `;
+      });
+    }
+    
+    messagesHtml += '</div>';
+    messagesArea.innerHTML = messagesHtml;
+
+    // Scroll to bottom
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+
+  } catch (error) {
+    console.error('Error loading conversation messages:', error);
+    messagesArea.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: #ff6666;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+        <p>Failed to load messages</p>
+      </div>
+    `;
+  }
+}
+
+// Send message
+window.sendMessage = async function() {
+  const messageInput = document.getElementById('message-input');
+  const activeConversationId = getActiveConversationId();
+  
+  if (!messageInput || !activeConversationId) return;
+
+  const content = messageInput.value.trim();
+  if (!content) return;
+
+  try {
+    // Send message
+    const { error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: activeConversationId,
+        sender_id: currentUserProfile.id,
+        content: content,
+        message_type: MESSAGE_TYPES.TEXT
+      });
+
+    if (error) throw error;
+
+    // Clear input
+    messageInput.value = '';
+
+    // Update conversation timestamp
+    await supabase
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', activeConversationId);
+
+    console.log('✅ Message sent successfully');
+
+  } catch (error) {
+    console.error('Error sending message:', error);
+    if (window.showSynapseNotification) {
+      window.showSynapseNotification('Failed to send message', 'error');
+    }
+  }
+};
+
+// Helper functions
+function getActiveConversationId() {
+  const activeItem = document.querySelector('.conversation-item.active');
+  return activeItem ? activeItem.dataset.conversationId : null;
+}
+
+function appendMessageToConversation(conversationId, message) {
+  if (getActiveConversationId() !== conversationId) return;
+
+  const messagesArea = document.getElementById('messages-area');
+  if (!messagesArea) return;
+
+  const isOwn = message.sender_id === currentUserProfile.id;
+  const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  const messageElement = document.createElement('div');
+  messageElement.className = `message-bubble ${isOwn ? 'own' : 'other'}`;
+  messageElement.innerHTML = `
+    <div>${message.content}</div>
+    <div class="message-time">${time}</div>
+  `;
+
+  const messagesContainer = messagesArea.querySelector('div');
+  if (messagesContainer) {
+    messagesContainer.appendChild(messageElement);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+  }
+}
+
+// Notification functions
+function showMessageNotification(message) {
+  if (window.showSynapseNotification) {
+    window.showSynapseNotification(`New message: ${message.content.substring(0, 50)}...`, 'info');
+  }
+}
+
+function showTeamInviteNotification(invite) {
+  if (window.showSynapseNotification) {
+    window.showSynapseNotification('You have a new team invitation!', 'info');
+  }
+}
+
+function showConnectionRequestNotification(connection) {
+  if (window.showSynapseNotification) {
+    window.showSynapseNotification('You have a new connection request!', 'info');
+  }
+}
+
+function playNotificationSound() {
+  // Play a subtle notification sound
+  try {
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+    audio.volume = 0.1;
+    audio.play().catch(() => {}); // Ignore errors if audio fails
+  } catch (e) {
+    // Ignore audio errors
+  }
+}
+
+// Placeholder functions for future implementation
+async function loadActiveConversations() {
+  console.log('📋 Loading active conversations...');
+}
+
+async function loadUnreadCounts() {
+  console.log('📊 Loading unread counts...');
+}
+
+function updateUnreadCount(conversationId, increment) {
+  const current = unreadCounts.get(conversationId) || 0;
+  unreadCounts.set(conversationId, current + increment);
+}
+
+function refreshConversationList() {
+  loadConversationsList();
+}
+
+function updateOnlineUsersList(presenceState) {
+  console.log('👥 Updating online users:', Object.keys(presenceState).length);
+}
+
+function updateUserOnlineStatus(presences, isOnline) {
+  console.log(`${isOnline ? '✅' : '👋'} User status update:`, presences);
+}
+
+window.markMessagesAsRead = async function(conversationId) {
+  try {
+    await supabase
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('sender_id', currentUserProfile.id, { negate: true })
+      .is('read_at', null);
+    
+    unreadCounts.set(conversationId, 0);
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+  }
+};
+
+window.startTypingIndicator = function() {
+  console.log('⌨️ User started typing');
+};
+
+window.stopTypingIndicator = function() {
+  console.log('⏹️ User stopped typing');
+};
+
+window.startNewConversation = function() {
+  console.log('💬 Starting new conversation');
+  if (window.showSynapseNotification) {
+    window.showSynapseNotification('New conversation feature coming soon!', 'info');
+  }
+};
+
+window.showUserPresence = function(userId) {
+  console.log('👤 Showing user presence for:', userId);
+};
+
+window.closeMessagingInterface = function() {
+  const messagingInterface = document.getElementById('messaging-interface');
+  if (messagingInterface) {
+    messagingInterface.remove();
+  }
+  
+  // Cleanup channels if needed
+  activeConversations.clear();
+  
+  console.log('🗑️ Messaging interface closed');
+};
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  initRealtimeCollaboration();
+});
+
+console.log('✅ Real-time collaboration ready');
+
+// Create new message/conversation
+window.createNewMessage = async function(targetUserId, targetUserName) {
+  console.log('💬 Creating new message to:', targetUserName);
+  
+  if (!currentUserProfile || !targetUserId) {
+    console.error('❌ Missing user information for new message');
+    return;
+  }
+
+  try {
+    // Check if conversation already exists
+    const { data: existingConversation } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`and(participant1_id.eq.${currentUserProfile.id},participant2_id.eq.${targetUserId}),and(participant1_id.eq.${targetUserId},participant2_id.eq.${currentUserProfile.id})`)
+      .single();
+
+    let conversationId;
+    
+    if (existingConversation) {
+      conversationId = existingConversation.id;
+      console.log('💬 Using existing conversation:', conversationId);
+    } else {
+      // Create new conversation
+      const { data: newConversation, error: createError } = await supabase
+        .from('conversations')
+        .insert([{
+          participant1_id: currentUserProfile.id,
+          participant2_id: targetUserId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('❌ Error creating conversation:', createError);
+        
+        // If table doesn't exist, show helpful message
+        if (createError.code === 'PGRST116' || createError.message.includes('relation')) {
+          if (window.showSynapseNotification) {
+            window.showSynapseNotification(
+              'Messaging requires database setup. Please run the messaging migrations.',
+              'warning'
+            );
+          }
+          return;
+        }
+        
+        throw createError;
+      }
+
+      conversationId = newConversation.id;
+      console.log('💬 Created new conversation:', conversationId);
+    }
+
+    // Open the messaging interface and conversation
+    await openMessaging();
+    await openConversation(conversationId);
+    
+    // Focus on message input
+    setTimeout(() => {
+      const messageInput = document.getElementById('message-input');
+      if (messageInput) {
+        messageInput.focus();
+        messageInput.placeholder = `Message ${targetUserName}...`;
+      }
+    }, 500);
+
+  } catch (error) {
+    console.error('❌ Error creating new message:', error);
+    if (window.showSynapseNotification) {
+      window.showSynapseNotification(
+        'Unable to start conversation. Please try again.',
+        'error'
+      );
+    }
+  }
+};
+
+// Enhanced new message button handler
+window.showNewMessageDialog = function() {
+  console.log('💬 Showing new message dialog');
+  
+  // Create new message modal
+  const modal = document.createElement('div');
+  modal.id = 'new-message-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+    padding: 1rem;
+  `;
+
+  modal.innerHTML = `
+    <div style="
+      background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
+      border: 2px solid rgba(0, 224, 255, 0.5);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+      max-width: 500px;
+      width: 100%;
+      padding: 2rem;
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="color: #00e0ff; margin: 0;">
+          <i class="fas fa-plus-circle"></i> New Message
+        </h3>
+        <button onclick="closeNewMessageDialog()" style="
+          background: none;
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+          font-size: 1.2rem;
+        ">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div style="margin-bottom: 1.5rem;">
+        <label style="color: rgba(255, 255, 255, 0.8); display: block; margin-bottom: 0.5rem;">
+          Search for someone to message:
+        </label>
+        <input type="text" id="user-search-input" placeholder="Type a name..." style="
+          width: 100%;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          color: white;
+          padding: 1rem;
+          font-family: inherit;
+        ">
+      </div>
+      
+      <div id="user-search-results" style="
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 1.5rem;
+      ">
+        <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
+          <i class="fas fa-search" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+          <p>Start typing to search for community members</p>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button onclick="closeNewMessageDialog()" style="
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          color: rgba(255, 255, 255, 0.8);
+          padding: 0.75rem 1.5rem;
+          cursor: pointer;
+        ">
+          Cancel
+        </button>
+        <button onclick="window.openEnhancedSearch?.('', 'people')" style="
+          background: linear-gradient(135deg, #00e0ff, #0080ff);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          padding: 0.75rem 1.5rem;
+          font-weight: 600;
+          cursor: pointer;
+        ">
+          <i class="fas fa-search"></i> Browse All Members
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Setup search functionality
+  const searchInput = document.getElementById('user-search-input');
+  const resultsContainer = document.getElementById('user-search-results');
+  
+  let searchTimeout;
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      searchUsers(e.target.value, resultsContainer);
+    }, 300);
+  });
+
+  // Close on backdrop click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeNewMessageDialog();
+    }
+  });
+
+  // Focus search input
+  searchInput.focus();
+};
+
+// Search users for messaging
+async function searchUsers(query, container) {
+  if (!query || query.length < 2) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
+        <i class="fas fa-search" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+        <p>Start typing to search for community members</p>
+      </div>
+    `;
+    return;
+  }
+
+  try {
+    const { data: users, error } = await supabase
+      .from('community')
+      .select('id, name, image_url, bio, user_role')
+      .neq('id', currentUserProfile.id)
+      .ilike('name', `%${query}%`)
+      .limit(10);
+
+    if (error) throw error;
+
+    if (!users || users.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
+          <i class="fas fa-user-slash" style="font-size: 1.5rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
+          <p>No users found matching "${query}"</p>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    users.forEach(user => {
+      html += `
+        <div onclick="selectUserForMessage('${user.id}', '${user.name.replace(/'/g, "\\'")}')" style="
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1rem;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: background 0.2s;
+          border: 1px solid transparent;
+        " onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'; this.style.borderColor='rgba(0, 224, 255, 0.3)'" 
+           onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
+          ${user.image_url 
+            ? `<img src="${user.image_url}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+            : `<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${user.name[0]}</div>`
+          }
+          <div style="flex: 1; min-width: 0;">
+            <h4 style="color: white; margin: 0 0 0.25rem 0; font-size: 1rem;">${user.name}</h4>
+            <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${user.user_role || 'Community Member'}
+            </p>
+          </div>
+          <i class="fas fa-comment" style="color: rgba(0, 224, 255, 0.6);"></i>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+
+  } catch (error) {
+    console.error('❌ Error searching users:', error);
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: #ff6666;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+        <p>Error searching users</p>
+      </div>
+    `;
+  }
+}
+
+// Select user for messaging
+window.selectUserForMessage = function(userId, userName) {
+  closeNewMessageDialog();
+  createNewMessage(userId, userName);
+};
+
+// Close new message dialog
+window.closeNewMessageDialog = function() {
+  const modal = document.getElementById('new-message-modal');
+  if (modal) {
+    modal.remove();
+  }
+};

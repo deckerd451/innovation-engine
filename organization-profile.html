@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Organization Profile - CharlestonHacks Innovation Engine</title>
+  <link rel="icon" href="favicon.ico"/>
+
+  <!-- Core CSS -->
+  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/engine.css" />
+  <link rel="stylesheet" href="assets/css/organizations.css" />
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+      color: #fff;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    .org-profile-page {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .org-header {
+      position: relative;
+      height: 300px;
+      background-size: cover;
+      background-position: center;
+      background-color: #1a1f3a;
+    }
+
+    .org-header-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(10,14,39,0.3) 0%, rgba(10,14,39,0.95) 100%);
+      display: flex;
+      align-items: flex-end;
+      padding: 2rem;
+    }
+
+    .org-header-content {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-end;
+      width: 100%;
+    }
+
+    .org-logo-large {
+      width: 150px;
+      height: 150px;
+      border-radius: 16px;
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      object-fit: cover;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .org-header-info {
+      flex: 1;
+    }
+
+    .org-name {
+      font-size: 2.5rem;
+      margin: 0 0 0.5rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .verified-badge {
+      color: #00e0ff;
+      font-size: 1.5rem;
+    }
+
+    .org-tags {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .industry-tag,
+    .size-tag,
+    .location-tag {
+      background: rgba(0, 224, 255, 0.15);
+      color: #00e0ff;
+      padding: 0.4rem 1rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      border: 1px solid rgba(0, 224, 255, 0.3);
+    }
+
+    .org-stats {
+      display: flex;
+      gap: 2rem;
+      font-size: 0.95rem;
+    }
+
+    .org-stats .stat {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .org-stats .stat i {
+      color: #00e0ff;
+    }
+
+    .org-stats .stat strong {
+      color: #00e0ff;
+    }
+
+    .org-header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00e0ff, #00a8ff);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 224, 255, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-accent {
+      background: rgba(138, 43, 226, 0.2);
+      color: #ba7ff5;
+      border: 1px solid rgba(138, 43, 226, 0.3);
+    }
+
+    .btn-accent:hover {
+      background: rgba(138, 43, 226, 0.3);
+    }
+
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .org-info-section {
+      padding: 2rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .org-description {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 1.5rem;
+      max-width: 900px;
+    }
+
+    .org-links {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .org-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #00e0ff;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+
+    .org-link:hover {
+      background: rgba(0, 224, 255, 0.15);
+      border-color: #00e0ff;
+    }
+
+    .org-tabs {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0 2rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .org-tab {
+      padding: 1rem 1.5rem;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      cursor: pointer;
+      font-weight: 600;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .org-tab:hover {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .org-tab.active {
+      color: #00e0ff;
+      border-bottom-color: #00e0ff;
+    }
+
+    #organization-content-area {
+      padding: 2rem;
+    }
+
+    .org-about-tab {
+      max-width: 900px;
+    }
+
+    .about-section {
+      margin-bottom: 2rem;
+    }
+
+    .about-section h3 {
+      color: #00e0ff;
+      margin-bottom: 1rem;
+    }
+
+    .about-section p {
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .industry-tags {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .industry-tag-large {
+      background: rgba(0, 224, 255, 0.15);
+      color: #00e0ff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      border: 1px solid rgba(0, 224, 255, 0.3);
+    }
+
+    .org-links-large {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .org-link-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: #00e0ff;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+
+    .org-link-card:hover {
+      background: rgba(0, 224, 255, 0.1);
+      border-color: #00e0ff;
+      transform: translateY(-4px);
+    }
+
+    .org-link-card i {
+      font-size: 2rem;
+    }
+
+    .team-members-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .member-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .member-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(0, 224, 255, 0.3);
+      margin-bottom: 1rem;
+    }
+
+    .member-name {
+      font-size: 1.2rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .member-role {
+      color: #00e0ff;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .member-title {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .member-bio {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin-bottom: 1rem;
+    }
+
+    .member-skills {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .skill-tag {
+      background: rgba(138, 43, 226, 0.2);
+      color: #ba7ff5;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(138, 43, 226, 0.3);
+    }
+
+    .opportunities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .opportunity-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.3s;
+    }
+
+    .opportunity-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(0, 224, 255, 0.3);
+    }
+
+    .opp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .opp-header h4 {
+      font-size: 1.2rem;
+      margin: 0;
+      flex: 1;
+    }
+
+    .opp-type-badge {
+      background: rgba(0, 224, 255, 0.2);
+      color: #00e0ff;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .opp-description {
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+
+    .opp-details {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .opp-details i {
+      color: #00e0ff;
+    }
+
+    .opp-skills {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .opp-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .opp-posted {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.85rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .error-container {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+
+    .error-container i {
+      font-size: 4rem;
+      color: rgba(255, 255, 255, 0.3);
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .org-header {
+        height: auto;
+      }
+
+      .org-header-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .org-name {
+        font-size: 1.8rem;
+        justify-content: center;
+      }
+
+      .org-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .org-header-actions {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .org-header-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .org-tabs {
+        overflow-x: auto;
+        padding: 0 1rem;
+      }
+
+      #organization-content-area {
+        padding: 1rem;
+      }
+
+      .opportunities-grid,
+      .team-members-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="org-profile-page">
+    <!-- Profile content will be rendered here by JavaScript -->
+    <div id="organization-profile-container">
+      <div class="loading-spinner" style="text-align: center; padding: 4rem;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #00e0ff;"></i>
+        <p style="margin-top: 1rem; color: rgba(255,255,255,0.6);">Loading organization profile...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase Client -->
+  
+  <script type="module" src="assets/js/supabaseClient.js"></script>
+
+  <!-- Organization Modules -->
+  <script type="module">
+    import { initOrganizationManager } from './assets/js/organizations/organization-manager.js';
+    import { initOrganizationProfile } from './assets/js/organizations/organization-profile.js';
+    import { initOpportunityManager } from './assets/js/organizations/opportunities.js';
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // Get organization ID or slug from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const orgId = urlParams.get('id');
+        const orgSlug = urlParams.get('slug');
+
+        if (!orgId && !orgSlug) {
+          document.getElementById('organization-profile-container').innerHTML = `
+            <div class="error-container">
+              <i class="fas fa-exclamation-triangle"></i>
+              <h2>Organization not found</h2>
+              <p>Please provide an organization ID or slug in the URL.</p>
+              <a href="/organizations.html" class="btn btn-primary">Browse Organizations</a>
+            </div>
+          `;
+          return;
+        }
+
+        // Get Supabase client
+        const supabase = window.supabase;
+        if (!supabase) {
+          console.error('Supabase client not found');
+          return;
+        }
+
+        // Initialize managers
+        await initOrganizationManager(supabase);
+        await initOpportunityManager(supabase);
+
+        // Load organization profile
+        await initOrganizationProfile(orgId || orgSlug);
+      } catch (error) {
+        console.error('Error initializing organization profile:', error);
+        document.getElementById('organization-profile-container').innerHTML = `
+          <div class="error-container">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h2>Failed to load organization</h2>
+            <p>${error.message || 'An error occurred while loading the organization profile.'}</p>
+            <a href="/organizations.html" class="btn btn-primary">Browse Organizations</a>
+          </div>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>

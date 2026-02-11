@@ -1,0 +1,325 @@
+/* ==========================================================================
+   CharlestonHacks Innovation Engine — overlays.css (FULL REWRITE)
+   Purpose:
+   - Provide a consistent modal/overlay system used by Network Filters, BBS, etc.
+   - Fix "hidden" not working (causing overlays to appear by default)
+   - Improve mobile UX: bottom-sheet modals, scrollable bodies, safe-area padding
+   ========================================================================== */
+
+/* -----------------------------
+   Utilities
+   ----------------------------- */
+
+/* Critical: many JS modules rely on .hidden to toggle overlays */
+.hidden { display: none !important; }
+
+/* When a modal is open, prevent background scroll */
+body.ch-modal-open { overflow: hidden !important; }
+
+/* Safer box sizing */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* -----------------------------
+   Fullscreen Synapse
+   ----------------------------- */
+
+#synapse-container{
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.92);
+  display: none;
+  z-index: 9999;
+}
+
+#synapse-container.active{ display: block; }
+
+#synapse-svg{
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+/* Tooltip */
+.synapse-tooltip{
+  position: absolute;
+  background: rgba(0,0,0,0.85);
+  padding: 6px 10px;
+  color: #0ff;
+  border-radius: 6px;
+  pointer-events: none;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  display: none;
+  z-index: 13050;
+}
+
+/* -----------------------------
+   Generic Modal System (CH)
+   Used by: network-filters.js (ch-modal-*)
+   ----------------------------- */
+
+.ch-modal-overlay{
+  position: fixed;
+  inset: 0;
+  display: flex;                 /* overlay is shown/hidden via .hidden */
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,0.70);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 13000;                /* Above Synapse container */
+}
+
+/* Panel */
+.ch-modal-panel{
+  width: min(560px, 96vw);
+  max-height: min(86vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;              /* keeps header/footer clean */
+  background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
+  border: 1px solid rgba(0,224,255,0.25);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.60);
+}
+
+/* Header / Footer */
+.ch-modal-header,
+.ch-modal-footer{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid rgba(0,224,255,0.14);
+}
+
+.ch-modal-footer{
+  border-top: 1px solid rgba(0,224,255,0.14);
+  border-bottom: none;
+  justify-content: flex-end;
+}
+
+/* Title */
+.ch-modal-title{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #e9fbff;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.ch-modal-title .ch-icon{
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(0,224,255,0.14);
+  border: 1px solid rgba(0,224,255,0.22);
+}
+
+/* Close button */
+.ch-modal-close{
+  appearance: none;
+  border: 1px solid rgba(0,224,255,0.28);
+  background: rgba(0,224,255,0.10);
+  color: #d9feff;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+.ch-modal-close:hover{ background: rgba(0,224,255,0.16); }
+.ch-modal-close:active{ transform: translateY(1px); }
+
+/* Body scroll region */
+.ch-modal-body{
+  padding: 14px 16px 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* Fields */
+.ch-field{ margin-bottom: 14px; }
+.ch-label{
+  display: block;
+  color: rgba(233,251,255,0.85);
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.ch-help{
+  color: rgba(233,251,255,0.55);
+  font-size: 0.78rem;
+  margin-top: 6px;
+}
+
+/* Inputs */
+.ch-input{
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,224,255,0.22);
+  background: rgba(0,0,0,0.35);
+  color: #e9fbff;
+  outline: none;
+}
+.ch-input::placeholder{ color: rgba(233,251,255,0.45); }
+.ch-input:focus{
+  border-color: rgba(0,224,255,0.55);
+  box-shadow: 0 0 0 3px rgba(0,224,255,0.12);
+}
+
+/* Horizontal row inside modals (e.g., skill input + add button) */
+.ch-row{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.ch-row .ch-input{ flex: 1; }
+
+/* Buttons (modal only) */
+.ch-btn{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,224,255,0.28);
+  background: rgba(0,224,255,0.10);
+  color: #d9feff;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ch-btn:hover{ background: rgba(0,224,255,0.16); }
+.ch-btn:active{ transform: translateY(1px); }
+
+.ch-btn-primary{
+  background: rgba(0,224,255,0.18);
+  border-color: rgba(0,224,255,0.45);
+}
+.ch-btn-primary:hover{ background: rgba(0,224,255,0.26); }
+
+.ch-btn-ghost{
+  background: transparent;
+  border-color: rgba(233,251,255,0.18);
+  color: rgba(233,251,255,0.78);
+}
+.ch-btn-ghost:hover{ background: rgba(255,255,255,0.06); }
+
+/* Chips */
+.ch-chip-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ch-chip{
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid rgba(0,224,255,0.25);
+  background: rgba(0,224,255,0.08);
+  color: rgba(233,251,255,0.90);
+  cursor: pointer;
+}
+.ch-chip-off{
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(233,251,255,0.14);
+  color: rgba(233,251,255,0.70);
+}
+.ch-chip-on{
+  background: rgba(0,224,255,0.16);
+  border-color: rgba(0,224,255,0.40);
+}
+
+/* -----------------------------
+   Network Filters specific polish
+   ----------------------------- */
+
+/* Make sure the filters panel never blocks the whole screen on mobile:
+   - Use a bottom sheet layout
+   - Keep header/footer visible
+   - Body scrolls
+*/
+#network-filters-overlay .ch-modal-panel{ width: min(620px, 96vw); }
+
+/* -----------------------------
+   Mobile responsiveness
+   ----------------------------- */
+
+@media (max-width: 640px){
+  .ch-modal-overlay{
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .ch-modal-panel{
+    width: 100%;
+    max-height: calc(92vh - env(safe-area-inset-top, 0px));
+    border-radius: 18px 18px 0 0;
+  }
+
+  /* Make header/footer feel "sticky" in bottom sheet */
+  .ch-modal-header{
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-bottom: 1px solid rgba(0,224,255,0.16);
+  }
+  .ch-modal-footer{
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Give the body enough room without covering content */
+  .ch-modal-body{
+    padding-bottom: 14px;
+  }
+
+  /* Slightly tighter controls */
+  .ch-btn{ padding: 10px 11px; }
+  .ch-modal-title{ font-size: 0.98rem; }
+}
+
+/* -----------------------------
+   BBS Terminal Modal
+   ----------------------------- */
+
+#bbs-modal{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 13100;
+}
+
+/* If your BBS uses .active to show, support it */
+#bbs-modal.active{ display: flex; }
+
+/* Optional: if BBS content container exists, make it responsive */
+#bbs-modal .bbs-window,
+#bbs-modal .terminal-window{
+  width: min(900px, 96vw);
+  max-height: min(86vh, 780px);
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+/* -----------------------------
+   Safety: prevent pointer weirdness
+   ----------------------------- */
+.ch-modal-overlay, .ch-modal-panel{ touch-action: manipulation; }

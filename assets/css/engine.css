@@ -1,0 +1,325 @@
+/* ============================================================
+   GLOBAL TAB + VISIBILITY FIXES (CRITICAL)
+   ============================================================ */
+
+/* All tab panes default hidden */
+.tab-content-pane {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+/* Activated tab pane */
+.tab-content-pane.active-tab-pane {
+  display: block !important;
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Ensure profile-section becomes visible after login */
+#profile-section:not(.hidden) {
+  display: block !important;
+  opacity: 1;
+}
+
+/* ============================================================
+   BUTTON ROW
+   ============================================================ */
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 28px 0 20px;
+  flex-wrap: wrap;
+}
+
+/* CharlestonHacks: Glass / Neon Buttons */
+.top-btn {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #e5e5e5;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(6px);
+  transition: all 0.22s ease;
+  box-shadow:
+    0 0 6px rgba(0,255,255,0.18),
+    inset 0 0 4px rgba(255,255,255,0.07);
+}
+
+.top-btn:hover {
+  background: rgba(0, 0, 0, 0.55);
+  border-color: rgba(255,255,255,0.35);
+  color: #fff;
+  box-shadow:
+    0 0 9px rgba(0,255,255,0.35),
+    inset 0 0 6px rgba(255,255,255,0.12);
+}
+
+/* Active tab button highlight (optional) */
+.top-btn.active {
+  background: linear-gradient(145deg, #ffcf33, #d9a300);
+  color: #000;
+  border-color: #ffcf33;
+  box-shadow:
+    0 0 10px rgba(255,207,51,0.35),
+    inset 0 0 8px rgba(255,255,255,0.25);
+}
+
+/* ============================================================
+   TITLES
+   ============================================================ */
+
+.section-title {
+  text-align: center;
+  color: #ffcf33;
+  margin-bottom: 16px;
+  font-size: 26px;
+  letter-spacing: 0.4px;
+  text-shadow: 0 0 8px rgba(255,207,51,0.35);
+}
+
+/* ============================================================
+   FORM STYLING
+   ============================================================ */
+
+.input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+input, select, textarea {
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.22);
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 15px;
+  backdrop-filter: blur(4px);
+  transition: 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #00f0ff;
+  box-shadow: 0 0 8px rgba(0,255,255,0.35);
+  outline: none;
+}
+
+label {
+  color: #bbb;
+  font-size: 14px;
+}
+
+/* Preview image */
+.image-preview {
+  max-width: 200px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 0 10px rgba(0,255,255,0.15);
+}
+
+/* ============================================================
+   ACTION BUTTONS (GitHub/Google, Save Profile, etc)
+   ============================================================ */
+
+.action-btn {
+  background: #ffcf33;
+  border: none;
+  padding: 12px 16px;
+  font-size: 16px;
+  border-radius: 6px;
+  color: #000;
+  cursor: pointer;
+  transition: 0.2s ease;
+  font-weight: 600;
+}
+
+.action-btn:hover {
+  background: #ffdb66;
+  box-shadow: 0 0 10px rgba(255,207,51,0.35);
+}
+
+/* Logout button variation */
+.logout-btn {
+  background: #ffcf33;
+  padding: 8px 14px;
+  font-size: 14px;
+  border-radius: 6px;
+}
+
+/* ============================================================
+   CARD GRID
+   ============================================================ */
+
+.card-container {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+}
+
+/* Individual profile/skill cards */
+.card {
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 16px;
+  border-radius: 10px;
+  width: 260px;
+  backdrop-filter: blur(6px);
+  color: #eee;
+  transition: 0.2s ease;
+  box-shadow: 0 0 10px rgba(0,255,255,0.12);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 0 14px rgba(0,255,255,0.25),
+    0 0 10px rgba(255,207,51,0.25);
+}
+
+/* ============================================================
+   AUTOCOMPLETE BOX
+   ============================================================ */
+
+.autocomplete-box {
+  background: rgba(0,0,0,0.65);
+  border: 1px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(6px);
+  margin-top: -6px;
+  border-radius: 6px;
+  color: #eee;
+  padding: 6px 8px;
+  display: none;
+}
+
+.autocomplete-box.visible {
+  display: block;
+}
+
+/* ============================================================
+   NOTIFICATIONS
+   ============================================================ */
+
+.notification {
+  text-align: center;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: rgba(255,207,51,0.15);
+  border: 1px solid rgba(255,207,51,0.35);
+  color: #ffcf33;
+  box-shadow: 0 0 10px rgba(255,207,51,0.25);
+}
+/* ============================================================
+   FIX: Restore proper formatting for search results
+   ============================================================ */
+
+/* Stop global .two-card-page alignment from breaking cards */
+.search-section *,
+.result-card *,
+.team-card *,
+.user-card * {
+  text-align: left !important;
+}
+
+/* Keep the results container from expanding vertically */
+#resultsBox,
+.results-container {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 10px 0;
+  width: 100%;
+}
+
+/* Restore CharlestonHacks result-card layout */
+.result-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 16px;
+  padding: 16px;
+  margin: 16px auto;
+  width: 90%;
+  max-width: 620px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+
+/* Avatar — consistent circle crop */
+.profile-avatar {
+  width: 82px !important;
+  height: 82px !important;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  border: 2px solid #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+  flex-shrink: 0;
+}
+
+/* Restore text block formatting */
+.result-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  color: white;
+  gap: 4px;
+  text-align: left;
+}
+
+.result-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffd700;
+  margin-bottom: 4px;
+}
+
+/* Consistent skill chip styling */
+.skills-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.skills-chips .skill-chip {
+  padding: 4px 10px;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: #ffd700;
+  text-transform: lowercase;
+}
+
+/* Prevent images inside results from stretching */
+.result-card img {
+  object-fit: cover !important;
+  object-position: center !important;
+  display: block;
+}
+
+/* Prevent the neural canvas from overlapping results */
+/* Per yellow instructions: Remove synapse background */
+#neural-bg,
+#neural-interactive {
+  z-index: -2 !important;
+  display: none !important;
+}
+

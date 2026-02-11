@@ -1,0 +1,321 @@
+// ================================================================
+// NETWORK FILTERS (FIXED) — CharlestonHacks Innovation Engine
+// File: /assets/js/network-filters.js
+// ================================================================
+// Purpose:
+// - Provide a reliable Filters panel (open/close/toggle)
+// - Maintain a single exported initNetworkFilters() (no duplicate declarations)
+// - Emit filter changes via callback + window event
+//
+// Public API:
+//   initNetworkFilters(onChange?) -> { open, close, toggle, getState, setState, destroy }
+//
+// Notes:
+// - Safe to call initNetworkFilters multiple times (it will no-op after first init)
+// ================================================================
+
+console.log("%c🔍 Network Filters Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
+
+const GUARD_KEY = "__CH_NETWORK_FILTERS_INIT__";
+
+let overlayEl = null;
+let panelEl = null;
+let initialized = false;
+
+let supabase = null;
+let currentUserProfile = null;
+let onFilterChange = null;
+
+let state = {
+  // text search across nodes (name, role, interests, etc.)
+  query: "",
+  // multi-select skills
+  skills: [],
+  // availability tags (e.g., "Available now", "Weekends", etc.)
+  availability: [],
+  // node types: person/project/theme/you
+  types: ["person", "project", "theme", "you"],
+};
+
+function cssEscapeSafe(s) {
+  return (s || "").toString().replace(/[<>"']/g, "");
+}
+
+function ensureProfileListener() {
+  if (ensureProfileListener._done) return;
+  ensureProfileListener._done = true;
+
+  window.addEventListener("profile-loaded", (e) => {
+    currentUserProfile = e?.detail?.profile || null;
+  });
+}
+
+function buildOverlayIfNeeded() {
+  if (overlayEl) return;
+
+  overlayEl = document.createElement("div");
+  overlayEl.id = "network-filters-overlay";
+  overlayEl.setAttribute("role", "dialog");
+  overlayEl.setAttribute("aria-modal", "true");
+  overlayEl.className = "ch-modal-overlay hidden";
+
+  panelEl = document.createElement("div");
+  panelEl.className = "ch-modal-panel ch-filters-panel";
+  panelEl.innerHTML = `
+    <div class="ch-modal-header">
+      <div class="ch-modal-title">
+        <span class="ch-icon">🔍</span>
+        <span>Network Filters</span>
+      </div>
+      <button type="button" class="ch-modal-close" id="ch-filters-close" aria-label="Close filters">×</button>
+    </div>
+
+    <div class="ch-modal-body">
+      <div class="ch-field">
+        <label class="ch-label" for="ch-filter-query">Search</label>
+        <input id="ch-filter-query" class="ch-input" type="text" placeholder="Name, role, interests..." autocomplete="off" />
+        <div class="ch-help">Tip: type to narrow nodes. Press Enter to apply.</div>
+      </div>
+
+      <div class="ch-field">
+        <label class="ch-label" for="ch-filter-skill">Skills (add multiple)</label>
+        <div class="ch-row">
+          <input id="ch-filter-skill" class="ch-input" type="text" placeholder="e.g., React, UX, Radiology..." autocomplete="off" />
+          <button type="button" class="ch-btn" id="ch-skill-add">Add</button>
+        </div>
+        <div class="ch-chip-row" id="ch-skill-chips"></div>
+      </div>
+
+      <div class="ch-field">
+        <label class="ch-label">Availability</label>
+        <div class="ch-chip-row" id="ch-avail-chips"></div>
+        <div class="ch-help">Click to toggle availability tags.</div>
+      </div>
+
+      <div class="ch-field">
+        <label class="ch-label">Types</label>
+        <div class="ch-chip-row" id="ch-type-chips"></div>
+      </div>
+    </div>
+
+    <div class="ch-modal-footer">
+      <button type="button" class="ch-btn ch-btn-ghost" id="ch-filters-reset">Reset</button>
+      <button type="button" class="ch-btn ch-btn-primary" id="ch-filters-apply">Apply</button>
+    </div>
+  `;
+
+  overlayEl.appendChild(panelEl);
+  document.body.appendChild(overlayEl);
+
+  // Click outside closes
+  overlayEl.addEventListener("click", (e) => {
+    if (e.target === overlayEl) close();
+  });
+
+  // ESC closes
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isOpen()) close();
+  });
+
+  // Close button
+  panelEl.querySelector("#ch-filters-close")?.addEventListener("click", close);
+
+  // Wire controls
+  const queryInput = panelEl.querySelector("#ch-filter-query");
+  const skillInput = panelEl.querySelector("#ch-filter-skill");
+  const addSkillBtn = panelEl.querySelector("#ch-skill-add");
+  const applyBtn = panelEl.querySelector("#ch-filters-apply");
+  const resetBtn = panelEl.querySelector("#ch-filters-reset");
+
+  queryInput?.addEventListener("input", () => {
+    state.query = queryInput.value || "";
+  });
+  queryInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      apply();
+    }
+  });
+
+  function addSkillFromInput() {
+    const raw = (skillInput?.value || "").trim();
+    if (!raw) return;
+    const val = raw.toLowerCase();
+    if (!state.skills.includes(val)) state.skills.push(val);
+    if (skillInput) skillInput.value = "";
+    renderSkillChips();
+  }
+
+  addSkillBtn?.addEventListener("click", addSkillFromInput);
+  skillInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addSkillFromInput();
+    }
+  });
+
+  applyBtn?.addEventListener("click", apply);
+  resetBtn?.addEventListener("click", () => {
+    state = { query: "", skills: [], availability: [], types: ["person", "project", "theme", "you"] };
+    renderAll();
+    apply();
+  });
+
+  // Predefined chips (tweak anytime)
+  renderAll();
+}
+
+function renderSkillChips() {
+  const wrap = panelEl?.querySelector("#ch-skill-chips");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+
+  state.skills.forEach((s) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "ch-chip ch-chip-on";
+    chip.textContent = s;
+    chip.setAttribute("aria-label", `Remove skill ${s}`);
+    chip.addEventListener("click", () => {
+      state.skills = state.skills.filter((x) => x !== s);
+      renderSkillChips();
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+function renderToggleChips(containerSelector, options, activeSetGetter, activeSetSetter) {
+  const wrap = panelEl?.querySelector(containerSelector);
+  if (!wrap) return;
+
+  wrap.innerHTML = "";
+  options.forEach((opt) => {
+    const key = opt.toLowerCase();
+    const on = activeSetGetter().includes(key);
+
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "ch-chip " + (on ? "ch-chip-on" : "ch-chip-off");
+    chip.textContent = opt;
+
+    chip.addEventListener("click", () => {
+      const cur = activeSetGetter();
+      if (cur.includes(key)) {
+        activeSetSetter(cur.filter((x) => x !== key));
+      } else {
+        activeSetSetter([...cur, key]);
+      }
+      renderAll();
+    });
+
+    wrap.appendChild(chip);
+  });
+}
+
+function renderAll() {
+  const queryInput = panelEl?.querySelector("#ch-filter-query");
+  if (queryInput) queryInput.value = state.query || "";
+
+  renderSkillChips();
+
+  renderToggleChips(
+    "#ch-avail-chips",
+    ["Available", "Weekdays", "Evenings", "Weekends"],
+    () => state.availability,
+    (v) => (state.availability = v)
+  );
+
+  renderToggleChips(
+    "#ch-type-chips",
+    ["Person", "Project", "Theme", "You"],
+    () => state.types,
+    (v) => (state.types = v)
+  );
+}
+
+function isOpen() {
+  return overlayEl && !overlayEl.classList.contains("hidden");
+}
+
+function open() {
+  buildOverlayIfNeeded();
+  overlayEl.classList.remove("hidden");
+  document.body.classList.add("ch-modal-open");
+}
+
+function close() {
+  if (!overlayEl) return;
+  overlayEl.classList.add("hidden");
+  document.body.classList.remove("ch-modal-open");
+}
+
+function toggle() {
+  if (isOpen()) close();
+  else open();
+}
+
+function apply() {
+  // Normalize for downstream graph logic
+  const payload = {
+    query: (state.query || "").trim(),
+    skills: [...state.skills],
+    availability: [...state.availability],
+    types: [...state.types],
+    userProfile: currentUserProfile || null,
+  };
+
+  try {
+    onFilterChange?.(payload);
+  } catch (e) {
+    console.warn("⚠️ Filter change callback threw:", e);
+  }
+
+  window.dispatchEvent(new CustomEvent("network-filters-changed", { detail: payload }));
+}
+
+function getState() {
+  return JSON.parse(JSON.stringify(state));
+}
+
+function setState(next) {
+  state = {
+    query: (next?.query || "").toString(),
+    skills: Array.isArray(next?.skills) ? next.skills.map((s) => (s || "").toString().toLowerCase()).filter(Boolean) : [],
+    availability: Array.isArray(next?.availability) ? next.availability.map((s) => (s || "").toString().toLowerCase()).filter(Boolean) : [],
+    types: Array.isArray(next?.types) && next.types.length ? next.types.map((s) => (s || "").toString().toLowerCase()).filter(Boolean) : ["person", "project", "theme", "you"],
+  };
+  buildOverlayIfNeeded();
+  renderAll();
+}
+
+function destroy() {
+  if (overlayEl) overlayEl.remove();
+  overlayEl = null;
+  panelEl = null;
+  initialized = false;
+  window[GUARD_KEY] = false;
+}
+
+// ---------------------------------------------------------------
+// Exported init (idempotent)
+// ---------------------------------------------------------------
+export function initNetworkFilters(filterChangeCallback) {
+  // Supabase is optional for the filters UI itself, but keep reference if needed later.
+  supabase = window.supabase || null;
+  onFilterChange = typeof filterChangeCallback === "function" ? filterChangeCallback : null;
+
+  ensureProfileListener();
+  buildOverlayIfNeeded();
+
+  if (!initialized) {
+    initialized = true;
+    console.log("✅ Network filters ready");
+  }
+
+  // Return controller API so callers can drive it
+  return { open, close, toggle, getState, setState, destroy };
+}
+
+// Optional: allow legacy callers from non-module code
+window.initNetworkFilters = initNetworkFilters;
+window.NetworkFilters = window.NetworkFilters || { init: initNetworkFilters };
