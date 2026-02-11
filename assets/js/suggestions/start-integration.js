@@ -42,10 +42,10 @@ async function enhanceStartDailyDigest() {
   
   // Override render method to include suggestions
   window.StartDailyDigest.render = async function(data) {
-    // Call original render
+    // Call original render (which now includes suggestions in the sequential flow)
     let html = await originalRender(data);
     
-    // Get personalized suggestions
+    // Get personalized suggestions for navigation system initialization
     try {
       const suggestions = await window.DailySuggestionsUI.getSuggestionsForStartUI();
       
@@ -54,20 +54,9 @@ async function enhanceStartDailyDigest() {
         if (window.initSuggestionNavigation && typeof window.initSuggestionNavigation === 'function') {
           window.initSuggestionNavigation(suggestions);
         }
-        
-        // Wrap the original content and add suggestions after
-        const suggestionsHTML = renderSuggestionsSection(suggestions);
-        
-        // Simply append suggestions at the end
-        html = `
-          <div class="daily-digest-wrapper">
-            ${html}
-            ${suggestionsHTML}
-          </div>
-        `;
       }
     } catch (err) {
-      console.error('❌ Failed to add suggestions to START UI:', err);
+      console.error('❌ Failed to initialize suggestion navigation:', err);
     }
     
     return html;

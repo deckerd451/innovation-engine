@@ -102,6 +102,17 @@ class StartDailyDigest {
       });
     }
 
+    // Step 7: Explore Suggestions (if any - will be populated by suggestions integration)
+    // This step will be added dynamically by checking for suggestions
+    const suggestionsHTML = await this.renderExploreSuggestions();
+    if (suggestionsHTML && suggestionsHTML.trim()) {
+      steps.push({
+        id: 'explore',
+        title: 'Explore',
+        render: () => Promise.resolve(suggestionsHTML)
+      });
+    }
+
     // Final Step: Completion (always last)
     steps.push({
       id: 'completion',
@@ -394,6 +405,147 @@ class StartDailyDigest {
         </button>
       </div>
     `;
+  }
+
+  /**
+   * Render explore suggestions step
+   * This fetches suggestions from the Daily Suggestions Engine
+   */
+  async renderExploreSuggestions() {
+    // Check if Daily Suggestions Engine is available
+    if (!window.DailySuggestionsUI || !window.DailySuggestionsUI.getSuggestionsForStartUI) {
+      return '';
+    }
+
+    try {
+      const suggestions = await window.DailySuggestionsUI.getSuggestionsForStartUI();
+      
+      if (!suggestions || suggestions.length === 0) {
+        return '';
+      }
+
+      // Limit to top 5 suggestions for the step
+      const displaySuggestions = suggestions.slice(0, 5);
+
+      return `
+        <div style="padding: 2rem;">
+          <div style="text-align: center; margin-bottom: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🧭</div>
+            <h3 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.5rem;">
+              Explore Opportunities
+            </h3>
+            <p style="color: rgba(255,255,255,0.6); margin: 0;">
+              Personalized recommendations for you
+            </p>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            ${displaySuggestions.map(suggestion => this.renderExploreSuggestionCard(suggestion)).join('')}
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      console.error('Failed to render explore suggestions:', err);
+      return '';
+    }
+  }
+
+  /**
+   * Render a single explore suggestion card
+   */
+  renderExploreSuggestionCard(suggestion) {
+    const color = suggestion.color || '#00e0ff';
+    const icon = suggestion.icon || 'star';
+    const message = suggestion.message || 'Check this out';
+    const detail = suggestion.detail || '';
+    const action = suggestion.action || 'Explore';
+    const handler = suggestion.handler || '';
+    const data = suggestion.data || {};
+    
+    // Special styling for Intelligence Layer
+    const isIntelligenceLayer = message.includes('Intelligence Layer');
+    const cardColor = isIntelligenceLayer ? '#a855f7' : color; // Purple for Intelligence Layer
+    const borderColor = isIntelligenceLayer ? 'rgba(168,85,247,0.6)' : `${cardColor}40`;
+    
+    // Encode data for onclick handler
+    const dataJson = JSON.stringify(data).replace(/"/g, '&quot;');
+    
+    return `
+      <div class="explore-suggestion-card" 
+           data-handler="${handler}" 
+           data-suggestion-data='${dataJson}'
+           style="
+        background: linear-gradient(135deg, ${cardColor}15, rgba(0,0,0,0.1));
+        border: 2px solid ${borderColor};
+        border-radius: 12px;
+        padding: 1.25rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+      "
+      onclick="window.StartDailyDigest.handleExploreSuggestion('${handler}', this)"
+      onmouseenter="this.style.transform='translateY(-2px)'; this.style.borderColor='${cardColor}'; this.style.boxShadow='0 8px 25px ${cardColor}30';"
+      onmouseleave="this.style.transform='translateY(0)'; this.style.borderColor='${borderColor}'; this.style.boxShadow='none';">
+        
+        <div style="display: flex; align-items: start; gap: 1rem;">
+          <div style="
+            width: 48px;
+            height: 48px;
+            background: ${cardColor}20;
+            border: 2px solid ${cardColor}60;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          ">
+            <i class="fas fa-${icon}" style="color: ${cardColor}; font-size: 1.5rem;"></i>
+          </div>
+          
+          <div style="flex: 1; min-width: 0;">
+            <div style="color: #fff; font-size: 1.05rem; font-weight: 600; margin-bottom: 0.25rem; word-wrap: break-word;">
+              ${message}
+            </div>
+            ${detail ? `
+              <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem; margin-bottom: 0.75rem; word-wrap: break-word;">
+                ${detail}
+              </div>
+            ` : ''}
+            <div style="
+              display: inline-block;
+              background: ${cardColor};
+              color: ${isIntelligenceLayer ? '#fff' : '#000'};
+              padding: 0.4rem 0.9rem;
+              border-radius: 8px;
+              font-size: 0.85rem;
+              font-weight: 600;
+            ">
+              ${action} →
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Handle explore suggestion click
+   */
+  async handleExploreSuggestion(handler, element) {
+    const dataAttr = element.getAttribute('data-suggestion-data');
+    const data = dataAttr ? JSON.parse(dataAttr) : {};
+    
+    // Close the modal
+    this.close();
+    
+    // Execute the suggestion handler after modal closes
+    setTimeout(async () => {
+      if (window.handleSuggestionCTA && typeof window.handleSuggestionCTA === 'function') {
+        await window.handleSuggestionCTA(handler, data);
+      } else {
+        console.warn('handleSuggestionCTA not available');
+      }
+    }, 300);
   }
 
   /**
