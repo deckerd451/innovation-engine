@@ -415,6 +415,10 @@ export function initScaleTierController(config) {
   initialized = true;
   console.info('[ScaleTier] Initializing mobile scale-reactive tier system');
 
+  // STEP 1 DEBUG: PROVE INIT RUNS
+  document.body.style.outline = "5px solid red";
+  console.error("[ScaleTier] ACTIVE");
+
   // Extract config
   const { synapseCore, networkFilters, getCurrentZoom } = config;
 
@@ -437,12 +441,30 @@ export function initScaleTierController(config) {
 
   function checkTiers() {
     try {
-      const state = getState();
-      const decision = decider.decideTier(state);
+      // STEP 3 DEBUG: LOG ZOOM VALUE LIVE
+      console.log("Zoom:", getCurrentZoom());
 
-      if (decision) {
-        applyTier(decision);
-      }
+      const state = getState();
+
+      // STEP 2 DEBUG: FORCE TIER 0 MANUALLY
+      applyTier({
+        tier: 0,
+        previousTier: 1,
+        zoom: 3.0,
+        reason: "FORCED DEBUG",
+        searchActive: false,
+        panelOpen: false,
+        selectedNode: null,
+        idleDuration: 0,
+        dwellTime: 999,
+        transitionAllowed: true
+      });
+
+      // Original logic (commented out for debug)
+      // const decision = decider.decideTier(state);
+      // if (decision) {
+      //   applyTier(decision);
+      // }
     } catch (err) {
       console.error('[ScaleTier] Error in tier check:', err);
     }
