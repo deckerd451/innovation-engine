@@ -462,6 +462,11 @@ export function initScaleTierController(config) {
   if (!isMobileEnabled()) return;
 
   initialized = true;
+console.info("[ScaleTier] Initializing mobile scale-reactive tier system");
+
+// Extract config
+const { synapseCore, networkFilters, getCurrentZoom } = config || {};
+
 
   const { synapseCore, networkFilters, getCurrentZoom } = config || {};
   if (!synapseCore || typeof getCurrentZoom !== "function") {
@@ -484,13 +489,22 @@ export function initScaleTierController(config) {
 
   function loop(ts) {
     try {
-      if (ts - lastEvalTs >= EVAL_TICK_MS) {
-        lastEvalTs = ts;
+function loop(ts) {
+  try {
+    if (ts - lastEvalTs >= EVAL_TICK_MS) {
+      lastEvalTs = ts;
 
-        const state = getState();
-        const decision = decider.decideTier(state);
-        if (decision) applyTier(decision);
-      }
+      const state = getState();
+      const decision = decider.decideTier(state);
+      if (decision) applyTier(decision);
+    }
+  } catch (err) {
+    console.error("[ScaleTier] Loop error:", err);
+  }
+
+  rafId = requestAnimationFrame(loop);
+}
+
     } catch (err) {
       console.error("[ScaleTier] Loop error:", err);
     }
