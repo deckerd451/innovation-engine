@@ -6,11 +6,11 @@
 // - Search bar (focus + typing)
 // - Network filter events
 //
-// Key goals of this rewrite:
+// Key goals:
 // 1) Do NOT assume Quiet Mode is enabled by default
-// 2) Keep state in sync with a persisted preference key
+// 2) Keep state in sync with the EXISTING persisted preference key
 // 3) Avoid touching legacy D3 handles unless they exist
-// 4) When legacy handles are missing (unified renderer), emit an event
+// 4) When legacy handles are missing (unified renderer), emit an event only
 // ================================================================
 
 console.log('%c🔇 Quiet Mode Auto-Disable Loading...', 'color:#0ff; font-weight: bold; font-size: 16px');
@@ -18,12 +18,13 @@ console.log('%c🔇 Quiet Mode Auto-Disable Loading...', 'color:#0ff; font-weigh
 let synapseCore = null;
 let initialized = false;
 
-// Canonical persistence key for quiet mode
-const QUIET_MODE_KEY = 'quiet_mode'; // "1" = enabled, "0" = disabled
+// ✅ Use the key you actually have in localStorage
+// localStorage["quiet-mode-enabled"] = "true" | "false"
+const QUIET_MODE_KEY = 'quiet-mode-enabled';
 
 function readQuietPref() {
   try {
-    return localStorage.getItem(QUIET_MODE_KEY) === '1';
+    return localStorage.getItem(QUIET_MODE_KEY) === 'true';
   } catch {
     return false;
   }
@@ -31,7 +32,7 @@ function readQuietPref() {
 
 function writeQuietPref(enabled) {
   try {
-    localStorage.setItem(QUIET_MODE_KEY, enabled ? '1' : '0');
+    localStorage.setItem(QUIET_MODE_KEY, enabled ? 'true' : 'false');
   } catch {
     // ignore
   }
@@ -238,25 +239,15 @@ function disableQuietMode(reason) {
   // Restore full visualization (legacy) OR emit unified-safe event
   restoreFullVisualization(reason);
 
-  // Emit event for other systems
-  window.dispatchEvent(
-    new CustomEvent('quiet-mode-disabled', {
-      detail: { reason }
-    })
-  );
-
-  // Also emit a unified-friendly change event (safe even if nothing listens)
-  window.dispatchEvent(
-    new CustomEvent('quiet-mode-change', {
-      detail: { enabled: false, reason }
-    })
-  );
+  // Emit events for other systems
+  window.dispatchEvent(new CustomEvent('quiet-mode-disabled', { detail: { reason } }));
+  window.dispatchEvent(new CustomEvent('quiet-mode-change', { detail: { enabled: false, reason } }));
 }
 
 /**
  * Restore full network visualization
  * - If legacy D3 handles exist: restore via nodeEls/linkEls
- * - Otherwise: emit a change event and avoid DOM manipulation
+ * - Otherwise: avoid DOM manipulation and rely on listeners reacting to quiet-mode-change
  */
 function restoreFullVisualization(reason) {
   if (!synapseCore) {
@@ -316,9 +307,7 @@ function showHiddenUI() {
   if (modeSwitcher) modeSwitcher.style.display = '';
 
   const categoryToggles = document.querySelectorAll('.category-toggle, .filter-button, .view-toggle');
-  categoryToggles.forEach((el) => {
-    el.style.display = '';
-  });
+  categoryToggles.forEach((el) => (el.style.display = ''));
 
   const panels = document.querySelectorAll('.floating-panel, .sidebar');
   panels.forEach((el) => {
@@ -330,8 +319,7 @@ function showHiddenUI() {
 
 /**
  * Enable quiet mode (manual control)
- * Note: This does NOT apply quiet mode itself (that belongs to quiet-mode.js / unified renderer).
- * It persists preference + emits a unified-friendly event for your renderer to act on.
+ * Note: This does NOT apply quiet mode itself. It persists preference + emits event.
  */
 export function enableQuietMode() {
   quietModeEnabled = true;
