@@ -1,283 +1,300 @@
 // ================================================================
-// Quiet Mode Auto-Disable
+// Quiet Mode Auto-Disable (Unified-safe)
 // ================================================================
-// Automatically disables quiet mode when user interacts with:
+// Automatically disables Quiet Mode when user interacts with:
 // - Filter buttons (All, People, Organizations, Projects, Themes)
-// - Search bar
+// - Search bar (focus + typing)
+// - Network filter events
+//
+// Key goals of this rewrite:
+// 1) Do NOT assume Quiet Mode is enabled by default
+// 2) Keep state in sync with a persisted preference key
+// 3) Avoid touching legacy D3 handles unless they exist
+// 4) When legacy handles are missing (unified renderer), emit an event
 // ================================================================
 
 console.log('%c🔇 Quiet Mode Auto-Disable Loading...', 'color:#0ff; font-weight: bold; font-size: 16px');
 
-let quietModeEnabled = true;
 let synapseCore = null;
+let initialized = false;
 
-/**
- * Initialize auto-disable functionality
- * @param {Object} core - Synapse core instance
- */
-export function initQuietModeAutoDisable(core) {
-  synapseCore = core;
-  
-  console.log('🔇 Setting up quiet mode auto-disable listeners');
-  
-  // Listen for filter button clicks
-  setupFilterButtonListeners();
-  
-  // Listen for search bar usage
-  setupSearchBarListeners();
-  
-  // Listen for network filter changes
-  setupNetworkFilterListeners();
-  
-  console.log('✅ Quiet mode auto-disable ready');
+// Canonical persistence key for quiet mode
+const QUIET_MODE_KEY = 'quiet_mode'; // "1" = enabled, "0" = disabled
+
+function readQuietPref() {
+  try {
+    return localStorage.getItem(QUIET_MODE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeQuietPref(enabled) {
+  try {
+    localStorage.setItem(QUIET_MODE_KEY, enabled ? '1' : '0');
+  } catch {
+    // ignore
+  }
+}
+
+// Internal state mirrors persisted preference (never defaults to true)
+let quietModeEnabled = readQuietPref();
+
+function log(...args) {
+  console.log('🔇', ...args);
+}
+
+function warn(...args) {
+  console.warn('🔇', ...args);
 }
 
 /**
- * Setup listeners for filter buttons (All, People, Organizations, Projects, Themes)
+ * Initialize auto-disable functionality
+ * @param {Object} core - Synapse core instance (may be legacy D3 core or unified core)
+ */
+export function initQuietModeAutoDisable(core) {
+  synapseCore = core || null;
+
+  if (initialized) {
+    log('Quiet Mode Auto-Disable already initialized, skipping');
+    return;
+  }
+  initialized = true;
+
+  // Sync internal state to persisted preference on init
+  quietModeEnabled = readQuietPref();
+  log('Persisted quiet mode state:', quietModeEnabled);
+
+  log('Setting up quiet mode auto-disable listeners');
+
+  setupFilterButtonListeners();
+  setupSearchBarListeners();
+  setupNetworkFilterListeners();
+
+  log('✅ Quiet mode auto-disable ready');
+}
+
+/**
+ * Setup listeners for filter buttons
  */
 function setupFilterButtonListeners() {
-  // Wait for DOM to be ready
-  const checkForButtons = () => {
-    // Look for common filter button selectors
-    const filterSelectors = [
-      '[data-filter="all"]',
-      '[data-filter="people"]',
-      '[data-filter="organizations"]',
-      '[data-filter="projects"]',
-      '[data-filter="themes"]',
-      '.filter-btn',
-      '.category-toggle',
-      '.view-toggle',
-      '#filter-all',
-      '#filter-people',
-      '#filter-organizations',
-      '#filter-projects',
-      '#filter-themes'
-    ];
-    
-    let foundButtons = false;
-    
-    filterSelectors.forEach(selector => {
-      const buttons = document.querySelectorAll(selector);
-      if (buttons.length > 0) {
-        foundButtons = true;
-        buttons.forEach(button => {
-          // Avoid duplicate listeners
-          if (!button.dataset.quietModeListener) {
-            button.dataset.quietModeListener = 'true';
-            button.addEventListener('click', handleFilterButtonClick);
-            console.log(`🔇 Added listener to filter button: ${selector}`);
-          }
-        });
-      }
-    });
-    
-    // If no buttons found yet, try again in a moment
-    if (!foundButtons) {
-      setTimeout(checkForButtons, 500);
-    }
-  };
-  
-  // Start checking
-  checkForButtons();
-  
-  // Also listen for dynamically added buttons
-  if (typeof MutationObserver !== 'undefined') {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === 1) { // Element node
-            // Check if the added node or its children are filter buttons
-            const buttons = node.querySelectorAll ? 
-              node.querySelectorAll('.filter-btn, .category-toggle, .view-toggle') : 
-              [];
-            
-            buttons.forEach(button => {
-              if (!button.dataset.quietModeListener) {
-                button.dataset.quietModeListener = 'true';
-                button.addEventListener('click', handleFilterButtonClick);
-                console.log('🔇 Added listener to dynamically added filter button');
-              }
-            });
-          }
-        });
+  const filterSelectors = [
+    '[data-filter="all"]',
+    '[data-filter="people"]',
+    '[data-filter="organizations"]',
+    '[data-filter="projects"]',
+    '[data-filter="themes"]',
+    '.filter-btn',
+    '.category-toggle',
+    '.view-toggle',
+    '#filter-all',
+    '#filter-people',
+    '#filter-organizations',
+    '#filter-projects',
+    '#filter-themes'
+  ];
+
+  const attachListeners = (root = document) => {
+    let attached = 0;
+
+    filterSelectors.forEach((selector) => {
+      const buttons = root.querySelectorAll ? root.querySelectorAll(selector) : [];
+      buttons.forEach((button) => {
+        if (!button || !button.dataset) return;
+        if (button.dataset.quietModeListener) return;
+
+        button.dataset.quietModeListener = 'true';
+        button.addEventListener('click', handleFilterButtonClick, { passive: true });
+        attached += 1;
       });
     });
-    
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
+
+    if (attached > 0) log(`Attached ${attached} filter listeners`);
+    return attached;
+  };
+
+  // Initial attach + retry loop until buttons appear
+  const checkForButtons = () => {
+    const count = attachListeners(document);
+    if (count === 0) setTimeout(checkForButtons, 500);
+  };
+  checkForButtons();
+
+  // Observe DOM for dynamically added buttons
+  if (typeof MutationObserver !== 'undefined') {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node && node.nodeType === 1) attachListeners(node);
+        }
+      }
     });
+
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 }
 
 /**
- * Setup listeners for search bar
+ * Setup listeners for search bar usage
  */
 function setupSearchBarListeners() {
-  // Wait for search bar to be ready
-  const checkForSearchBar = () => {
-    const searchSelectors = [
-      '#synapse-search',
-      '#search-everything',
-      'input[placeholder*="Search"]',
-      'input[placeholder*="search"]',
-      '.search-input',
-      '#quiet-search-input'
-    ];
-    
-    let foundSearch = false;
-    
-    searchSelectors.forEach(selector => {
-      const searchInputs = document.querySelectorAll(selector);
-      if (searchInputs.length > 0) {
-        foundSearch = true;
-        searchInputs.forEach(input => {
-          // Avoid duplicate listeners
-          if (!input.dataset.quietModeListener) {
-            input.dataset.quietModeListener = 'true';
-            
-            // Listen for input (typing)
-            input.addEventListener('input', handleSearchInput);
-            
-            // Listen for focus (clicking into search)
-            input.addEventListener('focus', handleSearchFocus);
-            
-            console.log(`🔇 Added listeners to search input: ${selector}`);
-          }
-        });
-      }
+  const searchSelectors = [
+    '#synapse-search',
+    '#search-everything',
+    'input[placeholder*="Search"]',
+    'input[placeholder*="search"]',
+    '.search-input',
+    '#quiet-search-input'
+  ];
+
+  const attachListeners = () => {
+    let found = 0;
+
+    searchSelectors.forEach((selector) => {
+      const inputs = document.querySelectorAll(selector);
+      if (!inputs || inputs.length === 0) return;
+
+      inputs.forEach((input) => {
+        if (!input || !input.dataset) return;
+        if (input.dataset.quietModeListener) return;
+
+        input.dataset.quietModeListener = 'true';
+        input.addEventListener('input', handleSearchInput, { passive: true });
+        input.addEventListener('focus', handleSearchFocus, { passive: true });
+
+        found += 1;
+      });
     });
-    
-    // If no search bar found yet, try again
-    if (!foundSearch) {
-      setTimeout(checkForSearchBar, 500);
-    }
+
+    if (found > 0) log(`Attached ${found} search listeners`);
+    return found;
   };
-  
-  // Start checking
-  checkForSearchBar();
+
+  const checkForSearch = () => {
+    const found = attachListeners();
+    if (found === 0) setTimeout(checkForSearch, 500);
+  };
+
+  checkForSearch();
 }
 
 /**
  * Setup listeners for network filter events
  */
 function setupNetworkFilterListeners() {
-  // Listen for custom network filter events
   window.addEventListener('network-filters-changed', handleNetworkFilterChange);
   window.addEventListener('synapse-filter-changed', handleNetworkFilterChange);
-  
-  console.log('🔇 Listening for network filter events');
+  log('Listening for network filter events');
 }
 
 /**
- * Handle filter button click
+ * Event handlers
  */
-function handleFilterButtonClick(event) {
-  console.log('🔇 Filter button clicked - disabling quiet mode');
+function handleFilterButtonClick() {
+  log('Filter button clicked - disabling quiet mode');
   disableQuietMode('filter_button');
 }
 
-/**
- * Handle search input
- */
 function handleSearchInput(event) {
-  const query = event.target.value.trim();
-  
-  // Only disable if user has typed something
+  const query = (event?.target?.value || '').trim();
   if (query.length > 0) {
-    console.log('🔇 Search input detected - disabling quiet mode');
+    log('Search input detected - disabling quiet mode');
     disableQuietMode('search_input');
   }
 }
 
-/**
- * Handle search focus
- */
-function handleSearchFocus(event) {
-  console.log('🔇 Search focused - disabling quiet mode');
+function handleSearchFocus() {
+  log('Search focused - disabling quiet mode');
   disableQuietMode('search_focus');
 }
 
-/**
- * Handle network filter change
- */
-function handleNetworkFilterChange(event) {
-  console.log('🔇 Network filter changed - disabling quiet mode');
+function handleNetworkFilterChange() {
+  log('Network filter changed - disabling quiet mode');
   disableQuietMode('network_filter');
 }
 
 /**
  * Disable quiet mode and restore full visualization
- * @param {string} reason - Why quiet mode was disabled
  */
 function disableQuietMode(reason) {
+  // Always re-sync from persisted preference to avoid drift
+  quietModeEnabled = readQuietPref();
+
   if (!quietModeEnabled) {
-    console.log('🔇 Quiet mode already disabled');
+    log('Quiet mode already disabled');
     return;
   }
-  
+
   quietModeEnabled = false;
-  
-  console.log(`🔇 Disabling quiet mode (reason: ${reason})`);
-  
-  // Show notification
+  writeQuietPref(false);
+
+  log(`Disabling quiet mode (reason: ${reason})`);
+
+  // Show notification (if available)
   if (typeof window.showSynapseNotification === 'function') {
-    window.showSynapseNotification(
-      'Quiet mode disabled - showing full network',
-      'info'
-    );
+    window.showSynapseNotification('Quiet mode disabled - showing full network', 'info');
   }
-  
-  // Restore full visualization
-  restoreFullVisualization();
-  
+
+  // Restore full visualization (legacy) OR emit unified-safe event
+  restoreFullVisualization(reason);
+
   // Emit event for other systems
-  window.dispatchEvent(new CustomEvent('quiet-mode-disabled', {
-    detail: { reason }
-  }));
+  window.dispatchEvent(
+    new CustomEvent('quiet-mode-disabled', {
+      detail: { reason }
+    })
+  );
+
+  // Also emit a unified-friendly change event (safe even if nothing listens)
+  window.dispatchEvent(
+    new CustomEvent('quiet-mode-change', {
+      detail: { enabled: false, reason }
+    })
+  );
 }
 
 /**
  * Restore full network visualization
+ * - If legacy D3 handles exist: restore via nodeEls/linkEls
+ * - Otherwise: emit a change event and avoid DOM manipulation
  */
-function restoreFullVisualization() {
+function restoreFullVisualization(reason) {
   if (!synapseCore) {
-    console.warn('🔇 Synapse core not available');
+    warn('Synapse core not available; cannot restore via legacy core. Emitting quiet-mode-change only.');
     return;
   }
-  
-  const { nodeEls, linkEls } = synapseCore;
-  
-  if (!nodeEls) {
-    console.warn('🔇 No nodes to restore');
+
+  const nodeEls = synapseCore.nodeEls;
+  const linkEls = synapseCore.linkEls;
+
+  // Unified mode: legacy handles absent -> do not attempt D3 operations
+  if (!nodeEls || typeof window.d3 === 'undefined') {
+    warn('Legacy D3 handles not available (unified renderer likely). Skipping DOM restore.');
     return;
   }
-  
-  console.log('🔇 Restoring full network visualization');
-  
+
+  log('Restoring full network visualization (legacy D3)');
+
   // Show all nodes
-  nodeEls.each(function(d) {
+  nodeEls.each(function () {
     const node = window.d3.select(this);
-    
     node
       .style('display', 'block')
       .transition()
       .duration(300)
       .style('opacity', 1);
-    
-    // Show labels
-    node.select('text')
+
+    node
+      .select('text')
       .transition()
       .duration(300)
       .attr('opacity', 1);
   });
-  
+
   // Show all links
   if (linkEls) {
-    linkEls.each(function(d) {
+    linkEls.each(function () {
       const link = window.d3.select(this);
-      
       link
         .style('display', 'block')
         .transition()
@@ -285,62 +302,59 @@ function restoreFullVisualization() {
         .attr('opacity', 0.6);
     });
   }
-  
-  // Show previously hidden UI elements
+
   showHiddenUI();
-  
-  console.log('✅ Full visualization restored');
+
+  log('✅ Full visualization restored (legacy D3)');
 }
 
 /**
  * Show UI elements that were hidden by quiet mode
  */
 function showHiddenUI() {
-  // Show mode switcher
   const modeSwitcher = document.getElementById('synapse-mode-switcher');
-  if (modeSwitcher) {
-    modeSwitcher.style.display = '';
-  }
-  
-  // Show category toggles
+  if (modeSwitcher) modeSwitcher.style.display = '';
+
   const categoryToggles = document.querySelectorAll('.category-toggle, .filter-button, .view-toggle');
-  categoryToggles.forEach(el => {
+  categoryToggles.forEach((el) => {
     el.style.display = '';
   });
-  
-  // Show panels/sidebars (but not all - be selective)
+
   const panels = document.querySelectorAll('.floating-panel, .sidebar');
-  panels.forEach(el => {
-    // Only show if it was meant to be visible
-    if (!el.classList.contains('hidden')) {
-      el.style.display = '';
-    }
+  panels.forEach((el) => {
+    if (!el.classList.contains('hidden')) el.style.display = '';
   });
-  
-  console.log('🔇 Hidden UI elements restored');
+
+  log('Hidden UI elements restored');
 }
 
 /**
- * Re-enable quiet mode (for testing or manual control)
+ * Enable quiet mode (manual control)
+ * Note: This does NOT apply quiet mode itself (that belongs to quiet-mode.js / unified renderer).
+ * It persists preference + emits a unified-friendly event for your renderer to act on.
  */
 export function enableQuietMode() {
   quietModeEnabled = true;
-  console.log('🔇 Quiet mode re-enabled');
-  
-  // Re-apply quiet mode if synapse core is available
-  if (synapseCore && window.QuietMode) {
-    window.QuietMode.apply(synapseCore);
-  }
+  writeQuietPref(true);
+
+  log('Quiet mode enabled (persisted)');
+
+  window.dispatchEvent(
+    new CustomEvent('quiet-mode-change', {
+      detail: { enabled: true, reason: 'manual_enable' }
+    })
+  );
 }
 
 /**
  * Check if quiet mode is currently enabled
  */
 export function isQuietModeEnabled() {
+  quietModeEnabled = readQuietPref();
   return quietModeEnabled;
 }
 
-// Export for global access
+// Global access (debug/admin)
 window.QuietModeAutoDisable = {
   init: initQuietModeAutoDisable,
   enable: enableQuietMode,
