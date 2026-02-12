@@ -27,6 +27,8 @@ import {
   clearFocusEffects,
 } from "./focus-system.js";
 
+import { initScaleTierController } from "../scaleTierController.js";
+
 import {
   getThemeInterestCount, // (kept for compatibility; may be used by node panel / overlays)
   markInterested,
@@ -69,6 +71,9 @@ let __pendingFocus = null; // Single pending focus: { type:'node'|'theme'|'activ
 
 // Canonical core object (single source of truth)
 let synapseCore = null;
+
+// Zoom tracking for scale tier controller
+let currentZoomScale = 1.0;
 
 /* ==========================================================================
    CORE OBJECT HELPERS
@@ -638,6 +643,7 @@ function setupSVG() {
     .scaleExtent([0.2, 4])
     .on("zoom", (event) => {
       container.attr("transform", event.transform);
+      currentZoomScale = event.transform.k; // Track zoom for scale tier controller
 
       if (window.ProgressiveDisclosure && window.ProgressiveDisclosure.handleZoomChange) {
         window.ProgressiveDisclosure.handleZoomChange(event.transform.k, {
@@ -1257,6 +1263,17 @@ async function buildGraph() {
 
   // Ready!
   markSynapseReady();
+
+  // Initialize scale-reactive tier controller (mobile only)
+  try {
+    initScaleTierController({
+      synapseCore,
+      networkFilters: null, // Not initialized in core.js, controller will handle gracefully
+      getCurrentZoom: () => currentZoomScale
+    });
+  } catch (err) {
+    console.warn('[ScaleTier] Init failed:', err);
+  }
 
   // Tick loop
   let tickCount = 0;
