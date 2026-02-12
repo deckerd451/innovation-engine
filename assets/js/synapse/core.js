@@ -1,6 +1,6 @@
 // assets/js/synapse/core.js
 // Synapse Core — init, svg, simulation wiring (modularized)
-// Version: 7.0 - Added Progressive Disclosure System (2026-02-04)
+// Version: 7.1 - Canonical synapseCore + safe Quiet Mode wiring + readiness queue (2026-02-11)
 
 import { initConnections } from "../connections.js";
 import { openNodePanel } from "../node-panel.js";
@@ -12,13 +12,15 @@ import {
   renderLinks,
   renderNodes,
   renderThemeCircles,
-  renderThemeProjectsOverlay,
-  drawProjectCircles,
+  renderThemeProjectsOverlay, // (kept for compatibility; may be unused depending on render.js)
+  drawProjectCircles,         // (kept for compatibility; may be unused depending on render.js)
   highlightSelectedTheme,
   clearThemeSelection,
 } from "./render.js";
+
 import { showSynapseNotification } from "./ui.js";
 import { setupSynapseRealtime } from "./realtime.js";
+
 import {
   setFocusOnNode,
   findCurrentUserNode,
@@ -26,7 +28,7 @@ import {
 } from "./focus-system.js";
 
 import {
-  getThemeInterestCount,
+  getThemeInterestCount, // (kept for compatibility; may be used by node panel / overlays)
   markInterested,
   renderThemeOverlayCard,
 } from "./themes.js";
@@ -56,40 +58,94 @@ let projectMembersData = [];
 let currentUserCommunityId = null;
 
 let initialized = false;
-let projectCircles = null;
+
+// Mode flags
 let showFullCommunity = true; // Always show full community (Discovery Mode)
-let userManuallyToggledMode = false; // Track if user manually changed the mode
+let userManuallyToggledMode = false; // Track if user manually changed the mode (kept for legacy UI)
 
 // Readiness tracking for focus reliability
 let _ready = false;
-let __pendingFocus = null; // Single pending focus: { type: 'node'|'theme'|'activity', id?: string }
+let __pendingFocus = null; // Single pending focus: { type:'node'|'theme'|'activity', id?: string, skipToast?: boolean }
+
+// Canonical core object (single source of truth)
+let synapseCore = null;
+
+/* ==========================================================================
+   CORE OBJECT HELPERS
+   ========================================================================== */
+
+function buildSynapseCore() {
+  return {
+    svg,
+    container,
+    nodes,
+    links,
+    nodeEls,
+    linkEls,
+    themeEls,
+    projectEls,
+    zoomBehavior,
+    simulation,
+    currentUserCommunityId,
+    // expose mode flags too (read-only-ish)
+    showFullCommunity,
+  };
+}
+
+function syncSynapseCore() {
+  if (!synapseCore) synapseCore = buildSynapseCore();
+
+  // Update in-place so references remain stable
+  synapseCore.svg = svg;
+  synapseCore.container = container;
+  synapseCore.nodes = nodes;
+  synapseCore.links = links;
+  synapseCore.nodeEls = nodeEls;
+  synapseCore.linkEls = linkEls;
+  synapseCore.themeEls = themeEls;
+  synapseCore.projectEls = projectEls;
+  synapseCore.zoomBehavior = zoomBehavior;
+  synapseCore.simulation = simulation;
+  synapseCore.currentUserCommunityId = currentUserCommunityId;
+  synapseCore.showFullCommunity = showFullCommunity;
+
+  window.synapseCore = synapseCore;
+}
 
 /* ==========================================================================
    READINESS TRACKING
    ========================================================================== */
 
-/**
- * Mark Synapse as ready and replay any pending focus
- */
 function markSynapseReady() {
-  if (_ready) return; // Already ready
-  
+  if (_ready) return;
+
   _ready = true;
-  console.log('✅ Synapse ready - nodes and graph loaded');
-  
-  // Replay pending focus if any
+  console.log("✅ Synapse ready - nodes and graph loaded");
+
+  // Replay pending focus (if any)
   if (__pendingFocus) {
     const pending = __pendingFocus;
-    __pendingFocus = null; // Clear before replaying
-    
-    console.log('🔄 Replaying queued focus:', pending);
-    
-    if (pending.type === 'node') {
-      window.synapseApi.focusNode(pending.id);
-    } else if (pending.type === 'theme') {
-      window.synapseApi.focusTheme(pending.id);
-    } else if (pending.type === 'activity') {
-      window.synapseApi.showActivity();
+    __pendingFocus = null;
+
+    console.log("🔄 Replaying queued focus:", pending);
+
+    // Prefer firing the same events the API uses (avoids recursion)
+    if (pending.type === "node" && pending.id) {
+      window.dispatchEvent(
+        new CustomEvent("synapse:focus-node", {
+          detail: { nodeId: pending.id, skipToast: !!pending.skipToast },
+        })
+      );
+    } else if (pending.type === "theme" && pending.id) {
+      window.dispatchEvent(
+        new CustomEvent("synapse:focus-theme", { detail: { themeId: pending.id } })
+      );
+    } else if (pending.type === "activity") {
+      window.dispatchEvent(
+        new CustomEvent("synapse:show-activity", {
+          detail: { userId: currentUserCommunityId },
+        })
+      );
     }
   }
 }
@@ -104,33 +160,29 @@ export async function initSynapseView() {
     return;
   }
 
-  // Set flag immediately to prevent race conditions
   initialized = true;
 
   supabase = window.supabase;
   if (!supabase) {
     console.error("❌ Synapse: window.supabase not found");
-    initialized = false; // Reset on error
+    initialized = false;
     return;
   }
 
-  // D3 must be global in this build
   if (!window.d3) {
     console.error("❌ Synapse: D3 not found on window. Load D3 before synapse.");
-    initialized = false; // Reset on error
+    initialized = false;
     return;
   }
 
-  // Basic container checks
   if (!document.getElementById("synapse-svg")) {
     console.error("❌ Synapse: #synapse-svg not found in DOM");
-    initialized = false; // Reset on error
+    initialized = false;
     return;
   }
+
   if (!document.getElementById("synapse-main-view")) {
-    console.warn(
-      "⚠️ Synapse: #synapse-main-view not found (theme card/toasts may not render)"
-    );
+    console.warn("⚠️ Synapse: #synapse-main-view not found (theme card/toasts may not render)");
   }
 
   console.log("%c🧠 Synapse Core booting...", "color:#0ff; font-weight:bold;");
@@ -143,74 +195,30 @@ export async function initSynapseView() {
   await reloadAllData();
   await buildGraph();
 
+  // Establish canonical synapseCore (and expose it)
+  syncSynapseCore();
+
   // Quiet Mode v1 (Default - Radical Simplification)
   // Feature flag: quietMode overrides Progressive Disclosure
-  const quietMode = true; // Default to Quiet Mode
-  
+  const quietMode = true;
+
   if (quietMode) {
     try {
-      console.log('🤫 Initializing Quiet Mode (v1)...');
-      QuietMode.init({
-        svg,
-        container,
-        nodes,
-        links,
-        nodeEls,
-        linkEls,
-        themeEls,
-        projectEls,
-        zoomBehavior,
-        simulation,
-        currentUserCommunityId
-      });
-      console.log('✅ Quiet Mode initialized');
-      
-      // Expose for debugging
+      console.log("🤫 Initializing Quiet Mode (v1)...");
+      QuietMode.init(synapseCore);
       window.QuietMode = QuietMode;
-      
-      // Initialize auto-disable functionality
-      if (window.QuietModeAutoDisable) {
-        console.log('🔇 Initializing Quiet Mode Auto-Disable...');
-        window.QuietModeAutoDisable.init({
-          svg,
-          container,
-          nodes,
-          links,
-          nodeEls,
-          linkEls,
-          themeEls,
-          projectEls,
-          zoomBehavior,
-          simulation,
-          currentUserCommunityId
-        });
-        console.log('✅ Quiet Mode Auto-Disable initialized');
-      }
+      console.log("✅ Quiet Mode initialized");
     } catch (e) {
-      console.error('❌ Quiet Mode init failed:', e);
+      console.error("❌ Quiet Mode init failed:", e);
     }
   } else {
-    // Progressive Disclosure System (Mobile-First UX)
     try {
-      console.log('🎨 Initializing Progressive Disclosure System...');
-      ProgressiveDisclosure.init({
-        svg,
-        container,
-        nodes,
-        links,
-        nodeEls,
-        linkEls,
-        themeEls,
-        projectEls,
-        zoomBehavior,
-        simulation
-      });
-      console.log('✅ Progressive Disclosure initialized');
-      
-      // Expose for debugging
+      console.log("🎨 Initializing Progressive Disclosure System...");
+      ProgressiveDisclosure.init(synapseCore);
       window.ProgressiveDisclosure = ProgressiveDisclosure;
+      console.log("✅ Progressive Disclosure initialized");
     } catch (e) {
-      console.error('❌ Progressive Disclosure init failed:', e);
+      console.error("❌ Progressive Disclosure init failed:", e);
     }
   }
 
@@ -222,13 +230,7 @@ export async function initSynapseView() {
 
   // Pathway animation system (safe)
   try {
-    PathwayAnimations.initPathwayAnimations(
-      supabase,
-      svg,
-      container,
-      nodes,
-      links
-    );
+    PathwayAnimations.initPathwayAnimations(supabase, svg, container, nodes, links);
   } catch (e) {
     console.warn("⚠️ Pathway animations init failed:", e);
   }
@@ -238,15 +240,13 @@ export async function initSynapseView() {
   window.refreshThemeCircles = refreshThemeCircles;
   window.refreshSynapseConnections = refreshSynapseConnections;
   window.refreshSynapseProjectCircles = refreshSynapseProjectCircles;
-  // toggleFullCommunityView removed - always in Discovery Mode now
-  window.openThemeCard = openThemeCard; // Expose for search results
+  window.openThemeCard = openThemeCard;
 
   // Expose theme selection functions for debugging
   window.highlightSelectedTheme = highlightSelectedTheme;
   window.clearThemeSelection = clearThemeSelection;
-  
-  // Add test function for theme selection
-  window.testThemeSelection = function(themeId) {
+
+  window.testThemeSelection = function (themeId) {
     console.log("🎯 Testing theme selection for:", themeId);
     if (themeId) {
       highlightSelectedTheme(themeId);
@@ -265,8 +265,8 @@ export async function initSynapseView() {
   window.getRecommendations = getRecommendations;
   window.showConnectPathways = showConnectPathways;
   window.clearConnectPathways = clearConnectPathways;
-  window.illuminatePathways = illuminatePathways; // Expose for Intelligence Layer
-  
+  window.illuminatePathways = illuminatePathways;
+
   // Expose pathway animation functions for Intelligence Layer
   window.showRecommendationPathways = PathwayAnimations.showRecommendationPathways;
   window.clearAllPathways = PathwayAnimations.clearAllPathways;
@@ -279,224 +279,183 @@ export async function initSynapseView() {
   // SYNAPSE API - Bridge for START Suggestions
   // ================================================================
   window.synapseApi = {
-    /**
-     * Open Synapse view (switch from START to Synapse)
-     */
     open: () => {
-      console.log('🌐 synapseApi.open() called');
-      
+      console.log("🌐 synapseApi.open() called");
+
       // Close START modal if open
       if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
         window.EnhancedStartUI.close();
       } else if (window.closeStartModal) {
         window.closeStartModal();
       }
-      
+
       // Explicitly show Synapse view
-      const synapseView = document.getElementById('synapse-main-view');
+      const synapseView = document.getElementById("synapse-main-view");
       if (synapseView) {
-        synapseView.style.display = 'block';
-        synapseView.style.visibility = 'visible';
-        synapseView.style.opacity = '1';
-        synapseView.style.zIndex = '1';
-        console.log('✅ Synapse view made visible');
+        synapseView.style.display = "block";
+        synapseView.style.visibility = "visible";
+        synapseView.style.opacity = "1";
+        synapseView.style.zIndex = "1";
+        console.log("✅ Synapse view made visible");
       } else {
-        console.warn('⚠️ synapse-main-view element not found');
+        console.warn("⚠️ synapse-main-view element not found");
       }
-      
+
       // Hide dashboard pane if it exists
-      const dashboardPane = document.getElementById('dashboard-pane');
+      const dashboardPane = document.getElementById("dashboard-pane");
       if (dashboardPane) {
-        dashboardPane.style.display = 'none';
-        console.log('✅ Dashboard pane hidden');
+        dashboardPane.style.display = "none";
+        console.log("✅ Dashboard pane hidden");
       }
-      
+
       // Try legacy showView if it exists
-      if (window.showView) {
-        window.showView('synapse');
-      }
+      if (window.showView) window.showView("synapse");
     },
-    
-    /**
-     * Focus on a specific node (person, project, org)
-     */
-    focusNode: (nodeId) => {
-      console.log('🎯 synapseApi.focusNode() called:', nodeId);
-      
-      if (!nodeId) {
-        console.warn('⚠️ focusNode called without nodeId');
-        return;
-      }
-      
-      // If Synapse not ready, queue the focus
+
+    focusNode: (nodeId, opts = {}) => {
+      console.log("🎯 synapseApi.focusNode() called:", nodeId);
+      if (!nodeId) return console.warn("⚠️ focusNode called without nodeId");
+
       if (!_ready) {
-        console.log('⏳ Synapse not ready yet - queueing focus request');
-        __pendingFocus = { type: 'node', id: nodeId };
+        console.log("⏳ Synapse not ready yet - queueing focus request");
+        __pendingFocus = { type: "node", id: nodeId, skipToast: !!opts.skipToast };
         return;
       }
-      
-      // Dispatch event for focus system to handle
-      window.dispatchEvent(new CustomEvent('synapse:focus-node', {
-        detail: { nodeId }
-      }));
+
+      window.dispatchEvent(
+        new CustomEvent("synapse:focus-node", {
+          detail: { nodeId, skipToast: !!opts.skipToast },
+        })
+      );
     },
-    
-    /**
-     * Focus on a theme
-     */
+
     focusTheme: (themeId) => {
-      console.log('🎯 synapseApi.focusTheme() called:', themeId);
-      
-      if (!themeId) {
-        console.warn('⚠️ focusTheme called without themeId');
-        return;
-      }
-      
-      // If Synapse not ready, queue the focus
+      console.log("🎯 synapseApi.focusTheme() called:", themeId);
+      if (!themeId) return console.warn("⚠️ focusTheme called without themeId");
+
       if (!_ready) {
-        console.log('⏳ Synapse not ready yet - queueing focus request');
-        __pendingFocus = { type: 'theme', id: themeId };
+        console.log("⏳ Synapse not ready yet - queueing focus request");
+        __pendingFocus = { type: "theme", id: themeId };
         return;
       }
-      
-      // Dispatch event for theme focus
-      window.dispatchEvent(new CustomEvent('synapse:focus-theme', {
-        detail: { themeId }
-      }));
+
+      window.dispatchEvent(new CustomEvent("synapse:focus-theme", { detail: { themeId } }));
     },
-    
-    /**
-     * Show activity view (center on current user)
-     */
+
     showActivity: () => {
-      console.log('📊 synapseApi.showActivity() called');
-      
-      // If Synapse not ready, queue the focus
+      console.log("📊 synapseApi.showActivity() called");
+
       if (!_ready) {
-        console.log('⏳ Synapse not ready yet - queueing focus request');
-        __pendingFocus = { type: 'activity' };
+        console.log("⏳ Synapse not ready yet - queueing focus request");
+        __pendingFocus = { type: "activity" };
         return;
       }
-      
-      // Dispatch event to center on current user
-      window.dispatchEvent(new CustomEvent('synapse:show-activity', {
-        detail: { userId: currentUserCommunityId }
-      }));
+
+      window.dispatchEvent(
+        new CustomEvent("synapse:show-activity", { detail: { userId: currentUserCommunityId } })
+      );
     },
-    
-    /**
-     * Debug interface - read-only access to Synapse state
-     */
+
     debug: {
       getNodes: () => nodes,
       getLinks: () => links,
-      isReady: () => _ready
-    }
+      isReady: () => _ready,
+      getCore: () => synapseCore,
+    },
   };
-  
+
   // ================================================================
   // EVENT LISTENERS - Handle synapseApi events
   // ================================================================
-  
-  // Listen for focus-node events
-  window.addEventListener('synapse:focus-node', (event) => {
-    const { nodeId, skipToast } = event.detail; // NEW: skipToast flag
-    console.log('🎯 Handling synapse:focus-node event:', nodeId);
-    
+
+  // Focus node
+  window.addEventListener("synapse:focus-node", (event) => {
+    const { nodeId, skipToast } = event.detail || {};
+    console.log("🎯 Handling synapse:focus-node event:", nodeId);
+
     if (!nodeId || !nodes || !svg || !container || !zoomBehavior) {
-      console.warn('⚠️ Cannot focus node - missing dependencies');
+      console.warn("⚠️ Cannot focus node - missing dependencies");
       return;
     }
-    
-    // Find the node
-    const node = nodes.find(n => n.id === nodeId);
+
+    const node = nodes.find((n) => n.id === nodeId);
     if (!node) {
-      console.warn('⚠️ Node not found:', nodeId);
-      console.log('ℹ️ Falling back to activity view (centering on current user)');
-      
-      // Only show toast if not skipped (e.g., when clicking pathway animations)
+      console.warn("⚠️ Node not found:", nodeId);
+      console.log("ℹ️ Falling back to activity view (centering on current user)");
+
       if (!skipToast) {
         showSynapseNotification(
-          'Person not found in current view. They may not be in the network yet.',
-          'info',
+          "Person not found in current view. They may not be in the network yet.",
+          "info",
           6000
         );
       }
-      
-      // Fallback: center on current user instead
+
       const userNode = findCurrentUserNode(nodes, currentUserCommunityId);
       if (userNode) {
         setFocusOnNode(userNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
       }
       return;
     }
-    
-    // Focus on the node
+
     setFocusOnNode(node, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
   });
-  
-  // Listen for focus-theme events
-  window.addEventListener('synapse:focus-theme', (event) => {
-    const { themeId } = event.detail;
-    console.log('🎯 Handling synapse:focus-theme event:', themeId);
-    
+
+  // Focus theme
+  window.addEventListener("synapse:focus-theme", (event) => {
+    const { themeId } = event.detail || {};
+    console.log("🎯 Handling synapse:focus-theme event:", themeId);
+
     if (!themeId || !nodes || !svg || !container || !zoomBehavior) {
-      console.warn('⚠️ Cannot focus theme - missing dependencies');
+      console.warn("⚠️ Cannot focus theme - missing dependencies");
       return;
     }
-    
-    // Find the theme node (theme nodes have id format "theme:<uuid>")
-    const themeNodeId = themeId.startsWith('theme:') ? themeId : `theme:${themeId}`;
-    const themeNode = nodes.find(n => n.id === themeNodeId || n.theme_id === themeId);
-    
+
+    const themeNodeId = String(themeId).startsWith("theme:") ? themeId : `theme:${themeId}`;
+    const themeNode = nodes.find((n) => n.id === themeNodeId || n.theme_id === themeId);
+
     if (!themeNode) {
-      console.warn('⚠️ Theme node not found:', themeId);
-      console.log('ℹ️ Falling back to activity view (centering on current user)');
-      
-      // Show helpful toast notification
+      console.warn("⚠️ Theme node not found:", themeId);
+      console.log("ℹ️ Falling back to activity view (centering on current user)");
+
       showSynapseNotification(
-        'This theme isn\'t in your current view. You may need to join it or enable Discovery Mode.',
-        'info',
+        "This theme isn't in your current view. You may need to join it or enable Discovery Mode.",
+        "info",
         8000
       );
-      
-      // Fallback: center on current user instead
+
       const userNode = findCurrentUserNode(nodes, currentUserCommunityId);
       if (userNode) {
         setFocusOnNode(userNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
       }
       return;
     }
-    
-    // Focus on the theme and open its card
+
     setFocusOnNode(themeNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
-    
-    // Open theme card after a short delay
+
     setTimeout(() => {
       openThemeCard(themeNode);
     }, 400);
   });
-  
-  // Listen for show-activity events
-  window.addEventListener('synapse:show-activity', (event) => {
-    const { userId } = event.detail;
-    console.log('📊 Handling synapse:show-activity event:', userId);
-    
+
+  // Activity view
+  window.addEventListener("synapse:show-activity", (event) => {
+    const { userId } = event.detail || {};
+    console.log("📊 Handling synapse:show-activity event:", userId);
+
     const targetUserId = userId || currentUserCommunityId;
-    
+
     if (!targetUserId || !nodes || !svg || !container || !zoomBehavior) {
-      console.warn('⚠️ Cannot show activity - missing dependencies');
+      console.warn("⚠️ Cannot show activity - missing dependencies");
       return;
     }
-    
-    // Find the user node
+
     const userNode = findCurrentUserNode(nodes, targetUserId);
     if (!userNode) {
-      console.warn('⚠️ User node not found:', targetUserId);
+      console.warn("⚠️ User node not found:", targetUserId);
       return;
     }
-    
-    // Center on the user
+
     setFocusOnNode(userNode, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
   });
 
@@ -523,147 +482,117 @@ export async function refreshSynapseProjectCircles() {
   await rebuildGraph();
 }
 
-// toggleFullCommunityView removed - always in Discovery Mode
-// Visual indicators on nodes show connection status instead
+/* ==========================================================================
+   FILTERING (CATEGORY VIEW)
+   ========================================================================== */
 
-// Filter synapse view by category
 export function filterSynapseByCategory(category) {
   console.log(`🔍 Filtering synapse view by category: ${category}`);
-  
+
   if (!svg) {
-    console.warn('⚠️ SVG not available yet');
+    console.warn("⚠️ SVG not available yet");
     return;
   }
-  
-  // Select ALL node elements directly from SVG (not using cached nodeEls)
-  const allNodes = svg.selectAll('.synapse-node');
-  const allLinks = svg.selectAll('.synapse-link');
-  const themeCircles = svg.selectAll('.theme-circle');
-  
-  console.log(`📊 Found ${allNodes.size()} visual nodes, ${allLinks.size()} links, ${themeCircles.size()} theme circles`);
-  
-  // Debug: Log what types we have in the nodes array
+
+  const allNodesSel = svg.selectAll(".synapse-node");
+  const allLinksSel = svg.selectAll(".synapse-link");
+  const themeCirclesSel = svg.selectAll(".theme-circle");
+
+  console.log(
+    `📊 Found ${allNodesSel.size()} visual nodes, ${allLinksSel.size()} links, ${themeCirclesSel.size()} theme circles`
+  );
+
   const nodeTypes = {};
-  nodes.forEach(n => {
+  nodes.forEach((n) => {
     nodeTypes[n.type] = (nodeTypes[n.type] || 0) + 1;
   });
-  console.log('📊 Available node types in data:', nodeTypes);
-  
-  // Map category to node type (defined at function scope)
+  console.log("📊 Available node types in data:", nodeTypes);
+
   const typeMap = {
-    'people': 'person',
-    'projects': 'project',
-    'organizations': 'organization',
-    'themes': 'theme',
-    'discovery': 'all' // Discovery mode shows all nodes
+    people: "person",
+    projects: "project",
+    organizations: "organization",
+    themes: "theme",
+    discovery: "all",
+    all: "all",
   };
-  
-  if (category === 'all' || category === 'discovery') {
-    // Show everything
-    allNodes
-      .transition()
-      .duration(300)
-      .style('opacity', 1)
-      .style('pointer-events', 'auto');
-    
-    // Only filter links if they exist (admin mode)
-    if (!allLinks.empty()) {
-      allLinks
+
+  const filterType = typeMap[category] || category;
+
+  if (filterType === "all") {
+    allNodesSel.transition().duration(300).style("opacity", 1).style("pointer-events", "auto");
+
+    if (!allLinksSel.empty()) {
+      allLinksSel
         .transition()
         .duration(300)
-        .style('opacity', d => {
-          if (d.type === "project-member") {
-            return d.status === "pending" ? 0.5 : 0.8;
-          }
+        .style("opacity", (d) => {
+          if (d?.type === "project-member") return d.status === "pending" ? 0.5 : 0.8;
           return 0.6;
         });
     }
-    
-    // Show theme circles
-    if (!themeCircles.empty()) {
-      themeCircles
-        .transition()
-        .duration(300)
-        .style('opacity', 1)
-        .style('pointer-events', 'auto');
+
+    if (!themeCirclesSel.empty()) {
+      themeCirclesSel.transition().duration(300).style("opacity", 1).style("pointer-events", "auto");
     }
-    
-    console.log(`✅ Filter applied: showing all ${allNodes.size()} nodes`);
-  } else {
-    const filterType = typeMap[category];
-    
-    if (!filterType) {
-      console.warn(`⚠️ Unknown category: ${category}`);
-      return;
-    }
-    
-    console.log(`📊 Filtering for type: "${filterType}"`);
-    
-    // Count how many nodes match
-    let matchCount = 0;
-    const matchedNodes = [];
-    allNodes.each(function(d) {
-      if (d && d.type === filterType) {
-        matchCount++;
-        matchedNodes.push(d.name);
-      }
+
+    console.log(`✅ Filter applied: showing all ${allNodesSel.size()} nodes`);
+    return;
+  }
+
+  if (!Object.values(typeMap).includes(filterType) && !["person", "project", "organization", "theme"].includes(filterType)) {
+    console.warn(`⚠️ Unknown category: ${category}`);
+    return;
+  }
+
+  let matchCount = 0;
+  allNodesSel.each(function (d) {
+    if (d && d.type === filterType) matchCount++;
+  });
+  console.log(`📊 Found ${matchCount} visual nodes of type "${filterType}"`);
+
+  allNodesSel
+    .transition()
+    .duration(300)
+    .style("opacity", (d) => {
+      if (!d) return 0.15;
+      return d.type === filterType ? 1 : 0.15;
+    })
+    .style("pointer-events", (d) => {
+      if (!d) return "none";
+      return d.type === filterType ? "auto" : "none";
     });
-    console.log(`📊 Found ${matchCount} visual nodes of type "${filterType}":`, matchedNodes);
-    
-    // Filter nodes - only show nodes of the target type
-    allNodes
+
+  if (!themeCirclesSel.empty()) {
+    const themeOpacity = filterType === "theme" ? 1 : 0.15;
+    themeCirclesSel
       .transition()
       .duration(300)
-      .style('opacity', d => {
-        if (!d) return 0.15;
-        const isMatch = d.type === filterType;
-        return isMatch ? 1 : 0.15;
-      })
-      .style('pointer-events', d => {
-        if (!d) return 'none';
-        return d.type === filterType ? 'auto' : 'none';
-      });
-    
-    // Handle theme circles separately
-    if (!themeCircles.empty()) {
-      const themeOpacity = category === 'themes' ? 1 : 0.15;
-      console.log(`🎨 Setting ${themeCircles.size()} theme circles opacity to: ${themeOpacity}`);
-      themeCircles
-        .transition()
-        .duration(300)
-        .style('opacity', themeOpacity)
-        .style('pointer-events', category === 'themes' ? 'auto' : 'none');
-    }
-    
-    // Filter links - only if they exist (admin mode)
-    if (!allLinks.empty()) {
-      allLinks
-        .transition()
-        .duration(300)
-        .style('opacity', d => {
-          if (!d) return 0.05;
-          
-          const sourceType = typeof d.source === 'object' ? d.source.type : 
-                            nodes.find(n => n.id === d.source)?.type;
-          const targetNodeType = typeof d.target === 'object' ? d.target.type : 
-                            nodes.find(n => n.id === d.target)?.type;
-          
-          // Show link if either end connects to a visible node of the filter type
-          const sourceVisible = sourceType === filterType;
-          const targetVisible = targetNodeType === filterType;
-          
-          if (sourceVisible || targetVisible) {
-            if (d.type === "project-member") {
-              return d.status === "pending" ? 0.3 : 0.6;
-            }
-            return 0.4;
-          }
-          return 0.05;
-        });
-    }
-    
-    console.log(`✅ Filter applied: ${category} (showing ${matchCount} ${filterType} nodes)`);
+      .style("opacity", themeOpacity)
+      .style("pointer-events", filterType === "theme" ? "auto" : "none");
   }
+
+  if (!allLinksSel.empty()) {
+    allLinksSel
+      .transition()
+      .duration(300)
+      .style("opacity", (d) => {
+        if (!d) return 0.05;
+
+        const sourceType =
+          typeof d.source === "object" ? d.source.type : nodes.find((n) => n.id === d.source)?.type;
+        const targetType =
+          typeof d.target === "object" ? d.target.type : nodes.find((n) => n.id === d.target)?.type;
+
+        const connectsVisible = sourceType === filterType || targetType === filterType;
+        if (!connectsVisible) return 0.05;
+
+        if (d.type === "project-member") return d.status === "pending" ? 0.3 : 0.6;
+        return 0.4;
+      });
+  }
+
+  console.log(`✅ Filter applied: ${category} (showing ${matchCount} ${filterType} nodes)`);
 }
 
 export function getSynapseStats() {
@@ -673,14 +602,10 @@ export function getSynapseStats() {
 
   const acceptedSet = new Set(["accepted", "active", "connected", "approved"]);
   const myConns = (connectionsData || []).filter(
-    (c) =>
-      c.from_user_id === currentUserCommunityId ||
-      c.to_user_id === currentUserCommunityId
+    (c) => c.from_user_id === currentUserCommunityId || c.to_user_id === currentUserCommunityId
   );
 
-  const myAccepted = myConns.filter((c) =>
-    !c.status ? true : acceptedSet.has(String(c.status).toLowerCase())
-  );
+  const myAccepted = myConns.filter((c) => (!c.status ? true : acceptedSet.has(String(c.status).toLowerCase())));
 
   return {
     totalNodes: nodes.length,
@@ -713,8 +638,7 @@ function setupSVG() {
     .scaleExtent([0.2, 4])
     .on("zoom", (event) => {
       container.attr("transform", event.transform);
-      
-      // Progressive Disclosure: Notify of zoom changes
+
       if (window.ProgressiveDisclosure && window.ProgressiveDisclosure.handleZoomChange) {
         window.ProgressiveDisclosure.handleZoomChange(event.transform.k, {
           svg,
@@ -723,7 +647,7 @@ function setupSVG() {
           links,
           nodeEls,
           linkEls,
-          themeEls
+          themeEls,
         });
       }
     });
@@ -731,7 +655,6 @@ function setupSVG() {
   svg.call(zoomBehavior);
 
   container = svg.append("g").attr("class", "synapse-container");
-
   setupDefs(svg);
 
   // Click background to close cards and clear focus
@@ -741,10 +664,7 @@ function setupSVG() {
       window.closeSynapseProfileCard?.();
     } catch (_) {}
 
-    // Clear focus effects when clicking background
     clearFocusEffects(nodeEls, linkEls);
-    
-    // Clear theme selection when clicking background
     clearThemeSelection();
   });
 }
@@ -754,7 +674,7 @@ function setupSVG() {
    ========================================================================== */
 
 function showSVGDimensionError() {
-  const errorDiv = document.createElement('div');
+  const errorDiv = document.createElement("div");
   errorDiv.style.cssText = `
     position: fixed;
     top: 50%;
@@ -802,13 +722,7 @@ async function reloadAllData() {
   connectionsData = loaded.connectionsData || [];
   projectMembersData = loaded.projectMembersData || [];
 
-  // Expose data globally for debugging
-  window.synapseData = {
-    nodes,
-    links,
-    connectionsData,
-    projectMembersData
-  };
+  window.synapseData = { nodes, links, connectionsData, projectMembersData };
 
   console.log("📊 Synapse data loaded:", {
     nodes: nodes.length,
@@ -816,35 +730,33 @@ async function reloadAllData() {
     connections: connectionsData.length,
     projectMembers: projectMembersData.length,
     currentUser: currentUserCommunityId,
-    showFullCommunity
+    showFullCommunity,
   });
 
-  // Log breakdown by type
+  // Breakdown by type
   const nodesByType = nodes.reduce((acc, n) => {
     acc[n.type] = (acc[n.type] || 0) + 1;
     return acc;
   }, {});
   console.log("📊 Nodes by type:", nodesByType);
 
-  // Log current user info
-  const currentUser = nodes.find(n => n.id === currentUserCommunityId);
+  // Current user sanity
+  const currentUser = nodes.find((n) => n.id === currentUserCommunityId);
   if (currentUser) {
     console.log("👤 Current user node:", {
       name: currentUser.name,
       projects: currentUser.projects?.length || 0,
       themes: currentUser.themes?.length || 0,
-      connections: connectionsData.filter(c => 
-        c.from_user_id === currentUserCommunityId || c.to_user_id === currentUserCommunityId
-      ).length
+      connections: connectionsData.filter(
+        (c) => c.from_user_id === currentUserCommunityId || c.to_user_id === currentUserCommunityId
+      ).length,
     });
   } else {
     console.warn("⚠️ Current user node not found in data");
   }
 
-  // ✅ Canonicalize + dedupe theme nodes:
-  // - Force stable id: "theme:<theme_id>"
-  // - Keep only one node per theme_id (joins/tags can duplicate)
-  const seenTheme = new Map(); // theme_id -> canonical node
+  // ✅ Canonicalize + dedupe theme nodes
+  const seenTheme = new Map();
   const dedupedNodes = [];
 
   for (const n of nodes) {
@@ -860,11 +772,10 @@ async function reloadAllData() {
   }
   nodes = dedupedNodes;
 
-  // ✅ Canonicalize theme link endpoints:
-  // Sometimes links use raw uuid (theme_id) instead of "theme:<uuid>"
+  // ✅ Canonicalize theme link endpoints
   const themeIdToCanonical = new Map();
   for (const t of nodes.filter((n) => n.type === "theme" && n.theme_id)) {
-    themeIdToCanonical.set(String(t.theme_id), t.id); // t.id is theme:<uuid>
+    themeIdToCanonical.set(String(t.theme_id), t.id);
   }
 
   links = (links || []).map((l) => {
@@ -881,173 +792,42 @@ async function reloadAllData() {
     return { ...l, source: fix(src), target: fix(tgt) };
   });
 
-  // Keep pathway module in sync with the latest arrays
   try {
     PathwayAnimations.updateGraphData?.(nodes, links);
   } catch (_) {}
+
+  // keep core in sync
+  syncSynapseCore();
 }
 
 /* ==========================================================================
-   NESTED THEME LAYOUT
-   - Themes you're associated with => concentric wells at center
-   - All other themes => orbit around (do NOT share center)
-   - Uses LINKS to infer your themes (doesn't rely on node.themes/projects)
+   LAYOUT (NESTED)
    ========================================================================== */
 
-function findMostActiveTheme(allNodes, currentUserCommunityId) {
-  const themes = allNodes.filter((n) => n.type === "theme");
-  const projects = allNodes.filter((n) => n.type === "project");
-  const currentUser = allNodes.find((n) => n.id === currentUserCommunityId);
-
-  if (!currentUser || themes.length === 0) return null;
-
-  let maxActivity = -1;
-  let mostActiveTheme = null;
-
-  themes.forEach((theme) => {
-    let activityScore = 0;
-
-    const userProjectsInTheme = projects.filter(
-      (p) => p.theme_id === theme.theme_id && currentUser.projects?.includes?.(p.id)
-    );
-    activityScore += userProjectsInTheme.length * 10;
-
-    if (currentUser.themes?.includes?.(theme.theme_id)) {
-      activityScore += 5;
-    }
-
-    const projectsInTheme = projects.filter((p) => p.theme_id === theme.theme_id);
-    activityScore += projectsInTheme.length;
-
-    if (activityScore > maxActivity) {
-      maxActivity = activityScore;
-      mostActiveTheme = theme.theme_id;
-    }
-  });
-
-  return mostActiveTheme;
-}
-
-/**
- * ✅ Robust theme association:
- * - Does NOT rely on person node having `themes` or `projects`
- * - Infers "my themes" from links:
- *   - direct links to theme nodes (theme:*)
- *   - links to projects => inherits project.theme_id
- */
-function getUserThemeSet(allNodes, allLinks, currentUserCommunityId) {
-  const set = new Set();
-  if (!currentUserCommunityId) return set;
-
-  // projectId -> themeId
-  const projectToTheme = new Map();
-  for (const n of allNodes) {
-    if (n?.type === "project" && n.id && n.theme_id) {
-      projectToTheme.set(String(n.id), String(n.theme_id));
-    }
-  }
-
-  for (const l of allLinks || []) {
-    const s = typeof l.source === "object" ? l.source.id : l.source;
-    const t = typeof l.target === "object" ? l.target.id : l.target;
-    const sId = String(s);
-    const tId = String(t);
-    const me = String(currentUserCommunityId);
-
-    // Direct theme links
-    if (sId === me && tId.startsWith("theme:")) set.add(tId.slice("theme:".length));
-    if (tId === me && sId.startsWith("theme:")) set.add(sId.slice("theme:".length));
-
-    // Project membership links => inherit theme
-    let other = null;
-    if (sId === me) other = tId;
-    else if (tId === me) other = sId;
-
-    if (other) {
-      const themeId = projectToTheme.get(String(other));
-      if (themeId) set.add(String(themeId));
-    }
-  }
-
-  return set;
-}
-
-function calculateNestedPosition(
-  node,
-  allNodes,
-  allLinks,
-  centerX,
-  centerY,
-  currentUserCommunityId,
-  showFullCommunity = true // Default to true (Discovery Mode)
-) {
+function calculateNestedPosition(node, allNodes, allLinks, centerX, centerY, currentUserCommunityId, showFullCommunity = true) {
   const themes = allNodes.filter((n) => n.type === "theme");
 
-  // ----------------------------
-  // THEMES - Primary organizing structure
-  // ----------------------------
+  // THEMES
   if (node.type === "theme") {
-    // Get user's theme participations from the node data
-    const currentUser = allNodes.find(n => n.id === currentUserCommunityId);
-    const userThemes = currentUser?.themes || [];
+    const currentUser = allNodes.find((n) => n.id === currentUserCommunityId);
     const userProjects = currentUser?.projects || [];
 
-    // Use the pre-computed user_is_participant flag from data loading
-    // This is already calculated correctly in data.js based on theme_participants table
     const isUserConnected = node.user_is_participant === true;
-    
-    const hasProjectsInTheme = (node.projects || []).some(project =>
-      userProjects.includes(project.id)
-    );
-
-    // Show theme if user participates OR has projects in it
+    const hasProjectsInTheme = (node.projects || []).some((project) => userProjects.includes(project.id));
     const shouldShowTheme = isUserConnected || hasProjectsInTheme;
 
-    // Debug logging for theme visibility
-    if (!shouldShowTheme) {
-      console.log(`🔍 Hiding theme "${node.name || node.title}":`, {
-        theme_id: node.theme_id,
-        user_is_participant: node.user_is_participant,
-        isUserConnected,
-        hasProjectsInTheme,
-        userProjects,
-        themeProjects: node.projects,
-        showFullCommunity
-      });
-    } else {
-      console.log(`✅ Showing theme "${node.name || node.title}":`, {
-        theme_id: node.theme_id,
-        user_is_participant: node.user_is_participant,
-        isUserConnected,
-        hasProjectsInTheme,
-        userProjects,
-        themeProjects: node.projects?.map(p => p.title)
-      });
-    }
-
-    // ✅ FIXED: Always show ALL themes in Discovery Mode (which is always enabled)
-    // Separate user's themes (close) from discoverable themes (far)
-    
     if (shouldShowTheme) {
-      // User's themes - position close to center in inner orbit
       const myThemes = themes
         .filter((t) => {
-          // Use pre-computed user_is_participant flag
           const hasThemeParticipation = t.user_is_participant === true;
-          const hasThemeProjects = (t.projects || []).some(p => userProjects.includes(p.id));
+          const hasThemeProjects = (t.projects || []).some((p) => userProjects.includes(p.id));
           return hasThemeParticipation || hasThemeProjects;
         })
-        .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
+        .sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
       const myIndex = myThemes.findIndex((t) => t.id === node.id);
-      
-      if (myIndex === -1) {
-        console.warn('⚠️ Theme marked as shouldShowTheme but not found in myThemes:', node.title);
-      }
-      
       const baseThemeRadius = 180;
 
-      // Find most active theme (most projects or participants)
       const mostActiveThemeId = themes.reduce((max, theme) => {
         const currentScore = (theme.project_count || 0) + (theme.participant_count || 0);
         const maxScore = (max?.project_count || 0) + (max?.participant_count || 0);
@@ -1056,12 +836,11 @@ function calculateNestedPosition(
 
       const isUserTheme = node.theme_id === mostActiveThemeId;
 
-      // Position themes as independent nodes in a circle around the user
       const themeCount = Math.max(1, myThemes.length);
       const orbitDistance = baseThemeRadius * 1.8 + (themeCount > 3 ? themeCount * 20 : 0);
       const angleStep = (2 * Math.PI) / themeCount;
-      const startAngle = -Math.PI / 2; // Start from top
-      const angle = startAngle + myIndex * angleStep;
+      const startAngle = -Math.PI / 2;
+      const angle = startAngle + (Math.max(0, myIndex) * angleStep);
 
       return {
         x: centerX + Math.cos(angle) * orbitDistance,
@@ -1069,27 +848,22 @@ function calculateNestedPosition(
         themeRadius: baseThemeRadius,
         parentTheme: null,
         isUserTheme,
-        hidden: false, // ✅ Never hide user's themes
+        hidden: false,
       };
-    } else if (showFullCommunity) {
-      // Discovery mode: show unconnected themes in outer orbit
+    }
+
+    if (showFullCommunity) {
       const otherThemes = themes
         .filter((t) => {
-          // Use pre-computed user_is_participant flag
           const hasThemeParticipation = t.user_is_participant === true;
-          const hasThemeProjects = (t.projects || []).some(p => userProjects.includes(p.id));
+          const hasThemeProjects = (t.projects || []).some((p) => userProjects.includes(p.id));
           return !hasThemeParticipation && !hasThemeProjects;
         })
-        .sort((a, b) => String(a.id).localeCompare(String(b.id))); // stable order
+        .sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
       const otherIndex = otherThemes.findIndex((t) => t.id === node.id);
-      
-      if (otherIndex === -1) {
-        console.warn('⚠️ Theme not found in otherThemes:', node.title);
-      }
-      
-      const orbitR = 900; // Further out for discovery
-      const angle = (otherIndex / Math.max(1, otherThemes.length)) * 2 * Math.PI;
+      const orbitR = 900;
+      const angle = (Math.max(0, otherIndex) / Math.max(1, otherThemes.length)) * 2 * Math.PI;
 
       return {
         x: centerX + Math.cos(angle) * orbitR,
@@ -1097,48 +871,32 @@ function calculateNestedPosition(
         themeRadius: 180,
         parentTheme: null,
         isUserTheme: false,
-        hidden: false, // ✅ Never hide discoverable themes in Discovery Mode
-        isDiscoverable: true, // Mark as discoverable theme
-      };
-    } else {
-      // Fallback: hide theme if not in Discovery Mode and user not connected
-      console.warn('⚠️ Hiding theme (not in Discovery Mode):', node.title);
-      return {
-        x: centerX + 10000,
-        y: centerY + 10000,
-        themeRadius: 0,
-        parentTheme: null,
-        isUserTheme: false,
-        hidden: true,
+        hidden: false,
+        isDiscoverable: true,
       };
     }
+
+    return {
+      x: centerX + 10000,
+      y: centerY + 10000,
+      themeRadius: 0,
+      parentTheme: null,
+      isUserTheme: false,
+      hidden: true,
+    };
   }
 
-  // ----------------------------
-  // PEOPLE - Connect to themes (not projects)
-  // ----------------------------
+  // PEOPLE
   if (node.type === "person") {
     if (node.isCurrentUser) {
-      // User is fixed at center
-      return {
-        x: centerX,
-        y: centerY,
-        parentTheme: null,
-        isUserCenter: true,
-        hidden: false,
-      };
+      return { x: centerX, y: centerY, parentTheme: null, isUserCenter: true, hidden: false };
     }
 
-    // Position people near themes they participate in
     if (Array.isArray(node.themes) && node.themes.length > 0) {
-      const firstTheme = allNodes.find(
-        (n) => n.type === "theme" && n.theme_id === node.themes[0]
-      );
-
+      const firstTheme = allNodes.find((n) => n.type === "theme" && n.theme_id === node.themes[0]);
       if (firstTheme && !firstTheme.hidden) {
         const themeRadius = firstTheme.themeRadius || 250;
         const angle = Math.random() * 2 * Math.PI;
-        // Position people in the outer ring of the theme (not overlapping with projects)
         const distance = themeRadius * 0.8 + Math.random() * (themeRadius * 0.15);
 
         return {
@@ -1150,94 +908,45 @@ function calculateNestedPosition(
       }
     }
 
-    // ✅ CRITICAL FIX: Show people with connections even if they have no themes
-    // Check if this person is connected to the current user (accepted or pending)
     if (node.isConnectedToCurrentUser) {
-      console.log(`✅ Showing connected person without themes: ${node.name}`);
-      // Position near center since they have no theme
       const angle = Math.random() * 2 * Math.PI;
       const distance = 300 + Math.random() * 200;
-      return {
-        x: centerX + Math.cos(angle) * distance,
-        y: centerY + Math.sin(angle) * distance,
-        parentTheme: null,
-        hidden: false,
-      };
+      return { x: centerX + Math.cos(angle) * distance, y: centerY + Math.sin(angle) * distance, parentTheme: null, hidden: false };
     }
 
-    // If person has no theme participation AND no connection, hide them (unless in discovery mode)
     if (!showFullCommunity) {
-      return {
-        x: centerX + 10000, // Off-screen
-        y: centerY + 10000,
-        parentTheme: null,
-        hidden: true,
-      };
+      return { x: centerX + 10000, y: centerY + 10000, parentTheme: null, hidden: true };
     }
 
-    // Discovery mode: show unconnected people in outer area
-    return {
-      x: centerX + (Math.random() - 0.5) * 1400,
-      y: centerY + (Math.random() - 0.5) * 1400,
-      parentTheme: null,
-      hidden: false,
-    };
+    return { x: centerX + (Math.random() - 0.5) * 1400, y: centerY + (Math.random() - 0.5) * 1400, parentTheme: null, hidden: false };
   }
 
-  // ----------------------------
-  // PROJECTS - Position freely, not contained in themes
-  // ----------------------------
+  // PROJECTS (free)
   if (node.type === "project") {
-    // Projects should be positioned based on their connections to users
-    // Start them near their theme for initial layout, but let forces move them
     if (node.theme_id) {
-      const parentTheme = allNodes.find(
-        (n) => n.type === "theme" && n.theme_id === node.theme_id
-      );
-      
+      const parentTheme = allNodes.find((n) => n.type === "theme" && n.theme_id === node.theme_id);
       if (parentTheme && !parentTheme.hidden) {
-        // Start near theme but don't set parentTheme (so no containment)
         const angle = Math.random() * 2 * Math.PI;
         const distance = (parentTheme.themeRadius || 180) * 0.6;
-        
-        return {
-          x: parentTheme.x + Math.cos(angle) * distance,
-          y: parentTheme.y + Math.sin(angle) * distance,
-          parentTheme: null, // ✅ No parentTheme = no containment
-          hidden: false,
-        };
+        return { x: parentTheme.x + Math.cos(angle) * distance, y: parentTheme.y + Math.sin(angle) * distance, parentTheme: null, hidden: false };
       }
     }
-    
-    // If no theme or theme is hidden, position randomly around center
     const angle = Math.random() * 2 * Math.PI;
     const distance = 300 + Math.random() * 200;
-    return {
-      x: centerX + Math.cos(angle) * distance,
-      y: centerY + Math.sin(angle) * distance,
-      parentTheme: null, // ✅ No parentTheme = no containment
-      hidden: false,
-    };
+    return { x: centerX + Math.cos(angle) * distance, y: centerY + Math.sin(angle) * distance, parentTheme: null, hidden: false };
   }
 
-  // ----------------------------
-  // ORGANIZATIONS - Position in outer ring
-  // ----------------------------
+  // ORGS
   if (node.type === "organization") {
     const orgs = allNodes.filter((n) => n.type === "organization");
     const orgIndex = orgs.findIndex((o) => o.id === node.id);
     const orgCount = Math.max(1, orgs.length);
     const orgOrbitRadius = 550 + orgCount * 25;
     const angleStep = (2 * Math.PI) / orgCount;
-    const startAngle = Math.PI / 4; // Start from 45 degrees
-    const angle = startAngle + orgIndex * angleStep;
+    const startAngle = Math.PI / 4;
+    const angle = startAngle + Math.max(0, orgIndex) * angleStep;
 
-    return {
-      x: centerX + Math.cos(angle) * orgOrbitRadius,
-      y: centerY + Math.sin(angle) * orgOrbitRadius,
-      parentTheme: null,
-      hidden: false,
-    };
+    return { x: centerX + Math.cos(angle) * orgOrbitRadius, y: centerY + Math.sin(angle) * orgOrbitRadius, parentTheme: null, hidden: false };
   }
 
   return { x: centerX, y: centerY, parentTheme: null, hidden: false };
@@ -1247,47 +956,34 @@ function calculateNestedPosition(
    FORCES
    ========================================================================== */
 
-/**
- * ✅ FIXED:
- * containment measures from the *parent theme position* (not from center)
- * Projects are NOT contained - they can move freely to connect with users
- */
 function createContainmentForce(simulationNodes, allNodes) {
   return function containmentForce(alpha) {
     const strength = 0.5;
 
     simulationNodes.forEach((node) => {
       if (node.type === "theme") return;
-      if (node.type === "project") return; // ✅ Projects are free to move
+      if (node.type === "project") return; // projects are free
       if (node.x == null || node.y == null || !node.parentTheme) return;
       if (node.isUserCenter) return;
 
-      const parentTheme = allNodes.find(
-        (n) => n.type === "theme" && n.theme_id === node.parentTheme
-      );
+      const parentTheme = allNodes.find((n) => n.type === "theme" && n.theme_id === node.parentTheme);
       if (!parentTheme || parentTheme.x == null || parentTheme.y == null) return;
       if (!parentTheme.themeRadius) return;
 
       const dx = node.x - parentTheme.x;
       const dy = node.y - parentTheme.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-
       const maxRadius = parentTheme.themeRadius * 0.9;
 
       if (distance > maxRadius) {
         const overflow = distance - maxRadius;
         const force = (overflow * strength * alpha) / (distance || 1);
-
         node.vx -= (dx / distance) * force;
         node.vy -= (dy / distance) * force;
       }
     });
   };
 }
-
-// ✅ REMOVED: Project containment force
-// Projects now connect to users via links, not containment
-// This allows the force-directed layout to position projects naturally
 
 /* ==========================================================================
    GRAPH BUILD / REBUILD
@@ -1307,21 +1003,17 @@ async function rebuildGraph() {
   try {
     PathwayAnimations.updateGraphData?.(nodes, links);
   } catch (_) {}
+
+  syncSynapseCore();
 }
 
 /**
- * ✅ CRITICAL FIX:
- * D3 forceLink throws "node not found: <id>" if ANY link endpoint doesn't exist in the simulation nodes.
- *
- * This function:
- * - Normalizes endpoints to ids
- * - Repairs "theme:<uuid>" into actual theme node ids when possible
- * - Drops any remaining invalid links
+ * D3 forceLink throws if ANY link endpoint doesn't exist in nodes.
+ * Normalize endpoints and drop invalids.
  */
 function normalizeAndFilterLinks(allNodes, rawLinks) {
   const nodeIdSet = new Set(allNodes.map((n) => n.id));
 
-  // Map theme_id -> node.id (because links may use raw uuid or "theme:<uuid>")
   const themeIdToNodeId = new Map();
   allNodes
     .filter((n) => n.type === "theme")
@@ -1343,7 +1035,6 @@ function normalizeAndFilterLinks(allNodes, rawLinks) {
         if (mapped && nodeIdSet.has(mapped)) return mapped;
       }
 
-      // raw uuid theme_id?
       const mapped2 = themeIdToNodeId.get(id);
       if (mapped2 && nodeIdSet.has(mapped2)) return mapped2;
     }
@@ -1357,22 +1048,15 @@ function normalizeAndFilterLinks(allNodes, rawLinks) {
     return { ...l, source: sourceId, target: targetId };
   });
 
-  const filtered = normalized.filter((l) => {
+  return normalized.filter((l) => {
     const s = typeof l.source === "object" ? l.source?.id : l.source;
     const t = typeof l.target === "object" ? l.target?.id : l.target;
-
     const ok = nodeIdSet.has(s) && nodeIdSet.has(t);
     if (!ok) {
-      console.warn("🧹 Dropping invalid link (missing node):", {
-        source: s,
-        target: t,
-        link: l,
-      });
+      console.warn("🧹 Dropping invalid link (missing node):", { source: s, target: t, link: l });
     }
     return ok;
   });
-
-  return filtered;
 }
 
 async function buildGraph() {
@@ -1382,24 +1066,14 @@ async function buildGraph() {
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Performance monitoring
   const perfStart = performance.now();
-  console.log("🚀 Building graph with performance optimizations...");
+  console.log("🚀 Building graph...");
 
-  // Ensure links are safe before any link-based computation
   links = normalizeAndFilterLinks(nodes, links);
 
-  // Step 1: Position all nodes first
+  // Position nodes
   nodes.forEach((node) => {
-    const position = calculateNestedPosition(
-      node,
-      nodes,
-      links,
-      centerX,
-      centerY,
-      currentUserCommunityId,
-      showFullCommunity // Pass showFullCommunity parameter
-    );
+    const position = calculateNestedPosition(node, nodes, links, centerX, centerY, currentUserCommunityId, showFullCommunity);
 
     node.x = position.x;
     node.y = position.y;
@@ -1407,84 +1081,45 @@ async function buildGraph() {
     node.parentTheme = position.parentTheme;
     node.isUserTheme = position.isUserTheme;
     node.isUserCenter = position.isUserCenter;
-    node.parentProject = position.parentProject;
-    node.projectOrbitAngle = position.projectOrbitAngle;
     node.hidden = position.hidden;
 
-    // Pin themes so they act "static" but exist for forceLink resolution
+    // Pin visible themes
     if (node.type === "theme" && !node.hidden) {
       node.fx = node.x;
       node.fy = node.y;
     }
   });
 
-  // Per yellow comments: Filter out hidden nodes and links to hidden nodes
   const visibleNodes = nodes.filter((n) => !n.hidden);
   const visibleNodeIds = new Set(visibleNodes.map((n) => n.id));
-  
+
   const visibleLinks = links.filter((l) => {
     const sourceId = typeof l.source === "object" ? l.source.id : l.source;
     const targetId = typeof l.target === "object" ? l.target.id : l.target;
     return visibleNodeIds.has(sourceId) && visibleNodeIds.has(targetId);
   });
 
-  console.log(`🎯 Visibility filtering:`, {
+  console.log("🎯 Visibility filtering:", {
     totalNodes: nodes.length,
     visibleNodes: visibleNodes.length,
     hiddenNodes: nodes.length - visibleNodes.length,
     totalLinks: links.length,
     visibleLinks: visibleLinks.length,
-    showFullCommunity
+    showFullCommunity,
   });
 
-  // Log what types of nodes are visible
-  const visibleByType = visibleNodes.reduce((acc, n) => {
-    acc[n.type] = (acc[n.type] || 0) + 1;
-    return acc;
-  }, {});
-  console.log("👁️ Visible nodes by type:", visibleByType);
-
-  // If no visible nodes, this might be the issue
   if (visibleNodes.length === 0) {
-    console.warn("⚠️ No visible nodes! This might be why nothing is showing.");
-    console.log("🔍 All nodes:", nodes.map(n => ({ id: n.id, type: n.type, name: n.name || n.title, hidden: n.hidden })));
-    console.log("🔍 showFullCommunity:", showFullCommunity);
-    console.log("🔍 currentUserCommunityId:", currentUserCommunityId);
-    
-    // Check if current user node exists
-    const currentUserNode = nodes.find(n => n.id === currentUserCommunityId);
-    if (currentUserNode) {
-      console.log("🔍 Current user node:", {
-        id: currentUserNode.id,
-        name: currentUserNode.name,
-        themes: currentUserNode.themes,
-        projects: currentUserNode.projects,
-        hidden: currentUserNode.hidden
-      });
-    } else {
-      console.error("❌ Current user node NOT FOUND! This is the problem.");
-    }
+    console.warn("⚠️ No visible nodes! Likely data issue.");
+    const currentUserNode = nodes.find((n) => n.id === currentUserCommunityId);
+    if (!currentUserNode) console.error("❌ Current user node NOT FOUND:", currentUserCommunityId);
   }
 
-  // Auto-enable Discovery Mode is now disabled - users must manually click the button
-  // This respects user preference to start with "My Network" view
   if (visibleNodes.length <= 10 && !userManuallyToggledMode) {
     console.log("🔍 Limited content found. Discovery Mode available via button.");
   }
 
-  // ✅ Use only visible nodes and links for simulation
   const simulationNodes = visibleNodes;
   const simulationLinks = visibleLinks;
-
-  // Performance: Count DOM elements that will be created
-  const domElementCount = {
-    themes: visibleNodes.filter(n => n.type === 'theme').length * 4, // Simplified: 2 circles + 3 text elements
-    projects: visibleNodes.filter(n => n.type === 'project').length * 1, // 1 circle each
-    people: visibleNodes.filter(n => n.type === 'person').length * 3, // circle + image/text + label
-    links: simulationLinks.length * 1, // 1 line each (simplified)
-  };
-  const totalElements = Object.values(domElementCount).reduce((a, b) => a + b, 0);
-  console.log("📊 DOM elements to create:", domElementCount, "Total:", totalElements);
 
   simulation = d3
     .forceSimulation(simulationNodes)
@@ -1494,21 +1129,15 @@ async function buildGraph() {
         .forceLink(simulationLinks)
         .id((d) => d.id)
         .distance((d) => {
-          // Project-member links should pull projects toward users
           if (d.type === "project-member") return 120;
-          // Theme participation links
           if (d.type === "theme" || d.status === "theme-participant") return 40;
-          // Connection links between people
           if (d.type === "connection") return 80;
           if (d.status === "suggested") return 100;
           return 80;
         })
         .strength((d) => {
-          // Strong pull for project-member links so projects move toward users
           if (d.type === "project-member") return 0.4;
-          // Stronger attraction to themes
           if (d.type === "theme" || d.status === "theme-participant") return 0.3;
-          // Weaker for person-to-person connections
           if (d.type === "connection") return 0.2;
           if (d.status === "suggested") return 0.1;
           return 0.05;
@@ -1521,62 +1150,59 @@ async function buildGraph() {
       d3
         .forceCollide()
         .radius((d) => {
-          if (d.type === "theme") return 0; // themes are separate visuals; keep collision out of it
-          if (d.type === "project") return 35; // Projects need collision radius (increased to prevent overlap)
-          if (d.isCurrentUser) return 60; // Current user node is larger, needs more space
-          if (d.shouldShowImage) return 35; // Nodes with images are larger
-          return 28; // Default nodes (increased to prevent overlap)
+          if (d.type === "theme") return 0;
+          if (d.type === "project") return 35;
+          if (d.isCurrentUser) return 60;
+          if (d.shouldShowImage) return 35;
+          return 28;
         })
-        .strength(1.0) // Increased from 0.8 to 1.0 for stronger collision prevention
-        .iterations(3) // Add iterations for better collision resolution
+        .strength(1.0)
+        .iterations(3)
     )
     .velocityDecay(0.6)
     .alphaDecay(0.05)
     .alphaMin(0.001);
 
-  // RENDERING ORDER: Background to foreground for proper z-index layering
-  
-  // Render sanity check: Ensure SVG has dimensions before rendering
+  // Render sanity: wait for layout if needed
   const svgRect = svg.node().getBoundingClientRect();
-  console.log('📐 SVG dimensions before render:', {
+  console.log("📐 SVG dimensions before render:", {
     width: svgRect.width,
     height: svgRect.height,
-    visible: svgRect.width > 0 && svgRect.height > 0
+    visible: svgRect.width > 0 && svgRect.height > 0,
   });
-  
+
   if (svgRect.width === 0 || svgRect.height === 0) {
-    console.warn('⚠️ SVG has zero dimensions, waiting for layout...');
-    
-    // Use ResizeObserver to wait for layout
+    console.warn("⚠️ SVG has zero dimensions, waiting for layout...");
+
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0) {
-          console.log('✅ SVG layout ready, re-rendering...', { width, height });
+          console.log("✅ SVG layout ready, re-rendering...", { width, height });
           resizeObserver.disconnect();
-          // Re-trigger render
           setTimeout(() => rebuildGraph(), 100);
           return;
         }
       }
     });
-    
+
     resizeObserver.observe(svg.node());
-    
-    // Fallback timeout
+
     setTimeout(() => {
       resizeObserver.disconnect();
       const newRect = svg.node().getBoundingClientRect();
       if (newRect.width === 0 || newRect.height === 0) {
-        console.error('❌ SVG still has zero dimensions after timeout');
+        console.error("❌ SVG still has zero dimensions after timeout");
         showSVGDimensionError();
       }
     }, 5000);
-    
-    return; // Don't render yet
+
+    return;
   }
 
-  // 1. Theme circles (background layer) - render FIRST without projects
+  // ----- Render layers -----
+
+  // 1) Themes (background)
   const visibleThemeNodes = visibleNodes.filter((n) => n.type === "theme");
   if (visibleThemeNodes.length > 0) {
     themeEls = renderThemeCircles(container, visibleThemeNodes, {
@@ -1585,52 +1211,35 @@ async function buildGraph() {
     });
   }
 
-  // 2. Links (middle layer) - connection links and theme participation links
-  // Only show links for admin users in Discovery Mode
-  let isAdmin = false;
-  let isDiscoveryMode = window.synapseShowFullCommunity || false;
-  
-  if (typeof window.isAdminUser === 'function') {
-    isAdmin = window.isAdminUser();
-    console.log(`🔐 Admin check result: ${isAdmin}`);
-  } else {
-    console.warn('⚠️ isAdminUser function not available yet - defaulting to non-admin');
-  }
-  
-  console.log(`🌐 Discovery Mode: ${isDiscoveryMode} (always true now)`);
-  
-  // Always show connection links in Discovery Mode (for all users)
-  // This makes connection status visible to everyone
+  // 2) Links
   linkEls = renderLinks(container, simulationLinks);
-  console.log('🔗 Showing connection links for all users');
 
-  // 3. Project nodes (independent, not overlays) - render as actual nodes
+  // 3) Projects (independent nodes)
   const visibleProjectNodes = visibleNodes.filter((n) => n.type === "project");
   if (visibleProjectNodes.length > 0) {
-    projectEls = renderNodes(container, visibleProjectNodes, { 
+    projectEls = renderNodes(container, visibleProjectNodes, {
       onNodeClick,
       connectionsData,
-      currentUserCommunityId
+      currentUserCommunityId,
     });
   }
 
-  // 4. People and organization nodes (foreground layer) - render LAST so they appear on top
-  // Sort so current user's node is rendered last (appears on top in SVG)
+  // 4) People + Orgs (foreground)
   const visibleInteractiveNodes = visibleNodes
     .filter((n) => n.type === "person" || n.type === "organization")
     .sort((a, b) => {
-      // Current user should be last (rendered on top)
       if (a.isCurrentUser) return 1;
       if (b.isCurrentUser) return -1;
       return 0;
     });
-  nodeEls = renderNodes(container, visibleInteractiveNodes, { 
+
+  nodeEls = renderNodes(container, visibleInteractiveNodes, {
     onNodeClick,
     connectionsData,
-    currentUserCommunityId
+    currentUserCommunityId,
   });
 
-  // Drag for nodes - use clickDistance to allow click events to fire
+  // Drag (allow click)
   nodeEls.call(
     d3
       .drag()
@@ -1640,14 +1249,16 @@ async function buildGraph() {
       .on("end", dragEnded)
   );
 
-  // Performance monitoring
   const perfEnd = performance.now();
-  console.log(`⚡ Graph built in ${(perfEnd - perfStart).toFixed(2)}ms with ${totalElements} DOM elements`);
+  console.log(`⚡ Graph built in ${(perfEnd - perfStart).toFixed(2)}ms`);
 
-  // Mark Synapse as ready - nodes and graph are now loaded
+  // Keep core synced after element refs are created
+  syncSynapseCore();
+
+  // Ready!
   markSynapseReady();
 
-  // Tick
+  // Tick loop
   let tickCount = 0;
   let hasInitialCentered = false;
 
@@ -1655,13 +1266,11 @@ async function buildGraph() {
     tickCount++;
     if (tickCount % 2 !== 0) return;
 
-    // Keep themes pinned every tick (prevents drift) - only visible themes
+    // Keep themes pinned
     const visibleThemes = visibleNodes.filter((n) => n.type === "theme");
-    if (visibleThemes.length > 0) {
-      for (const t of visibleThemes) {
-        if (t.fx != null) t.x = t.fx;
-        if (t.fy != null) t.y = t.fy;
-      }
+    for (const t of visibleThemes) {
+      if (t.fx != null) t.x = t.fx;
+      if (t.fy != null) t.y = t.fy;
     }
 
     if (!hasInitialCentered && simulation.alpha() < 0.1 && tickCount > 50) {
@@ -1670,32 +1279,23 @@ async function buildGraph() {
       if (userNode) {
         console.log("🎯 Initial centering on user node:", userNode.name);
         setTimeout(() => {
-          setFocusOnNode(
-            userNode,
-            svg,
-            container,
-            zoomBehavior,
-            nodeEls,
-            linkEls,
-            visibleNodes
-          );
+          setFocusOnNode(userNode, svg, container, zoomBehavior, nodeEls, linkEls, visibleNodes);
         }, 500);
       }
     }
 
-    // Update link positions - simplified for single line elements
+    // Links
     linkEls
       .attr("x1", (d) => d.source.x)
       .attr("y1", (d) => d.source.y)
       .attr("x2", (d) => d.target.x)
       .attr("y2", (d) => d.target.y);
 
+    // People/orgs
     nodeEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
 
-    // Update project node positions (they're now independent nodes, not overlays)
-    if (projectEls) {
-      projectEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
-    }
+    // Projects
+    if (projectEls) projectEls.attr("transform", (d) => `translate(${d.x},${d.y})`);
 
     try {
       PathwayAnimations.updateAllPathwayPositions?.();
@@ -1708,22 +1308,18 @@ async function buildGraph() {
    ========================================================================== */
 
 function handleThemeHover(event, themeNode, isEntering) {
-  if (isEntering) {
-    event.currentTarget.style.cursor = "pointer";
-  }
+  if (isEntering) event.currentTarget.style.cursor = "pointer";
 }
 
 async function openThemeCard(themeNode) {
   const d3 = window.d3;
 
-  // Add visual selection feedback
   highlightSelectedTheme(themeNode.theme_id);
 
   console.log("🎯 Opening theme card for:", {
     themeId: themeNode.theme_id,
     themeName: themeNode.title || themeNode.name,
     embeddedProjects: themeNode.projects?.length || 0,
-    themeNode: themeNode
   });
 
   const scale = 1.2;
@@ -1740,65 +1336,23 @@ async function openThemeCard(themeNode) {
     );
 
   const themeTags = themeNode.tags || [];
-
-  // Get projects from the theme node itself (they're embedded in the theme data)
   const embeddedProjects = themeNode.projects || [];
-  console.log("📦 Embedded projects in theme:", embeddedProjects.map(p => ({
-    id: p.id,
-    title: p.title || p.name,
-    theme_id: p.theme_id
-  })));
 
-  // Also find any additional project nodes that match this theme
   const additionalProjectNodes = nodes.filter((n) => {
     if (n.type !== "project") return false;
-    if (embeddedProjects.some(p => p.id === n.id)) return false; // Don't duplicate
+    if (embeddedProjects.some((p) => p.id === n.id)) return false;
 
-    // Primary match: same theme_id
-    if (n.theme_id === themeNode.theme_id) {
-      console.log("✅ Found additional project node by theme_id:", {
-        projectTitle: n.title || n.name,
-        projectThemeId: n.theme_id,
-        targetThemeId: themeNode.theme_id
-      });
-      return true;
-    }
+    if (n.theme_id === themeNode.theme_id) return true;
 
-    // Secondary match: shared tags
     const projectTags = n.tags || [];
-    const hasSharedTag = projectTags.some((tag) => themeTags.includes(tag));
-    if (hasSharedTag) {
-      console.log("✅ Found additional project node by shared tags:", {
-        projectTitle: n.title || n.name,
-        projectTags: projectTags,
-        themeTags: themeTags,
-        sharedTags: projectTags.filter(tag => themeTags.includes(tag))
-      });
-      return true;
-    }
-
-    return false;
+    return projectTags.some((tag) => themeTags.includes(tag));
   });
 
-  // Combine embedded projects with any additional project nodes
   const allRelatedProjects = [...embeddedProjects, ...additionalProjectNodes];
-
-  console.log("🎯 All related projects found:", {
-    embedded: embeddedProjects.length,
-    additional: additionalProjectNodes.length,
-    total: allRelatedProjects.length,
-    projects: allRelatedProjects.map(p => ({
-      id: p.id,
-      title: p.title || p.name,
-      theme_id: p.theme_id
-    }))
-  });
 
   nodeEls?.style("opacity", (d) => {
     if (!d) return 0.2;
-    if (d.type === "project" && allRelatedProjects.some((p) => p.id === d.id)) {
-      return 1;
-    }
+    if (d.type === "project" && allRelatedProjects.some((p) => p.id === d.id)) return 1;
     return 0.2;
   });
 
@@ -1807,9 +1361,7 @@ async function openThemeCard(themeNode) {
     const sourceId = typeof d.source === "object" ? d.source?.id : d.source;
     const targetId = typeof d.target === "object" ? d.target?.id : d.target;
 
-    const isRelatedLink = allRelatedProjects.some(
-      (p) => sourceId === p?.id || targetId === p?.id
-    );
+    const isRelatedLink = allRelatedProjects.some((p) => sourceId === p?.id || targetId === p?.id);
     return isRelatedLink ? 0.6 : 0.1;
   });
 
@@ -1838,14 +1390,10 @@ async function openThemeProjectsPanel(themeNode, relatedProjects) {
 }
 
 function clearThemeFocus() {
-  // Clear theme selection visual feedback
   clearThemeSelection();
-  
+
   nodeEls?.style("opacity", 1);
-  linkEls?.style("opacity", (d) => {
-    if (d.status === "suggested") return 0.5;
-    return 0.8;
-  });
+  linkEls?.style("opacity", (d) => (d?.status === "suggested" ? 0.5 : 0.8));
   themeEls?.style("opacity", 1);
 }
 
@@ -1856,17 +1404,11 @@ function clearThemeFocus() {
 function onNodeClick(event, d) {
   event.stopPropagation();
 
-  // ✅ PERFORMANCE: Record interaction to trigger ACTIVE state
-  if (window.AnimationLifecycle) {
-    window.AnimationLifecycle.recordInteraction();
-  }
+  if (window.AnimationLifecycle) window.AnimationLifecycle.recordInteraction();
 
   setFocusOnNode(d, svg, container, zoomBehavior, nodeEls, linkEls, nodes);
 
-  if (d.type === "theme") {
-    openThemeCard(d);
-    return;
-  }
+  if (d.type === "theme") return void openThemeCard(d);
 
   if (d.type === "organization") {
     try {
@@ -1892,12 +1434,7 @@ function onNodeClick(event, d) {
   }
 
   try {
-    openNodePanel({
-      id: d.id,
-      name: d.name,
-      type: d.type || "person",
-      ...d,
-    });
+    openNodePanel({ id: d.id, name: d.name, type: d.type || "person", ...d });
   } catch (e) {
     console.warn("openNodePanel failed:", e);
   }
@@ -1910,11 +1447,8 @@ function onNodeClick(event, d) {
 let dragMoved = false;
 
 function dragStarted(event, d) {
-  // ✅ PERFORMANCE: Record interaction to trigger ACTIVE state
-  if (window.AnimationLifecycle) {
-    window.AnimationLifecycle.recordInteraction();
-  }
-  
+  if (window.AnimationLifecycle) window.AnimationLifecycle.recordInteraction();
+
   dragMoved = false;
   if (!event.active) simulation.alphaTarget(0.3).restart();
   d.fx = d.x;
@@ -1922,11 +1456,8 @@ function dragStarted(event, d) {
 }
 
 function dragged(event, d) {
-  // ✅ PERFORMANCE: Record interaction to keep ACTIVE state
-  if (window.AnimationLifecycle) {
-    window.AnimationLifecycle.recordInteraction();
-  }
-  
+  if (window.AnimationLifecycle) window.AnimationLifecycle.recordInteraction();
+
   dragMoved = true;
   d.fx = event.x;
   d.fy = event.y;
@@ -1937,10 +1468,7 @@ function dragEnded(event, d) {
   d.fx = null;
   d.fy = null;
 
-  // If the user didn't actually drag, treat as a click
-  if (!dragMoved) {
-    onNodeClick(event.sourceEvent, d);
-  }
+  if (!dragMoved) onNodeClick(event.sourceEvent, d);
 }
 
 /* ==========================================================================
@@ -1949,12 +1477,8 @@ function dragEnded(event, d) {
 
 export function clearConnectPathways(opts = {}) {
   try {
-    if (typeof PathwayAnimations.clearAllPathways === "function") {
-      return PathwayAnimations.clearAllPathways(opts);
-    }
-    if (typeof PathwayAnimations.clearConnectPathways === "function") {
-      return PathwayAnimations.clearConnectPathways(opts);
-    }
+    if (typeof PathwayAnimations.clearAllPathways === "function") return PathwayAnimations.clearAllPathways(opts);
+    if (typeof PathwayAnimations.clearConnectPathways === "function") return PathwayAnimations.clearConnectPathways(opts);
     console.warn("⚠️ clearConnectPathways not available in pathway-animations.js");
     return null;
   } catch (e) {
@@ -1988,13 +1512,7 @@ export async function showConnectPathways(fromId, toId, opts = {}) {
     }
 
     if (!resolvedFrom || !resolvedTo) {
-      console.warn("⚠️ showConnectPathways missing ids", {
-        fromId,
-        toId,
-        resolvedFrom,
-        resolvedTo,
-        currentUserCommunityId,
-      });
+      console.warn("⚠️ showConnectPathways missing ids", { fromId, toId, resolvedFrom, resolvedTo, currentUserCommunityId });
       return null;
     }
 
@@ -2014,9 +1532,7 @@ export async function showConnectPathways(fromId, toId, opts = {}) {
   }
 }
 
-export async function illuminatePathways(
-  { limit = 5, clearFirst = true, opts = {} } = {}
-) {
+export async function illuminatePathways({ limit = 5, clearFirst = true, opts = {} } = {}) {
   const me = currentUserCommunityId || null;
   if (!me) return [];
 
