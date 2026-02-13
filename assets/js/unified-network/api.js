@@ -97,6 +97,46 @@ export class UnifiedNetworkAPI {
       const { nodes, edges } = await this._graphDataStore.loadGraphData();
       console.log(`📊 Loaded ${nodes.length} nodes, ${edges.length} edges`);
 
+      // ------------------------------------------------------------
+// DEBUG HOOKS (safe) — lets you introspect from DevTools
+// ------------------------------------------------------------
+try {
+  const qs = new URLSearchParams(window.location.search);
+  const verbose =
+    qs.has("debug") || qs.get("verbose") === "1" || localStorage.getItem("ie_debug") === "1";
+
+  // Expose handles for DevTools
+  window.graphDataStore = this._graphDataStore;
+  window.unifiedApi = this;
+  window.unifiedNetwork = {
+    api: this,
+    graphDataStore: this._graphDataStore,
+    nodeRenderer: this._nodeRenderer,
+    interactionHandler: this._interactionHandler,
+    stateManager: this._stateManager,
+    simulation: this._simulation,
+  };
+
+  if (verbose) {
+    console.log("🧪 [DEBUG] Hooks exposed:", {
+      unifiedApi: !!window.unifiedApi,
+      graphDataStore: !!window.graphDataStore,
+      nodes: nodes?.length,
+      edges: edges?.length,
+      sampleEdge: edges?.[0],
+    });
+
+    console.log("🧪 [DEBUG] Store snapshot:", {
+      storeNodes: this._graphDataStore?.nodes?.length,
+      storeEdges: this._graphDataStore?.edges?.length,
+      storeLinks: this._graphDataStore?.links?.length,
+    });
+  }
+} catch (e) {
+  // no-op
+}
+
+
       // 2. Initialize Relevance Engine
       this._relevanceEngine.initialize(this._graphDataStore);
       
