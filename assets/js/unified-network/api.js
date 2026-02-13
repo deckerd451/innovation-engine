@@ -19,10 +19,11 @@ import { TemporalPresenceManager } from './temporal-presence-manager.js';
 import { AccessibilityManager } from './accessibility.js';
 import { OnboardingManager } from './onboarding.js';
 import { PerformanceManager } from './performance.js';
-import { 
+import { mobileTierController } from './mobile-tier-controller.js';
+import {
   applyEffectivePullForces,
   calculateAverageVelocity,
-  positionGuidedNodesInThumbZone 
+  positionGuidedNodesInThumbZone
 } from './physics.js';
 
 /**
@@ -54,6 +55,7 @@ export class UnifiedNetworkAPI {
     this._onboardingManager = null;
     this._performanceManager = null;
     this._frameRateManager = null;
+    this._mobileTierController = mobileTierController;
     
     // D3 simulation reference
     this._simulation = null;
@@ -277,9 +279,24 @@ try {
       this._graphDataStore.subscribeToUpdates();
       console.log('📡 Real-time subscriptions active');
 
+      // 20. Initialize Mobile Tier Controller (mobile-only, feature-flagged)
+      this._mobileTierController.initialize({
+        graphDataStore: this._graphDataStore,
+        nodeRenderer: this._nodeRenderer,
+        stateManager: this._stateManager,
+        userId: userId
+      });
+
+      // Apply initial tier if mobile tier system is enabled
+      if (this._mobileTierController.isEnabled()) {
+        const initialTier = this._mobileTierController.getTier();
+        console.log(`🧩 [TIERS] Auto-applying initial tier: ${initialTier}`);
+        this._mobileTierController.applyTier(initialTier);
+      }
+
       this._initialized = true;
       this.emit('initialized', { userId, containerId });
-      
+
       console.log('✅ Unified Network Discovery System initialized');
     } catch (error) {
       console.error('❌ Initialization failed:', error);
@@ -525,115 +542,53 @@ try {
   }
 
   /**
-   * Apply mobile tier-based visibility (called by tier probe)
+   * Apply mobile tier-based visibility
    *
+   * Delegates to the mobile tier controller.
    * Feature flag: localStorage["ie_unified_mobile_tiers"] = "true"
    * Mobile gate: (max-width: 768px) AND (pointer: coarse)
    *
    * @param {string} tier - 'T0' (Personal Hub), 'T1' (Relational), or 'T2' (Discovery)
+   * @returns {Object} Stats about the tier application
    */
   applyTier(tier) {
     this._ensureInitialized();
-
-    // Feature flag guard
-    const tierFlagEnabled = localStorage.getItem('ie_unified_mobile_tiers') === 'true';
-    if (!tierFlagEnabled) {
-      console.log('🎯 UnifiedNetwork: Tier system disabled (flag off)');
-      return;
-    }
-
-    // Mobile-only guard
-    const isMobileWidth = window.matchMedia('(max-width: 768px)').matches;
-    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    const isMobile = isMobileWidth && isCoarsePointer;
-
-    if (!isMobile) {
-      console.log('🎯 UnifiedNetwork: Tier system inactive (not mobile)');
-      return;
-    }
-
-    console.log(`🎯 UnifiedNetwork: Applying tier ${tier} (mobile)`);
-
-    if (!this._graphDataStore || !this._nodeRenderer) {
-      console.warn('UnifiedNetwork: Cannot apply tier, components not ready');
-      return;
-    }
-
-    const allNodes = this._graphDataStore.getNodes();
-    const userId = this._userId;
-
-    switch (tier) {
-      case 'T0': // Personal Hub (< 12 nodes)
-        this._applyPersonalHubTier(allNodes, userId);
-        break;
-
-      case 'T1': // Relational Network (My Network only)
-        this._applyRelationalTier(allNodes, userId);
-        break;
-
-      case 'T2': // Discovery (all nodes)
-        this._applyDiscoveryTier(allNodes);
-        break;
-
-      default:
-        console.warn('UnifiedNetwork: Unknown tier', tier);
-        return;
-    }
-
-    // Trigger re-render with updated visibility
-    const state = this._stateManager?.getState() || {};
-    this._nodeRenderer.render(allNodes, state);
-
-    this.emit('tier-applied', { tier, timestamp: Date.now() });
+    return this._mobileTierController.applyTier(tier);
   }
 
   /**
-   * Apply Personal Hub tier (T0)
-   * Shows only user + top 11 neighbors by effectivePull
-   * @private
+   * Get current mobile tier
+   * @returns {string} Current tier ('T0', 'T1', or 'T2')
    */
-  _applyPersonalHubTier(allNodes, userId) {
-    const connectedNodes = this._graphDataStore.getConnectedNodes(userId);
-    const topNeighbors = connectedNodes
-      .sort((a, b) => (b.effectivePull || 0) - (a.effectivePull || 0))
-      .slice(0, 11);
-
-    const visibleIds = new Set([userId, ...topNeighbors.map(n => n.id)]);
-
-    allNodes.forEach(node => {
-      node._tierVisible = visibleIds.has(node.id);
-    });
-
-    console.log(`🎯 Tier T0 (Personal Hub): ${visibleIds.size} nodes visible (max 12)`);
+  getTier() {
+    this._ensureInitialized();
+    return this._mobileTierController.getTier();
   }
 
   /**
-   * Apply Relational tier (T1)
-   * Shows My Network only (user + all connections)
-   * @private
+   * Check if mobile tier system is enabled
+   * @returns {boolean} True if enabled
    */
-  _applyRelationalTier(allNodes, userId) {
-    const connectedNodes = this._graphDataStore.getConnectedNodes(userId);
-    const visibleIds = new Set([userId, ...connectedNodes.map(n => n.id)]);
-
-    allNodes.forEach(node => {
-      node._tierVisible = visibleIds.has(node.id);
-    });
-
-    console.log(`🎯 Tier T1 (Relational): ${visibleIds.size} nodes visible (My Network)`);
+  isTierEnabled() {
+    this._ensureInitialized();
+    return this._mobileTierController.isEnabled();
   }
 
   /**
-   * Apply Discovery tier (T2)
-   * Shows all nodes (full network)
-   * @private
+   * Get tier statistics
+   * @returns {Object} Tier stats
    */
-  _applyDiscoveryTier(allNodes) {
-    allNodes.forEach(node => {
-      node._tierVisible = true;
-    });
+  getTierStats() {
+    this._ensureInitialized();
+    return this._mobileTierController.getStats();
+  }
 
-    console.log(`🎯 Tier T2 (Discovery): ${allNodes.length} nodes visible (all)`);
+  /**
+   * Reset tier visibility (show all nodes)
+   */
+  resetTier() {
+    this._ensureInitialized();
+    return this._mobileTierController.reset();
   }
 
   /**

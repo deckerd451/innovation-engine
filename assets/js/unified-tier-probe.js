@@ -440,6 +440,11 @@ export class UnifiedTierProbe {
       found: { ...this.found },
       metrics: { ...this.metrics },
       currentScale: this._getCurrentScale(),
+      mobileTier: {
+        enabled: this.isTierEnabled(),
+        currentTier: this.getCurrentTier(),
+        stats: this.getTierStats()
+      },
       refs: {
         api: !!this.refs.api,
         renderer: !!this.refs.renderer,
@@ -450,6 +455,7 @@ export class UnifiedTierProbe {
     };
 
     console.log('📱 UnifiedTierProbe: Snapshot');
+    console.log('📱 Mobile Tier System:', snapshot.mobileTier);
     console.table(snapshot.found);
     console.table(snapshot.metrics);
     console.log('Current scale:', snapshot.currentScale);
@@ -464,6 +470,18 @@ export class UnifiedTierProbe {
   forceTier(tier) {
     console.log(`📱 UnifiedTierProbe: Forcing tier ${tier}...`);
 
+    // First try the new mobile tier controller via API
+    if (this.refs.api && typeof this.refs.api.applyTier === 'function') {
+      try {
+        const result = this.refs.api.applyTier(tier);
+        console.log(`✅ UnifiedTierProbe: Tier ${tier} applied via API.applyTier()`, result);
+        return result;
+      } catch (err) {
+        console.warn(`⚠️ UnifiedTierProbe: API.applyTier() failed:`, err);
+      }
+    }
+
+    // Fall back to legacy methods
     const success = this._attemptTierApplication(tier);
 
     if (success) {
@@ -473,6 +491,76 @@ export class UnifiedTierProbe {
     }
 
     return success;
+  }
+
+  /**
+   * Get current tier from API
+   */
+  getCurrentTier() {
+    if (this.refs.api && typeof this.refs.api.getTier === 'function') {
+      try {
+        return this.refs.api.getTier();
+      } catch (err) {
+        console.warn('Failed to get tier:', err);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get tier statistics
+   */
+  getTierStats() {
+    if (this.refs.api && typeof this.refs.api.getTierStats === 'function') {
+      try {
+        return this.refs.api.getTierStats();
+      } catch (err) {
+        console.warn('Failed to get tier stats:', err);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if mobile tier system is enabled
+   */
+  isTierEnabled() {
+    if (this.refs.api && typeof this.refs.api.isTierEnabled === 'function') {
+      try {
+        return this.refs.api.isTierEnabled();
+      } catch (err) {
+        console.warn('Failed to check if tier enabled:', err);
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Run a test sequence through all tiers
+   */
+  testSequence() {
+    console.log(`📱 UnifiedTierProbe: Running test sequence...`);
+
+    const tiers = ['T2', 'T1', 'T0'];
+    let i = 0;
+
+    const runNext = () => {
+      if (i >= tiers.length) {
+        console.log(`✅ UnifiedTierProbe: Test sequence complete`);
+        const stats = this.getTierStats();
+        console.log('Final stats:', stats);
+        return;
+      }
+
+      const tier = tiers[i];
+      console.log(`📱 Testing tier ${tier}...`);
+      this.forceTier(tier);
+      i++;
+
+      setTimeout(runNext, 2000);
+    };
+
+    runNext();
   }
 
   /**
