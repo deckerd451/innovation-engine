@@ -21,12 +21,13 @@ export class NodeRenderer {
     this._nodeGroup = null;
     this._viewport = { width: window.innerWidth, height: window.innerHeight };
     this._cullingMargin = 100;
-    
+
     // Throttled logging state
     this._lastLogTime = 0;
     this._lastLoggedVisible = -1;
     this._lastLoggedTotal = -1;
     this._logThrottleMs = 2000; // Log at most once per 2 seconds
+    this._lastTierLogTime = 0; // For tier filtering logs
   }
 
   /**
@@ -176,7 +177,26 @@ export class NodeRenderer {
     }
 
     // Apply spatial culling
-    const visibleNodes = this._cullOffscreenNodes(nodes);
+    let visibleNodes = this._cullOffscreenNodes(nodes);
+
+    // Apply tier visibility filtering (mobile-only)
+    // Feature flag: localStorage["ie_unified_mobile_tiers"] = "true"
+    const tierFlagEnabled = localStorage.getItem('ie_unified_mobile_tiers') === 'true';
+    if (tierFlagEnabled) {
+      // Filter by _tierVisible flag if set (from applyTier() method)
+      const hasTierFlags = visibleNodes.some(n => typeof n._tierVisible === 'boolean');
+      if (hasTierFlags) {
+        const beforeCount = visibleNodes.length;
+        visibleNodes = visibleNodes.filter(n => n._tierVisible !== false);
+        const afterCount = visibleNodes.length;
+
+        // Throttled logging (only log if count changed, max once per 2s)
+        if (beforeCount !== afterCount && Date.now() - this._lastTierLogTime > 2000) {
+          console.log(`🎨 Tier filter: ${afterCount}/${beforeCount} nodes visible`);
+          this._lastTierLogTime = Date.now();
+        }
+      }
+    }
 
     // Bind data
     const nodeSelection = this._nodeGroup

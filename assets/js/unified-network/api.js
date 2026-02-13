@@ -518,10 +518,122 @@ try {
    */
   hidePreferencesPanel() {
     this._ensureInitialized();
-    
+
     if (this._onboardingManager) {
       this._onboardingManager.hidePreferencesPanel();
     }
+  }
+
+  /**
+   * Apply mobile tier-based visibility (called by tier probe)
+   *
+   * Feature flag: localStorage["ie_unified_mobile_tiers"] = "true"
+   * Mobile gate: (max-width: 768px) AND (pointer: coarse)
+   *
+   * @param {string} tier - 'T0' (Personal Hub), 'T1' (Relational), or 'T2' (Discovery)
+   */
+  applyTier(tier) {
+    this._ensureInitialized();
+
+    // Feature flag guard
+    const tierFlagEnabled = localStorage.getItem('ie_unified_mobile_tiers') === 'true';
+    if (!tierFlagEnabled) {
+      console.log('🎯 UnifiedNetwork: Tier system disabled (flag off)');
+      return;
+    }
+
+    // Mobile-only guard
+    const isMobileWidth = window.matchMedia('(max-width: 768px)').matches;
+    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    const isMobile = isMobileWidth && isCoarsePointer;
+
+    if (!isMobile) {
+      console.log('🎯 UnifiedNetwork: Tier system inactive (not mobile)');
+      return;
+    }
+
+    console.log(`🎯 UnifiedNetwork: Applying tier ${tier} (mobile)`);
+
+    if (!this._graphDataStore || !this._nodeRenderer) {
+      console.warn('UnifiedNetwork: Cannot apply tier, components not ready');
+      return;
+    }
+
+    const allNodes = this._graphDataStore.getNodes();
+    const userId = this._userId;
+
+    switch (tier) {
+      case 'T0': // Personal Hub (< 12 nodes)
+        this._applyPersonalHubTier(allNodes, userId);
+        break;
+
+      case 'T1': // Relational Network (My Network only)
+        this._applyRelationalTier(allNodes, userId);
+        break;
+
+      case 'T2': // Discovery (all nodes)
+        this._applyDiscoveryTier(allNodes);
+        break;
+
+      default:
+        console.warn('UnifiedNetwork: Unknown tier', tier);
+        return;
+    }
+
+    // Trigger re-render with updated visibility
+    const state = this._stateManager?.getState() || {};
+    this._nodeRenderer.render(allNodes, state);
+
+    this.emit('tier-applied', { tier, timestamp: Date.now() });
+  }
+
+  /**
+   * Apply Personal Hub tier (T0)
+   * Shows only user + top 11 neighbors by effectivePull
+   * @private
+   */
+  _applyPersonalHubTier(allNodes, userId) {
+    const connectedNodes = this._graphDataStore.getConnectedNodes(userId);
+    const topNeighbors = connectedNodes
+      .sort((a, b) => (b.effectivePull || 0) - (a.effectivePull || 0))
+      .slice(0, 11);
+
+    const visibleIds = new Set([userId, ...topNeighbors.map(n => n.id)]);
+
+    allNodes.forEach(node => {
+      node._tierVisible = visibleIds.has(node.id);
+    });
+
+    console.log(`🎯 Tier T0 (Personal Hub): ${visibleIds.size} nodes visible (max 12)`);
+  }
+
+  /**
+   * Apply Relational tier (T1)
+   * Shows My Network only (user + all connections)
+   * @private
+   */
+  _applyRelationalTier(allNodes, userId) {
+    const connectedNodes = this._graphDataStore.getConnectedNodes(userId);
+    const visibleIds = new Set([userId, ...connectedNodes.map(n => n.id)]);
+
+    allNodes.forEach(node => {
+      node._tierVisible = visibleIds.has(node.id);
+    });
+
+    console.log(`🎯 Tier T1 (Relational): ${visibleIds.size} nodes visible (My Network)`);
+  }
+
+  /**
+   * Apply Discovery tier (T2)
+   * Shows all nodes (full network)
+   * @private
+   */
+  _applyDiscoveryTier(allNodes) {
+    allNodes.forEach(node => {
+      node._tierVisible = true;
+    });
+
+    console.log(`🎯 Tier T2 (Discovery): ${allNodes.length} nodes visible (all)`);
   }
 
   /**
