@@ -544,3 +544,8 @@ function injectStylesOnce() {
 }
 
 logger.info(INTEGRATION_NS, 'Integration module loaded (idempotent)');
+window.addEventListener('profile-loaded', () => {
+  if (!getFeatureFlags().ENABLE_UNIFIED_NETWORK) return;
+  initUnifiedNetwork(null, 'synapse-svg').catch(() => {});
+});
+
