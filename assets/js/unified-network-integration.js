@@ -12,6 +12,7 @@
 import { unifiedNetworkApi } from './unified-network/api.js';
 import { logger } from './logger.js';
 import { initializeErrorHandling } from './unified-network/error-integration.js';
+import { installUnifiedTierProbe } from './unified-tier-probe.js';
 
 // ------------------------------------------------------------------
 // Feature flags (read dynamically so changes apply without redeploy)
@@ -124,6 +125,15 @@ export async function initUnifiedNetwork(userId, containerId = 'synapse-svg') {
     integrationState.usingUnifiedNetwork = true;
 
     logger.info(INTEGRATION_NS, '✅ Unified network initialized successfully');
+
+    // Install tier probe for mobile debugging (idempotent)
+    try {
+      installUnifiedTierProbe(unifiedNetworkApi);
+      console.log('📱 Unified Tier Probe installed');
+    } catch (probeError) {
+      console.warn('📱 Unified Tier Probe installation failed:', probeError);
+      // Non-fatal, continue
+    }
 
     // Emit custom event for other systems
     window.dispatchEvent(
