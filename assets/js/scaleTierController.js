@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// SCALE-REACTIVE TIER CONTROLLER (REWRITTEN)
+// SCALE-REACTIVE TIER CONTROLLER (REWRITTEN — FIXED)
 // Mobile-only zoom-based tier system for Innovation Engine
 // ═══════════════════════════════════════════════════════════════════════════
 //
@@ -20,7 +20,6 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Import focus system (verified exports)
 import { setFocusOnNode, clearFocusEffects } from "./synapse/focus-system.js";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -28,19 +27,16 @@ import { setFocusOnNode, clearFocusEffects } from "./synapse/focus-system.js";
 // ═══════════════════════════════════════════════════════════════════════════
 
 const THRESHOLDS = {
-  // Tier 0: Personal Hub (very close zoom)
   TIER_0_ENTER: 2.4,
   TIER_0_EXIT: 2.2,
-
-  // Tier 2: Ecosystem Discovery (far zoom)
   TIER_2_ENTER: 1.1,
   TIER_2_EXIT: 1.25,
 };
 
-const DWELL_TIME_MS = 250;          // Min dwell time at a zoom before tier change
-const DEBOUNCE_MS = 250;            // Min time between tier changes
-const IDLE_THRESHOLD_MS = 12000;    // Idle threshold
-const EVAL_TICK_MS = 120;           // Throttled evaluation (~8Hz)
+const DWELL_TIME_MS = 250;
+const DEBOUNCE_MS = 250;
+const IDLE_THRESHOLD_MS = 12000;
+const EVAL_TICK_MS = 120; // ~8Hz
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INTERNAL STATE (module-scoped, no side effects)
@@ -65,11 +61,8 @@ let originalCloseNodePanel = null;
 let rafId = null;
 let lastEvalTs = 0;
 
-// Optional debug logging toggle (enabled only when feature enabled)
 function devLog(...args) {
-  // Only log if feature flag is enabled (we do not want desktop console noise)
   if (localStorage.getItem("ie_mobile_scale_reactive") === "true") {
-    // eslint-disable-next-line no-console
     console.info(...args);
   }
 }
@@ -93,13 +86,9 @@ function isMobileEnabled() {
 }
 
 function applyUrlOverridesOnce() {
-  // IMPORTANT: This runs ONLY inside init (not at module top-level).
   const param = new URLSearchParams(window.location.search).get("scaleReactive");
-  if (param === "1") {
-    localStorage.setItem("ie_mobile_scale_reactive", "true");
-  } else if (param === "0") {
-    localStorage.setItem("ie_mobile_scale_reactive", "false");
-  }
+  if (param === "1") localStorage.setItem("ie_mobile_scale_reactive", "true");
+  else if (param === "0") localStorage.setItem("ie_mobile_scale_reactive", "false");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -151,18 +140,14 @@ function wrapNodePanelForSelectionCapture() {
     return;
   }
 
-  // Store originals once
   originalOpenNodePanel = openFn;
   originalCloseNodePanel = typeof closeFn === "function" ? closeFn : null;
 
-  // Wrap open
   window.openNodePanel = function (...args) {
-    // Capture nodeData (first arg by convention)
     lastSelectedNodeData = args[0] ?? null;
     return originalOpenNodePanel.apply(this, args);
   };
 
-  // Wrap close (if available)
   if (originalCloseNodePanel) {
     window.closeNodePanel = function (...args) {
       lastSelectedNodeData = null;
@@ -195,7 +180,6 @@ function isPanelOpen() {
 }
 
 function getLastSelectedNode() {
-  // If panel is closed, clear selection (prevents stale node)
   if (!isPanelOpen()) lastSelectedNodeData = null;
   return lastSelectedNodeData;
 }
@@ -254,14 +238,8 @@ function createStateAdapter(synapseCore, networkFilters, getCurrentZoom) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function applyTier0(synapseCore, decision) {
-  // Tier 0: Personal Hub
-  // - Enable Quiet Mode (caps nodes)
-  // - Focus selected node if available
-  // - Calm FPS if available
   if (window.QuietMode && typeof window.QuietMode.isEnabled === "function") {
-    if (!window.QuietMode.isEnabled()) {
-      window.QuietMode.enable?.("scale-tier-0");
-    }
+    if (!window.QuietMode.isEnabled()) window.QuietMode.enable?.("scale-tier-0");
   }
 
   if (decision.selectedNode) {
@@ -285,13 +263,7 @@ function applyTier0(synapseCore, decision) {
 }
 
 function applyTier1(synapseCore) {
-  // Tier 1: Relational
-  // - Disable Quiet Mode
-  // - Clear focus effects
-  // - Active FPS if available
-  if (window.QuietMode?.isEnabled?.()) {
-    window.QuietMode.disable?.("scale-tier-1");
-  }
+  if (window.QuietMode?.isEnabled?.()) window.QuietMode.disable?.("scale-tier-1");
 
   try {
     clearFocusEffects(synapseCore?.nodeEls, synapseCore?.linkEls);
@@ -304,13 +276,7 @@ function applyTier1(synapseCore) {
 }
 
 function applyTier2(synapseCore) {
-  // Tier 2: Ecosystem / Discovery
-  // - Disable Quiet Mode
-  // - Clear focus
-  // - Transition to discovery (if available)
-  if (window.QuietMode?.isEnabled?.()) {
-    window.QuietMode.disable?.("scale-tier-2");
-  }
+  if (window.QuietMode?.isEnabled?.()) window.QuietMode.disable?.("scale-tier-2");
 
   try {
     clearFocusEffects(synapseCore?.nodeEls, synapseCore?.linkEls);
@@ -327,8 +293,6 @@ function createTierApplicator(synapseCore) {
 
   return function applyTier(decision) {
     if (!decision) return;
-
-    // Idempotency
     if (lastAppliedTier === decision.tier) return;
 
     devLog("[ScaleTier]", decision.reason, {
@@ -339,26 +303,17 @@ function createTierApplicator(synapseCore) {
       panelOpen: !!decision.panelOpen,
     });
 
-    switch (decision.tier) {
-      case 0:
-        applyTier0(synapseCore, decision);
-        break;
-      case 1:
-        applyTier1(synapseCore);
-        break;
-      case 2:
-        applyTier2(synapseCore);
-        break;
-      default:
-        console.warn("[ScaleTier] Unknown tier:", decision.tier);
-    }
+    if (decision.tier === 0) applyTier0(synapseCore, decision);
+    else if (decision.tier === 1) applyTier1(synapseCore);
+    else if (decision.tier === 2) applyTier2(synapseCore);
+    else console.warn("[ScaleTier] Unknown tier:", decision.tier);
 
     lastAppliedTier = decision.tier;
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TIER DECISION ENGINE (Hysteresis + Intent)
+// TIER DECISION ENGINE
 // ═══════════════════════════════════════════════════════════════════════════
 
 class TierDecider {
@@ -374,7 +329,6 @@ class TierDecider {
     const zoom = Number(state.zoom ?? 1.0);
     const now = Date.now();
 
-    // Dwell tracking
     const zoomChanged = Math.abs(zoom - this.lastZoomValue) > 0.01;
     if (zoomChanged) {
       this.zoomDwellStartTime = now;
@@ -382,21 +336,15 @@ class TierDecider {
     }
     const dwellTime = now - this.zoomDwellStartTime;
 
-    // Proposed tier from zoom + hysteresis
     let proposedTier = this.calculateTierFromZoom(zoom);
 
-    // Intent overrides (priority)
-    if (state.searchActive) {
-      proposedTier = 2;
-    } else if (state.panelOpen || state.selectedNode) {
-      proposedTier = Math.min(proposedTier, 1);
-    } else if ((state.idleDuration ?? 0) > IDLE_THRESHOLD_MS) {
-      // Idle overlay: calm FPS only, no tier change
+    if (state.searchActive) proposedTier = 2;
+    else if (state.panelOpen || state.selectedNode) proposedTier = Math.min(proposedTier, 1);
+    else if ((state.idleDuration ?? 0) > IDLE_THRESHOLD_MS) {
       window.stateManager?.setCalm?.(true);
       return null;
     }
 
-    // Debounce tier changes
     const timeSinceLastChange = now - this.lastTierChangeTime;
     const transitionAllowed = dwellTime >= DWELL_TIME_MS && timeSinceLastChange >= DEBOUNCE_MS;
 
@@ -417,21 +365,15 @@ class TierDecider {
 
     this.currentTier = proposedTier;
     this.lastTierChangeTime = now;
-
     return decision;
   }
 
   calculateTierFromZoom(zoom) {
     const { TIER_0_ENTER, TIER_0_EXIT, TIER_2_ENTER, TIER_2_EXIT } = this.thresholds;
 
-    if (this.currentTier === 0) {
-      return zoom >= TIER_0_EXIT ? 0 : 1;
-    }
-    if (this.currentTier === 2) {
-      return zoom < TIER_2_EXIT ? 2 : 1;
-    }
+    if (this.currentTier === 0) return zoom >= TIER_0_EXIT ? 0 : 1;
+    if (this.currentTier === 2) return zoom < TIER_2_EXIT ? 2 : 1;
 
-    // currentTier === 1
     if (zoom >= TIER_0_ENTER) return 0;
     if (zoom < TIER_2_ENTER) return 2;
     return 1;
@@ -452,21 +394,12 @@ class TierDecider {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export function initScaleTierController(config) {
-  // Apply URL overrides ONLY when someone actually calls init.
   applyUrlOverridesOnce();
 
-  // Guard: only init once
   if (initialized) return;
-
-  // Guard: only init if enabled + mobile
   if (!isMobileEnabled()) return;
 
   initialized = true;
-console.info("[ScaleTier] Initializing mobile scale-reactive tier system");
-
-// Extract config
-const { synapseCore, networkFilters, getCurrentZoom } = config || {};
-
 
   const { synapseCore, networkFilters, getCurrentZoom } = config || {};
   if (!synapseCore || typeof getCurrentZoom !== "function") {
@@ -484,27 +417,17 @@ const { synapseCore, networkFilters, getCurrentZoom } = config || {};
   const applyTier = createTierApplicator(synapseCore);
   const decider = new TierDecider(THRESHOLDS);
 
-  // Throttled RAF loop (lightweight)
   lastEvalTs = 0;
 
   function loop(ts) {
     try {
-function loop(ts) {
-  try {
-    if (ts - lastEvalTs >= EVAL_TICK_MS) {
-      lastEvalTs = ts;
+      if (ts - lastEvalTs >= EVAL_TICK_MS) {
+        lastEvalTs = ts;
 
-      const state = getState();
-      const decision = decider.decideTier(state);
-      if (decision) applyTier(decision);
-    }
-  } catch (err) {
-    console.error("[ScaleTier] Loop error:", err);
-  }
-
-  rafId = requestAnimationFrame(loop);
-}
-
+        const state = getState();
+        const decision = decider.decideTier(state);
+        if (decision) applyTier(decision);
+      }
     } catch (err) {
       console.error("[ScaleTier] Loop error:", err);
     }
@@ -532,7 +455,6 @@ function loop(ts) {
   };
 }
 
-// Optional external helper (kept for compatibility)
 export function setLastSelectedNode(nodeData) {
   lastSelectedNodeData = nodeData ?? null;
 }

@@ -58,7 +58,7 @@ const INTEGRATION_NS = 'UnifiedNetworkIntegration';
  *  - true  => unified network is active
  *  - false => feature disabled OR fallback to legacy
  */
-export async function initUnifiedNetwork(userId, containerId = 'synapse-svg') {
+export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-svg') {
   const FLAGS = getFeatureFlags();
 
   // Feature disabled => explicit legacy mode
@@ -72,14 +72,47 @@ export async function initUnifiedNetwork(userId, containerId = 'synapse-svg') {
     return false;
   }
 
-  // If already initialized for the same user/container, short-circuit.
+  // Resolve the ONLY id that should drive unified network: community profile id
+  const communityId =
+    window.bootstrapSession?.communityUser?.id ||
+    window.communityUser?.id ||
+    window.currentUserProfile?.id ||
+    null;
+
+  // If profile isn't ready yet, wait for it (common on cold load / async bootstrap)
+  if (!communityId) {
+    logger.debug(INTEGRATION_NS, 'Community profile not ready — waiting for profile-loaded...');
+    await new Promise((resolve) => {
+      const onLoaded = () => {
+        window.removeEventListener('profile-loaded', onLoaded);
+        resolve();
+      };
+      window.addEventListener('profile-loaded', onLoaded, { once: true });
+    });
+
+    // Try again after event
+    const communityId2 =
+      window.bootstrapSession?.communityUser?.id ||
+      window.communityUser?.id ||
+      window.currentUserProfile?.id ||
+      null;
+
+    if (!communityId2) {
+      logger.error(INTEGRATION_NS, 'profile-loaded fired but communityId is still missing — falling back');
+      return false;
+    }
+
+    return initUnifiedNetwork(null, containerId); // recurse once with resolved profile
+  }
+
+  // If already initialized for same community/container, short-circuit.
   if (
     integrationState.initialized &&
     integrationState.usingUnifiedNetwork &&
-    integrationState.userId === userId &&
+    integrationState.userId === communityId &&
     integrationState.containerId === containerId
   ) {
-    logger.debug(INTEGRATION_NS, 'Already initialized (same user/container) — skipping.');
+    logger.debug(INTEGRATION_NS, 'Already initialized (same communityId/container) — skipping.');
     return true;
   }
 
@@ -90,26 +123,26 @@ export async function initUnifiedNetwork(userId, containerId = 'synapse-svg') {
     return integrationState.usingUnifiedNetwork && integrationState.initialized;
   }
 
-  logger.info(INTEGRATION_NS, 'Initializing unified network discovery');
+  logger.info(INTEGRATION_NS, 'Initializing unified network discovery', { communityId, containerId });
 
   integrationState.initializing = true;
   integrationState.error = null;
   integrationState.fallbackToLegacy = false;
-  integrationState.userId = userId;
+  integrationState.userId = communityId;        // IMPORTANT: store communityId here
   integrationState.containerId = containerId;
 
   try {
-    // Validate container before boot (prevents confusing downstream errors)
+    // Validate container before boot
     const container = document.getElementById(containerId);
     if (!container) {
       throw new Error(`Unified network container not found: #${containerId}`);
     }
 
-    // Initialize error handling FIRST (safe if called multiple times, but we call once here)
+    // Initialize error handling FIRST
     initializeErrorHandling(unifiedNetworkApi);
 
-    // Initialize the unified network API
-    await unifiedNetworkApi.initialize(containerId, userId);
+    // ✅ Initialize the unified network API with COMMUNITY ID (not auth uid)
+    await unifiedNetworkApi.initialize(containerId, communityId);
 
     // Setup event bridges (idempotent)
     setupEventBridges();
@@ -120,25 +153,25 @@ export async function initUnifiedNetwork(userId, containerId = 'synapse-svg') {
     // Inject CSS animations once
     injectStylesOnce();
 
-    // Mark as initialized
     integrationState.initialized = true;
     integrationState.usingUnifiedNetwork = true;
 
-    logger.info(INTEGRATION_NS, '✅ Unified network initialized successfully');
+    logger.info(INTEGRATION_NS, '✅ Unified network initialized successfully', { communityId });
 
-    // Install tier probe for mobile debugging (idempotent)
-    try {
-      installUnifiedTierProbe(unifiedNetworkApi);
-      console.log('📱 Unified Tier Probe installed');
-    } catch (probeError) {
-      console.warn('📱 Unified Tier Probe installation failed:', probeError);
-      // Non-fatal, continue
-    }
+// Install tier probe for mobile debugging (idempotent)
+try {
+  installUnifiedTierProbe(unifiedNetworkApi);
+  console.log("📱 Unified Tier Probe installed");
+} catch (probeError) {
+  console.warn("📱 Unified Tier Probe installation failed:", probeError);
+  // Non-fatal, continue
+}
 
-    // Emit custom event for other systems
+// Emit custom event for other systems
+
     window.dispatchEvent(
       new CustomEvent('unified-network-ready', {
-        detail: { userId, containerId }
+        detail: { userId: communityId, containerId }
       })
     );
 
@@ -151,17 +184,14 @@ export async function initUnifiedNetwork(userId, containerId = 'synapse-svg') {
     integrationState.usingUnifiedNetwork = false;
     integrationState.initialized = false;
 
-    // Best-effort cleanup
     safelyStopPerfInterval();
-
-    // Show user-friendly error
     showErrorNotification('Network visualization failed to load. Using fallback mode.');
-
     return false;
   } finally {
     integrationState.initializing = false;
   }
 }
+
 
 // Wait for init to complete (used when init called twice quickly)
 function waitForInitToSettle(timeoutMs = 8000) {
@@ -526,3 +556,8 @@ function injectStylesOnce() {
 }
 
 logger.info(INTEGRATION_NS, 'Integration module loaded (idempotent)');
+window.addEventListener('profile-loaded', () => {
+  if (!getFeatureFlags().ENABLE_UNIFIED_NETWORK) return;
+  initUnifiedNetwork(null, 'synapse-svg').catch(() => {});
+});
+
