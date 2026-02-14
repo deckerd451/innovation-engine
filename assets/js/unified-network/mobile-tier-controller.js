@@ -505,30 +505,34 @@ export class MobileTierController {
           const source = edgeId(edge.source);
           const target = edgeId(edge.target);
 
-          // Handle project edges: person-to-person edges with projectId metadata
-          if (edge.type === 'project' && edge.projectId) {
-            // Check if this edge involves this person
-            if (source === person.id || target === person.id) {
-              // Add the project node (from edge.projectId metadata)
-              if (!visibleNodeIds.has(edge.projectId)) {
-                const projectNode = nodeById.get(edge.projectId);
-                if (projectNode && projectNode.type === 'project') {
-                  visibleNodeIds.add(edge.projectId);
-                  projectCount++;
-                }
-              }
-            }
-          } else {
-            // Fallback: treat endpoint as potential project (legacy behavior)
+          // Handle project_membership edges: person → project
+          if (edge.type === 'project_membership') {
             let projectId = null;
-            if (source === person.id) projectId = target;
-            else if (target === person.id) projectId = source;
+
+            // Check if this edge connects this person to a project
+            if (source === person.id) {
+              projectId = target;  // person → project
+            } else if (target === person.id) {
+              projectId = source;  // project → person (bidirectional)
+            }
 
             if (projectId && !visibleNodeIds.has(projectId)) {
               const projectNode = nodeById.get(projectId);
               if (projectNode && projectNode.type === 'project') {
                 visibleNodeIds.add(projectId);
                 projectCount++;
+              }
+            }
+          }
+          // Legacy: Handle old person-to-person edges with projectId metadata
+          else if (edge.type === 'project' && edge.projectId) {
+            if (source === person.id || target === person.id) {
+              if (!visibleNodeIds.has(edge.projectId)) {
+                const projectNode = nodeById.get(edge.projectId);
+                if (projectNode && projectNode.type === 'project') {
+                  visibleNodeIds.add(edge.projectId);
+                  projectCount++;
+                }
               }
             }
           }
