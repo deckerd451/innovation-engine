@@ -99,12 +99,21 @@ export class GraphDataStore {
       // Load nodes (community members)
       const nodes = await this._loadNodes();
 
-      // Load edges (connections + project/org membership)
-      const { edges, stats } = await this._loadEdges();
-
-      // Store in memory
+      // CRITICAL: Store nodes in memory BEFORE loading edges
+      // Edge building checks this._nodes.has() for existence
       this._nodes.clear();
       nodes.forEach((node) => this._nodes.set(node.id, node));
+
+      edgeDebug("🧪 [EDGES] Nodes loaded and stored", {
+        nodeCount: this._nodes.size,
+        nodeIdSample: Array.from(this._nodes.keys()).slice(0, 3)
+      });
+
+      // Load edges (connections + project/org membership)
+      // This will now find nodes in this._nodes
+      const { edges, stats } = await this._loadEdges();
+
+      // Store edges
       this._edges = edges;
 
       // Mark nodes as "My Network" based on connections / membership
@@ -264,8 +273,15 @@ export class GraphDataStore {
       nodeCount: this._nodes.size
     });
 
+    // CRITICAL: Nodes must be loaded BEFORE edges
+    if (this._nodes.size === 0) {
+      console.warn("📊 [STORE] Cannot load edges: nodes not loaded yet (nodeCount=0)");
+      return { edges: [], stats: { connections: 0, projects: 0, orgs: 0 } };
+    }
+
     const edges = [];
     const stats = { connections: 0, projects: 0, orgs: 0 };
+    let skippedMissingNode = 0;
 
     // 1) Connection edges (accepted + pending)
     try {
@@ -287,6 +303,7 @@ export class GraphDataStore {
       } else if (connections) {
         console.log(`📊 [STORE] Found ${connections.length} connections (accepted + pending)`);
 
+        let skipped = 0;
         connections.forEach((conn) => {
           const fromExists = this._nodes.has(conn.from_user_id);
           const toExists = this._nodes.has(conn.to_user_id);
@@ -302,6 +319,8 @@ export class GraphDataStore {
             });
             stats.connections++;
           } else {
+            skipped++;
+            skippedMissingNode++;
             // Only log in debug mode
             if (window.log?.isDebugMode?.() || EDGE_DEBUG) {
               console.debug("Skipping connection edge (node missing)", {
@@ -313,7 +332,8 @@ export class GraphDataStore {
             }
           }
         });
-        console.log(`📊 [STORE] Created ${stats.connections} connection edges`);
+        console.log(`📊 [STORE] Created ${stats.connections} connection edges (skipped ${skipped} due to missing nodes)`);
+        edgeDebug("🧪 [EDGES] Connection edge sample", edges.filter(e => e.type === 'connection').slice(0, 2));
       }
     } catch (err) {
       console.warn("[STORE] connections edge load failed", err);
@@ -474,8 +494,14 @@ export class GraphDataStore {
 
     edgeDebug("🧪 [EDGES] _loadEdges() end", {
       totalEdges: filtered.length,
-      stats
+      stats,
+      skippedMissingNode,
+      nodeIdsAvailable: this._nodes.size
     });
+
+    if (skippedMissingNode > 0) {
+      console.log(`📊 [STORE] Note: ${skippedMissingNode} edges skipped due to missing nodes (nodeCount=${this._nodes.size})`);
+    }
 
     return { edges: filtered, stats };
   }
