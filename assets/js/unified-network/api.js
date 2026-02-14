@@ -63,9 +63,57 @@ export class UnifiedNetworkAPI {
   }
 
   /**
+   * Resolve community/profile ID from various sources
+   * The database relationships use community profile IDs, not auth user IDs
+   * @param {string} authUserId - Supabase auth user ID (fallback)
+   * @returns {string} Community/profile ID
+   * @private
+   */
+  _resolveCommunityId(authUserId) {
+    // Try multiple sources in order of preference
+
+    // 1. Explicit communityId passed via bootstrap context
+    if (window.bootstrapSessionContext?.communityId) {
+      return window.bootstrapSessionContext.communityId;
+    }
+
+    // 2. Global bootstrap object
+    if (window.__BOOTSTRAP__?.communityId) {
+      return window.__BOOTSTRAP__.communityId;
+    }
+
+    // 3. Current user profile (set by auth.js)
+    if (window.currentUserProfile?.id) {
+      return window.currentUserProfile.id;
+    }
+
+    // 4. Legacy synapse profile data
+    if (window.synapseProfile?.id) {
+      return window.synapseProfile.id;
+    }
+
+    // 5. Check for profileId in localStorage
+    try {
+      const storedProfile = localStorage.getItem('userProfile');
+      if (storedProfile) {
+        const profile = JSON.parse(storedProfile);
+        if (profile.id) {
+          return profile.id;
+        }
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+
+    // 6. Fallback to auth user ID (may result in 0 edges)
+    console.warn('⚠️ [UNIFIED] Could not resolve community ID, using auth user ID as fallback');
+    return authUserId;
+  }
+
+  /**
    * Initialize the unified network system
    * @param {string} containerId - DOM container ID
-   * @param {string} userId - Current user ID
+   * @param {string} userId - Current user ID (may be auth ID or community ID)
    * @returns {Promise<void>}
    */
   async initialize(containerId, userId) {
@@ -75,11 +123,19 @@ export class UnifiedNetworkAPI {
     }
 
     this._containerId = containerId;
-    this._userId = userId;
+
+    // Resolve the correct community/profile ID
+    const authUserId = userId;
+    const communityId = this._resolveCommunityId(authUserId);
+    this._userId = communityId;
 
     console.log('🚀 Initializing Unified Network Discovery System');
     console.log(`   Container: ${containerId}`);
-    console.log(`   User: ${userId}`);
+    console.log(`   User (auth): ${authUserId}`);
+    console.log(`   User (community): ${communityId}`);
+    if (authUserId !== communityId) {
+      console.log('   ℹ️ Using community profile ID for graph queries');
+    }
 
     try {
       // Get Supabase client
@@ -94,8 +150,8 @@ export class UnifiedNetworkAPI {
         throw new Error(`Container not found: ${containerId}`);
       }
 
-      // 1. Initialize Graph Data Store
-      await this._graphDataStore.initialize(supabase, userId);
+      // 1. Initialize Graph Data Store with community ID
+      await this._graphDataStore.initialize(supabase, communityId);
       const { nodes, edges } = await this._graphDataStore.loadGraphData();
       console.log(`📊 Loaded ${nodes.length} nodes, ${edges.length} edges`);
 
