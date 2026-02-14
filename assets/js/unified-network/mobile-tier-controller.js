@@ -505,15 +505,31 @@ export class MobileTierController {
           const source = edgeId(edge.source);
           const target = edgeId(edge.target);
 
-          let projectId = null;
-          if (source === person.id) projectId = target;
-          else if (target === person.id) projectId = source;
+          // Handle project edges: person-to-person edges with projectId metadata
+          if (edge.type === 'project' && edge.projectId) {
+            // Check if this edge involves this person
+            if (source === person.id || target === person.id) {
+              // Add the project node (from edge.projectId metadata)
+              if (!visibleNodeIds.has(edge.projectId)) {
+                const projectNode = nodeById.get(edge.projectId);
+                if (projectNode && projectNode.type === 'project') {
+                  visibleNodeIds.add(edge.projectId);
+                  projectCount++;
+                }
+              }
+            }
+          } else {
+            // Fallback: treat endpoint as potential project (legacy behavior)
+            let projectId = null;
+            if (source === person.id) projectId = target;
+            else if (target === person.id) projectId = source;
 
-          if (projectId && !visibleNodeIds.has(projectId)) {
-            const projectNode = nodeById.get(projectId);
-            if (projectNode && projectNode.type === 'project') {
-              visibleNodeIds.add(projectId);
-              projectCount++;
+            if (projectId && !visibleNodeIds.has(projectId)) {
+              const projectNode = nodeById.get(projectId);
+              if (projectNode && projectNode.type === 'project') {
+                visibleNodeIds.add(projectId);
+                projectCount++;
+              }
             }
           }
         });
@@ -531,15 +547,31 @@ export class MobileTierController {
           const source = edgeId(edge.source);
           const target = edgeId(edge.target);
 
-          let orgId = null;
-          if (source === person.id) orgId = target;
-          else if (target === person.id) orgId = source;
+          // Handle organization edges: person-to-person edges with organizationId metadata
+          if (edge.type === 'organization' && edge.organizationId) {
+            // Check if this edge involves this person
+            if (source === person.id || target === person.id) {
+              // Add the organization node (from edge.organizationId metadata)
+              if (!visibleNodeIds.has(edge.organizationId)) {
+                const orgNode = nodeById.get(edge.organizationId);
+                if (orgNode && orgNode.type === 'organization') {
+                  visibleNodeIds.add(edge.organizationId);
+                  orgCount++;
+                }
+              }
+            }
+          } else {
+            // Fallback: treat endpoint as potential org (legacy behavior)
+            let orgId = null;
+            if (source === person.id) orgId = target;
+            else if (target === person.id) orgId = source;
 
-          if (orgId && !visibleNodeIds.has(orgId)) {
-            const orgNode = nodeById.get(orgId);
-            if (orgNode && orgNode.type === 'organization') {
-              visibleNodeIds.add(orgId);
-              orgCount++;
+            if (orgId && !visibleNodeIds.has(orgId)) {
+              const orgNode = nodeById.get(orgId);
+              if (orgNode && orgNode.type === 'organization') {
+                visibleNodeIds.add(orgId);
+                orgCount++;
+              }
             }
           }
         });
