@@ -111,7 +111,7 @@ export class GraphDataStore {
       await this._markMyNetworkNodes();
 
       // Detailed summary log
-      console.log(`📊 [STORE] Loaded ${nodes.length} nodes, ${edges.length} edges (connections=${stats.connections}, projects=${stats.projects}, orgs=${stats.orgs})`);
+      console.log(`📊 [STORE] Loaded ${nodes.length} nodes, ${edges.length} edges (connections=${stats.connections}, projects=${stats.projects}, orgs=${stats.orgs}) userId=${this._userId}`);
 
       return { nodes, edges };
     } catch (error) {
