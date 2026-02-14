@@ -127,12 +127,12 @@ export class MobileTierController {
   _getNodesArray() {
     if (!this._graphDataStore) return [];
 
-    // Try different accessor methods in order of preference
-    if (typeof this._graphDataStore.getAllNodes === 'function') {
-      return this._graphDataStore.getAllNodes();
-    }
+    // Try standard methods first (preferred)
     if (typeof this._graphDataStore.getNodes === 'function') {
       return this._graphDataStore.getNodes();
+    }
+    if (typeof this._graphDataStore.getAllNodes === 'function') {
+      return this._graphDataStore.getAllNodes();
     }
     if (typeof this._graphDataStore.getNodesArray === 'function') {
       return this._graphDataStore.getNodesArray();
@@ -178,9 +178,12 @@ export class MobileTierController {
   _getEdgesArray() {
     if (!this._graphDataStore) return [];
 
-    // Try different accessor methods
+    // Try standard methods first (preferred)
     if (typeof this._graphDataStore.getEdges === 'function') {
       return this._graphDataStore.getEdges();
+    }
+    if (typeof this._graphDataStore.getAllEdges === 'function') {
+      return this._graphDataStore.getAllEdges();
     }
     if (typeof this._graphDataStore.getLinks === 'function') {
       return this._graphDataStore.getLinks();
@@ -213,6 +216,65 @@ export class MobileTierController {
     }
 
     return [];
+  }
+
+  /**
+   * Build edges from legacy window.synapseData as fallback
+   * @private
+   * @returns {Array} Array of edge objects
+   */
+  _buildLegacyEdges() {
+    const edges = [];
+
+    if (!window.synapseData) {
+      return edges;
+    }
+
+    const nodeIds = new Set(this._getNodesArray().map(n => n.id));
+
+    // 1) Connections
+    if (Array.isArray(window.synapseData.connections)) {
+      window.synapseData.connections.forEach(conn => {
+        if (nodeIds.has(conn.from_user_id) && nodeIds.has(conn.to_user_id)) {
+          edges.push({
+            source: conn.from_user_id,
+            target: conn.to_user_id,
+            type: 'connection'
+          });
+        }
+      });
+    }
+
+    // 2) Project members
+    if (Array.isArray(window.synapseData.projectMembers)) {
+      window.synapseData.projectMembers.forEach(pm => {
+        if (nodeIds.has(pm.user_id) && nodeIds.has(pm.project_id)) {
+          edges.push({
+            source: pm.user_id,
+            target: pm.project_id,
+            type: 'project_member'
+          });
+        }
+      });
+    }
+
+    // 3) Organization members
+    const orgMembers = window.synapseData.orgMembers || window.synapseData.organizationMembers;
+    if (Array.isArray(orgMembers)) {
+      orgMembers.forEach(om => {
+        const userId = om.user_id || om.community_id;
+        const orgId = om.organization_id;
+        if (userId && orgId && nodeIds.has(userId) && nodeIds.has(orgId)) {
+          edges.push({
+            source: userId,
+            target: orgId,
+            type: 'org_member'
+          });
+        }
+      });
+    }
+
+    return edges;
   }
 
   /**
@@ -320,11 +382,38 @@ export class MobileTierController {
     // Always include current user
     visibleNodeIds.add(this._userId);
 
-    // Get connected nodes (direct connections to user)
-    const connectedNodes = this._graphDataStore.getConnectedNodes(this._userId);
+    // Get edges (with fallback to legacy data)
+    let edges = this._getEdgesArray();
+
+    // If no edges from store, try legacy fallback
+    if (!edges || edges.length === 0) {
+      edges = this._buildLegacyEdges();
+    }
+
+    // Build node lookup
+    const nodeById = new Map();
+    allNodes.forEach(node => nodeById.set(node.id, node));
+
+    // Helper to normalize edge endpoints (handles D3 mutations)
+    const edgeId = (x) => (x && typeof x === 'object' ? x.id : x);
+
+    // Find all nodes connected to current user
+    const connectedNodeIds = new Set();
+    edges.forEach(edge => {
+      const source = edgeId(edge.source);
+      const target = edgeId(edge.target);
+
+      if (source === this._userId) {
+        connectedNodeIds.add(target);
+      } else if (target === this._userId) {
+        connectedNodeIds.add(source);
+      }
+    });
 
     // Filter to people nodes only for T0
-    const peopleNodes = connectedNodes.filter(node => node.type === 'people');
+    const peopleNodes = Array.from(connectedNodeIds)
+      .map(id => nodeById.get(id))
+      .filter(node => node && (node.type === 'people' || node.type === 'person'));
 
     // Sort by effectivePull (strength of connection)
     const sortedByPull = peopleNodes
@@ -361,45 +450,99 @@ export class MobileTierController {
     // Always include current user
     visibleNodeIds.add(this._userId);
 
-    // Get all nodes connected to user (direct connections)
-    const connectedNodes = this._graphDataStore.getConnectedNodes(this._userId);
+    // Get edges (with fallback to legacy data)
+    let edges = this._getEdgesArray();
 
-    connectedNodes.forEach(node => {
-      visibleNodeIds.add(node.id);
+    // If no edges from store, try legacy fallback
+    if (!edges || edges.length === 0) {
+      edges = this._buildLegacyEdges();
+      if (edges.length > 0) {
+        console.log('🧩 [TIERS] No unified edges found — using legacy edge fallback');
+      }
+    }
 
-      // Count by type
-      if (node.type === 'people') peopleCount++;
-      else if (node.type === 'project') projectCount++;
-      else if (node.type === 'organization') orgCount++;
+    // Build node lookup
+    const nodeById = new Map();
+    allNodes.forEach(node => nodeById.set(node.id, node));
+
+    // Helper to normalize edge endpoints (handles D3 mutations)
+    const edgeId = (x) => (x && typeof x === 'object' ? x.id : x);
+
+    // Find all nodes connected to current user (1-hop neighborhood)
+    const connectedNodeIds = new Set();
+    edges.forEach(edge => {
+      const source = edgeId(edge.source);
+      const target = edgeId(edge.target);
+
+      if (source === this._userId) {
+        connectedNodeIds.add(target);
+      } else if (target === this._userId) {
+        connectedNodeIds.add(source);
+      }
+    });
+
+    // Add connected nodes to visible set
+    connectedNodeIds.forEach(nodeId => {
+      const node = nodeById.get(nodeId);
+      if (node) {
+        visibleNodeIds.add(nodeId);
+
+        // Count by type
+        if (node.type === 'people' || node.type === 'person') peopleCount++;
+        else if (node.type === 'project') projectCount++;
+        else if (node.type === 'organization') orgCount++;
+      }
     });
 
     // If showing projects, include projects connected to visible people
     if (config.showProjects) {
-      connectedNodes.forEach(node => {
-        if (node.type === 'people') {
-          const personProjects = this._graphDataStore.getConnectedNodes(node.id);
-          personProjects.forEach(proj => {
-            if (proj.type === 'project' && !visibleNodeIds.has(proj.id)) {
-              visibleNodeIds.add(proj.id);
+      const visiblePeople = Array.from(visibleNodeIds)
+        .map(id => nodeById.get(id))
+        .filter(n => n && (n.type === 'people' || n.type === 'person'));
+
+      visiblePeople.forEach(person => {
+        edges.forEach(edge => {
+          const source = edgeId(edge.source);
+          const target = edgeId(edge.target);
+
+          let projectId = null;
+          if (source === person.id) projectId = target;
+          else if (target === person.id) projectId = source;
+
+          if (projectId && !visibleNodeIds.has(projectId)) {
+            const projectNode = nodeById.get(projectId);
+            if (projectNode && projectNode.type === 'project') {
+              visibleNodeIds.add(projectId);
               projectCount++;
             }
-          });
-        }
+          }
+        });
       });
     }
 
     // If showing orgs, include orgs connected to visible people
     if (config.showOrgs) {
-      connectedNodes.forEach(node => {
-        if (node.type === 'people') {
-          const personOrgs = this._graphDataStore.getConnectedNodes(node.id);
-          personOrgs.forEach(org => {
-            if (org.type === 'organization' && !visibleNodeIds.has(org.id)) {
-              visibleNodeIds.add(org.id);
+      const visiblePeople = Array.from(visibleNodeIds)
+        .map(id => nodeById.get(id))
+        .filter(n => n && (n.type === 'people' || n.type === 'person'));
+
+      visiblePeople.forEach(person => {
+        edges.forEach(edge => {
+          const source = edgeId(edge.source);
+          const target = edgeId(edge.target);
+
+          let orgId = null;
+          if (source === person.id) orgId = target;
+          else if (target === person.id) orgId = source;
+
+          if (orgId && !visibleNodeIds.has(orgId)) {
+            const orgNode = nodeById.get(orgId);
+            if (orgNode && orgNode.type === 'organization') {
+              visibleNodeIds.add(orgId);
               orgCount++;
             }
-          });
-        }
+          }
+        });
       });
     }
 
