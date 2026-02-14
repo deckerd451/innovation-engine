@@ -228,26 +228,30 @@ export class GraphDataStore {
     const edges = [];
     const stats = { connections: 0, projects: 0, orgs: 0 };
 
-    // 1) Accepted connection edges (global)
+    // 1) Connection edges (accepted + pending)
     try {
+      console.log('📊 [STORE] Loading connection edges...');
       const { data: connections, error: connError } = await this._supabase
         .from("connections")
-        .select("*")
-        .eq("status", "accepted");
+        .select("id, from_user_id, to_user_id, status, created_at")
+        .in("status", ["accepted", "pending"]);
 
       if (connError) {
         console.warn("[STORE] connections edge load failed (query error):", connError);
       } else if (connections) {
+        console.log(`📊 [STORE] Found ${connections.length} connections (accepted + pending)`);
+
         connections.forEach((conn) => {
           const fromExists = this._nodes.has(conn.from_user_id);
           const toExists = this._nodes.has(conn.to_user_id);
 
           if (fromExists && toExists) {
             edges.push({
+              type: "connection",
               source: conn.from_user_id,
               target: conn.to_user_id,
-              type: "connection",
-              strength: 0.5,
+              status: conn.status,
+              strength: conn.status === "accepted" ? 0.5 : 0.3,
               createdAt: new Date(conn.created_at),
             });
             stats.connections++;
@@ -263,6 +267,7 @@ export class GraphDataStore {
             }
           }
         });
+        console.log(`📊 [STORE] Created ${stats.connections} connection edges`);
       }
     } catch (err) {
       console.warn("[STORE] connections edge load failed", err);
@@ -270,37 +275,41 @@ export class GraphDataStore {
 
     // 2) Project membership edges (between members of same project)
     try {
+      console.log('📊 [STORE] Loading project member edges...');
       const { data: projectMembers, error: pmError } = await this._supabase
         .from("project_members")
-        .select("project_id, user_id");
+        .select("id, project_id, user_id, role");
 
       if (pmError) {
         console.warn("[STORE] project_members edge load failed (query error):", pmError);
       } else if (projectMembers) {
+        console.log(`📊 [STORE] Found ${projectMembers.length} project memberships`);
+
         const projectGroups = {};
         projectMembers.forEach((pm) => {
           if (!projectGroups[pm.project_id]) projectGroups[pm.project_id] = [];
           projectGroups[pm.project_id].push(pm.user_id);
         });
 
-        Object.values(projectGroups).forEach((members) => {
+        Object.entries(projectGroups).forEach(([projectId, members]) => {
           for (let i = 0; i < members.length; i++) {
             for (let j = i + 1; j < members.length; j++) {
-              const user1 = members[i];
-              const user2 = members[j];
+              const userA = members[i];
+              const userB = members[j];
 
-              if (this._nodes.has(user1) && this._nodes.has(user2)) {
+              if (this._nodes.has(userA) && this._nodes.has(userB)) {
                 const exists = edges.some((e) => {
                   const s = edgeId(e.source);
                   const t = edgeId(e.target);
-                  return (s === user1 && t === user2) || (s === user2 && t === user1);
+                  return (s === userA && t === userB) || (s === userB && t === userA);
                 });
 
                 if (!exists) {
                   edges.push({
-                    source: user1,
-                    target: user2,
                     type: "project",
+                    source: userA,
+                    target: userB,
+                    projectId: projectId,
                     strength: 0.3,
                     createdAt: new Date(),
                   });
@@ -310,6 +319,7 @@ export class GraphDataStore {
             }
           }
         });
+        console.log(`📊 [STORE] Created ${stats.projects} project edges`);
       }
     } catch (err) {
       console.warn("[STORE] project_members edge load failed", err);
@@ -317,37 +327,41 @@ export class GraphDataStore {
 
     // 3) Organization membership edges (between members of same org)
     try {
+      console.log('📊 [STORE] Loading organization member edges...');
       const { data: orgMembers, error: omError } = await this._supabase
         .from("organization_members")
-        .select("organization_id, community_id");
+        .select("id, organization_id, community_id, role");
 
       if (omError) {
         console.warn("[STORE] organization_members edge load failed (query error):", omError);
       } else if (orgMembers) {
+        console.log(`📊 [STORE] Found ${orgMembers.length} organization memberships`);
+
         const orgGroups = {};
         orgMembers.forEach((om) => {
           if (!orgGroups[om.organization_id]) orgGroups[om.organization_id] = [];
           orgGroups[om.organization_id].push(om.community_id);
         });
 
-        Object.values(orgGroups).forEach((members) => {
+        Object.entries(orgGroups).forEach(([organizationId, members]) => {
           for (let i = 0; i < members.length; i++) {
             for (let j = i + 1; j < members.length; j++) {
-              const user1 = members[i];
-              const user2 = members[j];
+              const userA = members[i];
+              const userB = members[j];
 
-              if (this._nodes.has(user1) && this._nodes.has(user2)) {
+              if (this._nodes.has(userA) && this._nodes.has(userB)) {
                 const exists = edges.some((e) => {
                   const s = edgeId(e.source);
                   const t = edgeId(e.target);
-                  return (s === user1 && t === user2) || (s === user2 && t === user1);
+                  return (s === userA && t === userB) || (s === userB && t === userA);
                 });
 
                 if (!exists) {
                   edges.push({
-                    source: user1,
-                    target: user2,
                     type: "organization",
+                    source: userA,
+                    target: userB,
+                    organizationId: organizationId,
                     strength: 0.2,
                     createdAt: new Date(),
                   });
@@ -357,6 +371,7 @@ export class GraphDataStore {
             }
           }
         });
+        console.log(`📊 [STORE] Created ${stats.orgs} organization edges`);
       }
     } catch (err) {
       console.warn("[STORE] organization_members edge load failed", err);
