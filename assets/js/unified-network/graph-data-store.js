@@ -67,7 +67,7 @@ export class GraphDataStore {
       const nodes = await this._loadNodes();
 
       // Load edges (connections + project/org membership)
-      const edges = await this._loadEdges();
+      const { edges, stats } = await this._loadEdges();
 
       // Store in memory
       this._nodes.clear();
@@ -77,7 +77,9 @@ export class GraphDataStore {
       // Mark nodes as "My Network" based on connections / membership
       await this._markMyNetworkNodes();
 
-      console.log(`✅ Loaded ${nodes.length} nodes and ${edges.length} edges`);
+      // Detailed summary log
+      console.log(`📊 [STORE] Loaded ${nodes.length} nodes, ${edges.length} edges (connections=${stats.connections}, projects=${stats.projects}, orgs=${stats.orgs})`);
+
       return { nodes, edges };
     } catch (error) {
       console.error("Error loading graph data:", error);
@@ -220,9 +222,11 @@ export class GraphDataStore {
   /**
    * Load edges from database
    * @private
+   * @returns {Promise<{edges: Edge[], stats: Object}>}
    */
   async _loadEdges() {
     const edges = [];
+    const stats = { connections: 0, projects: 0, orgs: 0 };
 
     // 1) Accepted connection edges (global)
     try {
@@ -246,6 +250,7 @@ export class GraphDataStore {
               strength: 0.5,
               createdAt: new Date(conn.created_at),
             });
+            stats.connections++;
           } else {
             // Only log in debug mode
             if (window.log?.isDebugMode?.()) {
@@ -299,6 +304,7 @@ export class GraphDataStore {
                     strength: 0.3,
                     createdAt: new Date(),
                   });
+                  stats.projects++;
                 }
               }
             }
@@ -345,6 +351,7 @@ export class GraphDataStore {
                     strength: 0.2,
                     createdAt: new Date(),
                   });
+                  stats.orgs++;
                 }
               }
             }
@@ -355,7 +362,7 @@ export class GraphDataStore {
       console.error("Error loading organization members:", e);
     }
 
-    return edges;
+    return { edges, stats };
   }
 
   /**
@@ -376,11 +383,27 @@ export class GraphDataStore {
   }
 
   /**
+   * Get all nodes (alias for getAllNodes)
+   * @returns {Node[]}
+   */
+  getNodes() {
+    return this.getAllNodes();
+  }
+
+  /**
    * Get all edges
    * @returns {Edge[]}
    */
   getAllEdges() {
     return [...this._edges];
+  }
+
+  /**
+   * Get all edges (alias for getAllEdges)
+   * @returns {Edge[]}
+   */
+  getEdges() {
+    return this.getAllEdges();
   }
 
   /**
