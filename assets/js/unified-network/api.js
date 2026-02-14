@@ -116,13 +116,30 @@ try {
     nodeRenderer: this._nodeRenderer,
     interactionHandler: this._interactionHandler,
     stateManager: this._stateManager,
+    mobileTierController: this._mobileTierController,
     simulation: this._simulation,
+  };
+
+  // Enhanced debug hook for tier system
+  window.__UNIFIED_NETWORK_DEBUG = {
+    api: this,
+    store: this._graphDataStore,
+    nodes: nodes,
+    edges: edges,
+    nodesCount: nodes?.length || 0,
+    edgesCount: edges?.length || 0,
+    tiers: {
+      enabled: this._mobileTierController?.isEnabled(),
+      currentTier: this._mobileTierController?.getTier(),
+      stats: this._mobileTierController?.getStats()
+    }
   };
 
   if (verbose) {
     console.log("🧪 [DEBUG] Hooks exposed:", {
       unifiedApi: !!window.unifiedApi,
       graphDataStore: !!window.graphDataStore,
+      __UNIFIED_NETWORK_DEBUG: !!window.__UNIFIED_NETWORK_DEBUG,
       nodes: nodes?.length,
       edges: edges?.length,
       sampleEdge: edges?.[0],
@@ -132,6 +149,14 @@ try {
       storeNodes: this._graphDataStore?.nodes?.length,
       storeEdges: this._graphDataStore?.edges?.length,
       storeLinks: this._graphDataStore?.links?.length,
+    });
+
+    console.log("🧪 [DEBUG] Tier system:", {
+      enabled: this._mobileTierController?.isEnabled(),
+      currentTier: this._mobileTierController?.getTier(),
+      featureFlag: localStorage.getItem('ie_unified_mobile_tiers'),
+      isMobileWidth: window.matchMedia('(max-width: 768px)').matches,
+      isCoarsePointer: window.matchMedia('(pointer: coarse)').matches,
     });
   }
 } catch (e) {
@@ -287,13 +312,26 @@ try {
         userId: userId
       });
 
-      // Apply initial tier if mobile tier system is enabled
+      // Apply initial tier if mobile tier system is enabled (non-fatal)
       if (this._mobileTierController.isEnabled()) {
-        const initialTier = this._mobileTierController.getTier();
-        console.log(`🧩 [TIERS] Auto-applying initial tier: ${initialTier}`);
-        this._mobileTierController.applyTier(initialTier);
+        try {
+          const initialTier = this._mobileTierController.getTier();
+          console.log(`🧩 [TIERS] Auto-applying initial tier: ${initialTier}`);
+          const result = this._mobileTierController.applyTier(initialTier);
+
+          if (result.error) {
+            console.warn('🧩 [TIERS] Tier auto-apply failed (non-fatal):', result.error);
+          } else if (result.skipped) {
+            console.log('🧩 [TIERS] Tier auto-apply skipped:', result.reason);
+          } else {
+            console.log('🧩 [TIERS] Tier auto-apply succeeded:', result);
+          }
+        } catch (e) {
+          console.warn('🧩 [TIERS] Tier auto-apply failed (non-fatal):', e.message);
+        }
       }
 
+      // Mark as initialized (tiers are optional and should never gate initialization)
       this._initialized = true;
       this.emit('initialized', { userId, containerId });
 
@@ -553,7 +591,21 @@ try {
    */
   applyTier(tier) {
     this._ensureInitialized();
-    return this._mobileTierController.applyTier(tier);
+
+    try {
+      const result = this._mobileTierController.applyTier(tier);
+
+      if (result.error) {
+        console.warn(`🧩 [TIERS] applyTier("${tier}") failed:`, result.error);
+      } else if (result.skipped) {
+        console.log(`🧩 [TIERS] applyTier("${tier}") skipped:`, result.reason);
+      }
+
+      return result;
+    } catch (e) {
+      console.error(`🧩 [TIERS] applyTier("${tier}") threw exception:`, e);
+      return { error: e.message, exception: true };
+    }
   }
 
   /**
