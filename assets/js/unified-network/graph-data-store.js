@@ -1,6 +1,18 @@
 // assets/js/unified-network/graph-data-store.js
 // Graph Data Store for Unified Network Discovery
-// Version: 1.0.1 (edge endpoint normalization / D3-safe)
+// Version: 1.0.2 (debug instrumentation)
+
+// Debug toggle for edge loading diagnostics
+const EDGE_DEBUG =
+  new URLSearchParams(window.location.search).get("debugEdges") === "1" ||
+  localStorage.getItem("ie_debug_edges") === "true";
+
+/**
+ * Debug logging helper (only logs when EDGE_DEBUG is enabled)
+ */
+function edgeDebug(...args) {
+  if (EDGE_DEBUG) console.log(...args);
+}
 
 /**
  * Normalize an edge endpoint that may be:
@@ -29,6 +41,27 @@ export class GraphDataStore {
 
     this._cache = new Map();
     this._initialized = false;
+
+    // Expose debug helper when enabled
+    if (EDGE_DEBUG) {
+      const self = this;
+      window.__debugUnifiedEdges = () => {
+        try {
+          return {
+            nodeCount: self._nodes?.size || 0,
+            edgeCount: self._edges?.length || 0,
+            nodeIdSample: Array.from(self._nodes?.keys() || []).slice(0, 10),
+            edgeSample: (self._edges || []).slice(0, 5).map(e => ({
+              type: e.type,
+              source: edgeId(e.source),
+              target: edgeId(e.target)
+            }))
+          };
+        } catch (err) {
+          return { error: err.message };
+        }
+      };
+    }
   }
 
   /**
@@ -220,11 +253,17 @@ export class GraphDataStore {
   }
 
   /**
-   * Load edges from database (fail-soft)
+   * Load edges from database (fail-soft, instrumented)
    * @private
    * @returns {Promise<{edges: Edge[], stats: Object}>}
    */
   async _loadEdges() {
+    edgeDebug("🧪 [EDGES] _loadEdges() start", {
+      hasSupabase: !!this._supabase,
+      userId: this._userId,
+      nodeCount: this._nodes.size
+    });
+
     const edges = [];
     const stats = { connections: 0, projects: 0, orgs: 0 };
 
@@ -235,6 +274,13 @@ export class GraphDataStore {
         .from("connections")
         .select("id, from_user_id, to_user_id, status, created_at")
         .in("status", ["accepted", "pending"]);
+
+      edgeDebug("🧪 [EDGES] connections result", {
+        ok: !connError,
+        error: connError,
+        count: connections?.length || 0,
+        sample: (connections || []).slice(0, 2)
+      });
 
       if (connError) {
         console.warn("[STORE] connections edge load failed (query error):", connError);
@@ -257,7 +303,7 @@ export class GraphDataStore {
             stats.connections++;
           } else {
             // Only log in debug mode
-            if (window.log?.isDebugMode?.()) {
+            if (window.log?.isDebugMode?.() || EDGE_DEBUG) {
               console.debug("Skipping connection edge (node missing)", {
                 from_user_id: conn.from_user_id,
                 to_user_id: conn.to_user_id,
@@ -279,6 +325,13 @@ export class GraphDataStore {
       const { data: projectMembers, error: pmError } = await this._supabase
         .from("project_members")
         .select("id, project_id, user_id, role");
+
+      edgeDebug("🧪 [EDGES] project_members result", {
+        ok: !pmError,
+        error: pmError,
+        count: projectMembers?.length || 0,
+        sample: (projectMembers || []).slice(0, 2)
+      });
 
       if (pmError) {
         console.warn("[STORE] project_members edge load failed (query error):", pmError);
@@ -332,6 +385,13 @@ export class GraphDataStore {
         .from("organization_members")
         .select("id, organization_id, community_id, role");
 
+      edgeDebug("🧪 [EDGES] organization_members result", {
+        ok: !omError,
+        error: omError,
+        count: orgMembers?.length || 0,
+        sample: (orgMembers || []).slice(0, 2)
+      });
+
       if (omError) {
         console.warn("[STORE] organization_members edge load failed (query error):", omError);
       } else if (orgMembers) {
@@ -377,7 +437,47 @@ export class GraphDataStore {
       console.warn("[STORE] organization_members edge load failed", err);
     }
 
-    return { edges, stats };
+    // Debug: Show edges before and after node filtering
+    edgeDebug("🧪 [EDGES] built edges (pre-filter)", {
+      count: edges.length,
+      sample: edges.slice(0, 5).map(e => ({
+        type: e.type,
+        source: edgeId(e.source),
+        target: edgeId(e.target)
+      }))
+    });
+
+    // Perform node existence filtering (defensive, edges should already be filtered above)
+    const nodeIds = new Set(this._nodes.keys());
+    const dropped = [];
+    const filtered = edges.filter((e) => {
+      const source = edgeId(e.source);
+      const target = edgeId(e.target);
+      const sourceExists = nodeIds.has(source);
+      const targetExists = nodeIds.has(target);
+
+      if (!sourceExists || !targetExists) {
+        dropped.push({ type: e.type, source, target, sourceExists, targetExists });
+        return false;
+      }
+      return true;
+    });
+
+    edgeDebug("🧪 [EDGES] edges after node-id filter", {
+      count: filtered.length,
+      dropped: edges.length - filtered.length
+    });
+
+    if (dropped.length > 0) {
+      edgeDebug("🧪 [EDGES] dropped edge examples", dropped.slice(0, 10));
+    }
+
+    edgeDebug("🧪 [EDGES] _loadEdges() end", {
+      totalEdges: filtered.length,
+      stats
+    });
+
+    return { edges: filtered, stats };
   }
 
   /**
