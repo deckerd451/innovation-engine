@@ -96,8 +96,12 @@ export class GraphDataStore {
     console.log("📊 Loading graph data...");
 
     try {
-      // Load nodes (community members)
-      const nodes = await this._loadNodes();
+      // Load nodes (community members + projects)
+      const personNodes = await this._loadNodes();
+      const projectNodes = await this._loadProjectNodes();
+      const nodes = [...personNodes, ...projectNodes];
+
+      console.log(`📊 [STORE] Loaded ${personNodes.length} people, ${projectNodes.length} projects`);
 
       // CRITICAL: Store nodes in memory BEFORE loading edges
       // Edge building checks this._nodes.has() for existence
@@ -106,6 +110,8 @@ export class GraphDataStore {
 
       edgeDebug("🧪 [EDGES] Nodes loaded and stored", {
         nodeCount: this._nodes.size,
+        personCount: personNodes.length,
+        projectCount: projectNodes.length,
         nodeIdSample: Array.from(this._nodes.keys()).slice(0, 3)
       });
 
@@ -120,7 +126,7 @@ export class GraphDataStore {
       await this._markMyNetworkNodes();
 
       // Detailed summary log
-      console.log(`📊 [STORE] Loaded ${nodes.length} nodes, ${edges.length} edges (connections=${stats.connections}, projects=${stats.projects}, orgs=${stats.orgs}) userId=${this._userId}`);
+      console.log(`📊 [STORE] Loaded ${nodes.length} nodes (${personNodes.length} people, ${projectNodes.length} projects), ${edges.length} edges (connections=${stats.connections}, projects=${stats.projects}, orgs=${stats.orgs}) userId=${this._userId}`);
 
       return { nodes, edges };
     } catch (error) {
@@ -262,6 +268,61 @@ export class GraphDataStore {
   }
 
   /**
+   * Load project nodes from database
+   * @private
+   */
+  async _loadProjectNodes() {
+    try {
+      const { data, error } = await this._supabase
+        .from("projects")
+        .select("id, title, description, status, creator_id, theme_id");
+
+      if (error) {
+        console.warn("📊 [STORE] Error loading project nodes:", error);
+        return [];
+      }
+
+      return (data || []).map((project) => ({
+        id: project.id,
+        type: "project",
+        name: project.title || "Untitled Project",
+        title: project.title,
+        description: project.description,
+        status: project.status,
+        creator_id: project.creator_id,
+        theme_id: project.theme_id,
+
+        // Physics properties (set by D3)
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+
+        // Computed properties
+        relevanceScore: 0,
+        presenceEnergy: 0,
+        effectivePull: 0,
+
+        // State flags
+        isMyNetwork: false,  // Will be determined by edges
+        isDiscovery: true,
+        isFocused: false,
+        isGuided: false,
+
+        // Metadata
+        sharedThemes: [],
+        sharedProjects: [],
+
+        // Raw data
+        _raw: project,
+      }));
+    } catch (err) {
+      console.warn("📊 [STORE] Failed to load project nodes:", err);
+      return [];
+    }
+  }
+
+  /**
    * Load edges from database (fail-soft, instrumented)
    * @private
    * @returns {Promise<{edges: Edge[], stats: Object}>}
@@ -339,9 +400,9 @@ export class GraphDataStore {
       console.warn("[STORE] connections edge load failed", err);
     }
 
-    // 2) Project membership edges (between members of same project)
+    // 2) Project membership edges (person → project)
     try {
-      console.log('📊 [STORE] Loading project member edges...');
+      console.log('📊 [STORE] Loading project membership edges...');
       const { data: projectMembers, error: pmError } = await this._supabase
         .from("project_members")
         .select("id, project_id, user_id, role");
@@ -358,41 +419,36 @@ export class GraphDataStore {
       } else if (projectMembers) {
         console.log(`📊 [STORE] Found ${projectMembers.length} project memberships`);
 
-        const projectGroups = {};
+        let skipped = 0;
         projectMembers.forEach((pm) => {
-          if (!projectGroups[pm.project_id]) projectGroups[pm.project_id] = [];
-          projectGroups[pm.project_id].push(pm.user_id);
-        });
+          const userExists = this._nodes.has(pm.user_id);
+          const projectExists = this._nodes.has(pm.project_id);
 
-        Object.entries(projectGroups).forEach(([projectId, members]) => {
-          for (let i = 0; i < members.length; i++) {
-            for (let j = i + 1; j < members.length; j++) {
-              const userA = members[i];
-              const userB = members[j];
-
-              if (this._nodes.has(userA) && this._nodes.has(userB)) {
-                const exists = edges.some((e) => {
-                  const s = edgeId(e.source);
-                  const t = edgeId(e.target);
-                  return (s === userA && t === userB) || (s === userB && t === userA);
-                });
-
-                if (!exists) {
-                  edges.push({
-                    type: "project",
-                    source: userA,
-                    target: userB,
-                    projectId: projectId,
-                    strength: 0.3,
-                    createdAt: new Date(),
-                  });
-                  stats.projects++;
-                }
-              }
+          if (userExists && projectExists) {
+            edges.push({
+              type: "project_membership",
+              source: pm.user_id,        // person
+              target: pm.project_id,     // project
+              role: pm.role,
+              strength: 0.4,
+              createdAt: new Date(),
+            });
+            stats.projects++;
+          } else {
+            skipped++;
+            skippedMissingNode++;
+            if (window.log?.isDebugMode?.() || EDGE_DEBUG) {
+              console.debug("Skipping project membership edge (node missing)", {
+                user_id: pm.user_id,
+                project_id: pm.project_id,
+                userExists,
+                projectExists,
+              });
             }
           }
         });
-        console.log(`📊 [STORE] Created ${stats.projects} project edges`);
+        console.log(`📊 [STORE] Created ${stats.projects} project membership edges (skipped ${skipped} due to missing nodes)`);
+        edgeDebug("🧪 [EDGES] Project membership edge sample", edges.filter(e => e.type === 'project_membership').slice(0, 2));
       }
     } catch (err) {
       console.warn("[STORE] project_members edge load failed", err);
