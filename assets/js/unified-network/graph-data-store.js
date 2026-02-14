@@ -220,7 +220,7 @@ export class GraphDataStore {
   }
 
   /**
-   * Load edges from database
+   * Load edges from database (fail-soft)
    * @private
    * @returns {Promise<{edges: Edge[], stats: Object}>}
    */
@@ -236,7 +236,7 @@ export class GraphDataStore {
         .eq("status", "accepted");
 
       if (connError) {
-        console.error("Error loading connection edges:", connError);
+        console.warn("[STORE] connections edge load failed (query error):", connError);
       } else if (connections) {
         connections.forEach((conn) => {
           const fromExists = this._nodes.has(conn.from_user_id);
@@ -264,8 +264,8 @@ export class GraphDataStore {
           }
         });
       }
-    } catch (e) {
-      console.error("Error loading connections:", e);
+    } catch (err) {
+      console.warn("[STORE] connections edge load failed", err);
     }
 
     // 2) Project membership edges (between members of same project)
@@ -275,7 +275,7 @@ export class GraphDataStore {
         .select("project_id, user_id");
 
       if (pmError) {
-        console.error("Error loading project member edges:", pmError);
+        console.warn("[STORE] project_members edge load failed (query error):", pmError);
       } else if (projectMembers) {
         const projectGroups = {};
         projectMembers.forEach((pm) => {
@@ -311,8 +311,8 @@ export class GraphDataStore {
           }
         });
       }
-    } catch (e) {
-      console.error("Error loading project members:", e);
+    } catch (err) {
+      console.warn("[STORE] project_members edge load failed", err);
     }
 
     // 3) Organization membership edges (between members of same org)
@@ -322,7 +322,7 @@ export class GraphDataStore {
         .select("organization_id, community_id");
 
       if (omError) {
-        console.error("Error loading org member edges:", omError);
+        console.warn("[STORE] organization_members edge load failed (query error):", omError);
       } else if (orgMembers) {
         const orgGroups = {};
         orgMembers.forEach((om) => {
@@ -358,8 +358,8 @@ export class GraphDataStore {
           }
         });
       }
-    } catch (e) {
-      console.error("Error loading organization members:", e);
+    } catch (err) {
+      console.warn("[STORE] organization_members edge load failed", err);
     }
 
     return { edges, stats };
@@ -611,6 +611,17 @@ export class GraphDataStore {
       myNetworkCount: this.getMyNetworkNodes().length,
       discoveryCount: this.getDiscoveryNodes().length,
       cacheSize: this._cache.size,
+    };
+  }
+
+  /**
+   * Get edge statistics (debug helper)
+   * @returns {Object} Edge statistics
+   */
+  getEdgeStats() {
+    return {
+      nodeCount: this._nodes.size,
+      edgeCount: this._edges.length
     };
   }
 
