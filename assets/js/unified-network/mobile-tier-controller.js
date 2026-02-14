@@ -120,6 +120,102 @@ export class MobileTierController {
   }
 
   /**
+   * Get nodes array from GraphDataStore (compatibility layer)
+   * @private
+   * @returns {Array} Array of node objects
+   */
+  _getNodesArray() {
+    if (!this._graphDataStore) return [];
+
+    // Try different accessor methods in order of preference
+    if (typeof this._graphDataStore.getAllNodes === 'function') {
+      return this._graphDataStore.getAllNodes();
+    }
+    if (typeof this._graphDataStore.getNodes === 'function') {
+      return this._graphDataStore.getNodes();
+    }
+    if (typeof this._graphDataStore.getNodesArray === 'function') {
+      return this._graphDataStore.getNodesArray();
+    }
+    if (typeof this._graphDataStore.getState === 'function') {
+      const state = this._graphDataStore.getState();
+      if (state && Array.isArray(state.nodes)) {
+        return state.nodes;
+      }
+    }
+
+    // Try direct property access
+    if (this._graphDataStore._nodes) {
+      if (this._graphDataStore._nodes instanceof Map) {
+        return Array.from(this._graphDataStore._nodes.values());
+      }
+      if (Array.isArray(this._graphDataStore._nodes)) {
+        return this._graphDataStore._nodes;
+      }
+    }
+    if (this._graphDataStore.nodes) {
+      if (this._graphDataStore.nodes instanceof Map) {
+        return Array.from(this._graphDataStore.nodes.values());
+      }
+      if (Array.isArray(this._graphDataStore.nodes)) {
+        return this._graphDataStore.nodes;
+      }
+    }
+
+    // Last resort: check debug hooks
+    if (window.__UNIFIED_NETWORK_DEBUG?.nodes) {
+      return window.__UNIFIED_NETWORK_DEBUG.nodes;
+    }
+
+    return [];
+  }
+
+  /**
+   * Get edges array from GraphDataStore (compatibility layer)
+   * @private
+   * @returns {Array} Array of edge objects
+   */
+  _getEdgesArray() {
+    if (!this._graphDataStore) return [];
+
+    // Try different accessor methods
+    if (typeof this._graphDataStore.getEdges === 'function') {
+      return this._graphDataStore.getEdges();
+    }
+    if (typeof this._graphDataStore.getLinks === 'function') {
+      return this._graphDataStore.getLinks();
+    }
+    if (typeof this._graphDataStore.getState === 'function') {
+      const state = this._graphDataStore.getState();
+      if (state) {
+        if (Array.isArray(state.edges)) return state.edges;
+        if (Array.isArray(state.links)) return state.links;
+      }
+    }
+
+    // Try direct property access
+    if (Array.isArray(this._graphDataStore._edges)) {
+      return this._graphDataStore._edges;
+    }
+    if (Array.isArray(this._graphDataStore.edges)) {
+      return this._graphDataStore.edges;
+    }
+    if (Array.isArray(this._graphDataStore._links)) {
+      return this._graphDataStore._links;
+    }
+    if (Array.isArray(this._graphDataStore.links)) {
+      return this._graphDataStore.links;
+    }
+
+    // Last resort: check debug hooks
+    if (window.__UNIFIED_NETWORK_DEBUG?.edges) {
+      return window.__UNIFIED_NETWORK_DEBUG.edges;
+    }
+
+    return [];
+  }
+
+  /**
    * Apply a tier to the graph
    * @param {string} tier - Tier to apply ('T0', 'T1', or 'T2')
    * @returns {Object} Stats about the tier application
@@ -144,11 +240,11 @@ export class MobileTierController {
 
     console.log(`🧩 [TIERS] Applying tier ${tier} (${this._tierConfig[tier].name})...`);
 
-    // Get all nodes
-    const allNodes = this._graphDataStore.getNodes();
+    // Get all nodes using safe accessor
+    const allNodes = this._getNodesArray();
     if (!allNodes || allNodes.length === 0) {
-      console.warn('🧩 [TIERS] No nodes available');
-      return { error: 'No nodes available' };
+      console.warn('🧩 [TIERS] No nodes available yet; skipping tier apply');
+      return { skipped: true, reason: 'No nodes available' };
     }
 
     // Calculate visible set based on tier
@@ -355,7 +451,7 @@ export class MobileTierController {
   reset() {
     if (!this._graphDataStore) return;
 
-    const allNodes = this._graphDataStore.getNodes();
+    const allNodes = this._getNodesArray();
     allNodes.forEach(node => {
       node._tierVisible = true;
     });
@@ -372,7 +468,7 @@ export class MobileTierController {
       return { error: 'Graph data store not available' };
     }
 
-    const allNodes = this._graphDataStore.getNodes();
+    const allNodes = this._getNodesArray();
     const visibleNodes = allNodes.filter(n => n._tierVisible !== false);
 
     return {
