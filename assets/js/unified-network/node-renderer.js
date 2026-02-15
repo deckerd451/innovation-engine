@@ -54,13 +54,26 @@ export class NodeRenderer {
       }
     }
 
-    // Create or get node group INSIDE the zoom container
-    this._nodeGroup = zoomContainer.select('.nodes');
-    if (this._nodeGroup.empty()) {
-      this._nodeGroup = zoomContainer.append('g').attr('class', 'nodes');
-      console.log('✅ Created .nodes group inside zoom container');
-    } else {
-      console.log('✅ Found existing .nodes group inside zoom container');
+    // ✅ CRITICAL FIX: Remove ALL existing .nodes groups to prevent duplicates
+    // This can happen if:
+    // 1. Legacy synapse renderer created one
+    // 2. Multiple initializations occurred
+    // 3. Hot reload/refresh without cleanup
+    const existingNodesGroups = svg.querySelectorAll('.nodes');
+    if (existingNodesGroups.length > 0) {
+      console.warn(`⚠️ Found ${existingNodesGroups.length} existing .nodes groups - removing all to prevent duplicates`);
+      existingNodesGroups.forEach(group => group.remove());
+    }
+
+    // Create exactly ONE .nodes group INSIDE the zoom container
+    this._nodeGroup = zoomContainer.append('g').attr('class', 'nodes');
+    console.log('✅ Created single .nodes group inside zoom container');
+
+    // ✅ SAFETY CHECK: Verify only one .nodes group exists
+    const finalNodesGroups = svg.querySelectorAll('.nodes');
+    console.log(`📊 Node groups after init: ${finalNodesGroups.length} (must be exactly 1)`);
+    if (finalNodesGroups.length !== 1) {
+      console.error(`🚨 DUPLICATE .nodes GROUPS DETECTED: ${finalNodesGroups.length} groups exist!`);
     }
 
     // Update viewport on resize
@@ -218,12 +231,17 @@ export class NodeRenderer {
       }
     }
 
-    // Bind data
+    // ✅ CRITICAL: Proper enter/update/exit pattern with STABLE key binding
+    // Key function (d => d.id) ensures each node is bound to its ID
+    // This prevents duplicates and ensures proper updates
     const nodeSelection = this._nodeGroup
       .selectAll('.node')
-      .data(visibleNodes, d => d.id);
+      .data(visibleNodes, d => d.id); // ← Stable key binding by ID
 
-    // Enter
+    // ✅ EXIT: Remove nodes that are no longer in data (BEFORE enter)
+    nodeSelection.exit().remove();
+
+    // ✅ ENTER: Create new nodes that don't exist yet
     const nodeEnter = nodeSelection.enter()
       .append('g')
       .attr('class', 'node')
@@ -249,7 +267,7 @@ export class NodeRenderer {
       .attr('clip-path', 'circle()')
       .style('pointer-events', 'all'); // ✅ Ensure image is clickable
 
-    // Merge enter + update
+    // ✅ UPDATE: Merge enter + existing nodes for updates
     const nodeMerge = nodeEnter.merge(nodeSelection);
 
     // Update positions with GPU acceleration (CSS transforms)
@@ -306,11 +324,14 @@ export class NodeRenderer {
         return visualState.radius * 2;
       });
 
-    // Exit
-    nodeSelection.exit().remove();
+    // ✅ Note: exit().remove() was already called above (before enter)
+    // This ensures removed nodes are cleaned up before new ones are added
 
     // ✅ ORPHAN DETECTION: Check for nodes outside the zoom container (debug mode only)
     this._detectOrphanNodes();
+
+    // ✅ DUPLICATE DETECTION: Check for duplicate data-node-id attributes (debug mode only)
+    this._detectDuplicateNodes();
 
     // ✅ THROTTLED LOGGING: Only log when debug mode enabled or significant change
     this._logRenderStats(visibleNodes.length, nodes.length);
@@ -394,6 +415,59 @@ export class NodeRenderer {
              isFinite(node.x) &&
              isFinite(node.y);
     });
+  }
+
+  /**
+   * Detect duplicate nodes (multiple .node elements with same data-node-id)
+   * Only runs in debug mode to avoid performance impact
+   * @private
+   */
+  _detectDuplicateNodes() {
+    // Only run in debug mode
+    const debugMode = window.location.search.includes('debug=1') ||
+                     window.localStorage.getItem('debug_mode') === 'true' ||
+                     window.localStorage.getItem('ie_debug') === '1';
+
+    if (!debugMode || !this._svg) return;
+
+    try {
+      const allNodeElements = Array.from(this._svg.querySelectorAll('.node'));
+      const nodeIdCounts = new Map();
+
+      // Count occurrences of each data-node-id
+      allNodeElements.forEach(el => {
+        const nodeId = el.getAttribute('data-node-id');
+        if (nodeId) {
+          nodeIdCounts.set(nodeId, (nodeIdCounts.get(nodeId) || 0) + 1);
+        }
+      });
+
+      // Find duplicates
+      const duplicates = Array.from(nodeIdCounts.entries())
+        .filter(([id, count]) => count > 1);
+
+      if (duplicates.length > 0) {
+        console.error(`🚨 DUPLICATE NODES DETECTED: ${duplicates.length} nodes rendered multiple times!`);
+        console.table(duplicates.map(([id, count]) => ({
+          nodeId: id,
+          duplicateCount: count,
+          totalRendered: count
+        })));
+
+        // Find and log the duplicate elements
+        duplicates.slice(0, 3).forEach(([id, count]) => {
+          const dupes = Array.from(this._svg.querySelectorAll(`.node[data-node-id="${id}"]`));
+          console.warn(`   Node ${id}: ${dupes.length} instances found`);
+          dupes.forEach((el, i) => {
+            const data = el.__data__;
+            console.log(`     [${i}] Parent: ${el.parentElement?.className?.baseVal}, Data:`, data);
+          });
+        });
+      }
+    } catch (err) {
+      // Silently fail - debug feature should not break rendering
+      console.debug('Duplicate detection failed:', err);
+    }
   }
 
   /**
