@@ -69,6 +69,8 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
     integrationState.initialized = false;
     integrationState.initializing = false;
     integrationState.error = null;
+    // Remove body attribute if disabled
+    document.body.removeAttribute('data-unified-network');
     return false;
   }
 
@@ -156,6 +158,9 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
     integrationState.initialized = true;
     integrationState.usingUnifiedNetwork = true;
 
+    // Set body attribute for mobile CSS scoping
+    document.body.setAttribute('data-unified-network', 'on');
+
     logger.info(INTEGRATION_NS, '✅ Unified network initialized successfully', { communityId });
 
 // Install tier probe for mobile debugging (idempotent)
@@ -183,6 +188,9 @@ try {
     integrationState.fallbackToLegacy = true;
     integrationState.usingUnifiedNetwork = false;
     integrationState.initialized = false;
+
+    // Remove body attribute on error
+    document.body.removeAttribute('data-unified-network');
 
     safelyStopPerfInterval();
     showErrorNotification('Network visualization failed to load. Using fallback mode.');

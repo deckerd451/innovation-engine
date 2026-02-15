@@ -134,9 +134,12 @@ export class OnboardingManager {
         padding: 24px;
         border-radius: 12px;
         max-width: 400px;
+        width: 90%;
         z-index: 10000;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         animation: tooltip-fade-in 0.3s ease-out;
+        overflow: auto;
+        overscroll-behavior: contain;
       }
       
       .unified-network-tooltip.tooltip-closing {
@@ -213,6 +216,46 @@ export class OnboardingManager {
       
       .tooltip-close:active {
         background: #3377ee;
+      }
+
+      /* Mobile-specific improvements */
+      @media (max-width: 768px) {
+        .unified-network-tooltip {
+          width: 90%;
+          max-width: calc(100vw - 32px);
+          padding: 20px;
+        }
+
+        .tooltip-content h3 {
+          font-size: 1.5rem;
+        }
+
+        .tooltip-content p,
+        .tooltip-content li {
+          font-size: 0.95rem;
+        }
+
+        .tooltip-close {
+          min-height: 48px;
+          touch-action: manipulation;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .unified-network-tooltip {
+          width: 95%;
+          max-width: calc(100vw - 16px);
+          padding: 16px;
+        }
+
+        .tooltip-content h3 {
+          font-size: 1.25rem;
+        }
+
+        .tooltip-content p,
+        .tooltip-content li {
+          font-size: 0.9rem;
+        }
       }
     `;
     
