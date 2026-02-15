@@ -475,12 +475,20 @@ try {
   }
 
   /**
-   * Get current system state
-   * @returns {SystemState}
+   * Get current system state (including tier info)
+   * @returns {SystemState & { currentTier: string, tierEnabled: boolean }}
    */
   getState() {
     this._ensureInitialized();
-    return this._stateManager.getState();
+
+    const state = this._stateManager.getState();
+
+    // ✅ Augment state with tier information for debugging
+    return {
+      ...state,
+      currentTier: this._mobileTierController?.getTier() || 'T2',
+      tierEnabled: this._mobileTierController?.isEnabled() || false
+    };
   }
 
   /**
@@ -509,8 +517,29 @@ try {
    */
   focusNode(nodeId, options = {}) {
     this._ensureInitialized();
-    console.log(`🎯 Focusing on node: ${nodeId}`, options);
-    // TODO: Implement focus logic
+
+    if (!nodeId) {
+      console.warn('⚠️ focusNode called without nodeId');
+      return;
+    }
+
+    const node = this._graphDataStore.getNode(nodeId);
+    if (!node) {
+      console.warn(`⚠️ focusNode called with unknown node: ${nodeId}`);
+      return;
+    }
+
+    // ✅ CRITICAL: Persist focus to StateManager (the single source of truth)
+    this._stateManager.setFocusedNode(nodeId);
+
+    console.log(`🎯 Focus set: ${nodeId} (${node.name || node.type})`, options);
+
+    // Apply visual dimming if requested (not on mobile by default to avoid confusion)
+    if (options.applyDimming && this._nodeRenderer) {
+      const allNodes = this._graphDataStore.getAllNodes();
+      this._nodeRenderer.applyFocusDimming(allNodes, nodeId);
+    }
+
     this.emit('node-focused', { nodeId, options });
   }
 
@@ -530,8 +559,26 @@ try {
   resetToMyNetwork() {
     this._ensureInitialized();
     console.log('🔄 Resetting to My Network state');
-    // TODO: Implement reset logic
+
+    // ✅ Clear focus when resetting to My Network
+    this.clearFocus();
+
     this.emit('reset-to-my-network');
+  }
+
+  /**
+   * Clear current focus
+   */
+  clearFocus() {
+    this._ensureInitialized();
+
+    const previousFocus = this._stateManager.getState().currentFocusedNodeId;
+    if (previousFocus) {
+      console.log(`🔄 Focus cleared (was: ${previousFocus})`);
+    }
+
+    this._stateManager.setFocusedNode(null);
+    this.emit('focus-cleared', { previousNodeId: previousFocus });
   }
 
   /**
@@ -968,9 +1015,17 @@ try {
     this._interactionHandler.on('node-tapped', ({ nodeId }) => {
       const node = this._graphDataStore.getNode(nodeId);
       if (node) {
+        // ✅ CRITICAL FIX: Persist focus to state when node is tapped
+        this.focusNode(nodeId, { source: 'tap' });
+
         const action = this._interactionHandler.presentAction(node);
         this.emit('node-action-requested', { node, action });
       }
+    });
+
+    // Background tapped - clear focus
+    this._interactionHandler.on('background-clicked', () => {
+      this.clearFocus();
     });
 
     // Node dismissed
