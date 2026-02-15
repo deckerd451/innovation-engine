@@ -202,7 +202,9 @@ export class StateManager {
       return;
     }
 
-    console.log('🔍 Transitioning to Discovery state');
+    const currentFocus = this._state.currentFocusedNodeId;
+    console.log('🔍 Transitioning to Discovery state',
+      currentFocus ? `(preserving focus: ${currentFocus})` : '(no focus)');
 
     this._state.mode = SystemMode.Transitioning;
     this.emit('mode-changing', { from: SystemMode.MyNetwork, to: SystemMode.Discovery });
@@ -212,7 +214,13 @@ export class StateManager {
       this._state.mode = SystemMode.Discovery;
       this._lastTransitionTime = Date.now();
       this.emit('mode-changed', { mode: SystemMode.Discovery });
-      console.log('✅ Transitioned to Discovery state');
+
+      // ✅ Log focus preservation
+      if (this._state.currentFocusedNodeId) {
+        console.log(`✅ Transitioned to Discovery (focus preserved: ${this._state.currentFocusedNodeId})`);
+      } else {
+        console.log('✅ Transitioned to Discovery state');
+      }
     }, 100);
   }
 
@@ -225,7 +233,9 @@ export class StateManager {
       return;
     }
 
-    console.log('🏠 Transitioning to My Network state');
+    const currentFocus = this._state.currentFocusedNodeId;
+    console.log('🏠 Transitioning to My Network state',
+      currentFocus ? `(preserving focus: ${currentFocus})` : '(no focus)');
 
     this._state.mode = SystemMode.Transitioning;
     this.emit('mode-changing', { from: SystemMode.Discovery, to: SystemMode.MyNetwork });
@@ -239,7 +249,13 @@ export class StateManager {
       this._state.mode = SystemMode.MyNetwork;
       this._lastTransitionTime = Date.now();
       this.emit('mode-changed', { mode: SystemMode.MyNetwork });
-      console.log('✅ Transitioned to My Network state');
+
+      // ✅ Log focus preservation
+      if (this._state.currentFocusedNodeId) {
+        console.log(`✅ Transitioned to My Network (focus preserved: ${this._state.currentFocusedNodeId})`);
+      } else {
+        console.log('✅ Transitioned to My Network state');
+      }
     }, 100);
   }
 
@@ -347,10 +363,17 @@ export class StateManager {
     this._state.currentFocusedNodeId = nodeId;
     this._state.isDefaultUserFocus = false;
 
-    this.emit('focus-changed', { 
-      nodeId, 
+    // ✅ Guarded logging: Track focus changes
+    if (nodeId) {
+      console.log(`🎯 [StateManager] Focus SET: ${nodeId} (was: ${previousNodeId || 'none'})`);
+    } else {
+      console.log(`🔄 [StateManager] Focus CLEARED (was: ${previousNodeId || 'none'})`);
+    }
+
+    this.emit('focus-changed', {
+      nodeId,
       previousNodeId,
-      isDefaultUserFocus: false 
+      isDefaultUserFocus: false
     });
   }
 
