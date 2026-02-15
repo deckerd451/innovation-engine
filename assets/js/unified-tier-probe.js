@@ -386,6 +386,7 @@ export class UnifiedTierProbe {
   _attemptTierApplication(tier) {
     const targets = [
       { obj: this.refs.api, prefix: 'api' },
+      { obj: this.refs.api?._mobileTierController, prefix: 'api._mobileTierController' },
       { obj: this.refs.renderer, prefix: 'renderer' },
       { obj: this.refs.api?._visibilityController, prefix: 'visibilityController' },
       { obj: window.tierController, prefix: 'window.tierController' }
@@ -399,8 +400,26 @@ export class UnifiedTierProbe {
       for (const name of methodNames) {
         if (typeof obj[name] === 'function') {
           try {
-            obj[name](tier);
+            const result = obj[name](tier);
 
+            // Check if the result indicates an error or skip
+            if (result && typeof result === 'object') {
+              if (result.error) {
+                console.warn(`📱 UnifiedTierProbe: ${prefix}.${name}(${tier}) returned error:`, result.error);
+                this.metrics.errors.push({
+                  method: `${prefix}.${name}`,
+                  error: result.error
+                });
+                continue; // Try next method
+              }
+
+              if (result.skipped) {
+                console.log(`📱 UnifiedTierProbe: ${prefix}.${name}(${tier}) skipped:`, result.reason || 'unknown');
+                continue; // Try next method
+              }
+            }
+
+            // Success!
             this.metrics.tierApplies++;
             this.metrics.lastTierApplyTarget = `${prefix}.${name}`;
             this.metrics.lastTierApplyTime = Date.now();
