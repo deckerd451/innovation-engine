@@ -28,6 +28,7 @@ export class NodeRenderer {
     this._lastLoggedTotal = -1;
     this._logThrottleMs = 2000; // Log at most once per 2 seconds
     this._lastTierLogTime = 0; // For tier filtering logs
+    this._lastOrphanCheckPassed = false; // For orphan detection logging
   }
 
   /**
@@ -36,11 +37,30 @@ export class NodeRenderer {
    */
   initialize(svg) {
     this._svg = svg;
-    
-    // Create or get node group
-    this._nodeGroup = window.d3.select(svg).select('.nodes');
+
+    // CRITICAL: Create node group inside the zoom-transformed container (.synapse-container)
+    // so that nodes zoom/pan with the graph instead of appearing screen-fixed
+    const svgSelection = window.d3.select(svg);
+
+    // Find or create the zoom container (synapse uses .synapse-container)
+    let zoomContainer = svgSelection.select('.synapse-container');
+    if (zoomContainer.empty()) {
+      // If no synapse-container exists, look for any zoom container
+      zoomContainer = svgSelection.select('[class*="container"]');
+      if (zoomContainer.empty()) {
+        // Last resort: create our own zoom container
+        console.warn('⚠️ No zoom container found - creating one');
+        zoomContainer = svgSelection.append('g').attr('class', 'unified-zoom-container');
+      }
+    }
+
+    // Create or get node group INSIDE the zoom container
+    this._nodeGroup = zoomContainer.select('.nodes');
     if (this._nodeGroup.empty()) {
-      this._nodeGroup = window.d3.select(svg).append('g').attr('class', 'nodes');
+      this._nodeGroup = zoomContainer.append('g').attr('class', 'nodes');
+      console.log('✅ Created .nodes group inside zoom container');
+    } else {
+      console.log('✅ Found existing .nodes group inside zoom container');
     }
 
     // Update viewport on resize
@@ -53,16 +73,16 @@ export class NodeRenderer {
         };
       }
     };
-    
+
     window.addEventListener('resize', updateViewport);
-    
+
     // Update viewport on visibility change (tab switching)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
         updateViewport();
       }
     });
-    
+
     // Initial viewport update
     updateViewport();
 
@@ -207,22 +227,27 @@ export class NodeRenderer {
     const nodeEnter = nodeSelection.enter()
       .append('g')
       .attr('class', 'node')
-      .attr('data-node-id', d => d.id);
+      .attr('data-node-id', d => d.id)
+      .style('pointer-events', 'all') // ✅ CRITICAL: Enable pointer events for tap/click detection
+      .style('cursor', 'pointer');
 
     // Add circle
     nodeEnter.append('circle')
-      .attr('class', 'node-circle');
+      .attr('class', 'node-circle')
+      .style('pointer-events', 'all'); // ✅ Ensure circle is clickable
 
     // Add glow filter
     nodeEnter.append('circle')
       .attr('class', 'node-glow')
-      .attr('filter', 'url(#glow)');
+      .attr('filter', 'url(#glow)')
+      .style('pointer-events', 'none'); // ✅ Glow should not intercept clicks
 
     // Add image or text
     nodeEnter.append('image')
       .attr('class', 'node-image')
       .attr('xlink:href', d => d.imageUrl || '')
-      .attr('clip-path', 'circle()');
+      .attr('clip-path', 'circle()')
+      .style('pointer-events', 'all'); // ✅ Ensure image is clickable
 
     // Merge enter + update
     const nodeMerge = nodeEnter.merge(nodeSelection);
@@ -283,6 +308,9 @@ export class NodeRenderer {
 
     // Exit
     nodeSelection.exit().remove();
+
+    // ✅ ORPHAN DETECTION: Check for nodes outside the zoom container (debug mode only)
+    this._detectOrphanNodes();
 
     // ✅ THROTTLED LOGGING: Only log when debug mode enabled or significant change
     this._logRenderStats(visibleNodes.length, nodes.length);
@@ -366,6 +394,68 @@ export class NodeRenderer {
              isFinite(node.x) &&
              isFinite(node.y);
     });
+  }
+
+  /**
+   * Detect orphan nodes (nodes rendered outside the zoom container)
+   * Only runs in debug mode to avoid performance impact
+   * @private
+   */
+  _detectOrphanNodes() {
+    // Only run in debug mode
+    const debugMode = window.location.search.includes('debug=1') ||
+                     window.localStorage.getItem('debug_mode') === 'true' ||
+                     window.localStorage.getItem('ie_debug') === '1';
+
+    if (!debugMode || !this._svg || !this._nodeGroup) return;
+
+    try {
+      // Count all .node elements in the entire SVG
+      const totalNodes = this._svg.querySelectorAll('.node').length;
+
+      // Count .node elements inside our nodeGroup
+      const nodeGroupElement = this._nodeGroup.node();
+      const inGroup = nodeGroupElement ? nodeGroupElement.querySelectorAll('.node').length : 0;
+
+      // Calculate orphans
+      const orphans = totalNodes - inGroup;
+
+      if (orphans > 0) {
+        console.warn(`🚨 ORPHAN NODES DETECTED: ${orphans} nodes outside zoom container!`);
+        console.warn(`   Total .node elements in SVG: ${totalNodes}`);
+        console.warn(`   Nodes inside zoom container: ${inGroup}`);
+
+        // Find and report orphan details
+        const allNodeEls = Array.from(this._svg.querySelectorAll('.node'));
+        const orphanEls = allNodeEls.filter(el => !nodeGroupElement.contains(el));
+
+        if (orphanEls.length > 0) {
+          const orphanInfo = orphanEls.slice(0, 5).map(el => {
+            const data = el.__data__;
+            return {
+              id: data?.id || 'unknown',
+              type: data?.type || 'unknown',
+              name: data?.name || 'unknown',
+              parent: el.parentElement?.className?.baseVal || 'unknown'
+            };
+          });
+
+          console.table(orphanInfo);
+          if (orphanEls.length > 5) {
+            console.warn(`   ... and ${orphanEls.length - 5} more orphans`);
+          }
+        }
+      } else if (totalNodes > 0) {
+        // All good - only log once when nodes appear
+        if (!this._lastOrphanCheckPassed) {
+          console.log(`✅ All ${totalNodes} nodes are inside zoom container (no orphans)`);
+          this._lastOrphanCheckPassed = true;
+        }
+      }
+    } catch (err) {
+      // Silently fail - debug feature should not break rendering
+      console.debug('Orphan detection failed:', err);
+    }
   }
 
   /**

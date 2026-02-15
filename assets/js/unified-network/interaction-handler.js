@@ -115,6 +115,16 @@ export class InteractionHandler {
    * @private
    */
   _handleClick(event) {
+    // First, try to find node via event delegation (check if click was on a .node element)
+    const nodeElement = event.target?.closest?.('.node');
+    if (nodeElement?.__data__) {
+      const node = nodeElement.__data__;
+      this.handleNodeTap(node.id, event);
+      this._markInteraction();
+      return;
+    }
+
+    // Fallback: use coordinates for hit testing
     const pt = this._getPointerInSvg(event);
     if (!pt) return;
 
@@ -167,7 +177,17 @@ export class InteractionHandler {
 
     if (!isTap) return;
 
-    // Treat tap like a click at the touch location (but DO NOT call d3.pointer with TouchEvent)
+    // First, try to find node via event delegation (check if tap was on a .node element)
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    const nodeElement = targetElement?.closest?.('.node');
+    if (nodeElement?.__data__) {
+      const node = nodeElement.__data__;
+      this.handleNodeTap(node.id, event);
+      this._markInteraction();
+      return;
+    }
+
+    // Fallback: use coordinates for hit testing
     const pt = this._getPointerInSvg(event);
     if (!pt) return;
 
