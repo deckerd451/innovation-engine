@@ -1,0 +1,418 @@
+/**
+ * Mobile Safe Area + HUD Layout Contract
+ * ========================================
+ * Fixes overlap issues on mobile (iOS notch, Android nav bars) when Unified Network is enabled.
+ *
+ * Goals:
+ * 1. Reserve space for safe-area-inset (notch, status bar, navigation bar)
+ * 2. Define consistent HUD heights for top and bottom overlays
+ * 3. Establish z-index layering to prevent UI elements from blocking each other
+ * 4. Scope all fixes to mobile viewport + unified network enabled
+ */
+
+/* ============================================================================
+   1. CSS VARIABLES - Safe Area + HUD Layout Contract
+   ============================================================================ */
+
+:root {
+  /* Safe area insets from device (iOS notch, Android nav bars) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /* HUD overlay heights (app-specific padding for controls) */
+  --hud-top: 60px;        /* Height reserved for top controls */
+  --hud-bottom: 220px;    /* Height reserved for bottom stack (pills + search + spacing) */
+
+  /* Mobile viewport height (100dvh fallback) */
+  --mobile-vh: 100vh;
+
+  /* Z-index scale */
+  --z-background: 0;
+  --z-graph: 10;
+  --z-hud: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+}
+
+/* Support for dynamic viewport height (dvh) where available */
+@supports (height: 100dvh) {
+  :root {
+    --mobile-vh: 100dvh;
+  }
+}
+
+
+/* ============================================================================
+   2. Z-INDEX LAYERING SCALE
+   ============================================================================ */
+
+/* Background canvas / graph (lowest) */
+#synapse-svg,
+#synapse-container,
+.unified-main {
+  z-index: var(--z-graph) !important;
+}
+
+/* HUD controls (top + bottom) */
+.mobile-top-hud,
+.mobile-bottom-stack,
+#centered-search-container,
+#btn-admin-top-left,
+#btn-admin-top-right {
+  z-index: var(--z-hud) !important;
+}
+
+/* Panels / modals / onboarding */
+.unified-network-tooltip,
+.unified-network-preferences,
+.modal.active,
+.ch-modal-overlay,
+#network-filters-overlay {
+  z-index: var(--z-modal) !important;
+}
+
+/* Toasts / notifications (highest) */
+.unified-network-notification,
+.xp-notification {
+  z-index: var(--z-toast) !important;
+}
+
+
+/* ============================================================================
+   3. MOBILE-ONLY + UNIFIED NETWORK SCOPING
+   ============================================================================
+
+   Apply fixes only when:
+   - Viewport is mobile (max-width: 768px)
+   - Unified network is enabled (body has data-unified-network="on")
+*/
+
+@media (max-width: 768px) {
+
+  /* Apply when unified network is ON */
+  body[data-unified-network="on"] {
+
+    /* ========================================================================
+       4. TOP REGION - HUD with Safe Area
+       ======================================================================== */
+
+    /* Top-left admin button: position below safe area */
+    #btn-admin-top-left {
+      position: fixed !important;
+      top: var(--safe-top) !important;
+      left: var(--safe-left) !important;
+      z-index: var(--z-hud) !important;
+      margin: 8px !important;
+    }
+
+    /* Top-right controls (if any exist) */
+    #btn-admin-top-right,
+    .top-right-controls {
+      position: fixed !important;
+      top: var(--safe-top) !important;
+      right: var(--safe-right) !important;
+      z-index: var(--z-hud) !important;
+      margin: 8px !important;
+    }
+
+
+    /* ========================================================================
+       5. BOTTOM REGION - Single Stack Container
+       ========================================================================
+
+       Refactor bottom area to use a single container with flex column layout.
+       This prevents overlap between filter pills, "Got it!" button, and search.
+    */
+
+    #centered-search-container {
+      position: fixed !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      transform: none !important;
+      width: 100% !important;
+      max-width: 100% !important;
+
+      /* Stack children vertically */
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 0.75rem !important;
+
+      /* Safe area padding at bottom */
+      padding: 0 12px calc(var(--safe-bottom) + 12px) 12px !important;
+
+      /* Z-index from HUD scale */
+      z-index: var(--z-hud) !important;
+
+      /* Prevent clicks from passing through */
+      pointer-events: auto !important;
+    }
+
+    /* Filter pills row */
+    #centered-search-container > div:first-child {
+      width: 100% !important;
+      display: flex !important;
+      flex-wrap: wrap !important;
+      justify-content: center !important;
+      gap: 0.5rem !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    /* Search container */
+    #search-container {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+    }
+
+    /* Ensure filter buttons are tappable */
+    .search-category-btn {
+      min-height: 44px !important;
+      touch-action: manipulation !important;
+    }
+
+
+    /* ========================================================================
+       6. NETWORK DISCOVERY ONBOARDING CARD
+       ========================================================================
+
+       Position the "Welcome to Network Discovery" modal within safe bounds.
+       Ensure it doesn't collide with top HUD or bottom stack.
+    */
+
+    .unified-network-tooltip {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+
+      /* Calculate max height to avoid HUD collision */
+      max-height: calc(
+        var(--mobile-vh)
+        - var(--hud-top)
+        - var(--hud-bottom)
+        - var(--safe-top)
+        - var(--safe-bottom)
+        - 24px
+      ) !important;
+
+      /* Enable internal scrolling if content is tall */
+      overflow: auto !important;
+      overscroll-behavior: contain !important;
+
+      /* Width */
+      max-width: calc(100vw - 32px) !important;
+      width: 90% !important;
+
+      /* Z-index from modal scale */
+      z-index: var(--z-modal) !important;
+
+      /* Ensure content is readable */
+      margin: 0 !important;
+    }
+
+    /* Tooltip content should not exceed bounds */
+    .tooltip-content {
+      max-height: 100% !important;
+      overflow: visible !important;
+      padding: 20px !important;
+    }
+
+    /* Got it! button stays at bottom of modal */
+    .tooltip-close {
+      position: sticky !important;
+      bottom: 0 !important;
+      margin-top: 16px !important;
+      min-height: 48px !important;
+      touch-action: manipulation !important;
+    }
+
+
+    /* ========================================================================
+       7. PREFERENCES PANEL - Safe Area Support
+       ======================================================================== */
+
+    .unified-network-preferences {
+      /* Already has z-index from modal scale */
+      z-index: var(--z-modal) !important;
+    }
+
+    .preferences-content {
+      max-height: calc(
+        var(--mobile-vh)
+        - var(--safe-top)
+        - var(--safe-bottom)
+        - 40px
+      ) !important;
+      overflow: auto !important;
+      overscroll-behavior: contain !important;
+    }
+
+
+    /* ========================================================================
+       8. SEARCH SUGGESTIONS - Position Above Search on Mobile
+       ======================================================================== */
+
+    #search-suggestions {
+      /* Position above search to avoid keyboard overlap */
+      top: auto !important;
+      bottom: calc(100% + 0.5rem) !important;
+
+      /* Safe max height */
+      max-height: calc(
+        var(--mobile-vh)
+        - var(--hud-top)
+        - var(--hud-bottom)
+        - var(--safe-top)
+        - var(--safe-bottom)
+        - 80px
+      ) !important;
+
+      /* Z-index should be above HUD but below modal */
+      z-index: calc(var(--z-hud) + 10) !important;
+    }
+
+
+    /* ========================================================================
+       9. NETWORK FILTERS MODAL - Safe Area Support
+       ======================================================================== */
+
+    #network-filters-overlay .ch-modal-panel {
+      max-height: calc(
+        var(--mobile-vh)
+        - var(--safe-top)
+        - var(--safe-bottom)
+        - 20px
+      ) !important;
+    }
+
+    #network-filters-overlay .ch-modal-footer {
+      padding-bottom: calc(12px + var(--safe-bottom)) !important;
+    }
+
+
+    /* ========================================================================
+       10. ENSURE TAPPABLE AREAS (44x44px minimum for accessibility)
+       ======================================================================== */
+
+    button,
+    .btn,
+    .ch-btn,
+    .search-category-btn,
+    .tooltip-close,
+    .ch-modal-close {
+      min-height: 44px !important;
+      min-width: 44px !important;
+      touch-action: manipulation !important;
+    }
+
+  } /* end body[data-unified-network="on"] */
+
+} /* end @media (max-width: 768px) */
+
+
+/* ============================================================================
+   11. EXTRA SMALL DEVICES (iPhone SE, small Android)
+   ============================================================================ */
+
+@media (max-width: 480px) {
+
+  body[data-unified-network="on"] {
+
+    /* Tighter bottom stack spacing */
+    #centered-search-container {
+      gap: 0.5rem !important;
+      padding: 0 8px calc(var(--safe-bottom) + 8px) 8px !important;
+    }
+
+    /* Smaller filter buttons */
+    .search-category-btn {
+      padding: 0.4rem 0.8rem !important;
+      font-size: 0.75rem !important;
+    }
+
+    /* Reduce HUD height for small screens */
+    :root {
+      --hud-bottom: 200px;
+    }
+
+    /* Smaller onboarding modal */
+    .unified-network-tooltip {
+      width: 95% !important;
+      max-width: calc(100vw - 16px) !important;
+    }
+
+    .tooltip-content {
+      padding: 16px !important;
+    }
+
+    .tooltip-content h3 {
+      font-size: 1.25rem !important;
+    }
+
+    .tooltip-content p,
+    .tooltip-content li {
+      font-size: 0.9rem !important;
+    }
+
+  }
+
+}
+
+
+/* ============================================================================
+   12. LANDSCAPE MODE (Mobile devices in landscape)
+   ============================================================================ */
+
+@media (max-width: 768px) and (orientation: landscape) {
+
+  body[data-unified-network="on"] {
+
+    /* Reduce HUD heights for landscape */
+    :root {
+      --hud-top: 50px;
+      --hud-bottom: 180px;
+    }
+
+    /* Make onboarding modal scrollable in landscape */
+    .unified-network-tooltip {
+      max-height: calc(var(--mobile-vh) - 80px) !important;
+    }
+
+  }
+
+}
+
+
+/* ============================================================================
+   13. UTILITY CLASSES
+   ============================================================================ */
+
+/* Prevent content from being under safe area */
+.safe-area-top {
+  padding-top: var(--safe-top) !important;
+}
+
+.safe-area-bottom {
+  padding-bottom: var(--safe-bottom) !important;
+}
+
+.safe-area-left {
+  padding-left: var(--safe-left) !important;
+}
+
+.safe-area-right {
+  padding-right: var(--safe-right) !important;
+}
+
+/* Full safe area padding */
+.safe-area-all {
+  padding-top: var(--safe-top) !important;
+  padding-right: var(--safe-right) !important;
+  padding-bottom: var(--safe-bottom) !important;
+  padding-left: var(--safe-left) !important;
+}
