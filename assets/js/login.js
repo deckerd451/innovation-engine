@@ -139,7 +139,7 @@ async function oauthLogin(provider) {
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: window.location.origin + "/2card.html"
+      redirectTo: "https://deckerd451.github.io/innovation-engine/index.html"
     }
   });
 

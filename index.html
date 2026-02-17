@@ -638,6 +638,44 @@
         </button>
       </div>
 
+      <!-- Email / Password Login -->
+      <div id="email-auth-section" style="margin-top:1.5rem; width:100%;">
+        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.25rem;">
+          <hr style="flex:1; border:none; border-top:1px solid rgba(255,255,255,0.15);">
+          <span style="color:#888; font-size:0.85rem; white-space:nowrap;">or sign in with email</span>
+          <hr style="flex:1; border:none; border-top:1px solid rgba(255,255,255,0.15);">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+          <input id="email-input" type="email" placeholder="Email address"
+            style="width:100%; padding:0.875rem 1rem; background:rgba(255,255,255,0.07);
+            border:1px solid rgba(0,224,255,0.25); border-radius:8px; color:#fff;
+            font-size:1rem; outline:none; box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(0,224,255,0.6)'"
+            onblur="this.style.borderColor='rgba(0,224,255,0.25)'" />
+          <input id="password-input" type="password" placeholder="Password"
+            style="width:100%; padding:0.875rem 1rem; background:rgba(255,255,255,0.07);
+            border:1px solid rgba(0,224,255,0.25); border-radius:8px; color:#fff;
+            font-size:1rem; outline:none; box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(0,224,255,0.6)'"
+            onblur="this.style.borderColor='rgba(0,224,255,0.25)'" />
+          <div id="email-auth-msg" style="display:none; font-size:0.875rem; text-align:left; padding:0.25rem 0;"></div>
+          <button id="email-login-btn" class="oauth-btn"
+            style="background:linear-gradient(135deg,rgba(0,224,255,0.1),rgba(0,128,255,0.1));
+            border-color:rgba(0,224,255,0.35);">
+            <span class="oauth-icon-circle">
+              <i class="fas fa-envelope"></i>
+            </span>
+            Sign in with Email
+          </button>
+          <div style="text-align:right; margin-top:0.1rem;">
+            <a id="forgot-password-link" href="#"
+              style="color:#00e0ff; font-size:0.875rem; text-decoration:none; opacity:0.75;"
+              onmouseover="this.style.opacity='1'"
+              onmouseout="this.style.opacity='0.75'">Forgot password?</a>
+          </div>
+        </div>
+      </div>
+
       <div id="login-hint" style="margin-top: 1rem; color: #aaa; font-size: 0.9rem;"></div>
     </div>
   </div>
