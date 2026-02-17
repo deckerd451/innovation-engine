@@ -1,232 +1,96 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Reset Password — CharlestonHacks Innovation Engine</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
-      color: #fff;
-      padding: 1rem;
-    }
+  const supabaseUrl = "https://mqbsjlgnsirqsmfnreqd.supabase.co";
+  const supabaseAnonKey = "sb_publishable_hKGoZiLtCe6BxgQjG23h2Q_hbGC-At3";
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    .card {
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(0, 224, 255, 0.3);
-      border-radius: 12px;
-      padding: 2.5rem;
-      width: 100%;
-      max-width: 440px;
-      text-align: center;
-    }
+  const statusMsg = document.getElementById("status-msg");
+  const formEl = document.getElementById("form");
+  const feedbackEl = document.getElementById("feedback");
+  const btnEl = document.getElementById("btn");
 
-    h1 {
-      font-size: 1.75rem;
-      background: linear-gradient(135deg, #00e0ff, #0080ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin: 0 0 0.5rem;
-    }
+  function showError(msg) {
+    feedbackEl.textContent = msg;
+    feedbackEl.className = "error";
+  }
 
-    #status-msg {
-      color: #aaa;
-      font-size: 0.95rem;
-      margin-bottom: 1.5rem;
-      line-height: 1.5;
-    }
+  function showSuccess(msg) {
+    feedbackEl.textContent = msg;
+    feedbackEl.className = "success";
+  }
 
-    #form { display: none; }
+  function revealForm() {
+    statusMsg.textContent = "Enter your new password below.";
+    formEl.style.display = "block";
+  }
 
-    label {
-      display: block;
-      text-align: left;
-      color: #ccc;
-      font-size: 0.875rem;
-      margin-bottom: 0.3rem;
-      margin-top: 0.75rem;
-    }
+  async function ensureRecoverySessionFromUrl() {
+    // 1) PKCE-style: ?code=...
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
 
-    input[type="password"] {
-      width: 100%;
-      padding: 0.875rem 1rem;
-      background: rgba(255, 255, 255, 0.07);
-      border: 1px solid rgba(0, 224, 255, 0.25);
-      border-radius: 8px;
-      color: #fff;
-      font-size: 1rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input[type="password"]:focus {
-      border-color: rgba(0, 224, 255, 0.6);
-    }
-
-    button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      width: 100%;
-      padding: 1rem 2rem;
-      margin-top: 1.25rem;
-      background: rgba(0, 224, 255, 0.1);
-      border: 1px solid rgba(0, 224, 255, 0.35);
-      border-radius: 8px;
-      color: #fff;
-      font-size: 1rem;
-      font-family: inherit;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    button:hover:not(:disabled) {
-      background: rgba(0, 224, 255, 0.2);
-      border-color: rgba(0, 224, 255, 0.5);
-      transform: translateY(-2px);
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    #feedback {
-      margin-top: 0.75rem;
-      font-size: 0.875rem;
-      min-height: 1.25rem;
-      text-align: left;
-    }
-
-    .error { color: #ff6b6b; }
-    .success { color: #00ff88; }
-
-    a { color: #00e0ff; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Reset Password</h1>
-    <p id="status-msg">Verifying your reset link…</p>
-
-    <div id="form">
-      <label for="p1">New password</label>
-      <input id="p1" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
-
-      <label for="p2">Confirm new password</label>
-      <input id="p2" type="password" placeholder="Repeat password" autocomplete="new-password" />
-
-      <div id="feedback"></div>
-
-      <button id="btn">Set new password</button>
-    </div>
-  </div>
-
-  <script type="module">
-    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-
-    const supabaseUrl = "https://mqbsjlgnsirqsmfnreqd.supabase.co";
-    const supabaseAnonKey = "sb_publishable_hKGoZiLtCe6BxgQjG23h2Q_hbGC-At3";
-
-    // Create a fresh client for this standalone page.
-    // detectSessionInUrl defaults to true, so it will automatically
-    // process any ?code= or #access_token= in the URL.
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    const statusMsg = document.getElementById("status-msg");
-    const formEl   = document.getElementById("form");
-    const feedbackEl = document.getElementById("feedback");
-    const btnEl    = document.getElementById("btn");
-
-    function showError(msg) {
-      feedbackEl.textContent = msg;
-      feedbackEl.className = "error";
-    }
-
-    function showSuccess(msg) {
-      feedbackEl.textContent = msg;
-      feedbackEl.className = "success";
-    }
-
-    function revealForm() {
-      statusMsg.textContent = "Enter your new password below.";
-      formEl.style.display = "block";
-    }
-
-    // Supabase fires PASSWORD_RECOVERY when it processes the recovery link
-    // from the URL (either hash or code-exchange). This is the canonical trigger.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        revealForm();
-      }
-    });
-
-    // Also do a manual getSession() check: handles the case where the client
-    // already processed the token before onAuthStateChange listener was attached.
-    let sessionFound = false;
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        statusMsg.textContent = "Error verifying reset link: " + error.message;
-      } else if (data.session) {
-        sessionFound = true;
-        revealForm();
-      }
-    } catch (e) {
-      // Ignore — onAuthStateChange will handle it
-    }
-
-    // If neither path showed the form within 4 s, show the "use email link" message
-    if (!sessionFound) {
-      setTimeout(() => {
-        if (formEl.style.display === "none" || !formEl.style.display) {
-          statusMsg.textContent =
-            "No reset session found. Open the reset link from your email again, or request a new one.";
-        }
-      }, 4000);
-    }
-
-    // Handle form submission
-    btnEl.addEventListener("click", async () => {
-      const p1 = document.getElementById("p1").value;
-      const p2 = document.getElementById("p2").value;
-
-      if (p1.length < 8) {
-        showError("Password must be at least 8 characters.");
-        return;
-      }
-      if (p1 !== p2) {
-        showError("Passwords do not match.");
-        return;
-      }
-
-      btnEl.disabled = true;
-      btnEl.textContent = "Updating…";
-      showSuccess("");
-
-      const { error } = await supabase.auth.updateUser({ password: p1 });
+    if (code) {
+      statusMsg.textContent = "Verifying reset link…";
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
       if (error) {
-        showError("Error: " + error.message);
-        btnEl.disabled = false;
-        btnEl.textContent = "Set new password";
-        return;
+        statusMsg.textContent = "Reset link could not be verified.";
+        showError(error.message);
+        return false;
       }
 
-      showSuccess("Password updated! Redirecting to sign-in…");
-      setTimeout(() => {
-        window.location.href = "https://deckerd451.github.io/innovation-engine/";
-      }, 2000);
-    });
-  </script>
-</body>
-</html>
+      if (data?.session) return true;
+      // If exchange succeeded but no session for some reason:
+      statusMsg.textContent = "No reset session found (after exchange).";
+      return false;
+    }
+
+    // 2) Older hash-token style: #access_token=...
+    // supabase-js can parse this automatically via getSession() after page load
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      statusMsg.textContent = "Error verifying reset link.";
+      showError(error.message);
+      return false;
+    }
+    return !!data.session;
+  }
+
+  // Initialize
+  const hasSession = await ensureRecoverySessionFromUrl();
+  if (hasSession) {
+    revealForm();
+  } else {
+    statusMsg.textContent =
+      "No reset session found. Open the reset link from your email again, or request a new one.";
+  }
+
+  // Handle submission
+  btnEl.addEventListener("click", async () => {
+    const p1 = document.getElementById("p1").value;
+    const p2 = document.getElementById("p2").value;
+
+    if (p1.length < 8) return showError("Password must be at least 8 characters.");
+    if (p1 !== p2) return showError("Passwords do not match.");
+
+    btnEl.disabled = true;
+    btnEl.textContent = "Updating…";
+    feedbackEl.textContent = "";
+    feedbackEl.className = "";
+
+    const { error } = await supabase.auth.updateUser({ password: p1 });
+
+    if (error) {
+      showError("Error: " + error.message);
+      btnEl.disabled = false;
+      btnEl.textContent = "Set new password";
+      return;
+    }
+
+    showSuccess("Password updated! Redirecting…");
+    setTimeout(() => {
+      window.location.href = "https://deckerd451.github.io/innovation-engine/";
+    }, 1200);
+  });
+</script>
