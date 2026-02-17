@@ -83,7 +83,7 @@ export async function signInWithGitHub() {
   return await supabase.auth.signInWithOAuth({
     provider: "github",
     options: {
-      redirectTo: window.location.origin + "/dashboard.html",
+      redirectTo: "https://deckerd451.github.io/innovation-engine/index.html",
     },
   });
 }
@@ -92,7 +92,7 @@ export async function signInWithGoogle() {
   return await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: window.location.origin + "/dashboard.html",
+      redirectTo: "https://deckerd451.github.io/innovation-engine/index.html",
     },
   });
 }

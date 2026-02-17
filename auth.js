@@ -69,6 +69,7 @@
   // -----------------------------
   let loginSection, mainContent, mainHeader;
   let githubBtn, googleBtn;
+  let emailInput, passwordInput, emailLoginBtn, forgotPasswordLink, emailAuthMsg;
 
   // -----------------------------
   // Internal state
@@ -115,8 +116,42 @@
       googleBtn.dataset.bound = "1";
     }
 
+    // Email / password elements
+    emailInput = $("email-input");
+    passwordInput = $("password-input");
+    emailLoginBtn = $("email-login-btn");
+    forgotPasswordLink = $("forgot-password-link");
+    emailAuthMsg = $("email-auth-msg");
+
+    if (emailLoginBtn && !emailLoginBtn.dataset.bound) {
+      emailLoginBtn.addEventListener("click", emailLogin);
+      emailLoginBtn.dataset.bound = "1";
+    }
+
+    if (emailInput && !emailInput.dataset.bound) {
+      emailInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") passwordInput?.focus();
+      });
+      emailInput.dataset.bound = "1";
+    }
+
+    if (passwordInput && !passwordInput.dataset.bound) {
+      passwordInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") emailLogin();
+      });
+      passwordInput.dataset.bound = "1";
+    }
+
+    if (forgotPasswordLink && !forgotPasswordLink.dataset.bound) {
+      forgotPasswordLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        forgotPassword();
+      });
+      forgotPasswordLink.dataset.bound = "1";
+    }
+
     loginDOMReady = true;
-    log("🎨 Login DOM setup complete (OAuth mode)");
+    log("🎨 Login DOM setup complete (OAuth + email/password mode)");
   }
 
   function cancelSessionTimer() {
@@ -147,7 +182,7 @@
     mainContent?.classList.add("hidden");
 
     document.body.style.overflow = "hidden";
-    setHint("Continue with GitHub or Google.");
+    setHint("Sign in with GitHub, Google, or email/password.");
     log("🔒 Showing login UI");
 
     markAuthReadyOnce();
@@ -227,6 +262,107 @@
 
   function emitProfileNew(user) {
     window.dispatchEvent(new CustomEvent("profile-new", { detail: { user } }));
+  }
+
+  // -----------------------------
+  // Email auth helpers
+  // -----------------------------
+  function showEmailError(msg) {
+    if (!emailAuthMsg) return;
+    emailAuthMsg.textContent = msg;
+    emailAuthMsg.style.color = "#ff6b6b";
+    emailAuthMsg.style.display = "block";
+  }
+
+  function showEmailInfo(msg) {
+    if (!emailAuthMsg) return;
+    emailAuthMsg.textContent = msg;
+    emailAuthMsg.style.color = "#00ff88";
+    emailAuthMsg.style.display = "block";
+  }
+
+  function clearEmailMsg() {
+    if (!emailAuthMsg) return;
+    emailAuthMsg.style.display = "none";
+    emailAuthMsg.textContent = "";
+  }
+
+  // -----------------------------
+  // Email / Password login
+  // -----------------------------
+  async function emailLogin() {
+    if (!window.supabase) {
+      showEmailError("System error. Please refresh and try again.");
+      return;
+    }
+
+    const email = emailInput?.value?.trim() || "";
+    const password = passwordInput?.value || "";
+
+    if (!email || !password) {
+      showEmailError("Please enter your email and password.");
+      return;
+    }
+
+    clearEmailMsg();
+    setHint("Signing in…");
+    if (emailLoginBtn) emailLoginBtn.disabled = true;
+
+    try {
+      const { error } = await window.supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        const isInvalidCreds =
+          error.message?.toLowerCase().includes("invalid") ||
+          error.message?.toLowerCase().includes("credentials") ||
+          error.code === "invalid_credentials" ||
+          error.status === 400;
+        showEmailError(isInvalidCreds ? "Invalid email or password." : error.message);
+        setHint("");
+      }
+      // On success, onAuthStateChange fires automatically
+    } catch (e) {
+      err("❌ Email login exception:", e);
+      showEmailError("An unexpected error occurred. Please try again.");
+      setHint("");
+    } finally {
+      if (emailLoginBtn) emailLoginBtn.disabled = false;
+    }
+  }
+
+  // -----------------------------
+  // Forgot password
+  // -----------------------------
+  async function forgotPassword() {
+    if (!window.supabase) {
+      showEmailError("System error. Please refresh and try again.");
+      return;
+    }
+
+    const email = emailInput?.value?.trim() || "";
+    if (!email) {
+      showEmailError("Enter your email address above, then click Forgot password.");
+      return;
+    }
+
+    clearEmailMsg();
+    setHint("Sending reset email…");
+
+    try {
+      const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: "https://deckerd451.github.io/innovation-engine/reset.html",
+      });
+      if (error) {
+        showEmailError(error.message || "Failed to send reset email. Please try again.");
+        setHint("");
+      } else {
+        showEmailInfo(`Reset link sent to ${email}. Check your inbox (and spam folder).`);
+        setHint("");
+      }
+    } catch (e) {
+      err("❌ Forgot password exception:", e);
+      showEmailError("An unexpected error occurred. Please try again.");
+      setHint("");
+    }
   }
 
   // -----------------------------
