@@ -1525,6 +1525,19 @@
       border-radius: 12px;
       padding: 3rem;
       text-align: center;
+      margin: auto;
+    }
+
+    @media (max-height: 700px) {
+      .login-container {
+        padding: 1.5rem;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .login-container {
+        padding: 1.5rem 1rem;
+      }
     }
     
     .login-container h1 {
