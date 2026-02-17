@@ -2,61 +2,59 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Reset password</title>
-  <style>
-    body { font-family: -apple-system, system-ui; margin: 40px; max-width: 520px; }
-    input, button { width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; }
-    .msg { margin-top: 12px; }
-  </style>
+  <title>Reset Password</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
-<body>
-  <h2>Set a new password</h2>
-  <p>This page is only for Supabase recovery links.</p>
+<body style="font-family: system-ui; max-width: 520px; margin: 40px auto;">
+  <h1>Reset Password</h1>
 
-  <input id="pw" type="password" placeholder="New password" />
-  <input id="pw2" type="password" placeholder="Confirm new password" />
-  <button id="btn">Update password</button>
-  <div class="msg" id="msg"></div>
+  <p id="status">Loading…</p>
+
+  <div id="form" style="display:none;">
+    <label>New password</label><br/>
+    <input id="p1" type="password" style="width:100%; padding:10px; margin:8px 0;" />
+
+    <label>Confirm password</label><br/>
+    <input id="p2" type="password" style="width:100%; padding:10px; margin:8px 0;" />
+
+    <button id="btn" style="padding:10px 14px;">Set new password</button>
+  </div>
 
   <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-    // ✅ Use YOUR project URL + anon key (same as iOS)
-    const SUPABASE_URL = "https://mqbsjlgnsirqsmfnreqd.supabase.co";
-    const SUPABASE_ANON_KEY = "PASTE_YOUR_ANON_JWT_HERE";
+    const supabaseUrl = "https://mqbsjlgnsirqsmfnreqd.supabase.co";
+    const supabaseAnonKey = "PASTE_YOUR_ANON_KEY_HERE"; // same as your web app uses
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const statusEl = document.getElementById("status");
+    const formEl = document.getElementById("form");
 
-    const msg = (t) => document.getElementById("msg").textContent = t;
+    // When Supabase redirects here after recovery, the session will be available.
+    const { data, error } = await supabase.auth.getSession();
 
-    // Recovery links usually come with tokens in the URL hash:
-    // #access_token=...&refresh_token=...&type=recovery
-    const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
-    const access_token = hash.get("access_token");
-    const refresh_token = hash.get("refresh_token");
-    const type = hash.get("type");
-
-    if (type !== "recovery" || !access_token || !refresh_token) {
-      msg("This doesn’t look like a valid recovery link.");
+    if (error) {
+      statusEl.textContent = "Error: " + error.message;
+    } else if (!data.session) {
+      statusEl.textContent = "No reset session found. Open the link from your reset email again.";
     } else {
-      // Establish session from recovery tokens
-      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-      if (error) msg("Session error: " + error.message);
-      else msg("Ready. Enter a new password.");
+      statusEl.textContent = "Enter a new password.";
+      formEl.style.display = "block";
     }
 
-    document.getElementById("btn").onclick = async () => {
-      const pw = document.getElementById("pw").value;
-      const pw2 = document.getElementById("pw2").value;
+    document.getElementById("btn").addEventListener("click", async () => {
+      const p1 = document.getElementById("p1").value;
+      const p2 = document.getElementById("p2").value;
 
-      if (!pw || pw.length < 8) return msg("Use at least 8 characters.");
-      if (pw !== pw2) return msg("Passwords do not match.");
+      if (p1.length < 8) return alert("Password must be at least 8 characters.");
+      if (p1 !== p2) return alert("Passwords do not match.");
 
-      const { error } = await supabase.auth.updateUser({ password: pw });
-      if (error) msg("Update failed: " + error.message);
-      else msg("Password updated ✅ You can close this and sign in on iOS.");
-    };
+      const { error } = await supabase.auth.updateUser({ password: p1 });
+      if (error) return alert("Error: " + error.message);
+
+      alert("Password updated. You can now sign in with email/password.");
+      window.location.href = "./";
+    });
   </script>
 </body>
 </html>
