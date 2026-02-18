@@ -128,17 +128,28 @@
       return;
     }
 
-    const { error } = await supabase.auth.updateUser({ password: p1 });
-    if (error) {
-      showError(error.message);
-      disableButton(false, "Set new password");
-      return;
-    }
+const { error } = await supabase.auth.updateUser({ password: p1 });
 
-    showSuccess("Password updated! Redirecting…");
-    setTimeout(() => {
-      window.location.href = APP_HOME;
-    }, 1200);
+if (error) {
+  showError(error.message);
+  disableButton(false, "Set new password");
+  return;
+}
+
+// ✅ Debug: confirm we still have a session at the moment we updated the password
+const { data: sessData, error: sessErr } = await supabase.auth.getSession();
+console.log("✅ Password updated");
+console.log("Session error:", sessErr);
+console.log("Session:", sessData?.session);
+
+// optional: show a visible hint during debugging
+// showSuccess("Password updated (session: " + (sessData?.session ? "YES" : "NO") + "). Redirecting…");
+
+showSuccess("Password updated! Redirecting…");
+setTimeout(() => {
+  window.location.href = APP_HOME;
+}, 1200);
+
   });
 
   // Run
