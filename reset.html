@@ -1,101 +1,146 @@
 <script type="module">
   import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
+  // ✅ Project config (Legacy anon JWT key is correct for client apps)
   const supabaseUrl = "https://mqbsjlgnsirqsmfnreqd.supabase.co";
-  const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xYnNqbGduc2lycXNtZm5yZXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1ODQyNzIsImV4cCI6MjA4NjE2MDI3Mn0.fF4_q0Di_1irDzTiuTRbuit61jclGyZw7ff2Q928QXc";
+  const supabaseAnonKey =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xYnNqbGduc2lycXNtZm5yZXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1ODQyNzIsImV4cCI6MjA4NjE2MDI3Mn0.fF4_q0Di_1irDzTiuTRbuit61jclGyZw7ff2Q928QXc";
+
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   const statusMsg = document.getElementById("status-msg");
   const formEl = document.getElementById("form");
   const feedbackEl = document.getElementById("feedback");
   const btnEl = document.getElementById("btn");
+  const p1El = document.getElementById("p1");
+  const p2El = document.getElementById("p2");
+
+  const APP_HOME = "https://deckerd451.github.io/innovation-engine/";
+
+  function setStatus(msg) {
+    statusMsg.textContent = msg;
+  }
 
   function showError(msg) {
-    feedbackEl.textContent = msg;
-    feedbackEl.className = "error";
+    feedbackEl.textContent = msg || "";
+    feedbackEl.className = msg ? "error" : "";
   }
 
   function showSuccess(msg) {
-    feedbackEl.textContent = msg;
-    feedbackEl.className = "success";
+    feedbackEl.textContent = msg || "";
+    feedbackEl.className = msg ? "success" : "";
   }
 
   function revealForm() {
-    statusMsg.textContent = "Enter your new password below.";
+    setStatus("Enter your new password below.");
     formEl.style.display = "block";
   }
 
-  async function ensureRecoverySessionFromUrl() {
-    // 1) PKCE-style: ?code=...
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-
-    if (code) {
-  statusMsg.textContent = "Verifying reset link…";
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error) {
-    statusMsg.textContent = "Reset link could not be verified.";
-    showError(error.message);
-    return false;
+  function disableButton(disabled, label) {
+    btnEl.disabled = disabled;
+    if (label) btnEl.textContent = label;
   }
 
-  revealForm();   // ✅ show the password fields now
-  return true;    // ✅ prevents your “no session found” fallback
-}
+  function getCodeParam() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("code");
+  }
 
+  async function establishRecoverySession() {
+    // 1) Preferred path: PKCE-style link with ?code=...
+    const code = getCodeParam();
+    if (code) {
+      setStatus("Verifying reset link… (do not refresh)");
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        // Common cause: code already used (page refreshed or opened twice)
+        showError(error.message);
+        setStatus(
+          "Reset link could not be verified. Request a new reset email and open the newest link once."
+        );
+        return false;
+      }
 
       if (data?.session) return true;
-      // If exchange succeeded but no session for some reason:
-      statusMsg.textContent = "No reset session found (after exchange).";
+
+      showError("No session returned after code exchange.");
+      setStatus("Reset link verified, but no session was created. Request a new reset email.");
       return false;
     }
 
-    // 2) Older hash-token style: #access_token=...
-    // supabase-js can parse this automatically via getSession() after page load
+    // 2) Fallback: older hash-token style (#access_token=...) or if session already exists
     const { data, error } = await supabase.auth.getSession();
     if (error) {
-      statusMsg.textContent = "Error verifying reset link.";
       showError(error.message);
+      setStatus("Error verifying reset link.");
       return false;
     }
-    return !!data.session;
+
+    return !!data?.session;
   }
 
-  // Initialize
-  const hasSession = await ensureRecoverySessionFromUrl();
-  if (hasSession) {
+  async function init() {
+    showError("");
+    showSuccess("");
+    formEl.style.display = "none";
+    disableButton(true, "Set new password");
+
+    const hasSession = await establishRecoverySession();
+    if (!hasSession) {
+      // No session = can’t update password
+      // (usually means opened wrong link, refreshed, or link expired)
+      disableButton(true, "Set new password");
+      return;
+    }
+
+    // Session exists → allow password update
     revealForm();
-  } else {
-    statusMsg.textContent =
-      "No reset session found. Open the reset link from your email again, or request a new one.";
+    disableButton(false, "Set new password");
+
+    // Optional: focus first field for UX
+    setTimeout(() => p1El?.focus(), 50);
   }
 
-  // Handle submission
   btnEl.addEventListener("click", async () => {
-    const p1 = document.getElementById("p1").value;
-    const p2 = document.getElementById("p2").value;
+    showError("");
+    showSuccess("");
 
-    if (p1.length < 8) return showError("Password must be at least 8 characters.");
-    if (p1 !== p2) return showError("Passwords do not match.");
+    const p1 = (p1El?.value || "").trim();
+    const p2 = (p2El?.value || "").trim();
 
-    btnEl.disabled = true;
-    btnEl.textContent = "Updating…";
-    feedbackEl.textContent = "";
-    feedbackEl.className = "";
+    if (p1.length < 8) {
+      showError("Password must be at least 8 characters.");
+      return;
+    }
+    if (p1 !== p2) {
+      showError("Passwords do not match.");
+      return;
+    }
+
+    disableButton(true, "Updating…");
+
+    // Double-check we still have a session before updating
+    const { data: sessData } = await supabase.auth.getSession();
+    if (!sessData?.session) {
+      showError("No reset session found. Please open the newest reset link from your email again.");
+      disableButton(false, "Set new password");
+      return;
+    }
 
     const { error } = await supabase.auth.updateUser({ password: p1 });
-
     if (error) {
-      showError("Error: " + error.message);
-      btnEl.disabled = false;
-      btnEl.textContent = "Set new password";
+      showError(error.message);
+      disableButton(false, "Set new password");
       return;
     }
 
     showSuccess("Password updated! Redirecting…");
     setTimeout(() => {
-      window.location.href = "https://deckerd451.github.io/innovation-engine/";
+      window.location.href = APP_HOME;
     }, 1200);
   });
+
+  // Run
+  init();
 </script>
