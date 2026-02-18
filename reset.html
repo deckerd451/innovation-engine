@@ -2,7 +2,7 @@
   import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
   const supabaseUrl = "https://mqbsjlgnsirqsmfnreqd.supabase.co";
-  const supabaseAnonKey = "sb_publishable_hKGoZiLtCe6BxgQjG23h2Q_hbGC-At3";
+  const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xYnNqbGduc2lycXNtZm5yZXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1ODQyNzIsImV4cCI6MjA4NjE2MDI3Mn0.fF4_q0Di_1irDzTiuTRbuit61jclGyZw7ff2Q928QXc";
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   const statusMsg = document.getElementById("status-msg");
@@ -31,14 +31,19 @@
     const code = params.get("code");
 
     if (code) {
-      statusMsg.textContent = "Verifying reset link…";
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  statusMsg.textContent = "Verifying reset link…";
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-      if (error) {
-        statusMsg.textContent = "Reset link could not be verified.";
-        showError(error.message);
-        return false;
-      }
+  if (error) {
+    statusMsg.textContent = "Reset link could not be verified.";
+    showError(error.message);
+    return false;
+  }
+
+  revealForm();   // ✅ show the password fields now
+  return true;    // ✅ prevents your “no session found” fallback
+}
+
 
       if (data?.session) return true;
       // If exchange succeeded but no session for some reason:
