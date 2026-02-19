@@ -357,6 +357,45 @@
         gap: 0.6rem;
         align-items: center;
       }
+
+      .ch-toast-error {
+        background: linear-gradient(135deg, #ff4444, #cc2200);
+      }
+
+      /* ==========================================================
+         PASSWORD CHANGE VIEW
+         ========================================================== */
+
+      .ch-pw-editor-title {
+        color: #00e0ff;
+        margin: 0 0 1rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+
+      .ch-pw-hint {
+        color: #aaa;
+        font-size: 0.85rem;
+        margin-bottom: 1.25rem;
+        line-height: 1.5;
+      }
+
+      .ch-pw-strength {
+        margin-top: 0.4rem;
+        font-size: 0.82rem;
+        min-height: 1.2em;
+      }
+      .ch-pw-strength.weak   { color: #ff6b6b; }
+      .ch-pw-strength.fair   { color: #ffd166; }
+      .ch-pw-strength.strong { color: #00ff88; }
+
+      .ch-pw-mismatch {
+        color: #ff6b6b;
+        font-size: 0.82rem;
+        margin-top: 0.4rem;
+        min-height: 1.2em;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -419,6 +458,16 @@
     return window.innerHeight && window.innerHeight <= 680;
   }
 
+  function isEmailPasswordUser(user) {
+    if (!user) return false;
+    // Check identities array (most reliable)
+    if (Array.isArray(user.identities)) {
+      return user.identities.some((id) => id.provider === "email");
+    }
+    // Fallback to app_metadata
+    return user.app_metadata?.provider === "email";
+  }
+
   function renderProfileView(profile, user) {
     const name = profile?.name || user?.email || "Your Profile";
     const bio = profile?.bio || "";
@@ -427,6 +476,7 @@
     const interests = interestsArr.length ? interestsArr.join(", ") : "";
     const availability = profile?.availability || "";
     const imageUrl = profile?.image_url || "";
+    const showChangePw = isEmailPasswordUser(user);
 
     const collapsedClass = shouldCollapseHeader() ? "is-collapsed" : "";
 
@@ -476,6 +526,10 @@
             <i class="fas fa-user-edit"></i> Edit Profile
           </button>
 
+          ${showChangePw ? `<button id="btn-change-password" class="btn ch-btn-secondary">
+            <i class="fas fa-key"></i> Change Password
+          </button>` : ""}
+
           <button id="logout-btn" class="btn ch-btn-secondary">
             <i class="fas fa-sign-out-alt"></i> Log out
           </button>
@@ -496,6 +550,12 @@
     $("btn-open-profile-editor")?.addEventListener(
       "click",
       () => window.openProfileEditor?.(),
+      { once: true }
+    );
+
+    $("btn-change-password")?.addEventListener(
+      "click",
+      () => window.openPasswordChangeView?.(),
       { once: true }
     );
 
@@ -728,6 +788,173 @@
     }
   };
 
+  // -----------------------------
+  // Password change view
+  // -----------------------------
+  function renderPasswordChangeView() {
+    return `
+      <div class="ch-profile-layout">
+        <div class="ch-profile-editor" role="region" aria-label="Change password">
+          <h2 class="ch-pw-editor-title">
+            <i class="fas fa-key"></i> Change Password
+          </h2>
+
+          <p class="ch-pw-hint">
+            Enter and confirm your new password below. It must be at least 8 characters.
+          </p>
+
+          <form id="change-password-form" class="ch-profile-editor-form">
+            <div class="ch-form-group">
+              <label class="ch-form-label" for="pw-new">New Password</label>
+              <input
+                type="password"
+                id="pw-new"
+                class="ch-input"
+                autocomplete="new-password"
+                placeholder="Enter new password"
+                required
+                minlength="8"
+              />
+              <div id="pw-strength" class="ch-pw-strength" aria-live="polite"></div>
+            </div>
+
+            <div class="ch-form-group">
+              <label class="ch-form-label" for="pw-confirm">Confirm New Password</label>
+              <input
+                type="password"
+                id="pw-confirm"
+                class="ch-input"
+                autocomplete="new-password"
+                placeholder="Confirm new password"
+                required
+                minlength="8"
+              />
+              <div id="pw-mismatch" class="ch-pw-mismatch" aria-live="polite"></div>
+            </div>
+
+            <div style="height: 16px;"></div>
+          </form>
+        </div>
+
+        <div class="ch-profile-editor-actions">
+          <button type="submit" form="change-password-form" id="pw-save-btn" class="btn ch-btn-save">
+            <i class="fas fa-lock"></i> Update Password
+          </button>
+          <button type="button" id="pw-cancel" class="btn ch-btn-secondary">
+            Cancel
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  window.openPasswordChangeView = function openPasswordChangeView() {
+    const modal = profileModal();
+    const content = profileModalContent();
+    if (!modal || !content) return;
+
+    ensureStyles();
+    content.innerHTML = renderPasswordChangeView();
+
+    const pwNew = $("pw-new");
+    const pwConfirm = $("pw-confirm");
+    const strengthEl = $("pw-strength");
+    const mismatchEl = $("pw-mismatch");
+
+    function getStrength(pw) {
+      if (!pw) return { label: "", cls: "" };
+      if (pw.length < 8) return { label: "Too short", cls: "weak" };
+      let score = 0;
+      if (/[A-Z]/.test(pw)) score++;
+      if (/[0-9]/.test(pw)) score++;
+      if (/[^A-Za-z0-9]/.test(pw)) score++;
+      if (pw.length >= 12) score++;
+      if (score <= 1) return { label: "Weak", cls: "weak" };
+      if (score === 2) return { label: "Fair", cls: "fair" };
+      return { label: "Strong", cls: "strong" };
+    }
+
+    pwNew?.addEventListener("input", () => {
+      const { label, cls } = getStrength(pwNew.value);
+      if (strengthEl) {
+        strengthEl.textContent = label;
+        strengthEl.className = "ch-pw-strength " + cls;
+      }
+    });
+
+    pwConfirm?.addEventListener("input", () => {
+      if (mismatchEl) {
+        mismatchEl.textContent =
+          pwConfirm.value && pwNew.value !== pwConfirm.value
+            ? "Passwords do not match"
+            : "";
+      }
+    });
+
+    $("pw-cancel")?.addEventListener(
+      "click",
+      () => window.openProfileModal?.(),
+      { once: true }
+    );
+
+    $("change-password-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const newPw = pwNew?.value || "";
+      const confirmPw = pwConfirm?.value || "";
+
+      if (newPw.length < 8) {
+        toastError("Password must be at least 8 characters.");
+        return;
+      }
+
+      if (newPw !== confirmPw) {
+        if (mismatchEl) mismatchEl.textContent = "Passwords do not match";
+        pwConfirm?.focus();
+        return;
+      }
+
+      const saveBtn = $("pw-save-btn");
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating…';
+      }
+
+      try {
+        const { error } = await window.supabase.auth.updateUser({ password: newPw });
+
+        if (error) {
+          toastError("Error updating password: " + error.message);
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-lock"></i> Update Password';
+          }
+          return;
+        }
+
+        toast("Password updated successfully!");
+        window.openProfileModal?.();
+      } catch (err) {
+        console.error("Password change error:", err);
+        toastError("Unexpected error. Please try again.");
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fas fa-lock"></i> Update Password';
+        }
+      }
+    });
+
+    openModal(modal);
+  };
+
+  function toastError(message) {
+    const t = document.createElement("div");
+    t.className = "ch-toast ch-toast-error";
+    t.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>${escapeHtml(message)}</span>`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+
   function toast(message) {
     const t = document.createElement("div");
     t.className = "ch-toast";
@@ -761,6 +988,11 @@
         $("btn-open-profile-editor")?.addEventListener(
           "click",
           () => window.openProfileEditor?.(),
+          { once: true }
+        );
+        $("btn-change-password")?.addEventListener(
+          "click",
+          () => window.openPasswordChangeView?.(),
           { once: true }
         );
         $("logout-btn")?.addEventListener(
