@@ -29,7 +29,7 @@ struct NetworkView: View {
             let me = AuthService.shared.currentUser
 
             nodes = connections.map { conn in
-                let other = conn.otherProfile(for: me?.id ?? UUID())
+                let other = conn.otherUser(for: me?.id ?? UUID())
                 return Node(
                     id: other.id,
                     name: other.name,
