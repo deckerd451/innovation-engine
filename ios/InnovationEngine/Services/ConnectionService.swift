@@ -1,51 +1,14 @@
+// MARK: - Verification checklist
+//
+// After any future edit, confirm:
+//   1. Xcode Shift+Cmd+F → "connected_user_id" → 0 results
+//   2. Xcode Shift+Cmd+F → "connectedUserId"   → 0 results
+//   3. Shift+Cmd+K (clean build folder), then Cmd+R
+//   4. Tap Network tab — no PGRST200 in console
+//   5. Console shows the three ✅ debug lines below
+
 import Foundation
 import Supabase
-
-// MARK: - CommunityProfile
-
-/// One embedded community row, decoded from a PostgREST FK embed.
-struct CommunityProfile: Codable {
-    let id: UUID
-    let name: String
-}
-
-// MARK: - Connection
-
-/// A row from the `connections` table with both side's community profiles embedded.
-///
-/// PostgREST select used to decode this type:
-///
-///   id,
-///   from_user_id,
-///   to_user_id,
-///   created_at,
-///   from_profile:community!connections_from_user_id_fkey(id, name),
-///   to_profile:community!connections_to_user_id_fkey(id, name)
-struct Connection: Codable, Identifiable {
-    let id: UUID
-    let fromUserId: UUID
-    let toUserId: UUID
-    let createdAt: Date
-    let fromProfile: CommunityProfile
-    let toProfile: CommunityProfile
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case fromUserId  = "from_user_id"
-        case toUserId    = "to_user_id"
-        case createdAt   = "created_at"
-        case fromProfile = "from_profile"
-        case toProfile   = "to_profile"
-    }
-
-    /// Returns the id and name of the user on the other side of this connection.
-    func otherUser(for currentUserId: UUID) -> (id: UUID, name: String) {
-        let profile = fromUserId == currentUserId ? toProfile : fromProfile
-        return (id: profile.id, name: profile.name)
-    }
-}
-
-// MARK: - ConnectionService
 
 final class ConnectionService {
     static let shared = ConnectionService()
@@ -54,8 +17,10 @@ final class ConnectionService {
 
     private init() {}
 
-    // MARK: createConnection
+    // MARK: - createConnection
 
+    /// Inserts an accepted connection from the current user to `communityId`.
+    /// Columns written: from_user_id, to_user_id, status — nothing else.
     func createConnection(to communityId: String) async throws {
         guard let currentUser = AuthService.shared.currentUser else {
             throw ConnectionError.notAuthenticated
@@ -81,8 +46,10 @@ final class ConnectionService {
             .execute()
     }
 
-    // MARK: fetchConnections
+    // MARK: - fetchConnections
 
+    /// Fetches every accepted connection where the current user is on either side,
+    /// with both community profiles embedded via explicit FK constraint names.
     func fetchConnections() async throws -> [Connection] {
         guard let currentUser = AuthService.shared.currentUser else {
             return []
@@ -99,10 +66,16 @@ final class ConnectionService {
             to_profile:community!connections_to_user_id_fkey(id, name)
             """
 
+        let orFilter = "from_user_id.eq.\(userId),to_user_id.eq.\(userId)"
+
+        print("✅ fetchConnections running")
+        print("✅ selectClause:", selectClause)
+        print("✅ orFilter:", orFilter)
+
         return try await supabase
             .from("connections")
             .select(selectClause)
-            .or("from_user_id.eq.\(userId),to_user_id.eq.\(userId)")
+            .or(orFilter)
             .eq("status", value: "accepted")
             .execute()
             .value
