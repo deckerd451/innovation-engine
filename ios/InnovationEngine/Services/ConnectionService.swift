@@ -14,8 +14,8 @@ final class ConnectionService {
         }
 
         let connection: [String: AnyEncodable] = [
-            "user_id": AnyEncodable(currentUser.id.uuidString),
-            "connected_user_id": AnyEncodable(communityId),
+            "from_user_id": AnyEncodable(currentUser.id.uuidString),
+            "to_user_id": AnyEncodable(communityId),
             "status": AnyEncodable("accepted")
         ]
 
@@ -38,7 +38,7 @@ final class ConnectionService {
 
             enum CodingKeys: String, CodingKey {
                 case id
-                case connectedUserId = "connected_user_id"
+                case connectedUserId = "to_user_id"
                 case createdAt = "created_at"
                 case community
             }
@@ -51,8 +51,8 @@ final class ConnectionService {
 
         let response: [ConnectionResponse] = try await supabase
             .from("connections")
-            .select("id, connected_user_id, created_at, community:connected_user_id(id, name)")
-            .eq("user_id", value: currentUser.id.uuidString)
+            .select("id, to_user_id, created_at, community:to_user_id(id, name)")
+            .eq("from_user_id", value: currentUser.id.uuidString)
             .eq("status", value: "accepted")
             .execute()
             .value

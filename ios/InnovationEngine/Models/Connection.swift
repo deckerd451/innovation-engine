@@ -9,8 +9,8 @@ struct Connection: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id
-        case userId = "user_id"
-        case connectedUserId = "connected_user_id"
+        case userId = "from_user_id"
+        case connectedUserId = "to_user_id"
         case status
         case createdAt = "created_at"
     }
