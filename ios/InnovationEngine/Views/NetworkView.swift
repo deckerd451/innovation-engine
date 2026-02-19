@@ -26,16 +26,18 @@ struct NetworkView: View {
 
         do {
             let connections = try await ConnectionService.shared.fetchConnections()
+            let me = AuthService.shared.currentUser
 
             nodes = connections.map { conn in
-                Node(
-                    id: conn.connectedUserId,
-                    name: conn.connectedUserName,
+                let other = conn.otherProfile(for: me?.id ?? UUID())
+                return Node(
+                    id: other.id,
+                    name: other.name,
                     position: randomPosition()
                 )
             }
 
-            if let user = AuthService.shared.currentUser {
+            if let user = me {
                 currentUser = user
                 nodes.insert(
                     Node(id: user.id, name: "You", position: CGPoint(x: 0.5, y: 0.5)),
