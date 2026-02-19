@@ -2,27 +2,28 @@ import Foundation
 
 // MARK: - Why the previous query failed
 //
-// PostgREST (which powers Supabase's REST API) requires explicit disambiguation
-// when two foreign keys exist between the same pair of tables.
-// The `connections` table has TWO FKs that both reference `community.id`:
+// PostgREST requires explicit FK constraint names whenever two foreign keys
+// exist between the same pair of tables. The `connections` table has TWO FKs
+// that both reference `community.id`:
 //
 //   connections_from_user_id_fkey  (from_user_id → community.id)
 //   connections_to_user_id_fkey    (to_user_id   → community.id)
 //
-// The old query used `community:to_user_id(id, name)`. PostgREST cannot
-// determine WHICH foreign key to traverse from that hint alone, so it
-// returns PGRST200: "Could not find a relationship between 'connections'
-// and 'connected_user_id' in the schema cache".
+// Using an ambiguous embed like `community:to_user_id(id, name)` — or any
+// reference to the non-existent column `connected_user_id` — causes:
+//   PGRST200: Could not find a relationship between 'connections'
+//             and 'connected_user_id' in the schema cache
 //
-// Fix: reference the full FK constraint name inside the embed:
+// Fix: embed with the full FK constraint name so PostgREST is unambiguous:
 //   from_profile:community!connections_from_user_id_fkey(id, name, image_url)
 //   to_profile:community!connections_to_user_id_fkey(id, name, image_url)
 //
-// No database changes are required — this is purely a query-level fix.
+// No database changes required — purely a query-level fix.
 
 // MARK: - CommunityProfile
-/// Represents a single community row embedded via a disambiguated FK.
-/// Appears in a ConnectionRow as both `from_profile` and `to_profile`.
+
+/// A single community row embedded via one disambiguated FK.
+/// Appears in `Connection` as both `fromProfile` and `toProfile`.
 struct CommunityProfile: Codable {
     let id: UUID
     let name: String
@@ -35,9 +36,12 @@ struct CommunityProfile: Codable {
     }
 }
 
-// MARK: - ConnectionRow
-/// Full decoded row from `connections`, with both community profiles embedded.
-struct ConnectionRow: Codable, Identifiable {
+// MARK: - Connection
+
+/// Decoded row from `connections` with both community profiles embedded.
+/// The select aliases `from_profile` / `to_profile` map to the CodingKeys
+/// below, disambiguating which FK was traversed for each embed.
+struct Connection: Codable, Identifiable {
     let id: UUID
     let fromUserId: UUID
     let toUserId: UUID
@@ -55,17 +59,13 @@ struct ConnectionRow: Codable, Identifiable {
     }
 
     /// Returns the profile of whichever user is NOT the current user.
-    func otherProfile(currentUserId: UUID) -> CommunityProfile {
-        fromUserId == currentUserId ? toProfile : fromProfile
+    /// - If `currentUserId` matches `fromUserId`, returns `toProfile`.
+    /// - If `currentUserId` matches `toUserId`,   returns `fromProfile`.
+    /// - Falls back to `toProfile` if neither side matches (should not occur
+    ///   given the `or` filter used in the query).
+    func otherProfile(for currentUserId: UUID) -> CommunityProfile {
+        if fromUserId == currentUserId { return toProfile }
+        if toUserId   == currentUserId { return fromProfile }
+        return toProfile
     }
-}
-
-// MARK: - ConnectionWithUser
-/// Flattened view-model used by the UI layer.
-struct ConnectionWithUser: Identifiable {
-    let id: UUID
-    let connectedUserId: UUID
-    let connectedUserName: String
-    let connectedUserImageUrl: String?
-    let createdAt: Date
 }
