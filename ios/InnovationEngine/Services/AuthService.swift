@@ -41,7 +41,7 @@ final class AuthService: ObservableObject {
     }
 
     private func handleAuthStateChange(session: Session?) async {
-        guard session != nil else {
+        guard let session = session, !session.isExpired else {
             await MainActor.run {
                 self.isAuthenticated = false
                 self.currentUser = nil
