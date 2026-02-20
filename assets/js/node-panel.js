@@ -2438,17 +2438,12 @@ window.declineJoinRequest = async function(projectId, requestId) {
 // ========================
 // EDIT PROFILE (Canonical)
 // ========================
-// Delegates to the canonical V3 uploader editor in profile.js / window.CHProfile.
-// profile.js is the ONLY module that defines the editor implementation.
-// node-panel.js calls it; never replaces it.
-window.openProfileEditor = function openProfileEditorProxy() {
-  if (typeof window.CHProfile?.openEditorV3 === "function") {
-    return window.CHProfile.openEditorV3();
-  }
-  // Fallback: call openProfileModal if CHProfile not ready
-  console.warn("[node-panel] CHProfile.openEditorV3 not ready, falling back to openProfileModal");
-  return window.openProfileModal?.();
-};
+// profile.js is the ONLY module that owns window.openProfileEditor.
+// node-panel.js MUST NOT overwrite it.  The Edit Profile button in the
+// rendered HTML already calls window.openProfileEditor?.() at click-time,
+// which resolves to CHProfile.openEditorV3() set by profile.js.
+// (Removed previous window.openProfileEditor assignment that was causing
+//  boot-diagnostics to report a global overwrite.)
 
 // Utility: normalize a comma-separated list or array to a trimmed string
 function normalizeCommaList(value) {

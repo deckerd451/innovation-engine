@@ -497,7 +497,8 @@ export function getIntegrationState() {
  * Enable unified network (for testing/admin)
  */
 export function enableUnifiedNetwork() {
-  localStorage.setItem('enable-unified-network', 'true');
+  // Remove the key so the default-ON check (!== 'false') takes effect cleanly.
+  localStorage.removeItem('enable-unified-network');
   logger.info(INTEGRATION_NS, 'Unified network enabled - reload page to activate');
   showSuccessNotification('Unified Network enabled! Reload the page to activate.');
 }

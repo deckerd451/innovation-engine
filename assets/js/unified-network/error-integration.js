@@ -25,8 +25,9 @@ export function initializeErrorHandling(api) {
   errorHandler.setFallbackCallback(async (errorInfo) => {
     logger.warn('ErrorIntegration', 'Executing fallback to legacy synapse');
     
-    // Disable unified network
-    localStorage.removeItem('enable-unified-network');
+    // Disable unified network. Must set to 'false' (not removeItem) because
+    // the canonical check is !== 'false' — a missing key means default ON.
+    localStorage.setItem('enable-unified-network', 'false');
     
     // Emit event for bridge to handle
     window.dispatchEvent(new CustomEvent('unified-network-fallback', {
