@@ -43,7 +43,7 @@
   const btnEditProfile = () => $("btn-profile");
 
   // Storage settings
-  const AVATAR_BUCKET = "avatars";
+  const AVATAR_BUCKET = "hacksbucket";
   const AVATAR_MAX_DIM = 512;
   const AVATAR_MAX_BYTES = 450 * 1024; // 450KB target
   const AVATAR_JPEG_QUALITY_START = 0.82;
