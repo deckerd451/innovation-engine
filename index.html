@@ -248,28 +248,6 @@
     })();
   </script>
 
-  <!-- =========================================================
-       ✅ FORCE SIGN-OUT — OPT-IN ONLY
-       Use: ?forceSignout=1
-       (Never sabotage normal auth again)
-  ========================================================== -->
-  <script>
-    (function () {
-      const url = new URL(location.href);
-      if (url.searchParams.get("forceSignout") !== "1") return;
-
-      try {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith("supabase") || k.startsWith("sb-"));
-        keys.forEach(k => localStorage.removeItem(k));
-        console.warn("[force-signout] cleared auth keys:", keys);
-        alert("Force sign-out complete. Reloading…");
-        location.href = url.pathname; // strip query
-      } catch (e) {
-        console.warn("[force-signout] failed:", e);
-      }
-    })();
-  </script>
-
   <!-- Dynamic viewport height detection (keep) -->
   <script>
     (function() {
