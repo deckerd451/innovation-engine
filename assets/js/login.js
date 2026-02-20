@@ -1,4 +1,20 @@
 // ======================================================================
+// ⛔ DEPRECATED — superseded by /auth.js (root level)
+// ======================================================================
+// This module is NO LONGER imported by index.html or the canonical
+// root main.js. All authentication is handled by /auth.js which
+// exposes window.setupLoginDOM and window.initLoginSystem.
+//
+// DO NOT re-import this file.  If you accidentally activate it you will
+// get a console error below and two competing auth lifecycles.
+// ======================================================================
+if (typeof window !== 'undefined' && window.__CH_IE_AUTH_V5__) {
+  console.error(
+    '[login.js] ⛔ Loaded while auth.js is already active. ' +
+    'Remove any import of assets/js/login.js — use /auth.js instead.'
+  );
+}
+// ======================================================================
 // CharlestonHacks Innovation Engine – LOGIN CONTROLLER (FIXED 2025)
 // Uses:
 //   - GitHub / Google OAuth with redirect

@@ -14,8 +14,10 @@
     return;
   }
 
-  // Only run when unified network is enabled
-  const isUnifiedEnabled = localStorage.getItem('enable-unified-network') === 'true';
+  // Only run when unified network is enabled.
+  // Default ON: only disabled when explicitly set to 'false'.
+  // Matches the canonical check in unified-network-integration.js.
+  const isUnifiedEnabled = localStorage.getItem('enable-unified-network') !== 'false';
   if (!isUnifiedEnabled) {
     console.log('📱 Mobile Safe Area Debug: Unified Network not enabled, skipping debug');
     return;

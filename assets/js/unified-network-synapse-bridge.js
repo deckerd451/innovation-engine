@@ -30,7 +30,9 @@ let bridgeState = {
  * Check if unified network is enabled (same flag as UnifiedNetworkIntegration)
  */
 function isUnifiedNetworkEnabled() {
-  return localStorage.getItem('enable-unified-network') === 'true';
+  // Default ON: only disabled when explicitly set to 'false'.
+  // Matches the canonical check in unified-network-integration.js.
+  return localStorage.getItem('enable-unified-network') !== 'false';
 }
 
 /**
