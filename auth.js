@@ -9,14 +9,17 @@
 // ✅ NO stopAutoRefresh() during boot (avoids half-disabled auth state)
 // ✅ Single-flight init + single auth subscription guard
 // ✅ One cleanOAuthUrlSoon() (duplicate removed)
-// ✅ AbortError handling = backoff + retry getSession only
+// ✅ AbortError handling = backoff + retry getSession only (no destructive loops)
 // ✅ Exposes window.__authReady for other modules (ecosystem, session restoration, synapse init)
+// ✅ Email/password button now WORKS (bound even in "OAuth mode")
+// ✅ No silent failures: visible authError UI + console logging
 //
 // Emits:
 //  - profile-loaded  { detail: { user, profile } }
 //  - profile-new     { detail: { user } }
 //  - user-logged-out { detail: {} }
 //  - app-ready       { detail: { user } }
+//  - auth-ready      { detail: {} }
 //
 // Requires (loaded earlier):
 //  - window.supabase from /assets/js/supabaseClient.js
@@ -25,8 +28,6 @@
 // - Does NOT auto-boot by default.
 // - Call window.setupLoginDOM() then window.initLoginSystem() from main.js.
 // ================================================================
-//
-// Based on your current auth controller file: :contentReference[oaicite:0]{index=0}
 
 /* global window, document */
 
@@ -61,7 +62,58 @@
   }
 
   function showNotification(message, type = "info") {
+    // Keep lightweight; your app also has a global notifier elsewhere
     log(`[${String(type).toUpperCase()}] ${message}`);
+    if (typeof window.showNotification === "function") {
+      try {
+        window.showNotification(message, type);
+      } catch (_) {}
+    }
+  }
+
+  function ensureAuthErrorEl() {
+    // Prefer existing authError element if present, otherwise create one under login hint.
+    let el = $("authError");
+    if (el) return el;
+
+    const hint = $("login-hint");
+    if (!hint?.parentElement) return null;
+
+    el = document.createElement("div");
+    el.id = "authError";
+    el.style.display = "none";
+    el.style.marginTop = "10px";
+    el.style.padding = "10px 12px";
+    el.style.borderRadius = "10px";
+    el.style.border = "1px solid rgba(255, 107, 107, 0.45)";
+    el.style.background = "rgba(255, 107, 107, 0.08)";
+    el.style.color = "#ff6b6b";
+    el.style.fontSize = "0.95rem";
+    el.style.lineHeight = "1.3";
+    hint.parentElement.appendChild(el);
+    return el;
+  }
+
+  function clearAuthError() {
+    const el = ensureAuthErrorEl();
+    if (!el) return;
+    el.textContent = "";
+    el.style.display = "none";
+  }
+
+  function showAuthError(message) {
+    const msg = message || "Login failed.";
+    err("[AUTH] " + msg);
+    const el = ensureAuthErrorEl();
+    if (el) {
+      el.textContent = msg;
+      el.style.display = "block";
+    } else {
+      // ultra-safe fallback
+      try {
+        alert(msg);
+      } catch (_) {}
+    }
   }
 
   // -----------------------------
@@ -69,6 +121,8 @@
   // -----------------------------
   let loginSection, mainContent, mainHeader;
   let githubBtn, googleBtn;
+  let emailBtn; // "Sign in with Email" button
+  let emailInput, passwordInput;
 
   // -----------------------------
   // Internal state
@@ -100,10 +154,30 @@
     githubBtn = $("github-login");
     googleBtn = $("google-login");
 
+    // Email/password UI may use different ids historically. Support both.
+    emailBtn =
+      $("email-login-btn") ||
+      $("emailSignInBtn") ||
+      document.querySelector("#email-login-btn, #emailSignInBtn");
+
+    // Inputs: prefer ids if present; fallback to type selectors.
+    emailInput =
+      $("email-input") ||
+      $("login-email") ||
+      document.querySelector('input[type="email"]');
+
+    passwordInput =
+      $("password-input") ||
+      $("login-password") ||
+      document.querySelector('input[type="password"]');
+
     if (!loginSection || !mainContent) {
       err("❌ login-section or main-content not found in DOM");
       return;
     }
+
+    // Ensure non-silent error UI exists when login UI is rendered
+    ensureAuthErrorEl();
 
     if (githubBtn && !githubBtn.dataset.bound) {
       githubBtn.addEventListener("click", () => oauthLogin("github"));
@@ -115,8 +189,115 @@
       googleBtn.dataset.bound = "1";
     }
 
+    // ✅ IMPORTANT: Bind email/password login even if the controller is in "OAuth mode"
+    bindEmailPasswordLogin();
+
     loginDOMReady = true;
     log("🎨 Login DOM setup complete (OAuth mode)");
+  }
+
+  function bindEmailPasswordLogin() {
+    // Re-resolve in case DOM changed
+    emailBtn =
+      $("email-login-btn") ||
+      $("emailSignInBtn") ||
+      document.querySelector("#email-login-btn, #emailSignInBtn");
+
+    emailInput =
+      $("email-input") ||
+      $("login-email") ||
+      document.querySelector('input[type="email"]');
+
+    passwordInput =
+      $("password-input") ||
+      $("login-password") ||
+      document.querySelector('input[type="password"]');
+
+    if (!emailBtn) {
+      warn("🟡 [AUTH] Email login button not found (expected #email-login-btn)");
+      return;
+    }
+
+    if (emailBtn.dataset.bound === "1") return;
+    emailBtn.dataset.bound = "1";
+
+    // Click handler
+    emailBtn.addEventListener(
+      "click",
+      async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await emailPasswordLogin();
+      },
+      false
+    );
+
+    // Enter-to-submit (optional, safe)
+    const onEnter = async (e) => {
+      if (e.key !== "Enter") return;
+      // Don’t double-submit if focused on another button
+      e.preventDefault();
+      await emailPasswordLogin();
+    };
+
+    if (emailInput && !emailInput.dataset.boundEnter) {
+      emailInput.addEventListener("keydown", onEnter);
+      emailInput.dataset.boundEnter = "1";
+    }
+    if (passwordInput && !passwordInput.dataset.boundEnter) {
+      passwordInput.addEventListener("keydown", onEnter);
+      passwordInput.dataset.boundEnter = "1";
+    }
+
+    log("✅ [AUTH] Email/password login handler bound");
+  }
+
+  async function emailPasswordLogin() {
+    clearAuthError();
+
+    if (!window.supabase) {
+      showAuthError("System error: Supabase client not available. Please refresh.");
+      return;
+    }
+
+    // Inputs may be missing depending on DOM state
+    const email =
+      (emailInput?.value || document.querySelector('input[type="email"]')?.value || "")
+        .toLowerCase()
+        .trim();
+
+    const password =
+      passwordInput?.value || document.querySelector('input[type="password"]')?.value || "";
+
+    if (!email || !password) {
+      showAuthError("Please enter your email and password.");
+      return;
+    }
+
+    setHint("Signing in…");
+
+    try {
+      log("🔐 Attempting email/password login…", { email });
+
+      const { data, error } = await window.supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        showAuthError(error.message || "Invalid login credentials.");
+        setHint("Try again.");
+        return;
+      }
+
+      // Success: auth listener will bootstrap; this is just for visibility
+      log("✅ Email/password login success:", data?.user?.email || email);
+      setHint("Signed in.");
+      clearAuthError();
+    } catch (e) {
+      showAuthError(e?.message || String(e));
+      setHint("Try again.");
+    }
   }
 
   function cancelSessionTimer() {
@@ -147,8 +328,14 @@
     mainContent?.classList.add("hidden");
 
     document.body.style.overflow = "hidden";
-    setHint("Continue with GitHub or Google.");
+    setHint("Continue with GitHub, Google, or sign in with email.");
+    clearAuthError();
     log("🔒 Showing login UI");
+
+    // Re-bind handlers in case the login DOM is re-rendered
+    try {
+      bindEmailPasswordLogin();
+    } catch (_) {}
 
     markAuthReadyOnce();
   }
@@ -238,9 +425,11 @@
     if (!window.supabase) {
       err("❌ Supabase not available! Cannot login.");
       showNotification("System error. Please refresh and try again.", "error");
+      showAuthError("System error. Please refresh and try again.");
       return;
     }
 
+    clearAuthError();
     setHint("Opening provider…");
 
     // Stable redirect target (align with your app)
@@ -255,6 +444,7 @@
       err("❌ OAuth error:", error);
       setHint("Login failed. Try again.");
       showNotification("Login failed. Please try again.", "error");
+      showAuthError(error.message || "OAuth login failed.");
     }
   }
 
@@ -293,7 +483,10 @@
     return Promise.race([
       promise,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`${label} after ${Math.floor(timeoutMs / 1000)}s`)), timeoutMs)
+        setTimeout(
+          () => reject(new Error(`${label} after ${Math.floor(timeoutMs / 1000)}s`)),
+          timeoutMs
+        )
       ),
     ]);
   }
@@ -301,18 +494,19 @@
   async function fetchUserProfile(user) {
     const uid = user.id;
     const emailNorm = user.email ? user.email.toLowerCase().trim() : null;
-    
-    log("🔍 [PROFILE-LINK] Starting profile resolution for uid:", uid, "email:", emailNorm);
+
+    log(
+      "🔍 [PROFILE-LINK] Starting profile resolution for uid:",
+      uid,
+      "email:",
+      emailNorm
+    );
 
     // ============================================================
     // STEP 1: Try to find profile by user_id (primary lookup)
     // ============================================================
     const { data: uidData, error: uidError } = await withTimeout(
-      window.supabase
-        .from("community")
-        .select("*")
-        .eq("user_id", uid)
-        .limit(1),
+      window.supabase.from("community").select("*").eq("user_id", uid).limit(1),
       15000,
       "Database query timeout"
     );
@@ -338,7 +532,6 @@
       return null;
     }
 
-    // Find all profiles with matching email (case-insensitive)
     const { data: emailMatches, error: emailError } = await withTimeout(
       window.supabase
         .from("community")
@@ -359,23 +552,26 @@
       return null;
     }
 
-    log(`🔍 [PROFILE-LINK] Found ${emailMatches.length} profile(s) with email:`, emailNorm);
+    log(
+      `🔍 [PROFILE-LINK] Found ${emailMatches.length} profile(s) with email:`,
+      emailNorm
+    );
 
     // ============================================================
     // CASE A: Exactly one profile with this email
     // ============================================================
     if (emailMatches.length === 1) {
       const row = emailMatches[0];
-      
-      // Sub-case: profile has no user_id (migrated profile) - link it
+
+      // migrated profile - link it
       if (!row.user_id) {
-        log("🔗 [PROFILE-LINK] Linking migrated profile (user_id=NULL) to OAuth user:", row.id);
-        
+        log("🔗 [PROFILE-LINK] Linking migrated profile (user_id=NULL) to user:", row.id);
+
         const { data: updatedData, error: updateError } = await window.supabase
           .from("community")
-          .update({ 
+          .update({
             user_id: uid,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq("id", row.id)
           .select()
@@ -387,29 +583,30 @@
         }
 
         log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", row.id, "to uid:", uid);
-        
-        // Show notification to user
+
         setTimeout(() => {
-          if (typeof window.showNotification === 'function') {
+          if (typeof window.showNotification === "function") {
             window.showNotification(
-              "Welcome back! Your existing profile has been linked to your OAuth account.",
+              "Welcome back! Your existing profile has been linked to your account.",
               "success"
             );
           }
         }, 1000);
-        
+
         return updatedData;
       }
-      
-      // Sub-case: profile already has a different user_id (collision)
+
+      // collision: already linked to different user_id
       if (row.user_id !== uid) {
-        err("⚠️ [PROFILE-LINK] duplicate-email-collision: Profile", row.id, "already linked to different user_id:", row.user_id);
-        err("⚠️ [PROFILE-LINK] ADMIN WARNING: Email", emailNorm, "has collision between uid:", uid, "and existing uid:", row.user_id);
-        // Do NOT create another profile - return the existing one to prevent duplicates
+        err(
+          "⚠️ [PROFILE-LINK] duplicate-email-collision: Profile",
+          row.id,
+          "already linked to different user_id:",
+          row.user_id
+        );
         return row;
       }
-      
-      // Sub-case: profile already linked to this uid (shouldn't happen, but handle gracefully)
+
       log("✅ [PROFILE-LINK] Profile already linked to this uid:", row.id);
       return row;
     }
@@ -417,14 +614,16 @@
     // ============================================================
     // CASE B: Multiple profiles with same email (duplicates)
     // ============================================================
-    log("⚠️ [PROFILE-LINK] duplicate-email-detected: Found", emailMatches.length, "profiles for email:", emailNorm);
-    
-    // Choose canonical profile with priority:
-    // 1. profile_completed=true OR onboarding_completed=true
-    // 2. Else oldest created_at
+    log(
+      "⚠️ [PROFILE-LINK] duplicate-email-detected: Found",
+      emailMatches.length,
+      "profiles for email:",
+      emailNorm
+    );
+
+    // Choose canonical profile:
+    // 1) completed flags, else 2) oldest created_at (already sorted)
     let canonical = null;
-    
-    // First pass: look for completed profiles
     for (const row of emailMatches) {
       if (row.profile_completed === true || row.onboarding_completed === true) {
         canonical = row;
@@ -432,26 +631,29 @@
         break;
       }
     }
-    
-    // Second pass: if no completed profile, use oldest
     if (!canonical) {
-      canonical = emailMatches[0]; // Already sorted by created_at ASC
+      canonical = emailMatches[0];
       log("🎯 [PROFILE-LINK] Selected canonical (oldest):", canonical.id, "created_at:", canonical.created_at);
     }
 
-    // Check if any row already has this uid but is NOT canonical (rehome scenario)
-    const uidRow = emailMatches.find(r => r.user_id === uid);
+    // If uid is currently on a non-canonical row, clear it
+    const uidRow = emailMatches.find((r) => r.user_id === uid);
     if (uidRow && uidRow.id !== canonical.id) {
-      log("🔄 [PROFILE-LINK] rehomed-uid: uid", uid, "currently on non-canonical profile", uidRow.id, "- rehoming to canonical", canonical.id);
-      
+      log(
+        "🔄 [PROFILE-LINK] rehomed-uid: uid",
+        uid,
+        "currently on non-canonical profile",
+        uidRow.id,
+        "- rehoming to canonical",
+        canonical.id
+      );
       try {
-        // Transaction-like operation: first clear the old link, then set the new one
         const { error: clearError } = await window.supabase
           .from("community")
-          .update({ 
+          .update({
             user_id: null,
             is_hidden: true,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq("id", uidRow.id);
 
@@ -465,15 +667,15 @@
       }
     }
 
-    // Link canonical profile to this uid (if not already linked)
+    // Link canonical to this uid
     if (!canonical.user_id) {
       log("🔗 [PROFILE-LINK] Linking canonical profile", canonical.id, "to uid:", uid);
-      
+
       const { data: updatedCanonical, error: updateError } = await window.supabase
         .from("community")
-        .update({ 
+        .update({
           user_id: uid,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq("id", canonical.id)
         .select()
@@ -481,29 +683,33 @@
 
       if (updateError) {
         err("❌ [PROFILE-LINK] Failed to link canonical profile:", updateError);
-        return canonical; // Return unlinked canonical
+        return canonical;
       }
-
       canonical = updatedCanonical;
       log("✅ [PROFILE-LINK] Successfully linked canonical profile to uid:", uid);
     } else if (canonical.user_id !== uid) {
-      err("⚠️ [PROFILE-LINK] duplicate-email-collision: Canonical profile", canonical.id, "already linked to different uid:", canonical.user_id);
+      err(
+        "⚠️ [PROFILE-LINK] duplicate-email-collision: Canonical profile",
+        canonical.id,
+        "already linked to different uid:",
+        canonical.user_id
+      );
       return canonical;
     }
 
-    // Hide all non-canonical profiles
+    // Hide non-canonical duplicates
     const nonCanonicalIds = emailMatches
-      .filter(r => r.id !== canonical.id)
-      .map(r => r.id);
+      .filter((r) => r.id !== canonical.id)
+      .map((r) => r.id);
 
     if (nonCanonicalIds.length > 0) {
       log("🗑️ [PROFILE-LINK] Hiding", nonCanonicalIds.length, "non-canonical duplicate profile(s):", nonCanonicalIds);
-      
+
       const { error: hideError } = await window.supabase
         .from("community")
-        .update({ 
+        .update({
           is_hidden: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .in("id", nonCanonicalIds);
 
@@ -514,9 +720,8 @@
       }
     }
 
-    // Show notification about duplicate resolution
     setTimeout(() => {
-      if (typeof window.showNotification === 'function') {
+      if (typeof window.showNotification === "function") {
         window.showNotification(
           "Welcome back! We've consolidated your duplicate profiles.",
           "success"
@@ -540,8 +745,11 @@
         // STEP 3: Create new profile if no match found
         // ============================================================
         if (!profile) {
-          log("🆕 [PROFILE-LINK] created-new: No existing profile found, creating new profile for uid:", user.id);
-          
+          log(
+            "🆕 [PROFILE-LINK] created-new: No existing profile found, creating new profile for uid:",
+            user.id
+          );
+
           const newProfile = {
             user_id: user.id,
             email: user.email,
@@ -549,7 +757,7 @@
             updated_at: new Date().toISOString(),
             onboarding_completed: false,
             profile_completed: false,
-            is_hidden: false
+            is_hidden: false,
           };
 
           const { data: insertedProfile, error: insertError } = await window.supabase
@@ -571,18 +779,13 @@
         // ============================================================
         // Enforce onboarding if needed
         // ============================================================
-        const needsOnboarding = 
-          !profile.onboarding_completed || 
-          !profile.profile_completed ||
-          !profile.name;
+        const needsOnboarding = !profile.onboarding_completed || !profile.profile_completed || !profile.name;
 
         if (needsOnboarding) {
           log("⚠️ [PROFILE-LINK] onboarding-forced: Profile", profile.id, "requires onboarding");
           log("   - onboarding_completed:", profile.onboarding_completed);
           log("   - profile_completed:", profile.profile_completed);
           log("   - name:", !!profile.name);
-          
-          // Set flag for UI to show onboarding
           profile._needsOnboarding = true;
         }
 
@@ -625,7 +828,6 @@
 
     showAppUI(user);
 
-    // Load profile, then let synapse init (event driven + safe fallback)
     setTimeout(async () => {
       try {
         await withTimeout(loadUserProfileOnce(user), 10000, "Profile load timeout");
@@ -661,47 +863,45 @@
     authSubAttached = true;
     log("📡 Setting up onAuthStateChange listener...");
 
-    const { data: sub } = window.supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        log("⚡ Auth event received:", event, session?.user ? `user: ${session.user.email}` : "no user");
+    const { data: sub } = window.supabase.auth.onAuthStateChange(async (event, session) => {
+      log(
+        "⚡ Auth event received:",
+        event,
+        session?.user ? `user: ${session.user.email}` : "no user"
+      );
 
-        // INITIAL_SESSION with no user means user is logged out
-        if (event === "INITIAL_SESSION" && !session?.user) {
-          log("🟡 INITIAL_SESSION received - no active session");
-          cancelSessionTimer();
-          markAuthReadyOnce();
-          showLoginUI();
-          return;
-        }
-
-        if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
-          cancelSessionTimer();
-          cleanOAuthUrlSoon();
-          await bootstrapForUser(session.user, event);
-          return;
-        }
-
-        if (event === "SIGNED_OUT") {
-          cancelSessionTimer();
-          log("🟡 User signed out");
-          bootUserId = null;
-          profileLoadPromise = null;
-          hasBootstrappedThisLoad = false;
-          showLoginUI();
-          return;
-        }
-
-        if (event === "TOKEN_REFRESHED") {
-          // Useful log only
-          log("🔄 Token refreshed");
-        }
+      // INITIAL_SESSION with no user means user is logged out
+      if (event === "INITIAL_SESSION" && !session?.user) {
+        log("🟡 INITIAL_SESSION received - no active session");
+        cancelSessionTimer();
+        markAuthReadyOnce();
+        showLoginUI();
+        return;
       }
-    );
 
-    authUnsub = sub?.subscription?.unsubscribe
-      ? () => sub.subscription.unsubscribe()
-      : null;
+      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
+        cancelSessionTimer();
+        cleanOAuthUrlSoon();
+        await bootstrapForUser(session.user, event);
+        return;
+      }
 
+      if (event === "SIGNED_OUT") {
+        cancelSessionTimer();
+        log("🟡 User signed out");
+        bootUserId = null;
+        profileLoadPromise = null;
+        hasBootstrappedThisLoad = false;
+        showLoginUI();
+        return;
+      }
+
+      if (event === "TOKEN_REFRESHED") {
+        log("🔄 Token refreshed");
+      }
+    });
+
+    authUnsub = sub?.subscription?.unsubscribe ? () => sub.subscription.unsubscribe() : null;
     window.__CH_IE_AUTH_UNSUB__ = authUnsub;
     log("✅ onAuthStateChange listener attached");
   }
@@ -712,8 +912,16 @@
     initPromise = (async () => {
       log("🚀 Initializing login system (OAuth)…");
       setHint("Checking session…");
+      clearAuthError();
 
-      // Handle OAuth callback manually (since detectSessionInUrl is disabled)
+      const ok = await waitForSupabase(3000);
+      if (!ok) {
+        err("❌ CRITICAL: window.supabase is not available!");
+        showLoginUI();
+        return;
+      }
+
+      // Handle OAuth callback (code exchange) if present
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
       if (code) {
@@ -721,14 +929,13 @@
         try {
           await window.supabase.auth.exchangeCodeForSession(code);
           log("✅ Code exchanged successfully");
-          // Clean URL and reload
           cleanOAuthUrlNow();
           setTimeout(() => window.location.reload(), 100);
           return;
         } catch (e) {
           err("❌ Failed to exchange code:", e);
           cleanOAuthUrlNow();
-          // Continue to show login UI
+          // Continue to show login UI if session isn't present
         }
       }
 
@@ -741,13 +948,11 @@
         try {
           setupLoginDOM();
         } catch (_) {}
-      }
-
-      const ok = await waitForSupabase(3000);
-      if (!ok) {
-        err("❌ CRITICAL: window.supabase is not available!");
-        showLoginUI();
-        return;
+      } else {
+        // ensure binding stays alive if DOM changed
+        try {
+          bindEmailPasswordLogin();
+        } catch (_) {}
       }
 
       // Subscribe to auth changes for future events
@@ -756,18 +961,12 @@
       // Give Supabase a moment to finish any internal initialization
       await sleep(100);
 
-      // Supabase INITIAL_SESSION event is unreliable - manually check session once
-      // This is safe because:
-      // 1. We only call it once (no retry loop)
-      // 2. onAuthStateChange will handle future changes
-      // 3. We have a timeout fallback if this hangs
+      // Manual session check once (avoid unreliable INITIAL_SESSION in some environments)
       try {
         log("🔍 Checking initial session state...");
         const { data, error } = await Promise.race([
           window.supabase.auth.getSession(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Session check timeout")), 3000)
-          )
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Session check timeout")), 3000)),
         ]);
 
         if (hasBootstrappedThisLoad) {
@@ -815,7 +1014,10 @@
       console.log("2. Auth client:", !!window.supabase?.auth);
 
       const { data: userData, error: userError } = await window.supabase.auth.getUser();
-      console.log("3. Current user:", userData?.user ? `${userData.user.email} (${userData.user.id})` : "None");
+      console.log(
+        "3. Current user:",
+        userData?.user ? `${userData.user.email} (${userData.user.id})` : "None"
+      );
       console.log("4. getUser error:", userError?.message || "None");
 
       const { data: sessData, error: sessError } = await window.supabase.auth.getSession();
@@ -827,6 +1029,10 @@
       );
       console.log("7. Auth localStorage keys:", authKeys);
       console.log("8. __authReady:", window.__authReady);
+
+      console.log("9. Email btn present:", !!(document.querySelector("#email-login-btn") || document.querySelector("#emailSignInBtn")));
+      console.log("10. Email input present:", !!document.querySelector('input[type="email"]'));
+      console.log("11. Password input present:", !!document.querySelector('input[type="password"]'));
     } catch (error) {
       console.error("❌ Auth test failed:", error);
     }
