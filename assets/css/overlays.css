@@ -323,3 +323,26 @@ body.ch-modal-open { overflow: hidden !important; }
    Safety: prevent pointer weirdness
    ----------------------------- */
 .ch-modal-overlay, .ch-modal-panel{ touch-action: manipulation; }
+
+/* --- Force Profile Modal above all side panels --- */
+#profile-modal.modal{
+  position: fixed !important;
+  inset: 0 !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,0.70);
+  z-index: 200000 !important;
+}
+
+#profile-modal.modal.active{
+  display: flex !important;
+}
+
+#profile-modal .modal-content{
+  width: min(720px, 96vw);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  border-radius: 16px;
+}
