@@ -578,6 +578,51 @@
         min-width: auto !important;
       }
     }
+    /* ==========================================================
+   FIX: Profile modal must be a true fullscreen overlay
+   (prevents overlap with right-side panels)
+   ========================================================== */
+
+#profile-modal.modal{
+  position: fixed !important;
+  inset: 0 !important;
+  display: none !important;              /* shown via .active */
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+
+  background: rgba(0,0,0,0.70) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  z-index: 200000 !important;            /* beats any panel */
+}
+
+#profile-modal.modal.active{
+  display: flex !important;
+}
+
+#profile-modal .modal-content{
+  width: min(720px, 96vw) !important;
+  max-height: min(86vh, 760px) !important;
+  overflow: auto !important;
+  border-radius: 16px !important;
+
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Optional: lock background scroll while modal is open */
+body.profile-modal-open{
+  overflow: hidden !important;
+}
+
+/* Optional: prevent side panels from intercepting clicks while modal is open */
+body.profile-modal-open .node-panel,
+body.profile-modal-open .profile-panel,
+body.profile-modal-open .side-panel{
+  pointer-events: none !important;
+}
 
   </style>
 </head>
