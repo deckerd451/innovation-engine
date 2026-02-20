@@ -40,6 +40,38 @@
   }
   window[GUARD] = true;
 
+  // === OAUTH CALLBACK EXCHANGE (canonical, single-flight) ===
+  (async function exchangeOAuthCodeIfPresent() {
+    try {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has("code")) return;
+
+      if (window.__OAUTH_EXCHANGE_IN_FLIGHT__) return;
+      window.__OAUTH_EXCHANGE_IN_FLIGHT__ = true;
+
+      console.log("[OAUTH] code detected — exchanging for session...");
+
+      const { data, error } =
+        await window.supabase.auth.exchangeCodeForSession(window.location.href);
+
+      console.log("[OAUTH] exchange result:", { data, error });
+
+      if (error) {
+        console.error("[OAUTH] exchangeCodeForSession failed:", error);
+        return;
+      }
+
+      url.searchParams.delete("code");
+      url.searchParams.delete("state");
+      history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+      console.log("[OAUTH] URL cleaned after exchange ✅");
+    } catch (e) {
+      console.error("[OAUTH] exchange handler crashed:", e);
+    } finally {
+      window.__OAUTH_EXCHANGE_IN_FLIGHT__ = false;
+    }
+  })();
+
   // -----------------------------
   // Helpers
   // -----------------------------
