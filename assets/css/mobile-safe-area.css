@@ -215,20 +215,21 @@
       margin: 0 !important;
     }
 
-    /* Tooltip content should not exceed bounds */
+    /* Tooltip content — outer modal handles scrolling */
     .tooltip-content {
-      max-height: 100% !important;
       overflow: visible !important;
       padding: 20px !important;
+      box-sizing: border-box !important;
     }
 
-    /* Got it! button stays at bottom of modal */
+    /* Got it! button — normal flow, no sticky overlap */
     .tooltip-close {
-      position: sticky !important;
-      bottom: 0 !important;
+      position: static !important;
+      bottom: auto !important;
       margin-top: 16px !important;
       min-height: 48px !important;
       touch-action: manipulation !important;
+      display: block !important;
     }
 
 
