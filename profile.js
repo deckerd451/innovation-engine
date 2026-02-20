@@ -1304,59 +1304,33 @@
       const content = profileModalContent();
       if (!content) return;
 
-      if ($("btn-open-profile-editor")) {
-        content.innerHTML = renderProfileView(state.profile, state.user);
-
-        $("btn-open-profile-editor")?.addEventListener(
-          "click",
-          () => window.openProfileEditor?.(),
-          { once: true }
-        );
-        $("btn-change-password")?.addEventListener(
-          "click",
-          () => window.openPasswordChangeView?.(),
-          { once: true }
-        );
-        $("logout-btn")?.addEventListener(
-          "click",
-          () => window.handleLogout?.(),
-          { once: true }
-        );
-      }
-    });
-  }
-
-  // Listen for auth events
-  window.addEventListener("app-ready", (e) => {
-    state.user = e.detail?.user || null;
-    setHeaderUser(state.user, state.profile);
-  });
-
-  window.addEventListener("profile-loaded", (e) => {
-    state.user = e.detail?.user || state.user;
-    state.profile = e.detail?.profile || state.profile;
-    setHeaderUser(state.user, state.profile);
-  });
-
-  window.addEventListener("profile-new", (e) => {
-    state.user = e.detail?.user || state.user;
-    state.profile = null;
-    setHeaderUser(state.user, state.profile);
-  });
-
-  window.addEventListener("user-logged-out", () => {
-    state.user = null;
-    state.profile = null;
-    if (elUserName()) elUserName().textContent = "Logged out";
-    if (elInitials()) elInitials().textContent = "?";
-    setHeaderAvatar("", "Logged out");
-    window.closeProfileModal?.();
-  });
-
-  if (document.readyState === "loading") {
+     if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bindUI, { once: true });
   } else {
     bindUI();
+  }
+
+  // ------------------------------------------------
+  // Force V3 editor to be canonical and prevent overrides
+  // ------------------------------------------------
+  try {
+    window.openProfileEditorV3 = window.openProfileEditor;
+
+    // If something overwrote it earlier, restore ours
+    if (typeof window.openProfileEditorV3 === "function") {
+      window.openProfileEditor = window.openProfileEditorV3;
+    }
+
+    Object.defineProperty(window, "openProfileEditor", {
+      value: window.openProfileEditor,
+      writable: false,
+      configurable: false,
+      enumerable: true,
+    });
+
+    console.log("🔒 openProfileEditor locked to V3");
+  } catch (e) {
+    console.warn("⚠️ Failed to lock openProfileEditor:", e);
   }
 
   console.log("✅ profile.js loaded (v3 — uploader added)");
