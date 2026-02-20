@@ -157,7 +157,21 @@
       }
     }
 
-    // Wait for auth decision
+    // Fast path: if window.__authInit is available, await it directly.
+    // This resolves as soon as auth.js completes initLoginSystem() rather than
+    // waiting for the 10 s timeout fallback that fires when AUTH_READY / AUTH_NONE
+    // events are delayed (e.g. by lock contention during OAuth callback).
+    if (window.__authInit) {
+      try {
+        await window.__authInit;
+      } catch (_) {}
+      if (window.appReady.authKnown) {
+        return window.appReady.auth ? window.appReady.user : null;
+      }
+      // authKnown should be set now; fall through to event-based path as safety net
+    }
+
+    // Wait for auth decision via events
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         // Only log timeout if auth decision was never made (unexpected)

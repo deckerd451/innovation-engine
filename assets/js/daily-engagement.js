@@ -743,21 +743,27 @@ window.DailyEngagement = DailyEngagement;
         once: true,
       });
 
-      // Fallback: if profile-loaded never fires but session exists, init anyway
-      const sb = await (async () => {
-        for (let i = 0; i < 30; i++) {
-          if (window.supabase) return window.supabase;
-          await new Promise((r) => setTimeout(r, 100));
-        }
-        return null;
-      })();
+      // Fallback: if profile-loaded never fires, wait for auth init to complete
+      // and use the user auth.js already resolved — no extra Navigator Lock call.
+      // (Calling sb.auth.getUser() here would race with exchangeCodeForSession()
+      //  and cause "lock:supabase.auth.token" timeouts on OAuth callback pages.)
+      if (typeof window.waitForAuthReady === 'function') {
+        await window.waitForAuthReady().catch(() => {});
+      } else if (window.bootGate?.waitForAuth) {
+        await window.bootGate.waitForAuth(8000).catch(() => {});
+      } else {
+        // Simple poll for auth-ready signal as last resort
+        await new Promise((resolve) => {
+          if (window.__authReady) return resolve();
+          window.addEventListener('auth-ready', resolve, { once: true });
+          setTimeout(resolve, 8000); // don't wait forever
+        });
+      }
 
-      if (!sb) return;
-
-      const user = await sb.auth.getUser().then(r => r.data?.user);
+      const user = window.currentAuthUser;
       if (user) {
         // Let profile-loaded win if it arrives quickly; otherwise init after a short delay
-        setTimeout(() => tryInit("getUser-fallback"), 400);
+        setTimeout(() => tryInit("auth-init-fallback"), 400);
       }
     },
     { once: true }
