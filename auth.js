@@ -861,7 +861,7 @@
         log("🔄 OAuth callback detected, exchanging code for session...");
         log("[AUTH-GATE] oauth exchange start");
         try {
-          await window.supabase.auth.exchangeCodeForSession(code);
+          await window.supabase.auth.exchangeCodeForSession(window.location.href);
           log("✅ Code exchanged successfully");
           log("[AUTH-GATE] oauth exchange success");
           // Clean URL and reload
