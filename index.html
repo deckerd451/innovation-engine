@@ -15,16 +15,16 @@
   <link rel="manifest" href="./manifest.json">
 
 
-  <!-- Core CSS -->
-  <link rel="stylesheet" href="assets/css/base.css" />
-  <link rel="stylesheet" href="assets/css/engine.css" />
-  <link rel="stylesheet" href="assets/css/overlays.css" />
-  <link rel="stylesheet" href="assets/css/connections.css" />
-  <link rel="stylesheet" href="assets/css/messaging.css" />
-  <link rel="stylesheet" href="dashboard.css" />
-  <link rel="stylesheet" href="assets/css/synapse-progressive-disclosure.css" />
-  <link rel="stylesheet" href="assets/css/quiet-mode.css" />
-  <link rel="stylesheet" href="assets/css/mobile-safe-area.css" />
+  <!-- Core CSS (v=20260220-1 — bump this string on every CSS change) -->
+  <link rel="stylesheet" href="assets/css/base.css?v=20260220-1" />
+  <link rel="stylesheet" href="assets/css/engine.css?v=20260220-1" />
+  <link rel="stylesheet" href="assets/css/overlays.css?v=20260220-1" />
+  <link rel="stylesheet" href="assets/css/connections.css?v=20260220-1" />
+  <link rel="stylesheet" href="assets/css/messaging.css?v=20260220-1" />
+  <link rel="stylesheet" href="dashboard.css?v=20260220-1" />
+  <link rel="stylesheet" href="assets/css/synapse-progressive-disclosure.css?v=20260220-1" />
+  <link rel="stylesheet" href="assets/css/quiet-mode.css?v=20260220-1" />
+  <link rel="stylesheet" href="assets/css/mobile-safe-area.css?v=20260220-1" />
 
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
@@ -1407,6 +1407,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
   <!-- Centralized Logger (MUST LOAD FIRST) -->
+  <!-- Boot diagnostics: must be first JS — stamps BUILD_ID banner and watches key globals -->
+  <script src="assets/js/boot-diagnostics.js?v=20260220-1"></script>
+
   <script type="module" src="assets/js/logger.js?v=fc09b39b-17701461547"></script>
   
   <!-- Animation Lifecycle Controller (MUST LOAD EARLY) -->
@@ -2132,6 +2135,44 @@
     });
   }
 </script>
+
+  <!-- Force sign-out: ensures no stale Supabase session persists across page loads.
+       Runs as an inline script so it fires before any module is evaluated.
+       Auth.js then starts a fresh session from scratch on every load. -->
+  <script>
+  (function () {
+    // Wait for supabase to be available, then sign out any existing session.
+    // We use a short poll because supabaseClient.js loads asynchronously.
+    var _forceSignOutAttempts = 0;
+    var _forceSignOutMax = 100; // 5 s max wait
+
+    function tryForceSignOut() {
+      if (typeof window.supabase !== 'undefined' && typeof window.supabase.auth !== 'undefined') {
+        window.supabase.auth.signOut({ scope: 'local' }).then(function () {
+          console.log('[force-signout] ✅ Stale session cleared on page load.');
+        }).catch(function (e) {
+          console.warn('[force-signout] signOut error (ignored):', e.message);
+        });
+        return;
+      }
+      if (_forceSignOutAttempts++ < _forceSignOutMax) {
+        setTimeout(tryForceSignOut, 50);
+      } else {
+        console.warn('[force-signout] supabase not available after 5 s — skipping forced sign-out.');
+      }
+    }
+
+    // Also sign out on page hide (tab close / background) to prevent
+    // session tokens from being visible in a suspended tab's memory.
+    window.addEventListener('pagehide', function () {
+      if (typeof window.supabase !== 'undefined') {
+        window.supabase.auth.signOut({ scope: 'local' }).catch(function () {});
+      }
+    });
+
+    tryForceSignOut();
+  })();
+  </script>
 
 
   </body>

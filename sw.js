@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.
@@ -112,16 +112,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Static assets: network-first so deployments are always picked up promptly.
+  // Falls back to cache only when the network is genuinely unavailable.
   event.respondWith(
     (async () => {
-      const cached = await caches.match(req);
-      if (cached) return cached;
-
       const cache = await caches.open(CACHE_NAME);
-      const fresh = await fetch(req);
-      await safeCachePut(cache, req, fresh.clone());
-      return fresh;
+      try {
+        const fresh = await fetch(req);
+        await safeCachePut(cache, req, fresh.clone());
+        return fresh;
+      } catch {
+        return await caches.match(req);
+      }
     })()
   );
 });

@@ -1537,7 +1537,8 @@ function loadAdminTabContent(tabName) {
     `;
     loadOrganizationsList();
   } else if (tabName === 'system') {
-    const isEnabled = localStorage.getItem('enable-unified-network') === 'true';
+    // Default ON: only disabled when key is explicitly 'false'.
+    const isEnabled = localStorage.getItem('enable-unified-network') !== 'false';
     // Check both debug flags - if either is set, show as enabled
     const isDebug = localStorage.getItem('unified-network-debug') === 'true' || 
                     localStorage.getItem('DEBUG') === '1';
@@ -1671,11 +1672,13 @@ function loadAdminTabContent(tabName) {
     
     toggle.addEventListener('change', () => {
       if (toggle.checked) {
-        localStorage.setItem('enable-unified-network', 'true');
+        // Remove the key entirely so the default-ON logic in integration.js takes effect.
+        localStorage.removeItem('enable-unified-network');
         status.textContent = '⚠️ Enabled (reload required)';
         status.style.color = '#ffaa00';
       } else {
-        localStorage.removeItem('enable-unified-network');
+        // Explicitly set 'false' — the only way to disable with the !== 'false' pattern.
+        localStorage.setItem('enable-unified-network', 'false');
         status.textContent = '⚠️ Disabled (reload required)';
         status.style.color = '#ffaa00';
       }
