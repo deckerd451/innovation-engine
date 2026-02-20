@@ -63,13 +63,7 @@
 
     body { overflow: hidden; }
   </style>
-
-  <!-- =========================================================
-       ✅ CONCLUSIVE OAUTH FIX (runs before anything else)
-       - Detects ?code= and exchanges it for a Supabase session
-       - Cleans the URL ONLY after exchange
-       - Prevents “code gets stripped before exchange” SPA bug
-  ========================================================== -->
+  
   <script>
 (function(){
   let _val = window.initLoginSystem;
@@ -83,42 +77,7 @@
   });
 })();
 </script>
-  <script type="module">
-    (async () => {
-      try {
-        const url = new URL(location.href);
-        const hasCode = url.searchParams.has("code");
-        const hasErr = url.searchParams.has("error") || url.searchParams.has("error_description");
-
-        if (hasErr) {
-          console.error("[OAUTH] Provider returned error:", {
-            error: url.searchParams.get("error"),
-            desc: url.searchParams.get("error_description")
-          });
-          // Keep URL for debugging; do not auto-clean.
-          return;
-        }
-
-        // Import Supabase client EARLY (side-effect sets window.supabase)
-        await import("./assets/js/supabaseClient.js?v=fc09b39b-1770146154f916933b2da");
-
-        const supabase = window.supabase;
-        if (!supabase?.auth) {
-          console.error("[OAUTH] window.supabase.auth not available (supabaseClient.js did not initialize).");
-          return;
-        }
-
-          // Clean URL only after successful exchange
-          url.searchParams.delete("code");
-          url.searchParams.delete("state");
-          history.replaceState({}, document.title, url.pathname + url.search + url.hash);
-          console.log("[OAUTH] URL cleaned after successful exchange.");
-        }
-      } catch (e) {
-        console.error("[OAUTH] early handler crashed:", e);
-      }
-    })();
-  </script>
+  
 </head>
 
 <body>
