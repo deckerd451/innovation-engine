@@ -987,6 +987,7 @@
           try { URL.revokeObjectURL(objUrl); } catch {}
         }, 15_000);
       });
+    
 
       // Remove photo (optional nice-to-have)
       removeBtn?.addEventListener("click", () => {
@@ -1115,6 +1116,8 @@
       alert("Error opening profile editor.");
     }
   };
+// ✅ Capture V3 editor reference immediately (before other modules can overwrite)
+window.openProfileEditorV3 = window.openProfileEditor;
 
   // -----------------------------
   // Password change view
@@ -1291,7 +1294,7 @@
     setTimeout(() => t.remove(), 2600);
   }
 
-  // -----------------------------
+   // -----------------------------
   // Wiring
   // -----------------------------
   function bindUI() {
@@ -1304,34 +1307,46 @@
       const content = profileModalContent();
       if (!content) return;
 
-     if (document.readyState === "loading") {
+      // ... your existing resize re-render logic here ...
+      // IMPORTANT: make sure this resize handler fully closes:
+    });
+  }
+
+  // Listen for auth events
+  window.addEventListener("app-ready", (e) => { /* ... */ });
+  window.addEventListener("profile-loaded", (e) => { /* ... */ });
+  window.addEventListener("profile-new", (e) => { /* ... */ });
+  window.addEventListener("user-logged-out", () => { /* ... */ });
+
+  // ✅ This MUST be outside bindUI()
+  if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bindUI, { once: true });
   } else {
     bindUI();
   }
 
-  // ------------------------------------------------
-  // Force V3 editor to be canonical and prevent overrides
-  // ------------------------------------------------
-  try {
-    window.openProfileEditorV3 = window.openProfileEditor;
+  // ✅ This MUST be outside bindUI()
+  window.addEventListener("load", () => {
+    try {
+      if (typeof window.openProfileEditorV3 === "function") {
+        window.openProfileEditor = () => window.openProfileEditorV3();
+        console.log("✅ openProfileEditor delegated to V3 (after load)");
 
-    // If something overwrote it earlier, restore ours
-    if (typeof window.openProfileEditorV3 === "function") {
-      window.openProfileEditor = window.openProfileEditorV3;
+        Object.defineProperty(window, "openProfileEditor", {
+          value: window.openProfileEditor,
+          writable: false,
+          configurable: false,
+          enumerable: true,
+        });
+
+        console.log("🔒 openProfileEditor locked to V3 (after load)");
+      } else {
+        console.warn("⚠️ openProfileEditorV3 not set at load time");
+      }
+    } catch (e) {
+      console.warn("⚠️ Failed to delegate/lock openProfileEditor to V3:", e);
     }
-
-    Object.defineProperty(window, "openProfileEditor", {
-      value: window.openProfileEditor,
-      writable: false,
-      configurable: false,
-      enumerable: true,
-    });
-
-    console.log("🔒 openProfileEditor locked to V3");
-  } catch (e) {
-    console.warn("⚠️ Failed to lock openProfileEditor:", e);
-  }
+  });
 
   console.log("✅ profile.js loaded (v3 — uploader added)");
 })();
