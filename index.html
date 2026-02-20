@@ -70,6 +70,19 @@
        - Cleans the URL ONLY after exchange
        - Prevents “code gets stripped before exchange” SPA bug
   ========================================================== -->
+  <script>
+(function(){
+  let _val = window.initLoginSystem;
+  Object.defineProperty(window, "initLoginSystem", {
+    configurable: true,
+    get(){ return _val; },
+    set(v){
+      console.warn("[TRAP] initLoginSystem overwritten by:", (new Error()).stack);
+      _val = v;
+    }
+  });
+})();
+</script>
   <script type="module">
     (async () => {
       try {
