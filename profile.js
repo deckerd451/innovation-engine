@@ -19,9 +19,30 @@
 (() => {
   "use strict";
 
+  // ================================================================
+  // PRE-GUARD: Initialize CHProfile namespace (always runs, idempotent)
+  // ================================================================
+  window.CHProfile = window.CHProfile || {};
+  if (!window.CHProfile.version) {
+    window.CHProfile.version = "v3-uploader-20260220";
+  }
+
+  // Banner log: exactly once per page load
+  if (!window.__CH_PROFILE_BANNER_LOGGED__) {
+    window.__CH_PROFILE_BANNER_LOGGED__ = true;
+    console.log("[PROFILE] loaded profile.js v3-uploader-20260220");
+    console.log("[PROFILE] CHProfile.version=", window.CHProfile.version);
+  }
+
   const GUARD = "__CH_IE_PROFILE_V3__";
   if (window[GUARD]) {
-    console.log("⚠️ profile.js already initialized — skipping duplicate init.");
+    // Guard fired: DOM setup already done. Re-assert canonical entrypoint.
+    if (typeof window.CHProfile.openEditorV3 === "function") {
+      window.openProfileEditor = function openProfileEditorProxy() {
+        return window.CHProfile.openEditorV3();
+      };
+      console.log("[PROFILE CANON] guard-skip: re-asserted openProfileEditor -> CHProfile.openEditorV3");
+    }
     return;
   }
   window[GUARD] = true;
@@ -1116,8 +1137,22 @@
       alert("Error opening profile editor.");
     }
   };
-// ✅ Capture V3 editor reference immediately (before other modules can overwrite)
-window.openProfileEditorV3 = window.openProfileEditor;
+  // ================================================================
+  // Export to canonical CHProfile namespace
+  // ================================================================
+  window.CHProfile.openEditorV3 = window.openProfileEditor;
+  window.CHProfile.openModal = function openProfileModalProxy() {
+    return window.openProfileModal?.();
+  };
+
+  // Replace bare assignment with a proxy wrapper (canonicalizer re-asserts this)
+  window.openProfileEditor = function openProfileEditorProxy() {
+    return window.CHProfile.openEditorV3();
+  };
+  // Backward-compat alias
+  window.openProfileEditorV3 = window.CHProfile.openEditorV3;
+
+  console.log("[PROFILE] openProfileEditor points to: openProfileEditorProxy -> CHProfile.openEditorV3");
 
   // -----------------------------
   // Password change view
@@ -1312,41 +1347,98 @@ window.openProfileEditorV3 = window.openProfileEditor;
     });
   }
 
-  // Listen for auth events
-  window.addEventListener("app-ready", (e) => { /* ... */ });
-  window.addEventListener("profile-loaded", (e) => { /* ... */ });
-  window.addEventListener("profile-new", (e) => { /* ... */ });
-  window.addEventListener("user-logged-out", () => { /* ... */ });
+  // ================================================================
+  // CANONICALIZER — re-asserts openProfileEditor -> CHProfile.openEditorV3
+  // ================================================================
+  function canonicalizeProfileEditor() {
+    if (typeof window.CHProfile?.openEditorV3 !== "function") return;
+    window.openProfileEditor = function openProfileEditorProxy() {
+      return window.CHProfile.openEditorV3();
+    };
+    console.log("[PROFILE CANON] set openProfileEditor -> CHProfile.openEditorV3");
+  }
+
+  // ================================================================
+  // DEBUG WATCHERS — installed when localStorage.DEBUG_PROFILE_CANON = "1"
+  // ================================================================
+  function installDebugWatchers() {
+    if (localStorage.getItem("DEBUG_PROFILE_CANON") !== "1") return;
+    let _openPE = window.openProfileEditor;
+    try {
+      Object.defineProperty(window, "openProfileEditor", {
+        get() { return _openPE; },
+        set(v) {
+          // Silent for our own canonical re-assertions
+          if (typeof v === "function" && v.name === "openProfileEditorProxy") {
+            _openPE = v;
+            return;
+          }
+          const stack = new Error().stack;
+          console.warn(
+            `PROFILE WATCH: openProfileEditor overwritten by ${v?.name || "(anonymous)"} at\n${stack}`
+          );
+          _openPE = v;
+        },
+        configurable: true,
+        enumerable: true
+      });
+
+      let _CHProfile = window.CHProfile;
+      Object.defineProperty(window, "CHProfile", {
+        get() { return _CHProfile; },
+        set(v) {
+          const stack = new Error().stack;
+          console.warn(`PROFILE WATCH: window.CHProfile overwritten at\n${stack}`);
+          _CHProfile = v;
+        },
+        configurable: true,
+        enumerable: true
+      });
+
+      console.log("[PROFILE DEBUG] Overwrite watchers installed on openProfileEditor + CHProfile");
+    } catch (e) {
+      console.warn("[PROFILE DEBUG] Could not install watchers:", e);
+    }
+  }
+
+  // Listen for auth events — update state + re-canonicalize
+  window.addEventListener("app-ready", (e) => {
+    const detail = e?.detail || {};
+    if (detail.user) state.user = detail.user;
+    if (detail.profile) { state.profile = detail.profile; setHeaderUser(state.user, state.profile); }
+  });
+  window.addEventListener("profile-loaded", (e) => {
+    const detail = e?.detail || {};
+    if (detail.user) state.user = detail.user;
+    if (detail.profile) { state.profile = detail.profile; setHeaderUser(state.user, state.profile); }
+    // CRITICAL: profile-loaded fires after login (after node-panel.js may have loaded + overwritten)
+    canonicalizeProfileEditor();
+  });
+  window.addEventListener("profile-new", (e) => {
+    const detail = e?.detail || {};
+    if (detail.user) state.user = detail.user;
+    if (detail.profile) { state.profile = detail.profile; setHeaderUser(state.user, state.profile); }
+  });
+  window.addEventListener("user-logged-out", () => {
+    state.user = null;
+    state.profile = null;
+  });
 
   // ✅ This MUST be outside bindUI()
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bindUI, { once: true });
+    document.addEventListener("DOMContentLoaded", () => { canonicalizeProfileEditor(); bindUI(); }, { once: true });
   } else {
+    canonicalizeProfileEditor();
     bindUI();
   }
 
   // ✅ This MUST be outside bindUI()
   window.addEventListener("load", () => {
-    try {
-      if (typeof window.openProfileEditorV3 === "function") {
-        window.openProfileEditor = () => window.openProfileEditorV3();
-        console.log("✅ openProfileEditor delegated to V3 (after load)");
-
-        Object.defineProperty(window, "openProfileEditor", {
-          value: window.openProfileEditor,
-          writable: false,
-          configurable: false,
-          enumerable: true,
-        });
-
-        console.log("🔒 openProfileEditor locked to V3 (after load)");
-      } else {
-        console.warn("⚠️ openProfileEditorV3 not set at load time");
-      }
-    } catch (e) {
-      console.warn("⚠️ Failed to delegate/lock openProfileEditor to V3:", e);
-    }
-  });
+    canonicalizeProfileEditor();
+    console.log("[PROFILE] window.load: canonicalization done. openProfileEditor.name=",
+      window.openProfileEditor?.name || typeof window.openProfileEditor);
+    installDebugWatchers();
+  }, { once: true });
 
   console.log("✅ profile.js loaded (v3 — uploader added)");
 })();

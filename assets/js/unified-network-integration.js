@@ -19,7 +19,8 @@ import { installUnifiedTierProbe } from './unified-tier-probe.js';
 // ------------------------------------------------------------------
 function getFeatureFlags() {
   return {
-    ENABLE_UNIFIED_NETWORK: localStorage.getItem('enable-unified-network') === 'true',
+    // Default ON: enabled unless user explicitly sets 'enable-unified-network' to 'false'
+    ENABLE_UNIFIED_NETWORK: localStorage.getItem('enable-unified-network') !== 'false',
     DEBUG_MODE: localStorage.getItem('unified-network-debug') === 'true'
   };
 }
@@ -505,7 +506,7 @@ export function enableUnifiedNetwork() {
  * Disable unified network
  */
 export function disableUnifiedNetwork() {
-  localStorage.removeItem('enable-unified-network');
+  localStorage.setItem('enable-unified-network', 'false');
   logger.info(INTEGRATION_NS, 'Unified network disabled - reload page to use legacy');
   showSuccessNotification('Unified Network disabled! Reload the page to use legacy mode.');
 }
