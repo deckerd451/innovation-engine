@@ -36,8 +36,9 @@
 
   const GUARD = "__CH_IE_PROFILE_V3__";
   if (window[GUARD]) {
-    // Guard fired: DOM setup already done. Re-assert canonical entrypoint.
-    if (typeof window.CHProfile.openEditorV3 === "function") {
+    // Guard fired: DOM setup already done. Re-assert canonical entrypoint only
+    // if globals have not been locked yet (lock is set synchronously on first load).
+    if (!window.__profileGlobalsLocked && typeof window.CHProfile?.openEditorV3 === "function") {
       window.openProfileEditor = function openProfileEditorProxy() {
         return window.CHProfile.openEditorV3();
       };
@@ -1154,6 +1155,55 @@
 
   console.log("[PROFILE] openProfileEditor points to: openProfileEditorProxy -> CHProfile.openEditorV3");
 
+  // ================================================================
+  // GLOBAL LOCK — prevents any later module from overwriting the
+  // canonical profile globals set above.
+  //
+  // Escape hatch for debugging / testing:
+  //   window.__ALLOW_PROFILE_GLOBAL_OVERWRITE = true
+  //   (then reload — lock is skipped entirely)
+  //
+  // After locking, window.__bootDiag.dump() should report 0 overwrites
+  // for openProfileEditor, openProfileModal, closeProfileModal.
+  // ================================================================
+  (function lockProfileGlobals() {
+    if (window.__ALLOW_PROFILE_GLOBAL_OVERWRITE) {
+      console.log('[PROFILE LOCK] skipped — window.__ALLOW_PROFILE_GLOBAL_OVERWRITE is set');
+      return;
+    }
+    window.__profileGlobalsLocked = true;
+    const VERSION = window.CHProfile.version || 'v3';
+    ['openProfileEditor', 'openProfileModal', 'closeProfileModal'].forEach(function (name) {
+      const fn = window[name];
+      if (typeof fn !== 'function') return;
+      try {
+        Object.defineProperty(window, name, {
+          configurable: true,   // keep configurable so DevTools can override if needed
+          enumerable: true,
+          get() { return fn; },
+          set(v) {
+            if (window.__ALLOW_PROFILE_GLOBAL_OVERWRITE) {
+              // Escape hatch active at runtime: restore writability and allow the set.
+              Object.defineProperty(window, name, {
+                value: v, writable: true, configurable: true, enumerable: true
+              });
+              console.log('[PROFILE LOCK] escape hatch: allowed overwrite of window.' + name);
+              return;
+            }
+            console.warn(
+              '[PROFILE LOCK] Blocked overwrite of window.' + name +
+              ' (' + VERSION + '). ' +
+              'Set window.__ALLOW_PROFILE_GLOBAL_OVERWRITE=true before reload to bypass.'
+            );
+          }
+        });
+      } catch (e) {
+        console.warn('[PROFILE LOCK] Could not lock window.' + name + ':', e.message);
+      }
+    });
+    console.log('[PROFILE LOCK] globals locked (' + VERSION + ')');
+  })();
+
   // -----------------------------
   // Password change view
   // -----------------------------
@@ -1351,6 +1401,9 @@
   // CANONICALIZER — re-asserts openProfileEditor -> CHProfile.openEditorV3
   // ================================================================
   function canonicalizeProfileEditor() {
+    // Skip re-canonicalization once globals are locked — the lock guarantees
+    // the correct proxy is already in place and cannot be overwritten.
+    if (window.__profileGlobalsLocked) return;
     if (typeof window.CHProfile?.openEditorV3 !== "function") return;
     window.openProfileEditor = function openProfileEditorProxy() {
       return window.CHProfile.openEditorV3();

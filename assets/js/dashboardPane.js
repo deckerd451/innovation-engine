@@ -321,24 +321,30 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   }
 
   function wireGlobalFunctions() {
-    // Modals
-    window.openProfileModal = async () => {
-      if (state.communityProfile) {
-        try {
-          const { openNodePanel } = await import("./node-panel.js");
-          openNodePanel({
-            id: state.communityProfile.id,
-            name: state.communityProfile.name,
-            type: "person",
-          });
-          return;
-        } catch {
-          // fall through to modal
+    // Modals — guard every assignment: profile.js is the canonical owner of these
+    // globals and must not be overwritten.  Only assign when profile.js has not
+    // already claimed the slot (i.e., first-write wins).
+    if (!window.openProfileModal) {
+      window.openProfileModal = async () => {
+        if (state.communityProfile) {
+          try {
+            const { openNodePanel } = await import("./node-panel.js");
+            openNodePanel({
+              id: state.communityProfile.id,
+              name: state.communityProfile.name,
+              type: "person",
+            });
+            return;
+          } catch {
+            // fall through to modal
+          }
         }
-      }
-      openModal("profile-modal");
-    };
-    window.closeProfileModal = () => closeModal("profile-modal");
+        openModal("profile-modal");
+      };
+    }
+    if (!window.closeProfileModal) {
+      window.closeProfileModal = () => closeModal("profile-modal");
+    }
 
     // =========================================================
     // MESSAGES MODAL — MessagingModule-first (WhatsApp/iMessage mobile)
