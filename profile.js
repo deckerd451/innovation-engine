@@ -681,14 +681,18 @@
             setUploaderStatus(`Uploading ${width}×${height} (${Math.round(size / 1024)}KB)…`, "");
 
             const publicUrl = await uploadAvatarToSupabase({
-              supabase,
-              userId: user.id,
-              blob,
-              mime,
-            });
+  supabase,
+  userId: user.id,
+  blob,
+  mime,
+});
 
-            updated.image_url = publicUrl;
-            setUploaderStatus("Photo uploaded.", "ok");
+updated.image_url = publicUrl;
+
+// ✅ Immediately switch modal preview from blob URL to real stored URL
+setPreviewToUrl(publicUrl);
+
+setUploaderStatus("Photo uploaded.", "ok");
           } else if (pendingRemoveAvatar) {
             updated.image_url = null;
 
