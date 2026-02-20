@@ -95,16 +95,6 @@
           return;
         }
 
-        if (hasCode) {
-          console.log("[OAUTH] code detected — exchanging for session...");
-          const { data, error } = await supabase.auth.exchangeCodeForSession(location.href);
-          console.log("[OAUTH] exchange result:", { data, error });
-
-          if (error) {
-            console.error("[OAUTH] exchangeCodeForSession failed:", error);
-            return;
-          }
-
           // Clean URL only after successful exchange
           url.searchParams.delete("code");
           url.searchParams.delete("state");
