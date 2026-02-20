@@ -35,18 +35,30 @@
       return;
     }
 
+    // Wait for auth.js to finish its init before touching supabase.auth.*.
+    // Calling getSession() concurrently with exchangeCodeForSession() or signOut()
+    // competes for the Navigator LockManager lock and causes 10 s timeouts.
+    try {
+      if (typeof window.waitForAuthReady === 'function') {
+        await window.waitForAuthReady();
+      } else if (window.bootGate?.waitForAuth) {
+        await window.bootGate.waitForAuth(8000);
+      }
+    } catch (_) {}
+
+    // Use the user object auth.js already resolved — no extra lock acquisition.
+    const authUser = window.currentAuthUser;
+    if (!authUser) {
+      console.warn('⚠️ [Synapse Messages] No active session after auth init');
+      return;
+    }
+
     // Get current user's community ID
     try {
-      const { data: { session } } = await window.supabase.auth.getSession();
-      if (!session) {
-        console.warn('⚠️ [Synapse Messages] No active session');
-        return;
-      }
-
       const { data: profile } = await window.supabase
         .from('community')
         .select('id')
-        .eq('user_id', session.user.id)
+        .eq('user_id', authUser.id)
         .single();
 
       if (!profile?.id) {
@@ -261,12 +273,12 @@
     messageCountsCache.clear();
   }
 
-  // Initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  // Initialize after auth.js confirms a logged-in user (profile-loaded).
+  // Starting on DOMContentLoaded caused an early getSession() call that raced
+  // with exchangeCodeForSession() for the supabase.auth.token Navigator Lock.
+  window.addEventListener('profile-loaded', function () {
+    if (!currentUserCommunityId) init();
+  }, { once: true });
 
   // Cleanup on page unload
   window.addEventListener('beforeunload', cleanup);

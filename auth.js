@@ -859,15 +859,18 @@
       const code = url.searchParams.get("code");
       if (code) {
         log("🔄 OAuth callback detected, exchanging code for session...");
+        log("[AUTH-GATE] oauth exchange start");
         try {
           await window.supabase.auth.exchangeCodeForSession(code);
           log("✅ Code exchanged successfully");
+          log("[AUTH-GATE] oauth exchange success");
           // Clean URL and reload
           cleanOAuthUrlNow();
           setTimeout(() => window.location.reload(), 100);
           return;
         } catch (e) {
           err("❌ Failed to exchange code:", e);
+          log("[AUTH-GATE] oauth exchange fail: " + (e?.message || String(e)));
           cleanOAuthUrlNow();
           // Continue to show login UI
         }
@@ -976,6 +979,40 @@
   // Export to window (legacy callers)
   window.setupLoginDOM = setupLoginDOM;
   window.initLoginSystem = initLoginSystem;
+
+  // ─── AUTH-GATE ────────────────────────────────────────────────────────────
+  // Wrap window.initLoginSystem so that the first call creates a globally-
+  // visible promise (window.__authInit).  Any module that calls supabase.auth.*
+  // at startup should await window.__authInit first to avoid competing for the
+  // Navigator LockManager lock "lock:supabase.auth.token".
+  //
+  // Usage from other modules:
+  //   await window.waitForAuthReady();        // convenience wrapper
+  //   await window.__authInit;               // direct promise await
+  // ─────────────────────────────────────────────────────────────────────────
+  const _origInitLoginSystem = window.initLoginSystem;
+  window.initLoginSystem = function initLoginSystemGated() {
+    if (!window.__authInit) {
+      console.log('[AUTH-GATE] init start');
+      window.__authInit = _origInitLoginSystem.apply(this, arguments);
+      window.__authInit
+        .then(function () { console.log('[AUTH-GATE] init end'); })
+        .catch(function () {});
+    }
+    return window.__authInit;
+  };
+
+  // Convenience: await window.waitForAuthReady() from any module.
+  // Safe to call before or after initLoginSystem() has been invoked.
+  window.waitForAuthReady = async function waitForAuthReady() {
+    if (window.__authInit) return window.__authInit;
+    // Poll up to 5 s for __authInit to appear (set when initLoginSystem is called).
+    const start = Date.now();
+    while (!window.__authInit && Date.now() - start < 5000) {
+      await new Promise(function (r) { setTimeout(r, 50); });
+    }
+    if (window.__authInit) return window.__authInit;
+  };
 
   // Optional autostart flag
   const autostart = !!window.__CH_IE_AUTH_AUTOBOOT__;
