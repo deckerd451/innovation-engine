@@ -1088,12 +1088,6 @@ async function buildGraph() {
     node.isUserTheme = position.isUserTheme;
     node.isUserCenter = position.isUserCenter;
     node.hidden = position.hidden;
-
-    // Pin visible themes
-    if (node.type === "theme" && !node.hidden) {
-      node.fx = node.x;
-      node.fy = node.y;
-    }
   });
 
   const visibleNodes = nodes.filter((n) => !n.hidden);
@@ -1282,13 +1276,6 @@ async function buildGraph() {
   simulation.on("tick", () => {
     tickCount++;
     if (tickCount % 2 !== 0) return;
-
-    // Keep themes pinned
-    const visibleThemes = visibleNodes.filter((n) => n.type === "theme");
-    for (const t of visibleThemes) {
-      if (t.fx != null) t.x = t.fx;
-      if (t.fy != null) t.y = t.fy;
-    }
 
     if (!hasInitialCentered && simulation.alpha() < 0.1 && tickCount > 50) {
       hasInitialCentered = true;
