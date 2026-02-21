@@ -1,0 +1,19 @@
+/**
+ * ================================================================
+ * INTELLIGENCE / JOURNEY STORE — thin re-export shim
+ * ================================================================
+ * The full implementation lives at ../../journeyStore.js (root).
+ * This shim lets daily-brief-engine.js (which lives here in
+ * assets/js/intelligence/) import from a same-directory path
+ * without duplicating code.
+ * ================================================================
+ */
+export {
+  recordInteraction,
+  saveNode,
+  dismissNode,
+  getJourneySnapshot,
+  getLastReportAt,
+  setLastReportAt,
+  clearJourney,
+} from '../journeyStore.js';
