@@ -426,6 +426,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     window.showCreateProjectForm = showCreateProjectForm;
     window.hideCreateProjectForm = hideCreateProjectForm;
     window.createProject = createProject;
+    window.loadProjects = loadProjects;
 
     // Messaging globals:
     // Only expose legacy functions if MessagingModule is NOT present
@@ -3331,11 +3332,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (!state.communityProfile?.id) throw new Error("Profile not found.");
 
       const projectData = {
-        name,
+        title: name,
         description,
-        skills_needed: skills,
+        skills: skills ? skills.split(",").map((s) => s.trim()).filter(Boolean) : [],
         creator_id: state.communityProfile.id,
-        status: "open",
+        status: "active",
       };
 
       if (themeId) {
@@ -3413,10 +3414,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       container.innerHTML = projects
         .map((p) => {
-          const skills = (p.skills_needed || "")
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
+          // Support both array (skills) and legacy string (skills_needed) column formats
+          const rawSkills = p.skills || p.skills_needed || [];
+          const skills = Array.isArray(rawSkills)
+            ? rawSkills.filter(Boolean)
+            : rawSkills.split(",").map((s) => s.trim()).filter(Boolean);
 
           const created = p.created_at ? new Date(p.created_at).toLocaleDateString() : "";
           const isMember = userProjectIds.has(p.id);
@@ -3429,7 +3431,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
               <div style="display:flex; justify-content:space-between; align-items:start; gap:1rem;">
                 <div style="flex: 1;">
                   <h3 style="color:#00e0ff; margin:0 0 0.25rem 0; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fas fa-lightbulb"></i> ${escapeHtml(p.name)}
+                    <i class="fas fa-lightbulb"></i> ${escapeHtml(p.title || p.name || "")}
                     ${
                       isMember
                         ? '<span style="background:rgba(0,255,136,0.2); color:#0f8; padding:0.15rem 0.5rem; border-radius:8px; font-size:0.7rem; font-weight:600;">MEMBER</span>'
@@ -3447,7 +3449,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
                   ${
                     !isMember
                       ? `
-                    <button onclick="joinProject('${p.id}', '${escapeHtml(p.name).replace(/'/g, "\\'")}'); event.stopPropagation();"
+                    <button onclick="joinProject('${p.id}', '${escapeHtml(p.title || p.name || "").replace(/'/g, "\\'")}'); event.stopPropagation();"
                       style="background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; color: white;
                       padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">
                       <i class="fas fa-plus-circle"></i> Join

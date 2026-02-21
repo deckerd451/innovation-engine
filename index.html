@@ -1180,7 +1180,7 @@ body.profile-modal-open .side-panel{
       <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-lightbulb"></i> Projects</h2>
 
       <div style="margin-bottom:1.5rem;">
-        <button onclick="showCreateProjectForm()" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
+        <button onclick="if(typeof showEnhancedProjectCreation==='function'){showEnhancedProjectCreation();}else{showCreateProjectForm();}" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
       </div>
 
       <div id="project-form" style="display:none; background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
@@ -1567,6 +1567,9 @@ body.profile-modal-open .side-panel{
 
   <!-- Dashboard controller with commit-based cache-busting -->
   <script type="module" src="assets/js/dashboardPane.js?v=fc09b39b-1770146154f916933b2da"></script>
+
+  <!-- Enhanced project creation modal -->
+  <script type="module" src="assets/js/enhanced-project-creation.js?v=1"></script>
 
   <!-- Unified START Flow - DISABLED: Using Enhanced START UI instead -->
   <!-- <script src="assets/js/start-flow-unified.js?v=fc09b39b-1770146154f916933b2da"></script> -->

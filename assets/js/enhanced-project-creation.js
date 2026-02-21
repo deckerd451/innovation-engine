@@ -809,7 +809,7 @@ window.createEnhancedProject = async function(event) {
     const projectData = {
       title: name,
       description,
-      required_skills: skills,
+      skills: skills,
       creator_id: currentUserProfile.id,
       status: 'active'
     };
@@ -833,6 +833,17 @@ window.createEnhancedProject = async function(event) {
     }
 
     console.log('✅ Project created successfully:', data[0]);
+
+    // Add creator as a project member
+    try {
+      await supabase.from('project_members').insert({
+        project_id: data[0].id,
+        user_id: currentUserProfile.id,
+        role: 'creator',
+      });
+    } catch (memberError) {
+      console.warn('Could not add creator as project member:', memberError);
+    }
 
     // Dispatch project created event
     const projectCreatedEvent = new CustomEvent('project-created', {
@@ -902,9 +913,11 @@ window.closeEnhancedProjectModal = function() {
   console.log('🗑️ Enhanced project modal closed');
 };
 
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize on DOM ready (handle case where DOMContentLoaded already fired)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initEnhancedProjectCreation);
+} else {
   initEnhancedProjectCreation();
-});
+}
 
 console.log('✅ Enhanced project creation ready');
