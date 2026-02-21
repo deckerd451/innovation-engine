@@ -1081,11 +1081,193 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
         // Filter the synapse view based on category
         filterSynapseByCategory(activeSearchCategory);
+
+        // Show contextual add button for actionable categories
+        updateCategoryActionBar(activeSearchCategory);
       });
     });
-    
+
     // Initialize button styles on load
     updateButtonStyles();
+    updateCategoryActionBar('all');
+  }
+
+  // Show/hide the "+ New …" button based on the active filter category
+  function updateCategoryActionBar(category) {
+    const bar = document.getElementById('category-action-bar');
+    if (!bar) return;
+
+    const configs = {
+      projects: {
+        label: 'New Project',
+        icon: 'fa-lightbulb',
+        color: '#00ff88',
+        bg: 'rgba(0,255,136,0.15)',
+        border: 'rgba(0,255,136,0.4)',
+        action() {
+          if (typeof window.showEnhancedProjectCreation === 'function') {
+            window.showEnhancedProjectCreation();
+          } else if (typeof window.openProjectsModal === 'function') {
+            window.openProjectsModal();
+          }
+        }
+      },
+      organizations: {
+        label: 'New Organization',
+        icon: 'fa-building',
+        color: '#a855f7',
+        bg: 'rgba(168,85,247,0.15)',
+        border: 'rgba(168,85,247,0.4)',
+        action() { showQuickCreateOrgModal(); }
+      },
+      themes: {
+        label: 'New Theme',
+        icon: 'fa-palette',
+        color: '#ffaa00',
+        bg: 'rgba(255,170,0,0.15)',
+        border: 'rgba(255,170,0,0.4)',
+        action() {
+          if (typeof window.openThemeCreator === 'function') {
+            window.openThemeCreator();
+          }
+        }
+      }
+    };
+
+    const cfg = configs[category];
+    if (!cfg) {
+      bar.style.display = 'none';
+      bar.innerHTML = '';
+      return;
+    }
+
+    bar.style.display = 'flex';
+    bar.innerHTML = `
+      <button id="category-add-btn"
+        style="padding:0.4rem 1rem; background:${cfg.bg}; border:1px solid ${cfg.border};
+               border-radius:20px; color:${cfg.color}; cursor:pointer; font-weight:600;
+               font-size:0.8rem; transition:all 0.2s; display:flex; align-items:center; gap:0.4rem;">
+        <i class="fas fa-plus"></i><i class="fas ${cfg.icon}"></i> ${cfg.label}
+      </button>`;
+    document.getElementById('category-add-btn').addEventListener('click', cfg.action);
+  }
+
+  // Inline quick-create modal for organizations
+  function showQuickCreateOrgModal() {
+    const existing = document.getElementById('quick-create-org-overlay');
+    if (existing) { existing.remove(); }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'quick-create-org-overlay';
+    overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;
+      display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);`;
+
+    overlay.innerHTML = `
+      <div style="background:rgba(15,20,50,0.98);border:1px solid rgba(168,85,247,0.4);border-radius:16px;
+                  padding:2rem;width:min(480px,90vw);max-height:90vh;overflow-y:auto;position:relative;">
+        <button id="close-quick-org" style="position:absolute;top:1rem;right:1rem;background:none;border:none;
+          color:#aaa;font-size:1.2rem;cursor:pointer;"><i class="fas fa-times"></i></button>
+        <h2 style="color:#a855f7;margin:0 0 1.5rem;"><i class="fas fa-building"></i> New Organization</h2>
+
+        <form id="quick-org-form">
+          <div style="margin-bottom:1rem;">
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.9rem;">Name *</label>
+            <input type="text" id="qorg-name" required placeholder="Organization name"
+              style="width:100%;padding:0.7rem;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.25);
+                     border-radius:8px;color:white;font-family:inherit;box-sizing:border-box;">
+          </div>
+          <div style="margin-bottom:1rem;">
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.9rem;">Description</label>
+            <textarea id="qorg-description" rows="3" placeholder="What does this organization do?"
+              style="width:100%;padding:0.7rem;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.25);
+                     border-radius:8px;color:white;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
+          </div>
+          <div style="margin-bottom:1rem;">
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.9rem;">Industry (comma-separated)</label>
+            <input type="text" id="qorg-industry" placeholder="e.g., Technology, Education"
+              style="width:100%;padding:0.7rem;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.25);
+                     border-radius:8px;color:white;font-family:inherit;box-sizing:border-box;">
+          </div>
+          <div style="margin-bottom:1rem;">
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.9rem;">Location</label>
+            <input type="text" id="qorg-location" placeholder="e.g., Charleston, SC"
+              style="width:100%;padding:0.7rem;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.25);
+                     border-radius:8px;color:white;font-family:inherit;box-sizing:border-box;">
+          </div>
+          <div style="margin-bottom:1.5rem;">
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.9rem;">Website</label>
+            <input type="url" id="qorg-website" placeholder="https://..."
+              style="width:100%;padding:0.7rem;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.25);
+                     border-radius:8px;color:white;font-family:inherit;box-sizing:border-box;">
+          </div>
+          <div id="qorg-error" style="display:none;color:#ff6b6b;margin-bottom:1rem;font-size:0.9rem;"></div>
+          <button type="submit" id="qorg-submit"
+            style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#a855f7,#8b5cf6);border:none;
+                   border-radius:8px;color:white;font-weight:600;cursor:pointer;font-size:0.95rem;">
+            <i class="fas fa-plus"></i> Create Organization
+          </button>
+        </form>
+      </div>`;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('close-quick-org').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    document.getElementById('quick-org-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const supabase = window.supabase;
+      const currentUser = window.currentUserProfile;
+      const errEl = document.getElementById('qorg-error');
+      const btn = document.getElementById('qorg-submit');
+
+      if (!supabase) { errEl.textContent = 'Database not available.'; errEl.style.display = 'block'; return; }
+      if (!currentUser) { errEl.textContent = 'Please log in first.'; errEl.style.display = 'block'; return; }
+
+      const name = document.getElementById('qorg-name').value.trim();
+      if (!name) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; return; }
+
+      const industryRaw = document.getElementById('qorg-industry').value.trim();
+      const industry = industryRaw ? industryRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
+      let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating…';
+      errEl.style.display = 'none';
+
+      try {
+        const { data: existing } = await supabase.from('organizations').select('slug').eq('slug', slug).maybeSingle();
+        if (existing) slug = `${slug}-${Date.now().toString(36)}`;
+
+        const { data: org, error: orgErr } = await supabase.from('organizations').insert([{
+          name,
+          slug,
+          description: document.getElementById('qorg-description').value.trim() || null,
+          industry,
+          location: document.getElementById('qorg-location').value.trim() || null,
+          website: document.getElementById('qorg-website').value.trim() || null
+        }]).select().single();
+
+        if (orgErr) throw orgErr;
+
+        // Add creator as owner
+        await supabase.from('organization_members').insert([{
+          organization_id: org.id,
+          community_id: currentUser.id,
+          role: 'owner'
+        }]).then(() => {});
+
+        if (typeof window.showNotification === 'function') {
+          window.showNotification(`Organization "${name}" created!`, 'success');
+        }
+        overlay.remove();
+      } catch (err) {
+        errEl.textContent = err.message || 'Failed to create organization.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plus"></i> Create Organization';
+      }
+    });
   }
 
   // Filter synapse view by category
