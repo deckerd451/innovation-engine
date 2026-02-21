@@ -60,19 +60,27 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       return;
     }
 
-    // Just update the icon to a bell (keep the existing onclick handler)
+    // Update icon to bell
     const icon = startButton.querySelector('i');
     if (icon) {
       icon.className = 'fas fa-bell';
       icon.style.color = '#00e0ff';
     }
-    
+
     // Update styling
     startButton.style.background = 'rgba(0,224,255,0.1)';
     startButton.style.borderColor = 'rgba(0,224,255,0.3)';
-    startButton.title = 'View updates and notifications';
+    startButton.title = 'View updates, notifications, and Daily Intelligence Brief';
 
-    console.log('✅ START button icon changed to notification bell');
+    // Override onclick: open the notification panel (not the raw START modal).
+    // The panel contains a "Daily Intelligence Brief" entry that opens the modal.
+    startButton.onclick = function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      showUnifiedNotificationPanel();
+    };
+
+    console.log('✅ START button changed to notification bell → panel');
   }
 
   // ================================================================
@@ -531,6 +539,28 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       }
     }
 
+    // ── Daily Intelligence Brief ──────────────────────────────────────
+    // Always shown so users can reach their personalised brief from the
+    // notification panel regardless of whether there are other updates.
+    html += createNotificationSection(
+      'Daily Intelligence Brief',
+      'brain',
+      '#00e0ff',
+      [{
+        title: 'Open your Daily Intelligence Brief',
+        subtitle: 'Signals, patterns, and opportunities curated for you',
+        icon: '🧠',
+        onClick: function () {
+          var p = document.getElementById('unified-notification-panel');
+          if (p) p.remove();
+          if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
+            window.EnhancedStartUI.open();
+          }
+        }
+      }]
+    );
+    hasContent = true;
+
     // Unread Messages
     if (unifiedData.messages.length > 0) {
       html += createNotificationSection(
@@ -957,8 +987,10 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   window.UnifiedNotifications = {
     init,
     refresh: loadAllData,
-    show: () => {
-      // Open the full START modal
+    // showPanel — open the notification dropdown (bell panel)
+    showPanel: showUnifiedNotificationPanel,
+    // show — kept for back-compat; opens the full START/digest modal directly
+    show: function () {
       if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
         window.EnhancedStartUI.open();
       }
