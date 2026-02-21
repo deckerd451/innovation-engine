@@ -281,13 +281,18 @@ function _alignmentScore(userProfile, entity) {
     userProfile.bio    || '',
   ].join(' '));
 
-  // Build entity token set
+  // Build entity token set.
+  // organization_industry from opportunities_with_org is an ARRAY; industry from base table is a string.
+  const industryStr = Array.isArray(entity.organization_industry)
+    ? entity.organization_industry.join(' ')
+    : (entity.organization_industry || entity.industry || '');
+
   const entityTokens = _tokenize([
     entity.title        || entity.name || '',
     entity.description  || '',
     ...(entity.tags            || []),
     ...(entity.required_skills || []),
-    entity.industry     || '',
+    industryStr,
     entity.theme        || '',
     entity.category     || '',
   ].join(' '));
@@ -563,7 +568,9 @@ function _processPresence(presenceSessions, now) {
   const activeUserIds = new Set();
 
   for (const s of presenceSessions) {
-    const isActive = s.is_active === true || (s.last_seen && s.last_seen >= tenMinAgo);
+    // last_seen_at is the actual DB column; last_seen is a legacy alias — check both
+    const lastSeenTs = s.last_seen_at || s.last_seen || null;
+    const isActive = s.is_active === true || (lastSeenTs && lastSeenTs >= tenMinAgo);
     if (isActive) {
       active++;
       if (s.user_id) activeUserIds.add(String(s.user_id));
@@ -648,12 +655,14 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
       .limit(200)
     ),
     _safe('active_themes_summary', async () => {
+      // Select only columns that exist on the active_themes_summary view.
+      // last_activity_at is NOT on this view (it has created_at / expires_at).
       const r = await supabase
         .from('active_themes_summary')
-        .select('id, title, description, tags, activity_score, active_count, last_activity_at')
+        .select('id, title, description, tags, activity_score, participant_count, active_count, created_at, expires_at, origin_type')
         .limit(50);
       if (r.error) {
-        // Fallback to theme_circles
+        // Fallback to theme_circles base table which has last_activity_at
         return await supabase
           .from('theme_circles')
           .select('id, title, description, tags, activity_score, last_activity_at, expires_at, origin_type, status')
@@ -696,7 +705,8 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     ),
     _safe('presence_sessions', () => supabase
       .from('presence_sessions')
-      .select('user_id, is_active, last_seen')
+      // Fetch last_seen_at (actual column name) plus last_seen as fallback alias
+      .select('user_id, is_active, last_seen_at, last_seen')
       .limit(500)
     ),
     _safe('community', () => supabase
@@ -706,12 +716,13 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     ),
   ]);
 
-  // Opportunities: prefer opportunities_with_org view
+  // Opportunities: prefer opportunities_with_org view.
+  // NOTE: opportunities_with_org exposes organization_industry (ARRAY), not industry.
   let opportunities = [];
   try {
     const { data: owoData, error: owoErr } = await supabase
       .from('opportunities_with_org')
-      .select('id, title, description, required_skills, commitment, status, expires_at, view_count, application_count, created_at, updated_at, organization_id, theme_id, organization_name, industry')
+      .select('id, title, description, required_skills, commitment, status, expires_at, view_count, application_count, created_at, updated_at, organization_id, theme_id, organization_name, organization_industry')
       .eq('status', 'open')
       .or(`expires_at.is.null,expires_at.gt.${now.toISOString()}`)
       .limit(200);
@@ -1080,9 +1091,27 @@ function _buildCombinationOpportunities({
     };
   });
 
-  // Sort: prefer high confidence, then score, then intersectionCount
-  const sorted = scored
+  // --- Intersection gate ---
+  // Combination section requires genuine convergence: ≥2 intent signals.
+  // Exception: score > 0.80 may pass with intersectionCount=1, but confidence
+  // is further reduced and the why payload is flagged as low-intersection.
+  const COMBO_MIN_INTERSECTION = 2;
+  const COMBO_BYPASS_SCORE     = 0.80;
+
+  const gated = scored
     .filter(s => !dismissedIds.has(String(s.entity.id)))
+    .filter(s => s.intersectionCount >= COMBO_MIN_INTERSECTION || s.score > COMBO_BYPASS_SCORE);
+
+  // Penalise bypass items: halve the confidence delta above the floor
+  for (const s of gated) {
+    if (s.intersectionCount < COMBO_MIN_INTERSECTION) {
+      s.confidence = _clamp01(s.confidence * 0.55);
+      s._bypassedGate = true;
+    }
+  }
+
+  // Sort: intersection-gate-passing items first, then by combined credibility
+  const sorted = gated
     .sort((a, b) => {
       const credA = a.confidence * 0.6 + a.score * 0.4;
       const credB = b.confidence * 0.6 + b.score * 0.4;
@@ -1095,25 +1124,35 @@ function _buildCombinationOpportunities({
     const label = entity.title || entity.name || 'Untitled';
     const themeLabel = relatedTheme?.title || null;
 
-    // Generate combination headline
+    // Generate intersection-focused headline referencing actual convergence paths.
+    // Prefer describing WHAT is converging, not making a recommendation.
     let headline;
-    if (themeLabel && proximity >= 0.5) {
-      headline = `A ${entityType} at the intersection of "${_trunc(themeLabel, 30)}" aligns with your tracked interests.`;
-    } else if (s.intersectionCount >= 2) {
-      headline = `Two signals you've been tracking converge on "${_trunc(label, 45)}".`;
-    } else if (alignment > 0.6 && momentum > 0.5) {
-      headline = `"${_trunc(label, 45)}" is gaining momentum and matches your profile.`;
+    const proxLabel = proximity >= 0.9 ? 'your membership'
+      : proximity >= 0.5 ? 'your network'
+      : null;
+
+    if (themeLabel && proxLabel) {
+      // Theme + proximity path — clearest intersection
+      headline = `${proxLabel.charAt(0).toUpperCase() + proxLabel.slice(1)} + rising activity in "${_trunc(themeLabel, 28)}" converges on "${_trunc(label, 35)}" — leverage point.`;
+    } else if (themeLabel && intersectionCount >= 2) {
+      headline = `"${_trunc(themeLabel, 30)}" + ${intersectionCount} tracked signals point to "${_trunc(label, 38)}".`;
+    } else if (proxLabel && intersectionCount >= 2) {
+      headline = `${intersectionCount} separate threads via ${proxLabel} converge on "${_trunc(label, 42)}".`;
+    } else if (intersectionCount >= 2) {
+      headline = `${intersectionCount} signals you've been tracking converge on "${_trunc(label, 45)}".`;
     } else {
-      headline = `A ${entityType} with strong alignment just entered your proximity network.`;
+      // bypass gate item — score is very high but intersection is thin; be honest
+      headline = `High-fit ${entityType} outside your current intersection window: "${_trunc(label, 40)}".`;
     }
 
     const factors = [
+      `Intersection signals: ${intersectionCount} (threshold: ${COMBO_MIN_INTERSECTION})`,
       `Alignment: ${Math.round(alignment * 100)}%`,
       `Momentum: ${Math.round(momentum * 100)}%`,
       `Proximity: ${Math.round(proximity * 100)}%`,
       `Scarcity: ${Math.round(scarcity * 100)}%`,
-      `Intersection signals: ${intersectionCount}`,
     ];
+    if (s._bypassedGate) factors.push(`Gate bypass: score ${score.toFixed(2)} > ${COMBO_BYPASS_SCORE} threshold`);
     if (relatedTheme) factors.push(`Related theme: "${relatedTheme.title}"`);
     if (matchedKeywords.length) factors.push(`Matched keywords: ${matchedKeywords.join(', ')}`);
 
@@ -1126,6 +1165,7 @@ function _buildCombinationOpportunities({
         activityHits: activityHitMap[entity.id] || 0,
         theme_activity_score: relatedTheme?.activity_score || null,
         intersectionCount,
+        gateBypassed: s._bypassedGate || false,
       },
       scores: { alignment, momentum, proximity, scarcity, score, confidence },
     });
