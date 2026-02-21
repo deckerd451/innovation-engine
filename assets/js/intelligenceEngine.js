@@ -569,7 +569,7 @@ function _processPresence(presenceSessions, now) {
 
   for (const s of presenceSessions) {
     // last_seen_at is the actual DB column; last_seen is a legacy alias — check both
-    const lastSeenTs = s.last_seen_at || s.last_seen || null;
+   const lastSeenTs = s.last_seen || null;
     const isActive = s.is_active === true || (lastSeenTs && lastSeenTs >= tenMinAgo);
     if (isActive) {
       active++;
@@ -704,9 +704,8 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
       .limit(50)
     ),
     _safe('presence_sessions', () => supabase
-      .from('presence_sessions')
-      // Fetch last_seen_at (actual column name) plus last_seen as fallback alias
-      .select('user_id, is_active, last_seen_at, last_seen')
+      .from("presence_sessions")
+.select("user_id,is_active,last_seen")
       .limit(500)
     ),
     _safe('community', () => supabase
@@ -1465,3 +1464,6 @@ export async function generateDailyBrief({
 
 // Re-export helpers that callers may need without extra imports
 export { getWhy, registerWhy };
+// DEBUG ONLY: expose entrypoint on window for console + quick UI wiring
+window.generateDailyBrief = generateDailyBrief;
+window.IE_getWhy = getWhy;
