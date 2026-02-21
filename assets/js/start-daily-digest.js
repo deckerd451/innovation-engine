@@ -518,8 +518,8 @@ class StartDailyDigest {
    * Resolve auth → call generateDailyBrief → inject block into #ie-brief-root.
    * Every error path renders a graceful non-fatal message.
    */
-  async _generateAndRenderBrief() {
-    const root = document.getElementById('ie-brief-root');
+  async _generateAndRenderBrief(rootOverride) {
+    const root = rootOverride || document.getElementById('ie-brief-root');
     if (!root) return;
 
     // Loading indicator
@@ -1006,6 +1006,13 @@ class StartDailyDigest {
 // ============================================================================
 
 window.StartDailyDigest = new StartDailyDigest();
+
+// Public helper — render the brief into any caller-supplied element.
+// Used by the notification panel so the brief appears inline without
+// needing to open the full START modal.
+window.StartDailyDigest.generateBriefInto = function (el) {
+  return window.StartDailyDigest._generateAndRenderBrief(el);
+};
 
 // Wrap window.closeStartModal (set by the inline <script> in index.html at
 // ~line 2107) so the mobile split is torn down whenever the modal closes.

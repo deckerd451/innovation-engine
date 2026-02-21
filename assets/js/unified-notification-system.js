@@ -72,8 +72,8 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     startButton.style.borderColor = 'rgba(0,224,255,0.3)';
     startButton.title = 'View updates, notifications, and Daily Intelligence Brief';
 
-    // Override onclick: open the notification panel (not the raw START modal).
-    // The panel contains a "Daily Intelligence Brief" entry that opens the modal.
+    // Override onclick: open the notification panel which renders the
+    // Daily Intelligence Brief inline plus any pending notification items.
     startButton.onclick = function (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -343,6 +343,13 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     const panel = createUnifiedPanel();
     document.body.appendChild(panel);
 
+    // Generate the brief directly into the panel's brief root element.
+    // Must happen after appendChild so the element is in the DOM.
+    const briefRoot = document.getElementById('ie-brief-root-panel');
+    if (briefRoot && window.StartDailyDigest && window.StartDailyDigest.generateBriefInto) {
+      window.StartDailyDigest.generateBriefInto(briefRoot);
+    }
+
     // Close on outside click
     setTimeout(() => {
       document.addEventListener('click', function closeOnOutside(e) {
@@ -389,10 +396,12 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     header.innerHTML = `
       <div>
         <h3 style="margin: 0 0 0.25rem 0; color: #00e0ff; font-size: 1.3rem;">
-          <i class="fas fa-bell"></i> Updates
+          <i class="fas fa-brain"></i> Daily Intelligence Brief
         </h3>
         <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
-          ${unifiedData.totalUnread} ${unifiedData.totalUnread === 1 ? 'item' : 'items'} need your attention
+          ${unifiedData.totalUnread > 0
+            ? unifiedData.totalUnread + ' ' + (unifiedData.totalUnread === 1 ? 'item' : 'items') + ' need your attention'
+            : 'Your personalised signals &amp; updates'}
         </p>
       </div>
       <button id="close-unified-panel" style="
@@ -418,7 +427,18 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       padding: 1rem;
     `;
 
-    content.innerHTML = generatePanelContent();
+    // Brief block sits above the notification sections.
+    // generateBriefInto() is async and fills it after the panel is in the DOM.
+    const briefRoot = document.createElement('div');
+    briefRoot.id = 'ie-brief-root-panel';
+    briefRoot.style.cssText = 'margin-bottom: 0.5rem;';
+
+    content.appendChild(briefRoot);
+
+    // Notification sections (messages, connections, etc.)
+    const notifSections = document.createElement('div');
+    notifSections.innerHTML = generatePanelContent();
+    content.appendChild(notifSections);
 
     panel.appendChild(header);
     panel.appendChild(content);
@@ -538,28 +558,6 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         hasContent = true;
       }
     }
-
-    // ── Daily Intelligence Brief ──────────────────────────────────────
-    // Always shown so users can reach their personalised brief from the
-    // notification panel regardless of whether there are other updates.
-    html += createNotificationSection(
-      'Daily Intelligence Brief',
-      'brain',
-      '#00e0ff',
-      [{
-        title: 'Open your Daily Intelligence Brief',
-        subtitle: 'Signals, patterns, and opportunities curated for you',
-        icon: '🧠',
-        onClick: function () {
-          var p = document.getElementById('unified-notification-panel');
-          if (p) p.remove();
-          if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
-            window.EnhancedStartUI.open();
-          }
-        }
-      }]
-    );
-    hasContent = true;
 
     // Unread Messages
     if (unifiedData.messages.length > 0) {
