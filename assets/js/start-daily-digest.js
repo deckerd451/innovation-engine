@@ -62,7 +62,9 @@ const isMobileSplit = () => window.matchMedia('(max-width: 768px)').matches;
 
 let _splitBuilt = false;
 let _splitOrig  = { synapseParent: null, synapseSibling: null,
-                    digestParent: null,  digestSibling: null };
+                    digestParent: null,  digestSibling: null,
+                    leftNav: null, leftNavParent: null, leftNavSibling: null,
+                    rightNav: null, rightNavParent: null, rightNavSibling: null };
 
 /** Inject split styles into <head> once — no external CSS file. */
 function _injectSplitStyles() {
@@ -79,6 +81,7 @@ function _injectSplitStyles() {
       z-index: 9999;
     }
     #ie-split-synapse {
+      position: relative;
       flex: 0 0 45vh;
       min-height: 240px;
       border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -144,6 +147,26 @@ function _buildSplit() {
     [window.__synapseResize, window.Synapse && window.Synapse.resize,
      window.CH && window.CH.resizeGraph]
       .forEach(fn => { if (typeof fn === 'function') { try { fn(); } catch (_) {} } });
+
+    // Move HUD nav bars into the top pane so they stay visible above the
+    // z-index:9999 split overlay.  #ie-split-synapse is position:relative so
+    // the elements' position:absolute anchors to the pane, not the viewport.
+    var rightNavEl = document.getElementById('btn-start-nav') &&
+                     document.getElementById('btn-start-nav').parentNode;
+    var leftNavEl  = document.getElementById('user-profile-combined') &&
+                     document.getElementById('user-profile-combined').parentNode;
+    if (rightNavEl) {
+      _splitOrig.rightNav        = rightNavEl;
+      _splitOrig.rightNavParent  = rightNavEl.parentNode;
+      _splitOrig.rightNavSibling = rightNavEl.nextSibling || null;
+      topPane.appendChild(rightNavEl);
+    }
+    if (leftNavEl) {
+      _splitOrig.leftNav        = leftNavEl;
+      _splitOrig.leftNavParent  = leftNavEl.parentNode;
+      _splitOrig.leftNavSibling = leftNavEl.nextSibling || null;
+      topPane.appendChild(leftNavEl);
+    }
   }
 
   // Hide the (now-empty) modal chrome so it doesn't float over the split
@@ -181,6 +204,15 @@ function _destroySplit() {
       .forEach(fn => { if (typeof fn === 'function') { try { fn(); } catch (_) {} } });
   }
 
+  // Restore HUD nav bars — must happen BEFORE split.remove() so elements are
+  // still in the DOM when we re-insert them into their original parents.
+  if (_splitOrig.rightNav && _splitOrig.rightNavParent) {
+    _splitOrig.rightNavParent.insertBefore(_splitOrig.rightNav, _splitOrig.rightNavSibling);
+  }
+  if (_splitOrig.leftNav && _splitOrig.leftNavParent) {
+    _splitOrig.leftNavParent.insertBefore(_splitOrig.leftNav, _splitOrig.leftNavSibling);
+  }
+
   split.remove();
 
   // Restore modal chrome visibility — _buildSplit() hid these; without
@@ -196,7 +228,9 @@ function _destroySplit() {
   if (splitStyle) splitStyle.remove();
 
   _splitOrig  = { synapseParent: null, synapseSibling: null,
-                  digestParent: null,  digestSibling: null };
+                  digestParent: null,  digestSibling: null,
+                  leftNav: null, leftNavParent: null, leftNavSibling: null,
+                  rightNav: null, rightNavParent: null, rightNavSibling: null };
   _splitBuilt = false;
 }
 
