@@ -61,65 +61,102 @@ function createPanelElement() {
   // Custom scrollbar and collapsible section styles
   const style = document.createElement('style');
   style.textContent = `
-    /* Mobile responsive styles for node panel */
-    @media (max-width: 768px) {
+    /* ── Portrait phones: bottom-sheet split-screen ── */
+    @media (max-width: 768px) and (orientation: portrait) {
       #node-side-panel {
         width: 100vw !important;
-        right: -100vw !important;
-        border-left: none !important;
-        height: 100vh !important;
-        height: 100dvh !important; /* Dynamic viewport height for mobile browsers */
-      }
-      
-      #node-side-panel.open {
+        height: 55vh !important;
+        height: 55dvh !important;
+        top: auto !important;
+        bottom: -55vh !important;
+        bottom: -55dvh !important;
         right: 0 !important;
+        border-left: none !important;
+        border-top: 2px solid rgba(0, 224, 255, 0.5) !important;
+        border-radius: 16px 16px 0 0 !important;
+        transition: bottom 0.3s ease-out !important;
       }
-      
+
+      #node-side-panel.open {
+        bottom: 0 !important;
+      }
+
+      /* Graph occupies top 45dvh when the bottom sheet is open */
+      body.node-panel-open #synapse-main-view {
+        bottom: 55vh !important;
+        bottom: 55dvh !important;
+        transition: bottom 0.3s ease-out !important;
+      }
+
       /* Adjust padding for mobile */
       #node-side-panel .node-panel-header {
         padding: 1rem !important;
       }
-      
+
       #node-side-panel .panel-section-header {
         padding: 0.75rem 1rem !important;
       }
-      
+
       /* Make buttons stack on mobile */
       #node-side-panel .action-buttons,
       #node-side-panel [style*="display: flex"][style*="gap"] {
         flex-direction: column !important;
         gap: 0.5rem !important;
       }
-      
+
       #node-side-panel button[style*="flex: 1"] {
         width: 100% !important;
         flex: none !important;
       }
-      
+
       /* Adjust font sizes for mobile */
       #node-side-panel h2 {
         font-size: 1.25rem !important;
       }
-      
+
       #node-side-panel h3 {
         font-size: 1.1rem !important;
       }
-      
+
       /* Make profile images smaller on mobile */
       #node-side-panel img[style*="width: 120px"],
       #node-side-panel img[style*="width: 100px"] {
         width: 80px !important;
         height: 80px !important;
       }
-      
+
       /* Adjust skill tags for mobile */
       #node-side-panel [style*="flex-wrap: wrap"] {
         gap: 0.35rem !important;
       }
-      
+
       #node-side-panel [style*="flex-wrap: wrap"] > * {
         font-size: 0.75rem !important;
         padding: 0.25rem 0.5rem !important;
+      }
+    }
+
+    /* ── Landscape phones: side-by-side split-screen ── */
+    @media (orientation: landscape) and (pointer: coarse) and (max-height: 600px) {
+      #node-side-panel {
+        width: 50vw !important;
+        right: -50vw !important;
+        height: 100% !important;
+        border-left: 2px solid rgba(0, 224, 255, 0.5) !important;
+        /* Remove blur so graph content doesn't bleed through the panel */
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        transition: right 0.3s ease-out !important;
+      }
+
+      #node-side-panel.open {
+        right: 0 !important;
+      }
+
+      /* Graph occupies left 50vw when the side panel is open */
+      body.node-panel-open #synapse-main-view {
+        right: 50vw !important;
+        transition: right 0.3s ease-out !important;
       }
     }
     
@@ -191,18 +228,8 @@ function createPanelElement() {
       padding: 1rem 1.5rem;
     }
 
-    /* Responsive styles for mobile */
+    /* Make action bars full width on mobile */
     @media (max-width: 768px) {
-      #node-side-panel {
-        width: 100vw !important;
-        right: -100vw !important;
-      }
-      
-      #node-side-panel.open {
-        right: 0 !important;
-      }
-      
-      /* Make action bars full width on mobile */
       #node-side-panel [style*="width: 420px"] {
         width: 100% !important;
       }
@@ -240,6 +267,10 @@ export async function openNodePanel(nodeData) {
   // Show panel
   panelElement.style.right = '0';
   panelElement.classList.add('open');
+  // Body class lets CSS split the graph (portrait: bottom-sheet; landscape: side-by-side)
+  document.body.classList.add('node-panel-open');
+  // Repaint the graph at its new constrained dimensions after the CSS transition
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
 
   // Load full data
   await loadNodeDetails(nodeData);
@@ -262,6 +293,9 @@ export function closeNodePanel() {
   const isMobile = window.innerWidth <= 768;
   panelElement.style.right = isMobile ? '-100vw' : '-450px';
   panelElement.classList.remove('open');
+  document.body.classList.remove('node-panel-open');
+  // Restore graph to full dimensions after the CSS transition
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
   currentNodeData = null;
 }
 
