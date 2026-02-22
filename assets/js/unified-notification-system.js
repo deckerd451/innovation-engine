@@ -332,8 +332,95 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   // SHOW UNIFIED NOTIFICATION PANEL
   // ================================================================
 
+  // On mobile the floating dropdown is replaced by a full-screen split view
+  // (Synapse top / Intelligence bottom).  The helpers live in
+  // start-daily-digest.js and are exposed on window.StartDailyDigest once
+  // that script has loaded.
+  function _isMobile() {
+    if (typeof window.StartDailyDigest?.isMobileSplit === 'function') {
+      return window.StartDailyDigest.isMobileSplit();
+    }
+    return window.matchMedia('(max-width: 768px)').matches;
+  }
+
+  function _showMobileSplitView() {
+    // Toggle: destroy if already open
+    if (document.getElementById('ie-mobile-split')) {
+      if (typeof window.StartDailyDigest?._destroySplit === 'function') {
+        window.StartDailyDigest._destroySplit();
+      }
+      return;
+    }
+
+    // Build the split DOM (moves #synapse-main-view to top pane, leaves
+    // #ie-split-intelligence empty for us to fill below).
+    if (typeof window.StartDailyDigest?._buildSplit === 'function') {
+      window.StartDailyDigest._buildSplit();
+    }
+
+    const botPane = document.getElementById('ie-split-intelligence');
+    if (!botPane) return;
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '<i class="fas fa-times"></i> Close';
+    closeBtn.style.cssText = `
+      display: block; width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.7);
+      padding: 0.5rem; border-radius: 8px;
+      cursor: pointer; font-size: 0.85rem;
+      margin-bottom: 0.75rem; text-align: center;
+    `;
+    closeBtn.onclick = () => {
+      if (typeof window.StartDailyDigest?._destroySplit === 'function') {
+        window.StartDailyDigest._destroySplit();
+      }
+    };
+    botPane.appendChild(closeBtn);
+
+    // Mini header
+    const heading = document.createElement('div');
+    heading.style.cssText = 'padding-bottom:0.5rem; border-bottom:1px solid rgba(0,224,255,0.15); margin-bottom:0.75rem;';
+    const unreadMsg = unifiedData.totalUnread > 0
+      ? unifiedData.totalUnread + ' item' + (unifiedData.totalUnread === 1 ? '' : 's') + ' need your attention'
+      : 'Your personalised signals &amp; updates';
+    heading.innerHTML = `
+      <h3 style="margin:0;color:#00e0ff;font-size:1.1rem;">
+        <i class="fas fa-brain"></i> Daily Intelligence Brief
+      </h3>
+      <p style="margin:0.25rem 0 0;color:rgba(255,255,255,0.55);font-size:0.82rem;">${unreadMsg}</p>
+    `;
+    botPane.appendChild(heading);
+
+    // Brief block (async-filled)
+    const briefRoot = document.createElement('div');
+    briefRoot.id = 'ie-brief-root-panel';
+    briefRoot.style.marginBottom = '0.5rem';
+    botPane.appendChild(briefRoot);
+
+    // Notification sections (opportunities, connections, download button, etc.)
+    const notifSections = document.createElement('div');
+    notifSections.innerHTML = generatePanelContent();
+    botPane.appendChild(notifSections);
+
+    setupActionButtonHandlers(botPane);
+
+    // Kick off async brief generation
+    if (window.StartDailyDigest && window.StartDailyDigest.generateBriefInto) {
+      window.StartDailyDigest.generateBriefInto(briefRoot);
+    }
+  }
+
   function showUnifiedNotificationPanel() {
-    // Remove existing panel
+    // Mobile: full-screen split view
+    if (_isMobile()) {
+      _showMobileSplitView();
+      return;
+    }
+
+    // Desktop: floating dropdown (existing behavior)
     const existing = document.getElementById('unified-notification-panel');
     if (existing) {
       existing.remove();
