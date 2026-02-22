@@ -119,7 +119,9 @@ function _buildSplit() {
   const botPane = document.createElement('div');
   botPane.id = 'ie-split-intelligence';
 
-  split.appendChild(topPane);
+  // Only add the synapse top-pane when the graph element actually exists;
+  // an empty 45 vh pane would waste most of the screen on pages without it.
+  if (synapse) split.appendChild(topPane);
   split.appendChild(botPane);
   document.body.appendChild(split);
 
@@ -177,6 +179,19 @@ function _destroySplit() {
   }
 
   split.remove();
+
+  // Restore modal chrome visibility — _buildSplit() hid these; without
+  // restoring them the modal is invisible the next time it is opened.
+  const modal    = document.getElementById('start-modal');
+  const backdrop = document.getElementById('start-modal-backdrop');
+  if (modal)    modal.style.display    = '';
+  if (backdrop) backdrop.style.display = '';
+
+  // Remove the injected split stylesheet so it doesn't accumulate or
+  // conflict if the split is rebuilt after a resize cycle.
+  const splitStyle = document.getElementById('ie-mobile-split-styles');
+  if (splitStyle) splitStyle.remove();
+
   _splitOrig  = { synapseParent: null, synapseSibling: null,
                   digestParent: null,  digestSibling: null };
   _splitBuilt = false;
@@ -863,6 +878,9 @@ class StartDailyDigest {
     const progressBar = container.firstElementChild;
     const stepContent = document.getElementById('step-content');
     const navigation  = container.lastElementChild;
+
+    // Guard: stepContent can be null if the DOM was replaced between steps
+    if (!stepContent) return;
 
     stepContent.style.opacity   = '0';
     stepContent.style.transform = 'translateY(20px)';
