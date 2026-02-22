@@ -98,23 +98,38 @@
        4. TOP REGION - HUD with Safe Area
        ======================================================================== */
 
+    /* Target the top-left HUD container (user profile + admin) */
+    body > div[style*="position:absolute"][style*="top:20px"][style*="left:20px"] {
+      top: calc(var(--safe-top) + 20px) !important;
+      left: calc(var(--safe-left) + 20px) !important;
+    }
+
+    /* Target the top-right HUD container (action buttons) */
+    body > div[style*="position:absolute"][style*="top:20px"][style*="right:20px"] {
+      top: calc(var(--safe-top) + 20px) !important;
+      right: calc(var(--safe-right) + 20px) !important;
+    }
+
     /* Top-left admin button: position below safe area */
     #btn-admin-top-left {
       position: fixed !important;
-      top: var(--safe-top) !important;
-      left: var(--safe-left) !important;
+      top: calc(var(--safe-top) + 8px) !important;
+      left: calc(var(--safe-left) + 8px) !important;
       z-index: var(--z-hud) !important;
-      margin: 8px !important;
+    }
+
+    /* User profile combined button */
+    #user-profile-combined {
+      /* Inherits position from parent container */
     }
 
     /* Top-right controls (if any exist) */
     #btn-admin-top-right,
     .top-right-controls {
       position: fixed !important;
-      top: var(--safe-top) !important;
-      right: var(--safe-right) !important;
+      top: calc(var(--safe-top) + 8px) !important;
+      right: calc(var(--safe-right) + 8px) !important;
       z-index: var(--z-hud) !important;
-      margin: 8px !important;
     }
 
 
