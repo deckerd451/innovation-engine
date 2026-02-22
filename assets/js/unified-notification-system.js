@@ -344,22 +344,33 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   }
 
   function _showMobileSplitView() {
-    // Toggle: destroy if already open
-    if (document.getElementById('ie-mobile-split')) {
+    // Toggle: if OUR notification content is already showing → close the split.
+    // We detect this by the presence of #ie-brief-root-panel which we always
+    // inject into the bottom pane.  This avoids mistakenly destroying a split
+    // that was built by the START-modal path (which has different content).
+    if (document.getElementById('ie-brief-root-panel')) {
       if (typeof window.StartDailyDigest?._destroySplit === 'function') {
         window.StartDailyDigest._destroySplit();
       }
       return;
     }
 
-    // Build the split DOM (moves #synapse-main-view to top pane, leaves
-    // #ie-split-intelligence empty for us to fill below).
-    if (typeof window.StartDailyDigest?._buildSplit === 'function') {
-      window.StartDailyDigest._buildSplit();
+    // Build the split DOM if it doesn't exist yet (moves #synapse-main-view to
+    // the top pane).  If the split was already built by the START-modal path
+    // (_postRender) we reuse it — the bottom pane may have modal content which
+    // we will clear and replace with notification content below.
+    if (!document.getElementById('ie-mobile-split')) {
+      if (typeof window.StartDailyDigest?._buildSplit === 'function') {
+        window.StartDailyDigest._buildSplit();
+      }
     }
 
     const botPane = document.getElementById('ie-split-intelligence');
     if (!botPane) return;
+
+    // Clear any prior content (e.g., modal loading-state injected by _postRender)
+    // so we always render fresh notification content.
+    botPane.innerHTML = '';
 
     // Close button
     const closeBtn = document.createElement('button');
