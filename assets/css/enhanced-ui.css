@@ -227,7 +227,8 @@ p {
   overflow: hidden;
 }
 
-.card::before {
+/* Only apply the top bar to cards that don't have specific card classes */
+.card:not(.profile-card):not(.synapse-profile-card):not(.result-card):not(.user-card):not(.team-card)::before {
   content: '';
   position: absolute;
   top: 0;
@@ -237,6 +238,8 @@ p {
   background: linear-gradient(90deg, var(--primary-cyan), var(--accent-green));
   opacity: 0;
   transition: opacity var(--transition-base);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .card:hover {
@@ -246,7 +249,7 @@ p {
   box-shadow: var(--shadow-lg);
 }
 
-.card:hover::before {
+.card:not(.profile-card):not(.synapse-profile-card):not(.result-card):not(.user-card):not(.team-card):hover::before {
   opacity: 1;
 }
 
