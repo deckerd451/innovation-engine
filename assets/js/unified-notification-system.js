@@ -616,7 +616,8 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     html += `
       <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; margin-top: 0.5rem;">
         <button
-          onclick="if(window.EnhancedStartUI&&window.EnhancedStartUI.downloadReport){window.EnhancedStartUI.downloadReport();}else if(window.StartDailyDigest&&window.StartDailyDigest.downloadReport){window.StartDailyDigest.downloadReport();}"
+          id="unified-download-report-btn"
+          onclick="window.UnifiedNotifications.downloadReport()"
           style="
             width: 100%;
             background: rgba(255,170,0,0.08);
@@ -1008,6 +1009,39 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   window.addEventListener('user-logged-out', cleanup);
 
   // ================================================================
+  // DOWNLOAD REPORT
+  // ================================================================
+
+  // EnhancedStartUI.downloadReport() silently bails if this.currentData is
+  // null, which it always is when the panel is used without opening the START
+  // modal.  Load the data first, then fire the download.
+  async function handleDownloadReport() {
+    if (!window.EnhancedStartUI) return;
+
+    const btn = document.getElementById('unified-download-report-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing…';
+    }
+
+    try {
+      if (!window.EnhancedStartUI.currentData && window.getStartSequenceData) {
+        window.EnhancedStartUI.currentData = await window.getStartSequenceData(true);
+      }
+      if (window.EnhancedStartUI.downloadReport) {
+        await window.EnhancedStartUI.downloadReport();
+      }
+    } catch (err) {
+      console.error('[UnifiedNotifications] downloadReport error:', err);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-download"></i> Download Report';
+      }
+    }
+  }
+
+  // ================================================================
   // PUBLIC API
   // ================================================================
 
@@ -1016,6 +1050,8 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     refresh: loadAllData,
     // showPanel — open the notification dropdown (bell panel)
     showPanel: showUnifiedNotificationPanel,
+    // downloadReport — load data if needed then trigger the HTML export
+    downloadReport: handleDownloadReport,
     // show — kept for back-compat; opens the full START/digest modal directly
     show: function () {
       if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
