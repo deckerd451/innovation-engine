@@ -105,8 +105,9 @@ function _buildSplit() {
   if (_splitBuilt || document.getElementById('ie-mobile-split')) return;
 
   const synapse = document.getElementById('synapse-main-view');
+  // #start-options-container only exists in the modal flow; the notification-
+  // panel path builds the split without it and injects its own content.
   const digest  = document.getElementById('start-options-container');
-  if (!digest) return;   // digest not in DOM yet — skip
 
   _injectSplitStyles();
 
@@ -125,10 +126,12 @@ function _buildSplit() {
   split.appendChild(botPane);
   document.body.appendChild(split);
 
-  // Move digest container (always available once modal opens)
-  _splitOrig.digestParent  = digest.parentNode;
-  _splitOrig.digestSibling = digest.nextSibling || null;
-  botPane.appendChild(digest);
+  // Move digest container — only when it exists (modal flow).
+  if (digest) {
+    _splitOrig.digestParent  = digest.parentNode;
+    _splitOrig.digestSibling = digest.nextSibling || null;
+    botPane.appendChild(digest);
+  }
 
   // Move synapse graph (may not exist on every page)
   if (synapse) {
@@ -1050,6 +1053,12 @@ window.StartDailyDigest = new StartDailyDigest();
 window.StartDailyDigest.generateBriefInto = function (el) {
   return window.StartDailyDigest._generateAndRenderBrief(el);
 };
+
+// Expose mobile-split helpers so unified-notification-system.js can build
+// the full-screen split from the bell-button path on mobile.
+window.StartDailyDigest._buildSplit   = _buildSplit;
+window.StartDailyDigest._destroySplit = _destroySplit;
+window.StartDailyDigest.isMobileSplit = isMobileSplit;
 
 // Wrap window.closeStartModal (set by the inline <script> in index.html at
 // ~line 2107) so the mobile split is torn down whenever the modal closes.
