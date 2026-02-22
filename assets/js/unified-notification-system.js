@@ -612,6 +612,35 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     html += createOpportunitiesSection();
     html += createNetworkInsightsSection();
 
+    // Download Report — always accessible at the bottom of the panel
+    html += `
+      <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; margin-top: 0.5rem;">
+        <button
+          onclick="if(window.EnhancedStartUI&&window.EnhancedStartUI.downloadReport){window.EnhancedStartUI.downloadReport();}else if(window.StartDailyDigest&&window.StartDailyDigest.downloadReport){window.StartDailyDigest.downloadReport();}"
+          style="
+            width: 100%;
+            background: rgba(255,170,0,0.08);
+            border: 1px solid rgba(255,170,0,0.3);
+            border-radius: 8px;
+            color: #ffaa00;
+            padding: 0.65rem 1rem;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+          "
+          onmouseover="this.style.background='rgba(255,170,0,0.18)'"
+          onmouseout="this.style.background='rgba(255,170,0,0.08)'"
+        >
+          <i class="fas fa-download"></i> Download Report
+        </button>
+      </div>
+    `;
+
     return html;
   }
 

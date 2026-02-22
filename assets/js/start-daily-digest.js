@@ -307,6 +307,7 @@ function _renderBriefItem(item) {
     'border-radius:8px',
     'padding:0.68rem 0.82rem',
     'margin-bottom:0.42rem',
+    'transition:border-color 0.15s,background 0.15s',
   ].join(';');
 
   // Headline (user text — textContent)
@@ -323,8 +324,19 @@ function _renderBriefItem(item) {
     card.appendChild(sub);
   }
 
-  // Why? toggle — lazy-loads explanation on first click
+  // Why? toggle — lazy-loads explanation on first click.
+  // Clicking anywhere on the card (or the button) toggles the pane.
   if (item.why_key) {
+    card.style.cursor = 'pointer';
+    card.addEventListener('mouseenter', function () {
+      card.style.background    = 'rgba(0,224,255,0.06)';
+      card.style.borderColor   = 'rgba(0,224,255,0.25)';
+    });
+    card.addEventListener('mouseleave', function () {
+      card.style.background    = 'rgba(0,0,0,0.32)';
+      card.style.borderColor   = 'rgba(255,255,255,0.07)';
+    });
+
     const whyBtn = document.createElement('button');
     whyBtn.style.cssText = [
       'background:none',
@@ -343,7 +355,8 @@ function _renderBriefItem(item) {
     whyPane.style.display = 'none';
     var loaded = false;
 
-    whyBtn.addEventListener('click', function () {
+    function toggleWhy(e) {
+      if (e) e.stopPropagation();
       var open = whyPane.style.display !== 'none';
       if (open) {
         whyPane.style.display = 'none';
@@ -356,6 +369,12 @@ function _renderBriefItem(item) {
         whyPane.style.display = 'block';
         whyBtn.textContent    = 'Hide';
       }
+    }
+
+    whyBtn.addEventListener('click', toggleWhy);
+    card.addEventListener('click', function (e) {
+      // Only trigger if the click wasn't on the button itself
+      if (e.target !== whyBtn && !whyBtn.contains(e.target)) toggleWhy(e);
     });
 
     card.appendChild(whyBtn);
