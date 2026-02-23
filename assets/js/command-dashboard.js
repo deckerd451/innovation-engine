@@ -166,6 +166,35 @@ window.CommandDashboard = (() => {
   }
 
   /* ================================================================
+     DATA ADAPTER
+     Reads from unified network graphDataStore when active,
+     falls back to legacy window.synapseCore.
+     ================================================================ */
+
+  function _getGraphData() {
+    const store = window.graphDataStore;
+    if (store && typeof store.getAllNodes === 'function') {
+      const nodes = store.getAllNodes();
+      if (nodes.length > 0) {
+        const edges = store.getAllEdges();
+        const links = edges.map(e => ({
+          source: e.source?.id ?? e.source,
+          target: e.target?.id ?? e.target,
+          type: e.type,
+          status: e.status,
+          strength: e.strength,
+        }));
+        return { nodes, links };
+      }
+    }
+    const core = window.synapseCore;
+    return {
+      nodes: core?.nodes || [],
+      links: core?.links || [],
+    };
+  }
+
+  /* ================================================================
      SECTION 1: ASSET SUMMARY (tier-aware stats)
      ================================================================ */
 
@@ -193,9 +222,7 @@ window.CommandDashboard = (() => {
   }
 
   function _computeStats(tier) {
-    const core = window.synapseCore;
-    const nodes = core?.nodes || [];
-    const links = core?.links || [];
+    const { nodes, links } = _getGraphData();
     const userId = _userId;
 
     // Helper: edge endpoints
@@ -354,23 +381,22 @@ window.CommandDashboard = (() => {
     if (!window.GraphController) return;
 
     switch (action) {
-      case 'focus-direct':
+      case 'focus-direct': {
         // Highlight direct connections
-        if (window.synapseCore) {
-          const links = window.synapseCore.links || [];
-          const userId = _userId;
-          const directIds = new Set([userId]);
-          links.forEach(l => {
-            const s = l.source?.id ?? l.source;
-            const t = l.target?.id ?? l.target;
-            if (s === userId) directIds.add(t);
-            if (t === userId) directIds.add(s);
-          });
-          window.GraphController.highlightNodes([...directIds]);
-          // Restore tier after a moment
-          setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
-        }
+        const { links: directLinks } = _getGraphData();
+        const userId = _userId;
+        const directIds = new Set([userId]);
+        directLinks.forEach(l => {
+          const s = l.source?.id ?? l.source;
+          const t = l.target?.id ?? l.target;
+          if (s === userId) directIds.add(t);
+          if (t === userId) directIds.add(s);
+        });
+        window.GraphController.highlightNodes([...directIds]);
+        // Restore tier after a moment
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
+      }
       case 'focus-extended':
       case 'focus-weak':
         window.GraphController.setTier(2);
@@ -555,11 +581,9 @@ window.CommandDashboard = (() => {
   }
 
   function _getResourceItems(tier, resourceType) {
-    const core = window.synapseCore;
-    if (!core?.nodes) return [];
+    const { nodes, links } = _getGraphData();
+    if (!nodes.length) return [];
 
-    const nodes  = core.nodes;
-    const links  = core.links || [];
     const userId = _userId;
 
     const edgeSrc = l => l.source?.id ?? l.source;
