@@ -706,9 +706,13 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       html += createWelcomeSection();
     }
 
-    // Always show opportunities and network insights
-    html += createOpportunitiesSection();
-    html += createNetworkInsightsSection();
+    // On desktop the Command Dashboard (left sidebar) already shows network stats
+    // and intelligence cards — skip duplicating them here.
+    const _isDesktopWithDashboard = window.matchMedia('(min-width: 1024px)').matches;
+    if (!_isDesktopWithDashboard) {
+      html += createOpportunitiesSection();
+      html += createNetworkInsightsSection();
+    }
 
     // Download Report — always accessible at the bottom of the panel
     html += `

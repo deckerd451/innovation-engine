@@ -58,6 +58,11 @@ window.CommandDashboard = (() => {
   let _activeResourceTab = 'people';
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
+  // Supabase-enriched sets (loaded async after init; null = not yet loaded)
+  let _enrichedData = {
+    acceptedPeerIds: null,   // Set<string> — accepted-only connection peer IDs
+    activeProjectIds: null,  // Set<string> — projects with status active/open/etc.
+  };
 
   /* ── Element shortcuts ──────────────────────────────────────── */
   const $id = id => document.getElementById(id);
@@ -84,6 +89,10 @@ window.CommandDashboard = (() => {
 
     // Render initial Tier 1 content
     await _renderAll(1);
+
+    // Enrich stats with accepted-connection + active-project data from Supabase.
+    // Non-blocking: re-renders stats once data arrives.
+    _loadEnrichedData();
 
     console.log('[CommandDashboard] Initialized for userId:', userId);
   }
@@ -195,6 +204,47 @@ window.CommandDashboard = (() => {
   }
 
   /* ================================================================
+     SUPABASE ENRICHMENT
+     Loads accepted-connection peers and active project IDs once, then
+     re-renders stats so counts reflect DB truth rather than raw graph edges.
+     ================================================================ */
+
+  async function _loadEnrichedData() {
+    if (!window.supabase || !_userId) return;
+    try {
+      const [connResult, projResult] = await Promise.all([
+        // Accepted connections only (both directions)
+        window.supabase
+          .from('connections')
+          .select('from_user_id, to_user_id')
+          .or(`from_user_id.eq.${_userId},to_user_id.eq.${_userId}`)
+          .eq('status', 'accepted'),
+        // Active / open projects
+        window.supabase
+          .from('projects')
+          .select('id')
+          .in('status', ['active', 'in-progress', 'open', 'recruiting']),
+      ]);
+
+      if (connResult.data) {
+        _enrichedData.acceptedPeerIds = new Set(
+          connResult.data.map(c =>
+            c.from_user_id === _userId ? c.to_user_id : c.from_user_id
+          )
+        );
+      }
+      if (projResult.data) {
+        _enrichedData.activeProjectIds = new Set(projResult.data.map(p => p.id));
+      }
+
+      // Re-render stats now that we have accurate counts
+      _renderStats(_currentTier);
+    } catch (err) {
+      console.warn('[CommandDashboard] enriched data load failed:', err.message);
+    }
+  }
+
+  /* ================================================================
      SECTION 1: ASSET SUMMARY (tier-aware stats)
      ================================================================ */
 
@@ -236,7 +286,12 @@ window.CommandDashboard = (() => {
       if (edgeTgt(l) === userId) directIds.add(edgeSrc(l));
     });
 
-    const directConnections = [...directIds].filter(id => {
+    // Prefer Supabase-confirmed accepted peers; fall back to raw graph edges
+    const _acceptedIds = _enrichedData.acceptedPeerIds;
+    const directConnections = (_acceptedIds
+      ? [..._acceptedIds]
+      : [...directIds]
+    ).filter(id => {
       const node = nodes.find(n => n.id === id);
       return node && node.type === 'person';
     }).length;
@@ -350,7 +405,12 @@ window.CommandDashboard = (() => {
 
     // Tier 3: ecosystem-wide stats
     const allPeople = nodes.filter(n => n.type === 'person').length;
-    const allProjects = nodes.filter(n => n.type === 'project').length;
+    // Filter to active/open projects if Supabase data is available
+    const _activeIds = _enrichedData.activeProjectIds;
+    const allProjects = nodes.filter(n => {
+      if (n.type !== 'project') return false;
+      return !_activeIds || _activeIds.has(n.id);
+    }).length;
 
     return [
       {
@@ -365,7 +425,7 @@ window.CommandDashboard = (() => {
         label: 'Active Projects',
         value: allProjects,
         action: 'show-all-projects',
-        tooltip: 'All projects in ecosystem',
+        tooltip: 'Active & open projects in ecosystem',
       },
       {
         icon: 'fa-star',
@@ -394,8 +454,11 @@ window.CommandDashboard = (() => {
 
     switch (action) {
       case 'focus-direct': {
-        // Highlight user + direct connections
-        const ids = new Set([userId, ...directIds]);
+        // Use Supabase-confirmed accepted peers when available
+        const acceptedPeers = _enrichedData.acceptedPeerIds;
+        const ids = acceptedPeers
+          ? new Set([userId, ...acceptedPeers])
+          : new Set([userId, ...directIds]);
         window.GraphController.highlightNodes([...ids]);
         setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
@@ -485,9 +548,13 @@ window.CommandDashboard = (() => {
       }
 
       case 'show-all-projects': {
-        // Highlight all project nodes + switch to Projects tab
+        // Highlight active/open project nodes only (falls back to all projects)
+        const activeIds = _enrichedData.activeProjectIds;
         const allProjectIds = nodes
-          .filter(n => n.type === 'project')
+          .filter(n => {
+            if (n.type !== 'project') return false;
+            return !activeIds || activeIds.has(n.id);
+          })
           .map(n => n.id);
         window.GraphController.highlightNodes(allProjectIds);
         _switchResourceTab('projects');
