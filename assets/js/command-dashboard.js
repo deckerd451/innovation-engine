@@ -380,34 +380,138 @@ window.CommandDashboard = (() => {
   function _onStatClick(action) {
     if (!window.GraphController) return;
 
+    const { nodes, links } = _getGraphData();
+    const userId = _userId;
+    const edgeSrc = l => l.source?.id ?? l.source;
+    const edgeTgt = l => l.target?.id ?? l.target;
+
+    // Direct neighbor IDs (reused across cases)
+    const directIds = new Set();
+    links.forEach(l => {
+      if (edgeSrc(l) === userId) directIds.add(edgeTgt(l));
+      if (edgeTgt(l) === userId) directIds.add(edgeSrc(l));
+    });
+
     switch (action) {
       case 'focus-direct': {
-        // Highlight direct connections
-        const { links: directLinks } = _getGraphData();
-        const userId = _userId;
-        const directIds = new Set([userId]);
-        directLinks.forEach(l => {
-          const s = l.source?.id ?? l.source;
-          const t = l.target?.id ?? l.target;
-          if (s === userId) directIds.add(t);
-          if (t === userId) directIds.add(s);
-        });
-        window.GraphController.highlightNodes([...directIds]);
-        // Restore tier after a moment
+        // Highlight user + direct connections
+        const ids = new Set([userId, ...directIds]);
+        window.GraphController.highlightNodes([...ids]);
         setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
-      case 'focus-extended':
-      case 'focus-weak':
-        window.GraphController.setTier(2);
+
+      case 'focus-weak': {
+        // Highlight 2-hop people only (friends of friends, not already direct)
+        const twohopIds = new Set();
+        [...directIds].forEach(did => {
+          links.forEach(l => {
+            const s = edgeSrc(l), t = edgeTgt(l);
+            if (s === did && !directIds.has(t) && t !== userId) twohopIds.add(t);
+            if (t === did && !directIds.has(s) && s !== userId) twohopIds.add(s);
+          });
+        });
+        const weakPeopleIds = [...twohopIds].filter(id => {
+          const n = nodes.find(n => n.id === id);
+          return n && n.type === 'person';
+        });
+        window.GraphController.highlightNodes(weakPeopleIds);
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
-      case 'show-all-people':
-      case 'show-all-projects':
-        window.GraphController.setTier(3);
+      }
+
+      case 'focus-extended': {
+        // Highlight full 2-hop people set (direct + 2nd-hop person nodes)
+        const allTwohopIds = new Set(directIds);
+        [...directIds].forEach(did => {
+          links.forEach(l => {
+            const s = edgeSrc(l), t = edgeTgt(l);
+            if (s === did && t !== userId) allTwohopIds.add(t);
+            if (t === did && s !== userId) allTwohopIds.add(s);
+          });
+        });
+        const extendedPeopleIds = [...allTwohopIds].filter(id => {
+          const n = nodes.find(n => n.id === id);
+          return n && n.type === 'person';
+        });
+        window.GraphController.highlightNodes(extendedPeopleIds);
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
+      }
+
+      case 'focus-bridges': {
+        // Highlight bridge candidates: direct person connections with ≥2 external neighbors
+        const bridgeIds = [...directIds].filter(id => {
+          const n = nodes.find(n => n.id === id);
+          if (!n || n.type !== 'person') return false;
+          const externalNeighborCount = links.filter(l => {
+            const s = edgeSrc(l), t = edgeTgt(l);
+            return (s === id || t === id) && s !== userId && t !== userId;
+          }).length;
+          return externalNeighborCount >= 2;
+        });
+        window.GraphController.highlightNodes(bridgeIds);
+        _switchResourceTab('people');
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
+      case 'focus-adj-projects': {
+        // Highlight projects adjacent to any of the user's direct connections
+        const adjProjectIds = nodes
+          .filter(n => {
+            if (n.type !== 'project') return false;
+            return links.some(l => {
+              const s = edgeSrc(l), t = edgeTgt(l);
+              return (s === n.id && directIds.has(t)) || (t === n.id && directIds.has(s));
+            });
+          })
+          .map(n => n.id);
+        window.GraphController.highlightNodes(adjProjectIds);
+        _switchResourceTab('projects');
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
+      case 'show-all-people': {
+        // Highlight all person nodes + switch to People tab
+        const allPeopleIds = nodes
+          .filter(n => n.type === 'person' && n.id !== userId)
+          .map(n => n.id);
+        window.GraphController.highlightNodes(allPeopleIds);
+        _switchResourceTab('people');
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
+      case 'show-all-projects': {
+        // Highlight all project nodes + switch to Projects tab
+        const allProjectIds = nodes
+          .filter(n => n.type === 'project')
+          .map(n => n.id);
+        window.GraphController.highlightNodes(allProjectIds);
+        _switchResourceTab('projects');
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
       default:
         window.GraphController.resetToTierDefault();
     }
+  }
+
+  /**
+   * _switchResourceTab(resourceType)
+   * Programmatically activate a resource tab (people / projects / themes).
+   * Mirrors the click handler in _wireResourceTabs().
+   */
+  function _switchResourceTab(resourceType) {
+    if (resourceType === _activeResourceTab) return;
+    _activeResourceTab = resourceType;
+    $all('.udc-resource-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.resource === resourceType);
+    });
+    _renderResources(_currentTier);
   }
 
   /* ================================================================
