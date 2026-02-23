@@ -380,31 +380,129 @@ window.CommandDashboard = (() => {
   function _onStatClick(action) {
     if (!window.GraphController) return;
 
+    const { nodes, links } = _getGraphData();
+    const userId = _userId;
+    const edgeSrc = l => l.source?.id ?? l.source;
+    const edgeTgt = l => l.target?.id ?? l.target;
+
+    // Build direct neighbor set (reused across multiple cases)
+    const directIds = new Set();
+    links.forEach(l => {
+      if (edgeSrc(l) === userId) directIds.add(edgeTgt(l));
+      if (edgeTgt(l) === userId) directIds.add(edgeSrc(l));
+    });
+
     switch (action) {
       case 'focus-direct': {
-        // Highlight direct connections
-        const { links: directLinks } = _getGraphData();
-        const userId = _userId;
-        const directIds = new Set([userId]);
-        directLinks.forEach(l => {
-          const s = l.source?.id ?? l.source;
-          const t = l.target?.id ?? l.target;
-          if (s === userId) directIds.add(t);
-          if (t === userId) directIds.add(s);
-        });
-        window.GraphController.highlightNodes([...directIds]);
-        // Restore tier after a moment
+        // Highlight user + direct connections
+        window.GraphController.highlightNodes([userId, ...directIds]);
         setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
-      case 'focus-extended':
-      case 'focus-weak':
-        window.GraphController.setTier(2);
+
+      case 'focus-weak': {
+        // 2-hop person nodes NOT already in direct set
+        const twoHopIds = new Set();
+        [...directIds].forEach(did => {
+          links.forEach(l => {
+            const s = edgeSrc(l), t = edgeTgt(l);
+            if (s === did && !directIds.has(t) && t !== userId) twoHopIds.add(t);
+            if (t === did && !directIds.has(s) && s !== userId) twoHopIds.add(s);
+          });
+        });
+        const weakPeople = [...twoHopIds].filter(id => {
+          const n = nodes.find(n => n.id === id);
+          return n && n.type === 'person';
+        });
+        window.GraphController.highlightNodes(weakPeople);
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
-      case 'show-all-people':
-      case 'show-all-projects':
-        window.GraphController.setTier(3);
+      }
+
+      case 'focus-projects': {
+        // Project nodes directly connected to user + switch resource tab
+        const myProjects = [...directIds].filter(id => {
+          const n = nodes.find(n => n.id === id);
+          return n && n.type === 'project';
+        });
+        window.GraphController.highlightNodes(myProjects);
+        const projectsTab = document.querySelector('.udc-resource-tab[data-resource="projects"]');
+        if (projectsTab) projectsTab.click();
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
+      }
+
+      case 'focus-extended': {
+        // All 2-hop people (direct connections + their connections)
+        const twoHopAll = new Set(directIds);
+        [...directIds].forEach(did => {
+          links.forEach(l => {
+            const s = edgeSrc(l), t = edgeTgt(l);
+            if (s === did && t !== userId) twoHopAll.add(t);
+            if (t === did && s !== userId) twoHopAll.add(s);
+          });
+        });
+        const extendedPeople = [...twoHopAll].filter(id => {
+          const n = nodes.find(n => n.id === id);
+          return n && n.type === 'person';
+        });
+        window.GraphController.highlightNodes(extendedPeople);
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
+      case 'focus-bridges': {
+        // Direct connections with ≥2 external neighbors (bridge candidates)
+        const bridges = [...directIds].filter(id => {
+          const n = nodes.find(n => n.id === id);
+          if (!n || n.type !== 'person') return false;
+          const externalCount = links.filter(l => {
+            const s = edgeSrc(l), t = edgeTgt(l);
+            return (s === id || t === id) && s !== userId && t !== userId;
+          }).length;
+          return externalCount >= 2;
+        });
+        window.GraphController.highlightNodes(bridges);
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
+      case 'focus-adj-projects': {
+        // Project nodes adjacent to any of the user's direct connections
+        const adjProjects = nodes.filter(n => {
+          if (n.type !== 'project') return false;
+          return links.some(l => {
+            const s = edgeSrc(l), t = edgeTgt(l);
+            return (s === n.id && directIds.has(t)) || (t === n.id && directIds.has(s));
+          });
+        }).map(n => n.id);
+        window.GraphController.highlightNodes(adjProjects);
+        const projTab = document.querySelector('.udc-resource-tab[data-resource="projects"]');
+        if (projTab) projTab.click();
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
+      case 'show-all-people': {
+        // Highlight only person-type nodes; switch resource tab to People
+        const personIds = nodes.filter(n => n.type === 'person').map(n => n.id);
+        window.GraphController.highlightNodes(personIds);
+        const peopleTab = document.querySelector('.udc-resource-tab[data-resource="people"]');
+        if (peopleTab) peopleTab.click();
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
+      case 'show-all-projects': {
+        // Highlight only project-type nodes; switch resource tab to Projects
+        const projectIds = nodes.filter(n => n.type === 'project').map(n => n.id);
+        window.GraphController.highlightNodes(projectIds);
+        const allProjTab = document.querySelector('.udc-resource-tab[data-resource="projects"]');
+        if (allProjTab) allProjTab.click();
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
       default:
         window.GraphController.resetToTierDefault();
     }
