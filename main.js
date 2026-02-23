@@ -34,6 +34,7 @@ window.__IE_PRESENCE_INIT__ = window.__IE_PRESENCE_INIT__ || false;
 window.__IE_PRESENCE_UI_INIT__ = window.__IE_PRESENCE_UI_INIT__ || false;
 window.__IE_REALTIME_STARTED__ = window.__IE_REALTIME_STARTED__ || false;
 window.__IE_ADMIN_LOADED__ = window.__IE_ADMIN_LOADED__ || false;
+window.__IE_DESKTOP_DASHBOARD_INIT__ = window.__IE_DESKTOP_DASHBOARD_INIT__ || false;
 
 // ------------------------------
 // Helper: wait for required globals (best-effort, short timeout)
@@ -179,6 +180,41 @@ async function onProfileLoaded(e) {
       requestIdleCallback(startRealtime, { timeout: 3000 });
     } else {
       setTimeout(startRealtime, 3000);
+    }
+  }
+
+  // ------------------------------
+  // Unified Tier Desktop Dashboard (desktop-only, single-flight)
+  // Activates split layout: Command Dashboard (left) + Graph (right).
+  // Default tier: Tier 1 (direct connections only, user centered).
+  // Does NOT modify mobile behavior or Supabase schema.
+  // ------------------------------
+  if (!window.__IE_DESKTOP_DASHBOARD_INIT__ && profile?.id && user?.id) {
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      window.__IE_DESKTOP_DASHBOARD_INIT__ = true;
+      log.debug("🖥️ Initializing Unified Tier Command Dashboard (desktop)...");
+
+      // Initialize GraphController (applies Tier 1 once synapseCore is ready)
+      if (window.GraphController) {
+        window.GraphController.initialize(profile.id);
+        log.info("✅ GraphController initialized (community id:", profile.id, ")");
+      } else {
+        log.warn("⚠️ GraphController not loaded — desktop tier control unavailable");
+      }
+
+      // Initialize CommandDashboard (renders tier-aware content)
+      if (window.CommandDashboard) {
+        window.CommandDashboard.initialize({
+          userId: profile.id,     // community.id — used for graph node lookups
+          authUserId: user.id,    // auth.users.id — used for generateDailyBrief()
+        }).catch(err => {
+          window.__IE_DESKTOP_DASHBOARD_INIT__ = false;
+          log.error("❌ CommandDashboard initialization failed:", err);
+        });
+        log.info("✅ CommandDashboard initialized");
+      } else {
+        log.warn("⚠️ CommandDashboard not loaded — dashboard content unavailable");
+      }
     }
   }
 

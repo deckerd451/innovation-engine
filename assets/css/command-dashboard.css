@@ -1,0 +1,498 @@
+/* ==========================================================================
+ * COMMAND DASHBOARD — Desktop Split Layout
+ * Unified Tier operating system for the desktop experience.
+ *
+ * ARCHITECTURE (absolute-positioning, no DOM restructuring):
+ *   #main-content  (position:fixed; inset:0)  — unchanged
+ *   ├── #command-dashboard   (position:absolute; left:0; width:320px)
+ *   └── #synapse-main-view   (position:absolute; left:320px → right:0)
+ *       #synapse-svg         (unchanged inside synapse-main-view)
+ *
+ * DESKTOP ONLY: activates at min-width 1024px.
+ * Mobile gets the unchanged full-screen graph experience.
+ * ========================================================================== */
+
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root {
+  --cd-width: 320px;
+  --cd-bg: rgba(5, 7, 15, 0.97);
+  --cd-border: rgba(0, 224, 255, 0.15);
+  --cd-accent: #00e0ff;
+  --cd-accent-dim: rgba(0, 224, 255, 0.25);
+  --cd-text: #e0e8ff;
+  --cd-text-dim: rgba(200, 210, 255, 0.55);
+  --cd-section-gap: 1px;
+  --cd-section-bg: rgba(10, 14, 39, 0.5);
+  --cd-tier-active-bg: rgba(0, 224, 255, 0.18);
+  --cd-tier-active-border: rgba(0, 224, 255, 0.6);
+  --cd-tier-inactive-bg: rgba(255, 255, 255, 0.04);
+  --cd-tier-inactive-border: rgba(255, 255, 255, 0.1);
+  --cd-stat-bg: rgba(0, 224, 255, 0.05);
+  --cd-stat-border: rgba(0, 224, 255, 0.12);
+  --cd-insight-bg: rgba(0, 200, 140, 0.06);
+  --cd-insight-border: rgba(0, 200, 140, 0.18);
+  --cd-resource-hover: rgba(0, 224, 255, 0.08);
+  --cd-scrollbar: rgba(0, 224, 255, 0.2);
+}
+
+/* ============================================================
+   DESKTOP SPLIT LAYOUT (≥ 1024px)
+   Pure absolute-positioning approach — no DOM restructuring.
+   Dashboard is inserted as a sibling of #synapse-main-view
+   inside the existing #main-content (position:fixed; inset:0).
+   ============================================================ */
+@media (min-width: 1024px) {
+
+  /* ── LEFT: Command Dashboard ── */
+  /* Positioned absolutely inside #main-content */
+  #command-dashboard {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: var(--cd-width) !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    background: var(--cd-bg) !important;
+    border-right: 1px solid var(--cd-border) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 500 !important;
+  }
+
+  /* Custom scrollbar */
+  #command-dashboard::-webkit-scrollbar { width: 4px; }
+  #command-dashboard::-webkit-scrollbar-track { background: transparent; }
+  #command-dashboard::-webkit-scrollbar-thumb {
+    background: var(--cd-scrollbar);
+    border-radius: 4px;
+  }
+
+  /* ── RIGHT: Synapse graph — shift left edge past dashboard ── */
+  /* #synapse-main-view normally has position:absolute; inset:0 */
+  /* We override left so the graph only fills right portion */
+  #synapse-main-view {
+    left: var(--cd-width) !important;   /* 320px — right of dashboard */
+  }
+
+  /* ── Header left buttons: shift into graph area ── */
+  #desktop-top-left-actions {
+    position: absolute !important;
+    left: calc(var(--cd-width) + 20px) !important;
+    top: 20px !important;
+    z-index: 600 !important;
+  }
+
+  /* ── Search container: center within graph area ── */
+  /* Graph area: from 320px to 100vw. Center = 160px + 50vw */
+  /* With existing transform:translateX(-50%), left = 160px + 50vw centers it. */
+  #centered-search-container {
+    left: calc(50% + 160px) !important;
+    /* transform: translateX(-50%) is inline and stays */
+  }
+
+  /* ── Node side panel: slides from right of viewport ── */
+  /* Panel already uses position:fixed; right:-450px → right:0 */
+  /* It naturally overlaps only the graph area (not the left dashboard) */
+  #node-side-panel {
+    z-index: 2000 !important;
+  }
+}
+
+/* ============================================================
+   MOBILE: Dashboard hidden, everything else unchanged
+   ============================================================ */
+@media (max-width: 1023px) {
+  /* Ensure dashboard is fully hidden on mobile */
+  #command-dashboard {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   COMMAND DASHBOARD PANEL STYLES
+   ============================================================ */
+
+/* ── Dashboard header ── */
+.cd-header {
+  padding: 1.1rem 1rem 0.9rem;
+  border-bottom: 1px solid var(--cd-border);
+  background: rgba(0, 224, 255, 0.03);
+  flex-shrink: 0;
+}
+
+.cd-brand {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cd-accent);
+  opacity: 0.8;
+  margin-bottom: 0.2rem;
+}
+
+.cd-brand-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cd-text);
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* ── Section wrapper ── */
+.udc-section {
+  padding: 1rem;
+  border-bottom: 1px solid var(--cd-border);
+  flex-shrink: 0;
+}
+
+.udc-section:last-child {
+  border-bottom: none;
+  flex: 1; /* Resources section expands to fill remaining space */
+}
+
+.udc-section-header {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cd-text-dim);
+  margin-bottom: 0.75rem;
+}
+
+/* ============================================================
+   TIER CONTROLLER
+   ============================================================ */
+
+#udc-tier-controller {
+  background: rgba(0, 224, 255, 0.02);
+}
+
+.udc-tier-buttons {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.udc-tier-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.25rem;
+  background: var(--cd-tier-inactive-bg);
+  border: 1px solid var(--cd-tier-inactive-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--cd-text-dim);
+  font-family: inherit;
+}
+
+.udc-tier-btn:hover {
+  background: rgba(0, 224, 255, 0.1);
+  border-color: rgba(0, 224, 255, 0.35);
+  color: var(--cd-text);
+}
+
+.udc-tier-btn.active {
+  background: var(--cd-tier-active-bg);
+  border-color: var(--cd-tier-active-border);
+  color: var(--cd-accent);
+  box-shadow: 0 0 12px rgba(0, 224, 255, 0.15);
+}
+
+.udc-tier-btn .tier-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.udc-tier-btn .tier-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.udc-tier-btn.active .tier-label,
+.udc-tier-btn.active .tier-name {
+  opacity: 1;
+}
+
+.udc-tier-desc {
+  font-size: 0.72rem;
+  color: var(--cd-text-dim);
+  line-height: 1.5;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ============================================================
+   ASSET SUMMARY (TIER-AWARE STATS)
+   ============================================================ */
+
+.udc-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+
+.udc-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.65rem 0.4rem;
+  background: var(--cd-stat-bg);
+  border: 1px solid var(--cd-stat-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.udc-stat-card:hover {
+  background: rgba(0, 224, 255, 0.1);
+  border-color: var(--cd-accent-dim);
+  transform: translateY(-1px);
+}
+
+.udc-stat-icon {
+  font-size: 0.85rem;
+  color: var(--cd-accent);
+  opacity: 0.8;
+}
+
+.udc-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--cd-text);
+  line-height: 1;
+}
+
+.udc-stat-label {
+  font-size: 0.6rem;
+  color: var(--cd-text-dim);
+  line-height: 1.3;
+  text-align: center;
+}
+
+/* ============================================================
+   INTELLIGENCE CARDS
+   ============================================================ */
+
+#udc-intelligence-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.udc-insight-card {
+  padding: 0.7rem 0.75rem;
+  background: var(--cd-insight-bg);
+  border: 1px solid var(--cd-insight-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: border-color 0.2s;
+}
+
+.udc-insight-card:hover {
+  border-color: rgba(0, 200, 140, 0.4);
+}
+
+.udc-insight-text {
+  font-size: 0.75rem;
+  color: var(--cd-text);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.udc-insight-cta {
+  align-self: flex-start;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #00c88c;
+  background: rgba(0, 200, 140, 0.1);
+  border: 1px solid rgba(0, 200, 140, 0.25);
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.udc-insight-cta:hover {
+  background: rgba(0, 200, 140, 0.2);
+  border-color: rgba(0, 200, 140, 0.5);
+  color: #00e89f;
+}
+
+/* Loading state */
+.udc-insight-card.loading {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
+  animation: cdPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes cdPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ============================================================
+   RESOURCE BUCKETS
+   ============================================================ */
+
+.udc-resource-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.udc-resource-tab {
+  flex: 1;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--cd-tier-inactive-bg);
+  border: 1px solid var(--cd-tier-inactive-border);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--cd-text-dim);
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.udc-resource-tab:hover {
+  background: rgba(0, 224, 255, 0.07);
+  border-color: rgba(0, 224, 255, 0.25);
+  color: var(--cd-text);
+}
+
+.udc-resource-tab.active {
+  background: rgba(0, 224, 255, 0.1);
+  border-color: rgba(0, 224, 255, 0.4);
+  color: var(--cd-accent);
+}
+
+.udc-resource-section-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cd-text-dim);
+  margin-bottom: 0.5rem;
+  opacity: 0.7;
+}
+
+#udc-resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.udc-resource-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.6rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.udc-resource-item:hover {
+  background: var(--cd-resource-hover);
+  border-color: rgba(0, 224, 255, 0.2);
+}
+
+.udc-resource-name {
+  font-size: 0.78rem;
+  color: var(--cd-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.udc-resource-show-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  background: rgba(0, 224, 255, 0.06);
+  border: 1px solid rgba(0, 224, 255, 0.15);
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cd-accent);
+  font-size: 0.7rem;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.udc-resource-show-btn:hover {
+  background: rgba(0, 224, 255, 0.15);
+  border-color: rgba(0, 224, 255, 0.4);
+  transform: scale(1.08);
+}
+
+.udc-resource-empty {
+  font-size: 0.72rem;
+  color: var(--cd-text-dim);
+  text-align: center;
+  padding: 1rem 0;
+  opacity: 0.6;
+}
+
+
+/* ============================================================
+   TRANSITION ANIMATIONS
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  #command-dashboard {
+    animation: cdSlideIn 0.35s ease-out;
+  }
+
+  @keyframes cdSlideIn {
+    from {
+      transform: translateX(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+}
+
+.udc-tier-btn {
+  /* Prevent text selection on quick clicks */
+  user-select: none;
+}
+
+/* ============================================================
+   UTILITY: TIER TRANSITION STATE
+   Briefly applied during tier transitions
+   ============================================================ */
+
+.udc-tier-transitioning .udc-stat-value,
+.udc-tier-transitioning .udc-insight-text {
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}

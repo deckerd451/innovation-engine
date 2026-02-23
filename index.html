@@ -25,6 +25,8 @@
   <link rel="stylesheet" href="assets/css/synapse-progressive-disclosure.css" />
   <link rel="stylesheet" href="assets/css/quiet-mode.css" />
   <link rel="stylesheet" href="assets/css/mobile-safe-area.css" />
+  <!-- Unified Tier Command Dashboard (desktop split layout) -->
+  <link rel="stylesheet" href="assets/css/command-dashboard.css" />
 
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
@@ -727,7 +729,8 @@ body.profile-modal-open .side-panel{
   <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); max-width: 100vw; touch-action: pan-y pinch-zoom;">
     <!-- Header Elements (No Background Bar) -->
     <!-- Left side: Admin Crown, User Profile -->
-    <div style="position:absolute; top:20px; left:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
+    <!-- id="desktop-top-left-actions" enables CSS shift right of dashboard on desktop -->
+    <div id="desktop-top-left-actions" style="position:absolute; top:20px; left:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
       <!-- Admin Panel Button (Hidden by default) -->
       <div id="btn-admin-top-left" style="cursor:pointer; padding:0.75rem; background:rgba(255,170,0,0.1);
         border:1px solid rgba(255,170,0,0.3); border-radius:50%; width:48px; height:48px;
@@ -928,6 +931,95 @@ body.profile-modal-open .side-panel{
         </div>
       </div>
     </div>
+
+    <!-- ================================================================ -->
+    <!-- UNIFIED COMMAND DASHBOARD (Desktop only, ≥1024px)              -->
+    <!-- Positioned absolutely on the left. CSS in command-dashboard.css -->
+    <!-- pushes #synapse-main-view right to make room.                   -->
+    <!-- ================================================================ -->
+    <aside id="command-dashboard" aria-label="Network Command Dashboard">
+      <!-- Desktop only (≥1024px). CSS media query in command-dashboard.css controls display. -->
+
+      <!-- Dashboard brand header -->
+      <div class="cd-header">
+        <div class="cd-brand">Unified Network</div>
+        <h2 class="cd-brand-title">Your Network Command</h2>
+      </div>
+
+      <!-- ── SECTION 1: Unified Tier Controller ── -->
+      <div id="udc-tier-controller" class="udc-section">
+        <div class="udc-section-header">Active View</div>
+        <div class="udc-tier-buttons" role="group" aria-label="Network complexity tier">
+          <button class="udc-tier-btn active" data-tier="1" title="Tier 1 — Personal Network">
+            <span class="tier-label">Tier 1</span>
+            <span class="tier-name">You</span>
+          </button>
+          <button class="udc-tier-btn" data-tier="2" title="Tier 2 — Extended Influence">
+            <span class="tier-label">Tier 2</span>
+            <span class="tier-name">Extended</span>
+          </button>
+          <button class="udc-tier-btn" data-tier="3" title="Tier 3 — Ecosystem View">
+            <span class="tier-label">Tier 3</span>
+            <span class="tier-name">Ecosystem</span>
+          </button>
+        </div>
+        <p id="udc-tier-description" class="udc-tier-desc">
+          Direct connections only. This is your network.
+        </p>
+      </div>
+
+      <!-- ── SECTION 2: Asset Summary (tier-aware stats) ── -->
+      <div id="udc-asset-summary" class="udc-section">
+        <div class="udc-section-header" id="udc-stats-label">Your Network</div>
+        <div id="udc-stats-grid" class="udc-stats-grid">
+          <!-- Populated by command-dashboard.js after profile loads -->
+          <div class="udc-stat-card">
+            <i class="fas fa-users udc-stat-icon"></i>
+            <div class="udc-stat-value">—</div>
+            <div class="udc-stat-label">Connections</div>
+          </div>
+          <div class="udc-stat-card">
+            <i class="fas fa-link udc-stat-icon"></i>
+            <div class="udc-stat-value">—</div>
+            <div class="udc-stat-label">Nearby</div>
+          </div>
+          <div class="udc-stat-card">
+            <i class="fas fa-bolt udc-stat-icon"></i>
+            <div class="udc-stat-value">—</div>
+            <div class="udc-stat-label">Projects</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION 3: Intelligence Cards (tier-scoped) ── -->
+      <div id="udc-intelligence" class="udc-section">
+        <div class="udc-section-header">Insights</div>
+        <div id="udc-intelligence-cards">
+          <!-- Populated by command-dashboard.js via generateDailyBrief() -->
+          <div class="udc-insight-card loading">
+            <p class="udc-insight-text">Loading intelligence...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION 4: Your Resources (people / projects / themes) ── -->
+      <div id="udc-resources" class="udc-section">
+        <div class="udc-section-header" id="udc-resources-label">Your Resources</div>
+        <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist">
+          <button class="udc-resource-tab active" data-resource="people"
+            role="tab" aria-selected="true">People</button>
+          <button class="udc-resource-tab" data-resource="projects"
+            role="tab" aria-selected="false">Projects</button>
+          <button class="udc-resource-tab" data-resource="themes"
+            role="tab" aria-selected="false">Themes</button>
+        </div>
+        <div id="udc-resource-list" role="tabpanel">
+          <!-- Populated by command-dashboard.js -->
+          <div class="udc-resource-empty">Loading...</div>
+        </div>
+      </div>
+    </aside>
+    <!-- END COMMAND DASHBOARD -->
 
     <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000; overflow: hidden; touch-action: pan-y pinch-zoom;">
       <svg id="synapse-svg" style="width:100%; height:100%; background: #000000; touch-action: none;"></svg>
@@ -2183,6 +2275,14 @@ body.profile-modal-open .side-panel{
   }
 </script>
 
+  <!-- ================================================================ -->
+  <!-- UNIFIED TIER DESKTOP EXPERIENCE                                   -->
+  <!-- GraphController: tier-aware graph control (wraps synapseCore)     -->
+  <!-- CommandDashboard: tier controller + stats + intelligence + resources -->
+  <!-- Desktop only (≥1024px). Mobile experience unchanged.             -->
+  <!-- ================================================================ -->
+  <script src="assets/js/graph-controller.js"></script>
+  <script src="assets/js/command-dashboard.js"></script>
 
   </body>
 </html>
