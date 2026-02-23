@@ -1,3 +1,27 @@
+/* ==========================================================================
+   CharlestonHacks Innovation Engine — base.css
+   Includes: base layout, global resets, mobile viewport rules,
+   and accessibility helpers (.sr-only)
+   ========================================================================== */
+
+/* -----------------------------
+   Accessibility helper
+   ----------------------------- */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* -----------------------------
+   Basic page defaults
+   ----------------------------- */
 body {
   margin: 0;
   padding: 0;
@@ -7,6 +31,77 @@ body {
   overflow-x: hidden;
 }
 
+/* Dynamic viewport height variables for mobile browser UI */
+:root {
+  --vh: 1vh;
+  --real-vh: 1vh;
+}
+
+/* NUCLEAR OPTION: Force black backgrounds everywhere */
+html,
+body,
+#main-content,
+#synapse-main-view,
+#synapse-svg,
+.unified-main {
+  background: #000 !important;
+  background-color: #000 !important;
+}
+
+/* Remove all borders, padding, and margins from containers */
+#main-content,
+#synapse-main-view,
+.unified-main {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  max-width: none !important;
+}
+
+/* Ensure full coverage with no gaps - use dynamic viewport height */
+html,
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: calc(var(--vh, 1vh) * 100) !important;
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  position: fixed !important;
+  touch-action: pan-y pinch-zoom !important;
+}
+
+/* Prevent input zoom and keyboard-induced scrolling on mobile */
+input,
+textarea,
+select {
+  font-size: 16px !important; /* Prevents iOS zoom on focus */
+}
+
+/* iOS-specific fix */
+@supports (-webkit-touch-callout: none) {
+  body {
+    position: fixed !important;
+    width: 100% !important;
+  }
+}
+
+/* Override any pseudo-elements */
+body::before,
+body::after,
+html::before,
+html::after {
+  display: none !important;
+}
+
+body {
+  overflow: hidden;
+}
+
+/* -----------------------------
+   Neural background (explicitly hidden)
+   ----------------------------- */
 canvas#neural-bg {
   position: fixed;
   inset: 0;
@@ -17,6 +112,9 @@ canvas#neural-bg {
   display: none !important;
 }
 
+/* -----------------------------
+   Generic container + header
+   ----------------------------- */
 .container {
   position: relative;
   z-index: 1;
@@ -33,10 +131,14 @@ canvas#neural-bg {
   max-width: 90%;
   transition: 0.3s ease;
 }
+
 .header-img:hover {
   transform: scale(1.05);
 }
 
+/* -----------------------------
+   Buttons
+   ----------------------------- */
 .action-btn {
   background: #ffcf33;
   color: #000;
@@ -50,4 +152,534 @@ canvas#neural-bg {
 
 .action-btn:hover {
   background: #ffd95c;
+}
+
+/* Hover effects for action buttons (IE overrides) */
+.action-btn:hover {
+  transform: translateY(-5px) scale(1.1);
+  filter: brightness(1.3);
+}
+
+.action-btn:active {
+  transform: translateY(-2px) scale(1.05);
+}
+
+/* START button hover */
+#btn-start-center:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 40px rgba(0, 255, 136, 0.6);
+  filter: brightness(1.3);
+  opacity: 0.75;
+}
+
+#btn-start-center:active {
+  transform: scale(1.05);
+  opacity: 0.75;
+}
+
+/* -----------------------------
+   Animations
+   ----------------------------- */
+@keyframes softGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(0, 224, 255, 0.2),
+      inset 0 0 8px rgba(0, 224, 255, 0.05);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(0, 224, 255, 0.3),
+      inset 0 0 12px rgba(0, 224, 255, 0.08);
+  }
+}
+
+@keyframes mentorPanelSlide {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-30px);
+  }
+  60% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -----------------------------
+   Mentor panel tweaks
+   ----------------------------- */
+.mentor-panel {
+  animation: mentorPanelSlide 0.3s ease-out;
+}
+
+.mentor-panel-close:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 1) !important;
+}
+
+/* -----------------------------
+   User dropdown styles
+   ----------------------------- */
+#user-menu:hover {
+  background: rgba(0, 224, 255, 0.15);
+  border-color: rgba(0, 224, 255, 0.5);
+}
+
+#user-dropdown button:hover {
+  background: rgba(0, 224, 255, 0.1);
+}
+
+#dropdown-logout:hover {
+  background: rgba(255, 107, 107, 0.15) !important;
+}
+
+/* Notification bell badge */
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff3b30;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+/* Fix blue bar overlay on profile pages */
+.profile-overlay-bar,
+.blue-bar-overlay {
+  display: none !important;
+}
+
+/* Hide search container when ANY modal is open */
+.modal.active ~ * #centered-search-container,
+.modal.active ~ #centered-search-container {
+  display: none !important;
+}
+
+/* Ensure profile modal content is not overlapped */
+#profile-modal .modal-content {
+  z-index: 1000;
+  position: relative;
+}
+
+/* Make project details panel scrollable */
+.project-details-panel,
+.project-info-content {
+  overflow-y: auto !important;
+  max-height: calc(100vh - 200px) !important;
+}
+
+/* Ensure project members list is scrollable */
+.project-members-list {
+  overflow-y: auto !important;
+  max-height: 300px !important;
+}
+
+/* -----------------------------
+   Mobile responsive rules
+   ----------------------------- */
+@media (max-width: 768px) {
+  /* CRITICAL: Prevent horizontal scroll on mobile */
+  html,
+  body {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+  }
+
+  #main-content,
+  .unified-main,
+  #synapse-main-view,
+  #synapse-svg {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  /* Ensure all absolutely positioned elements stay within viewport */
+  #main-content > div {
+    max-width: 100vw !important;
+  }
+
+  /* MOBILE UI OPTIMIZATION: Move refresh button to bottom */
+  #btn-refresh-network {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 80px !important; /* Above search bar */
+    right: 20px !important;
+    z-index: 1000 !important;
+    width: 56px !important;
+    height: 56px !important;
+    box-shadow: 0 4px 12px rgba(0, 224, 255, 0.3) !important;
+  }
+
+  .top-actions #btn-refresh-network {
+    display: none !important;
+  }
+
+  /* Responsive mentor panels for mobile */
+  .mentor-panel {
+    width: 95vw !important;
+    max-height: 90vh !important;
+    padding: 1rem !important;
+    border-radius: 12px !important;
+  }
+
+  .mentor-panel h2 {
+    font-size: 1.2rem !important;
+  }
+
+  .mentor-panel p {
+    font-size: 0.9rem !important;
+  }
+
+  .mentor-panel-close {
+    width: 32px !important;
+    height: 32px !important;
+    top: 0.5rem !important;
+    right: 0.5rem !important;
+  }
+
+  .stat-card-mini {
+    padding: 0.5rem !important;
+  }
+
+  .stat-card-mini .label {
+    font-size: 0.65rem !important;
+  }
+
+  .stat-card-mini .value {
+    font-size: 1.25rem !important;
+  }
+
+  .stat-card-mini:hover {
+    transform: translateY(-3px);
+    background: rgba(0, 224, 255, 0.15) !important;
+    border-color: rgba(0, 224, 255, 0.5) !important;
+    box-shadow: 0 4px 12px rgba(0, 224, 255, 0.3);
+  }
+
+  /* Mobile dropdown adjustments */
+  #user-dropdown {
+    right: -10px !important;
+    min-width: 200px !important;
+  }
+
+  #user-name-header {
+    display: none !important;
+  }
+
+  #user-menu {
+    padding: 0.4rem 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+
+  /* XP Notification - Mobile responsive */
+  .xp-notification {
+    left: 1rem !important;
+    right: 1rem !important;
+    bottom: 1rem !important;
+    max-width: calc(100vw - 2rem) !important;
+    padding: 0.875rem 1.25rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* MOBILE LAYOUT FIXES */
+  #main-content > div:first-child {
+    top: 8px !important;
+    right: 8px !important;
+    left: auto !important;
+  }
+
+  #main-content > div:first-child img {
+    height: 36px !important;
+  }
+
+  #main-content > div:nth-child(2) {
+    top: 8px !important;
+    left: 8px !important;
+    right: auto !important;
+    flex-direction: row !important;
+    gap: 0.5rem !important;
+    align-items: center !important;
+    max-width: calc(100vw - 120px) !important;
+  }
+
+  #user-profile-combined {
+    display: flex !important;
+    padding: 0.35rem 0.65rem 0.35rem 0.35rem !important;
+    gap: 0.5rem !important;
+  }
+
+  #user-profile-combined > div:first-child {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.8rem !important;
+  }
+
+  #user-profile-combined > div:last-child {
+    font-size: 0.7rem !important;
+  }
+
+  #user-profile-combined > div:last-child > div:first-child {
+    font-size: 0.75rem !important;
+  }
+
+  #user-profile-combined > div:last-child > div:last-child {
+    font-size: 0.65rem !important;
+  }
+
+  #level-badge-header,
+  #streak-badge-header {
+    display: none !important;
+  }
+
+  /* Notification bell */
+  #notifications-bell {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0.5rem !important;
+  }
+
+  #notifications-bell i {
+    font-size: 1rem !important;
+  }
+
+  /* START button */
+  #btn-start-nav {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0.5rem !important;
+  }
+
+  #btn-start-nav i {
+    font-size: 1rem !important;
+  }
+
+  /* Refresh button */
+  #btn-refresh-network {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0.5rem !important;
+  }
+
+  #btn-refresh-network i {
+    font-size: 1rem !important;
+  }
+
+  /* Admin crown */
+  #btn-admin-top {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0.5rem !important;
+  }
+
+  #btn-admin-top i {
+    font-size: 1rem !important;
+  }
+
+  /* Placeholder circle */
+  #placeholder-circle {
+    display: flex !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0.5rem !important;
+  }
+
+  #user-menu {
+    padding: 0.35rem 0.65rem !important;
+  }
+
+  #user-avatar-header {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.85rem !important;
+  }
+
+  #admin-badge-header {
+    display: none !important;
+  }
+
+  /* Search container */
+  #centered-search-container {
+    bottom: 20px !important;
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    left: 10px !important;
+    right: 10px !important;
+    transform: none !important;
+    box-sizing: border-box !important;
+  }
+
+  #centered-search-container > div:first-child {
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+    justify-content: flex-start !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .search-category-btn {
+    padding: 0.35rem 0.65rem !important;
+    font-size: 0.7rem !important;
+    white-space: nowrap !important;
+  }
+
+  #centered-search-container > div:nth-child(2) {
+    padding: 0.5rem 0.75rem !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  #global-search {
+    padding: 0.6rem 4rem 0.6rem 2.5rem !important;
+    font-size: 16px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  #search-button {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+  }
+
+  body.keyboard-open {
+    position: fixed !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  #btn-start-center {
+    width: 140px !important;
+    height: 140px !important;
+  }
+
+  #btn-start-center i {
+    font-size: 2.2rem !important;
+  }
+
+  #btn-start-center span {
+    font-size: 1.1rem !important;
+  }
+
+  #dropdown-badges {
+    display: flex !important;
+  }
+
+  .mobile-only-badges {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #user-dropdown {
+    position: fixed !important;
+    top: 70px !important;
+    right: 10px !important;
+    left: 10px !important;
+    min-width: auto !important;
+  }
+}
+
+/* -----------------------------
+   Profile modal fullscreen overlay
+   ----------------------------- */
+#profile-modal.modal {
+  position: fixed !important;
+  inset: 0 !important;
+  display: none !important; /* shown via .active */
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 200000 !important; /* beats any panel */
+}
+
+#profile-modal.modal.active {
+  display: flex !important;
+}
+
+#profile-modal .modal-content {
+  width: min(720px, 96vw) !important;
+  max-height: min(86vh, 760px) !important;
+  overflow: auto !important;
+  border-radius: 16px !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+body.profile-modal-open {
+  overflow: hidden !important;
+}
+
+body.profile-modal-open .node-panel,
+body.profile-modal-open .profile-panel,
+body.profile-modal-open .side-panel {
+  pointer-events: none !important;
 }
