@@ -188,6 +188,12 @@ function _destroySplit() {
   const split = document.getElementById('ie-mobile-split');
   if (!split) { _splitBuilt = false; return; }
 
+  // If the Command Dashboard was moved into the split pane, restore it first
+  // so it isn't destroyed when split.remove() runs.
+  if (typeof window.UnifiedNotifications?._restoreMobileDashboard === 'function') {
+    window.UnifiedNotifications._restoreMobileDashboard();
+  }
+
   // Restore digest container
   const digest = document.getElementById('start-options-container');
   if (digest && _splitOrig.digestParent) {

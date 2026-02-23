@@ -103,12 +103,113 @@
 }
 
 /* ============================================================
-   MOBILE: Dashboard hidden, everything else unchanged
+   MOBILE: Dashboard hidden by default; shown when .cd-mobile-panel
+   is added (injected into the split-view bottom pane).
    ============================================================ */
 @media (max-width: 1023px) {
-  /* Ensure dashboard is fully hidden on mobile */
-  #command-dashboard {
+  #command-dashboard:not(.cd-mobile-panel) {
     display: none !important;
+  }
+
+  /* ── Mobile split-view panel ─────────────────────────────── */
+  #command-dashboard.cd-mobile-panel {
+    display: flex !important;
+    flex-direction: column;
+    width: 100% !important;
+    position: static !important;   /* no longer absolute inside main-content */
+    height: auto !important;
+    background: transparent !important;
+    border-right: none !important;
+    border-top: 1px solid rgba(0, 224, 255, 0.12);
+    overflow-y: visible !important; /* parent pane handles scroll */
+    overflow-x: hidden !important;
+    z-index: auto !important;
+  }
+
+  /* Compact header */
+  #command-dashboard.cd-mobile-panel .cd-header {
+    padding: 0.45rem 1rem 0.35rem;
+    border-bottom: 1px solid rgba(0, 224, 255, 0.1);
+    flex-shrink: 0;
+  }
+  #command-dashboard.cd-mobile-panel .cd-brand {
+    font-size: 0.6rem;
+    letter-spacing: 0.07em;
+  }
+  #command-dashboard.cd-mobile-panel .cd-brand-title {
+    font-size: 0.9rem;
+    margin-top: 0.1rem;
+  }
+
+  /* Tighter section padding */
+  #command-dashboard.cd-mobile-panel .udc-section {
+    padding: 0.55rem 0.75rem;
+  }
+
+  /* Tier buttons — full-width horizontal row */
+  #command-dashboard.cd-mobile-panel .udc-tier-buttons {
+    flex-direction: row;
+    gap: 0.3rem;
+  }
+  #command-dashboard.cd-mobile-panel .udc-tier-btn {
+    flex: 1;
+    padding: 0.45rem 0.3rem;
+    min-height: unset;
+  }
+  /* Hide "Tier 1 / Tier 2 / Tier 3" label; keep the name ("You / Extended / Ecosystem") */
+  #command-dashboard.cd-mobile-panel .tier-label {
+    display: none;
+  }
+  #command-dashboard.cd-mobile-panel .tier-name {
+    font-size: 0.78rem;
+  }
+  #command-dashboard.cd-mobile-panel .udc-tier-desc {
+    font-size: 0.75rem;
+    margin: 0.2rem 0 0;
+  }
+
+  /* Stats — always 3 columns */
+  #command-dashboard.cd-mobile-panel .udc-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+  }
+  #command-dashboard.cd-mobile-panel .udc-stat-card {
+    padding: 0.5rem 0.25rem;
+    gap: 0.15rem;
+  }
+  #command-dashboard.cd-mobile-panel .udc-stat-icon {
+    font-size: 0.85rem;
+  }
+  #command-dashboard.cd-mobile-panel .udc-stat-value {
+    font-size: 1rem;
+  }
+  #command-dashboard.cd-mobile-panel .udc-stat-label {
+    font-size: 0.58rem;
+  }
+
+  /* Intelligence cards — horizontal scroll strip */
+  #command-dashboard.cd-mobile-panel #udc-intelligence-cards {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.3rem;
+  }
+  #command-dashboard.cd-mobile-panel .udc-insight-card {
+    flex: 0 0 220px;
+    scroll-snap-align: start;
+    min-width: 0;
+  }
+
+  /* Resource list — constrained height, scrollable */
+  #command-dashboard.cd-mobile-panel #udc-resource-list {
+    max-height: 140px;
+    overflow-y: auto;
+  }
+  #command-dashboard.cd-mobile-panel .udc-resource-item {
+    padding: 0.35rem 0.5rem;
   }
 }
 

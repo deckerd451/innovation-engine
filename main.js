@@ -184,37 +184,40 @@ async function onProfileLoaded(e) {
   }
 
   // ------------------------------
-  // Unified Tier Desktop Dashboard (desktop-only, single-flight)
-  // Activates split layout: Command Dashboard (left) + Graph (right).
-  // Default tier: Tier 1 (direct connections only, user centered).
-  // Does NOT modify mobile behavior or Supabase schema.
+  // Unified Tier Command Dashboard (all viewports, single-flight)
+  // Desktop: left sidebar + GraphController tier control.
+  // Mobile:  data pre-loaded; shown inside split-view when bell is tapped.
   // ------------------------------
   if (!window.__IE_DESKTOP_DASHBOARD_INIT__ && profile?.id && user?.id) {
-    if (window.matchMedia('(min-width: 1024px)').matches) {
-      window.__IE_DESKTOP_DASHBOARD_INIT__ = true;
-      log.debug("🖥️ Initializing Unified Tier Command Dashboard (desktop)...");
+    window.__IE_DESKTOP_DASHBOARD_INIT__ = true;
+    const _isDesktop = window.matchMedia('(min-width: 1024px)').matches;
 
-      // Initialize GraphController (applies Tier 1 once synapseCore is ready)
+    if (_isDesktop) {
+      log.debug("🖥️ Initializing Command Dashboard (desktop)...");
+      // GraphController applies Tier 1 opacity once synapseCore is ready
       if (window.GraphController) {
         window.GraphController.initialize(profile.id);
         log.info("✅ GraphController initialized (community id:", profile.id, ")");
       } else {
         log.warn("⚠️ GraphController not loaded — desktop tier control unavailable");
       }
+    } else {
+      log.debug("📱 Initializing Command Dashboard (mobile data mode)...");
+    }
 
-      // Initialize CommandDashboard (renders tier-aware content)
-      if (window.CommandDashboard) {
-        window.CommandDashboard.initialize({
-          userId: profile.id,     // community.id — used for graph node lookups
-          authUserId: user.id,    // auth.users.id — used for generateDailyBrief()
-        }).catch(err => {
-          window.__IE_DESKTOP_DASHBOARD_INIT__ = false;
-          log.error("❌ CommandDashboard initialization failed:", err);
-        });
-        log.info("✅ CommandDashboard initialized");
-      } else {
-        log.warn("⚠️ CommandDashboard not loaded — dashboard content unavailable");
-      }
+    // CommandDashboard runs on both desktop and mobile.
+    // On mobile the element is hidden until the user opens the split view.
+    if (window.CommandDashboard) {
+      window.CommandDashboard.initialize({
+        userId: profile.id,     // community.id — used for graph node lookups
+        authUserId: user.id,    // auth.users.id — used for generateDailyBrief()
+      }).catch(err => {
+        window.__IE_DESKTOP_DASHBOARD_INIT__ = false;
+        log.error("❌ CommandDashboard initialization failed:", err);
+      });
+      log.info("✅ CommandDashboard initialized (" + (_isDesktop ? "desktop" : "mobile") + ")");
+    } else {
+      log.warn("⚠️ CommandDashboard not loaded — dashboard content unavailable");
     }
   }
 

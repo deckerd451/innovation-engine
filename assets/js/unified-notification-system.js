@@ -18,6 +18,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   window[GUARD] = true;
 
   let currentUserProfile = null;
+  let _authUserId = null;          // auth.users.id — needed for CommandDashboard
   let unifiedData = {
     startSequence: null,
     messages: [],
@@ -25,13 +26,17 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     totalUnread: 0
   };
   let realtimeSubscriptions = [];
+  // Tracks where #command-dashboard lived before being moved into the split pane
+  let _mobileDashOrigParent = null;
+  let _mobileDashOrigSibling = null;
 
   // ================================================================
   // INITIALIZATION
   // ================================================================
 
-  async function init(userProfile) {
+  async function init(userProfile, authUserId) {
     currentUserProfile = userProfile;
+    _authUserId = authUserId || null;
     console.log('🔔 Initializing unified notifications for user:', userProfile.id);
 
     // Replace the green START button with notification button
@@ -344,21 +349,16 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   }
 
   function _showMobileSplitView() {
-    // Toggle: if OUR notification content is already showing → close the split.
-    // We detect this by the presence of #ie-brief-root-panel which we always
-    // inject into the bottom pane.  This avoids mistakenly destroying a split
-    // that was built by the START-modal path (which has different content).
-    if (document.getElementById('ie-brief-root-panel')) {
+    // Toggle: close if the Command Dashboard is already shown in the split.
+    if (document.querySelector('#command-dashboard.cd-mobile-panel')) {
+      _restoreMobileDashboard();
       if (typeof window.StartDailyDigest?._destroySplit === 'function') {
         window.StartDailyDigest._destroySplit();
       }
       return;
     }
 
-    // Build the split DOM if it doesn't exist yet (moves #synapse-main-view to
-    // the top pane).  If the split was already built by the START-modal path
-    // (_postRender) we reuse it — the bottom pane may have modal content which
-    // we will clear and replace with notification content below.
+    // Build the split DOM (moves #synapse-main-view to the top pane).
     if (!document.getElementById('ie-mobile-split')) {
       if (typeof window.StartDailyDigest?._buildSplit === 'function') {
         window.StartDailyDigest._buildSplit();
@@ -367,12 +367,9 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
 
     const botPane = document.getElementById('ie-split-intelligence');
     if (!botPane) return;
-
-    // Clear any prior content (e.g., modal loading-state injected by _postRender)
-    // so we always render fresh notification content.
     botPane.innerHTML = '';
 
-    // Close button
+    // ── Close button ──────────────────────────────────────────────────
     const closeBtn = document.createElement('button');
     closeBtn.innerHTML = '<i class="fas fa-times"></i> Close';
     closeBtn.style.cssText = `
@@ -382,46 +379,109 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       color: rgba(255,255,255,0.7);
       padding: 0.5rem; border-radius: 8px;
       cursor: pointer; font-size: 0.85rem;
-      margin-bottom: 0.75rem; text-align: center;
+      margin-bottom: 0.6rem; text-align: center;
     `;
     closeBtn.onclick = () => {
+      _restoreMobileDashboard();
       if (typeof window.StartDailyDigest?._destroySplit === 'function') {
         window.StartDailyDigest._destroySplit();
       }
     };
     botPane.appendChild(closeBtn);
 
-    // Mini header
-    const heading = document.createElement('div');
-    heading.style.cssText = 'padding-bottom:0.5rem; border-bottom:1px solid rgba(0,224,255,0.15); margin-bottom:0.75rem;';
-    const unreadMsg = unifiedData.totalUnread > 0
-      ? unifiedData.totalUnread + ' item' + (unifiedData.totalUnread === 1 ? '' : 's') + ' need your attention'
-      : 'Your personalised signals &amp; updates';
-    heading.innerHTML = `
-      <h3 style="margin:0;color:#00e0ff;font-size:1.1rem;">
-        <i class="fas fa-brain"></i> Daily Intelligence Brief
-      </h3>
-      <p style="margin:0.25rem 0 0;color:rgba(255,255,255,0.55);font-size:0.82rem;">${unreadMsg}</p>
-    `;
-    botPane.appendChild(heading);
-
-    // Brief block (async-filled)
-    const briefRoot = document.createElement('div');
-    briefRoot.id = 'ie-brief-root-panel';
-    briefRoot.style.marginBottom = '0.5rem';
-    botPane.appendChild(briefRoot);
-
-    // Notification sections (opportunities, connections, download button, etc.)
-    const notifSections = document.createElement('div');
-    notifSections.innerHTML = generatePanelContent();
-    botPane.appendChild(notifSections);
-
-    setupActionButtonHandlers(botPane);
-
-    // Kick off async brief generation
-    if (window.StartDailyDigest && window.StartDailyDigest.generateBriefInto) {
-      window.StartDailyDigest.generateBriefInto(briefRoot);
+    // ── Urgent-items strip (connection requests + unread messages only) ─
+    const urgentHtml = _generateUrgentHtml();
+    if (urgentHtml) {
+      const urgentEl = document.createElement('div');
+      urgentEl.style.marginBottom = '0.6rem';
+      urgentEl.innerHTML = urgentHtml;
+      botPane.appendChild(urgentEl);
+      setupActionButtonHandlers(urgentEl);
     }
+
+    // ── Command Dashboard (main panel content) ────────────────────────
+    const dashboard = document.getElementById('command-dashboard');
+    if (dashboard) {
+      _mobileDashOrigParent  = dashboard.parentNode;
+      _mobileDashOrigSibling = dashboard.nextSibling;
+      dashboard.classList.add('cd-mobile-panel');
+      botPane.appendChild(dashboard);
+    }
+
+    // Listen for viewport resize back to desktop so we restore before destroy
+    const _onResizeCheck = () => {
+      if (!window.matchMedia('(max-width: 1023px)').matches) {
+        _restoreMobileDashboard();
+        window.removeEventListener('resize', _onResizeCheck);
+      }
+    };
+    window.addEventListener('resize', _onResizeCheck);
+  }
+
+  /**
+   * Restore #command-dashboard to its original DOM position
+   * and remove the .cd-mobile-panel class.
+   * Safe to call multiple times.
+   */
+  function _restoreMobileDashboard() {
+    const dashboard = document.getElementById('command-dashboard');
+    if (!dashboard || !dashboard.classList.contains('cd-mobile-panel')) return;
+    dashboard.classList.remove('cd-mobile-panel');
+    if (_mobileDashOrigParent) {
+      if (_mobileDashOrigSibling) {
+        _mobileDashOrigParent.insertBefore(dashboard, _mobileDashOrigSibling);
+      } else {
+        _mobileDashOrigParent.appendChild(dashboard);
+      }
+    }
+    _mobileDashOrigParent  = null;
+    _mobileDashOrigSibling = null;
+  }
+
+  /**
+   * Generate HTML for urgent action items only
+   * (connection requests + unread messages).
+   * Used in the mobile split view above the Command Dashboard.
+   */
+  function _generateUrgentHtml() {
+    let html = '';
+
+    const actions = unifiedData.startSequence?.immediate_actions;
+    if (actions?.pending_requests?.count > 0) {
+      html += createNotificationSection(
+        'Connection Requests',
+        'user-plus',
+        '#00e0ff',
+        actions.pending_requests.items.map((req, index) => ({
+          title: `${req.from_name || 'Someone'} wants to connect`,
+          subtitle: req.created_at ? getTimeAgo(new Date(req.created_at)) : '',
+          icon: '🤝',
+          actions: [
+            { label: 'Accept',  icon: 'check', color: '#00ff88' },
+            { label: 'Decline', icon: 'times', color: '#ff3b30' },
+          ],
+        }))
+      );
+    }
+
+    if (unifiedData.messages.length > 0) {
+      html += createNotificationSection(
+        'Unread Messages',
+        'envelope',
+        '#00e0ff',
+        unifiedData.messages.map(msg => ({
+          title: msg.last_message_preview || 'New message',
+          subtitle: msg.last_message_at ? getTimeAgo(new Date(msg.last_message_at)) : '',
+          icon: '💬',
+          badge: msg.unread_count,
+          onClick: () => {
+            if (window.openMessagingInterface) window.openMessagingInterface(msg.id);
+          },
+        }))
+      );
+    }
+
+    return html;
   }
 
   function showUnifiedNotificationPanel() {
@@ -1154,6 +1214,9 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     showPanel: showUnifiedNotificationPanel,
     // downloadReport — load data if needed then trigger the HTML export
     downloadReport: handleDownloadReport,
+    // _restoreMobileDashboard — called by start-daily-digest._destroySplit
+    // to ensure #command-dashboard is re-parented before the split DOM is removed.
+    _restoreMobileDashboard: _restoreMobileDashboard,
     // show — kept for back-compat; opens the full START/digest modal directly
     show: function () {
       if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
