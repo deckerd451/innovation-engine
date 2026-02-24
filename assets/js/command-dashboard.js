@@ -31,31 +31,65 @@ window.CommandDashboard = (() => {
       label: 'You',
       desc:  'Direct connections only. This is your network.',
       statsLabel: 'Your Network',
-      resourcesLabel: { people: 'Your People', projects: 'Your Projects', themes: 'Your Themes' },
-      // Intelligence brief section priority (highest-value for personal tier)
+      resourcesLabel: {
+        people:        'Your People',
+        projects:      'Your Projects',
+        themes:        'Your Themes',
+        organizations: 'Your Organizations',
+        opportunities: 'Your Opportunities',
+      },
       briefSections: ['your_pattern', 'opportunities_for_you'],
     },
     2: {
       label: 'Extended',
       desc:  '2-hop network. Bridges and momentum zones.',
       statsLabel: 'Extended Network',
-      resourcesLabel: { people: 'Extended Network', projects: 'Adjacent Projects', themes: 'Strategic Themes' },
+      resourcesLabel: {
+        people:        'Extended Network',
+        projects:      'Adjacent Projects',
+        themes:        'Strategic Themes',
+        organizations: 'Nearby Organizations',
+        opportunities: 'Nearby Opportunities',
+      },
       briefSections: ['combination_opportunities', 'signals_moving'],
     },
     3: {
       label: 'Ecosystem',
       desc:  'Full ecosystem view. Discover patterns and signals.',
       statsLabel: 'Ecosystem',
-      resourcesLabel: { people: 'All People', projects: 'All Projects', themes: 'All Themes' },
+      resourcesLabel: {
+        people:        'All People',
+        projects:      'All Projects',
+        themes:        'All Themes',
+        organizations: 'All Organizations',
+        opportunities: 'All Opportunities',
+      },
       briefSections: ['blind_spots', 'signals_moving', 'combination_opportunities'],
     },
   };
+
+  /* ── Stub data (shown when graph has no nodes of that type) ─ */
+  const STUB_OPPORTUNITIES = [
+    { id: 'opp-stub-1', name: 'Frontend Developer',   meta: 'volunteer · Open Source',      isStub: true },
+    { id: 'opp-stub-2', name: 'UX Designer',           meta: 'internship · Innovation Hub',  isStub: true },
+    { id: 'opp-stub-3', name: 'Project Lead',          meta: 'contract · CharlestonHacks',   isStub: true },
+    { id: 'opp-stub-4', name: 'Data Analyst',          meta: 'part-time · SC Tech',          isStub: true },
+    { id: 'opp-stub-5', name: 'Community Manager',     meta: 'full-time · Coastal Ventures', isStub: true },
+  ];
+
+  const STUB_ORGANIZATIONS = [
+    { id: 'org-stub-1', name: 'CharlestonHacks',    isStub: true },
+    { id: 'org-stub-2', name: 'Charleston Tech',    isStub: true },
+    { id: 'org-stub-3', name: 'SC Launch',          isStub: true },
+    { id: 'org-stub-4', name: 'Coastal Innovation', isStub: true },
+  ];
 
   /* ── Internal state ─────────────────────────────────────────── */
   let _currentTier = 1;
   let _userId = null;           // community.id
   let _authUserId = null;       // auth.users.id (for generateDailyBrief)
   let _activeResourceTab = 'people';
+  let _addFormOpen = false;     // inline add-resource form visibility
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
   // Supabase-enriched sets (loaded async after init; null = not yet loaded)
@@ -86,6 +120,7 @@ window.CommandDashboard = (() => {
     // Dashboard visibility is CSS-controlled (command-dashboard.css media query)
     _wireTierButtons();
     _wireResourceTabs();
+    _wireAddButton();
 
     // Render initial Tier 1 content
     await _renderAll(1);
@@ -121,6 +156,10 @@ window.CommandDashboard = (() => {
         _activeResourceTab = resource;
         $all('.udc-resource-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
+
+        // Close add form when switching tabs
+        _closeAddForm();
+        _updateAddButtonVisibility(resource);
 
         _renderResources(_currentTier);
       });
@@ -578,6 +617,8 @@ window.CommandDashboard = (() => {
     $all('.udc-resource-tab').forEach(tab => {
       tab.classList.toggle('active', tab.dataset.resource === resourceType);
     });
+    _closeAddForm();
+    _updateAddButtonVisibility(resourceType);
     _renderResources(_currentTier);
   }
 
@@ -718,10 +759,16 @@ window.CommandDashboard = (() => {
       ${items.length > 0
         ? items.map(item => `
           <div class="udc-resource-item" data-id="${item.id}">
-            <span class="udc-resource-name" title="${_escapeHtml(item.name)}">${_escapeHtml(item.name)}</span>
-            <button class="udc-resource-show-btn" data-id="${item.id}" title="Show in graph" aria-label="Show ${_escapeHtml(item.name)} in graph">
-              <i class="fas fa-crosshairs"></i>
-            </button>
+            <div class="udc-resource-info">
+              <span class="udc-resource-name" title="${_escapeHtml(item.name)}">${_escapeHtml(item.name)}</span>
+              ${item.meta ? `<span class="udc-resource-meta">${_escapeHtml(item.meta)}</span>` : ''}
+            </div>
+            ${item.isStub
+              ? `<span class="udc-resource-stub-badge">sample</span>`
+              : `<button class="udc-resource-show-btn" data-id="${item.id}" title="Show in graph" aria-label="Show ${_escapeHtml(item.name)} in graph">
+                  <i class="fas fa-crosshairs"></i>
+                </button>`
+            }
           </div>
         `).join('')
         : '<div class="udc-resource-empty">None found in this tier</div>'
@@ -799,6 +846,14 @@ window.CommandDashboard = (() => {
     } else if (resourceType === 'themes') {
       // Themes are theme-circle nodes
       filtered = nodes.filter(n => n.type === 'theme' || n.type === 'themeCircle');
+    } else if (resourceType === 'organizations') {
+      filtered = nodes.filter(n => n.type === 'organization' || n.type === 'org');
+      // Return stubs if no org nodes exist in the graph yet
+      if (filtered.length === 0) return STUB_ORGANIZATIONS;
+    } else if (resourceType === 'opportunities') {
+      filtered = nodes.filter(n => n.type === 'opportunity');
+      // Return stubs if no opportunity nodes exist in the graph yet
+      if (filtered.length === 0) return STUB_OPPORTUNITIES;
     }
 
     // Sort by name, limit to 10 items
@@ -806,6 +861,207 @@ window.CommandDashboard = (() => {
       .slice(0, 10)
       .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /* ================================================================
+     ADD RESOURCE — inline form inside the Network Command panel
+     ================================================================ */
+
+  /** Types that support in-panel creation */
+  const _ADDABLE_TYPES = new Set(['projects', 'organizations', 'opportunities', 'themes']);
+
+  /** Show/hide the add button depending on active tab */
+  function _updateAddButtonVisibility(resourceType) {
+    const btn = $id('udc-add-resource-btn');
+    if (!btn) return;
+    btn.style.display = _ADDABLE_TYPES.has(resourceType) ? 'flex' : 'none';
+  }
+
+  /** Wire the add button's click handler */
+  function _wireAddButton() {
+    const btn = $id('udc-add-resource-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (_addFormOpen) {
+        _closeAddForm();
+      } else {
+        _openAddForm(_activeResourceTab);
+      }
+    });
+  }
+
+  /** Close the form and reset button state */
+  function _closeAddForm() {
+    _addFormOpen = false;
+    const formEl = $id('udc-add-form');
+    if (formEl) formEl.classList.add('hidden');
+    const btn = $id('udc-add-resource-btn');
+    if (btn) btn.classList.remove('active');
+  }
+
+  /** Open and render the form for the given resource type */
+  function _openAddForm(resourceType) {
+    const formEl = $id('udc-add-form');
+    if (!formEl || !_ADDABLE_TYPES.has(resourceType)) return;
+
+    _addFormOpen = true;
+    const btn = $id('udc-add-resource-btn');
+    if (btn) btn.classList.add('active');
+
+    let formHTML = '';
+
+    if (resourceType === 'projects') {
+      formHTML = `
+        <div class="udc-add-form-label"><i class="fas fa-lightbulb" style="margin-right:0.3em;"></i>New Project</div>
+        <input type="text" id="udc-add-name" placeholder="Project name…" maxlength="60" autocomplete="off" />
+        <input type="text" id="udc-add-desc" placeholder="Brief description…" maxlength="120" autocomplete="off" />
+        <div class="udc-add-form-actions">
+          <button type="button" class="udc-add-form-cancel" id="udc-add-cancel">Cancel</button>
+          <button type="button" class="udc-add-form-submit" id="udc-add-submit">
+            <i class="fas fa-plus"></i> Create
+          </button>
+        </div>`;
+    } else if (resourceType === 'organizations') {
+      formHTML = `
+        <div class="udc-add-form-label"><i class="fas fa-building" style="margin-right:0.3em;"></i>New Organization</div>
+        <input type="text" id="udc-add-name" placeholder="Organization name…" maxlength="60" autocomplete="off" />
+        <input type="text" id="udc-add-desc" placeholder="Mission or focus…" maxlength="120" autocomplete="off" />
+        <div class="udc-add-form-actions">
+          <button type="button" class="udc-add-form-cancel" id="udc-add-cancel">Cancel</button>
+          <button type="button" class="udc-add-form-submit" id="udc-add-submit">
+            <i class="fas fa-plus"></i> Add Org
+          </button>
+        </div>`;
+    } else if (resourceType === 'opportunities') {
+      formHTML = `
+        <div class="udc-add-form-label"><i class="fas fa-bolt" style="margin-right:0.3em;"></i>New Opportunity</div>
+        <input type="text" id="udc-add-name" placeholder="Role or opportunity title…" maxlength="60" autocomplete="off" />
+        <select id="udc-add-type">
+          <option value="full-time">Full-time</option>
+          <option value="part-time">Part-time</option>
+          <option value="contract">Contract</option>
+          <option value="internship">Internship</option>
+          <option value="volunteer" selected>Volunteer</option>
+        </select>
+        <input type="text" id="udc-add-desc" placeholder="Brief description…" maxlength="120" autocomplete="off" />
+        <div class="udc-add-form-actions">
+          <button type="button" class="udc-add-form-cancel" id="udc-add-cancel">Cancel</button>
+          <button type="button" class="udc-add-form-submit" id="udc-add-submit">
+            <i class="fas fa-plus"></i> Post
+          </button>
+        </div>`;
+    } else if (resourceType === 'themes') {
+      formHTML = `
+        <div class="udc-add-form-label"><i class="fas fa-palette" style="margin-right:0.3em;"></i>New Theme</div>
+        <input type="text" id="udc-add-name" placeholder="Theme name…" maxlength="60" autocomplete="off" />
+        <div class="udc-add-form-actions">
+          <button type="button" class="udc-add-form-cancel" id="udc-add-cancel">Cancel</button>
+          <button type="button" class="udc-add-form-submit" id="udc-add-submit">
+            <i class="fas fa-plus"></i> Add Theme
+          </button>
+        </div>`;
+    }
+
+    formEl.innerHTML = formHTML;
+    formEl.classList.remove('hidden');
+
+    // Wire cancel
+    const cancelBtn = $id('udc-add-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', _closeAddForm);
+
+    // Wire submit
+    const submitBtn = $id('udc-add-submit');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => _handleAddSubmit(resourceType));
+    }
+
+    // Wire Enter key on inputs
+    formEl.querySelectorAll('input').forEach(input => {
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') _handleAddSubmit(resourceType);
+        if (e.key === 'Escape') _closeAddForm();
+      });
+    });
+
+    // Auto-focus first text input
+    const first = formEl.querySelector('input[type="text"]');
+    if (first) setTimeout(() => first.focus(), 50);
+  }
+
+  /** Handle the submit action for the add form */
+  function _handleAddSubmit(resourceType) {
+    const nameEl = $id('udc-add-name');
+    const descEl = $id('udc-add-desc');
+    const typeEl = $id('udc-add-type');
+
+    const name = nameEl ? nameEl.value.trim() : '';
+    if (!name) {
+      if (nameEl) {
+        nameEl.style.borderColor = 'rgba(255, 80, 80, 0.65)';
+        setTimeout(() => { nameEl.style.borderColor = ''; }, 1600);
+        nameEl.focus();
+      }
+      return;
+    }
+
+    const desc   = descEl ? descEl.value.trim() : '';
+    const opType = typeEl ? typeEl.value : '';
+
+    if (resourceType === 'projects') {
+      // Delegate to the existing project creation modal if available
+      if (typeof window.showEnhancedProjectCreation === 'function') {
+        window.showEnhancedProjectCreation();
+      } else if (typeof window.showCreateProjectForm === 'function') {
+        window.showCreateProjectForm();
+      } else {
+        _showAddConfirmation('project', name);
+      }
+    } else {
+      // Stub confirmation for orgs, opportunities, themes
+      // (Full DB integration plugs in here via the respective managers)
+      const meta = resourceType === 'opportunities' && opType
+        ? `${opType}${desc ? ' · ' + desc.slice(0, 30) : ''}`
+        : desc.slice(0, 40) || undefined;
+      _showAddConfirmation(resourceType, name, meta);
+    }
+
+    _closeAddForm();
+  }
+
+  /** Flash a newly-added item at the top of the resource list */
+  function _showAddConfirmation(type, name, meta) {
+    const list = $id('udc-resource-list');
+    if (!list) return;
+
+    // Remove the "none found" placeholder if present
+    const empty = list.querySelector('.udc-resource-empty');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = 'udc-resource-item';
+    item.style.cssText = 'border-color:rgba(0,200,140,0.4);background:rgba(0,200,140,0.06);';
+    item.innerHTML = `
+      <div class="udc-resource-info">
+        <span class="udc-resource-name">${_escapeHtml(name)}</span>
+        ${meta ? `<span class="udc-resource-meta">${_escapeHtml(meta)}</span>` : ''}
+      </div>
+      <span style="font-size:0.6rem;color:#00c88c;flex-shrink:0;">+ Added</span>
+    `;
+
+    // Insert after the section label
+    const label = list.querySelector('.udc-resource-section-label');
+    if (label && label.nextSibling) {
+      list.insertBefore(item, label.nextSibling);
+    } else {
+      list.prepend(item);
+    }
+
+    // Fade out after 4 s
+    setTimeout(() => {
+      item.style.transition = 'opacity 0.4s';
+      item.style.opacity = '0';
+      setTimeout(() => item.remove(), 450);
+    }, 4000);
   }
 
   /* ================================================================

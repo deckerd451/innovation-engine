@@ -16,7 +16,7 @@
    TOKENS
    ============================================================ */
 :root {
-  --cd-width: 320px;
+  --cd-width: 352px; /* 10 % wider than original 320 px */
   --cd-bg: rgba(5, 7, 15, 0.97);
   --cd-border: rgba(0, 224, 255, 0.15);
   --cd-accent: #00e0ff;
@@ -87,10 +87,10 @@
   }
 
   /* ── Search container: center within graph area ── */
-  /* Graph area: from 320px to 100vw. Center = 160px + 50vw */
-  /* With existing transform:translateX(-50%), left = 160px + 50vw centers it. */
+  /* Graph area: from var(--cd-width) to 100vw. Center = cd-width/2 + 50vw */
+  /* With cd-width=352px: 176px + 50vw */
   #centered-search-container {
-    left: calc(50% + 160px) !important;
+    left: calc(50% + 176px) !important;
     /* transform: translateX(-50%) is inline and stays */
   }
 
@@ -262,6 +262,9 @@
   text-transform: uppercase;
   color: var(--cd-text-dim);
   margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 /* ============================================================
@@ -455,16 +458,18 @@
 
 .udc-resource-tabs {
   display: flex;
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
   margin-bottom: 0.75rem;
 }
 
 .udc-resource-tab {
-  flex: 1;
-  padding: 0.3rem 0.4rem;
-  font-size: 0.65rem;
+  /* 3 per row on row-1, 2 per row on row-2 via flex-basis */
+  flex: 1 1 28%;
+  padding: 0.3rem 0.25rem;
+  font-size: 0.6rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   background: var(--cd-tier-inactive-bg);
   border: 1px solid var(--cd-tier-inactive-border);
@@ -473,6 +478,8 @@
   color: var(--cd-text-dim);
   font-family: inherit;
   transition: all 0.15s;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .udc-resource-tab:hover {
@@ -520,13 +527,29 @@
   border-color: rgba(0, 224, 255, 0.2);
 }
 
+.udc-resource-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
 .udc-resource-name {
   font-size: 0.78rem;
   color: var(--cd-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+}
+
+.udc-resource-meta {
+  font-size: 0.6rem;
+  color: var(--cd-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.75;
+  margin-top: 0.1rem;
 }
 
 .udc-resource-show-btn {
@@ -596,4 +619,166 @@
 .udc-tier-transitioning .udc-insight-text {
   opacity: 0.4;
   transition: opacity 0.2s;
+}
+
+/* ============================================================
+   ADD RESOURCE BUTTON (in section header)
+   ============================================================ */
+
+.udc-resource-add-btn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 224, 255, 0.07);
+  border: 1px solid rgba(0, 224, 255, 0.18);
+  border-radius: 4px;
+  color: var(--cd-accent);
+  font-size: 0.58rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.udc-resource-add-btn:hover {
+  background: rgba(0, 224, 255, 0.16);
+  border-color: rgba(0, 224, 255, 0.4);
+}
+
+.udc-resource-add-btn.active {
+  background: rgba(0, 224, 255, 0.18);
+  border-color: rgba(0, 224, 255, 0.5);
+  color: #fff;
+  transform: rotate(45deg); /* × when open */
+}
+
+/* ============================================================
+   INLINE ADD FORM (inside Your Resources section)
+   ============================================================ */
+
+.udc-add-form {
+  background: rgba(0, 224, 255, 0.03);
+  border: 1px solid rgba(0, 224, 255, 0.15);
+  border-radius: 8px;
+  padding: 0.65rem 0.7rem;
+  margin-bottom: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  animation: cdFadeIn 0.15s ease-out;
+}
+
+.udc-add-form.hidden {
+  display: none;
+}
+
+@keyframes cdFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.udc-add-form-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cd-accent);
+  opacity: 0.9;
+}
+
+.udc-add-form input,
+.udc-add-form textarea,
+.udc-add-form select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(0, 224, 255, 0.18);
+  border-radius: 5px;
+  color: var(--cd-text);
+  font-size: 0.72rem;
+  padding: 0.38rem 0.55rem;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.udc-add-form input:focus,
+.udc-add-form select:focus {
+  border-color: rgba(0, 224, 255, 0.4);
+}
+
+.udc-add-form input::placeholder {
+  color: rgba(200, 210, 255, 0.35);
+}
+
+.udc-add-form select option {
+  background: #0a0e27;
+  color: var(--cd-text);
+}
+
+.udc-add-form-actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.udc-add-form-submit {
+  font-size: 0.65rem;
+  padding: 0.32rem 0.7rem;
+  background: rgba(0, 224, 255, 0.1);
+  border: 1px solid rgba(0, 224, 255, 0.35);
+  border-radius: 5px;
+  color: var(--cd-accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  transition: all 0.15s;
+}
+
+.udc-add-form-submit:hover {
+  background: rgba(0, 224, 255, 0.18);
+  border-color: rgba(0, 224, 255, 0.6);
+}
+
+.udc-add-form-cancel {
+  font-size: 0.65rem;
+  padding: 0.32rem 0.65rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  color: var(--cd-text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.udc-add-form-cancel:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: var(--cd-text);
+}
+
+.udc-add-form-hint {
+  font-size: 0.68rem;
+  color: var(--cd-text-dim);
+  line-height: 1.4;
+  padding: 0.2rem 0;
+}
+
+/* stub badge on resource items */
+.udc-resource-stub-badge {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(200, 210, 255, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  padding: 0.1rem 0.35rem;
+  flex-shrink: 0;
+  margin-left: 0.3rem;
 }
