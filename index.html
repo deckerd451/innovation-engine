@@ -1152,14 +1152,15 @@
           hideStartButton();
 
           setTimeout(async () => {
-            if (typeof window.EnhancedStartUI !== 'undefined' && window.EnhancedStartUI.open) {
-              console.log('✨ Opening Enhanced START UI');
+            // Prefer the unified notification panel (bell) which now hosts the
+            // Daily Intelligence Brief. Fall back to the legacy START modal only
+            // if UnifiedNotifications hasn't initialised yet.
+            if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
+              window.UnifiedNotifications.showPanel();
+            } else if (typeof window.EnhancedStartUI !== 'undefined' && window.EnhancedStartUI.open) {
               await window.EnhancedStartUI.open();
             } else if (typeof window.openStartModal === 'function') {
-              console.log('⚠️ Fallback to old START modal');
               window.openStartModal();
-            } else {
-              console.warn('❌ No START modal function available');
             }
           }, 500);
         });

@@ -268,6 +268,7 @@ function _destroySplit() {
 async function _renderWhyExpansion(container, why_key) {
   try {
     const { getWhy } = await _loadBriefEngine();
+    container.textContent = '';   // clear loading indicator
     const payload = getWhy(why_key);
 
     if (!payload) {
@@ -422,7 +423,8 @@ function _renderBriefItem(item) {
       } else {
         if (!loaded) {
           loaded = true;
-          _renderWhyExpansion(whyPane, item.why_key);   // async — fills pane when ready
+          whyPane.textContent = '⏳ Loading…';   // cleared by _renderWhyExpansion
+          _renderWhyExpansion(whyPane, item.why_key);
         }
         whyPane.style.display = 'block';
         whyBtn.textContent    = 'Hide';
@@ -767,7 +769,7 @@ class StartDailyDigest {
             ${this.renderStatCard('Opportunities', counts.opportunities, 'briefcase','#00ff88', 'viewOpportunities')}
           </div>
           <div style="text-align:center;margin-top:1.5rem;">
-            <a href="/innovation-engine/explore.html" style="
+            <a href="/explore.html" style="
               display:inline-block;
               background:linear-gradient(135deg,#00e0ff,#00ff88);
               border:none;border-radius:12px;color:#000;

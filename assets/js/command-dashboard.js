@@ -726,11 +726,25 @@ window.CommandDashboard = (() => {
       const cta = card.querySelector('.udc-insight-cta');
       if (!cta) return;
       cta.addEventListener('click', () => {
-        const nodeId = card.dataset.nodeId;
+        const nodeId   = card.dataset.nodeId;
+        const nodeType = card.dataset.nodeType;
         if (nodeId && window.GraphController) {
+          // Focus the specific node in the graph
           window.GraphController.focusNode(nodeId);
-        } else if (window.GraphController) {
-          window.GraphController.resetToTierDefault();
+        } else if (nodeType && window.GraphController) {
+          // No specific node — highlight all nodes of this type
+          if (window.GraphController.highlightNodes) {
+            window.GraphController.highlightNodes(nodeType);
+          } else {
+            window.GraphController.resetToTierDefault();
+          }
+        } else {
+          // Fallback: open the notification panel so user sees the full brief
+          if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
+            window.UnifiedNotifications.showPanel();
+          } else if (window.GraphController) {
+            window.GraphController.resetToTierDefault();
+          }
         }
       });
     });
