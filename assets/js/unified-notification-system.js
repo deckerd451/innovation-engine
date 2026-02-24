@@ -585,18 +585,18 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       padding: 1rem;
     `;
 
-    // Brief block sits above the notification sections.
-    // generateBriefInto() is async and fills it after the panel is in the DOM.
-    const briefRoot = document.createElement('div');
-    briefRoot.id = 'ie-brief-root-panel';
-    briefRoot.style.cssText = 'margin-bottom: 0.5rem;';
-
-    content.appendChild(briefRoot);
-
-    // Notification sections (messages, connections, etc.)
+    // Notification sections (messages, connections, etc.) appear first.
     const notifSections = document.createElement('div');
     notifSections.innerHTML = generatePanelContent();
     content.appendChild(notifSections);
+
+    // Daily brief sits below the notification sections.
+    // generateBriefInto() is async and fills it after the panel is in the DOM.
+    const briefRoot = document.createElement('div');
+    briefRoot.id = 'ie-brief-root-panel';
+    briefRoot.style.cssText = 'margin-top: 0.5rem; border-top: 1px solid rgba(0,224,255,0.15); padding-top: 0.75rem;';
+
+    content.appendChild(briefRoot);
 
     panel.appendChild(header);
     panel.appendChild(content);
@@ -615,20 +615,42 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   function setupActionButtonHandlers(panel) {
     // Get all action buttons
     const actionButtons = panel.querySelectorAll('.notification-action-btn');
-    
+
     actionButtons.forEach(button => {
       button.addEventListener('click', async (e) => {
         e.stopPropagation(); // Prevent item click
-        
+
         const itemIndex = parseInt(button.dataset.itemIndex);
         const actionIndex = parseInt(button.dataset.actionIndex);
-        
-        // Find the corresponding item and action
+        const actionLabel = button.dataset.actionLabel || '';
+
+        // Find the parent notification item for data attributes
+        const itemEl = button.closest('.notification-item');
+
+        // Handle general notification actions (View / Dismiss)
+        if (itemEl && (itemEl.dataset.itemId || itemEl.dataset.itemLink)) {
+          const notifId = itemEl.dataset.itemId;
+          const notifLink = itemEl.dataset.itemLink;
+
+          if (actionLabel === 'View' && notifLink) {
+            window.location.href = notifLink;
+            return;
+          }
+          if (actionLabel === 'Dismiss') {
+            if (notifId) {
+              try { markNotificationAsRead(notifId); } catch (_) {}
+            }
+            itemEl.remove();
+            return;
+          }
+        }
+
+        // Handle connection-request actions (Accept / Decline)
         const items = unifiedData.startSequence?.immediate_actions?.pending_requests?.items || [];
         const item = items[itemIndex];
-        
+
         if (!item) return;
-        
+
         // Get the action from the item's actions array
         const actions = [
           {
@@ -638,13 +660,13 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
             onClick: async () => await handleDeclineConnection(item.id)
           }
         ];
-        
+
         const action = actions[actionIndex];
         if (action && action.onClick) {
           // Disable button and show loading
           button.disabled = true;
           button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-          
+
           try {
             await action.onClick();
           } catch (error) {
@@ -746,16 +768,23 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         'bell',
         '#ffaa00',
         unifiedData.notifications.map(notif => ({
+          id: notif.id,
+          link: notif.link || '',
           title: notif.title,
           subtitle: notif.created_at ? getTimeAgo(new Date(notif.created_at)) : '',
           icon: getNotificationIcon(notif.type),
-          onClick: () => {
-            if (notif.link) {
-              window.location.href = notif.link;
+          actions: [
+            ...(notif.link ? [{
+              label: 'View',
+              icon: 'external-link-alt',
+              color: '#ffaa00'
+            }] : []),
+            {
+              label: 'Dismiss',
+              icon: 'check',
+              color: 'rgba(100,100,120,0.6)'
             }
-            markNotificationAsRead(notif.id);
-            document.getElementById('unified-notification-panel')?.remove();
-          }
+          ]
         }))
       );
       hasContent = true;
@@ -970,7 +999,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           ${title}
         </h4>
         ${items.map((item, index) => `
-          <div class="notification-item" data-index="${index}" style="
+          <div class="notification-item" data-index="${index}" data-item-id="${item.id || ''}" data-item-link="${item.link || ''}" style="
             padding: 0.75rem;
             margin-bottom: 0.5rem;
             background: rgba(0,224,255,0.05);
@@ -1029,10 +1058,11 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
                 margin-top: 0.25rem;
               ">
                 ${item.actions.map((action, actionIndex) => `
-                  <button 
+                  <button
                     class="notification-action-btn"
                     data-item-index="${index}"
                     data-action-index="${actionIndex}"
+                    data-action-label="${action.label}"
                     style="
                       flex: 1;
                       padding: 0.5rem 1rem;

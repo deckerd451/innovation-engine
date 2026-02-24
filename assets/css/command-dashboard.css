@@ -16,7 +16,7 @@
    TOKENS
    ============================================================ */
 :root {
-  --cd-width: 352px; /* 10 % wider than original 320 px */
+  --cd-width: 420px; /* wider sidebar for better readability */
   --cd-bg: rgba(5, 7, 15, 0.97);
   --cd-border: rgba(0, 224, 255, 0.15);
   --cd-accent: #00e0ff;
@@ -88,9 +88,9 @@
 
   /* ── Search container: center within graph area ── */
   /* Graph area: from var(--cd-width) to 100vw. Center = cd-width/2 + 50vw */
-  /* With cd-width=352px: 176px + 50vw */
+  /* With cd-width=420px: 210px + 50vw */
   #centered-search-container {
-    left: calc(50% + 176px) !important;
+    left: calc(50% + 210px) !important;
     /* transform: translateX(-50%) is inline and stays */
   }
 
