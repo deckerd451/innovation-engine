@@ -512,7 +512,6 @@ let legendCollapsed = true; // Start collapsed to give more space to synapse vie
 function createSynapseLegend() {
   // DISABLED: Filter View panel removed per user request
   // Category filtering is now handled by the search category buttons at the bottom
-  console.log('ℹ️ Filter View panel disabled - using category buttons for filtering');
   return;
   
   // Remove existing legend if present

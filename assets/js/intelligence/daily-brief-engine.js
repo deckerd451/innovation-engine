@@ -576,8 +576,7 @@ function _processPresence(presenceSessions, now) {
   const activeUserIds = new Set();
 
   for (const s of presenceSessions) {
-    // last_seen_at is the actual DB column; last_seen is a legacy alias — check both
-    const lastSeenTs = s.last_seen_at || s.last_seen || null;
+    const lastSeenTs = s.last_seen_at || null;
     const isActive = s.is_active === true || (lastSeenTs && lastSeenTs >= tenMinAgo);
     if (isActive) {
       active++;
@@ -713,8 +712,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     ),
     _safe('presence_sessions', () => supabase
       .from('presence_sessions')
-      // Fetch last_seen_at (actual column name) plus last_seen as fallback alias
-      .select('user_id, is_active, last_seen_at, last_seen')
+      .select('user_id, is_active, last_seen_at')
       .limit(500)
     ),
     _safe('community', () => supabase

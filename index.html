@@ -927,12 +927,10 @@
     window.addEventListener('profile-loaded', (e) => {
       const { profile, user } = e.detail;
       if (window.NotificationBell && profile) {
-        console.log('🔔 Initializing notification bell for user:', profile.id);
         window.NotificationBell.init(profile);
       }
 
       if (window.UnifiedNotifications && profile) {
-        console.log('🔔 Initializing unified notifications for user:', profile.id);
         window.UnifiedNotifications.init(profile, user?.id);
       }
     });
