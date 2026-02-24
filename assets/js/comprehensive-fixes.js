@@ -296,7 +296,7 @@
           'project_request',
           'New Project Request',
           `Someone wants to join your project: ${project.title}`,
-          `/dashboard.html?project=${projectId}`
+          `/?project=${projectId}`
         );
       }
 
