@@ -84,6 +84,32 @@ window.CommandDashboard = (() => {
     { id: 'org-stub-4', name: 'Coastal Innovation', isStub: true },
   ];
 
+  /* ── Brief engine loader (mirrors start-daily-digest.js approach) ── */
+  const _CD_SCRIPT_BASE = (() => {
+    try {
+      // Walk backwards through <script> tags to find this file's URL
+      const scripts = document.querySelectorAll('script[src*="command-dashboard"]');
+      const src = scripts.length ? scripts[scripts.length - 1].src : '';
+      return src.replace(/\/[^/?#]+(\?[^#]*)?(#.*)?$/, '/');
+    } catch (_) { return ''; }
+  })();
+  let _briefEnginePromise = null;
+
+  function _loadBriefEngine() {
+    if (typeof window.generateDailyBrief === 'function') {
+      // Already loaded by start-daily-digest.js — wrap in resolved promise
+      return Promise.resolve({ generateDailyBrief: window.generateDailyBrief });
+    }
+    if (!_briefEnginePromise) {
+      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js';
+      _briefEnginePromise = import(url).catch(err => {
+        _briefEnginePromise = null;
+        throw err;
+      });
+    }
+    return _briefEnginePromise;
+  }
+
   /* ── Internal state ─────────────────────────────────────────── */
   let _currentTier = 1;
   let _userId = null;           // community.id
@@ -644,14 +670,15 @@ window.CommandDashboard = (() => {
     const meta = TIER_META[tier];
     const sectionKeys = meta.briefSections;
 
-    // Try real intelligence engine
+    // Try real intelligence engine (dynamic import — no dependency on load order)
     let cards = null;
 
-    if (typeof window.generateDailyBrief === 'function' && _authUserId) {
+    if (_authUserId) {
       try {
         if (!_briefCache && !_briefGenerating) {
           _briefGenerating = true;
-          _briefCache = await window.generateDailyBrief({
+          const { generateDailyBrief } = await _loadBriefEngine();
+          _briefCache = await generateDailyBrief({
             userAuthId: _authUserId,
             maxItems: 5,
           });
