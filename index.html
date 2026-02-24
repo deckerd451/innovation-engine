@@ -451,6 +451,13 @@
 
       <div id="search-container" style="position: relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); padding:0.75rem 1rem; border-radius:12px;
         border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
+        <!-- Drag handle -->
+        <div id="search-drag-handle" title="Drag to move"
+          style="position:absolute; top:-14px; left:50%; transform:translateX(-50%);
+          width:48px; height:14px; cursor:grab; display:flex; align-items:center; justify-content:center;
+          background:rgba(10,14,39,0.7); border:1px solid rgba(0,224,255,0.25); border-radius:6px 6px 0 0;">
+          <div style="width:28px; height:3px; background:rgba(0,224,255,0.4); border-radius:2px;"></div>
+        </div>
         <i class="fas fa-search"
            style="position:absolute; left:1.5rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; z-index:1;"></i>
 
@@ -1405,6 +1412,85 @@
   <!-- Unified Tier Desktop Experience -->
   <script src="assets/js/graph-controller.js"></script>
   <script src="assets/js/command-dashboard.js"></script>
+
+  <!-- Search bar drag-to-move -->
+  <script>
+    (function () {
+      function initSearchDrag() {
+        const container = document.getElementById('centered-search-container');
+        const handle    = document.getElementById('search-drag-handle');
+        if (!container || !handle) return;
+
+        let dragging = false;
+        let startX, startY, origLeft, origTop;
+
+        function getContainerPos() {
+          const rect = container.getBoundingClientRect();
+          const parent = container.offsetParent || document.documentElement;
+          const pr = parent.getBoundingClientRect();
+          return { left: rect.left - pr.left, top: rect.top - pr.top };
+        }
+
+        function beginDrag(clientX, clientY) {
+          dragging = true;
+          handle.style.cursor = 'grabbing';
+
+          // Switch from bottom/left+transform to explicit top/left so we can drag freely
+          const pos = getContainerPos();
+          container.style.bottom    = 'auto';
+          container.style.transform = 'none';
+          container.style.left      = pos.left + 'px';
+          container.style.top       = pos.top  + 'px';
+
+          origLeft = pos.left;
+          origTop  = pos.top;
+          startX   = clientX;
+          startY   = clientY;
+        }
+
+        function moveDrag(clientX, clientY) {
+          if (!dragging) return;
+          const dx = clientX - startX;
+          const dy = clientY - startY;
+          container.style.left = (origLeft + dx) + 'px';
+          container.style.top  = (origTop  + dy) + 'px';
+        }
+
+        function endDrag() {
+          dragging = false;
+          handle.style.cursor = 'grab';
+        }
+
+        // Mouse events
+        handle.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          beginDrag(e.clientX, e.clientY);
+        });
+        document.addEventListener('mousemove', function (e) { moveDrag(e.clientX, e.clientY); });
+        document.addEventListener('mouseup', endDrag);
+
+        // Touch events
+        handle.addEventListener('touchstart', function (e) {
+          const t = e.touches[0];
+          beginDrag(t.clientX, t.clientY);
+        }, { passive: true });
+        document.addEventListener('touchmove', function (e) {
+          if (!dragging) return;
+          const t = e.touches[0];
+          moveDrag(t.clientX, t.clientY);
+        }, { passive: true });
+        document.addEventListener('touchend', endDrag);
+
+        console.log('✅ Search bar drag initialised');
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSearchDrag);
+      } else {
+        initSearchDrag();
+      }
+    })();
+  </script>
 
   <!--
     Force rebuild Tue Feb 10 16:16:09 EST 2026
