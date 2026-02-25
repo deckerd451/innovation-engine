@@ -331,10 +331,6 @@ try {
       // Load saved preferences
       this._onboardingManager.loadPreferences();
       
-      // Show first-time tooltip if needed
-      setTimeout(() => {
-        this._onboardingManager.showFirstTimeTooltip();
-      }, 1000);
       console.log('👋 Onboarding ready');
 
       // 16. Initialize Performance Manager
