@@ -144,22 +144,25 @@
     <!-- id="desktop-top-left-actions" enables CSS shift right of dashboard on desktop -->
     <div id="desktop-top-left-actions" style="position:absolute; top:20px; left:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
       <!-- Admin Panel Button (Hidden by default) -->
-      <div id="btn-admin-top-left" style="cursor:pointer; padding:0.75rem; background:rgba(255,170,0,0.1);
+      <div id="btn-admin-top-left" role="button" tabindex="0"
+        style="cursor:pointer; padding:0.75rem; background:rgba(255,170,0,0.1);
         border:1px solid rgba(255,170,0,0.3); border-radius:50%; width:48px; height:48px;
         display:none; align-items:center; justify-content:center;"
-        title="Admin Panel">
+        title="Admin Panel" aria-label="Admin Panel">
         <i class="fas fa-crown" style="color:#ffa500; font-size:1.2rem;"></i>
       </div>
 
       <!-- Combined User Profile Button with Level Badge -->
-      <div id="user-profile-combined" style="cursor:pointer; display:flex; align-items:center; gap:0.75rem; 
-        padding:0.5rem 1rem 0.5rem 0.5rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); 
+      <div id="user-profile-combined" role="button" tabindex="0"
+        style="cursor:pointer; display:flex; align-items:center; gap:0.75rem;
+        padding:0.5rem 1rem 0.5rem 0.5rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3);
         border-radius:25px; transition:all 0.3s;"
         title="View your profile"
+        aria-label="View your profile"
         onmouseenter="this.style.background='rgba(0,224,255,0.15)'; this.style.borderColor='rgba(0,224,255,0.5)'"
         onmouseleave="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
         <!-- User Avatar Circle -->
-        <div style="width:40px; height:40px; border-radius:50%; 
+        <div style="width:40px; height:40px; border-radius:50%;
           background:linear-gradient(135deg,#00e0ff,#0080ff); border:2px solid rgba(0,224,255,0.5);
           display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem; color:white;">
           <span id="user-initials-left">DI</span>
@@ -174,10 +177,11 @@
 
     <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
       <!-- START Button (Green Circle) -->
-      <div id="btn-start-nav" style="cursor:pointer; padding:0.75rem; background:rgba(0,255,136,0.1);
+      <div id="btn-start-nav" role="button" tabindex="0"
+        style="cursor:pointer; padding:0.75rem; background:rgba(0,255,136,0.1);
         border:1px solid rgba(0,255,136,0.3); border-radius:50%; width:48px; height:48px;
         display:flex; align-items:center; justify-content:center; position:relative;"
-        title="View START sequence" onclick="if(window.EnhancedStartUI && window.EnhancedStartUI.open) { window.EnhancedStartUI.open(); }">
+        title="View START sequence" aria-label="View START sequence">
         <i class="fas fa-play-circle" style="color:#00ff88; font-size:1.2rem;"></i>
         <span class="start-updates-badge hidden" id="start-updates-count"
           style="position:absolute; top:-5px; right:-5px; background:#00ff88; color:#000;
@@ -190,21 +194,22 @@
       </div>
 
       <!-- Refresh Network Button -->
-      <div id="btn-refresh-network" style="cursor:pointer; padding:0.75rem; background:rgba(0,224,255,0.1);
+      <div id="btn-refresh-network" role="button" tabindex="0"
+        style="cursor:pointer; padding:0.75rem; background:rgba(0,224,255,0.1);
         border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:48px; height:48px;
         display:flex; align-items:center; justify-content:center; position:relative;"
-        title="Refresh network view">
+        title="Refresh network view" aria-label="Refresh network view">
         <i class="fas fa-sync-alt" id="refresh-icon-header" style="color:#00e0ff; font-size:1.2rem;"></i>
       </div>
 
       <!-- Logout Button -->
-      <div id="btn-logout-header" onclick="if(window.handleLogout) { if(confirm('Are you sure you want to logout?')) window.handleLogout(); }" 
+      <div id="btn-logout-header" role="button" tabindex="0"
         style="cursor:pointer; padding:0.75rem; background:rgba(255,107,107,0.1);
         border:1px solid rgba(255,107,107,0.3); border-radius:50%; width:48px; height:48px;
         display:flex; align-items:center; justify-content:center; transition:all 0.2s;"
         onmouseenter="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
         onmouseleave="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'"
-        title="Logout">
+        title="Logout" aria-label="Logout">
         <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.2rem;"></i>
       </div>
 
@@ -222,7 +227,7 @@
             <span id="user-initials-header">?</span>
           </div>
           <span id="user-name-header" style="color:#fff; font-weight:600;">Loading...</span>
-          <span id="admin-badge-header" style="display:none; background:rgba(255,170,0,0.2); color:#ffa500; 
+          <span id="admin-badge-header" style="display:none; background:rgba(255,170,0,0.2); color:#ffa500;
             font-size:0.7rem; font-weight:700; padding:0.25rem 0.5rem; border-radius:4px; border:1px solid rgba(255,170,0,0.4);">
             ADMIN
           </span>
@@ -301,8 +306,8 @@
           ">
             <i class="fas fa-cog" style="color:#00e0ff; font-size:1.1rem; width:20px;"></i>
             <span>Settings</span>
-            <span id="admin-settings-indicator" style="display:none; margin-left:auto; background:rgba(255,170,0,0.2); 
-              color:#ffa500; font-size:0.65rem; font-weight:700; padding:0.2rem 0.4rem; border-radius:3px; 
+            <span id="admin-settings-indicator" style="display:none; margin-left:auto; background:rgba(255,170,0,0.2);
+              color:#ffa500; font-size:0.65rem; font-weight:700; padding:0.2rem 0.4rem; border-radius:3px;
               border:1px solid rgba(255,170,0,0.4);">
               ADMIN
             </span>
@@ -458,6 +463,7 @@
           background:rgba(10,14,39,0.7); border:1px solid rgba(0,224,255,0.25); border-radius:6px 6px 0 0;">
           <div style="width:28px; height:3px; background:rgba(0,224,255,0.4); border-radius:2px;"></div>
         </div>
+
         <i class="fas fa-search"
            style="position:absolute; left:1.5rem; top:50%; transform:translateY(-50%); color:#00e0ff; pointer-events:none; z-index:1;"></i>
 
@@ -479,7 +485,7 @@
 
         <div id="search-suggestions" style="display:none; position:absolute; left:1rem; right:1rem;
           background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px;
-          max-height:min(400px, 60vh); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1000; 
+          max-height:min(400px, 60vh); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1000;
           box-shadow:0 8px 32px rgba(0,224,255,0.3);"></div>
       </div>
     </div>
@@ -507,29 +513,19 @@
     // Hide search container when any modal opens
     (function() {
       const searchContainer = document.getElementById('centered-search-container');
-
-      if (!searchContainer) {
-        console.warn('⚠️ Search container not found');
-        return;
-      }
+      if (!searchContainer) return;
 
       function updateSearchVisibility() {
         const anyModalOpen = document.querySelector('.modal.active');
-        const isModalOpen = !!anyModalOpen;
-
-        searchContainer.style.display = isModalOpen ? 'none' : 'flex';
-        console.log(`🔍 Search container ${isModalOpen ? 'hidden' : 'visible'} (modal ${isModalOpen ? 'open' : 'closed'})`);
+        searchContainer.style.display = anyModalOpen ? 'none' : 'flex';
       }
 
-      const observer = new MutationObserver(() => updateSearchVisibility());
-
+      const observer = new MutationObserver(updateSearchVisibility);
       document.querySelectorAll('.modal').forEach(modal => {
         observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
       });
 
       setTimeout(updateSearchVisibility, 100);
-
-      console.log('✅ Search container visibility controller initialized');
     })();
   </script>
 
@@ -772,16 +768,16 @@
 
   <!-- START Modal -->
   <div id="start-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%) scale(0.95);
-    width:auto; max-width:min(600px, 90vw); max-height:90vh; 
+    width:auto; max-width:min(600px, 90vw); max-height:90vh;
     background:linear-gradient(135deg, rgba(10,14,39,0.95), rgba(16,20,39,0.95));
-    border:2px solid rgba(0,255,136,0.4); border-radius:16px; padding:2rem; z-index:10002; 
+    border:2px solid rgba(0,255,136,0.4); border-radius:16px; padding:2rem; z-index:10002;
     overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,255,136,0.2);
     backdrop-filter:blur(20px); opacity:0; transition:all 0.3s ease;">
 
     <button class="mentor-panel-close" onclick="closeStartModal()"
-      style="position:absolute; top:1rem; right:1rem; 
+      style="position:absolute; top:1rem; right:1rem;
       background:rgba(255,102,102,0.2); border:1px solid rgba(255,102,102,0.4);
-      border-radius:50%; width:36px; height:36px; 
+      border-radius:50%; width:36px; height:36px;
       display:flex; align-items:center; justify-content:center; cursor:pointer; color:#f66;
       font-size:1.2rem; transition:all 0.2s;">
       <i class="fas fa-times"></i>
@@ -802,31 +798,31 @@
     backdrop-filter:blur(5px); z-index:10001;"></div>
 
   <!-- External libs (ONLY ONCE) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" defer></script>
 
-  <!-- Centralized Logger (MUST LOAD FIRST) -->
+  <!-- Centralized Logger (MUST LOAD FIRST among modules) -->
   <script type="module" src="assets/js/logger.js?v=fc09b39b-17701461547"></script>
 
   <!-- Animation Lifecycle Controller (MUST LOAD EARLY) -->
   <script type="module" src="assets/js/animation-lifecycle.js?v=1"></script>
 
   <!-- Boot Gate (Auth-Aware Boot Coordinator) -->
-  <script src="assets/js/boot-gate.js?v=1"></script>
+  <script src="assets/js/boot-gate.js?v=1" defer></script>
 
   <!-- Required base modules -->
   <script type="module" src="assets/js/supabaseClient.js?v=fc09b39b-1770146154f916933b2da"></script>
 
   <!-- ✅ SUPABASE OPTIMIZATION: Bootstrap Session (Single Source of Truth) -->
-  <script src="assets/js/bootstrapSession.js?v=6e6a1b33"></script>
+  <script src="assets/js/bootstrapSession.js?v=6e6a1b33" defer></script>
 
   <!-- ✅ SUPABASE OPTIMIZATION: Realtime Manager (Subscription Deduping) -->
-  <script src="assets/js/realtimeManager.js?v=6e6a1b33"></script>
+  <script src="assets/js/realtimeManager.js?v=6e6a1b33" defer></script>
 
   <!-- ✅ SUPABASE OPTIMIZATION: Migration Helper (Temporary Compatibility) -->
-  <script src="assets/js/migrationHelper.js?v=phase2"></script>
+  <script src="assets/js/migrationHelper.js?v=phase2" defer></script>
 
   <!-- ✅ SUPABASE OPTIMIZATION: Startup Metrics (Dev Only) -->
-  <script src="assets/js/startupMetrics.js?v=6e6a1b33"></script>
+  <script src="assets/js/startupMetrics.js?v=6e6a1b33" defer></script>
 
   <!-- Realtime Helper (load early for all subscriptions) -->
   <script type="module">
@@ -835,7 +831,7 @@
   </script>
 
   <!-- Non-module scripts -->
-  <script src="assets/js/ecosystem-connector.js?v=fc09b39b-1770146154f916933b2da"></script>
+  <script src="assets/js/ecosystem-connector.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
   <!-- Feature modules -->
   <script type="module" src="assets/js/onboarding.js?v=fc09b39b-1770146154f916933b2da"></script>
@@ -848,35 +844,35 @@
   <script type="module" src="assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da"></script>
 
   <!-- Messaging -->
-  <script src="assets/js/messaging.js?v=fc09b39b-1770146154f916933b2da"></script>
+  <script src="assets/js/messaging.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
   <!-- Auth + profile -->
   <script type="module" src="auth.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="profile.js?v=fc09b39b-1770146154f916933b2da"></script>
 
   <!-- Synapse initialization helper -->
-  <script src="assets/js/synapse-init-helper.js?v=fc09b39b-1770146154f916933b2da"></script>
+  <script src="assets/js/synapse-init-helper.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
   <!-- Theme strategy toggle -->
-  <script src="assets/js/theme-strategy-toggle.js?v=fc09b39b-1770146154f916933b2da"></script>
+  <script src="assets/js/theme-strategy-toggle.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
   <!-- Comprehensive Fixes Module -->
-  <script src="assets/js/comprehensive-fixes.js?v=fc09b39b-17701461543"></script>
+  <script src="assets/js/comprehensive-fixes.js?v=fc09b39b-17701461543" defer></script>
 
   <!-- Critical UX Fixes Module -->
-  <script src="assets/js/critical-ux-fixes.js?v=fc09b39b-17701461543"></script>
+  <script src="assets/js/critical-ux-fixes.js?v=fc09b39b-17701461543" defer></script>
 
   <!-- Notification Bell Module -->
-  <script src="assets/js/notification-bell.js?v=08a7ab3a"></script>
+  <script src="assets/js/notification-bell.js?v=08a7ab3a" defer></script>
 
   <!-- Avatar Upload Module -->
-  <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543"></script>
+  <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>
 
   <!-- Node Panel Fixes -->
-  <script src="assets/js/node-panel-fixes.js?v=fc09b39b-17701461543"></script>
+  <script src="assets/js/node-panel-fixes.js?v=fc09b39b-17701461543" defer></script>
 
   <!-- Controllers -->
-  <script src="assets/js/dashboard-actions.js?v=fc09b39b-1770146154f916933b2da"></script>
+  <script src="assets/js/dashboard-actions.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
   <!-- Admin People -->
   <script type="module" src="assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543"></script>
@@ -888,13 +884,13 @@
   <script type="module" src="assets/js/unified-network-integration.js?v=fc09b39b-17701461547"></script>
 
   <!-- Mobile Safe Area Debug Helper -->
-  <script src="assets/js/mobile-safe-area-debug.js?v=1"></script>
+  <script src="assets/js/mobile-safe-area-debug.js?v=1" defer></script>
 
   <!-- Presence Realtime System -->
-  <script src="assets/js/presence-realtime.js?v=20260211-1"></script>
-  <script src="assets/js/presence-ui.js?v=20260211-1"></script>
-  <script src="assets/js/synapse-presence-indicator.js?v=20260211-1"></script>
-  <script src="assets/js/synapse-message-badges.js?v=20260211-2"></script>
+  <script src="assets/js/presence-realtime.js?v=20260211-1" defer></script>
+  <script src="assets/js/presence-ui.js?v=20260211-1" defer></script>
+  <script src="assets/js/synapse-presence-indicator.js?v=20260211-1" defer></script>
+  <script src="assets/js/synapse-message-badges.js?v=20260211-2" defer></script>
 
   <!-- Unified Network - Synapse Bridge -->
   <script type="module" src="assets/js/unified-network-synapse-bridge.js?v=fc09b39b-17701461547"></script>
@@ -920,12 +916,116 @@
   </script>
 
   <!-- Mentor Guide System -->
-  <script src="assets/js/mentor-guide.js?v=fc09b39b-1770146154f916933b2da"></script>
+  <script src="assets/js/mentor-guide.js?v=fc09b39b-1770146154f916933b2da" defer></script>
+
+  <!-- START-related scripts -->
+  <script src="assets/js/start-sequence-report.js?v=3" defer></script>
+  <script src="assets/js/start-synapse-integration.js?v=3" defer></script>
+  <script src="assets/js/start-onboarding.js?v=3" defer></script>
+  <script src="assets/js/start-daily-digest.js?v=20260221-ie2" defer></script>
+  <script src="assets/js/start-ui-enhanced.js?v=1739311200" defer></script>
+
+  <!-- Unified Notification System -->
+  <script src="assets/js/unified-notification-system.js?v=1" defer></script>
+
+  <!-- Daily Suggestions Engine -->
+  <script type="module" src="assets/js/suggestions/index-v2.js"></script>
+  <script type="module" src="assets/js/suggestions/start-integration.js?v=1"></script>
+  <script type="module" src="assets/js/suggestions/navigation.js?v=1"></script>
+
+  <!-- Unified Tier Desktop Experience -->
+  <script src="assets/js/graph-controller.js" defer></script>
+  <script src="assets/js/command-dashboard.js" defer></script>
+
+  <!-- Wire up global functions for enhanced START UI -->
+  <script>
+    window.closeStartModal = function() {
+      if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
+        window.EnhancedStartUI.close();
+      }
+    };
+
+    window.openStartModal = async function() {
+      if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
+        await window.EnhancedStartUI.open();
+      }
+    };
+  </script>
+
+  <!-- Unified logout (single source of truth) -->
+  <script>
+    window.doLogout = async function doLogout() {
+      if (!confirm('Are you sure you want to logout?')) return;
+
+      try {
+        console.log('🚪 Logging out...');
+        if (window.handleLogout) {
+          await window.handleLogout();
+        } else if (window.supabase) {
+          const { error } = await window.supabase.auth.signOut();
+          if (error) throw error;
+        }
+      } catch (err) {
+        console.error('❌ Logout error:', err);
+        alert('Error logging out. Please try again.');
+        return;
+      }
+
+      try {
+        localStorage.removeItem('start_flow_state');
+        localStorage.removeItem('chs_splash_seen_v2');
+        sessionStorage.clear();
+        window.dispatchEvent(new CustomEvent('user-logged-out'));
+      } catch (e) {
+        // ignore
+      }
+
+      window.location.reload();
+    };
+  </script>
+
+  <!-- Keyboard accessibility for div-buttons -->
+  <script>
+    (function () {
+      function wireKeyClick(id, onClick) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (typeof onClick === 'function') el.addEventListener('click', onClick);
+
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            el.click();
+          }
+        });
+      }
+
+      wireKeyClick('btn-start-nav', () => {
+        if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
+          window.EnhancedStartUI.open();
+        } else if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
+          window.UnifiedNotifications.showPanel();
+        } else if (typeof window.openStartModal === 'function') {
+          window.openStartModal();
+        }
+      });
+
+      wireKeyClick('btn-logout-header', () => window.doLogout && window.doLogout());
+
+      wireKeyClick('btn-admin-top-left', () => {
+        if (typeof window.openAdminPanel === 'function') window.openAdminPanel();
+      });
+
+      wireKeyClick('user-profile-combined', () => {
+        if (typeof window.openProfileModal === 'function') window.openProfileModal();
+      });
+    })();
+  </script>
 
   <!-- Initialize Notification Bell on Profile Load -->
   <script>
     window.addEventListener('profile-loaded', (e) => {
-      const { profile, user } = e.detail;
+      const { profile, user } = e.detail || {};
       if (window.NotificationBell && profile) {
         window.NotificationBell.init(profile);
       }
@@ -936,29 +1036,12 @@
     });
   </script>
 
-  <!-- Logout Button Handler -->
+  <!-- Hidden logout-btn compatibility hook -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const logoutBtn = document.getElementById('logout-btn');
       if (!logoutBtn) return;
-
-      logoutBtn.addEventListener('click', async () => {
-        if (!window.handleLogout) {
-          console.error('❌ Logout function not available');
-          return;
-        }
-
-        console.log('🚪 Logging out...');
-        await window.handleLogout();
-
-        console.log('🧹 Clearing cached state...');
-        localStorage.removeItem('start_flow_state');
-        localStorage.removeItem('chs_splash_seen_v2');
-
-        setTimeout(() => {
-          window.location.href = '/index.html';
-        }, 500);
-      });
+      logoutBtn.addEventListener('click', () => window.doLogout && window.doLogout());
     });
   </script>
 
@@ -972,13 +1055,10 @@
         if (document.hidden) return;
 
         const timeSinceActive = Date.now() - lastActiveTime;
-        console.log(`👁️ Tab visible again (was away for ${Math.floor(timeSinceActive / 1000)}s)`);
-
         if (!window.__authReady) {
           lastActiveTime = Date.now();
           return;
         }
-
         if (restoreInFlight) {
           lastActiveTime = Date.now();
           return;
@@ -986,72 +1066,51 @@
 
         if (timeSinceActive > 30000 && window.supabase) {
           restoreInFlight = true;
-          console.log('🔄 Checking session after being away...');
 
           try {
             const { data: { session }, error } = await window.supabase.auth.getSession();
-
             if (error) {
               console.error('❌ Session check error:', error);
               return;
             }
 
+            const loginSection = document.getElementById('login-section');
+            const mainContent  = document.getElementById('main-content');
+            const mainHeader   = document.getElementById('main-header');
+
             if (session?.user) {
-              console.log('✅ Session valid for:', session.user.email);
-
-              const loginSection = document.getElementById('login-section');
-              const mainContent = document.getElementById('main-content');
-
               if (loginSection && !loginSection.classList.contains('hidden')) {
-                console.log('🔧 Fixing UI - showing app instead of login');
                 loginSection.classList.add('hidden');
                 loginSection.classList.remove('active-tab-pane');
-
                 if (mainContent) mainContent.classList.remove('hidden');
-
-                const mainHeader = document.getElementById('main-header');
                 if (mainHeader) mainHeader.classList.remove('hidden');
-
                 document.body.style.overflow = 'auto';
+              }
 
-                if (!window.currentUserProfile) {
-                  console.log('📋 Reloading user profile...');
-                  try {
-                    const { data: profile } = await window.supabase
-                      .from('community')
-                      .select('*')
-                      .eq('user_id', session.user.id)
-                      .limit(1);
+              if (!window.currentUserProfile) {
+                try {
+                  const { data: profile } = await window.supabase
+                    .from('community')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .limit(1);
 
-                    if (profile && profile.length > 0) {
-                      window.currentUserProfile = profile[0];
-                      window.dispatchEvent(
-                        new CustomEvent('profile-loaded', {
-                          detail: { user: session.user, profile: profile[0] }
-                        })
-                      );
-                      console.log('✅ Profile reloaded:', profile[0].name);
-                    }
-                  } catch (e) {
-                    console.error('❌ Error reloading profile:', e);
+                  if (profile && profile.length > 0) {
+                    window.currentUserProfile = profile[0];
+                    window.dispatchEvent(new CustomEvent('profile-loaded', {
+                      detail: { user: session.user, profile: profile[0] }
+                    }));
                   }
+                } catch (e) {
+                  console.error('❌ Error reloading profile:', e);
                 }
               }
             } else {
-              console.log('⚠️ No active session found');
-
-              const loginSection = document.getElementById('login-section');
               if (loginSection && loginSection.classList.contains('hidden')) {
-                console.log('🔒 Showing login screen');
                 loginSection.classList.remove('hidden');
                 loginSection.classList.add('active-tab-pane');
-
-                const mainContent = document.getElementById('main-content');
                 if (mainContent) mainContent.classList.add('hidden');
-
-                const mainHeader = document.getElementById('main-header');
                 if (mainHeader) mainHeader.classList.add('hidden');
-
                 document.body.style.overflow = 'hidden';
               }
             }
@@ -1068,137 +1127,80 @@
       setInterval(() => {
         if (!document.hidden) lastActiveTime = Date.now();
       }, 5000);
-
-      console.log('✅ Session restoration handler initialized');
     })();
   </script>
 
-  <!-- START Button Logic -->
+  <!-- Search input mobile keyboard behavior (no global scroll locks) -->
   <script>
     (function() {
-      const preventHorizontalScroll = () => {
-        document.documentElement.style.overflowX = 'hidden';
-        document.body.style.overflowX = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.width = '100%';
-      };
-
       const searchInput = document.getElementById('global-search');
       const searchContainer = document.getElementById('centered-search-container');
+      if (!searchInput || !searchContainer) return;
 
-      if (searchInput && searchContainer) {
-        searchInput.addEventListener('focus', () => {
-          preventHorizontalScroll();
-          window.scrollTo(0, 0);
+      function lockHorizontalOnly(lock) {
+        // Only prevent sideways drift; do NOT hard-freeze the page with position:fixed.
+        document.documentElement.style.overflowX = lock ? 'hidden' : '';
+        document.body.style.overflowX = lock ? 'hidden' : '';
+      }
+
+      searchInput.addEventListener('focus', () => {
+        lockHorizontalOnly(true);
+        if (window.innerWidth <= 768) searchContainer.classList.add('keyboard-open');
+      });
+
+      searchInput.addEventListener('blur', () => {
+        lockHorizontalOnly(false);
+        searchContainer.classList.remove('keyboard-open');
+      });
+
+      let lastHeight = window.innerHeight;
+      window.addEventListener('resize', () => {
+        const currentHeight = window.innerHeight;
+        if (currentHeight < lastHeight - 100 && document.activeElement === searchInput) {
           if (window.innerWidth <= 768) searchContainer.classList.add('keyboard-open');
-        });
-
-        searchInput.addEventListener('blur', () => {
-          preventHorizontalScroll();
-          window.scrollTo(0, 0);
+        } else if (currentHeight > lastHeight + 100) {
           searchContainer.classList.remove('keyboard-open');
-        });
-
-        let lastHeight = window.innerHeight;
-        window.addEventListener('resize', () => {
-          const currentHeight = window.innerHeight;
-          if (currentHeight < lastHeight - 100 && document.activeElement === searchInput) {
-            if (window.innerWidth <= 768) searchContainer.classList.add('keyboard-open');
-          } else if (currentHeight > lastHeight + 100) {
-            searchContainer.classList.remove('keyboard-open');
-          }
-          lastHeight = currentHeight;
-        });
-      }
-
-      setInterval(preventHorizontalScroll, 100);
-
-      window.addEventListener('scroll', () => {
-        window.scrollTo(0, 0);
-      }, { passive: false });
-
-      const startContainer = document.getElementById('start-button-container');
-      const startBtn = document.getElementById('btn-start-center');
-
-      let startDismissed = sessionStorage.getItem('start_dismissed') === 'true';
-
-      function hideStartButton() {
-        if (startContainer) {
-          startContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-          startContainer.style.opacity = '0';
-          startContainer.style.transform = 'translate(-50%, -50%) scale(0.5)';
-
-          setTimeout(() => {
-            startContainer.style.display = 'none';
-          }, 500);
         }
-
-        startDismissed = true;
-        sessionStorage.setItem('start_dismissed', 'true');
-        sessionStorage.setItem('chs_session_started', 'true');
-        localStorage.setItem('chs_start_last_used', Date.now());
-      }
-
-      if (startBtn) {
-        startBtn.addEventListener('click', async (e) => {
-          if (window.EnhancedStartUI && window.EnhancedStartUI.isOpen) {
-            console.log('⚠️ START modal already open, ignoring click');
-            e.stopPropagation();
-            e.preventDefault();
-            return;
-          }
-
-          console.log('🚀 START button clicked');
-          hideStartButton();
-
-          setTimeout(async () => {
-            // Prefer the unified notification panel (bell) which now hosts the
-            // Daily Intelligence Brief. Fall back to the legacy START modal only
-            // if UnifiedNotifications hasn't initialised yet.
-            if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
-              window.UnifiedNotifications.showPanel();
-            } else if (typeof window.EnhancedStartUI !== 'undefined' && window.EnhancedStartUI.open) {
-              await window.EnhancedStartUI.open();
-            } else if (typeof window.openStartModal === 'function') {
-              window.openStartModal();
-            }
-          }, 500);
-        });
-      }
-
-      console.log('✅ START button logic initialized (overlay disabled - using nav button)');
+        lastHeight = currentHeight;
+      });
     })();
   </script>
 
-  <!-- User Dropdown + Refresh Logic -->
+  <!-- Refresh Network Logic -->
   <script>
     (function() {
       const refreshBtn = document.getElementById('btn-refresh-network');
       const refreshIcon = document.getElementById('refresh-icon-header');
+      if (!refreshBtn || !refreshIcon) return;
 
-      if (refreshBtn && refreshIcon) {
-        refreshBtn.addEventListener('click', () => {
-          console.log('🔄 Refreshing network view...');
+      function doRefresh() {
+        console.log('🔄 Refreshing network view...');
+        refreshIcon.classList.add('spin');
 
-          // NOTE: base.css should define .spin (or similar) + @keyframes spin
-          refreshIcon.classList.add('spin');
+        if (typeof window.refreshSynapseView === 'function') {
+          window.refreshSynapseView();
+        } else if (typeof window.renderSynapse === 'function') {
+          window.renderSynapse();
+        } else {
+          console.warn('⚠️ No refresh function available');
+        }
 
-          if (typeof window.refreshSynapseView === 'function') {
-            window.refreshSynapseView();
-          } else if (typeof window.renderSynapse === 'function') {
-            window.renderSynapse();
-          } else {
-            console.warn('⚠️ No refresh function available');
-          }
-
-          setTimeout(() => {
-            refreshIcon.classList.remove('spin');
-          }, 1000);
-        });
+        setTimeout(() => refreshIcon.classList.remove('spin'), 1000);
       }
 
-      let isDropdownOpen = false;
+      refreshBtn.addEventListener('click', doRefresh);
+      refreshBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          doRefresh();
+        }
+      });
+    })();
+  </script>
 
+  <!-- User Dropdown + Settings/Logout (kept; won’t spam warnings if hidden) -->
+  <script>
+    (function() {
       setTimeout(() => {
         const userMenu = document.getElementById('user-menu');
         const userDropdown = document.getElementById('user-dropdown');
@@ -1207,10 +1209,10 @@
         const dropdownSettings = document.getElementById('dropdown-settings');
         const dropdownLogout = document.getElementById('dropdown-logout');
 
-        if (!userMenu || !userDropdown) {
-          console.warn('⚠️ User menu elements not found');
-          return;
-        }
+        // If right-side dropdown is not in use, silently exit.
+        if (!userMenu || !userDropdown) return;
+
+        let isDropdownOpen = false;
 
         function toggleDropdown(e) {
           e.stopPropagation();
@@ -1252,42 +1254,17 @@
           closeDropdown();
 
           if (typeof window.isAdminUser === 'function' && window.isAdminUser()) {
-            console.log('👑 Opening admin panel from settings (admin user)');
-            if (typeof window.openAdminPanel === 'function') {
-              window.openAdminPanel();
-            } else {
-              console.error('❌ openAdminPanel function not found');
-              alert('Admin panel not available');
-            }
+            if (typeof window.openAdminPanel === 'function') window.openAdminPanel();
+            else alert('Admin panel not available');
           } else {
-            console.log('Settings clicked (non-admin)');
             alert('Settings feature coming soon!');
           }
         }
 
-        async function logout(e) {
+        function logout(e) {
           e.stopPropagation();
           closeDropdown();
-
-          if (!confirm('Are you sure you want to logout?')) return;
-
-          try {
-            console.log('🚪 Logging out...');
-            if (window.supabase) {
-              const { error } = await window.supabase.auth.signOut();
-              if (error) throw error;
-            }
-
-            localStorage.clear();
-            sessionStorage.clear();
-            window.dispatchEvent(new CustomEvent('user-logged-out'));
-
-            console.log('✅ Logged out successfully');
-            window.location.reload();
-          } catch (error) {
-            console.error('❌ Logout error:', error);
-            alert('Error logging out. Please try again.');
-          }
+          if (window.doLogout) window.doLogout();
         }
 
         userMenu.addEventListener('click', toggleDropdown, true);
@@ -1302,115 +1279,58 @@
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape' && isDropdownOpen) closeDropdown();
         });
-
-        console.log('✅ User dropdown menu initialized');
       }, 500);
-
-      setTimeout(() => {
-        const userProfileCombined = document.getElementById('user-profile-combined');
-        const adminBtnLeft = document.getElementById('btn-admin-top-left');
-
-        if (userProfileCombined) {
-          userProfileCombined.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (typeof window.openProfileModal === 'function') {
-              console.log('🔵 Opening profile panel from combined button');
-              window.openProfileModal();
-            } else {
-              console.warn('⚠️ openProfileModal function not available');
-            }
-          });
-          console.log('✅ Combined user profile button initialized');
-        }
-
-        if (adminBtnLeft) {
-          adminBtnLeft.addEventListener('click', () => {
-            if (typeof window.openAdminPanel === 'function') window.openAdminPanel();
-          });
-        }
-      }, 600);
     })();
   </script>
 
-  <script src="assets/js/start-sequence-report.js?v=3"></script>
-  <script src="assets/js/start-synapse-integration.js?v=3"></script>
-  <script src="assets/js/start-onboarding.js?v=3"></script>
-  <script src="assets/js/start-daily-digest.js?v=20260221-ie2"></script>
-  <script src="assets/js/start-ui-enhanced.js?v=1739311200"></script>
-
-  <!-- Unified Notification System -->
-  <script src="assets/js/unified-notification-system.js?v=1"></script>
-
-  <!-- Daily Suggestions Engine -->
-  <script type="module" src="assets/js/suggestions/index-v2.js"></script>
-  <script type="module" src="assets/js/suggestions/start-integration.js?v=1"></script>
-  <script type="module" src="assets/js/suggestions/navigation.js?v=1"></script>
-
-  <!-- Wire up global functions for enhanced START UI -->
-  <script>
-    window.closeStartModal = function() {
-      if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
-        window.EnhancedStartUI.close();
-      }
-    };
-
-    window.openStartModal = async function() {
-      if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
-        await window.EnhancedStartUI.open();
-      }
-    };
-  </script>
-
-  <!-- Dynamic Viewport Height Detection -->
+  <!-- START Button Logic (center overlay remains disabled; uses bell panel) -->
   <script>
     (function() {
-      function setViewportHeight() {
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-        if (window.location.search.includes('debug')) {
-          console.log(`📐 Viewport height updated: ${window.innerHeight}px (--vh: ${vh}px)`);
+      const startContainer = document.getElementById('start-button-container');
+      const startBtn = document.getElementById('btn-start-center');
+
+      let startDismissed = sessionStorage.getItem('start_dismissed') === 'true';
+
+      function hideStartButton() {
+        if (startContainer) {
+          startContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+          startContainer.style.opacity = '0';
+          startContainer.style.transform = 'translate(-50%, -50%) scale(0.5)';
+
+          setTimeout(() => {
+            startContainer.style.display = 'none';
+          }, 500);
         }
+
+        startDismissed = true;
+        sessionStorage.setItem('start_dismissed', 'true');
+        sessionStorage.setItem('chs_session_started', 'true');
+        localStorage.setItem('chs_start_last_used', Date.now());
       }
 
-      setViewportHeight();
+      if (startBtn) {
+        startBtn.addEventListener('click', async (e) => {
+          if (window.EnhancedStartUI && window.EnhancedStartUI.isOpen) {
+            e.stopPropagation();
+            e.preventDefault();
+            return;
+          }
 
-      let resizeTimer;
-      window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => setViewportHeight(), 100);
-      });
+          hideStartButton();
 
-      window.addEventListener('orientationchange', () => {
-        setTimeout(setViewportHeight, 100);
-      });
-
-      let scrollTimer;
-      window.addEventListener('scroll', () => {
-        clearTimeout(scrollTimer);
-        scrollTimer = setTimeout(() => setViewportHeight(), 150);
-      }, { passive: true });
-
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) setTimeout(setViewportHeight, 100);
-      });
-
-      console.log('✅ Dynamic viewport height detection initialized');
+          setTimeout(async () => {
+            if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
+              window.UnifiedNotifications.showPanel();
+            } else if (typeof window.EnhancedStartUI !== 'undefined' && window.EnhancedStartUI.open) {
+              await window.EnhancedStartUI.open();
+            } else if (typeof window.openStartModal === 'function') {
+              window.openStartModal();
+            }
+          }, 300);
+        });
+      }
     })();
   </script>
-
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("./sw.js", { scope: "./" })
-          .catch((err) => console.error("SW registration failed:", err));
-      });
-    }
-  </script>
-
-  <!-- Unified Tier Desktop Experience -->
-  <script src="assets/js/graph-controller.js"></script>
-  <script src="assets/js/command-dashboard.js"></script>
 
   <!-- Search bar drag-to-move -->
   <script>
@@ -1434,7 +1354,6 @@
           dragging = true;
           handle.style.cursor = 'grabbing';
 
-          // Switch from bottom/left+transform to explicit top/left so we can drag freely
           const pos = getContainerPos();
           container.style.bottom    = 'auto';
           container.style.transform = 'none';
@@ -1479,8 +1398,6 @@
           moveDrag(t.clientX, t.clientY);
         }, { passive: true });
         document.addEventListener('touchend', endDrag);
-
-        console.log('✅ Search bar drag initialised');
       }
 
       if (document.readyState === 'loading') {
@@ -1489,6 +1406,52 @@
         initSearchDrag();
       }
     })();
+  </script>
+
+  <!-- Dynamic Viewport Height Detection -->
+  <script>
+    (function() {
+      function setViewportHeight() {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        if (window.location.search.includes('debug')) {
+          console.log(`📐 Viewport height updated: ${window.innerHeight}px (--vh: ${vh}px)`);
+        }
+      }
+
+      setViewportHeight();
+
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => setViewportHeight(), 100);
+      });
+
+      window.addEventListener('orientationchange', () => {
+        setTimeout(setViewportHeight, 100);
+      });
+
+      let scrollTimer;
+      window.addEventListener('scroll', () => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => setViewportHeight(), 150);
+      }, { passive: true });
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) setTimeout(setViewportHeight, 100);
+      });
+    })();
+  </script>
+
+  <!-- Service Worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("./sw.js", { scope: "./" })
+          .catch((err) => console.error("SW registration failed:", err));
+      });
+    }
   </script>
 
   <!--
