@@ -21,29 +21,15 @@ export function initializeErrorHandling(api) {
     showUnifiedNetworkNotification(message, type, options);
   });
   
-  // Set fallback callback (switch to legacy synapse)
+  // Set fallback callback — unified network is always on, so just log the error
+  // and emit the event. Do NOT write 'false' to localStorage or switch to legacy.
   errorHandler.setFallbackCallback(async (errorInfo) => {
-    logger.warn('ErrorIntegration', 'Executing fallback to legacy synapse');
-    
-    // Disable unified network. Must set to 'false' (not removeItem) because
-    // the canonical check is !== 'false' — a missing key means default ON.
-    localStorage.setItem('enable-unified-network', 'false');
-    
-    // Emit event for bridge to handle
+    logger.warn('ErrorIntegration', 'Unified network error (fallback suppressed — unified always on)', errorInfo);
+
+    // Emit event for observability
     window.dispatchEvent(new CustomEvent('unified-network-fallback', {
       detail: { errorInfo }
     }));
-    
-    // If legacy synapse is available, switch to it
-    if (window.synapseApi && typeof window.initSynapseView === 'function') {
-      try {
-        await window.initSynapseView();
-        logger.info('ErrorIntegration', 'Successfully fell back to legacy synapse');
-      } catch (error) {
-        logger.error('ErrorIntegration', 'Fallback to legacy synapse failed', error);
-        throw error;
-      }
-    }
   });
   
   // Wrap API methods with error handling

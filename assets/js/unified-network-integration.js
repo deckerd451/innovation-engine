@@ -552,9 +552,12 @@ function injectStylesOnce() {
   document.head.appendChild(style);
 }
 
+// Clear any stale 'false' flag left by a previous admin toggle or error handler.
+// Unified network is always on — this key should never be 'false'.
+localStorage.removeItem('enable-unified-network');
+
 logger.info(INTEGRATION_NS, 'Integration module loaded (idempotent)');
 window.addEventListener('profile-loaded', () => {
-  if (!getFeatureFlags().ENABLE_UNIFIED_NETWORK) return;
   initUnifiedNetwork(null, 'synapse-svg').catch(() => {});
 });
 
