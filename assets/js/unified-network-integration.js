@@ -19,8 +19,8 @@ import { installUnifiedTierProbe } from './unified-tier-probe.js';
 // ------------------------------------------------------------------
 function getFeatureFlags() {
   return {
-    // Default ON: enabled unless user explicitly sets 'enable-unified-network' to 'false'
-    ENABLE_UNIFIED_NETWORK: localStorage.getItem('enable-unified-network') !== 'false',
+    // Unified network is always enabled for all users
+    ENABLE_UNIFIED_NETWORK: true,
     DEBUG_MODE: localStorage.getItem('unified-network-debug') === 'true'
   };
 }
@@ -61,19 +61,6 @@ const INTEGRATION_NS = 'UnifiedNetworkIntegration';
  */
 export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-svg') {
   const FLAGS = getFeatureFlags();
-
-  // Feature disabled => explicit legacy mode
-  if (!FLAGS.ENABLE_UNIFIED_NETWORK) {
-    logger.info(INTEGRATION_NS, 'Feature disabled, using legacy synapse');
-    integrationState.usingUnifiedNetwork = false;
-    integrationState.fallbackToLegacy = false;
-    integrationState.initialized = false;
-    integrationState.initializing = false;
-    integrationState.error = null;
-    // Remove body attribute if disabled
-    document.body.removeAttribute('data-unified-network');
-    return false;
-  }
 
   // Resolve the ONLY id that should drive unified network: community profile id
   const communityId =
