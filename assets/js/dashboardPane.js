@@ -873,6 +873,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       return;
     }
 
+    // Skip legacy synapse when the unified network integration is present —
+    // unified-network-integration.js owns the #synapse-svg container.
+    if (window.unifiedNetworkIntegration) {
+      console.log("ℹ️ Unified Network active — skipping legacy synapse init");
+      return;
+    }
+
     console.log("🧠 Initializing Synapse visualization...");
 
     try {

@@ -27,12 +27,11 @@ let bridgeState = {
 };
 
 /**
- * Check if unified network is enabled (same flag as UnifiedNetworkIntegration)
+ * Check if unified network is enabled.
+ * Unified network is always enabled for all users — no localStorage toggle.
  */
 function isUnifiedNetworkEnabled() {
-  // Default ON: only disabled when explicitly set to 'false'.
-  // Matches the canonical check in unified-network-integration.js.
-  return localStorage.getItem('enable-unified-network') !== 'false';
+  return true;
 }
 
 /**
