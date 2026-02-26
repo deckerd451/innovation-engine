@@ -802,4 +802,24 @@ function getInitials(name) {
   return name.substring(0, 2).toUpperCase();
 }
 
+// ================================================================
+// PUBLIC API
+// ================================================================
+// Expose focus-content loader so the unified Intelligence Brief
+// panel can render "Your Focus Today" without a separate modal.
+
+window.MentorGuide = {
+  renderFocusInto: async function (el) {
+    // Ensure profile + supabase are available (they should be
+    // since UnifiedNotifications.init fires after profile-loaded)
+    if (!mentorState.currentUserProfile && window.appState?.communityProfile) {
+      mentorState.currentUserProfile = window.appState.communityProfile;
+    }
+    if (!mentorState.supabase && window.supabase) {
+      mentorState.supabase = window.supabase;
+    }
+    await loadFocusContent(el);
+  }
+};
+
 console.log("✅ Mentor Guide ready");

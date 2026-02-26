@@ -507,7 +507,7 @@ function renderDailyBriefBlock(brief) {
 
   const hdrTitle = document.createElement('span');
   hdrTitle.style.cssText = 'color:#00e0ff;font-size:0.93rem;font-weight:700;';
-  hdrTitle.textContent   = 'Daily Intelligence Brief';
+  hdrTitle.textContent   = 'Intelligence Signals';
 
   hdr.appendChild(hdrIcon);
   hdr.appendChild(hdrTitle);
