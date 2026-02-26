@@ -695,7 +695,12 @@ try {
       const result = this._mobileTierController.applyTier(tier);
 
       if (result.error) {
-        console.warn(`🧩 [TIERS] applyTier("${tier}") failed:`, result.error);
+        // "Tier system disabled" is expected on desktop — log at debug level only
+        if (result.error === 'Tier system disabled') {
+          console.log(`🧩 [TIERS] applyTier("${tier}") skipped: system disabled (desktop/no flag)`);
+        } else {
+          console.warn(`🧩 [TIERS] applyTier("${tier}") failed:`, result.error);
+        }
       } else if (result.skipped) {
         console.log(`🧩 [TIERS] applyTier("${tier}") skipped:`, result.reason);
       }
