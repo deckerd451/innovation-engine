@@ -571,13 +571,13 @@ function _processPresence(presenceSessions, now) {
     return { networkAwakeScore: 0, activeUserIds: new Set() };
   }
 
-  const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
+  const nowIso = now.toISOString();
   let active = 0;
   const activeUserIds = new Set();
 
   for (const s of presenceSessions) {
-    const lastSeenTs = s.last_seen_at || null;
-    const isActive = s.is_active === true || (lastSeenTs && lastSeenTs >= tenMinAgo);
+    // A session is active if it hasn't expired yet (expires_at > now)
+    const isActive = s.expires_at && s.expires_at > nowIso;
     if (isActive) {
       active++;
       if (s.user_id) activeUserIds.add(String(s.user_id));
@@ -712,7 +712,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     ),
     _safe('presence_sessions', () => supabase
       .from('presence_sessions')
-      .select('user_id, is_active, last_seen_at')
+      .select('user_id, expires_at')
       .limit(500)
     ),
     _safe('community', () => supabase
