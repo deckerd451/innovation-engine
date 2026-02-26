@@ -271,16 +271,20 @@
       setTimeout(logSafeAreaDebug, 1000);
     }
 
-    // Re-log on orientation change
+    // Re-log on orientation change only when visual debug is active
     window.addEventListener('orientationchange', () => {
-      setTimeout(logSafeAreaDebug, 500);
+      if (localStorage.getItem('mobile-safe-area-visual-debug') === 'true') {
+        setTimeout(logSafeAreaDebug, 500);
+      }
     });
 
-    // Re-log on resize (throttled)
+    // Re-log on resize only when visual debug is active (prevents console flood on DevTools resize)
     let resizeTimer;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(logSafeAreaDebug, 500);
+      if (localStorage.getItem('mobile-safe-area-visual-debug') === 'true') {
+        resizeTimer = setTimeout(logSafeAreaDebug, 500);
+      }
     });
 
     console.log('📱 Mobile Safe Area Debug Helper initialized');
