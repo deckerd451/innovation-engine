@@ -501,7 +501,15 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     const panel = createUnifiedPanel();
     document.body.appendChild(panel);
 
-    // Generate the brief directly into the panel's brief root element.
+    // Load focus content (async — fires after panel is in DOM).
+    const focusContentEl = document.getElementById('ie-focus-content-panel');
+    if (focusContentEl && window.MentorGuide && window.MentorGuide.renderFocusInto) {
+      window.MentorGuide.renderFocusInto(focusContentEl);
+    } else if (focusContentEl) {
+      focusContentEl.innerHTML = '<p style="color:rgba(255,255,255,0.4); font-size:0.85rem; margin:0;">Explore the network to discover your focus areas.</p>';
+    }
+
+    // Generate the intelligence brief into the panel's brief root element.
     // Must happen after appendChild so the element is in the DOM.
     const briefRoot = document.getElementById('ie-brief-root-panel');
     if (briefRoot && window.StartDailyDigest && window.StartDailyDigest.generateBriefInto) {
@@ -554,12 +562,12 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     header.innerHTML = `
       <div>
         <h3 style="margin: 0 0 0.25rem 0; color: #00e0ff; font-size: 1.3rem;">
-          <i class="fas fa-brain"></i> Daily Intelligence Brief
+          <i class="fas fa-bell"></i> Your Intelligence Brief
         </h3>
         <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
           ${unifiedData.totalUnread > 0
             ? unifiedData.totalUnread + ' ' + (unifiedData.totalUnread === 1 ? 'item' : 'items') + ' need your attention'
-            : 'Your personalised signals &amp; updates'}
+            : 'Your focus, signals &amp; updates'}
         </p>
       </div>
       <button id="close-unified-panel" style="
@@ -585,13 +593,35 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       padding: 1rem;
     `;
 
-    // Notification sections (messages, connections, etc.) appear first.
+    // ── Your Focus Today ─────────────────────────────────────────────
+    // Unique to this panel: the most relevant theme and interests
+    // overlap. Loaded async via MentorGuide after the panel is in DOM.
+    const focusSection = document.createElement('div');
+    focusSection.id = 'ie-focus-root-panel';
+    focusSection.style.cssText = 'padding-bottom: 0.75rem; border-bottom: 1px solid rgba(0,224,255,0.15); margin-bottom: 0.75rem;';
+    focusSection.innerHTML = `
+      <h4 style="color:#00e0ff; font-size:0.9rem; font-weight:600; text-transform:uppercase;
+        letter-spacing:0.5px; margin:0 0 0.5rem 0; display:flex; align-items:center; gap:0.5rem;">
+        <i class="fas fa-compass"></i> Your Focus Today
+      </h4>
+      <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin:0 0 0.5rem 0;">
+        Where your interests and activity currently overlap
+      </p>
+      <div id="ie-focus-content-panel" style="color:rgba(255,255,255,0.5); font-size:0.85rem; text-align:center; padding:0.75rem 0;">
+        <i class="fas fa-spinner fa-spin" style="margin-right:0.5rem;"></i>Loading your focus…
+      </div>
+    `;
+    content.appendChild(focusSection);
+
+    // ── Action items (connection requests, messages, notifications) ──
+    // These are unique to this panel — the Network Command does not show them.
     const notifSections = document.createElement('div');
     notifSections.innerHTML = generatePanelContent();
     content.appendChild(notifSections);
 
-    // Daily brief sits below the notification sections.
-    // generateBriefInto() is async and fills it after the panel is in the DOM.
+    // ── Intelligence Signals ─────────────────────────────────────────
+    // Full personal-signal brief from the daily brief engine.
+    // Distinct from the Network Command's tier-filtered intelligence cards.
     const briefRoot = document.createElement('div');
     briefRoot.id = 'ie-brief-root-panel';
     briefRoot.style.cssText = 'margin-top: 0.5rem; border-top: 1px solid rgba(0,224,255,0.15); padding-top: 0.75rem;';
@@ -790,18 +820,15 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       hasContent = true;
     }
 
-    // If no urgent items, show helpful suggestions
+    // If no action items, show a welcome/streak message
     if (!hasContent) {
       html += createWelcomeSection();
     }
 
-    // On desktop the Command Dashboard (left sidebar) already shows network stats
-    // and intelligence cards — skip duplicating them here.
-    const _isDesktopWithDashboard = window.matchMedia('(min-width: 1024px)').matches;
-    if (!_isDesktopWithDashboard) {
-      html += createOpportunitiesSection();
-      html += createNetworkInsightsSection();
-    }
+    // NOTE: Network stats (connections/nearby/projects) and opportunities are
+    // intentionally omitted here — they live in "Your Network Command" sidebar.
+    // This panel shows only what is unique: focus today, action items, and
+    // full personal intelligence signals.
 
     // Download Report — always accessible at the bottom of the panel
     html += `
