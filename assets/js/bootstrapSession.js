@@ -111,7 +111,14 @@
     authUserPromise = (async () => {
       try {
         if (!supabase) {
-          throw new Error('Supabase not initialized. Call bootstrapSession.initialize() first.');
+          // Auto-recover: use the globally initialised Supabase client that
+          // supabaseClient.js sets up, so modules that call getAuthUser() before
+          // bootstrapSession.initialize() is explicitly called still work.
+          if (window.supabase) {
+            supabase = window.supabase;
+          } else {
+            throw new Error('Supabase not initialized. Call bootstrapSession.initialize() first.');
+          }
         }
 
         const { data: { user }, error } = await supabase.auth.getUser();
@@ -200,7 +207,11 @@
         }
 
         if (!supabase) {
-          throw new Error('Supabase not initialized');
+          if (window.supabase) {
+            supabase = window.supabase;
+          } else {
+            throw new Error('Supabase not initialized');
+          }
         }
 
         // Query community by user_id (NOT by email!)

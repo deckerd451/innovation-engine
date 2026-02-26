@@ -71,7 +71,12 @@
     }
 
     if (!supabase) {
-      throw new Error('Realtime manager not initialized');
+      // Auto-recover from the globally initialised client (set by supabaseClient.js)
+      if (window.supabase) {
+        supabase = window.supabase;
+      } else {
+        throw new Error('Realtime manager not initialized');
+      }
     }
 
     if (!context?.communityUser) {

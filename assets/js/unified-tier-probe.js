@@ -256,6 +256,16 @@ export class UnifiedTierProbe {
   }
 
   /**
+   * Stop the polling interval
+   */
+  _stopPolling() {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+  }
+
+  /**
    * Get current scale from various sources
    */
   _getCurrentScale() {
@@ -405,6 +415,13 @@ export class UnifiedTierProbe {
             // Check if the result indicates an error or skip
             if (result && typeof result === 'object') {
               if (result.error) {
+                // If the tier system is intentionally disabled, stop polling so
+                // we don't flood the console with repeated "Tier system disabled"
+                // warnings on every 500 ms tick.
+                if (result.error === 'Tier system disabled') {
+                  this._stopPolling();
+                  return false;
+                }
                 console.warn(`📱 UnifiedTierProbe: ${prefix}.${name}(${tier}) returned error:`, result.error);
                 this.metrics.errors.push({
                   method: `${prefix}.${name}`,
