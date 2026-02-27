@@ -211,6 +211,7 @@ async function onProfileLoaded(e) {
       window.CommandDashboard.initialize({
         userId: profile.id,     // community.id — used for graph node lookups
         authUserId: user.id,    // auth.users.id — used for generateDailyBrief()
+        profile,                // full profile for identity layer rendering
       }).catch(err => {
         window.__IE_DESKTOP_DASHBOARD_INIT__ = false;
         log.error("❌ CommandDashboard initialization failed:", err);
