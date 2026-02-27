@@ -118,6 +118,10 @@ window.CommandDashboard = (() => {
   let _addFormOpen = false;     // inline add-resource form visibility
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
+  // New state for unified dashboard UX
+  let _profile = null;          // community profile for identity layer
+  let _unreadMessages = 0;      // unread messages from notification system
+  let _focusDismissed = false;  // whether user dismissed Today's Focus card
   // Supabase-enriched sets (loaded async after init; null = not yet loaded)
   let _enrichedData = {
     acceptedPeerIds: null,   // Set<string> — accepted-only connection peer IDs
@@ -138,21 +142,32 @@ window.CommandDashboard = (() => {
    * userId   = community.id (used for graph queries)
    * authUserId = auth.users.id (used for generateDailyBrief)
    */
-  async function initialize({ userId, authUserId }) {
+  async function initialize({ userId, authUserId, profile }) {
     _userId = userId;
     _authUserId = authUserId;
 
-    // Show dashboard (CSS already makes it visible at ≥1024px via flex)
-    // Dashboard visibility is CSS-controlled (command-dashboard.css media query)
+    // Render identity immediately if profile was passed
+    if (profile) _renderIdentity(profile);
+
+    // Wire all interactive controls
     _wireTierButtons();
     _wireResourceTabs();
     _wireAddButton();
+    _wireDeepActionsToggle();
+    _wireFocusDismiss();
+    _wireStatusPillClicks();
+
+    // Re-render identity if profile reloads (auth refresh / profile edit)
+    window.addEventListener('profile-loaded', (e) => {
+      const p = e?.detail?.profile;
+      if (p) _renderIdentity(p);
+    });
 
     // Render initial Tier 1 content
     await _renderAll(1);
 
-    // Enrich stats with accepted-connection + active-project data from Supabase.
-    // Non-blocking: re-renders stats once data arrives.
+    // Enrich status with accepted-connection + active-project data from Supabase.
+    // Non-blocking: re-renders compact status once data arrives.
     _loadEnrichedData();
 
     console.log('[CommandDashboard] Initialized for userId:', userId);
@@ -193,6 +208,79 @@ window.CommandDashboard = (() => {
   }
 
   /* ================================================================
+     IDENTITY LAYER
+     ================================================================ */
+
+  function _renderIdentity(profile) {
+    if (!profile) return;
+    _profile = profile;
+
+    // Avatar: image or initials
+    const img      = $id('cd-avatar-img');
+    const initials = $id('cd-avatar-initials');
+    if (img && profile.image_url) {
+      img.src = profile.image_url;
+      img.alt = profile.full_name || '';
+      img.style.display = '';
+      if (initials) initials.style.display = 'none';
+    } else if (initials) {
+      const name  = profile.full_name || profile.username || '';
+      const parts = name.trim().split(/\s+/);
+      const abbr  = parts.length >= 2
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : name.slice(0, 2).toUpperCase();
+      initials.textContent = abbr || '?';
+      if (img) img.style.display = 'none';
+    }
+
+    // Name
+    const nameEl = $id('cd-user-name');
+    if (nameEl) nameEl.textContent = profile.full_name || profile.username || 'You';
+
+    // Level badge with title
+    const levelEl = $id('cd-level-badge');
+    if (levelEl) {
+      const level = profile.level || window.DailyEngagement?.state?.level || 1;
+      const LEVEL_TITLES = [
+        'Newcomer', 'Explorer', 'Contributor', 'Collaborator', 'Connector',
+        'Catalyst', 'Architect', 'Champion', 'Innovator', 'Founder',
+      ];
+      const title = LEVEL_TITLES[Math.max(0, level - 1)] || 'Newcomer';
+      levelEl.textContent = `Lv ${level} · ${title}`;
+    }
+
+    // Streak (only show if > 0)
+    const streakEl    = $id('cd-streak');
+    const streakCount = $id('cd-streak-count');
+    const streak = profile.login_streak || window.DailyEngagement?.state?.streak || 0;
+    if (streakEl) {
+      streakEl.style.display = streak > 0 ? '' : 'none';
+      if (streakCount) streakCount.textContent = streak;
+    }
+
+    // XP bar width
+    const xpBar = $id('cd-xp-bar');
+    if (xpBar) {
+      const xp      = profile.xp || window.DailyEngagement?.state?.xp || 0;
+      const xpToNext = window.DailyEngagement?.state?.xpToNextLevel || 100;
+      const pct = Math.min(100, Math.round((xp / xpToNext) * 100));
+      xpBar.style.width = pct + '%';
+    }
+
+    // Time-of-day greeting
+    const greetingEl = $id('cd-greeting');
+    if (greetingEl) {
+      const hour = new Date().getHours();
+      const firstName = (profile.full_name || profile.username || '').split(' ')[0];
+      let greeting;
+      if (hour < 12)      greeting = `Good morning${firstName ? ', ' + firstName : ''}`;
+      else if (hour < 17) greeting = `Good afternoon${firstName ? ', ' + firstName : ''}`;
+      else                greeting = `Good evening${firstName ? ', ' + firstName : ''}`;
+      greetingEl.textContent = greeting;
+    }
+  }
+
+  /* ================================================================
      TIER SWITCHING
      ================================================================ */
 
@@ -230,13 +318,13 @@ window.CommandDashboard = (() => {
      ================================================================ */
 
   async function _renderAll(tier) {
-    // Stats and resources are fast (in-memory); start them immediately
-    _renderStats(tier);
+    // Compact status and resources are fast (in-memory); start immediately
+    _renderCompactStatus(tier);
     _renderResources(tier);
 
-    // Intelligence uses generateDailyBrief (async, may be slow)
-    _renderIntelligencePlaceholder();
-    _renderIntelligence(tier); // non-blocking
+    // Focus card uses generateDailyBrief (async, may be slow)
+    _renderFocusPlaceholder();
+    _renderFocusCard(tier); // non-blocking
   }
 
   /* ================================================================
@@ -302,8 +390,8 @@ window.CommandDashboard = (() => {
         _enrichedData.activeProjectIds = new Set(projResult.data.map(p => p.id));
       }
 
-      // Re-render stats now that we have accurate counts
-      _renderStats(_currentTier);
+      // Re-render compact status now that we have accurate counts
+      _renderCompactStatus(_currentTier);
     } catch (err) {
       console.warn('[CommandDashboard] enriched data load failed:', err.message);
     }
@@ -313,27 +401,59 @@ window.CommandDashboard = (() => {
      SECTION 1: ASSET SUMMARY (tier-aware stats)
      ================================================================ */
 
-  function _renderStats(tier) {
-    const grid = $id('udc-stats-grid');
-    if (!grid) return;
+  /* ================================================================
+     COMPACT STATUS PILLS — 4-slot fixed layout
+     ================================================================ */
 
-    const stats = _computeStats(tier);
-    grid.innerHTML = stats
-      .map(s => `
-        <div class="udc-stat-card" data-action="${s.action}" style="cursor:pointer;" title="${s.tooltip || s.label}">
-          <i class="fas ${s.icon} udc-stat-icon"></i>
-          <div class="udc-stat-value">${s.value}</div>
-          <div class="udc-stat-label">${s.label}</div>
-        </div>
-      `).join('');
+  function _renderCompactStatus(tier) {
+    const { nodes, links } = _getGraphData();
+    const userId = _userId;
+    const edgeSrc = l => l.source?.id ?? l.source;
+    const edgeTgt = l => l.target?.id ?? l.target;
 
-    // Clickable stats → graph action
-    grid.querySelectorAll('.udc-stat-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const action = card.dataset.action;
-        _onStatClick(action);
-      });
+    // Direct neighbor IDs
+    const directIds = new Set();
+    links.forEach(l => {
+      if (edgeSrc(l) === userId) directIds.add(edgeTgt(l));
+      if (edgeTgt(l) === userId) directIds.add(edgeSrc(l));
     });
+
+    // Connections: prefer Supabase-confirmed accepted peers
+    const _acceptedIds = _enrichedData.acceptedPeerIds;
+    const connections = (_acceptedIds ? [..._acceptedIds] : [...directIds])
+      .filter(id => {
+        const n = nodes.find(n => n.id === id);
+        return n && n.type === 'person';
+      }).length;
+
+    // Projects: Tier 1 = directly connected; Tier 2/3 = active ecosystem projects
+    let projects;
+    if (tier === 1) {
+      projects = [...directIds].filter(id => {
+        const n = nodes.find(n => n.id === id);
+        return n && n.type === 'project';
+      }).length;
+    } else {
+      const _activeIds = _enrichedData.activeProjectIds;
+      projects = nodes.filter(n => {
+        if (n.type !== 'project') return false;
+        return !_activeIds || _activeIds.has(n.id);
+      }).length;
+    }
+
+    // Themes and opportunities are ecosystem-wide regardless of tier
+    const themes = nodes.filter(n => n.type === 'theme' || n.type === 'themeCircle').length;
+    const opps   = nodes.filter(n => n.type === 'opportunity').length;
+
+    const setVal = (id, val) => {
+      const el = $id(id);
+      if (el) el.textContent = val > 0 ? val : '—';
+    };
+
+    setVal('cd-stat-connections',   connections);
+    setVal('cd-stat-projects',      projects);
+    setVal('cd-stat-themes',        themes);
+    setVal('cd-stat-opportunities', opps);
   }
 
   function _computeStats(tier) {
@@ -649,138 +769,219 @@ window.CommandDashboard = (() => {
   }
 
   /* ================================================================
-     SECTION 2: INTELLIGENCE CARDS
-     Uses existing window.generateDailyBrief() — no new logic written.
+     SECTION 2: TODAY'S FOCUS CARD
+     Replaces the blocking modal + intelligence cards with an inline
+     adaptive focus card. Priority: messages > opportunity > signal > explore.
      ================================================================ */
 
-  function _renderIntelligencePlaceholder() {
-    const container = $id('udc-intelligence-cards');
-    if (!container) return;
-    container.innerHTML = `
-      <div class="udc-insight-card loading">
-        <p class="udc-insight-text">Analyzing your network...</p>
+  function _renderFocusPlaceholder() {
+    const primary = $id('cd-focus-primary');
+    if (!primary) return;
+    primary.innerHTML = `
+      <div class="cd-focus-loading">
+        <div class="cd-focus-pulse"></div>
+        <span>Reading your network...</span>
       </div>
     `;
+    const secondary = $id('cd-focus-secondary');
+    if (secondary) secondary.style.display = 'none';
+    const messages = $id('cd-focus-messages');
+    if (messages) messages.style.display = 'none';
   }
 
-  async function _renderIntelligence(tier) {
-    const container = $id('udc-intelligence-cards');
-    if (!container) return;
+  function _computeFocusPriority(brief) {
+    const sections = brief?.sections || {};
 
-    const meta = TIER_META[tier];
-    const sectionKeys = meta.briefSections;
+    // Priority 1: unread messages
+    if (_unreadMessages > 0) {
+      return { type: 'messages', count: _unreadMessages };
+    }
 
-    // Try real intelligence engine (dynamic import — no dependency on load order)
-    let cards = null;
+    // Priority 2: high-scoring opportunity from brief
+    const opps = sections['opportunities_for_you'] || [];
+    if (opps.length > 0) {
+      const top = opps[0];
+      return {
+        type: 'opportunity',
+        headline: top.headline || 'New opportunity in your network',
+        subhead: top.subhead || '',
+        nodeId: top.nodeId || null,
+        nodeType: top.nodeType || null,
+      };
+    }
 
-    if (_authUserId) {
+    // Priority 3: coordination signal
+    const signals = sections['signals_moving'] || [];
+    if (signals.length > 0) {
+      const top = signals[0];
+      return {
+        type: 'signal',
+        headline: top.headline || 'Network movement detected',
+        subhead: top.subhead || '',
+        nodeId: top.nodeId || null,
+        nodeType: top.nodeType || null,
+      };
+    }
+
+    // Priority 4: network pattern / reconnect nudge
+    const patterns = sections['your_pattern'] || [];
+    if (patterns.length > 0) {
+      const top = patterns[0];
+      return {
+        type: 'explore',
+        headline: top.headline || 'Your network has something for you',
+        subhead: top.subhead || '',
+        nodeId: top.nodeId || null,
+        nodeType: top.nodeType || null,
+      };
+    }
+
+    // Default fallback
+    return {
+      type: 'explore',
+      headline: 'Explore your network',
+      subhead: 'Discover connections and opportunities',
+      nodeId: null,
+      nodeType: null,
+    };
+  }
+
+  async function _renderFocusCard(tier) {
+    if (_focusDismissed) return;
+
+    const primary   = $id('cd-focus-primary');
+    const secondary = $id('cd-focus-secondary');
+    const messages  = $id('cd-focus-messages');
+    if (!primary) return;
+
+    // Fetch brief if not yet cached
+    if (!_briefCache && _authUserId && !_briefGenerating) {
       try {
-        if (!_briefCache && !_briefGenerating) {
-          _briefGenerating = true;
-          const { generateDailyBrief } = await _loadBriefEngine();
-          _briefCache = await generateDailyBrief({
-            userAuthId: _authUserId,
-            maxItems: 5,
-          });
-          _briefGenerating = false;
-        } else if (_briefGenerating) {
-          // Brief already generating — show placeholder for now
-          return;
-        }
-
-        if (_briefCache) {
-          const sections = _briefCache.sections || {};
-          cards = sectionKeys
-            .flatMap(key => {
-              const items = sections[key] || [];
-              return items.map(item => ({
-                text: item.headline || item.subhead || 'Network insight',
-                cta: _ctaForSection(key),
-                nodeId: item.nodeId || null,
-                nodeType: item.nodeType || null,
-              }));
-            })
-            .slice(0, 4); // max 4 cards
-        }
+        _briefGenerating = true;
+        const { generateDailyBrief } = await _loadBriefEngine();
+        _briefCache = await generateDailyBrief({ userAuthId: _authUserId, maxItems: 5 });
+        _briefGenerating = false;
       } catch (err) {
         console.warn('[CommandDashboard] generateDailyBrief failed, using fallback:', err.message);
         _briefGenerating = false;
       }
     }
 
-    // Fallback cards if brief unavailable
-    if (!cards || cards.length === 0) {
-      cards = _fallbackCards(tier);
+    // Unread messages alert (shown regardless of focus type)
+    if (messages) {
+      if (_unreadMessages > 0) {
+        messages.style.display = '';
+        const n = _unreadMessages;
+        messages.innerHTML = `
+          <div class="cd-focus-messages-alert">
+            <i class="fas fa-envelope"></i>
+            <span>${n} unread message${n !== 1 ? 's' : ''}</span>
+            <button class="cd-focus-cta" id="cd-focus-msg-btn">View</button>
+          </div>
+        `;
+        const msgBtn = $id('cd-focus-msg-btn');
+        if (msgBtn) {
+          msgBtn.addEventListener('click', () => {
+            if (window.UnifiedNotifications?.showPanel) window.UnifiedNotifications.showPanel();
+          });
+        }
+      } else {
+        messages.style.display = 'none';
+      }
     }
 
-    container.innerHTML = cards
-      .map(c => `
-        <div class="udc-insight-card" data-node-id="${c.nodeId || ''}" data-node-type="${c.nodeType || ''}">
-          <p class="udc-insight-text">${_escapeHtml(c.text)}</p>
-          <button class="udc-insight-cta">${_escapeHtml(c.cta)}</button>
-        </div>
-      `).join('');
+    const focus = _computeFocusPriority(_briefCache);
 
-    // Wire CTA buttons
-    container.querySelectorAll('.udc-insight-card').forEach(card => {
-      const cta = card.querySelector('.udc-insight-cta');
-      if (!cta) return;
-      cta.addEventListener('click', () => {
-        const nodeId   = card.dataset.nodeId;
-        const nodeType = card.dataset.nodeType;
-        if (nodeId && window.GraphController) {
-          // Focus the specific node in the graph
-          window.GraphController.focusNode(nodeId);
-        } else if (nodeType && window.GraphController) {
-          // No specific node — highlight all nodes of this type
-          if (window.GraphController.highlightNodes) {
-            window.GraphController.highlightNodes(nodeType);
-          } else {
-            window.GraphController.resetToTierDefault();
-          }
-        } else {
-          // Fallback: open the notification panel so user sees the full brief
-          if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
-            window.UnifiedNotifications.showPanel();
-          } else if (window.GraphController) {
-            window.GraphController.resetToTierDefault();
-          }
-        }
-      });
-    });
+    // Render primary CTA based on priority
+    const LABEL_MAP = {
+      messages:    { label: 'Stay Connected', cta: 'View My Network', action: 'focus-direct' },
+      opportunity: { label: 'Opportunity',    cta: 'Explore',         action: null },
+      signal:      { label: 'Network Signal', cta: 'View Signal',     action: null },
+      explore:     { label: 'Today',          cta: 'Explore',         action: 'focus-direct' },
+    };
+    const meta = LABEL_MAP[focus.type] || LABEL_MAP.explore;
+    const headline = focus.type === 'messages'
+      ? 'You have messages waiting. Stay connected.'
+      : _escapeHtml(focus.headline);
+
+    primary.innerHTML = `
+      <div class="cd-focus-primary-label">${meta.label}</div>
+      <div class="cd-focus-primary-text">${headline}</div>
+      <button class="cd-focus-cta"
+        data-node-id="${_escapeHtml(focus.nodeId || '')}"
+        data-node-type="${_escapeHtml(focus.nodeType || '')}"
+        data-action="${meta.action || ''}">${meta.cta}</button>
+    `;
+
+    const ctaBtn = primary.querySelector('.cd-focus-cta');
+    if (ctaBtn) {
+      ctaBtn.addEventListener('click', () => _handleFocusCta(ctaBtn));
+    }
+
+    // Secondary items: 1–2 additional insights from the brief
+    if (secondary && _briefCache) {
+      const sectionKeys = TIER_META[tier]?.briefSections || [];
+      const briefSections = _briefCache.sections || {};
+      const secondaryItems = sectionKeys
+        .flatMap(key => {
+          const items = briefSections[key] || [];
+          return items.slice(1).map(item => ({
+            text: item.headline || item.subhead || 'Network insight',
+            cta: _ctaForSection(key),
+            nodeId: item.nodeId || null,
+            nodeType: item.nodeType || null,
+          }));
+        })
+        .slice(0, 2);
+
+      if (secondaryItems.length > 0) {
+        secondary.style.display = '';
+        secondary.innerHTML = secondaryItems.map(item => `
+          <div class="cd-focus-secondary-item"
+            data-node-id="${_escapeHtml(item.nodeId || '')}"
+            data-node-type="${_escapeHtml(item.nodeType || '')}">
+            <span>${_escapeHtml(item.text)}</span>
+            <button class="cd-focus-cta">${_escapeHtml(item.cta)}</button>
+          </div>
+        `).join('');
+        secondary.querySelectorAll('.cd-focus-secondary-item').forEach(row => {
+          const btn = row.querySelector('.cd-focus-cta');
+          if (btn) btn.addEventListener('click', () => _handleFocusCta(row));
+        });
+      } else {
+        secondary.style.display = 'none';
+      }
+    } else if (secondary) {
+      secondary.style.display = 'none';
+    }
+  }
+
+  function _handleFocusCta(el) {
+    const nodeId   = el.dataset.nodeId;
+    const nodeType = el.dataset.nodeType;
+    const action   = el.dataset.action;
+    if (nodeId && window.GraphController) {
+      window.GraphController.focusNode(nodeId);
+    } else if (nodeType && window.GraphController?.highlightNodes) {
+      window.GraphController.highlightNodes(nodeType);
+    } else if (action) {
+      _onStatClick(action);
+    } else if (window.UnifiedNotifications?.showPanel) {
+      window.UnifiedNotifications.showPanel();
+    } else if (window.GraphController) {
+      window.GraphController.resetToTierDefault();
+    }
   }
 
   function _ctaForSection(sectionKey) {
     const labels = {
-      your_pattern:             'See Pattern',
-      opportunities_for_you:   'Explore',
-      combination_opportunities:'Find Intersection',
-      signals_moving:           'View Signal',
-      blind_spots:              'Discover',
+      your_pattern:              'See Pattern',
+      opportunities_for_you:    'Explore',
+      combination_opportunities: 'Find Intersection',
+      signals_moving:            'View Signal',
+      blind_spots:               'Discover',
     };
     return labels[sectionKey] || 'Show in Graph';
-  }
-
-  function _fallbackCards(tier) {
-    if (tier === 1) {
-      return [
-        { text: 'You have direct leverage here. Your connections are your strongest asset.', cta: 'See My Network' },
-        { text: 'Weak ties often unlock the most unexpected opportunities.', cta: 'Explore Extended' },
-        { text: 'Your network is your operating system. Tier 1 shows what you own.', cta: 'Refresh Graph' },
-      ];
-    }
-    if (tier === 2) {
-      return [
-        { text: 'Bridge positions in your extended network signal high strategic value.', cta: 'Find Bridges' },
-        { text: 'Two clusters are converging near you — an opportunity to lead coordination.', cta: 'Explore Tier 2' },
-        { text: 'Expansion opportunities are visible just beyond your direct connections.', cta: 'See Clusters' },
-      ];
-    }
-    return [
-      { text: 'Ecosystem-wide trends are emerging. Early movers have structural advantage.', cta: 'View Trends' },
-      { text: 'High-momentum themes are accelerating — look for coordination signals.', cta: 'See Themes' },
-      { text: 'Unclaimed coordination roles exist across the network.', cta: 'Find Opportunities' },
-    ];
   }
 
   /* ================================================================
@@ -928,6 +1129,37 @@ window.CommandDashboard = (() => {
       } else {
         _openAddForm(_activeResourceTab);
       }
+    });
+  }
+
+  /** Wire the Deep Actions collapsible toggle */
+  function _wireDeepActionsToggle() {
+    const toggle  = $id('cd-deep-toggle');
+    const content = $id('cd-deep-content');
+    if (!toggle || !content) return;
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      content.hidden = expanded;
+    });
+  }
+
+  /** Wire the Today's Focus dismiss / restore button */
+  function _wireFocusDismiss() {
+    const dismissBtn    = $id('cd-focus-dismiss');
+    const focusSection  = document.querySelector('.cd-focus');
+    if (!dismissBtn || !focusSection) return;
+    dismissBtn.addEventListener('click', () => {
+      _focusDismissed = !_focusDismissed;
+      focusSection.classList.toggle('cd-focus--collapsed', _focusDismissed);
+      dismissBtn.title = _focusDismissed ? 'Show focus' : 'Dismiss';
+    });
+  }
+
+  /** Wire compact status pills to graph actions */
+  function _wireStatusPillClicks() {
+    $all('.cd-status-pill[data-action]').forEach(pill => {
+      pill.addEventListener('click', () => _onStatClick(pill.dataset.action));
     });
   }
 
@@ -1126,6 +1358,15 @@ window.CommandDashboard = (() => {
     initialize,
     switchTier,
     getCurrentTier: () => _currentTier,
+    /** Called by the notification system to update unread message count */
+    setUnreadMessages(n) {
+      _unreadMessages = Math.max(0, parseInt(n, 10) || 0);
+      _renderFocusCard(_currentTier);
+    },
+    /** Called externally to push a fresh profile (e.g. after profile edit) */
+    renderIdentity(profile) {
+      _renderIdentity(profile);
+    },
   };
 
 })();

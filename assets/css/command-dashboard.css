@@ -782,3 +782,437 @@
   flex-shrink: 0;
   margin-left: 0.3rem;
 }
+
+/* ============================================================
+   UNIFIED DAILY COMMAND — NEW LAYER STYLES
+   Identity · Network Status · Today's Focus · Explore · Deep Actions
+   ============================================================ */
+
+/* ── Layer 1: Identity ── */
+.cd-identity {
+  padding: 1rem 1rem 0.8rem;
+  border-bottom: 1px solid var(--cd-border);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: rgba(0, 224, 255, 0.025);
+  flex-shrink: 0;
+}
+
+.cd-identity-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00e0ff, #0060cc);
+  border: 2px solid rgba(0, 224, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: white;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.cd-identity-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  position: absolute;
+  inset: 0;
+}
+
+.cd-identity-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cd-identity-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--cd-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.22rem;
+}
+
+.cd-identity-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.cd-level-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--cd-accent);
+  background: rgba(0, 224, 255, 0.12);
+  border: 1px solid rgba(0, 224, 255, 0.25);
+  border-radius: 4px;
+  padding: 0.1rem 0.42rem;
+  white-space: nowrap;
+}
+
+.cd-streak {
+  font-size: 0.6rem;
+  color: #ff8c42;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-weight: 600;
+}
+
+.cd-xp-bar-wrap {
+  height: 3px;
+  background: rgba(0, 224, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.3rem;
+}
+
+.cd-xp-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #00e0ff, #0080ff);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  min-width: 3px;
+}
+
+.cd-greeting {
+  font-size: 0.67rem;
+  color: var(--cd-text-dim);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* ── Layer 2: Network Status ── */
+.cd-network-status {
+  padding: 0.55rem 1rem 0.6rem;
+  border-bottom: 1px solid var(--cd-border);
+  flex-shrink: 0;
+}
+
+.cd-section-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cd-text-dim);
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cd-status-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.3rem;
+}
+
+.cd-status-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08rem;
+  padding: 0.35rem 0.15rem;
+  background: var(--cd-stat-bg);
+  border: 1px solid var(--cd-stat-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.cd-status-pill:hover,
+.cd-status-pill:focus-visible {
+  background: rgba(0, 224, 255, 0.1);
+  border-color: var(--cd-accent-dim);
+  outline: none;
+}
+
+.cd-status-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cd-text);
+  line-height: 1;
+}
+
+.cd-status-label {
+  font-size: 0.5rem;
+  color: var(--cd-text-dim);
+  text-align: center;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+
+/* ── Layer 3: Today's Focus ── */
+.cd-focus {
+  padding: 0.55rem 1rem 0.65rem;
+  border-bottom: 1px solid var(--cd-border);
+  flex-shrink: 0;
+}
+
+.cd-focus.cd-focus--collapsed .cd-focus-card {
+  display: none;
+}
+
+.cd-focus-dismiss {
+  background: none;
+  border: none;
+  color: var(--cd-text-dim);
+  font-size: 0.6rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s, transform 0.25s;
+  font-family: inherit;
+}
+
+.cd-focus-dismiss:hover {
+  color: var(--cd-text);
+}
+
+.cd-focus--collapsed .cd-focus-dismiss i {
+  transform: rotate(180deg);
+}
+
+.cd-focus-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  animation: focusCardIn 0.3s ease-out;
+}
+
+@keyframes focusCardIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Primary CTA block */
+.cd-focus-primary {
+  background: rgba(0, 255, 136, 0.055);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+}
+
+.cd-focus-primary-label {
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #00ff88;
+  opacity: 0.8;
+  margin-bottom: 0.28rem;
+}
+
+.cd-focus-primary-text {
+  font-size: 0.78rem;
+  color: var(--cd-text);
+  line-height: 1.5;
+  margin-bottom: 0.45rem;
+}
+
+.cd-focus-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 5px;
+  padding: 0.28rem 0.65rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.cd-focus-cta:hover {
+  background: rgba(0, 255, 136, 0.18);
+  border-color: rgba(0, 255, 136, 0.55);
+}
+
+/* Secondary signal items */
+.cd-focus-secondary-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 224, 255, 0.04);
+  border: 1px solid rgba(0, 224, 255, 0.1);
+  border-radius: 6px;
+  padding: 0.38rem 0.6rem;
+  font-size: 0.7rem;
+  color: var(--cd-text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.cd-focus-secondary-item:hover {
+  background: rgba(0, 224, 255, 0.09);
+  border-color: rgba(0, 224, 255, 0.25);
+  color: var(--cd-text);
+}
+
+.cd-focus-secondary-icon {
+  color: var(--cd-accent);
+  font-size: 0.72rem;
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+}
+
+/* Messages alert (amber) */
+.cd-focus-messages-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 160, 0, 0.07);
+  border: 1px solid rgba(255, 160, 0, 0.25);
+  border-radius: 6px;
+  padding: 0.38rem 0.6rem;
+  font-size: 0.7rem;
+  color: #ffa040;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  width: 100%;
+  text-align: left;
+  animation: focusCardIn 0.2s ease-out;
+}
+
+.cd-focus-messages-alert:hover {
+  background: rgba(255, 160, 0, 0.14);
+  border-color: rgba(255, 160, 0, 0.5);
+}
+
+/* Loading state */
+.cd-focus-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  color: var(--cd-text-dim);
+  font-size: 0.7rem;
+}
+
+.cd-focus-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cd-accent);
+  animation: cdPulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ── Layer 4: Explore ── */
+.cd-explore {
+  padding: 0.55rem 1rem 0.5rem;
+  flex: 1;
+  border-bottom: 1px solid var(--cd-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cd-explore #udc-resource-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Deep Actions (collapsible) ── */
+.cd-deep-actions {
+  flex-shrink: 0;
+}
+
+.cd-deep-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--cd-border);
+  color: var(--cd-text-dim);
+  font-family: inherit;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s;
+  text-align: left;
+}
+
+.cd-deep-toggle:hover {
+  color: var(--cd-text);
+}
+
+.cd-deep-toggle i {
+  transition: transform 0.25s ease;
+}
+
+.cd-deep-toggle[aria-expanded="true"] i {
+  transform: rotate(180deg);
+}
+
+.cd-deep-content {
+  padding: 0 1rem 0.85rem;
+  animation: cdFadeIn 0.2s ease-out;
+  border-top: 1px solid rgba(0, 224, 255, 0.06);
+}
+
+/* ── Mobile adjustments for new layers ── */
+@media (max-width: 1023px) {
+  #command-dashboard.cd-mobile-panel .cd-identity {
+    padding: 0.5rem 0.75rem 0.45rem;
+    gap: 0.6rem;
+  }
+  #command-dashboard.cd-mobile-panel .cd-identity-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 0.82rem;
+  }
+  #command-dashboard.cd-mobile-panel .cd-identity-name {
+    font-size: 0.82rem;
+  }
+  #command-dashboard.cd-mobile-panel .cd-network-status {
+    padding: 0.4rem 0.75rem 0.45rem;
+  }
+  #command-dashboard.cd-mobile-panel .cd-status-row {
+    gap: 0.25rem;
+  }
+  #command-dashboard.cd-mobile-panel .cd-status-value {
+    font-size: 0.9rem;
+  }
+  #command-dashboard.cd-mobile-panel .cd-focus {
+    padding: 0.4rem 0.75rem 0.5rem;
+  }
+  #command-dashboard.cd-mobile-panel .cd-explore {
+    padding: 0.4rem 0.75rem 0.4rem;
+  }
+  #command-dashboard.cd-mobile-panel #udc-resource-list {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  #command-dashboard.cd-mobile-panel .cd-deep-actions {
+    display: none; /* hide tier toggle on mobile — graph gestures handle it */
+  }
+}

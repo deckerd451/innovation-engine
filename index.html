@@ -340,67 +340,79 @@
 
     <!-- ================================================================ -->
     <!-- UNIFIED COMMAND DASHBOARD (Desktop only, ≥1024px)              -->
+    <!-- New 4-layer hierarchy: Identity → Status → Focus → Explore     -->
     <!-- ================================================================ -->
     <aside id="command-dashboard" aria-label="Network Command Dashboard">
-      <div class="cd-header">
-        <div class="cd-brand">Unified Network</div>
-        <h2 class="cd-brand-title">Your Network Command</h2>
-      </div>
 
-      <div id="udc-tier-controller" class="udc-section">
-        <div class="udc-section-header">Active View</div>
-        <div class="udc-tier-buttons" role="group" aria-label="Network complexity tier">
-          <button class="udc-tier-btn active" data-tier="1" title="Tier 1 — Personal Network">
-            <span class="tier-label">Tier 1</span>
-            <span class="tier-name">You</span>
-          </button>
-          <button class="udc-tier-btn" data-tier="2" title="Tier 2 — Extended Influence">
-            <span class="tier-label">Tier 2</span>
-            <span class="tier-name">Extended</span>
-          </button>
-          <button class="udc-tier-btn" data-tier="3" title="Tier 3 — Ecosystem View">
-            <span class="tier-label">Tier 3</span>
-            <span class="tier-name">Ecosystem</span>
-          </button>
+      <!-- ── Layer 1: Identity ─────────────────────────────────────── -->
+      <div class="cd-identity" id="cd-identity">
+        <div class="cd-identity-avatar" id="cd-avatar">
+          <img id="cd-avatar-img" src="" alt="" style="display:none;">
+          <span id="cd-avatar-initials">?</span>
         </div>
-        <p id="udc-tier-description" class="udc-tier-desc">
-          Direct connections only. This is your network.
-        </p>
-      </div>
-
-      <div id="udc-asset-summary" class="udc-section">
-        <div class="udc-section-header" id="udc-stats-label">Your Network</div>
-        <div id="udc-stats-grid" class="udc-stats-grid">
-          <div class="udc-stat-card">
-            <i class="fas fa-users udc-stat-icon"></i>
-            <div class="udc-stat-value">—</div>
-            <div class="udc-stat-label">Connections</div>
+        <div class="cd-identity-info">
+          <div class="cd-identity-name" id="cd-user-name">Loading...</div>
+          <div class="cd-identity-meta">
+            <span class="cd-level-badge" id="cd-level-badge">Lv 1</span>
+            <span class="cd-streak" id="cd-streak" style="display:none;">
+              <i class="fas fa-fire"></i>
+              <span id="cd-streak-count">0</span>
+            </span>
           </div>
-          <div class="udc-stat-card">
-            <i class="fas fa-link udc-stat-icon"></i>
-            <div class="udc-stat-value">—</div>
-            <div class="udc-stat-label">Nearby</div>
+          <div class="cd-xp-bar-wrap" title="XP Progress">
+            <div class="cd-xp-bar" id="cd-xp-bar" style="width:0%"></div>
           </div>
-          <div class="udc-stat-card">
-            <i class="fas fa-bolt udc-stat-icon"></i>
-            <div class="udc-stat-value">—</div>
-            <div class="udc-stat-label">Projects</div>
-          </div>
+          <div class="cd-greeting" id="cd-greeting"></div>
         </div>
       </div>
 
-      <div id="udc-intelligence" class="udc-section">
-        <div class="udc-section-header">Insights</div>
-        <div id="udc-intelligence-cards">
-          <div class="udc-insight-card loading">
-            <p class="udc-insight-text">Loading intelligence...</p>
+      <!-- ── Layer 2: Network Status ───────────────────────────────── -->
+      <div class="cd-network-status" id="cd-network-status">
+        <div class="cd-section-label">Network Status</div>
+        <div class="cd-status-row" id="cd-status-row">
+          <div class="cd-status-pill" data-action="focus-direct" title="Your direct connections" role="button" tabindex="0">
+            <span class="cd-status-value" id="cd-stat-connections">—</span>
+            <span class="cd-status-label">Connected</span>
+          </div>
+          <div class="cd-status-pill" data-action="focus-projects" title="Your projects" role="button" tabindex="0">
+            <span class="cd-status-value" id="cd-stat-projects">—</span>
+            <span class="cd-status-label">Projects</span>
+          </div>
+          <div class="cd-status-pill" title="Themes you participate in">
+            <span class="cd-status-value" id="cd-stat-themes">—</span>
+            <span class="cd-status-label">Themes</span>
+          </div>
+          <div class="cd-status-pill" title="Open opportunities">
+            <span class="cd-status-value" id="cd-stat-opportunities">—</span>
+            <span class="cd-status-label">Opps</span>
           </div>
         </div>
       </div>
 
-      <div id="udc-resources" class="udc-section">
-        <div class="udc-section-header" id="udc-resources-label">
-          Your Resources
+      <!-- ── Layer 3: Today's Focus ─────────────────────────────────── -->
+      <div class="cd-focus" id="cd-focus">
+        <div class="cd-section-label">
+          Today's Focus
+          <button class="cd-focus-dismiss" id="cd-focus-dismiss" title="Collapse" aria-label="Collapse focus card">
+            <i class="fas fa-chevron-up"></i>
+          </button>
+        </div>
+        <div class="cd-focus-card" id="cd-focus-card">
+          <div class="cd-focus-primary" id="cd-focus-primary">
+            <div class="cd-focus-loading">
+              <div class="cd-focus-pulse"></div>
+              <span>Analyzing your network...</span>
+            </div>
+          </div>
+          <div class="cd-focus-secondary" id="cd-focus-secondary" style="display:none;"></div>
+          <div class="cd-focus-messages" id="cd-focus-messages" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- ── Layer 4: Explore ──────────────────────────────────────── -->
+      <div class="cd-explore" id="cd-explore">
+        <div class="cd-section-label" id="udc-resources-label">
+          Explore
           <button class="udc-resource-add-btn" id="udc-add-resource-btn"
             title="Add new item" aria-label="Add new resource" style="display:none;">
             <i class="fas fa-plus"></i>
@@ -423,6 +435,31 @@
           <div class="udc-resource-empty">Loading...</div>
         </div>
       </div>
+
+      <!-- ── Deep Actions (collapsible) ────────────────────────────── -->
+      <div class="cd-deep-actions" id="cd-deep-actions">
+        <button class="cd-deep-toggle" id="cd-deep-toggle" aria-expanded="false">
+          <span>Network View</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="cd-deep-content" id="cd-deep-content" hidden>
+          <div class="udc-tier-buttons" role="group" aria-label="Network complexity tier">
+            <button class="udc-tier-btn active" data-tier="1" title="Tier 1 — Personal Network">
+              <span class="tier-name">You</span>
+            </button>
+            <button class="udc-tier-btn" data-tier="2" title="Tier 2 — Extended Influence">
+              <span class="tier-name">Extended</span>
+            </button>
+            <button class="udc-tier-btn" data-tier="3" title="Tier 3 — Ecosystem View">
+              <span class="tier-name">Ecosystem</span>
+            </button>
+          </div>
+          <p id="udc-tier-description" class="udc-tier-desc">
+            Direct connections only. This is your network.
+          </p>
+        </div>
+      </div>
+
     </aside>
     <!-- END COMMAND DASHBOARD -->
 
