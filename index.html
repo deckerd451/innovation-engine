@@ -148,11 +148,11 @@
     </div>
 
     <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
-      <!-- START Button (Green Circle) -->
+      <!-- START / notification button — hidden on desktop; bell moved into left panel -->
       <div id="btn-start-nav" role="button" tabindex="0"
         style="cursor:pointer; padding:0.75rem; background:rgba(0,255,136,0.1);
         border:1px solid rgba(0,255,136,0.3); border-radius:50%; width:48px; height:48px;
-        display:flex; align-items:center; justify-content:center; position:relative;"
+        display:none; align-items:center; justify-content:center; position:relative;"
         title="View START sequence" aria-label="View START sequence">
         <i class="fas fa-play-circle" style="color:#00ff88; font-size:1.2rem;"></i>
         <span class="start-updates-badge hidden" id="start-updates-count"

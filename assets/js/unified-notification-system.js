@@ -209,35 +209,35 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
 
   function updateNotificationBadge() {
     const button = document.getElementById('btn-start-nav');
-    if (!button) return;
+    if (button) {
+      // Remove existing badge from synapse button (now hidden, but keep logic safe)
+      const existingBadge = button.querySelector('.notification-badge');
+      if (existingBadge) existingBadge.remove();
 
-    // Remove existing badge
-    const existingBadge = button.querySelector('.notification-badge');
-    if (existingBadge) {
-      existingBadge.remove();
+      if (unifiedData.totalUnread > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'notification-badge';
+        badge.textContent = unifiedData.totalUnread > 99 ? '99+' : unifiedData.totalUnread;
+        badge.style.cssText = `
+          position: absolute; top: -4px; right: -4px;
+          background: #ff3b30; color: white; border-radius: 10px;
+          padding: 2px 6px; font-size: 0.7rem; font-weight: bold;
+          min-width: 18px; text-align: center;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10;
+        `;
+        button.appendChild(badge);
+      }
     }
 
-    // Add badge if there are unread items
-    if (unifiedData.totalUnread > 0) {
-      const badge = document.createElement('span');
-      badge.className = 'notification-badge';
-      badge.textContent = unifiedData.totalUnread > 99 ? '99+' : unifiedData.totalUnread;
-      badge.style.cssText = `
-        position: absolute;
-        top: -4px;
-        right: -4px;
-        background: #ff3b30;
-        color: white;
-        border-radius: 10px;
-        padding: 2px 6px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        min-width: 18px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        z-index: 10;
-      `;
-      button.appendChild(badge);
+    // Drive the panel bell badge with the same total count
+    const panelBadge = document.getElementById('cd-bell-badge');
+    if (panelBadge) {
+      if (unifiedData.totalUnread > 0) {
+        panelBadge.textContent = unifiedData.totalUnread > 99 ? '99+' : unifiedData.totalUnread;
+        panelBadge.style.display = '';
+      } else {
+        panelBadge.style.display = 'none';
+      }
     }
   }
 
