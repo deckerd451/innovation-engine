@@ -12,7 +12,18 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <title>CharlestonHacks Innovation Engine</title>
   <link rel="icon" href="favicon.ico"/>
+  <link rel="apple-touch-icon" href="images/bubbleh512.png"/>
+  <meta name="apple-mobile-web-app-title" content="CharlestonHacks"/>
   <link rel="manifest" href="./manifest.json">
+
+  <!-- Production log suppression: silence console.log/debug unless ?debug=1 or localStorage.DEBUG=1 -->
+  <script>
+    (function () {
+      var _d = (typeof localStorage !== 'undefined' && localStorage.getItem('DEBUG') === '1') ||
+                /[?&]debug=1/.test(window.location.search);
+      if (!_d) { var n = function(){}; console.log = n; console.debug = n; }
+    })();
+  </script>
 
   <!-- Core CSS -->
   <link rel="stylesheet" href="assets/css/base.css" />
@@ -354,6 +365,15 @@
           </div>
           <div class="cd-xp-bar-wrap" title="XP Progress">
             <div class="cd-xp-bar" id="cd-xp-bar" style="width:0%"></div>
+          </div>
+          <div id="cd-profile-completeness" style="display:none;" title="Profile completeness">
+            <div class="cd-completeness-label">
+              <span>Profile</span>
+              <span id="cd-completeness-pct">0%</span>
+            </div>
+            <div class="cd-completeness-bar-wrap">
+              <div class="cd-completeness-bar" id="cd-completeness-bar" style="width:0%"></div>
+            </div>
           </div>
           <div class="cd-greeting" id="cd-greeting"></div>
         </div>
@@ -827,8 +847,11 @@
   <!-- Critical UX Fixes Module -->
   <script src="assets/js/critical-ux-fixes.js?v=fc09b39b-17701461543" defer></script>
 
-  <!-- Notification Bell Module -->
-  <script src="assets/js/notification-bell.js?v=08a7ab3a" defer></script>
+  <!-- Notification Bell Module (superseded by unified-notification-system.js) -->
+  <!-- <script src="assets/js/notification-bell.js?v=08a7ab3a" defer></script> -->
+
+  <!-- Settings Modal -->
+  <script src="assets/js/settings-modal.js?v=1" defer></script>
 
   <!-- Avatar Upload Module -->
   <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>

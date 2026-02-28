@@ -1,11 +1,11 @@
 {
-  "name": "Charleston Hackathon",
+  "name": "Innovation Engine",
   "short_name": "CharlestonHacks",
-  "description": "Charleston Hackathon web application",
+  "description": "CharlestonHacks Innovation Engine — connect, collaborate, and build together.",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#050b15",
+  "theme_color": "#050b15",
   "icons": [
     {
       "src": "images/bubbleh.png",

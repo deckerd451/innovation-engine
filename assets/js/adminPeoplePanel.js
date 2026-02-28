@@ -16,7 +16,16 @@ import {
   createPerson
 } from './adminPeopleService.js';
 
-console.log('%c👥 Admin People Panel Loading...', 'color:#00e0ff; font-weight: bold');
+// Escape user-supplied content before injecting into innerHTML
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 // Panel state
 let state = {
@@ -386,8 +395,8 @@ async function loadPeopleData() {
   
   if (error) {
     if (countEl) countEl.textContent = 'Error loading people';
-    if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> ${error.message}</td></tr>`;
-    if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align: center; padding: 2rem; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> ${error.message}</div>`;
+    if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> ${esc(error.message)}</td></tr>`;
+    if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align: center; padding: 2rem; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> ${esc(error.message)}</div>`;
     return;
   }
   
@@ -482,10 +491,10 @@ function renderTableRow(person) {
       <td style="padding: 0.75rem;">
         <div style="display: flex; align-items: center; gap: 0.75rem;">
           ${avatar}
-          <span style="color: white; font-weight: 500;">${person.name || 'Unnamed'}</span>
+          <span style="color: white; font-weight: 500;">${esc(person.name) || 'Unnamed'}</span>
         </div>
       </td>
-      <td style="padding: 0.75rem; color: rgba(255,255,255,0.7); font-size: 0.9rem;">${person.email || 'No email'}</td>
+      <td style="padding: 0.75rem; color: rgba(255,255,255,0.7); font-size: 0.9rem;">${esc(person.email) || 'No email'}</td>
       <td style="padding: 0.75rem;">${rolePill}</td>
       <td style="padding: 0.75rem;">${statusPills}</td>
       <td style="padding: 0.75rem; color: rgba(255,255,255,0.6); font-size: 0.85rem;">${createdDate}</td>
@@ -514,8 +523,8 @@ function renderPersonCard(person) {
         <input type="checkbox" class="person-checkbox" data-person-id="${person.id}" ${state.selectedIds.has(person.id) ? 'checked' : ''} onclick="event.stopPropagation()" style="cursor: pointer; width: 18px; height: 18px; align-self: flex-start;">
         ${avatar}
         <div style="flex: 1; min-width: 0;">
-          <div style="color: white; font-weight: 600; margin-bottom: 0.25rem;">${person.name || 'Unnamed'}</div>
-          <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.5rem;">${person.email || 'No email'}</div>
+          <div style="color: white; font-weight: 600; margin-bottom: 0.25rem;">${esc(person.name) || 'Unnamed'}</div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.5rem;">${esc(person.email) || 'No email'}</div>
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             ${rolePill}
             ${statusPills}
@@ -547,7 +556,7 @@ function getInitials(name) {
 function getAvatarHTML(person, initials, size) {
   const imageUrl = person.image_url || person.image_path || person.avatar_storage_path;
   if (imageUrl) {
-    return `<img src="${imageUrl}" style="width: ${size}px; height: ${size}px; border-radius: 50%; object-fit: cover;" alt="${person.name}">`;
+    return `<img src="${esc(imageUrl)}" style="width: ${size}px; height: ${size}px; border-radius: 50%; object-fit: cover;" alt="${esc(person.name)}">`;
   }
   return `<div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: ${size * 0.4}px;">${initials}</div>`;
 }
@@ -717,7 +726,7 @@ function showInviteModal() {
       const { data, error } = await createPerson({ email, name: name || null });
       
       if (error) {
-        if (statusEl) statusEl.innerHTML = `<span style="color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> ${error.message}</span>`;
+        if (statusEl) statusEl.innerHTML = `<span style="color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> ${esc(error.message)}</span>`;
         submitBtn.disabled = false;
         return;
       }
@@ -785,35 +794,35 @@ function renderPersonDrawer(person) {
       <!-- Avatar -->
       <div style="text-align: center; margin-bottom: 2rem;">
         ${avatar}
-        <div style="color: white; font-size: 1.25rem; font-weight: 600; margin-top: 1rem;">${person.name || 'Unnamed'}</div>
-        <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">${person.email || 'No email'}</div>
+        <div style="color: white; font-size: 1.25rem; font-weight: 600; margin-top: 1rem;">${esc(person.name) || 'Unnamed'}</div>
+        <div style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">${esc(person.email) || 'No email'}</div>
       </div>
       
       <!-- Editable Fields -->
       <form id="person-edit-form" style="display: grid; gap: 1.25rem;">
         <div>
           <label style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">Name</label>
-          <input type="text" name="name" value="${person.name || ''}" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+          <input type="text" name="name" value="${esc(person.name)}" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
         </div>
-        
+
         <div>
           <label style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">Email</label>
-          <input type="email" name="email" value="${person.email || ''}" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+          <input type="email" name="email" value="${esc(person.email)}" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
         </div>
-        
+
         <div>
           <label style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">Bio</label>
-          <textarea name="bio" rows="3" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem; resize: vertical;">${person.bio || ''}</textarea>
+          <textarea name="bio" rows="3" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem; resize: vertical;">${esc(person.bio)}</textarea>
         </div>
-        
+
         <div>
           <label style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">Skills (comma-separated)</label>
-          <input type="text" name="skills" value="${person.skills || ''}" placeholder="e.g., JavaScript, Python, Design" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+          <input type="text" name="skills" value="${esc(person.skills)}" placeholder="e.g., JavaScript, Python, Design" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
         </div>
-        
+
         <div>
           <label style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">Interests (comma-separated)</label>
-          <input type="text" name="interests" value="${person.interests || ''}" placeholder="e.g., AI, Web Development, Gaming" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
+          <input type="text" name="interests" value="${esc(person.interests)}" placeholder="e.g., AI, Web Development, Gaming" style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 1rem;">
         </div>
         
         <div>

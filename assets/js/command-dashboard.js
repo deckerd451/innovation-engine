@@ -277,6 +277,30 @@ window.CommandDashboard = (() => {
       xpBar.style.width = pct + '%';
     }
 
+    // Profile completeness bar
+    const completenessEl  = $id('cd-profile-completeness');
+    const completenessPct = $id('cd-completeness-pct');
+    const completenessBar = $id('cd-completeness-bar');
+    if (completenessEl && completenessBar) {
+      const fields = [
+        profile.full_name || profile.username,
+        profile.bio,
+        profile.image_url,
+        profile.skills && (Array.isArray(profile.skills) ? profile.skills.length : String(profile.skills).trim()),
+        profile.interests && (Array.isArray(profile.interests) ? profile.interests.length : String(profile.interests).trim()),
+        profile.headline,
+      ];
+      const filled = fields.filter(Boolean).length;
+      const pct = Math.round((filled / fields.length) * 100);
+      if (pct < 100) {
+        completenessEl.style.display = '';
+        completenessBar.style.width = pct + '%';
+        if (completenessPct) completenessPct.textContent = pct + '%';
+      } else {
+        completenessEl.style.display = 'none';
+      }
+    }
+
     // Time-of-day greeting
     const greetingEl = $id('cd-greeting');
     if (greetingEl) {

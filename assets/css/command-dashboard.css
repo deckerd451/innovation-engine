@@ -1015,6 +1015,34 @@
   min-width: 3px;
 }
 
+/* Profile completeness bar */
+#cd-profile-completeness {
+  margin-bottom: 0.3rem;
+}
+
+.cd-completeness-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: var(--cd-text-dim);
+  margin-bottom: 0.25rem;
+}
+
+.cd-completeness-bar-wrap {
+  height: 3px;
+  background: rgba(0, 255, 136, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.cd-completeness-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #00cc70, #00ff88);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  min-width: 3px;
+}
+
 .cd-greeting {
   font-size: 0.67rem;
   color: var(--cd-text-dim);
