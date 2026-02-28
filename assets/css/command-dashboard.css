@@ -17,7 +17,7 @@
    ============================================================ */
 :root {
   --cd-width: 420px; /* wider sidebar for better readability */
-  --cd-bg: rgba(5, 7, 15, 0.97);
+  --cd-bg: rgba(5, 7, 15, 0.78);
   --cd-border: rgba(0, 224, 255, 0.15);
   --cd-accent: #00e0ff;
   --cd-accent-dim: rgba(0, 224, 255, 0.25);
@@ -794,8 +794,8 @@
 
 /* ── Avatar — clickable button ── */
 .cd-identity-avatar {
-  width: 46px;
-  height: 46px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: linear-gradient(135deg, #00e0ff, #0060cc);
   border: 2px solid rgba(0, 224, 255, 0.4);
@@ -803,7 +803,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   color: white;
   flex-shrink: 0;
   overflow: hidden;
@@ -879,8 +879,8 @@
 }
 
 .cd-icon-btn {
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 1px solid transparent;
   background: transparent;
@@ -888,7 +888,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   transition: background 0.15s, border-color 0.15s;
   position: relative;
   padding: 0;

@@ -1222,15 +1222,15 @@ window.CommandDashboard = (() => {
     }
   }
 
-  /** Wire bell button → open messaging panel (simple, no notification list) */
+  /** Wire bell button → open unified notification panel (total notifications) */
   function _wireBellBtn() {
     const btn = $id('cd-bell-btn');
     if (!btn) return;
     btn.addEventListener('click', () => {
-      if (typeof window.openMessagesModal === 'function') {
-        window.openMessagesModal();
-      } else if (window.UnifiedNotifications?.showPanel) {
+      if (window.UnifiedNotifications?.showPanel) {
         window.UnifiedNotifications.showPanel();
+      } else if (typeof window.openMessagesModal === 'function') {
+        window.openMessagesModal();
       }
     });
   }
