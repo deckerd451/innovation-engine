@@ -156,6 +156,10 @@ window.CommandDashboard = (() => {
     _wireInsightsToggle();
     _wireExploreToggle();
     _wireStatusPillClicks();
+    _wireAvatarClick();
+    _wireAdminBtn();
+    _wireBellBtn();
+    _wireReportBtn();
 
     // Re-render identity if profile reloads (auth refresh / profile edit)
     window.addEventListener('profile-loaded', (e) => {
@@ -214,6 +218,12 @@ window.CommandDashboard = (() => {
   function _renderIdentity(profile) {
     if (!profile) return;
     _profile = profile;
+
+    // Show admin button if user is an admin
+    const adminBtn = $id('cd-admin-btn');
+    if (adminBtn && typeof window.isAdminUser === 'function' && window.isAdminUser()) {
+      adminBtn.style.display = '';
+    }
 
     // Avatar: image or initials
     const img      = $id('cd-avatar-img');
@@ -1186,6 +1196,58 @@ window.CommandDashboard = (() => {
     });
   }
 
+  /** Wire avatar click → open profile modal (same as top-nav user circle) */
+  function _wireAvatarClick() {
+    const avatar = $id('cd-avatar');
+    if (!avatar) return;
+    avatar.addEventListener('click', () => {
+      if (typeof window.openProfileModal === 'function') {
+        window.openProfileModal();
+      }
+    });
+  }
+
+  /** Wire admin button → open admin panel (hidden until admin role confirmed) */
+  function _wireAdminBtn() {
+    const btn = $id('cd-admin-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (typeof window.openAdminPanel === 'function') {
+        window.openAdminPanel();
+      }
+    });
+    // Show immediately if already confirmed admin
+    if (typeof window.isAdminUser === 'function' && window.isAdminUser()) {
+      btn.style.display = '';
+    }
+  }
+
+  /** Wire bell button → open messaging panel (simple, no notification list) */
+  function _wireBellBtn() {
+    const btn = $id('cd-bell-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (typeof window.openMessagesModal === 'function') {
+        window.openMessagesModal();
+      } else if (window.UnifiedNotifications?.showPanel) {
+        window.UnifiedNotifications.showPanel();
+      }
+    });
+  }
+
+  /** Wire report button → open the START daily digest / network report */
+  function _wireReportBtn() {
+    const btn = $id('cd-report-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (typeof window.openStartModal === 'function') {
+        window.openStartModal();
+      } else if (typeof window.StartDailyDigest?.show === 'function') {
+        window.StartDailyDigest.show();
+      }
+    });
+  }
+
   /** Close the form and reset button state */
   function _closeAddForm() {
     _addFormOpen = false;
@@ -1385,6 +1447,16 @@ window.CommandDashboard = (() => {
     setUnreadMessages(n) {
       _unreadMessages = Math.max(0, parseInt(n, 10) || 0);
       _renderMessages();
+      // Drive the bell badge in the identity header
+      const badge = $id('cd-bell-badge');
+      if (badge) {
+        if (_unreadMessages > 0) {
+          badge.textContent = _unreadMessages > 99 ? '99+' : _unreadMessages;
+          badge.style.display = '';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
     },
     /** Called externally to push a fresh profile (e.g. after profile edit) */
     renderIdentity(profile) {

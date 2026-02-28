@@ -78,14 +78,6 @@
     left: var(--cd-width) !important;   /* 320px — right of dashboard */
   }
 
-  /* ── Header left buttons: shift into graph area ── */
-  #desktop-top-left-actions {
-    position: absolute !important;
-    left: calc(var(--cd-width) + 20px) !important;
-    top: 20px !important;
-    z-index: 600 !important;
-  }
-
   /* ── Search container: center within graph area ── */
   /* Graph area: from var(--cd-width) to 100vw. Center = cd-width/2 + 50vw */
   /* With cd-width=420px: 210px + 50vw.
@@ -800,6 +792,7 @@
   flex-shrink: 0;
 }
 
+/* ── Avatar — clickable button ── */
 .cd-identity-avatar {
   width: 46px;
   height: 46px;
@@ -815,6 +808,16 @@
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cd-identity-avatar:hover {
+  border-color: rgba(0, 224, 255, 0.8);
+  box-shadow: 0 0 0 3px rgba(0, 224, 255, 0.18);
+}
+.cd-identity-avatar:hover .cd-avatar-edit-hint {
+  opacity: 1;
 }
 
 .cd-identity-avatar img {
@@ -826,9 +829,34 @@
   inset: 0;
 }
 
+/* Pencil overlay shown on avatar hover */
+.cd-avatar-edit-hint {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.18s;
+  pointer-events: none;
+  font-size: 0.7rem;
+  color: #fff;
+}
+
+/* ── Identity info ── */
 .cd-identity-info {
   flex: 1;
   min-width: 0;
+}
+
+/* Name + action icons row */
+.cd-identity-info-header {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.22rem;
 }
 
 .cd-identity-name {
@@ -838,7 +866,109 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 0.22rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Icon button base (admin + bell) ── */
+.cd-identity-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.cd-icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+  padding: 0;
+  color: inherit;
+}
+
+/* Admin — amber */
+.cd-admin-btn {
+  color: #ffa500;
+  border-color: rgba(255, 165, 0, 0.3);
+  background: rgba(255, 165, 0, 0.08);
+}
+.cd-admin-btn:hover {
+  background: rgba(255, 165, 0, 0.2);
+  border-color: rgba(255, 165, 0, 0.55);
+}
+
+/* Bell — cyan */
+.cd-bell-btn {
+  color: var(--cd-accent);
+  border-color: rgba(0, 224, 255, 0.3);
+  background: rgba(0, 224, 255, 0.06);
+}
+.cd-bell-btn:hover {
+  background: rgba(0, 224, 255, 0.15);
+  border-color: rgba(0, 224, 255, 0.5);
+}
+
+/* Unread badge on the bell */
+.cd-bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 0.52rem;
+  font-weight: 700;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  padding: 0 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── Panel footer — report button ── */
+.cd-panel-footer {
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--cd-border);
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.cd-report-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 224, 255, 0.2);
+  background: rgba(0, 224, 255, 0.05);
+  color: var(--cd-text-dim);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.cd-report-btn:hover {
+  background: rgba(0, 224, 255, 0.12);
+  border-color: rgba(0, 224, 255, 0.4);
+  color: var(--cd-accent);
+}
+.cd-report-btn i {
+  font-size: 0.8rem;
 }
 
 .cd-identity-meta {
