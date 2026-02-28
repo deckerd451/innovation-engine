@@ -313,6 +313,14 @@ canvas#neural-bg {
   display: none !important;
 }
 
+/* Search container — default (mobile-first) centered position.
+   Desktop offset is handled in command-dashboard.css media query.
+   No !important here so drag's inline left/transform overrides work. */
+#centered-search-container {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 /* Hide search container when ANY modal is open */
 .modal.active ~ * #centered-search-container,
 .modal.active ~ #centered-search-container {
