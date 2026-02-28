@@ -823,15 +823,6 @@ class StartDailyDigest {
         <p style="color:rgba(255,255,255,0.7);margin:0 0 2rem 0;font-size:1.05rem;line-height:1.6;">
           This digest summarises your network activity, intelligence signals, and growth opportunities.
         </p>
-        <div style="background:linear-gradient(135deg,rgba(0,224,255,0.1),rgba(0,255,136,0.1));
-          border:2px solid rgba(0,224,255,0.3);border-radius:16px;padding:1.5rem;margin-bottom:2rem;">
-          <p style="color:rgba(255,255,255,0.8);margin:0 0 0.5rem 0;font-size:0.95rem;font-weight:600;">
-            Download Report
-          </p>
-          <p style="color:rgba(255,255,255,0.6);margin:0;font-size:0.9rem;line-height:1.5;">
-            Get a PDF summary of your network insights and engagement metrics
-          </p>
-        </div>
         <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
           <button onclick="window.StartDailyDigest.previousStep()" style="
             background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.3);
@@ -849,15 +840,6 @@ class StartDailyDigest {
             onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,224,255,0.6)';"
             onmouseleave="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(0,224,255,0.4)';">
             Let's Go! →
-          </button>
-          <button onclick="window.StartDailyDigest.downloadReport()" style="
-            background:rgba(255,170,0,0.2);border:2px solid rgba(255,170,0,0.4);
-            border-radius:12px;color:#ffaa00;padding:1rem 2rem;
-            font-weight:600;font-size:1rem;cursor:pointer;transition:all 0.3s;"
-            onmouseenter="this.style.background='rgba(255,170,0,0.3)';"
-            onmouseleave="this.style.background='rgba(255,170,0,0.2)';">
-            <i class="fas fa-download" style="margin-right:0.5rem;"></i>
-            Download Report
           </button>
         </div>
       </div>
@@ -1055,10 +1037,6 @@ class StartDailyDigest {
   closeAndExplore() {
     _destroySplit();
     if (window.EnhancedStartUI) window.EnhancedStartUI.close();
-  }
-
-  downloadReport() {
-    this.showToast('Report download feature coming soon!', 'info');
   }
 
   showToast(message, type) {
