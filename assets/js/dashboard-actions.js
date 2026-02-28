@@ -170,8 +170,10 @@ document.getElementById('dropdown-settings')?.addEventListener('click', () => {
     }
     openAdminPanel();
   } else {
-    // Show "coming soon" message for non-admins
-    alert('Settings feature coming soon!');
+    // Open the settings modal for non-admin users
+    if (typeof window.SettingsModal?.open === 'function') {
+      window.SettingsModal.open();
+    }
   }
 });
 

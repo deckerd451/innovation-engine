@@ -1176,7 +1176,7 @@ async function renderProjectPanel(nodeData) {
                     `<img src="${user.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
                     `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${initials}</div>`
                   }
-                  <span style="color: white; font-size: 0.85rem;">${user.name} ${roleLabel}</span>
+                  <span style="color: white; font-size: 0.85rem;">${(window.escapeHtml || (s => s))(user.name)} ${roleLabel}</span>
                 </div>
               `;
             }).join('')}
@@ -2198,25 +2198,25 @@ window.manageProjectRequests = async function(projectId) {
               <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;" data-request-id="${request.id}">
                 <div style="display: flex; gap: 1rem; align-items: start;">
                   <!-- User Avatar -->
-                  <img src="${user.image_url || 'https://via.placeholder.com/60'}"
+                  <img src="${(window.escapeHtml || (s => s))(user.image_url) || 'https://via.placeholder.com/60'}"
                     style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid rgba(255,107,107,0.3);"
                     onerror="this.src='https://via.placeholder.com/60'">
 
                   <!-- User Info -->
                   <div style="flex: 1; min-width: 0;">
                     <div style="color: #ff6b6b; font-weight: 800; font-size: 1.1rem; margin-bottom: 0.25rem;">
-                      ${user.name}
+                      ${(window.escapeHtml || (s => s))(user.name)}
                     </div>
                     ${user.bio ? `
                       <div style="color: #ddd; font-size: 0.9rem; margin-bottom: 0.5rem; line-height: 1.4;">
-                        ${user.bio.substring(0, 120)}${user.bio.length > 120 ? '...' : ''}
+                        ${(window.escapeHtml || (s => s))(user.bio.substring(0, 120))}${user.bio.length > 120 ? '...' : ''}
                       </div>
                     ` : ''}
                     ${skills.length > 0 ? `
                       <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;">
                         ${skills.slice(0, 5).map(skill => `
                           <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.8rem; border: 1px solid rgba(0,224,255,0.2);">
-                            ${skill}
+                            ${(window.escapeHtml || (s => s))(skill)}
                           </span>
                         `).join('')}
                         ${skills.length > 5 ? `<span style="color: #888; font-size: 0.8rem;">+${skills.length - 5} more</span>` : ''}
