@@ -121,7 +121,6 @@ window.CommandDashboard = (() => {
   // New state for unified dashboard UX
   let _profile = null;          // community profile for identity layer
   let _unreadMessages = 0;      // unread messages from notification system
-  let _focusDismissed = false;  // whether user dismissed Today's Focus card
   // Supabase-enriched sets (loaded async after init; null = not yet loaded)
   let _enrichedData = {
     acceptedPeerIds: null,   // Set<string> — accepted-only connection peer IDs
@@ -154,7 +153,8 @@ window.CommandDashboard = (() => {
     _wireResourceTabs();
     _wireAddButton();
     _wireDeepActionsToggle();
-    _wireFocusDismiss();
+    _wireInsightsToggle();
+    _wireExploreToggle();
     _wireStatusPillClicks();
 
     // Re-render identity if profile reloads (auth refresh / profile edit)
@@ -322,9 +322,12 @@ window.CommandDashboard = (() => {
     _renderCompactStatus(tier);
     _renderResources(tier);
 
-    // Focus card uses generateDailyBrief (async, may be slow)
-    _renderFocusPlaceholder();
-    _renderFocusCard(tier); // non-blocking
+    // Messages banner (fast, in-memory)
+    _renderMessages();
+
+    // Network Insights use generateDailyBrief (async, may be slow)
+    _renderInsightsPlaceholder();
+    _renderInsights(tier); // non-blocking
   }
 
   /* ================================================================
@@ -769,13 +772,46 @@ window.CommandDashboard = (() => {
   }
 
   /* ================================================================
-     SECTION 2: TODAY'S FOCUS CARD
-     Replaces the blocking modal + intelligence cards with an inline
-     adaptive focus card. Priority: messages > opportunity > signal > explore.
+     SECTION 2A: MESSAGES BANNER
+     Shows an unread-message alert strip above the insights section.
+     Hidden when no unread messages.
      ================================================================ */
 
-  function _renderFocusPlaceholder() {
-    const primary = $id('cd-focus-primary');
+  function _renderMessages() {
+    const focusEl    = $id('cd-focus');
+    const messagesEl = $id('cd-focus-messages');
+    if (!focusEl || !messagesEl) return;
+
+    if (_unreadMessages > 0) {
+      const n = _unreadMessages;
+      messagesEl.innerHTML = `
+        <div class="cd-focus-messages-alert">
+          <i class="fas fa-envelope"></i>
+          <span>${n} unread message${n !== 1 ? 's' : ''}</span>
+          <button class="cd-focus-cta" id="cd-focus-msg-btn">View</button>
+        </div>
+      `;
+      const msgBtn = $id('cd-focus-msg-btn');
+      if (msgBtn) {
+        msgBtn.addEventListener('click', () => {
+          if (window.UnifiedNotifications?.showPanel) window.UnifiedNotifications.showPanel();
+        });
+      }
+      focusEl.style.display = '';
+    } else {
+      focusEl.style.display = 'none';
+      messagesEl.innerHTML = '';
+    }
+  }
+
+  /* ================================================================
+     SECTION 2B: NETWORK INSIGHTS
+     Intelligence card rendered into the collapsible Insights section.
+     Priority: opportunity > signal > explore (messages handled separately).
+     ================================================================ */
+
+  function _renderInsightsPlaceholder() {
+    const primary = $id('cd-insights-primary');
     if (!primary) return;
     primary.innerHTML = `
       <div class="cd-focus-loading">
@@ -783,21 +819,14 @@ window.CommandDashboard = (() => {
         <span>Reading your network...</span>
       </div>
     `;
-    const secondary = $id('cd-focus-secondary');
+    const secondary = $id('cd-insights-secondary');
     if (secondary) secondary.style.display = 'none';
-    const messages = $id('cd-focus-messages');
-    if (messages) messages.style.display = 'none';
   }
 
-  function _computeFocusPriority(brief) {
+  function _computeInsightPriority(brief) {
     const sections = brief?.sections || {};
 
-    // Priority 1: unread messages
-    if (_unreadMessages > 0) {
-      return { type: 'messages', count: _unreadMessages };
-    }
-
-    // Priority 2: high-scoring opportunity from brief
+    // Priority 1: high-scoring opportunity from brief
     const opps = sections['opportunities_for_you'] || [];
     if (opps.length > 0) {
       const top = opps[0];
@@ -810,7 +839,7 @@ window.CommandDashboard = (() => {
       };
     }
 
-    // Priority 3: coordination signal
+    // Priority 2: coordination signal
     const signals = sections['signals_moving'] || [];
     if (signals.length > 0) {
       const top = signals[0];
@@ -823,7 +852,7 @@ window.CommandDashboard = (() => {
       };
     }
 
-    // Priority 4: network pattern / reconnect nudge
+    // Priority 3: network pattern / reconnect nudge
     const patterns = sections['your_pattern'] || [];
     if (patterns.length > 0) {
       const top = patterns[0];
@@ -846,12 +875,9 @@ window.CommandDashboard = (() => {
     };
   }
 
-  async function _renderFocusCard(tier) {
-    if (_focusDismissed) return;
-
-    const primary   = $id('cd-focus-primary');
-    const secondary = $id('cd-focus-secondary');
-    const messages  = $id('cd-focus-messages');
+  async function _renderInsights(tier) {
+    const primary   = $id('cd-insights-primary');
+    const secondary = $id('cd-insights-secondary');
     if (!primary) return;
 
     // Fetch brief if not yet cached
@@ -867,49 +893,22 @@ window.CommandDashboard = (() => {
       }
     }
 
-    // Unread messages alert (shown regardless of focus type)
-    if (messages) {
-      if (_unreadMessages > 0) {
-        messages.style.display = '';
-        const n = _unreadMessages;
-        messages.innerHTML = `
-          <div class="cd-focus-messages-alert">
-            <i class="fas fa-envelope"></i>
-            <span>${n} unread message${n !== 1 ? 's' : ''}</span>
-            <button class="cd-focus-cta" id="cd-focus-msg-btn">View</button>
-          </div>
-        `;
-        const msgBtn = $id('cd-focus-msg-btn');
-        if (msgBtn) {
-          msgBtn.addEventListener('click', () => {
-            if (window.UnifiedNotifications?.showPanel) window.UnifiedNotifications.showPanel();
-          });
-        }
-      } else {
-        messages.style.display = 'none';
-      }
-    }
-
-    const focus = _computeFocusPriority(_briefCache);
+    const insight = _computeInsightPriority(_briefCache);
 
     // Render primary CTA based on priority
     const LABEL_MAP = {
-      messages:    { label: 'Stay Connected', cta: 'View My Network', action: 'focus-direct' },
       opportunity: { label: 'Opportunity',    cta: 'Explore',         action: null },
       signal:      { label: 'Network Signal', cta: 'View Signal',     action: null },
       explore:     { label: 'Today',          cta: 'Explore',         action: 'focus-direct' },
     };
-    const meta = LABEL_MAP[focus.type] || LABEL_MAP.explore;
-    const headline = focus.type === 'messages'
-      ? 'You have messages waiting. Stay connected.'
-      : _escapeHtml(focus.headline);
+    const meta = LABEL_MAP[insight.type] || LABEL_MAP.explore;
 
     primary.innerHTML = `
       <div class="cd-focus-primary-label">${meta.label}</div>
-      <div class="cd-focus-primary-text">${headline}</div>
+      <div class="cd-focus-primary-text">${_escapeHtml(insight.headline)}</div>
       <button class="cd-focus-cta"
-        data-node-id="${_escapeHtml(focus.nodeId || '')}"
-        data-node-type="${_escapeHtml(focus.nodeType || '')}"
+        data-node-id="${_escapeHtml(insight.nodeId || '')}"
+        data-node-type="${_escapeHtml(insight.nodeType || '')}"
         data-action="${meta.action || ''}">${meta.cta}</button>
     `;
 
@@ -954,6 +953,9 @@ window.CommandDashboard = (() => {
     } else if (secondary) {
       secondary.style.display = 'none';
     }
+
+    // Auto-open the insights section now that content is ready
+    _autoOpenFirstSection();
   }
 
   function _handleFocusCta(el) {
@@ -1144,16 +1146,37 @@ window.CommandDashboard = (() => {
     });
   }
 
-  /** Wire the Today's Focus dismiss / restore button */
-  function _wireFocusDismiss() {
-    const dismissBtn    = $id('cd-focus-dismiss');
-    const focusSection  = document.querySelector('.cd-focus');
-    if (!dismissBtn || !focusSection) return;
-    dismissBtn.addEventListener('click', () => {
-      _focusDismissed = !_focusDismissed;
-      focusSection.classList.toggle('cd-focus--collapsed', _focusDismissed);
-      dismissBtn.title = _focusDismissed ? 'Show focus' : 'Dismiss';
+  /** Wire the Network Insights collapsible accordion */
+  function _wireInsightsToggle() {
+    const toggle = $id('cd-insights-toggle');
+    const body   = $id('cd-insights-body');
+    if (!toggle || !body) return;
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      body.hidden = expanded;
     });
+  }
+
+  /** Wire the Explore section collapsible accordion */
+  function _wireExploreToggle() {
+    const toggle = $id('cd-explore-toggle');
+    const body   = $id('cd-explore-body');
+    if (!toggle || !body) return;
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      body.hidden = expanded;
+    });
+  }
+
+  /** Auto-open the Insights section once content is ready (first action surface) */
+  function _autoOpenFirstSection() {
+    const toggle = $id('cd-insights-toggle');
+    const body   = $id('cd-insights-body');
+    if (!toggle || !body) return;
+    toggle.setAttribute('aria-expanded', 'true');
+    body.hidden = false;
   }
 
   /** Wire compact status pills to graph actions */
@@ -1361,7 +1384,7 @@ window.CommandDashboard = (() => {
     /** Called by the notification system to update unread message count */
     setUnreadMessages(n) {
       _unreadMessages = Math.max(0, parseInt(n, 10) || 0);
-      _renderFocusCard(_currentTier);
+      _renderMessages();
     },
     /** Called externally to push a fresh profile (e.g. after profile edit) */
     renderIdentity(profile) {

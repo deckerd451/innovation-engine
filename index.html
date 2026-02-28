@@ -389,50 +389,61 @@
         </div>
       </div>
 
-      <!-- ── Layer 3: Today's Focus ─────────────────────────────────── -->
-      <div class="cd-focus" id="cd-focus">
-        <div class="cd-section-label">
-          Today's Focus
-          <button class="cd-focus-dismiss" id="cd-focus-dismiss" title="Collapse" aria-label="Collapse focus card">
-            <i class="fas fa-chevron-up"></i>
+      <!-- ── Messages banner (visible only when unread > 0) ────────── -->
+      <div class="cd-focus" id="cd-focus" style="display:none;">
+        <div class="cd-focus-messages" id="cd-focus-messages"></div>
+      </div>
+
+      <!-- ── Network Insights (collapsible, auto-opens on launch) ──── -->
+      <div class="cd-insights" id="cd-insights">
+        <div class="cd-section-toggle-row">
+          <button class="cd-section-toggle" id="cd-insights-toggle"
+            aria-expanded="false" aria-controls="cd-insights-body">
+            <span>Network Insights</span>
+            <i class="fas fa-chevron-down cd-chevron"></i>
           </button>
         </div>
-        <div class="cd-focus-card" id="cd-focus-card">
-          <div class="cd-focus-primary" id="cd-focus-primary">
+        <div class="cd-section-body" id="cd-insights-body" hidden>
+          <div id="cd-insights-primary">
             <div class="cd-focus-loading">
               <div class="cd-focus-pulse"></div>
               <span>Analyzing your network...</span>
             </div>
           </div>
-          <div class="cd-focus-secondary" id="cd-focus-secondary" style="display:none;"></div>
-          <div class="cd-focus-messages" id="cd-focus-messages" style="display:none;"></div>
+          <div id="cd-insights-secondary"></div>
         </div>
       </div>
 
-      <!-- ── Layer 4: Explore ──────────────────────────────────────── -->
+      <!-- ── Layer 4: Explore (collapsible) ────────────────────────── -->
       <div class="cd-explore" id="cd-explore">
-        <div class="cd-section-label" id="udc-resources-label">
-          Explore
+        <div class="cd-section-toggle-row">
+          <button class="cd-section-toggle" id="cd-explore-toggle"
+            aria-expanded="false" aria-controls="cd-explore-body">
+            <span>Explore</span>
+            <i class="fas fa-chevron-down cd-chevron"></i>
+          </button>
           <button class="udc-resource-add-btn" id="udc-add-resource-btn"
             title="Add new item" aria-label="Add new resource" style="display:none;">
             <i class="fas fa-plus"></i>
           </button>
         </div>
-        <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist">
-          <button class="udc-resource-tab active" data-resource="people"
-            role="tab" aria-selected="true">People</button>
-          <button class="udc-resource-tab" data-resource="projects"
-            role="tab" aria-selected="false">Projects</button>
-          <button class="udc-resource-tab" data-resource="themes"
-            role="tab" aria-selected="false">Themes</button>
-          <button class="udc-resource-tab" data-resource="organizations"
-            role="tab" aria-selected="false">Orgs</button>
-          <button class="udc-resource-tab" data-resource="opportunities"
-            role="tab" aria-selected="false">Opps</button>
-        </div>
-        <div id="udc-add-form" class="udc-add-form hidden"></div>
-        <div id="udc-resource-list" role="tabpanel">
-          <div class="udc-resource-empty">Loading...</div>
+        <div class="cd-section-body" id="cd-explore-body" hidden>
+          <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist">
+            <button class="udc-resource-tab active" data-resource="people"
+              role="tab" aria-selected="true">People</button>
+            <button class="udc-resource-tab" data-resource="projects"
+              role="tab" aria-selected="false">Projects</button>
+            <button class="udc-resource-tab" data-resource="themes"
+              role="tab" aria-selected="false">Themes</button>
+            <button class="udc-resource-tab" data-resource="organizations"
+              role="tab" aria-selected="false">Orgs</button>
+            <button class="udc-resource-tab" data-resource="opportunities"
+              role="tab" aria-selected="false">Opps</button>
+          </div>
+          <div id="udc-add-form" class="udc-add-form hidden"></div>
+          <div id="udc-resource-list" role="tabpanel">
+            <div class="udc-resource-empty">Loading...</div>
+          </div>
         </div>
       </div>
 
@@ -486,7 +497,7 @@
 
     <!-- Category Filter Buttons (Bottom Center) -->
     <div id="centered-search-container"
-      style="position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+      style="position:absolute; bottom:100px;
       width:min(700px, 85vw); max-width:min(700px, 85vw); z-index:100; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
 
       <div id="category-action-bar" style="display:none; width:100%; justify-content:flex-end;"></div>
