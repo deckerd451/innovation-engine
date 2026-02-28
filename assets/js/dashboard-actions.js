@@ -111,6 +111,12 @@ function applyAdminUIOnce(reason = "") {
     adminBtn.style.display = 'flex';
   }
 
+  // Also show the panel-embedded admin button
+  const cdAdminBtn = document.getElementById('cd-admin-btn');
+  if (cdAdminBtn) {
+    cdAdminBtn.style.display = '';
+  }
+
   const adminBadge = document.getElementById('admin-badge-header');
   if (adminBadge) {
     adminBadge.style.display = 'inline-block';
@@ -1128,10 +1134,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Also check for admin button immediately
   setTimeout(() => {
     if (isAdminUser()) {
-      const adminBtnLeft = document.getElementById('btn-admin-top-left');
-      if (adminBtnLeft) {
-        adminBtnLeft.style.display = 'flex';
-        console.log('👑 Admin button shown on left side (DOMContentLoaded)');
+      const cdAdminBtn = document.getElementById('cd-admin-btn');
+      if (cdAdminBtn) {
+        cdAdminBtn.style.display = '';
+        console.log('👑 Admin button shown in panel (DOMContentLoaded)');
       }
     }
   }, 1500);
@@ -1145,13 +1151,13 @@ window.addEventListener('profile-loaded', () => {
   
   setTimeout(createSynapseLegend, 500);
 
-  // Show admin button if user is admin (now at top left)
+  // Show admin button if user is admin
   if (isAdminUser()) {
-    // Show left-side admin button
-    const adminBtnLeft = document.getElementById('btn-admin-top-left');
-    if (adminBtnLeft) {
-      adminBtnLeft.style.display = 'flex';
-      console.log('👑 Admin button shown on left side (profile-loaded)');
+    // Show panel-embedded admin button (btn-admin-top-left is now hidden/removed)
+    const cdAdminBtn = document.getElementById('cd-admin-btn');
+    if (cdAdminBtn) {
+      cdAdminBtn.style.display = '';
+      console.log('👑 Admin button shown in panel (profile-loaded)');
     }
     
     // Show admin badge in dropdown

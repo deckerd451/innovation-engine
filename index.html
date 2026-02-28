@@ -140,34 +140,11 @@
   <!-- Main -->
   <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); max-width: 100vw; touch-action: pan-y pinch-zoom;">
     <!-- Header Elements (No Background Bar) -->
-    <!-- Left side: Admin Crown, User Profile -->
-    <!-- id="desktop-top-left-actions" enables CSS shift right of dashboard on desktop -->
-    <div id="desktop-top-left-actions" style="position:absolute; top:20px; left:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
-      <!-- Admin Panel Button (Hidden by default) -->
-      <div id="btn-admin-top-left" role="button" tabindex="0"
-        style="cursor:pointer; padding:0.75rem; background:rgba(255,170,0,0.1);
-        border:1px solid rgba(255,170,0,0.3); border-radius:50%; width:48px; height:48px;
-        display:none; align-items:center; justify-content:center;"
-        title="Admin Panel" aria-label="Admin Panel">
-        <i class="fas fa-crown" style="color:#ffa500; font-size:1.2rem;"></i>
-      </div>
-
-      <!-- Combined User Profile Button with Level Badge -->
-      <div id="user-profile-combined" role="button" tabindex="0"
-        style="cursor:pointer; display:flex; align-items:center; gap:0.75rem;
-        padding:0.5rem 1rem 0.5rem 0.5rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3);
-        border-radius:25px; transition:all 0.3s;"
-        title="View your profile"
-        aria-label="View your profile"
-        onmouseenter="this.style.background='rgba(0,224,255,0.15)'; this.style.borderColor='rgba(0,224,255,0.5)'"
-        onmouseleave="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.3)'">
-        <!-- User Avatar Circle -->
-        <div style="width:40px; height:40px; border-radius:50%;
-          background:linear-gradient(135deg,#00e0ff,#0080ff); border:2px solid rgba(0,224,255,0.5);
-          display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem; color:white;">
-          <span id="user-initials-left">DI</span>
-        </div>
-      </div>
+    <!-- Left side: hidden stub — admin crown + avatar moved into #command-dashboard panel -->
+    <div id="desktop-top-left-actions" style="display:none;">
+      <span id="user-initials-left" style="display:none;"></span>
+      <div id="btn-admin-top-left" style="display:none;"></div>
+      <div id="user-profile-combined" style="display:none;"></div>
     </div>
 
     <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
@@ -341,12 +318,33 @@
 
       <!-- ── Layer 1: Identity ─────────────────────────────────────── -->
       <div class="cd-identity" id="cd-identity">
-        <div class="cd-identity-avatar" id="cd-avatar">
+        <!-- Avatar — clickable to open profile -->
+        <button class="cd-identity-avatar" id="cd-avatar"
+          title="View / edit your profile" aria-label="View your profile">
           <img id="cd-avatar-img" src="" alt="" style="display:none;">
           <span id="cd-avatar-initials">?</span>
-        </div>
+          <div class="cd-avatar-edit-hint" aria-hidden="true">
+            <i class="fas fa-pencil-alt"></i>
+          </div>
+        </button>
         <div class="cd-identity-info">
-          <div class="cd-identity-name" id="cd-user-name">Loading...</div>
+          <!-- Name + action icons on same row -->
+          <div class="cd-identity-info-header">
+            <div class="cd-identity-name" id="cd-user-name">Loading...</div>
+            <div class="cd-identity-actions">
+              <!-- Admin crown — hidden unless user is admin -->
+              <button class="cd-icon-btn cd-admin-btn" id="cd-admin-btn"
+                title="Admin Panel" aria-label="Admin Panel" style="display:none;">
+                <i class="fas fa-crown"></i>
+              </button>
+              <!-- Messaging bell — always visible, badge shows unread count -->
+              <button class="cd-icon-btn cd-bell-btn" id="cd-bell-btn"
+                title="Messages" aria-label="Open messages">
+                <i class="fas fa-bell"></i>
+                <span class="cd-bell-badge" id="cd-bell-badge" style="display:none;">0</span>
+              </button>
+            </div>
+          </div>
           <div class="cd-identity-meta">
             <span class="cd-level-badge" id="cd-level-badge">Lv 1</span>
             <span class="cd-streak" id="cd-streak" style="display:none;">
@@ -464,6 +462,15 @@
             Direct connections only. This is your network.
           </p>
         </div>
+      </div>
+
+      <!-- ── Panel Footer ──────────────────────────────────────────── -->
+      <div class="cd-panel-footer">
+        <button class="cd-report-btn" id="cd-report-btn"
+          title="Generate your network report" aria-label="Network Report">
+          <i class="fas fa-chart-bar"></i>
+          <span>Network Report</span>
+        </button>
       </div>
 
     </aside>
