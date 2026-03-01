@@ -556,7 +556,7 @@ function getInitials(name) {
 function getAvatarHTML(person, initials, size) {
   const imageUrl = person.image_url || person.image_path || person.avatar_storage_path;
   if (imageUrl) {
-    return `<img src="${esc(imageUrl)}" style="width: ${size}px; height: ${size}px; border-radius: 50%; object-fit: cover;" alt="${esc(person.name)}">`;
+    return `<img loading="lazy" src="${esc(imageUrl)}" style="width: ${size}px; height: ${size}px; border-radius: 50%; object-fit: cover;" alt="${esc(person.name)}">`;
   }
   return `<div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: ${size * 0.4}px;">${initials}</div>`;
 }
@@ -988,7 +988,7 @@ window.closePersonDrawer = function() {
 async function handleBulkSetRole() {
   const role = prompt('Enter role (Member or Admin):');
   if (!role || (role !== 'Member' && role !== 'Admin')) {
-    alert('Invalid role. Please enter "Member" or "Admin".');
+    window.showToast?.('Invalid role — enter Member or Admin', 'warning');
     return;
   }
   
@@ -997,7 +997,7 @@ async function handleBulkSetRole() {
   
   const results = await bulkUpdate(Array.from(state.selectedIds), { user_role: role });
   
-  alert(`Bulk update complete:\n✅ Success: ${results.success}\n❌ Failed: ${results.failed}`);
+  window.showToast?.(`Bulk update: ${results.success} succeeded, ${results.failed} failed`, results.failed > 0 ? 'warning' : 'success');
   
   if (results.failed > 0) {
     console.error('Bulk update errors:', results.errors);
@@ -1028,7 +1028,7 @@ async function handleBulkUpdate(patch) {
   
   const results = await bulkUpdate(Array.from(state.selectedIds), patch);
   
-  alert(`Bulk update complete:\n✅ Success: ${results.success}\n❌ Failed: ${results.failed}`);
+  window.showToast?.(`Bulk update: ${results.success} succeeded, ${results.failed} failed`, results.failed > 0 ? 'warning' : 'success');
   
   if (results.failed > 0) {
     console.error('Bulk update errors:', results.errors);

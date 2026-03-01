@@ -691,9 +691,9 @@ const DailyEngagement = (function () {
   }
 
   function showStreakDetails() {
-    alert(
-      `🔥 ${state.streak} Day Streak!\n\nKeep logging in daily to maintain your streak.\n\nStreak Milestones:\n• 7 days: +50 XP bonus\n• 30 days: +200 XP bonus + Special Badge\n• 100 days: +1000 XP bonus + Premium Badge`
-    );
+    if (window.showToast) {
+      window.showToast(`🔥 ${state.streak}-day streak! Keep logging in daily to maintain it.`, 'success', 6000);
+    }
   }
 
   // ============================================================

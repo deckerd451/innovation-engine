@@ -1049,7 +1049,7 @@ window.CommandDashboard = (() => {
             }
           </div>
         `).join('')
-        : '<div class="udc-resource-empty">None found in this tier</div>'
+        : `<div class="udc-resource-empty">${_emptyStateCTA(_activeResourceTab)}</div>`
       }
     `;
 
@@ -1139,6 +1139,66 @@ window.CommandDashboard = (() => {
       .slice(0, 10)
       .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function _emptyStateCTA(type) {
+    const defs = {
+      people: {
+        icon: 'fa-user-plus',
+        msg: 'No connections yet',
+        hint: 'Search for people to connect with',
+        cta: 'Find People',
+        action: () => {
+          const input = document.getElementById('global-search');
+          if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth' }); }
+        },
+      },
+      projects: {
+        icon: 'fa-rocket',
+        msg: 'No projects yet',
+        hint: 'Start or join a project to collaborate',
+        cta: 'Create Project',
+        action: () => document.getElementById('udc-add-resource-btn')?.click(),
+      },
+      themes: {
+        icon: 'fa-lightbulb',
+        msg: 'No themes in view',
+        hint: 'Themes group projects by focus area',
+        cta: 'Explore Themes',
+        action: () => window.GraphController?.highlightNodes?.('theme'),
+      },
+      organizations: {
+        icon: 'fa-building',
+        msg: 'No organizations',
+        hint: 'Join or create an organization',
+        cta: 'Create Org',
+        action: () => document.getElementById('udc-add-resource-btn')?.click(),
+      },
+      opportunities: {
+        icon: 'fa-star',
+        msg: 'No opportunities',
+        hint: 'Post or discover open opportunities',
+        cta: 'Post Opportunity',
+        action: () => document.getElementById('udc-add-resource-btn')?.click(),
+      },
+    };
+    const d = defs[type] || { icon: 'fa-inbox', msg: 'Nothing here yet', hint: '', cta: null };
+    const id = `udc-empty-cta-${type}`;
+    // Wire click after render
+    setTimeout(() => {
+      if (d.action) document.getElementById(id)?.addEventListener('click', d.action);
+    }, 0);
+    return `
+      <div style="text-align:center; padding:1.25rem 0.5rem; color:var(--cd-text-dim);">
+        <i class="fas ${d.icon}" style="font-size:1.6rem; opacity:0.35; display:block; margin-bottom:0.5rem;"></i>
+        <div style="font-size:0.8rem; font-weight:600; margin-bottom:0.25rem;">${d.msg}</div>
+        ${d.hint ? `<div style="font-size:0.72rem; opacity:0.6; margin-bottom:0.6rem;">${d.hint}</div>` : ''}
+        ${d.cta ? `<button id="${id}" style="
+          font-size:0.72rem; font-weight:600; padding:0.35rem 0.85rem;
+          border-radius:6px; border:1px solid rgba(0,224,255,0.3);
+          background:rgba(0,224,255,0.08); color:var(--cd-accent);
+          cursor:pointer;">${d.cta}</button>` : ''}
+      </div>`;
   }
 
   /* ================================================================

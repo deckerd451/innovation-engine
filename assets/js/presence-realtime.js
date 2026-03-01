@@ -265,8 +265,9 @@
     // Poll immediately
     pollLastSeen();
 
-    // Then poll every 60 seconds
-    pollingInterval = setInterval(() => {
+    // Then poll every 60 seconds (pauses when tab is hidden)
+    const _vsi = window.visibilitySetInterval || setInterval;
+    pollingInterval = _vsi(() => {
       pollLastSeen();
     }, CONFIG.POLLING_INTERVAL);
   }
@@ -319,8 +320,9 @@
    * Setup low-frequency last_seen persistence
    */
   function setupLastSeenPersistence() {
-    // Update last_seen every 30-60 minutes (throttled)
-    lastSeenUpdateInterval = setInterval(() => {
+    // Update last_seen every 30-60 minutes (pauses when tab is hidden)
+    const _vsiLs = window.visibilitySetInterval || setInterval;
+    lastSeenUpdateInterval = _vsiLs(() => {
       updateLastSeen();
     }, CONFIG.LAST_SEEN_UPDATE_INTERVAL);
 

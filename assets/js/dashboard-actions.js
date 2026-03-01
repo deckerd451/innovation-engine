@@ -2,6 +2,26 @@
 // Dashboard Actions - Wire up consolidated bottom bar
 // ================================================================
 
+// Toast bridge: routes 
+_toast() calls to the unified toast system.
+// Auto-detects type from message content.
+function _toast(msg) {
+  if (!msg) return;
+  const s = String(msg);
+  const t = window.showToast;
+  if (!t) { 
+_toast(msg); return; }   // fallback if toast not yet loaded
+  if (/success|saved|created|updated|joined|removed|assigned|extended|archived|deleted|reinstated|healthy|active/i.test(s)) {
+    t(s, 'success');
+  } else if (/fail|error|invalid|unable|cannot|not found|not available|please log in|required|permission|unknown/i.test(s)) {
+    t(s, 'error');
+  } else if (/warning|⚠️|not currently|being set up|try again|check console/i.test(s)) {
+    t(s, 'warning');
+  } else {
+    t(s, 'info');
+  }
+}
+
 // Prevent duplicate initialization
 if (window.__DASHBOARD_ACTIONS_INITIALIZED__) {
   if (window.log?.isDebugMode?.()) {
@@ -282,12 +302,14 @@ window.isAdminUser = isAdminUser;
 async function createThemeCirclePromptFlow() {
   const supabase = window.supabase;
   if (!supabase) {
-    alert("Supabase not available on window");
+    
+_toast("Supabase not available on window");
     return;
   }
 
   if (!isAdminUser()) {
-    alert("Admin only");
+    
+_toast("Admin only");
     return;
   }
 
@@ -313,7 +335,8 @@ async function createThemeCirclePromptFlow() {
   const { error } = await supabase.from("theme_circles").insert([payload]);
   if (error) {
     console.error("theme_circles insert failed:", error);
-    alert(error.message || "Failed to create theme circle");
+    
+_toast(error.message || "Failed to create theme circle");
     return;
   }
 
@@ -825,7 +848,8 @@ function createSynapseLegend() {
         window.openAdminPanel();
       } else {
         console.error('❌ openAdminPanel function not found');
-        alert('Admin panel not available');
+        
+_toast('Admin panel not available');
       }
     });
     analyticsBtn.addEventListener('mouseenter', () => {
@@ -1693,15 +1717,19 @@ function loadAdminTabContent(tabName) {
             console.log('🏥 System Health:', { healthy: isHealthy, stats });
             
             if (isHealthy) {
-              alert('✅ System is healthy! All tests passed.');
+              
+_toast('✅ System is healthy! All tests passed.');
             } else {
-              alert(`⚠️ System has ${stats.total} logged errors. Check console for details.`);
+              
+_toast(`⚠️ System has ${stats.total} logged errors. Check console for details.`);
             }
           } else {
-            alert('✅ Unified network is active and running!');
+            
+_toast('✅ Unified network is active and running!');
           }
         } else {
-          alert('ℹ️ Unified network is not currently active. Enable it and reload to test.');
+          
+_toast('ℹ️ Unified network is not currently active. Enable it and reload to test.');
         }
         
         testBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
@@ -1772,7 +1800,8 @@ function loadAdminTabContent(tabName) {
           window.openAnalyticsModal();
         } else {
           console.error('❌ Analytics modal not available');
-          alert('Analytics dashboard is not available. Please refresh the page and try again.');
+          
+_toast('Analytics dashboard is not available. Please refresh the page and try again.');
         }
       });
     }
@@ -1958,9 +1987,11 @@ async function adminTogglePersonVisibility(personId, shouldRemove, personName, c
     
     // Show success message
     if (shouldRemove) {
-      alert(`✅ ${personName} has been removed from view.\n\nThey are no longer accessible to the community but can be reinstated by an admin.`);
+      
+_toast(`✅ ${personName} has been removed from view.\n\nThey are no longer accessible to the community but can be reinstated by an admin.`);
     } else {
-      alert(`✅ ${personName} has been reinstated to the community.`);
+      
+_toast(`✅ ${personName} has been reinstated to the community.`);
     }
     
     // Refresh the search results
@@ -1988,7 +2019,8 @@ async function adminTogglePersonVisibility(personId, shouldRemove, personName, c
     
   } catch (error) {
     console.error('❌ Error toggling visibility:', error);
-    alert(`Error updating member status:\n\n${error.message}\n\nPlease check the console for details.`);
+    
+_toast(`Error updating member status:\n\n${error.message}\n\nPlease check the console for details.`);
   }
 }
 
@@ -2290,7 +2322,8 @@ function wireAdminThemeCardEvents() {
 async function handleAdminCreateTheme(form) {
   const supabase = window.supabase;
   if (!supabase) {
-    alert('Supabase not available');
+    
+_toast('Supabase not available');
     return;
   }
 
@@ -2303,7 +2336,8 @@ async function handleAdminCreateTheme(form) {
   const ctaLink = formData.get('cta_link').trim();
 
   if (!title) {
-    alert('Title is required');
+    
+_toast('Title is required');
     return;
   }
 
@@ -2333,7 +2367,8 @@ async function handleAdminCreateTheme(form) {
     if (typeof window.showSynapseNotification === 'function') {
       window.showSynapseNotification('Theme circle created! ✨', 'success');
     } else {
-      alert('Theme circle created successfully!');
+      
+_toast('Theme circle created successfully!');
     }
 
     // Clear form
@@ -2352,7 +2387,8 @@ async function handleAdminCreateTheme(form) {
 
   } catch (error) {
     console.error('Failed to create theme:', error);
-    alert(error.message || 'Failed to create theme');
+    
+_toast(error.message || 'Failed to create theme');
   }
 }
 
@@ -2387,7 +2423,8 @@ async function handleAdminEditTheme(themeId) {
     if (typeof window.showSynapseNotification === 'function') {
       window.showSynapseNotification('Theme updated!', 'success');
     } else {
-      alert('Theme updated successfully!');
+      
+_toast('Theme updated successfully!');
     }
 
     await loadAdminThemesList();
@@ -2398,7 +2435,8 @@ async function handleAdminEditTheme(themeId) {
 
   } catch (error) {
     console.error('Failed to update theme:', error);
-    alert(error.message || 'Failed to update theme');
+    
+_toast(error.message || 'Failed to update theme');
   }
 }
 
@@ -2431,7 +2469,8 @@ async function handleAdminExtendTheme(themeId) {
     if (typeof window.showSynapseNotification === 'function') {
       window.showSynapseNotification(`Extended by ${days} days! ⏰`, 'success');
     } else {
-      alert(`Theme extended by ${days} days!`);
+      
+_toast(`Theme extended by ${days} days!`);
     }
 
     await loadAdminThemesList();
@@ -2442,7 +2481,8 @@ async function handleAdminExtendTheme(themeId) {
 
   } catch (error) {
     console.error('Failed to extend theme:', error);
-    alert(error.message || 'Failed to extend theme');
+    
+_toast(error.message || 'Failed to extend theme');
   }
 }
 
@@ -2463,7 +2503,8 @@ async function handleAdminArchiveTheme(themeId) {
     if (typeof window.showSynapseNotification === 'function') {
       window.showSynapseNotification('Theme archived', 'success');
     } else {
-      alert('Theme archived successfully!');
+      
+_toast('Theme archived successfully!');
     }
 
     await loadAdminThemesList();
@@ -2474,7 +2515,8 @@ async function handleAdminArchiveTheme(themeId) {
 
   } catch (error) {
     console.error('Failed to archive theme:', error);
-    alert(error.message || 'Failed to archive theme');
+    
+_toast(error.message || 'Failed to archive theme');
   }
 }
 
@@ -2502,7 +2544,8 @@ async function handleAdminDeleteTheme(themeId) {
     if (typeof window.showSynapseNotification === 'function') {
       window.showSynapseNotification('Theme deleted', 'success');
     } else {
-      alert('Theme deleted successfully!');
+      
+_toast('Theme deleted successfully!');
     }
 
     await loadAdminThemesList();
@@ -2513,7 +2556,8 @@ async function handleAdminDeleteTheme(themeId) {
 
   } catch (error) {
     console.error('Failed to delete theme:', error);
-    alert(error.message || 'Failed to delete theme');
+    
+_toast(error.message || 'Failed to delete theme');
   }
 }
 
@@ -2587,12 +2631,14 @@ async function handleAdminManageProjects(themeId) {
       const project = assignedProjects[num - 1];
       await unassignProjectFromTheme(project.id, project.title);
     } else {
-      alert('Invalid command. Please use "assign <number>" or "remove <number>"');
+      
+_toast('Invalid command. Please use "assign <number>" or "remove <number>"');
     }
 
   } catch (error) {
     console.error('Failed to manage projects:', error);
-    alert('Failed to load projects');
+    
+_toast('Failed to load projects');
   }
 }
 
@@ -2613,7 +2659,8 @@ async function assignProjectToThemeByIds(projectId, themeId, projectTitle) {
     if (typeof window.showSynapseNotification === 'function') {
       window.showSynapseNotification(`✓ Assigned: ${projectTitle}`, 'success');
     } else {
-      alert(`Project assigned: ${projectTitle}`);
+      
+_toast(`Project assigned: ${projectTitle}`);
     }
 
     await loadAdminThemesList();
@@ -2624,7 +2671,8 @@ async function assignProjectToThemeByIds(projectId, themeId, projectTitle) {
 
   } catch (error) {
     console.error('Failed to assign project:', error);
-    alert('Failed to assign project');
+    
+_toast('Failed to assign project');
   }
 }
 
@@ -2643,7 +2691,8 @@ async function unassignProjectFromTheme(projectId, projectTitle) {
     if (typeof window.showSynapseNotification === 'function') {
       window.showSynapseNotification(`✓ Removed: ${projectTitle}`, 'success');
     } else {
-      alert(`Project removed: ${projectTitle}`);
+      
+_toast(`Project removed: ${projectTitle}`);
     }
 
     await loadAdminThemesList();
@@ -2654,7 +2703,8 @@ async function unassignProjectFromTheme(projectId, projectTitle) {
 
   } catch (error) {
     console.error('Failed to unassign project:', error);
-    alert('Failed to unassign project');
+    
+_toast('Failed to unassign project');
   }
 }
 
@@ -2804,7 +2854,8 @@ window.openThemeCreator = function() {
 async function createThemePromptFlow() {
   const supabase = window.supabase;
   if (!supabase) {
-    alert("Supabase not available");
+    
+_toast("Supabase not available");
     return;
   }
 
@@ -2827,11 +2878,13 @@ async function createThemePromptFlow() {
 
   if (error) {
     console.error("Failed to create theme:", error);
-    alert("Failed to create theme: " + error.message);
+    
+_toast("Failed to create theme: " + error.message);
     return;
   }
 
-  alert("Theme created successfully!");
+  
+_toast("Theme created successfully!");
   loadThemesList();
 
   if (typeof window.refreshThemeCircles === 'function') {
@@ -2850,7 +2903,8 @@ window.deleteTheme = async function(themeId) {
   const supabase = window.supabase;
   if (!supabase) {
     console.error('❌ Supabase not available');
-    alert('Database connection not available');
+    
+_toast('Database connection not available');
     return;
   }
 
@@ -2868,7 +2922,8 @@ window.deleteTheme = async function(themeId) {
     }
 
     console.log('✅ Theme deleted successfully');
-    alert("Theme deleted successfully!");
+    
+_toast("Theme deleted successfully!");
     
     // Refresh the themes list
     if (typeof loadThemesList === 'function') {
@@ -2884,7 +2939,8 @@ window.deleteTheme = async function(themeId) {
     }
   } catch (error) {
     console.error("❌ Error deleting theme:", error);
-    alert("Failed to delete theme: " + (error.message || 'Unknown error'));
+    
+_toast("Failed to delete theme: " + (error.message || 'Unknown error'));
   }
 };
 
@@ -2913,7 +2969,8 @@ window.deleteProject = async function(projectId) {
   const supabase = window.supabase;
   if (!supabase) {
     console.error('❌ Supabase not available');
-    alert('Database connection not available');
+    
+_toast('Database connection not available');
     return;
   }
 
@@ -2931,7 +2988,8 @@ window.deleteProject = async function(projectId) {
     }
 
     console.log('✅ Project deleted successfully');
-    alert("Project deleted successfully!");
+    
+_toast("Project deleted successfully!");
     
     // Refresh the projects list
     if (typeof loadProjectsList === 'function') {
@@ -2947,7 +3005,8 @@ window.deleteProject = async function(projectId) {
     }
   } catch (error) {
     console.error("❌ Error deleting project:", error);
-    alert("Failed to delete project: " + (error.message || 'Unknown error'));
+    
+_toast("Failed to delete project: " + (error.message || 'Unknown error'));
   }
 };
 
@@ -3066,7 +3125,8 @@ window.deleteOrganization = async function(orgId) {
   const supabase = window.supabase;
   if (!supabase) {
     console.error('❌ Supabase not available');
-    alert('Database connection not available');
+    
+_toast('Database connection not available');
     return;
   }
 
@@ -3098,12 +3158,14 @@ window.deleteOrganization = async function(orgId) {
     // Check if any rows were actually deleted
     if (!deleted || deleted.length === 0) {
       console.error('❌ No rows deleted - RLS policy may be blocking');
-      alert("Could not delete organization. You may not have permission to delete this organization.");
+      
+_toast("Could not delete organization. You may not have permission to delete this organization.");
       return;
     }
 
     console.log('✅ Organization deleted successfully:', deleted);
-    alert("Organization deleted successfully!");
+    
+_toast("Organization deleted successfully!");
 
     // Refresh the organizations list
     if (typeof loadOrganizationsList === 'function') {
@@ -3116,7 +3178,8 @@ window.deleteOrganization = async function(orgId) {
     }
   } catch (error) {
     console.error("❌ Error deleting organization:", error);
-    alert("Failed to delete organization: " + (error.message || 'Unknown error'));
+    
+_toast("Failed to delete organization: " + (error.message || 'Unknown error'));
   }
 };
 
@@ -3125,7 +3188,8 @@ window.editOrganization = async function(orgId) {
 
   const supabase = window.supabase;
   if (!supabase) {
-    alert('Database connection not available');
+    
+_toast('Database connection not available');
     return;
   }
 
@@ -3137,7 +3201,8 @@ window.editOrganization = async function(orgId) {
     .single();
 
   if (error || !org) {
-    alert('Could not load organization data');
+    
+_toast('Could not load organization data');
     return;
   }
 
@@ -3246,7 +3311,8 @@ window.editOrganization = async function(orgId) {
     };
 
     if (!updates.name) {
-      alert('Organization name is required');
+      
+_toast('Organization name is required');
       return;
     }
 
@@ -3262,12 +3328,14 @@ window.editOrganization = async function(orgId) {
       // Check if any rows were actually updated
       if (!updated || updated.length === 0) {
         console.error('❌ No rows updated - RLS policy may be blocking');
-        alert('Could not update organization. You may not have permission to edit this organization.');
+        
+_toast('Could not update organization. You may not have permission to edit this organization.');
         return;
       }
 
       console.log('✅ Organization updated:', updated);
-      alert('Organization updated successfully!');
+      
+_toast('Organization updated successfully!');
       modal.remove();
       loadOrganizationsList();
 
@@ -3277,7 +3345,8 @@ window.editOrganization = async function(orgId) {
       }
     } catch (err) {
       console.error('Error updating organization:', err);
-      alert('Failed to update organization: ' + (err.message || 'Unknown error'));
+      
+_toast('Failed to update organization: ' + (err.message || 'Unknown error'));
     }
   });
 };
@@ -3580,13 +3649,15 @@ async function loadOrgsTabContent(tabName) {
 async function createOrganization() {
   const supabase = window.supabase;
   if (!supabase) {
-    alert('Database connection not available');
+    
+_toast('Database connection not available');
     return;
   }
 
   const currentUser = window.currentUserProfile;
   if (!currentUser) {
-    alert('Please log in to create an organization');
+    
+_toast('Please log in to create an organization');
     return;
   }
 
@@ -3598,7 +3669,8 @@ async function createOrganization() {
   const website = document.getElementById('org-website')?.value?.trim();
 
   if (!name) {
-    alert('Organization name is required');
+    
+_toast('Organization name is required');
     return;
   }
 
@@ -3652,7 +3724,8 @@ async function createOrganization() {
       console.warn('Exception adding owner membership:', memberErr.message);
     }
 
-    alert('Organization created successfully!' +
+    
+_toast('Organization created successfully!' +
       (await checkOrgMembersTableExists(supabase) ? '' : '\n\nNote: Membership features are being set up.'));
 
     // Refresh the organizations list
@@ -3665,20 +3738,23 @@ async function createOrganization() {
 
   } catch (error) {
     console.error('Error creating organization:', error);
-    alert('Failed to create organization: ' + (error.message || 'Unknown error'));
+    
+_toast('Failed to create organization: ' + (error.message || 'Unknown error'));
   }
 }
 
 async function joinOrganization(orgId) {
   const supabase = window.supabase;
   if (!supabase) {
-    alert('Database connection not available');
+    
+_toast('Database connection not available');
     return;
   }
 
   const currentUser = window.currentUserProfile;
   if (!currentUser) {
-    alert('Please log in to join an organization');
+    
+_toast('Please log in to join an organization');
     return;
   }
 
@@ -3697,14 +3773,16 @@ async function joinOrganization(orgId) {
       if (checkError.code === '42P01' || checkError.message?.includes('does not exist') ||
           checkError.code === 'PGRST116' || checkError.message?.includes('relation') ||
           String(checkError.code) === '500') {
-        alert('Organization membership feature is being set up. Please try again later or contact an administrator.');
+        
+_toast('Organization membership feature is being set up. Please try again later or contact an administrator.');
         return;
       }
       // For other errors, continue to try joining
     }
 
     if (existing) {
-      alert('You are already a member of this organization');
+      
+_toast('You are already a member of this organization');
       return;
     }
 
@@ -3721,13 +3799,15 @@ async function joinOrganization(orgId) {
       // Handle specific error codes
       if (error.code === '42P01' || error.message?.includes('does not exist') ||
           error.code === 'PGRST116' || String(error.code) === '500') {
-        alert('Organization membership feature is being set up. Please try again later or contact an administrator.');
+        
+_toast('Organization membership feature is being set up. Please try again later or contact an administrator.');
         return;
       }
       throw error;
     }
 
-    alert('You have joined the organization!');
+    
+_toast('You have joined the organization!');
 
     // Refresh the list
     loadOrgsTabContent('browse');
@@ -3739,7 +3819,8 @@ async function joinOrganization(orgId) {
 
   } catch (error) {
     console.error('Error joining organization:', error);
-    alert('Failed to join organization: ' + (error.message || 'Unknown error'));
+    
+_toast('Failed to join organization: ' + (error.message || 'Unknown error'));
   }
 }
 
@@ -3750,13 +3831,15 @@ async function leaveOrganization(orgId) {
 
   const supabase = window.supabase;
   if (!supabase) {
-    alert('Database connection not available');
+    
+_toast('Database connection not available');
     return;
   }
 
   const currentUser = window.currentUserProfile;
   if (!currentUser) {
-    alert('Please log in');
+    
+_toast('Please log in');
     return;
   }
 
@@ -3771,13 +3854,15 @@ async function leaveOrganization(orgId) {
       // Handle table not exists error
       if (error.code === '42P01' || error.message?.includes('does not exist') ||
           error.code === 'PGRST116' || String(error.code) === '500') {
-        alert('Organization membership feature is being set up. Please try again later.');
+        
+_toast('Organization membership feature is being set up. Please try again later.');
         return;
       }
       throw error;
     }
 
-    alert('You have left the organization');
+    
+_toast('You have left the organization');
 
     // Refresh the list
     loadOrgsTabContent('my-orgs');
@@ -3789,7 +3874,8 @@ async function leaveOrganization(orgId) {
 
   } catch (error) {
     console.error('Error leaving organization:', error);
-    alert('Failed to leave organization: ' + (error.message || 'Unknown error'));
+    
+_toast('Failed to leave organization: ' + (error.message || 'Unknown error'));
   }
 }
 
@@ -3860,7 +3946,8 @@ if (typeof window.showNotification !== 'function') {
     } else {
       // Fallback to alert for important messages
       if (type === 'error') {
-        alert(message);
+        
+_toast(message);
       }
     }
   };
@@ -3874,7 +3961,8 @@ async function assignProjectToTheme(projectId) {
     const supabase = window.supabase;
     if (!supabase) {
       console.error('Supabase not available');
-      alert('Database connection not available');
+      
+_toast('Database connection not available');
       return;
     }
 
@@ -3882,7 +3970,8 @@ async function assignProjectToTheme(projectId) {
     const themeId = selectElement?.value;
 
     if (!themeId) {
-      alert('Please select a theme first');
+      
+_toast('Please select a theme first');
       return;
     }
 
@@ -3901,7 +3990,8 @@ async function assignProjectToTheme(projectId) {
     console.log('✅ Project assigned to theme successfully');
 
     // Show prominent success notification
-    alert(`✅ SUCCESS!\n\nProject has been assigned to theme: ${selectedThemeName}`);
+    
+_toast(`✅ SUCCESS!\n\nProject has been assigned to theme: ${selectedThemeName}`);
 
     // Refresh the projects list to show updated assignment
     loadProjectsList();
@@ -3913,7 +4003,8 @@ async function assignProjectToTheme(projectId) {
 
   } catch (error) {
     console.error('Error assigning project to theme:', error);
-    alert(`❌ ERROR\n\nFailed to assign project to theme:\n${error.message || 'Unknown error'}`);
+    
+_toast(`❌ ERROR\n\nFailed to assign project to theme:\n${error.message || 'Unknown error'}`);
   }
 }
 
@@ -3922,7 +4013,8 @@ async function removeProjectFromTheme(projectId) {
     const supabase = window.supabase;
     if (!supabase) {
       console.error('Supabase not available');
-      alert('Database connection not available');
+      
+_toast('Database connection not available');
       return;
     }
 
@@ -3943,7 +4035,8 @@ async function removeProjectFromTheme(projectId) {
     console.log('✅ Project removed from theme successfully');
 
     // Show prominent success notification
-    alert('✅ SUCCESS!\n\nProject has been removed from its theme');
+    
+_toast('✅ SUCCESS!\n\nProject has been removed from its theme');
 
     // Refresh the projects list to show updated assignment
     loadProjectsList();
@@ -3955,7 +4048,8 @@ async function removeProjectFromTheme(projectId) {
 
   } catch (error) {
     console.error('Error removing project from theme:', error);
-    alert(`❌ ERROR\n\nFailed to remove project from theme:\n${error.message || 'Unknown error'}`);
+    
+_toast(`❌ ERROR\n\nFailed to remove project from theme:\n${error.message || 'Unknown error'}`);
   }
 }
 

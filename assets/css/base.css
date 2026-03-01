@@ -691,3 +691,129 @@ body.profile-modal-open .profile-panel,
 body.profile-modal-open .side-panel {
   pointer-events: none !important;
 }
+
+/* ============================================================
+   MOBILE BOTTOM TAB BAR
+   Visible only on mobile (<1024px). Provides persistent nav.
+   ============================================================ */
+#mobile-tab-bar {
+  display: none; /* hidden by default; shown via media query below */
+}
+
+@media (max-width: 1023px) {
+  /* Reserve space at bottom for the tab bar */
+  body {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #mobile-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 800;
+    background: rgba(5, 7, 15, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(0, 224, 255, 0.15);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    align-items: stretch;
+  }
+
+  /* Push toasts above the tab bar */
+  #toast-container {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 72px) !important;
+  }
+
+  .mob-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    padding: 8px 4px;
+    min-width: 44px;
+    min-height: 44px;
+    position: relative;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mob-tab i {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .mob-tab span {
+    line-height: 1;
+  }
+
+  .mob-tab:active {
+    transform: scale(0.92);
+    transition: transform 0.1s;
+  }
+
+  .mob-tab.active {
+    color: #00e0ff;
+  }
+
+  .mob-tab.active i {
+    filter: drop-shadow(0 0 6px rgba(0, 224, 255, 0.5));
+  }
+
+  /* Centre FAB-style Start button */
+  .mob-tab-center {
+    flex: 0 0 60px;
+    position: relative;
+  }
+
+  .mob-tab-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00ff88, #00e0ff);
+    box-shadow: 0 4px 16px rgba(0, 224, 255, 0.35);
+    color: #000;
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .mob-tab-center:active .mob-tab-fab {
+    transform: scale(0.9);
+    box-shadow: 0 2px 8px rgba(0, 224, 255, 0.2);
+  }
+
+  /* Badge on messages tab */
+  .mob-tab-badge {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 20px);
+    background: #ff3b30;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+}

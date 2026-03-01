@@ -88,7 +88,7 @@
     } else {
       console.warn('No profile opening function available');
       // Fallback: show alert
-      alert('Profile viewing feature is being loaded. Please try again in a moment.');
+      window.showToast('Profile viewing feature is being loaded. Please try again in a moment.', "info");
     }
   }
 
@@ -116,7 +116,7 @@
 
     } catch (err) {
       console.error('Error finding people with skill:', err);
-      alert('Error finding people with this skill. Please try again.');
+      window.showToast('Error finding people with this skill. Please try again.', "info");
     }
   }
 

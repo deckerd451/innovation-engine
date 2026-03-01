@@ -1522,7 +1522,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     
     const html = suggestions.map((item, index) => {
       const imageHtml = item.image 
-        ? `<img src="${escapeHtml(item.image)}" 
+        ? `<img loading="lazy" src="${escapeHtml(item.image)}" 
              style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid ${item.color}; flex-shrink:0;"
              onerror="this.style.display='none'">`
         : `<div style="width:40px; height:40px; border-radius:50%; background:${item.color}20; 
@@ -1915,7 +1915,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     return `<div class="result-card" style="padding:1.25rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; margin-bottom:0.75rem; transition:all 0.2s;">
       <div style="display:flex; align-items:start; gap:1rem;">
         ${org.logo_url 
-          ? `<img src="${org.logo_url}" alt="${escapeHtml(org.name)}" style="width:56px; height:56px; border-radius:8px; object-fit:cover; background:rgba(168,85,247,0.1);" onerror="this.outerHTML='<div style=\\'width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;\\'><i class=\\'fas fa-building\\' style=\\'color:#a855f7;\\'></i></div>'">` 
+          ? `<img loading="lazy" src="${org.logo_url}" alt="${escapeHtml(org.name)}" style="width:56px; height:56px; border-radius:8px; object-fit:cover; background:rgba(168,85,247,0.1);" onerror="this.outerHTML='<div style=\\'width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;\\'><i class=\\'fas fa-building\\' style=\\'color:#a855f7;\\'></i></div>'">` 
           : `<div style="width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;">
               <i class="fas fa-building" style="color:#a855f7;"></i>
             </div>`
@@ -2693,7 +2693,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         data-person='${personDataJson}'>
         ${
           person.image_url
-            ? `<img src="${escapeHtml(person.image_url)}" style="width:52px; height:52px; border-radius:50%;
+            ? `<img loading="lazy" src="${escapeHtml(person.image_url)}" style="width:52px; height:52px; border-radius:50%;
                  object-fit:cover; border:2px solid #00e0ff; pointer-events:none;">`
             : `<div style="width:52px; height:52px; border-radius:50%;
                  background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center;
@@ -3177,7 +3177,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
                     border-radius:8px; cursor:pointer; margin-bottom:0.4rem; transition:all 0.2s;">
                     ${
                       conn.image_url
-                        ? `<img src="${escapeHtml(conn.image_url)}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
+                        ? `<img loading="lazy" src="${escapeHtml(conn.image_url)}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
                         : `<div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.85rem;">${initials}</div>`
                     }
                     <div style="flex:1; min-width:0;">
@@ -3224,7 +3224,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
                     border-radius:8px; cursor:pointer; margin-bottom:0.5rem; transition:all 0.2s;">
                     ${
                       other?.image_url
-                        ? `<img src="${escapeHtml(other.image_url)}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
+                        ? `<img loading="lazy" src="${escapeHtml(other.image_url)}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
                         : `<div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white;">${initials}</div>`
                     }
                     <div style="flex:1; min-width:0;">
@@ -3787,7 +3787,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
             <div style="background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;
               padding:1.25rem; margin-bottom:1rem; display:flex; gap:1rem; align-items:start;">
 
-              <img src="${escapeHtml(userImage)}"
+              <img loading="lazy" src="${escapeHtml(userImage)}"
                 style="width:50px; height:50px; border-radius:50%; object-fit:cover; flex-shrink:0;
                   border:2px solid rgba(0,224,255,0.3);"
                 onerror="this.src='https://via.placeholder.com/50'"
@@ -3969,7 +3969,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
               ${!notif.read ? "background:rgba(0,224,255,0.1);" : ""}">
 
               ${notif.image
-                ? `<img src="${escapeHtml(notif.image)}"
+                ? `<img loading="lazy" src="${escapeHtml(notif.image)}"
                     style="width:48px; height:48px; border-radius:50%; object-fit:cover; flex-shrink:0;
                       border:2px solid ${color};"
                     onerror="this.style.display='none'"
@@ -4207,7 +4207,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
                    background:linear-gradient(135deg,#ff6b6b,#ff4757); display:flex; align-items:center; justify-content:center;
                    font-size:1.8rem;">${icon}</div>`
               : rec.node?.image_url
-              ? `<img src="${escapeHtml(rec.node.image_url)}" style="width:52px; height:52px; border-radius:50%;
+              ? `<img loading="lazy" src="${escapeHtml(rec.node.image_url)}" style="width:52px; height:52px; border-radius:50%;
                    object-fit:cover; border:2px solid #00e0ff;">`
               : `<div style="width:52px; height:52px; border-radius:50%;
                    background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center;

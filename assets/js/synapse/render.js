@@ -232,6 +232,7 @@ export function renderLinks(container, links) {
 export function renderNodes(container, nodes, { onNodeClick, connectionsData = [], currentUserCommunityId = null } = {}) {
   // Build a set of connected user IDs for quick lookup
   const connectedUserIds = new Set();
+  const pendingUserIds = new Set(); // outgoing pending requests
   if (connectionsData && currentUserCommunityId) {
     connectionsData.forEach(conn => {
       const status = String(conn.status || "").toLowerCase();
@@ -243,6 +244,9 @@ export function renderNodes(container, nodes, { onNodeClick, connectionsData = [
         if (conn.to_user_id === currentUserCommunityId) {
           connectedUserIds.add(conn.from_user_id);
         }
+      } else if (status === 'pending' && conn.from_user_id === currentUserCommunityId) {
+        // Only show pending ring for outgoing requests (I sent the request)
+        pendingUserIds.add(conn.to_user_id);
       }
     });
   }
@@ -265,6 +269,7 @@ export function renderNodes(container, nodes, { onNodeClick, connectionsData = [
     
     // Check if this person is connected to current user
     const isConnected = d.type === "person" && connectedUserIds.has(d.id);
+    const isPending = d.type === "person" && !isConnected && !d.isCurrentUser && pendingUserIds.has(d.id);
 
     if (d.type === "organization") {
       const radius = 28;
@@ -361,6 +366,19 @@ export function renderNodes(container, nodes, { onNodeClick, connectionsData = [
         .attr("stroke-width", 2.5)
         .attr("stroke-opacity", 0.8)
         .attr("class", "connection-indicator-ring");
+    }
+
+    // Add dashed amber ring for pending outgoing connection requests
+    if (isPending) {
+      node
+        .append("circle")
+        .attr("r", radius + 6)
+        .attr("fill", "none")
+        .attr("stroke", "#ffaa00") // Amber for pending
+        .attr("stroke-width", 2)
+        .attr("stroke-opacity", 0.8)
+        .attr("stroke-dasharray", "4,4")
+        .attr("class", "pending-connection-ring");
     }
 
     // Add outer ring for current user

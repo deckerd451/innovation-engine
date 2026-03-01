@@ -818,7 +818,7 @@ window.acceptTeamInvitation = async function(invitationId) {
     if (window.showSynapseNotification) {
       window.showSynapseNotification('Team invitation accepted! 🎉', 'success');
     } else {
-      alert('Team invitation accepted!');
+      window.showToast('Team invitation accepted!', 'info');
     }
 
     // Refresh invitations list
@@ -831,7 +831,7 @@ window.acceptTeamInvitation = async function(invitationId) {
     if (window.showSynapseNotification) {
       window.showSynapseNotification('Failed to accept invitation', 'error');
     } else {
-      alert('Failed to accept invitation');
+      window.showToast('Failed to accept invitation', 'info');
     }
   }
 };
@@ -849,7 +849,7 @@ window.declineTeamInvitation = async function(invitationId) {
     if (window.showSynapseNotification) {
       window.showSynapseNotification('Team invitation declined', 'info');
     } else {
-      alert('Team invitation declined');
+      window.showToast('Team invitation declined', 'info');
     }
 
     // Refresh invitations list
@@ -861,7 +861,7 @@ window.declineTeamInvitation = async function(invitationId) {
     if (window.showSynapseNotification) {
       window.showSynapseNotification('Failed to decline invitation', 'error');
     } else {
-      alert('Failed to decline invitation');
+      window.showToast('Failed to decline invitation', 'info');
     }
   }
 };

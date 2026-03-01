@@ -75,8 +75,9 @@
     // Initial update
     await updateMessageCounts();
 
-    // Update periodically
-    updateInterval = setInterval(() => {
+    // Update periodically (pauses when tab is hidden to save battery)
+    const _vsi = window.visibilitySetInterval || setInterval;
+    updateInterval = _vsi(() => {
       updateMessageCounts();
     }, UPDATE_INTERVAL);
 
