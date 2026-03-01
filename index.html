@@ -502,6 +502,11 @@
     </aside>
     <!-- END COMMAND DASHBOARD -->
 
+    <!-- Panel collapse tab — desktop only, JS activates it -->
+    <button id="cd-panel-tab" aria-label="Toggle navigation panel" title="Collapse panel">
+      <i class="fas fa-chevron-left" id="cd-panel-tab-icon"></i>
+    </button>
+
     <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000; overflow: hidden; touch-action: pan-y pinch-zoom;">
       <svg id="synapse-svg" style="width:100%; height:100%; background: #000000; touch-action: none;"></svg>
     </div>
@@ -865,6 +870,7 @@
   <script src="assets/js/settings-modal.js?v=1" defer></script>
   <script src="assets/js/mobile-nav.js?v=1" defer></script>
   <script src="assets/js/swipe-dismiss.js?v=1" defer></script>
+  <script src="assets/js/cd-panel-collapse.js?v=1" defer></script>
 
   <!-- Avatar Upload Module -->
   <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>

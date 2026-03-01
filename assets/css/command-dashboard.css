@@ -1531,3 +1531,80 @@
 .cd-explore > #udc-add-form {
   display: none; /* these are now inside .cd-section-body */
 }
+
+/* ============================================================
+   PANEL COLLAPSE — desktop only
+   Toggle tab sits on right edge of panel; panel slides off-screen.
+   State controlled by body.panel-collapsed class (set by JS).
+   ============================================================ */
+
+/* Tab hidden on mobile */
+#cd-panel-tab {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* Smooth transitions when collapsing / expanding */
+  #command-dashboard {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #synapse-main-view {
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  #centered-search-container {
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  /* Toggle tab — pill attached to right edge of panel */
+  #cd-panel-tab {
+    display: flex;
+    position: fixed;
+    left: var(--cd-width);
+    top: 50%;
+    transform: translateY(-50%);
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 56px;
+    background: var(--cd-bg);
+    border: 1px solid var(--cd-border);
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    z-index: 600;
+    cursor: pointer;
+    color: var(--cd-text-dim);
+    font-size: 0.75rem;
+    padding: 0;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.2s,
+                border-color 0.2s,
+                border-radius 0.3s;
+  }
+  #cd-panel-tab:hover {
+    color: var(--cd-accent);
+    border-color: var(--cd-accent);
+  }
+
+  /* ── Collapsed state ─────────────────────────────────────── */
+  body.panel-collapsed #command-dashboard {
+    transform: translateX(calc(-1 * var(--cd-width)));
+  }
+  body.panel-collapsed #synapse-main-view {
+    left: 0 !important;
+  }
+  /* Tab flips to left wall when panel is hidden */
+  body.panel-collapsed #cd-panel-tab {
+    left: 0;
+    border-left: 1px solid var(--cd-border);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+  }
+  /* Re-centre the search bar when panel is gone */
+  body.panel-collapsed #centered-search-container {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+}
