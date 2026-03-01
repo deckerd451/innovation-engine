@@ -53,6 +53,90 @@
   }
   
   // ============================================================================
+  // CREATE MOBILE BOTTOM NAVIGATION
+  // ============================================================================
+  
+  function createMobileBottomNav() {
+    // Check if already exists
+    if (document.getElementById('mobile-bottom-nav')) return;
+    
+    // Create container
+    const bottomNav = document.createElement('div');
+    bottomNav.id = 'mobile-bottom-nav';
+    
+    // Network button
+    const networkBtn = document.createElement('button');
+    networkBtn.className = 'mobile-nav-btn active';
+    networkBtn.innerHTML = '<i class="fas fa-project-diagram"></i><span>Network</span>';
+    networkBtn.onclick = () => {
+      // Already on network view
+      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+      networkBtn.classList.add('active');
+    };
+    
+    // People button
+    const peopleBtn = document.createElement('button');
+    peopleBtn.className = 'mobile-nav-btn';
+    peopleBtn.innerHTML = '<i class="fas fa-users"></i><span>People</span>';
+    peopleBtn.onclick = () => {
+      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+      peopleBtn.classList.add('active');
+      
+      // Trigger search for people
+      const searchInput = document.getElementById('global-search');
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+        // Trigger search suggestions
+        const event = new Event('input', { bubbles: true });
+        searchInput.dispatchEvent(event);
+      }
+    };
+    
+    // Messages button
+    const messagesBtn = document.createElement('button');
+    messagesBtn.className = 'mobile-nav-btn';
+    messagesBtn.innerHTML = '<i class="fas fa-comments"></i><span>Messages</span>';
+    messagesBtn.onclick = () => {
+      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+      messagesBtn.classList.add('active');
+      
+      // Open messages
+      const msgBtn = document.getElementById('btn-messages');
+      if (msgBtn) {
+        msgBtn.click();
+      }
+    };
+    
+    // Profile button
+    const profileBtn = document.createElement('button');
+    profileBtn.className = 'mobile-nav-btn';
+    profileBtn.innerHTML = '<i class="fas fa-user"></i><span>You</span>';
+    profileBtn.onclick = () => {
+      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+      profileBtn.classList.add('active');
+      
+      // Open profile
+      const userMenu = document.getElementById('user-menu');
+      const dropdownProfile = document.getElementById('dropdown-profile');
+      if (dropdownProfile) {
+        dropdownProfile.click();
+      } else if (userMenu) {
+        userMenu.click();
+      }
+    };
+    
+    // Add buttons to nav
+    bottomNav.appendChild(networkBtn);
+    bottomNav.appendChild(peopleBtn);
+    bottomNav.appendChild(messagesBtn);
+    bottomNav.appendChild(profileBtn);
+    
+    // Add to body
+    document.body.appendChild(bottomNav);
+  }
+  
+  // ============================================================================
   // CLEAN UP ARTIFACTS
   // ============================================================================
   
@@ -114,6 +198,7 @@
     console.log('Mobile V3 Clean: Initializing...');
     
     createMobileTopBar();
+    createMobileBottomNav();
     cleanUpArtifacts();
     ensureButtonsWork();
     preventZoomOnInput();
