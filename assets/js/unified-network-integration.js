@@ -559,5 +559,5 @@ localStorage.removeItem('enable-unified-network');
 logger.info(INTEGRATION_NS, 'Integration module loaded (idempotent)');
 window.addEventListener('profile-loaded', () => {
   initUnifiedNetwork(null, 'synapse-svg').catch(() => {});
-});
+}, { once: true });
 
