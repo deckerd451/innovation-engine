@@ -87,10 +87,10 @@
 
   /* ── Search container: center within graph area ── */
   /* Graph area: from var(--cd-width) to 100vw. Center = cd-width/2 + 50vw */
-  /* With cd-width=420px: 210px + 50vw.
+  /* Uses CSS var so it tracks panel width changes automatically.
      No !important so drag-start inline styles (left/transform) can override. */
   #centered-search-container {
-    left: calc(50% + 210px);
+    left: calc(50% + var(--cd-width) / 2);
     transform: translateX(-50%);
   }
 
@@ -1606,5 +1606,56 @@
   body.panel-collapsed #centered-search-container {
     left: 50% !important;
     transform: translateX(-50%) !important;
+  }
+}
+
+/* ============================================================
+   RESIZE HANDLE — drag to widen / narrow the panel (desktop)
+   ============================================================ */
+#cd-resize-handle {
+  display: none; /* hidden on mobile */
+}
+
+@media (min-width: 1024px) {
+  #cd-resize-handle {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 20;
+    background: transparent;
+    transition: background 0.2s;
+  }
+
+  /* Grip indicator — short vertical bar that appears on hover/drag */
+  #cd-resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 40px;
+    border-radius: 2px;
+    background: var(--cd-border);
+    transition: background 0.2s, height 0.2s;
+  }
+
+  #cd-resize-handle:hover,
+  #cd-resize-handle.dragging {
+    background: rgba(0, 224, 255, 0.07);
+  }
+  #cd-resize-handle:hover::after,
+  #cd-resize-handle.dragging::after {
+    background: var(--cd-accent);
+    height: 64px;
+  }
+
+  /* Hide handle when panel is collapsed */
+  body.panel-collapsed #cd-resize-handle {
+    display: none;
   }
 }
