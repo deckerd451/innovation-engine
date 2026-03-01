@@ -1,0 +1,739 @@
+/**
+ * Mobile UX/UI Fixes
+ * Comprehensive fixes for mobile experience issues
+ * Last updated: 2026-03-01
+ */
+
+/* ============================================================================
+   1. COMMAND DASHBOARD - MOBILE VISIBILITY FIX
+   The command dashboard should be hidden on mobile by default
+   ============================================================================ */
+@media (max-width: 1023px) {
+  #command-dashboard {
+    display: none !important;
+  }
+  
+  /* Ensure graph takes full width on mobile */
+  #synapse-main-view {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+  }
+  
+  /* Center search on mobile */
+  #centered-search-container {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
+/* ============================================================================
+   2. TOUCH TARGET IMPROVEMENTS
+   Ensure all interactive elements meet 44x44px minimum
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* Buttons */
+  button,
+  .btn,
+  .oauth-btn,
+  .search-category-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* Links and clickable elements */
+  a,
+  [role="button"],
+  [onclick],
+  .clickable {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Input fields */
+  input,
+  textarea,
+  select {
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevents iOS zoom */
+  }
+}
+
+/* ============================================================================
+   3. HORIZONTAL SCROLL PREVENTION
+   Fix any elements that might cause horizontal scrolling
+   ============================================================================ */
+@media (max-width: 768px) {
+  * {
+    max-width: 100vw !important;
+  }
+  
+  html,
+  body {
+    overflow-x: hidden !important;
+    position: relative !important;
+    width: 100% !important;
+  }
+  
+  /* Ensure modals and overlays don't overflow */
+  .modal,
+  .overlay,
+  .panel {
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* ============================================================================
+   4. SEARCH BAR MOBILE IMPROVEMENTS
+   Better positioning and usability on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  #centered-search-container {
+    position: fixed !important;
+    bottom: 20px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    z-index: 100 !important;
+  }
+  
+  #search-container {
+    width: 100% !important;
+  }
+  
+  #global-search {
+    font-size: 16px !important; /* Prevents iOS zoom */
+    padding: 12px 60px 12px 40px !important;
+  }
+  
+  #search-button {
+    padding: 10px 16px !important;
+  }
+  
+  /* Search suggestions positioning */
+  #search-suggestions {
+    bottom: calc(100% + 8px) !important;
+    top: auto !important;
+    max-height: 50vh !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+}
+
+/* ============================================================================
+   5. TOP HEADER BUTTONS - MOBILE LAYOUT
+   Fix spacing and positioning of top-right buttons
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* Container for top-right buttons */
+  #main-content > div[style*="top:20px"][style*="right:20px"] {
+    top: 10px !important;
+    right: 10px !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+  }
+  
+  /* Individual button sizing */
+  #btn-refresh-network,
+  #btn-logout-header,
+  #btn-start-nav {
+    width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Hide text labels on mobile, keep icons */
+  #btn-refresh-network span,
+  #btn-logout-header span {
+    display: none !important;
+  }
+}
+
+/* ============================================================================
+   6. MODAL AND OVERLAY IMPROVEMENTS
+   Better mobile modal experience
+   ============================================================================ */
+@media (max-width: 768px) {
+  .modal,
+  .ch-modal-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+  }
+  
+  .modal-content,
+  .ch-modal-panel {
+    max-width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
+    max-height: calc(var(--vh, 1vh) * 100 - 32px) !important;
+    margin: 16px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Close button positioning */
+  .modal-close,
+  .ch-modal-close {
+    position: sticky !important;
+    top: 8px !important;
+    right: 8px !important;
+    z-index: 10 !important;
+  }
+}
+
+/* ============================================================================
+   7. KEYBOARD HANDLING
+   Adjust layout when keyboard is open
+   ============================================================================ */
+@media (max-width: 768px) {
+  body.keyboard-open #centered-search-container {
+    bottom: 8px !important;
+  }
+  
+  body.keyboard-open #btn-refresh-network {
+    display: none !important;
+  }
+}
+
+/* ============================================================================
+   8. LANDSCAPE MODE OPTIMIZATIONS
+   Better use of horizontal space in landscape
+   ============================================================================ */
+@media (max-width: 768px) and (orientation: landscape) {
+  #centered-search-container {
+    bottom: 12px !important;
+    width: calc(100vw - 48px) !important;
+    max-width: 600px !important;
+  }
+  
+  .modal-content,
+  .ch-modal-panel {
+    max-height: calc(100vh - 24px) !important;
+  }
+}
+
+/* ============================================================================
+   9. PULL-TO-REFRESH INDICATOR
+   Style for the pull-to-refresh indicator
+   ============================================================================ */
+@media (max-width: 768px) {
+  #pull-indicator {
+    position: fixed !important;
+    top: 20px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    color: #00e0ff !important;
+    font-size: 1.5rem !important;
+    z-index: 10000 !important;
+    opacity: 0 !important;
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+    pointer-events: none !important;
+  }
+}
+
+/* ============================================================================
+   10. LOADING STATES
+   Better loading indicators on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  .loading,
+  .spinner {
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+/* ============================================================================
+   11. NOTIFICATION POSITIONING
+   Fix notification positioning on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  .xp-notification,
+  .unified-network-notification,
+  .toast-mobile {
+    position: fixed !important;
+    top: 16px !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    max-width: calc(100vw - 32px) !important;
+    z-index: 10000 !important;
+  }
+}
+
+/* ============================================================================
+   12. PROFILE CARDS AND USER CARDS
+   Better mobile layout for cards
+   ============================================================================ */
+@media (max-width: 768px) {
+  .user-card,
+  .profile-card,
+  .card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 8px 0 !important;
+  }
+}
+
+/* ============================================================================
+   13. SWIPE GESTURE INDICATORS
+   Visual feedback for swipe gestures
+   ============================================================================ */
+@media (max-width: 768px) {
+  .swipeable {
+    position: relative !important;
+  }
+  
+  .swipeable::after {
+    content: '' !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 4px !important;
+    height: 40px !important;
+    background: rgba(0, 224, 255, 0.2) !important;
+    border-radius: 2px !important;
+    pointer-events: none !important;
+  }
+}
+
+/* ============================================================================
+   14. BOTTOM NAVIGATION SAFE AREA
+   Ensure bottom elements respect safe area
+   ============================================================================ */
+@media (max-width: 768px) {
+  #centered-search-container {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+}
+
+/* ============================================================================
+   15. TEXT SELECTION AND COPY
+   Improve text selection on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  p,
+  span,
+  div:not([contenteditable]) {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+  }
+  
+  button,
+  a,
+  [role="button"] {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+}
+
+/* ============================================================================
+   16. FOCUS VISIBLE IMPROVEMENTS
+   Better focus indicators for keyboard navigation
+   ============================================================================ */
+@media (max-width: 768px) {
+  *:focus-visible {
+    outline: 3px solid #00e0ff !important;
+    outline-offset: 2px !important;
+  }
+  
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible {
+    outline: 3px solid #00e0ff !important;
+    outline-offset: 2px !important;
+  }
+}
+
+/* ============================================================================
+   17. DRAG HANDLE IMPROVEMENTS
+   Make drag handles more visible and usable
+   ============================================================================ */
+@media (max-width: 768px) {
+  #search-drag-handle {
+    height: 20px !important;
+    cursor: grab !important;
+    touch-action: none !important;
+  }
+  
+  #search-drag-handle:active {
+    cursor: grabbing !important;
+  }
+}
+
+/* ============================================================================
+   18. PREVENT DOUBLE-TAP ZOOM
+   Disable double-tap zoom on specific elements
+   ============================================================================ */
+@media (max-width: 768px) {
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation !important;
+  }
+}
+
+/* ============================================================================
+   19. IMPROVED SCROLLING
+   Smooth scrolling and momentum
+   ============================================================================ */
+@media (max-width: 768px) {
+  .scrollable,
+  .modal-content,
+  #search-suggestions {
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+}
+
+/* ============================================================================
+   20. SMALL SCREEN OPTIMIZATIONS (iPhone SE, small Android)
+   ============================================================================ */
+@media (max-width: 375px) {
+  #centered-search-container {
+    width: calc(100vw - 16px) !important;
+    bottom: 12px !important;
+  }
+  
+  #global-search {
+    font-size: 14px !important;
+    padding: 10px 50px 10px 36px !important;
+  }
+  
+  #search-button {
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+  }
+  
+  /* Smaller top buttons */
+  #btn-refresh-network,
+  #btn-logout-header {
+    width: 40px !important;
+    height: 40px !important;
+  }
+}
+
+
+/* ============================================================================
+   21. LOGIN SCREEN MOBILE IMPROVEMENTS
+   Better login experience on mobile devices
+   ============================================================================ */
+@media (max-width: 768px) {
+  #login-section {
+    padding: 1rem !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .login-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 1rem !important;
+  }
+  
+  .login-container img {
+    max-width: 280px !important;
+    height: auto !important;
+  }
+  
+  .login-container h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  .login-container p {
+    font-size: 0.95rem !important;
+  }
+  
+  /* OAuth buttons */
+  .oauth-btn {
+    width: 100% !important;
+    padding: 14px 20px !important;
+    font-size: 16px !important;
+    min-height: 52px !important;
+  }
+  
+  .oauth-icon-circle {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  
+  /* Email inputs */
+  #email-input,
+  #password-input {
+    font-size: 16px !important;
+    padding: 14px 16px !important;
+    min-height: 52px !important;
+  }
+  
+  /* Feature grid */
+  .login-container > div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .login-container img {
+    max-width: 240px !important;
+  }
+  
+  .login-container h2 {
+    font-size: 1.1rem !important;
+  }
+}
+
+/* ============================================================================
+   22. GRAPH INTERACTION IMPROVEMENTS
+   Better touch interaction with the network graph
+   ============================================================================ */
+@media (max-width: 768px) {
+  #synapse-svg {
+    touch-action: pan-y pinch-zoom !important;
+    user-select: none !important;
+  }
+  
+  /* Node circles should be larger on mobile for easier tapping */
+  #synapse-svg circle {
+    r: 8 !important;
+  }
+  
+  #synapse-svg circle:hover,
+  #synapse-svg circle:active {
+    r: 12 !important;
+  }
+}
+
+/* ============================================================================
+   23. SIDE PANEL MOBILE IMPROVEMENTS
+   Better side panel behavior on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  .node-panel,
+  #node-side-panel {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    transform: translateX(100%) !important;
+    transition: transform 0.3s ease !important;
+    z-index: 2000 !important;
+  }
+  
+  .node-panel.active,
+  #node-side-panel.active {
+    transform: translateX(0) !important;
+  }
+  
+  /* Close button should be prominent */
+  .node-panel .close-btn,
+  #node-side-panel .close-btn {
+    position: sticky !important;
+    top: 8px !important;
+    right: 8px !important;
+    width: 44px !important;
+    height: 44px !important;
+    z-index: 10 !important;
+  }
+}
+
+/* ============================================================================
+   24. CONNECTION REQUESTS PANEL MOBILE
+   Better mobile layout for connection requests
+   ============================================================================ */
+@media (max-width: 768px) {
+  .connection-requests-panel {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+/* ============================================================================
+   25. MESSAGING MODAL MOBILE
+   Full-screen messaging on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  #messages-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .messages-container {
+    height: 100% !important;
+  }
+  
+  .message-input {
+    font-size: 16px !important;
+    padding: 12px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* ============================================================================
+   26. ADMIN PANEL MOBILE
+   Better admin panel on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  #admin-panel,
+  .admin-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+  }
+  
+  .admin-tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+  }
+  
+  .admin-tab {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* ============================================================================
+   27. PROFILE EDIT MODAL MOBILE
+   Better profile editing on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  #profile-modal,
+  .profile-edit-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+  }
+  
+  .profile-form input,
+  .profile-form textarea,
+  .profile-form select {
+    font-size: 16px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* ============================================================================
+   28. FILTER PILLS MOBILE LAYOUT
+   Better category filter layout on mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  #category-action-bar {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  .search-category-btn {
+    padding: 8px 14px !important;
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* ============================================================================
+   29. TOAST NOTIFICATIONS MOBILE
+   Better notification positioning
+   ============================================================================ */
+@media (max-width: 768px) {
+  .toast,
+  .notification {
+    position: fixed !important;
+    top: 16px !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    max-width: calc(100vw - 32px) !important;
+    z-index: 10000 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  }
+}
+
+/* ============================================================================
+   30. ACCESSIBILITY - HIGH CONTRAST MODE
+   Better visibility in high contrast mode
+   ============================================================================ */
+@media (max-width: 768px) and (prefers-contrast: high) {
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    border-width: 2px !important;
+  }
+  
+  *:focus-visible {
+    outline-width: 4px !important;
+  }
+}
+
+/* ============================================================================
+   31. REDUCED MOTION SUPPORT
+   Respect user's motion preferences
+   ============================================================================ */
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================================
+   32. DARK MODE IMPROVEMENTS
+   Better dark mode on mobile
+   ============================================================================ */
+@media (max-width: 768px) and (prefers-color-scheme: dark) {
+  body {
+    background: #000 !important;
+  }
+  
+  .modal,
+  .panel,
+  .card {
+    background: rgba(10, 14, 39, 0.95) !important;
+  }
+}

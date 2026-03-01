@@ -8,14 +8,29 @@ let isPulling = false;
 function initMobileEnhancements() {
   if (!isMobile()) return;
   
+  setViewportHeight();
   addPullToRefresh();
   addSwipeGestures();
   optimizeTouchTargets();
   handleKeyboardResize();
+  preventDoubleTapZoom();
+  improveScrolling();
 }
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Set CSS custom property for viewport height (fixes iOS address bar issues)
+function setViewportHeight() {
+  const setVH = () => {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  };
+  
+  setVH();
+  window.addEventListener('resize', setVH);
+  window.addEventListener('orientationchange', setVH);
 }
 
 function addPullToRefresh() {
@@ -141,13 +156,34 @@ function handleSwipeLeft() {
 }
 
 function optimizeTouchTargets() {
-  const buttons = document.querySelectorAll('button, a, .clickable');
+  const buttons = document.querySelectorAll('button, a, .clickable, [role="button"]');
   buttons.forEach(btn => {
     const rect = btn.getBoundingClientRect();
-    if (rect.height < 44) {
+    if (rect.height < 44 || rect.width < 44) {
       btn.style.minHeight = '44px';
       btn.style.minWidth = '44px';
+      btn.style.display = 'inline-flex';
+      btn.style.alignItems = 'center';
+      btn.style.justifyContent = 'center';
     }
+  });
+}
+
+function preventDoubleTapZoom() {
+  // Prevent double-tap zoom on buttons and interactive elements
+  document.addEventListener('touchstart', (e) => {
+    if (e.target.matches('button, a, [role="button"], input, select, textarea')) {
+      e.target.style.touchAction = 'manipulation';
+    }
+  }, { passive: true });
+}
+
+function improveScrolling() {
+  // Add smooth scrolling to scrollable containers
+  const scrollables = document.querySelectorAll('.scrollable, .modal-content, #search-suggestions');
+  scrollables.forEach(el => {
+    el.style.webkitOverflowScrolling = 'touch';
+    el.style.overscrollBehavior = 'contain';
   });
 }
 
