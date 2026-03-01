@@ -54,8 +54,7 @@
     bottom: 0 !important;
     width: var(--cd-width) !important;
     height: 100% !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: hidden !important;
     background: var(--cd-bg) !important;
     border-right: 1px solid var(--cd-border) !important;
     display: flex !important;
@@ -63,10 +62,18 @@
     z-index: 500 !important;
   }
 
-  /* Custom scrollbar */
-  #command-dashboard::-webkit-scrollbar { width: 4px; }
-  #command-dashboard::-webkit-scrollbar-track { background: transparent; }
-  #command-dashboard::-webkit-scrollbar-thumb {
+  /* Scrollable inner area — fills remaining height between top and footer */
+  #command-dashboard .cd-scroll-area {
+    flex: 1;
+    min-height: 0;        /* essential for flex child overflow to work */
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar on the scroll area */
+  #command-dashboard .cd-scroll-area::-webkit-scrollbar { width: 4px; }
+  #command-dashboard .cd-scroll-area::-webkit-scrollbar-track { background: transparent; }
+  #command-dashboard .cd-scroll-area::-webkit-scrollbar-thumb {
     background: var(--cd-scrollbar);
     border-radius: 4px;
   }
@@ -114,9 +121,15 @@
     background: transparent !important;
     border-right: none !important;
     border-top: 1px solid rgba(0, 224, 255, 0.12);
-    overflow-y: visible !important; /* parent pane handles scroll */
-    overflow-x: hidden !important;
+    overflow: visible !important;  /* parent pane handles scroll */
     z-index: auto !important;
+  }
+
+  /* On mobile the scroll area should not clip — let parent scroll */
+  #command-dashboard.cd-mobile-panel .cd-scroll-area {
+    flex: none;
+    min-height: unset;
+    overflow: visible;
   }
 
   /* Compact header */
@@ -942,7 +955,6 @@
   padding: 0.6rem 1rem;
   border-top: 1px solid var(--cd-border);
   flex-shrink: 0;
-  margin-top: auto;
 }
 
 .cd-report-btn {
