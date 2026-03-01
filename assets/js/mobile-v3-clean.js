@@ -208,6 +208,27 @@
   }
   
   // ============================================================================
+  // HIDE COMPETING LOADING STATES
+  // ============================================================================
+  
+  function hideLoadingStates() {
+    const loadingElements = document.querySelectorAll(
+      '.loading, .loader, .spinner, .loading-spinner, .loading-overlay, .loading-indicator, ' +
+      '[class*="loading"], [class*="spinner"], [class*="loader"], ' +
+      '[id*="loading"], [id*="spinner"], [id*="loader"]'
+    );
+    
+    loadingElements.forEach(el => {
+      // Skip the main loading indicator if it exists
+      if (el.id === 'main-loading') return;
+      
+      el.style.display = 'none';
+      el.style.visibility = 'hidden';
+      el.style.opacity = '0';
+    });
+  }
+  
+  // ============================================================================
   // LOCK VIEWPORT - PREVENT NODES FROM BEING CUT OFF
   // ============================================================================
   
@@ -284,6 +305,7 @@
     createMobileTopBar();
     createMobileBottomNav();
     hideLegend();
+    hideLoadingStates();
     lockViewport();
     hideConnectionLines();
     preventConnectionLines();
@@ -295,11 +317,13 @@
     window.addEventListener('resize', () => {
       lockViewport();
       hideLegend();
+      hideLoadingStates();
     });
     
     // Re-run cleanup after DOM changes
     const observer = new MutationObserver(() => {
       hideLegend();
+      hideLoadingStates();
       hideConnectionLines();
       cleanUpArtifacts();
       ensureButtonsWork();

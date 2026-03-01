@@ -43,6 +43,31 @@
     opacity: 0 !important;
   }
   
+  /* ── HIDE COMPETING LOADING STATES ───────────────────────────────────── */
+  .loading,
+  .loader,
+  .spinner,
+  .loading-spinner,
+  .loading-overlay,
+  .loading-indicator,
+  [class*="loading"],
+  [class*="spinner"],
+  [class*="loader"],
+  [id*="loading"],
+  [id*="spinner"],
+  [id*="loader"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+  
+  /* Keep only the main loading state if needed */
+  #main-loading {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
   /* ── Hide any floating UI elements that cause clutter ───────────────────── */
   .floating-badge,
   .corner-badge,
