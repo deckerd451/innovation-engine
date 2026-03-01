@@ -36,23 +36,52 @@
     const topBar = document.createElement('div');
     topBar.id = 'mobile-top-bar';
     
+    // Create notification bell button
+    const bellBtn = document.createElement('button');
+    bellBtn.id = 'btn-mobile-bell';
+    bellBtn.className = 'mobile-top-btn';
+    bellBtn.innerHTML = '<i class="fas fa-bell"></i>';
+    bellBtn.title = 'Messages';
+    bellBtn.onclick = () => {
+      // Open messages modal
+      const messagesBtn = document.getElementById('btn-messages');
+      const cdBellBtn = document.getElementById('cd-bell-btn');
+      
+      if (messagesBtn) {
+        messagesBtn.click();
+      } else if (cdBellBtn) {
+        cdBellBtn.click();
+      } else if (typeof window.openMessagesModal === 'function') {
+        window.openMessagesModal();
+      }
+    };
+    topBar.appendChild(bellBtn);
+    
     // Find existing buttons
     const refreshBtn = document.getElementById('btn-refresh-network');
     const logoutBtn = document.getElementById('btn-logout-header');
     const adminBtn = document.getElementById('btn-admin-top');
     
     if (refreshBtn) {
+      refreshBtn.classList.add('mobile-top-btn');
       topBar.appendChild(refreshBtn);
-    }
-    
-    if (logoutBtn) {
-      topBar.appendChild(logoutBtn);
     }
     
     // Check if user is admin and add admin button
     if (adminBtn && window.isAdminUser && window.isAdminUser()) {
       adminBtn.style.display = 'flex';
+      adminBtn.classList.add('mobile-top-btn');
+      // Replace crown with cog icon
+      const icon = adminBtn.querySelector('i');
+      if (icon) {
+        icon.className = 'fas fa-user-shield';
+      }
       topBar.appendChild(adminBtn);
+    }
+    
+    if (logoutBtn) {
+      logoutBtn.classList.add('mobile-top-btn');
+      topBar.appendChild(logoutBtn);
     }
     
     // Add to body
@@ -60,7 +89,37 @@
     
     // Make draggable
     makeDraggable(topBar);
+    
+    // Update bell badge if messages exist
+    updateBellBadge();
   }
+  
+  // ============================================================================
+  // UPDATE BELL BADGE
+  // ============================================================================
+  
+  function updateBellBadge() {
+    const bellBtn = document.getElementById('btn-mobile-bell');
+    if (!bellBtn) return;
+    
+    // Check for unread messages
+    const cdBellBadge = document.getElementById('cd-bell-badge');
+    if (cdBellBadge && cdBellBadge.textContent && cdBellBadge.textContent !== '0') {
+      // Add badge to mobile bell
+      let badge = bellBtn.querySelector('.mobile-bell-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'mobile-bell-badge';
+        bellBtn.appendChild(badge);
+      }
+      badge.textContent = cdBellBadge.textContent;
+      badge.style.display = 'block';
+    }
+  }
+  
+  // Listen for message updates
+  window.addEventListener('messages-updated', updateBellBadge);
+  window.addEventListener('profile-loaded', () => setTimeout(updateBellBadge, 500));
   
   // ============================================================================
   // DRAGGABLE FUNCTIONALITY
@@ -261,6 +320,232 @@
     } else {
       // Focus search for normal categories
       setTimeout(() => searchInput.focus(), 350);
+      
+      // Trigger category-specific search
+      triggerCategorySearch(category);
+    }
+  }
+  
+  function triggerCategorySearch(category) {
+    const searchInput = document.getElementById('global-search');
+    if (!searchInput) return;
+    
+    // Clear previous search
+    searchInput.value = '';
+    
+    // Set up search filter based on category
+    window.currentSearchCategory = category;
+    
+    // Show category-specific suggestions immediately
+    showCategorySuggestions(category);
+  }
+  
+  async function showCategorySuggestions(category) {
+    const container = document.getElementById('search-suggestions');
+    if (!container) return;
+    
+    container.style.display = 'block';
+    container.innerHTML = '<div class="suggestion-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    
+    try {
+      let results = [];
+      
+      switch(category) {
+        case 'people':
+          results = await fetchPeople();
+          displayPeopleSuggestions(results);
+          break;
+        case 'organizations':
+          results = await fetchOrganizations();
+          displayOrganizationsSuggestions(results);
+          break;
+        case 'projects':
+          results = await fetchProjects();
+          displayProjectsSuggestions(results);
+          break;
+        case 'opportunities':
+          results = await fetchOpportunities();
+          displayOpportunitiesSuggestions(results);
+          break;
+      }
+    } catch (err) {
+      console.error('Error loading suggestions:', err);
+      container.innerHTML = '<div class="no-results">Error loading suggestions</div>';
+    }
+  }
+  
+  async function fetchPeople() {
+    if (!window.supabase) return [];
+    const { data } = await window.supabase
+      .from('community')
+      .select('id, display_name, email, image_url, skills')
+      .limit(20);
+    return data || [];
+  }
+  
+  async function fetchOrganizations() {
+    if (!window.supabase) return [];
+    const { data } = await window.supabase
+      .from('organizations')
+      .select('id, name, description, logo_url')
+      .limit(20);
+    return data || [];
+  }
+  
+  async function fetchProjects() {
+    if (!window.supabase) return [];
+    const { data } = await window.supabase
+      .from('projects')
+      .select('id, title, description, status')
+      .limit(20);
+    return data || [];
+  }
+  
+  async function fetchOpportunities() {
+    if (!window.supabase) return [];
+    const { data } = await window.supabase
+      .from('opportunities')
+      .select('id, title, description, type')
+      .limit(20);
+    return data || [];
+  }
+  
+  function displayPeopleSuggestions(people) {
+    const container = document.getElementById('search-suggestions');
+    if (!container) return;
+    
+    if (people.length === 0) {
+      container.innerHTML = '<div class="no-results">No people found</div>';
+      return;
+    }
+    
+    let html = '<div class="suggestion-group"><div class="suggestion-header">People in Network</div>';
+    people.forEach(person => {
+      const skills = person.skills ? person.skills.slice(0, 3).join(', ') : '';
+      html += `
+        <div class="suggestion-item" onclick="window.selectPerson('${person.id}')">
+          <i class="fas fa-user"></i>
+          <div>
+            <div>${person.display_name || person.email}</div>
+            ${skills ? `<div style="font-size:0.8rem; color:#888;">${skills}</div>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+  
+  function displayOrganizationsSuggestions(orgs) {
+    const container = document.getElementById('search-suggestions');
+    if (!container) return;
+    
+    if (orgs.length === 0) {
+      container.innerHTML = '<div class="no-results">No organizations found</div>';
+      return;
+    }
+    
+    let html = '<div class="suggestion-group"><div class="suggestion-header">Organizations</div>';
+    orgs.forEach(org => {
+      html += `
+        <div class="suggestion-item" onclick="window.selectOrganization('${org.id}')">
+          <i class="fas fa-building"></i>
+          <div>
+            <div>${org.name}</div>
+            ${org.description ? `<div style="font-size:0.8rem; color:#888;">${org.description.substring(0, 60)}...</div>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+  
+  function displayProjectsSuggestions(projects) {
+    const container = document.getElementById('search-suggestions');
+    if (!container) return;
+    
+    if (projects.length === 0) {
+      container.innerHTML = '<div class="no-results">No projects found</div>';
+      return;
+    }
+    
+    let html = '<div class="suggestion-group"><div class="suggestion-header">Projects</div>';
+    projects.forEach(project => {
+      html += `
+        <div class="suggestion-item" onclick="window.selectProject('${project.id}')">
+          <i class="fas fa-lightbulb"></i>
+          <div>
+            <div>${project.title}</div>
+            ${project.description ? `<div style="font-size:0.8rem; color:#888;">${project.description.substring(0, 60)}...</div>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+  
+  function displayOpportunitiesSuggestions(opportunities) {
+    const container = document.getElementById('search-suggestions');
+    if (!container) return;
+    
+    if (opportunities.length === 0) {
+      container.innerHTML = '<div class="no-results">No opportunities found</div>';
+      return;
+    }
+    
+    let html = '<div class="suggestion-group"><div class="suggestion-header">Opportunities</div>';
+    opportunities.forEach(opp => {
+      html += `
+        <div class="suggestion-item" onclick="window.selectOpportunity('${opp.id}')">
+          <i class="fas fa-briefcase"></i>
+          <div>
+            <div>${opp.title}</div>
+            ${opp.description ? `<div style="font-size:0.8rem; color:#888;">${opp.description.substring(0, 60)}...</div>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+  
+  // Global selection functions
+  window.selectPerson = function(id) {
+    if (typeof window.openNodePanel === 'function') {
+      window.openNodePanel({ id, type: 'person' });
+    } else if (typeof window.openProfileModal === 'function') {
+      window.openProfileModal(id);
+    }
+    hideSearchSuggestions();
+  };
+  
+  window.selectOrganization = function(id) {
+    if (typeof window.openNodePanel === 'function') {
+      window.openNodePanel({ id, type: 'organization' });
+    }
+    hideSearchSuggestions();
+  };
+  
+  window.selectProject = function(id) {
+    if (typeof window.openNodePanel === 'function') {
+      window.openNodePanel({ id, type: 'project' });
+    }
+    hideSearchSuggestions();
+  };
+  
+  window.selectOpportunity = function(id) {
+    if (typeof window.openNodePanel === 'function') {
+      window.openNodePanel({ id, type: 'opportunity' });
+    }
+    hideSearchSuggestions();
+  };
+  
+  function hideSearchSuggestions() {
+    const container = document.getElementById('search-suggestions');
+    if (container) {
+      container.style.display = 'none';
     }
   }
   
@@ -271,6 +556,14 @@
       reportBtn.click();
     } else if (typeof window.generateNetworkReport === 'function') {
       window.generateNetworkReport();
+    } else if (typeof window.openNetworkStatsModal === 'function') {
+      window.openNetworkStatsModal();
+    }
+    
+    // Hide search bar for report
+    const searchContainer = document.getElementById('centered-search-container');
+    if (searchContainer) {
+      searchContainer.style.display = 'none';
     }
   }
   
@@ -280,6 +573,14 @@
       window.EnhancedStartUI.open();
     } else if (typeof window.openStartModal === 'function') {
       window.openStartModal();
+    } else if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
+      window.UnifiedNotifications.showPanel();
+    }
+    
+    // Hide search bar for intelligence
+    const searchContainer = document.getElementById('centered-search-container');
+    if (searchContainer) {
+      searchContainer.style.display = 'none';
     }
   }
   

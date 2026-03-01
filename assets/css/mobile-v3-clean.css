@@ -228,9 +228,11 @@
   }
   
   /* ── Top buttons ─────────────────────────────────────────────────────── */
+  .mobile-top-btn,
   #btn-refresh-network,
   #btn-logout-header,
-  #btn-admin-top {
+  #btn-admin-top,
+  #btn-mobile-bell {
     width: 44px !important;
     height: 44px !important;
     min-width: 44px !important;
@@ -247,15 +249,46 @@
     touch-action: manipulation !important;
     cursor: pointer !important;
     z-index: 10000 !important;
+    position: relative !important;
   }
   
+  .mobile-top-btn i,
   #btn-refresh-network i,
-  #btn-admin-top i {
+  #btn-admin-top i,
+  #btn-mobile-bell i {
     font-size: 1.1rem !important;
     color: #00e0ff !important;
     pointer-events: none !important;
   }
   
+  /* Notification bell specific styling */
+  #btn-mobile-bell {
+    border-color: rgba(0, 224, 255, 0.4) !important;
+  }
+  
+  #btn-mobile-bell i {
+    color: #00e0ff !important;
+  }
+  
+  /* Bell badge */
+  .mobile-bell-badge {
+    position: absolute !important;
+    top: -4px !important;
+    right: -4px !important;
+    background: #ff3b30 !important;
+    color: #fff !important;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    padding: 2px 6px !important;
+    border-radius: 10px !important;
+    min-width: 18px !important;
+    text-align: center !important;
+    border: 2px solid #000 !important;
+    display: none !important;
+    pointer-events: none !important;
+  }
+  
+  /* Logout button */
   #btn-logout-header {
     border-color: rgba(255, 107, 107, 0.3) !important;
   }
@@ -265,6 +298,7 @@
     pointer-events: none !important;
   }
   
+  /* Admin button */
   #btn-admin-top {
     border-color: rgba(255, 170, 0, 0.3) !important;
   }
@@ -386,6 +420,78 @@
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     z-index: 9999 !important;
+    padding: 8px !important;
+  }
+  
+  .suggestion-loading {
+    padding: 2rem !important;
+    text-align: center !important;
+    color: #00e0ff !important;
+    font-size: 1rem !important;
+  }
+  
+  .suggestion-loading i {
+    font-size: 1.5rem !important;
+    margin-bottom: 0.5rem !important;
+    display: block !important;
+  }
+  
+  .suggestion-group {
+    margin-bottom: 1rem !important;
+  }
+  
+  .suggestion-header {
+    color: #00e0ff !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    padding: 0.5rem 0.75rem !important;
+    letter-spacing: 0.5px !important;
+  }
+  
+  .suggestion-item {
+    padding: 0.75rem !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    background: rgba(0, 224, 255, 0.05) !important;
+    margin-bottom: 4px !important;
+  }
+  
+  .suggestion-item:active {
+    background: rgba(0, 224, 255, 0.15) !important;
+    transform: scale(0.98) !important;
+  }
+  
+  .suggestion-item i {
+    color: #00e0ff !important;
+    font-size: 1.1rem !important;
+    width: 20px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .suggestion-item > div {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+  
+  .suggestion-item > div > div:first-child {
+    color: #fff !important;
+    font-weight: 500 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
+  .no-results {
+    padding: 2rem !important;
+    text-align: center !important;
+    color: #888 !important;
+    font-size: 0.9rem !important;
   }
 
 }
