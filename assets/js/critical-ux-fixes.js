@@ -192,13 +192,7 @@
   // ================================================================
 
   function enhanceNotificationBell() {
-    // Notification bell already has badge and empty state
-    // Just ensure it's working correctly
-    if (window.NotificationBell) {
-      console.log('✅ Notification bell already has visible feedback');
-    } else {
-      console.warn('⚠️ Notification bell not loaded yet');
-    }
+    // Notification bell already has badge and empty state — nothing to patch.
   }
 
   // ================================================================
