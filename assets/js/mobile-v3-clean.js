@@ -25,7 +25,7 @@
   window.addEventListener('orientationchange', () => setTimeout(setViewportHeight, 100));
   
   // ============================================================================
-  // CREATE MOBILE TOP BAR
+  // CREATE MOBILE TOP BAR - DRAGGABLE
   // ============================================================================
   
   function createMobileTopBar() {
@@ -39,6 +39,7 @@
     // Find existing buttons
     const refreshBtn = document.getElementById('btn-refresh-network');
     const logoutBtn = document.getElementById('btn-logout-header');
+    const adminBtn = document.getElementById('btn-admin-top');
     
     if (refreshBtn) {
       topBar.appendChild(refreshBtn);
@@ -48,92 +49,238 @@
       topBar.appendChild(logoutBtn);
     }
     
+    // Check if user is admin and add admin button
+    if (adminBtn && window.isAdminUser && window.isAdminUser()) {
+      adminBtn.style.display = 'flex';
+      topBar.appendChild(adminBtn);
+    }
+    
     // Add to body
     document.body.appendChild(topBar);
+    
+    // Make draggable
+    makeDraggable(topBar);
+  }
+  
+  // ============================================================================
+  // DRAGGABLE FUNCTIONALITY
+  // ============================================================================
+  
+  function makeDraggable(element) {
+    let isDragging = false;
+    let currentX;
+    let currentY;
+    let initialX;
+    let initialY;
+    let xOffset = 0;
+    let yOffset = 0;
+    
+    // Get initial position from computed style
+    const rect = element.getBoundingClientRect();
+    xOffset = rect.right - window.innerWidth;
+    yOffset = rect.top;
+    
+    element.addEventListener('touchstart', dragStart, { passive: false });
+    element.addEventListener('touchend', dragEnd);
+    element.addEventListener('touchmove', drag, { passive: false });
+    
+    element.addEventListener('mousedown', dragStart);
+    element.addEventListener('mouseup', dragEnd);
+    element.addEventListener('mousemove', drag);
+    
+    function dragStart(e) {
+      // Only drag if touching the container, not the buttons
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'I') {
+        return;
+      }
+      
+      if (e.type === 'touchstart') {
+        initialX = e.touches[0].clientX - xOffset;
+        initialY = e.touches[0].clientY - yOffset;
+      } else {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+      }
+      
+      isDragging = true;
+      element.style.cursor = 'grabbing';
+    }
+    
+    function dragEnd(e) {
+      initialX = currentX;
+      initialY = currentY;
+      isDragging = false;
+      element.style.cursor = 'grab';
+      
+      // Save position to localStorage
+      localStorage.setItem('mobile-top-bar-position', JSON.stringify({ x: xOffset, y: yOffset }));
+    }
+    
+    function drag(e) {
+      if (!isDragging) return;
+      
+      e.preventDefault();
+      
+      if (e.type === 'touchmove') {
+        currentX = e.touches[0].clientX - initialX;
+        currentY = e.touches[0].clientY - initialY;
+      } else {
+        currentX = e.clientX - initialX;
+        currentY = e.clientY - initialY;
+      }
+      
+      xOffset = currentX;
+      yOffset = currentY;
+      
+      // Constrain to viewport
+      const maxX = window.innerWidth - element.offsetWidth - 12;
+      const maxY = window.innerHeight - element.offsetHeight - 12;
+      
+      xOffset = Math.max(12, Math.min(xOffset, maxX));
+      yOffset = Math.max(12, Math.min(yOffset, maxY));
+      
+      setTranslate(xOffset, yOffset, element);
+    }
+    
+    function setTranslate(xPos, yPos, el) {
+      el.style.right = 'auto';
+      el.style.left = xPos + 'px';
+      el.style.top = yPos + 'px';
+    }
+    
+    // Restore saved position
+    const savedPosition = localStorage.getItem('mobile-top-bar-position');
+    if (savedPosition) {
+      try {
+        const pos = JSON.parse(savedPosition);
+        xOffset = pos.x;
+        yOffset = pos.y;
+        setTranslate(xOffset, yOffset, element);
+      } catch (e) {
+        // Ignore invalid saved position
+      }
+    }
+    
+    // Add visual indicator that it's draggable
+    element.style.cursor = 'grab';
   }
   
   // ============================================================================
   // CREATE MOBILE BOTTOM NAVIGATION
   // ============================================================================
   
+  let currentSearchCategory = null;
+  
   function createMobileBottomNav() {
     // Check if already exists
     if (document.getElementById('mobile-bottom-nav')) return;
     
-    // Create container
+    // Create scrollable container
     const bottomNav = document.createElement('div');
     bottomNav.id = 'mobile-bottom-nav';
     
-    // Network button
-    const networkBtn = document.createElement('button');
-    networkBtn.className = 'mobile-nav-btn active';
-    networkBtn.innerHTML = '<i class="fas fa-project-diagram"></i><span>Network</span>';
-    networkBtn.onclick = () => {
-      // Already on network view
-      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
-      networkBtn.classList.add('active');
-    };
+    // Create scrollable button container
+    const scrollContainer = document.createElement('div');
+    scrollContainer.className = 'mobile-nav-scroll';
     
-    // People button
-    const peopleBtn = document.createElement('button');
-    peopleBtn.className = 'mobile-nav-btn';
-    peopleBtn.innerHTML = '<i class="fas fa-users"></i><span>People</span>';
-    peopleBtn.onclick = () => {
-      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
-      peopleBtn.classList.add('active');
+    // Define navigation buttons
+    const navButtons = [
+      { id: 'people', icon: 'fa-users', label: 'People', category: 'people' },
+      { id: 'organizations', icon: 'fa-building', label: 'Organizations', category: 'organizations' },
+      { id: 'projects', icon: 'fa-lightbulb', label: 'Projects', category: 'projects' },
+      { id: 'opportunities', icon: 'fa-briefcase', label: 'Opportunities', category: 'opportunities' },
+      { id: 'report', icon: 'fa-chart-bar', label: 'Report', category: 'report' },
+      { id: 'intelligence', icon: 'fa-brain', label: 'Intelligence', category: 'intelligence' }
+    ];
+    
+    // Create buttons
+    navButtons.forEach((btn, index) => {
+      const button = document.createElement('button');
+      button.className = 'mobile-nav-btn';
+      button.dataset.category = btn.category;
+      button.innerHTML = `<i class="fas ${btn.icon}"></i><span>${btn.label}</span>`;
       
-      // Trigger search for people
-      const searchInput = document.getElementById('global-search');
-      if (searchInput) {
-        searchInput.value = '';
-        searchInput.focus();
-        // Trigger search suggestions
-        const event = new Event('input', { bubbles: true });
-        searchInput.dispatchEvent(event);
-      }
-    };
-    
-    // Messages button
-    const messagesBtn = document.createElement('button');
-    messagesBtn.className = 'mobile-nav-btn';
-    messagesBtn.innerHTML = '<i class="fas fa-comments"></i><span>Messages</span>';
-    messagesBtn.onclick = () => {
-      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
-      messagesBtn.classList.add('active');
+      button.onclick = () => {
+        // Update active state
+        document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+        
+        // Show search bar
+        showSearchBar(btn.category);
+        
+        // Store current category
+        currentSearchCategory = btn.category;
+      };
       
-      // Open messages
-      const msgBtn = document.getElementById('btn-messages');
-      if (msgBtn) {
-        msgBtn.click();
-      }
-    };
+      scrollContainer.appendChild(button);
+    });
     
-    // Profile button
-    const profileBtn = document.createElement('button');
-    profileBtn.className = 'mobile-nav-btn';
-    profileBtn.innerHTML = '<i class="fas fa-user"></i><span>You</span>';
-    profileBtn.onclick = () => {
-      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
-      profileBtn.classList.add('active');
-      
-      // Open profile
-      const userMenu = document.getElementById('user-menu');
-      const dropdownProfile = document.getElementById('dropdown-profile');
-      if (dropdownProfile) {
-        dropdownProfile.click();
-      } else if (userMenu) {
-        userMenu.click();
-      }
-    };
-    
-    // Add buttons to nav
-    bottomNav.appendChild(networkBtn);
-    bottomNav.appendChild(peopleBtn);
-    bottomNav.appendChild(messagesBtn);
-    bottomNav.appendChild(profileBtn);
-    
-    // Add to body
+    bottomNav.appendChild(scrollContainer);
     document.body.appendChild(bottomNav);
+  }
+  
+  // ============================================================================
+  // SEARCH BAR MANAGEMENT
+  // ============================================================================
+  
+  function showSearchBar(category) {
+    const searchContainer = document.getElementById('centered-search-container');
+    const searchInput = document.getElementById('global-search');
+    
+    if (!searchContainer || !searchInput) return;
+    
+    // Show search container
+    searchContainer.style.display = 'flex';
+    searchContainer.style.opacity = '0';
+    searchContainer.style.transform = 'translateX(-50%) translateY(20px)';
+    
+    // Animate in
+    setTimeout(() => {
+      searchContainer.style.transition = 'all 0.3s ease';
+      searchContainer.style.opacity = '1';
+      searchContainer.style.transform = 'translateX(-50%) translateY(0)';
+    }, 10);
+    
+    // Update placeholder based on category
+    const placeholders = {
+      people: 'Search people...',
+      organizations: 'Search organizations...',
+      projects: 'Search projects...',
+      opportunities: 'Search opportunities...',
+      report: 'Generate network report...',
+      intelligence: 'Ask intelligence...'
+    };
+    
+    searchInput.placeholder = placeholders[category] || 'Search...';
+    
+    // Handle special categories
+    if (category === 'report') {
+      handleReportCategory();
+    } else if (category === 'intelligence') {
+      handleIntelligenceCategory();
+    } else {
+      // Focus search for normal categories
+      setTimeout(() => searchInput.focus(), 350);
+    }
+  }
+  
+  function handleReportCategory() {
+    // Open network report
+    const reportBtn = document.getElementById('cd-report-btn');
+    if (reportBtn) {
+      reportBtn.click();
+    } else if (typeof window.generateNetworkReport === 'function') {
+      window.generateNetworkReport();
+    }
+  }
+  
+  function handleIntelligenceCategory() {
+    // Open START/Intelligence panel
+    if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
+      window.EnhancedStartUI.open();
+    } else if (typeof window.openStartModal === 'function') {
+      window.openStartModal();
+    }
   }
   
   // ============================================================================
@@ -304,6 +451,7 @@
     
     createMobileTopBar();
     createMobileBottomNav();
+    hideSearchBarInitially();
     hideLegend();
     hideLoadingStates();
     lockViewport();
@@ -336,6 +484,18 @@
     
     document.body.classList.add('mobile-v3-clean');
     console.log('Mobile V3 Clean: Ready');
+  }
+  
+  // ============================================================================
+  // HIDE SEARCH BAR INITIALLY
+  // ============================================================================
+  
+  function hideSearchBarInitially() {
+    const searchContainer = document.getElementById('centered-search-container');
+    if (searchContainer) {
+      searchContainer.style.display = 'none';
+      searchContainer.style.opacity = '0';
+    }
   }
   
   // Auto-initialize

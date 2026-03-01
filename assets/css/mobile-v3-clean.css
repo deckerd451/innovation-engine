@@ -186,7 +186,7 @@
 }
 
 /* ============================================================================
-   MOBILE TOP BAR - CLEAN AND SIMPLE
+   MOBILE TOP BAR - CLEAN, SIMPLE, AND DRAGGABLE
    ============================================================================ */
 
 @media (max-width: 1023px) {
@@ -204,7 +204,7 @@
     pointer-events: none;
   }
   
-  /* ── Top button container ────────────────────────────────────────────── */
+  /* ── Top button container - draggable ────────────────────────────────────────────── */
   #mobile-top-bar {
     position: fixed !important;
     top: calc(var(--safe-top) + 8px) !important;
@@ -213,11 +213,24 @@
     gap: 8px !important;
     z-index: 9999 !important;
     pointer-events: auto !important;
+    padding: 8px !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    border-radius: 25px !important;
+    border: 1px solid rgba(0, 224, 255, 0.2) !important;
+    backdrop-filter: blur(10px) !important;
+    cursor: grab !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  
+  #mobile-top-bar:active {
+    cursor: grabbing !important;
   }
   
   /* ── Top buttons ─────────────────────────────────────────────────────── */
   #btn-refresh-network,
-  #btn-logout-header {
+  #btn-logout-header,
+  #btn-admin-top {
     width: 44px !important;
     height: 44px !important;
     min-width: 44px !important;
@@ -237,20 +250,33 @@
   }
   
   #btn-refresh-network i,
-  #btn-logout-header i {
+  #btn-admin-top i {
     font-size: 1.1rem !important;
     color: #00e0ff !important;
     pointer-events: none !important;
   }
   
+  #btn-logout-header {
+    border-color: rgba(255, 107, 107, 0.3) !important;
+  }
+  
   #btn-logout-header i {
     color: #ff6b6b !important;
+    pointer-events: none !important;
+  }
+  
+  #btn-admin-top {
+    border-color: rgba(255, 170, 0, 0.3) !important;
+  }
+  
+  #btn-admin-top i {
+    color: #ffa500 !important;
   }
 
 }
 
 /* ============================================================================
-   SEARCH BAR - BOTTOM CENTER, CLEAN
+   SEARCH BAR - BOTTOM CENTER, CLEAN, HIDDEN BY DEFAULT
    ============================================================================ */
 
 @media (max-width: 1023px) {
@@ -265,9 +291,17 @@
     max-width: 500px !important;
     z-index: 9998 !important;
     pointer-events: auto !important;
-    display: flex !important;
+    display: none !important; /* Hidden by default */
     flex-direction: column !important;
     gap: 8px !important;
+    opacity: 0 !important;
+    transition: opacity 0.3s ease, transform 0.3s ease !important;
+  }
+  
+  /* Show when active */
+  #centered-search-container.active {
+    display: flex !important;
+    opacity: 1 !important;
   }
   
   /* Hide category buttons on mobile */
@@ -537,7 +571,7 @@
 }
 
 /* ============================================================================
-   BOTTOM NAVIGATION - CLEAN
+   BOTTOM NAVIGATION - SCROLLABLE HORIZONTAL
    ============================================================================ */
 
 @media (max-width: 1023px) {
@@ -561,16 +595,33 @@
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    height: calc(var(--safe-bottom) + 60px) !important;
+    height: calc(var(--safe-bottom) + 70px) !important;
     background: rgba(0, 0, 0, 0.95) !important;
     backdrop-filter: blur(20px) !important;
     border-top: 1px solid rgba(0, 224, 255, 0.2) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-around !important;
     padding-bottom: var(--safe-bottom) !important;
     z-index: 9999 !important;
     pointer-events: auto !important;
+    overflow: hidden !important;
+  }
+  
+  /* ── Scrollable container ────────────────────────────────────────────── */
+  .mobile-nav-scroll {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 16px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE/Edge */
+    height: 100% !important;
+  }
+  
+  /* Hide scrollbar for Chrome/Safari */
+  .mobile-nav-scroll::-webkit-scrollbar {
+    display: none !important;
   }
   
   /* ── Bottom nav buttons ──────────────────────────────────────────────── */
@@ -580,9 +631,9 @@
     align-items: center !important;
     justify-content: center !important;
     gap: 4px !important;
-    padding: 8px 16px !important;
-    min-width: 60px !important;
-    min-height: 52px !important;
+    padding: 8px 20px !important;
+    min-width: 80px !important;
+    height: 56px !important;
     color: rgba(255, 255, 255, 0.6) !important;
     text-decoration: none !important;
     border-radius: 12px !important;
@@ -591,12 +642,15 @@
     touch-action: manipulation !important;
     cursor: pointer !important;
     background: transparent !important;
-    border: none !important;
+    border: 1px solid transparent !important;
+    flex-shrink: 0 !important; /* Prevent buttons from shrinking */
+    white-space: nowrap !important;
   }
   
   .mobile-nav-btn:active,
   .mobile-nav-btn.active {
-    background: rgba(0, 224, 255, 0.1) !important;
+    background: rgba(0, 224, 255, 0.15) !important;
+    border-color: rgba(0, 224, 255, 0.3) !important;
     color: #00e0ff !important;
   }
   
@@ -609,6 +663,28 @@
     font-size: 0.7rem !important;
     font-weight: 500 !important;
     pointer-events: none !important;
+  }
+  
+  /* Scroll indicator (optional fade on edges) */
+  #mobile-bottom-nav::before,
+  #mobile-bottom-nav::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: var(--safe-bottom);
+    width: 20px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  #mobile-bottom-nav::before {
+    left: 0;
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.95) 0%, transparent 100%);
+  }
+  
+  #mobile-bottom-nav::after {
+    right: 0;
+    background: linear-gradient(270deg, rgba(0, 0, 0, 0.95) 0%, transparent 100%);
   }
 
 }
