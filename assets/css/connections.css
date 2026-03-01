@@ -596,6 +596,8 @@
   font-size: 0.85rem;
   margin-bottom: 0.5rem;
   text-align: center;
+  border-bottom: none;
+  border-top: none;
 }
 
 .card-email i {

@@ -22,58 +22,37 @@ window.addEventListener('profile-loaded', async (e) => {
   // ENFORCE ONBOARDING if profile is incomplete
   // ============================================================
   if (profile._needsOnboarding) {
-    console.log('⚠️ [ONBOARDING] Profile requires onboarding, redirecting...');
-    console.log('   - Profile ID:', profile.id);
-    console.log('   - Email:', profile.email);
-    console.log('   - Onboarding completed:', profile.onboarding_completed);
-    console.log('   - Profile completed:', profile.profile_completed);
-    
-    // Show notification
-    if (typeof window.showNotification === 'function') {
-      window.showNotification(
-        'Please complete your profile to continue.',
-        'info'
-      );
+  // Check if profile needs onboarding
+  if (profile._needsOnboarding) {
+    if (typeof window.showOnboarding === 'function') {
+      window.showOnboarding(profile);
+      return;
     }
-    
-    // TODO: Redirect to onboarding UI or show onboarding modal
-    // For now, log the requirement - the UI team can implement the actual onboarding flow
-    console.log('🎯 [ONBOARDING] User should be shown onboarding UI');
-    
-    // Optionally, you can prevent dashboard loading until onboarding is complete:
-    // return;
   }
   
-  console.log('🔄 Loading dashboard data...');
-  
   try {
-    // Load all dashboard data
+    showLoadingState();
+    
     await Promise.all([
       loadCommunityStats(),
       loadRecentConnections(),
       loadPendingRequests(),
       loadSuggestedConnections(),
-      // renderSynapse() removed - synapse is now the main view, initialized separately
       loadInnovationHub()
-      // Note: loadMessaging() removed - messaging is initialized via MessagingModule.init()
     ]);
     
     await loadAllConnections();
-    
-    // Setup discover tabs
     setupDiscoverTabs();
-    
-    // Setup event listeners
     setupEventListeners();
     
-    // Check admin button visibility after profile is loaded
     if (typeof window.ensureAdminButtonVisible === 'function') {
       window.ensureAdminButtonVisible();
     }
     
-    console.log('✅ Dashboard loaded successfully');
+    hideLoadingState();
   } catch (err) {
-    console.error('❌ Error loading dashboard:', err);
+    hideLoadingState();
+    showDashboardError(err);
   }
 });
 
@@ -263,8 +242,7 @@ async function loadCommunityStats() {
     console.log('✅ Community stats loaded successfully');
     
   } catch (err) {
-    console.error('❌ Error loading stats:', err);
-    // Set fallback values
+    showErrorToast('Unable to load community stats');
     const safeSet = (id, value) => {
       const el = document.getElementById(id);
       if (el) el.textContent = value;
@@ -308,14 +286,24 @@ async function loadRecentConnections() {
       .limit(5);
     
     if (error) {
-      console.error('Error loading recent connections:', error);
-      container.innerHTML = '<div class="empty-state"><p>Unable to load connections</p></div>';
+      container.innerHTML = `
+        <div class="error-state">
+          <i class="fas fa-exclamation-circle"></i>
+          <p>Unable to load connections</p>
+          <button onclick="location.reload()" class="retry-btn">Retry</button>
+        </div>`;
       updateNetworkStats(0);
       return;
     }
     
     if (!connections || connections.length === 0) {
-      container.innerHTML = '<div class="empty-state"><p>No connections yet</p></div>';
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-users"></i>
+          <p>No connections yet</p>
+          <p class="empty-state-hint">Start by exploring people below!</p>
+          <button onclick="document.getElementById('discover-tab-btn').click()" class="action-btn">Discover People</button>
+        </div>`;
       updateNetworkStats(0);
       return;
     }
@@ -353,8 +341,12 @@ async function loadRecentConnections() {
     container.innerHTML = html;
     
   } catch (err) {
-    console.error('Error in loadRecentConnections:', err);
-    container.innerHTML = '<div class="empty-state"><p>Unable to load connections</p></div>';
+    container.innerHTML = `
+      <div class="error-state">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>Unable to load connections</p>
+        <button onclick="location.reload()" class="retry-btn">Retry</button>
+      </div>`;
     updateNetworkStats(0);
   }
 }
@@ -390,13 +382,22 @@ async function loadPendingRequests() {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Error loading pending requests:', error);
-      container.innerHTML = '<div class="empty-state"><p>Unable to load requests</p></div>';
+      container.innerHTML = `
+        <div class="error-state">
+          <i class="fas fa-exclamation-circle"></i>
+          <p>Unable to load requests</p>
+          <button onclick="loadPendingRequests()" class="retry-btn">Retry</button>
+        </div>`;
       return;
     }
     
     if (!requests || requests.length === 0) {
-      container.innerHTML = '<div class="empty-state"><p>No pending requests</p></div>';
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <p>No pending requests</p>
+          <p class="empty-state-hint">Your network is all caught up!</p>
+        </div>`;
       return;
     }
     
@@ -442,8 +443,12 @@ async function loadPendingRequests() {
     container.innerHTML = html;
     
   } catch (err) {
-    console.error('Error in loadPendingRequests:', err);
-    container.innerHTML = '<div class="empty-state"><p>Unable to load requests</p></div>';
+    container.innerHTML = `
+      <div class="error-state">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>Unable to load requests</p>
+        <button onclick="loadPendingRequests()" class="retry-btn">Retry</button>
+      </div>`;
   }
 }
 
@@ -455,7 +460,12 @@ async function loadSuggestedConnections() {
   
   try {
     if (!currentUserProfile) {
-      container.innerHTML = '<div class="empty-state"><p>Create your profile to see suggestions</p></div>';
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-user-circle"></i>
+          <p>Complete your profile to see suggestions</p>
+          <button onclick="document.getElementById('btn-profile').click()" class="action-btn">Edit Profile</button>
+        </div>`;
       return;
     }
     
@@ -468,8 +478,12 @@ async function loadSuggestedConnections() {
       .limit(6);
     
     if (error) {
-      console.error('Error loading suggested connections:', error);
-      container.innerHTML = '<div class="empty-state"><p>Unable to load suggestions</p></div>';
+      container.innerHTML = `
+        <div class="error-state">
+          <i class="fas fa-exclamation-circle"></i>
+          <p>Unable to load suggestions</p>
+          <button onclick="loadSuggestedConnections()" class="retry-btn">Retry</button>
+        </div>`;
       return;
     }
     
@@ -489,7 +503,12 @@ async function loadSuggestedConnections() {
     const suggestions = users?.filter(user => !connectedIds.has(user.id)) || [];
     
     if (suggestions.length === 0) {
-      container.innerHTML = '<div class="empty-state"><p>No new suggestions</p></div>';
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-user-friends"></i>
+          <p>No new suggestions</p>
+          <p class="empty-state-hint">Check back later for more people to connect with!</p>
+        </div>`;
       return;
     }
     
@@ -526,8 +545,12 @@ async function loadSuggestedConnections() {
     container.innerHTML = html;
     
   } catch (err) {
-    console.error('Error in loadSuggestedConnections:', err);
-    container.innerHTML = '<div class="empty-state"><p>Unable to load suggestions</p></div>';
+    container.innerHTML = `
+      <div class="error-state">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>Unable to load suggestions</p>
+        <button onclick="loadSuggestedConnections()" class="retry-btn">Retry</button>
+      </div>`;
   }
 }
 
@@ -543,10 +566,9 @@ async function loadAllConnections() {
     allUsers = users || [];
     
   } catch (err) {
-    console.error('Error loading all users:', err);
+    showErrorToast('Unable to load all users');
   }
 }
-
 // ========================
 // CONNECTION ACTIONS
 // ========================
@@ -582,20 +604,16 @@ window.acceptRequest = async function(requestId) {
 window.declineRequest = async function(requestId) {
   try {
     await declineConnectionRequest(requestId);
-    
-    // Reload pending requests to remove the declined one
     await loadPendingRequests();
-    
   } catch (err) {
-    // Error already shown via toast notification from connections.js
-    console.error('Error declining request:', err);
+    // Error already shown via toast
   }
 };
 
 window.viewProfile = function(userId) {
-  // This would open a profile modal - implement as needed
-  console.log('View profile:', userId);
-  alert('Profile viewing feature - implement modal here');
+  if (typeof window.openNodePanel === 'function') {
+    window.openNodePanel({ id: userId, type: 'person' });
+  }
 };
 
 // ========================
@@ -603,7 +621,10 @@ window.viewProfile = function(userId) {
 // ========================
 async function renderSynapse() {
   try {
-    if (!currentUserProfile) return;
+    if (!currentUserProfile) {
+      showSynapseError('Profile not loaded. Please refresh the page.');
+      return;
+    }
     
     const { data: connections } = await window.supabase
       .from('connections')
@@ -666,7 +687,7 @@ async function renderSynapse() {
     console.log('Synapse data ready:', { nodes: nodes.length, links: links.length });
     
   } catch (err) {
-    console.error('Synapse error:', err);
+    showSynapseError('Unable to load network visualization. Please try refreshing.');
   }
 }
 

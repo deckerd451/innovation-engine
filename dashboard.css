@@ -397,6 +397,12 @@
       cursor: pointer;
     }
 
+    /* Ensure no pseudo-elements on profile cards */
+    .profile-card::before,
+    .profile-card::after {
+      display: none !important;
+    }
+
     .profile-card:hover {
       transform: translateY(-5px);
       box-shadow: 0 10px 30px rgba(0, 224, 255, 0.2);
@@ -438,6 +444,7 @@
       font-size: 1.1rem;
       font-weight: 600;
       margin-bottom: 0.25rem;
+      border-bottom: none;
     }
 
     .card-availability {
