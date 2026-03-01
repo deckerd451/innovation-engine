@@ -137,8 +137,59 @@
   }
   
   // ============================================================================
-  // CLEAN UP ARTIFACTS
+  // HIDE CONNECTION LINES (Proximity shows connections instead)
   // ============================================================================
+  
+  function hideConnectionLines() {
+    // Hide all SVG lines and paths
+    const svg = document.getElementById('synapse-svg');
+    if (!svg) return;
+    
+    // Hide lines
+    const lines = svg.querySelectorAll('line, path[stroke], .link, .connection, .edge');
+    lines.forEach(line => {
+      line.style.display = 'none';
+      line.style.opacity = '0';
+      line.style.visibility = 'hidden';
+    });
+    
+    // Ensure nodes are visible
+    const nodes = svg.querySelectorAll('circle, .node');
+    nodes.forEach(node => {
+      node.style.display = 'block';
+      node.style.opacity = '1';
+      node.style.visibility = 'visible';
+    });
+  }
+  
+  // ============================================================================
+  // PREVENT CONNECTION LINES FROM BEING DRAWN
+  // ============================================================================
+  
+  function preventConnectionLines() {
+    // Override D3 link drawing if it exists
+    if (window.d3) {
+      const originalLine = window.d3.line;
+      window.d3.line = function() {
+        const line = originalLine.apply(this, arguments);
+        // Return a line that draws nothing
+        return function() { return ''; };
+      };
+    }
+    
+    // Watch for new lines being added
+    const svg = document.getElementById('synapse-svg');
+    if (!svg) return;
+    
+    const observer = new MutationObserver(() => {
+      hideConnectionLines();
+    });
+    
+    observer.observe(svg, {
+      childList: true,
+      subtree: true
+    });
+  }
   
   function cleanUpArtifacts() {
     // Remove any white boxes or artifacts
@@ -199,12 +250,15 @@
     
     createMobileTopBar();
     createMobileBottomNav();
+    hideConnectionLines();
+    preventConnectionLines();
     cleanUpArtifacts();
     ensureButtonsWork();
     preventZoomOnInput();
     
     // Re-run cleanup after DOM changes
     const observer = new MutationObserver(() => {
+      hideConnectionLines();
       cleanUpArtifacts();
       ensureButtonsWork();
     });

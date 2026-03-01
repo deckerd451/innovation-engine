@@ -112,6 +112,26 @@
     height: 100% !important;
     touch-action: pan-x pan-y pinch-zoom !important;
   }
+  
+  /* ── HIDE ALL CONNECTION LINES ON MOBILE ─────────────────────────────── */
+  /* Proximity will show connections instead */
+  #synapse-svg line,
+  #synapse-svg path[stroke],
+  #synapse-svg .link,
+  #synapse-svg .connection,
+  #synapse-svg .edge {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+  
+  /* Keep nodes visible */
+  #synapse-svg circle,
+  #synapse-svg .node {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
 
 }
 
