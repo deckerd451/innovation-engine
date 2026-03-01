@@ -191,6 +191,39 @@
     });
   }
   
+  // ============================================================================
+  // HIDE LEGEND
+  // ============================================================================
+  
+  function hideLegend() {
+    const legends = document.querySelectorAll(
+      '#graph-legend, .graph-legend, .legend, .legend-panel, [class*="legend"], [id*="legend"]'
+    );
+    
+    legends.forEach(legend => {
+      legend.style.display = 'none';
+      legend.style.visibility = 'hidden';
+      legend.style.opacity = '0';
+    });
+  }
+  
+  // ============================================================================
+  // LOCK VIEWPORT - PREVENT NODES FROM BEING CUT OFF
+  // ============================================================================
+  
+  function lockViewport() {
+    const svg = document.getElementById('synapse-svg');
+    if (!svg) return;
+    
+    // Get viewport dimensions
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Set viewBox to match viewport with padding
+    const padding = 50;
+    svg.setAttribute('viewBox', `${-padding} ${-padding} ${viewportWidth + padding * 2} ${viewportHeight + padding * 2}`);
+  }
+  
   function cleanUpArtifacts() {
     // Remove any white boxes or artifacts
     const artifacts = document.querySelectorAll('[style*="background: white"], [style*="background:#fff"], [style*="background: #ffffff"]');
@@ -250,14 +283,23 @@
     
     createMobileTopBar();
     createMobileBottomNav();
+    hideLegend();
+    lockViewport();
     hideConnectionLines();
     preventConnectionLines();
     cleanUpArtifacts();
     ensureButtonsWork();
     preventZoomOnInput();
     
+    // Re-run on resize
+    window.addEventListener('resize', () => {
+      lockViewport();
+      hideLegend();
+    });
+    
     // Re-run cleanup after DOM changes
     const observer = new MutationObserver(() => {
+      hideLegend();
       hideConnectionLines();
       cleanUpArtifacts();
       ensureButtonsWork();

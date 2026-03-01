@@ -31,6 +31,18 @@
     display: none !important;
   }
   
+  /* ── HIDE LEGEND ON MOBILE ───────────────────────────────────────────── */
+  #graph-legend,
+  .graph-legend,
+  .legend,
+  .legend-panel,
+  [class*="legend"],
+  [id*="legend"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+  
   /* ── Hide any floating UI elements that cause clutter ───────────────────── */
   .floating-badge,
   .corner-badge,
@@ -105,12 +117,25 @@
     left: 0 !important;
     right: 0 !important;
     z-index: 1 !important;
+    overflow: hidden !important;
   }
   
   #synapse-svg {
     width: 100% !important;
     height: 100% !important;
     touch-action: pan-x pan-y pinch-zoom !important;
+    overflow: visible !important;
+  }
+  
+  /* ── Lock viewport to prevent nodes from being cut off ──────────────────── */
+  #synapse-svg g {
+    transform-origin: center center !important;
+  }
+  
+  /* Ensure nodes stay within viewport */
+  #synapse-svg circle,
+  #synapse-svg .node {
+    vector-effect: non-scaling-stroke !important;
   }
   
   /* ── HIDE ALL CONNECTION LINES ON MOBILE ─────────────────────────────── */
