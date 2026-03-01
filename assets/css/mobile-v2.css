@@ -1,0 +1,718 @@
+/**
+ * MOBILE V2 - BULLETPROOF MOBILE EXPERIENCE
+ * Complete rebuild focusing on reliability and UX
+ * Last updated: 2026-03-01
+ * 
+ * PHILOSOPHY:
+ * 1. Mobile-first approach
+ * 2. Every interactive element must work
+ * 3. No layout shifts or jank
+ * 4. Respect safe areas
+ * 5. Smooth, native-feeling interactions
+ */
+
+/* ============================================================================
+   CRITICAL FOUNDATION - MUST LOAD FIRST
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  /* ── Reset touch behavior ────────────────────────────────────────────── */
+  * {
+    -webkit-tap-highlight-color: rgba(0, 224, 255, 0.2);
+    -webkit-touch-callout: none;
+  }
+  
+  /* ── Viewport setup ──────────────────────────────────────────────────── */
+  :root {
+    --mobile-vh: 100vh;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+  }
+  
+  @supports (height: 100dvh) {
+    :root {
+      --mobile-vh: 100dvh;
+    }
+  }
+  
+  /* ── Body and HTML ───────────────────────────────────────────────────── */
+  html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none;
+    touch-action: pan-x pan-y;
+  }
+  
+  /* ── Main containers ─────────────────────────────────────────────────── */
+  #main-content,
+  .unified-main {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    touch-action: pan-x pan-y !important;
+  }
+  
+  /* ── Background elements (non-interactive) ───────────────────────────── */
+  #neural-bg,
+  canvas {
+    pointer-events: none !important;
+    touch-action: none !important;
+  }
+  
+  /* ── Graph container ─────────────────────────────────────────────────── */
+  #synapse-main-view {
+    position: absolute !important;
+    inset: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+    z-index: 1 !important;
+  }
+  
+  #synapse-svg {
+    width: 100% !important;
+    height: 100% !important;
+    touch-action: pan-x pan-y pinch-zoom !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Graph nodes should be tappable */
+  #synapse-svg circle,
+  #synapse-svg text,
+  #synapse-svg .node {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+  }
+  
+  /* ── Hide desktop-only elements ──────────────────────────────────────── */
+  #command-dashboard {
+    display: none !important;
+  }
+  
+  #cd-panel-tab {
+    display: none !important;
+  }
+  
+  #desktop-top-left-actions {
+    display: none !important;
+  }
+
+}
+
+/* ============================================================================
+   INTERACTIVE ELEMENTS - GUARANTEED TO WORK
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  /* ── Universal button rules ──────────────────────────────────────────── */
+  button,
+  .btn,
+  [role="button"],
+  a,
+  input[type="button"],
+  input[type="submit"] {
+    /* Ensure clickability */
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+    
+    /* Minimum touch target */
+    min-width: 44px !important;
+    min-height: 44px !important;
+    
+    /* Positioning */
+    position: relative !important;
+    z-index: 100 !important;
+    
+    /* Display */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    
+    /* Prevent text selection */
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  
+  /* ── Button children don't block clicks ──────────────────────────────── */
+  button *,
+  .btn *,
+  [role="button"] *,
+  a * {
+    pointer-events: none !important;
+  }
+  
+  /* ── Input fields ────────────────────────────────────────────────────── */
+  input,
+  textarea,
+  select {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevents iOS zoom */
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+  
+  /* ── Links ───────────────────────────────────────────────────────────── */
+  a {
+    touch-action: manipulation !important;
+    pointer-events: auto !important;
+  }
+
+}
+
+/* ============================================================================
+   TOP HEADER - BUTTONS THAT MUST WORK
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  /* ── Top-right button container ──────────────────────────────────────── */
+  #main-content > div[style*="top:20px"][style*="right:20px"] {
+    position: fixed !important;
+    top: calc(var(--safe-top) + 12px) !important;
+    right: calc(var(--safe-right) + 12px) !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    gap: 10px !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* ── Individual top buttons ──────────────────────────────────────────── */
+  #btn-refresh-network,
+  #btn-logout-header,
+  #btn-start-nav,
+  #notification-bell {
+    position: relative !important;
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+    z-index: 10000 !important;
+    background: rgba(10, 14, 39, 0.8) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+  }
+  
+  /* Hide text, show only icons */
+  #btn-refresh-network span:not(.fa):not(.fas):not(.far),
+  #btn-logout-header span:not(.fa):not(.fas):not(.far) {
+    display: none !important;
+  }
+  
+  /* Icon sizing */
+  #btn-refresh-network i,
+  #btn-logout-header i,
+  #btn-start-nav i {
+    font-size: 1.2rem !important;
+    pointer-events: none !important;
+  }
+
+}
+
+/* ============================================================================
+   SEARCH BAR - BOTTOM CENTER
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  /* ── Search container ────────────────────────────────────────────────── */
+  #centered-search-container {
+    position: fixed !important;
+    bottom: calc(var(--safe-bottom) + 16px) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: calc(100% - 32px) !important;
+    max-width: 600px !important;
+    z-index: 9998 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  }
+  
+  #search-container {
+    width: 100% !important;
+    pointer-events: auto !important;
+    position: relative !important;
+  }
+  
+  /* ── Search input ────────────────────────────────────────────────────── */
+  #global-search {
+    width: 100% !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    padding: 0 70px 0 48px !important;
+    font-size: 16px !important;
+    border-radius: 26px !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* ── Search icon ─────────────────────────────────────────────────────── */
+  #search-container .fa-search {
+    position: absolute !important;
+    left: 18px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+  
+  /* ── Search button ───────────────────────────────────────────────────── */
+  #search-button {
+    position: absolute !important;
+    right: 6px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 20px !important;
+    border-radius: 20px !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+    z-index: 2 !important;
+  }
+  
+  /* ── Search suggestions ──────────────────────────────────────────────── */
+  #search-suggestions {
+    position: absolute !important;
+    bottom: calc(100% + 8px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    max-height: 50vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+    border-radius: 16px !important;
+  }
+  
+  /* ── Drag handle ─────────────────────────────────────────────────────── */
+  #search-drag-handle {
+    position: absolute !important;
+    top: -16px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 60px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: grab !important;
+    touch-action: none !important;
+    pointer-events: auto !important;
+    z-index: 1 !important;
+  }
+  
+  #search-drag-handle:active {
+    cursor: grabbing !important;
+  }
+
+}
+
+/* ============================================================================
+   LOGIN SCREEN - MOBILE OPTIMIZED
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  #login-section {
+    padding: 1rem !important;
+    padding-top: calc(var(--safe-top) + 1rem) !important;
+    padding-bottom: calc(var(--safe-bottom) + 1rem) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .login-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  .login-container img {
+    max-width: 280px !important;
+    height: auto !important;
+  }
+  
+  .login-container h2 {
+    font-size: 1.3rem !important;
+  }
+  
+  .login-container p {
+    font-size: 1rem !important;
+  }
+  
+  /* ── OAuth buttons ───────────────────────────────────────────────────── */
+  .oauth-btn,
+  #github-login,
+  #google-login,
+  #email-login-btn {
+    width: 100% !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    padding: 0 24px !important;
+    font-size: 16px !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+    z-index: 100 !important;
+  }
+  
+  .oauth-icon-circle {
+    width: 40px !important;
+    height: 40px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  /* ── Email inputs ────────────────────────────────────────────────────── */
+  #email-input,
+  #password-input {
+    width: 100% !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    padding: 0 16px !important;
+    font-size: 16px !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* ── Feature grid ────────────────────────────────────────────────────── */
+  .login-container > div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+}
+
+/* ============================================================================
+   MODALS - FULL SCREEN ON MOBILE
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  .modal,
+  .ch-modal-overlay,
+  #messages-modal,
+  #admin-panel,
+  #profile-modal,
+  .connection-requests-panel {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    z-index: 10000 !important;
+  }
+  
+  .modal-content,
+  .ch-modal-panel {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* ── Close buttons ───────────────────────────────────────────────────── */
+  .modal-close,
+  .ch-modal-close,
+  .close-btn {
+    position: sticky !important;
+    top: calc(var(--safe-top) + 8px) !important;
+    right: 8px !important;
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    z-index: 10001 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+  }
+
+}
+
+/* ============================================================================
+   SIDE PANELS - SLIDE IN FROM RIGHT
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  .node-panel,
+  #node-side-panel {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    transform: translateX(100%) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    z-index: 9999 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .node-panel.active,
+  #node-side-panel.active {
+    transform: translateX(0) !important;
+  }
+
+}
+
+/* ============================================================================
+   NOTIFICATIONS AND TOASTS
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  .xp-notification,
+  .unified-network-notification,
+  .toast,
+  .notification {
+    position: fixed !important;
+    top: calc(var(--safe-top) + 16px) !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    max-width: calc(100% - 32px) !important;
+    z-index: 10001 !important;
+    pointer-events: auto !important;
+  }
+
+}
+
+/* ============================================================================
+   FILTER PILLS AND CATEGORY BUTTONS
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  #category-action-bar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .search-category-btn {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 16px !important;
+    font-size: 14px !important;
+    white-space: nowrap !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+  }
+
+}
+
+/* ============================================================================
+   SCROLLING - SMOOTH AND NATIVE
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  .scrollable,
+  .modal-content,
+  #search-suggestions,
+  .node-panel,
+  #messages-modal,
+  [style*="overflow-y: auto"],
+  [style*="overflow: auto"] {
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+
+}
+
+/* ============================================================================
+   ACCESSIBILITY - FOCUS AND CONTRAST
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  
+  *:focus-visible {
+    outline: 3px solid #00e0ff !important;
+    outline-offset: 2px !important;
+  }
+  
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 3px solid #00e0ff !important;
+    outline-offset: 2px !important;
+  }
+
+}
+
+/* ============================================================================
+   SMALL SCREENS (iPhone SE, small Android)
+   ============================================================================ */
+
+@media (max-width: 375px) {
+  
+  #centered-search-container {
+    width: calc(100% - 16px) !important;
+    bottom: calc(var(--safe-bottom) + 12px) !important;
+  }
+  
+  #global-search {
+    height: 48px !important;
+    padding: 0 60px 0 40px !important;
+    font-size: 15px !important;
+  }
+  
+  #search-button {
+    height: 36px !important;
+    padding: 0 16px !important;
+    font-size: 14px !important;
+  }
+  
+  .login-container img {
+    max-width: 240px !important;
+  }
+  
+  .login-container h2 {
+    font-size: 1.1rem !important;
+  }
+  
+  #btn-refresh-network,
+  #btn-logout-header,
+  #btn-start-nav {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+}
+
+/* ============================================================================
+   LANDSCAPE MODE
+   ============================================================================ */
+
+@media (max-width: 1023px) and (orientation: landscape) {
+  
+  #centered-search-container {
+    bottom: calc(var(--safe-bottom) + 12px) !important;
+    max-width: 500px !important;
+  }
+  
+  .modal-content {
+    max-height: calc(100vh - 24px) !important;
+  }
+  
+  #login-section {
+    padding: 0.5rem !important;
+  }
+
+}
+
+/* ============================================================================
+   REDUCED MOTION
+   ============================================================================ */
+
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+}
+
+/* ============================================================================
+   HIGH CONTRAST MODE
+   ============================================================================ */
+
+@media (max-width: 1023px) and (prefers-contrast: high) {
+  
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    border-width: 2px !important;
+  }
+  
+  *:focus-visible {
+    outline-width: 4px !important;
+  }
+
+}
+
+/* ============================================================================
+   DARK MODE ENHANCEMENTS
+   ============================================================================ */
+
+@media (max-width: 1023px) and (prefers-color-scheme: dark) {
+  
+  body {
+    background: #000 !important;
+  }
+  
+  .modal,
+  .panel,
+  .card {
+    background: rgba(10, 14, 39, 0.95) !important;
+  }
+
+}
+
+/* ============================================================================
+   DEBUGGING - REMOVE IN PRODUCTION
+   ============================================================================ */
+
+/* Uncomment to debug touch targets
+@media (max-width: 1023px) {
+  button,
+  a,
+  [role="button"] {
+    outline: 2px solid red !important;
+  }
+}
+*/
