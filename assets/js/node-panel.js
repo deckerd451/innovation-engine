@@ -604,7 +604,7 @@ function renderOrganizationContent(org, members) {
       <div style="margin-bottom: 2rem; text-align: center;">
         <div style="width: 80px; height: 80px; border-radius: 16px; background: linear-gradient(135deg, #a855f7, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; margin: 0 auto 1rem; border: 3px solid #a855f7; overflow: hidden;">
           ${org.logo_url ?
-            `<img src="${escapeHtml(org.logo_url)}" style="width: 100%; height: 100%; object-fit: cover;">` :
+            `<img loading="lazy" src="${escapeHtml(org.logo_url)}" style="width: 100%; height: 100%; object-fit: cover;">` :
             `<i class="fas fa-building"></i>`
           }
         </div>
@@ -665,7 +665,7 @@ function renderOrganizationContent(org, members) {
               return `
                 <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(168,85,247,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(168,85,247,0.2);">
                   ${user.image_url ?
-                    `<img src="${escapeHtml(user.image_url)}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
+                    `<img loading="lazy" src="${escapeHtml(user.image_url)}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
                     `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #a855f7, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${memberInitials}</div>`
                   }
                   <span style="color: white; font-size: 0.85rem;">${escapeHtml(user.name)} ${roleLabel}</span>
@@ -787,7 +787,7 @@ async function renderPersonPanel(nodeData) {
       <div style="text-align: center; padding: 2rem; padding-bottom: 1.5rem;">
         <div style="position: relative; display: inline-block; margin-bottom: 1rem;">
           ${profile.image_url ?
-            `<img src="${profile.image_url}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff;">` :
+            `<img loading="lazy" src="${profile.image_url}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff;">` :
             `<div style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; color: white; border: 3px solid #00e0ff;">${initials}</div>`
           }
           <!-- Presence Indicator Dot -->
@@ -935,7 +935,7 @@ async function renderPersonPanel(nodeData) {
                   return `
                     <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(0,224,255,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(0,224,255,0.2);">
                       ${conn.image_url ?
-                        `<img src="${conn.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
+                        `<img loading="lazy" src="${conn.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
                         `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${connInitials}</div>`
                       }
                       <span style="color: white; font-size: 0.85rem;">${conn.name}</span>
@@ -1173,7 +1173,7 @@ async function renderProjectPanel(nodeData) {
               return `
                 <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,107,107,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,107,107,0.2);">
                   ${user.image_url ?
-                    `<img src="${user.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
+                    `<img loading="lazy" src="${user.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
                     `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${initials}</div>`
                   }
                   <span style="color: white; font-size: 0.85rem;">${(window.escapeHtml || (s => s))(user.name)} ${roleLabel}</span>
@@ -1192,7 +1192,7 @@ async function renderProjectPanel(nodeData) {
           </h3>
           <div style="display: flex; align-items: center; gap: 1rem; background: rgba(255,107,107,0.05); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,107,107,0.2);">
             ${project.creator.image_url ?
-              `<img src="${project.creator.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
+              `<img loading="lazy" src="${project.creator.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
               `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; color: white;">${project.creator.name[0]}</div>`
             }
             <div>
@@ -2198,7 +2198,7 @@ window.manageProjectRequests = async function(projectId) {
               <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;" data-request-id="${request.id}">
                 <div style="display: flex; gap: 1rem; align-items: start;">
                   <!-- User Avatar -->
-                  <img src="${(window.escapeHtml || (s => s))(user.image_url) || 'https://via.placeholder.com/60'}"
+                  <img loading="lazy" src="${(window.escapeHtml || (s => s))(user.image_url) || 'https://via.placeholder.com/60'}"
                     style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid rgba(255,107,107,0.3);"
                     onerror="this.src='https://via.placeholder.com/60'">
 
