@@ -2,15 +2,13 @@
 // Dashboard Actions - Wire up consolidated bottom bar
 // ================================================================
 
-// Toast bridge: routes 
-_toast() calls to the unified toast system.
+// Toast bridge: routes _toast() calls to the unified toast system.
 // Auto-detects type from message content.
 function _toast(msg) {
   if (!msg) return;
   const s = String(msg);
   const t = window.showToast;
-  if (!t) { 
-_toast(msg); return; }   // fallback if toast not yet loaded
+  if (!t) { console.warn('[toast]', s); return; }   // fallback if toast not yet loaded
   if (/success|saved|created|updated|joined|removed|assigned|extended|archived|deleted|reinstated|healthy|active/i.test(s)) {
     t(s, 'success');
   } else if (/fail|error|invalid|unable|cannot|not found|not available|please log in|required|permission|unknown/i.test(s)) {
