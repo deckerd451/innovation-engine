@@ -477,6 +477,13 @@ export function renderNodes(container, nodes, { onNodeClick, connectionsData = [
 }
 
 export function renderThemeCircles(container, themeNodes, { onThemeHover, onThemeClick } = {}) {
+  // THEMES DISABLED - REPLACED BY OPPORTUNITIES
+  // Theme circles are no longer rendered in the graph visualization
+  // This function is kept for backward compatibility but does nothing
+  console.log('ℹ️ Theme rendering disabled - opportunities system active');
+  return;
+  
+  /* ORIGINAL THEME RENDERING CODE - DISABLED
   // Performance optimization: Create gradients only once, reuse for similar themes
   let defs = container.select("defs");
   if (defs.empty()) {
@@ -817,6 +824,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
   }
 
   return d3.select(themesGroup.node());
+  END OF DISABLED THEME RENDERING CODE */
 }
 
 // Function to highlight a selected theme

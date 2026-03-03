@@ -196,6 +196,27 @@ export async function initSynapseView() {
   const userInfo = await initConnections(supabase);
   currentUserCommunityId = userInfo?.currentUserCommunityId || null;
 
+  // ================================================================
+  // OPPORTUNITY ENGINE INITIALIZATION
+  // ================================================================
+  console.log('🎯 Initializing Opportunity Engine...');
+  try {
+    if (window.OpportunityEngine) {
+      await window.OpportunityEngine.init(supabase, currentUserCommunityId);
+      const oppCount = window.OpportunityEngine.getActiveCount();
+      console.log(`✅ Opportunity Engine initialized with ${oppCount} opportunities`);
+      
+      // Expose for debugging
+      window.getOpportunities = () => window.OpportunityEngine.getOpportunities();
+      window.getTrendingOpportunities = (limit) => window.OpportunityEngine.getTrending(limit);
+    } else {
+      console.warn('⚠️ OpportunityEngine not loaded - check script tag');
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize Opportunity Engine:', error);
+    // Non-fatal: continue with graph initialization
+  }
+
   setupSVG();
   await reloadAllData();
   await buildGraph();
@@ -361,6 +382,18 @@ export async function initSynapseView() {
       );
     },
 
+    // Opportunity API
+    opportunities: {
+      getAll: () => window.OpportunityEngine?.getOpportunities() || [],
+      getCount: () => window.OpportunityEngine?.getActiveCount() || 0,
+      getTrending: (limit = 5) => window.OpportunityEngine?.getTrending(limit) || [],
+      getTop: () => window.OpportunityEngine?.getTopTrending() || null,
+      trackJoin: (oppId, meta) => window.OpportunityEngine?.trackJoin(oppId, meta),
+      trackBookmark: (oppId, meta) => window.OpportunityEngine?.trackBookmark(oppId, meta),
+      trackClick: (oppId, meta) => window.OpportunityEngine?.trackClick(oppId, meta),
+      refresh: () => window.OpportunityEngine?.refresh()
+    },
+
     debug: {
       getNodes: () => nodes,
       getLinks: () => links,
@@ -475,6 +508,16 @@ export async function initSynapseView() {
 export async function refreshSynapseConnections() {
   await reloadAllData();
   await rebuildGraph();
+  
+  // Refresh opportunities when graph refreshes
+  if (window.OpportunityEngine) {
+    try {
+      await window.OpportunityEngine.refresh();
+      console.log('🔄 Opportunities refreshed');
+    } catch (error) {
+      console.warn('⚠️ Failed to refresh opportunities:', error);
+    }
+  }
 }
 
 export async function refreshThemeCircles() {
@@ -603,7 +646,7 @@ export function filterSynapseByCategory(category) {
 export function getSynapseStats() {
   const peopleCount = nodes.filter((n) => n.type === "person").length;
   const projectCount = nodes.filter((n) => n.type === "project").length;
-  const themeCount = nodes.filter((n) => n.type === "theme").length;
+  const opportunityCount = window.OpportunityEngine?.getActiveCount() || 0; // REPLACED: was themeCount
 
   const acceptedSet = new Set(["accepted", "active", "connected", "approved"]);
   const myConns = (connectionsData || []).filter(
@@ -617,7 +660,7 @@ export function getSynapseStats() {
     totalLinks: links.length,
     peopleCount,
     projectCount,
-    themeCount,
+    opportunityCount, // REPLACED: was themeCount
     myConnectionCount: myAccepted.length || myConns.length || 0,
     currentUserCommunityId,
   };
