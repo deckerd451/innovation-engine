@@ -482,8 +482,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
   // This function is kept for backward compatibility but does nothing
   console.log('ℹ️ Theme rendering disabled - opportunities system active');
   return;
-  
-  /* ORIGINAL THEME RENDERING CODE - DISABLED
+}
   // Performance optimization: Create gradients only once, reuse for similar themes
   let defs = container.select("defs");
   if (defs.empty()) {
@@ -818,14 +817,6 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       
       .theme-container .theme-hit-area {
         pointer-events: all;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  return d3.select(themesGroup.node());
-  */ // END OF DISABLED THEME RENDERING CODE
-}
 
 // Function to highlight a selected theme
 export function highlightSelectedTheme(themeId) {
