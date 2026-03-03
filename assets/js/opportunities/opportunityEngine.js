@@ -55,12 +55,105 @@ class OpportunityEngine {
     const existingOpps = await this.loadExistingOpportunities();
     opportunities.push(...existingOpps);
     
+    // FALLBACK: If no opportunities derived, inject seeded opportunities
+    if (opportunities.length === 0) {
+      console.log('ℹ️ No opportunities derived, injecting seeded fallback');
+      opportunities.push(...this.getSeededOpportunities());
+    }
+    
+    // Track counts for debug
+    const derivedCount = projectOpps.length + orgOpps.length + existingOpps.length;
+    const seededCount = opportunities.length - derivedCount;
+    
     // Normalize and enrich with momentum data
     this.opportunities = await this.enrichWithMomentum(opportunities);
+    
+    // Debug log (once on init)
+    console.log('[OPPS] derived=', derivedCount, 'seeded=', seededCount, 'sample=', this.opportunities.slice(0, 2));
     
     console.log(`✅ Loaded ${this.opportunities.length} opportunities`);
     
     return this.opportunities;
+  }
+
+  /**
+   * Get seeded fallback opportunities
+   */
+  getSeededOpportunities() {
+    return [
+      {
+        id: 'seed:1',
+        title: 'Build AI-Powered Chatbot',
+        description: 'Create an intelligent chatbot using modern AI frameworks',
+        source: 'seed',
+        sourceId: 'seed-1',
+        tags: ['AI', 'Python', 'NLP'],
+        deadline: null,
+        createdAt: new Date().toISOString(),
+        urgencyScore: 0.5,
+        momentumScore: 0
+      },
+      {
+        id: 'seed:2',
+        title: 'Design Mobile App UI/UX',
+        description: 'Design intuitive user interfaces for mobile applications',
+        source: 'seed',
+        sourceId: 'seed-2',
+        tags: ['Design', 'UI/UX', 'Mobile'],
+        deadline: null,
+        createdAt: new Date().toISOString(),
+        urgencyScore: 0.5,
+        momentumScore: 0
+      },
+      {
+        id: 'seed:3',
+        title: 'Develop Web3 DApp',
+        description: 'Build decentralized applications on blockchain',
+        source: 'seed',
+        sourceId: 'seed-3',
+        tags: ['Blockchain', 'Web3', 'Solidity'],
+        deadline: null,
+        createdAt: new Date().toISOString(),
+        urgencyScore: 0.5,
+        momentumScore: 0
+      },
+      {
+        id: 'seed:4',
+        title: 'Create Data Visualization Dashboard',
+        description: 'Build interactive dashboards for data analysis',
+        source: 'seed',
+        sourceId: 'seed-4',
+        tags: ['Data Science', 'Visualization', 'JavaScript'],
+        deadline: null,
+        createdAt: new Date().toISOString(),
+        urgencyScore: 0.5,
+        momentumScore: 0
+      },
+      {
+        id: 'seed:5',
+        title: 'Implement CI/CD Pipeline',
+        description: 'Set up automated testing and deployment workflows',
+        source: 'seed',
+        sourceId: 'seed-5',
+        tags: ['DevOps', 'CI/CD', 'Automation'],
+        deadline: null,
+        createdAt: new Date().toISOString(),
+        urgencyScore: 0.5,
+        momentumScore: 0
+      },
+      {
+        id: 'seed:6',
+        title: 'Optimize Database Performance',
+        description: 'Improve query performance and database architecture',
+        source: 'seed',
+        sourceId: 'seed-6',
+        tags: ['Database', 'SQL', 'Performance'],
+        deadline: null,
+        createdAt: new Date().toISOString(),
+        urgencyScore: 0.5,
+        momentumScore: 0
+      }
+    ];
   }
 
   /**
@@ -70,18 +163,22 @@ class OpportunityEngine {
     try {
       const { data: projects, error } = await this.supabase
         .from('projects')
-        .select('id, title, description, status, created_at, deadline, tags')
-        .in('status', ['active', 'recruiting', 'open']);
+        .select('id, title, description, status, created_at, deadline, tags');
+        // REMOVED: .in('status', ['active', 'recruiting', 'open'])
+        // Now accepts ANY project with a title
       
       if (error) {
         console.warn('⚠️ Error loading projects:', error);
         return [];
       }
       
-      return (projects || []).map(project => ({
+      // Filter to only projects with at least a title (loosen rules)
+      const validProjects = (projects || []).filter(p => p.title);
+      
+      return validProjects.map(project => ({
         id: `project:${project.id}`,
         title: project.title,
-        description: project.description,
+        description: project.description || 'Join this project',
         source: 'project',
         sourceId: project.id,
         tags: this.parseTags(project.tags),
@@ -103,15 +200,19 @@ class OpportunityEngine {
     try {
       const { data: orgs, error } = await this.supabase
         .from('organizations')
-        .select('id, name, description, industry, location')
-        .eq('verified', true);
+        .select('id, name, description, industry, location');
+        // REMOVED: .eq('verified', true)
+        // Now accepts ANY org with a name
       
       if (error) {
         console.warn('⚠️ Error loading organizations:', error);
         return [];
       }
       
-      return (orgs || []).map(org => ({
+      // Filter to only orgs with at least a name (loosen rules)
+      const validOrgs = (orgs || []).filter(o => o.name);
+      
+      return validOrgs.map(org => ({
         id: `org:${org.id}`,
         title: `Join ${org.name}`,
         description: org.description || `Connect with ${org.name} in ${org.industry || 'the community'}`,

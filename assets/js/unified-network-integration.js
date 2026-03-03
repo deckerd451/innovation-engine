@@ -159,6 +159,10 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
         
         // Verification log
         console.log('[SYNAPSE] synapseApi ready', !!window.synapseApi, !!window.synapseApi.opportunities);
+        
+        // Compatibility alias for graph-controller.js
+        window.synapseCore = window.synapseCore || window.synapseApi || unifiedNetworkApi;
+        console.log('[SYNAPSE] synapseCore compatibility alias set');
       } else {
         console.warn('[SYNAPSE] ⚠️ OpportunityEngine or Supabase not available');
       }
