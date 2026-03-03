@@ -134,6 +134,39 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
     // ✅ Initialize the unified network API with COMMUNITY ID (not auth uid)
     await unifiedNetworkApi.initialize(containerId, communityId);
 
+    // ================================================================
+    // OPPORTUNITY ENGINE INITIALIZATION
+    // ================================================================
+    console.log('[SYNAPSE] Initializing Opportunity Engine...');
+    try {
+      if (window.OpportunityEngine && window.supabase) {
+        await window.OpportunityEngine.init(window.supabase, communityId);
+        const oppCount = window.OpportunityEngine.getActiveCount();
+        console.log(`[SYNAPSE] ✅ Opportunity Engine initialized with ${oppCount} opportunities`);
+        
+        // Expose API on window.synapseApi
+        window.synapseApi = window.synapseApi || {};
+        window.synapseApi.opportunities = {
+          getAll: () => window.OpportunityEngine?.getOpportunities() || [],
+          getCount: () => window.OpportunityEngine?.getActiveCount() || 0,
+          getTrending: (limit = 5) => window.OpportunityEngine?.getTrending(limit) || [],
+          getTop: () => window.OpportunityEngine?.getTopTrending() || null,
+          trackJoin: (oppId, meta) => window.OpportunityEngine?.trackJoin(oppId, meta),
+          trackBookmark: (oppId, meta) => window.OpportunityEngine?.trackBookmark(oppId, meta),
+          trackClick: (oppId, meta) => window.OpportunityEngine?.trackClick(oppId, meta),
+          refresh: () => window.OpportunityEngine?.refresh()
+        };
+        
+        // Verification log
+        console.log('[SYNAPSE] synapseApi ready', !!window.synapseApi, !!window.synapseApi.opportunities);
+      } else {
+        console.warn('[SYNAPSE] ⚠️ OpportunityEngine or Supabase not available');
+      }
+    } catch (error) {
+      console.error('[SYNAPSE] ❌ Failed to initialize Opportunity Engine:', error);
+      // Non-fatal: continue with network initialization
+    }
+
     // Setup event bridges (idempotent)
     setupEventBridges();
 
