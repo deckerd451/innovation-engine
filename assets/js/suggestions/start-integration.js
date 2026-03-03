@@ -489,10 +489,18 @@ async function initializeWhenReady() {
 
   console.log('🔗 [START] User authenticated, waiting for Synapse...');
 
-  // Wait for Synapse to be ready
+  // Wait for Synapse to be ready (checks multiple signals)
   const synapseReady = await window.bootGate.waitForSynapse(15000);
-  if (!synapseReady) {
+  
+  // Double-check readiness via multiple signals
+  const isSynapseReady = synapseReady || 
+                         window.__SYNAPSE_READY__ === true ||
+                         (window.synapseApi && typeof window.synapseApi.opportunities?.getCount === 'function');
+  
+  if (!isSynapseReady) {
     console.warn('⚠️ [START] Synapse not ready, START integration may be limited');
+  } else {
+    console.log('✅ [START] Synapse ready');
   }
 
   // Check if required modules are loaded

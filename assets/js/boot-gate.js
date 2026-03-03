@@ -224,22 +224,41 @@
    * @returns {Promise<boolean>} True if Synapse ready, false if timeout
    */
   async function waitForSynapse(timeoutMs = 15000) {
-    if (window.appReady.synapse) {
+    // Check if already ready via multiple signals
+    if (window.appReady.synapse || 
+        window.__SYNAPSE_READY__ === true ||
+        (window.synapseApi && typeof window.synapseApi.opportunities?.getCount === 'function')) {
       return true;
     }
 
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        console.warn('⏱️ [BOOT-GATE] Synapse wait timeout');
-        resolve(false);
+        // Final check before timeout
+        if (window.__SYNAPSE_READY__ === true || 
+            (window.synapseApi && typeof window.synapseApi.opportunities?.getCount === 'function')) {
+          resolve(true);
+        } else {
+          console.warn('⏱️ [BOOT-GATE] Synapse wait timeout');
+          resolve(false);
+        }
       }, timeoutMs);
 
-      const handler = () => {
+      // Listen for synapse:ready event
+      const readyHandler = () => {
         clearTimeout(timeout);
+        window.removeEventListener('synapse:ready', readyHandler);
         off('SYNAPSE_READY', handler);
         resolve(true);
       };
+      window.addEventListener('synapse:ready', readyHandler, { once: true });
 
+      // Also listen for legacy SYNAPSE_READY event
+      const handler = () => {
+        clearTimeout(timeout);
+        window.removeEventListener('synapse:ready', readyHandler);
+        off('SYNAPSE_READY', handler);
+        resolve(true);
+      };
       on('SYNAPSE_READY', handler);
     });
   }

@@ -188,6 +188,13 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
 
     logger.info(INTEGRATION_NS, '✅ Unified network initialized successfully', { communityId });
 
+    // ================================================================
+    // SYNAPSE READY SIGNAL
+    // ================================================================
+    window.__SYNAPSE_READY__ = true;
+    window.dispatchEvent(new CustomEvent('synapse:ready', { detail: { ts: Date.now() } }));
+    console.log('[SYNAPSE] ready signal emitted');
+
 // Install tier probe for mobile debugging (idempotent)
 try {
   installUnifiedTierProbe(unifiedNetworkApi);
