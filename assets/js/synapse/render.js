@@ -824,7 +824,7 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
   }
 
   return d3.select(themesGroup.node());
-  END OF DISABLED THEME RENDERING CODE */
+  */ // END OF DISABLED THEME RENDERING CODE
 }
 
 // Function to highlight a selected theme
