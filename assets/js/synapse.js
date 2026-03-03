@@ -13,4 +13,4 @@ export {
   getRecommendations,
   // Theme API (new)
   refreshThemeCircles
-} from "./synapse/core.js?v=1770146281";
+} from "./synapse/core.js?v=opportunity-engine-20260208";
