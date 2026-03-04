@@ -182,11 +182,17 @@ function _buildSplit() {
  * Tear down the split and restore all nodes to their original parents.
  * Safe to call even when split was never built.
  */
+let _destroyingInProgress = false; // Guard against infinite recursion
 function _destroySplit() {
-  if (!_splitBuilt) return;
+  if (!_splitBuilt || _destroyingInProgress) return;
+  _destroyingInProgress = true;
 
   const split = document.getElementById('ie-mobile-split');
-  if (!split) { _splitBuilt = false; return; }
+  if (!split) { 
+    _splitBuilt = false; 
+    _destroyingInProgress = false;
+    return; 
+  }
 
   // If the Command Dashboard was moved into the split pane, restore it first
   // so it isn't destroyed when split.remove() runs.
@@ -238,6 +244,7 @@ function _destroySplit() {
                   leftNav: null, leftNavParent: null, leftNavSibling: null,
                   rightNav: null, rightNavParent: null, rightNavSibling: null };
   _splitBuilt = false;
+  _destroyingInProgress = false; // Release guard
 }
 
 // Resize listener — enter/leave mobile, never leaks duplicate nodes
