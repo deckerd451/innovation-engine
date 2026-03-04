@@ -6,7 +6,7 @@
 SELECT 
   'community' as table_name,
   id,
-  display_name,
+  name,
   image_url as old_url,
   REPLACE(
     image_url,

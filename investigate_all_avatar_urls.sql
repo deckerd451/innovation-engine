@@ -5,7 +5,7 @@
 SELECT 
   'community' as table_name,
   id,
-  display_name as name,
+  name,
   image_url,
   avatar_storage_path,
   CASE 
@@ -38,7 +38,7 @@ ORDER BY count DESC;
 SELECT 
   'community' as table_name,
   id,
-  display_name,
+  name,
   image_url
 FROM community
 WHERE image_url LIKE '%1748609033178.jpg%'
