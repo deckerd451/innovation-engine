@@ -712,7 +712,7 @@ body.profile-modal-open .side-panel {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 800;
+    z-index: 10000; /* Increased from 800 to ensure it's above everything */
     background: rgba(5, 7, 15, 0.96);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -720,6 +720,7 @@ body.profile-modal-open .side-panel {
     padding-bottom: env(safe-area-inset-bottom, 0px);
     height: calc(60px + env(safe-area-inset-bottom, 0px));
     align-items: stretch;
+    pointer-events: auto; /* Ensure it receives clicks */
   }
 
   /* Push toasts above the tab bar */
@@ -748,6 +749,9 @@ body.profile-modal-open .side-panel {
     transition: color 0.15s;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    pointer-events: auto; /* Ensure buttons receive clicks */
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .mob-tab i {
