@@ -101,13 +101,18 @@
     el.style.display = "none";
   }
 
-  function showAuthError(message) {
+  function showAuthError(message, type = "error") {
     const msg = message || "Login failed.";
-    err("[AUTH] " + msg);
+    if (type === "error") {
+      err("[AUTH] " + msg);
+    } else {
+      log("[AUTH] " + msg);
+    }
     const el = ensureAuthErrorEl();
     if (el) {
       el.textContent = msg;
       el.style.display = "block";
+      el.style.color = type === "success" ? "#4caf50" : "#ff6b6b";
     } else {
       // ultra-safe fallback
       try {
@@ -250,6 +255,97 @@
     }
 
     log("✅ [AUTH] Email/password login handler bound");
+    
+    // Bind sign-up link
+    const signupLink = document.getElementById("signup-link");
+    if (signupLink && !signupLink.dataset.bound) {
+      signupLink.dataset.bound = "1";
+      signupLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        handleSignUp();
+      });
+    }
+
+    // Bind forgot password link
+    const forgotLink = document.getElementById("forgot-password-link");
+    if (forgotLink && !forgotLink.dataset.bound) {
+      forgotLink.dataset.bound = "1";
+      forgotLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        handleForgotPassword();
+      });
+    }
+  }
+
+  async function handleSignUp() {
+    clearAuthError();
+    
+    const email = (emailInput?.value || document.querySelector('input[type="email"]')?.value || "").toLowerCase().trim();
+    const password = passwordInput?.value || document.querySelector('input[type="password"]')?.value || "";
+
+    if (!email || !password) {
+      showAuthError("Please enter your email and password to create an account.");
+      return;
+    }
+
+    if (password.length < 6) {
+      showAuthError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    setHint("Creating account…");
+
+    try {
+      const { data, error } = await window.supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        showAuthError(error.message || "Could not create account.");
+        setHint("Try again.");
+        return;
+      }
+
+      log("✅ Sign-up success:", email);
+      showAuthError("Account created! Check your email to confirm your account.", "success");
+      setHint("Check your email to verify your account.");
+    } catch (e) {
+      showAuthError(e?.message || String(e));
+      setHint("Try again.");
+    }
+  }
+
+  async function handleForgotPassword() {
+    clearAuthError();
+    
+    const email = (emailInput?.value || document.querySelector('input[type="email"]')?.value || "").toLowerCase().trim();
+
+    if (!email) {
+      showAuthError("Please enter your email address.");
+      return;
+    }
+
+    setHint("Sending reset email…");
+
+    try {
+      const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+
+      if (error) {
+        showAuthError(error.message || "Could not send reset email.");
+        setHint("Try again.");
+        return;
+      }
+
+      log("✅ Password reset email sent to:", email);
+      showAuthError("Password reset email sent! Check your inbox.", "success");
+      setHint("Check your email for reset instructions.");
+    } catch (e) {
+      showAuthError(e?.message || String(e));
+      setHint("Try again.");
+    }
   }
 
   async function emailPasswordLogin() {
