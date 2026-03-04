@@ -163,7 +163,8 @@ class OpportunityEngine {
     try {
       const { data: projects, error } = await this.supabase
         .from('projects')
-        .select('id, title, description, status, created_at, deadline, tags');
+        .select('id, title, description, status, created_at, tags');
+        // REMOVED: deadline column (doesn't exist in schema)
         // REMOVED: .in('status', ['active', 'recruiting', 'open'])
         // Now accepts ANY project with a title
       
@@ -182,9 +183,9 @@ class OpportunityEngine {
         source: 'project',
         sourceId: project.id,
         tags: this.parseTags(project.tags),
-        deadline: project.deadline,
+        deadline: null, // No deadline column in projects table
         createdAt: project.created_at,
-        urgencyScore: this.calculateUrgency(project.deadline),
+        urgencyScore: 0.5, // Default medium urgency without deadline
         momentumScore: 0 // Will be enriched later
       }));
     } catch (err) {

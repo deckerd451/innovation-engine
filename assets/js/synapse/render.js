@@ -817,6 +817,11 @@ export function renderThemeCircles(container, themeNodes, { onThemeHover, onThem
       
       .theme-container .theme-hit-area {
         pointer-events: all;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
 
 // Function to highlight a selected theme
 export function highlightSelectedTheme(themeId) {
