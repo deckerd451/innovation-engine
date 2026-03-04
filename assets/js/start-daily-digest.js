@@ -58,7 +58,7 @@ function _esc(str) {
 // ============================================================================
 
 /** Returns true when the viewport is in the mobile split range. */
-const isMobileSplit = () => window.matchMedia('(max-width: 768px)').matches;
+const isMobileSplit = () => false; // DISABLED: Always use full-screen graph with bottom nav on mobile
 
 let _splitBuilt = false;
 let _splitOrig  = { synapseParent: null, synapseSibling: null,
