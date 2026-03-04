@@ -1,10 +1,14 @@
 -- Investigation: Find avatar URLs that are causing ERR_NAME_NOT_RESOLVED
 -- The error shows URLs like: hvmotpzhliufzomewzfl.supabase.co/storage/v1/object/public/hacksbucket/...
 
+-- First, let's see what columns exist in profiles table
+-- Run this to see the schema:
+-- SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'profiles';
+
 -- 1. Check what avatar URLs are currently in the profiles table
 SELECT 
-  community_id,
-  display_name,
+  id,
+  full_name,
   avatar_url,
   CASE 
     WHEN avatar_url LIKE '%hvmotpzhliufzomewzfl%' THEN 'OLD_INSTANCE'
@@ -14,7 +18,7 @@ SELECT
   END as url_type
 FROM profiles
 WHERE avatar_url IS NOT NULL
-ORDER BY url_type, community_id
+ORDER BY url_type, id
 LIMIT 50;
 
 -- 2. Count profiles by URL type
@@ -33,8 +37,8 @@ ORDER BY count DESC;
 
 -- 3. Find the specific problematic URL from the error
 SELECT 
-  community_id,
-  display_name,
+  id,
+  full_name,
   avatar_url
 FROM profiles
 WHERE avatar_url LIKE '%1748609033178.jpg%'

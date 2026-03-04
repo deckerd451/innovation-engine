@@ -10,8 +10,8 @@ BEGIN;
 
 -- Show what will be updated (run this first to preview)
 SELECT 
-  community_id,
-  display_name,
+  id,
+  full_name,
   avatar_url as old_url,
   REPLACE(
     avatar_url,
