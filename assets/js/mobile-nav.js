@@ -17,8 +17,15 @@
 
   // Re-check on resize (e.g., orientation change)
   window.addEventListener('resize', () => {
+    const tabBar = document.getElementById('mobile-tab-bar');
+    if (!tabBar) return;
+    
     if (window.innerWidth >= 1024) {
-      document.getElementById('mobile-tab-bar')?.style && (document.getElementById('mobile-tab-bar').style.display = 'none');
+      // Desktop - hide mobile nav
+      tabBar.style.display = 'none';
+    } else {
+      // Mobile - show mobile nav (let CSS handle it)
+      tabBar.style.display = '';
     }
   }, { passive: true });
 
