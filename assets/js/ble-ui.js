@@ -57,9 +57,12 @@
   // ============================================================================
 
   /**
-   * Create Event Mode button
+   * Create Event Mode button (desktop only)
    */
   function createEventModeButton() {
+    // Skip on mobile - handled by mobile-nav.js
+    if (window.innerWidth < 1024) return;
+
     // Add button next to refresh network button
     const refreshBtn = document.getElementById('btn-refresh-network');
     if (!refreshBtn || !refreshBtn.parentElement) return;
@@ -105,9 +108,12 @@
   }
 
   /**
-   * Create Suggestions button
+   * Create Suggestions button (desktop only)
    */
   function createSuggestionsButton() {
+    // Skip on mobile - handled by mobile-nav.js
+    if (window.innerWidth < 1024) return;
+
     // Add button next to Event Mode button
     if (!eventModeButton || !eventModeButton.parentElement) return;
 
