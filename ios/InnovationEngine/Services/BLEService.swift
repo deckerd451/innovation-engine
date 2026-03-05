@@ -150,7 +150,7 @@ final class BLEService: NSObject, ObservableObject {
         }
         
         beaconScores.sort { $0.energy > $1.energy }
-        let topBeacons = Array(beaconScores.prefix(3))
+        let topBeacons = Array(beaconScores.prefix(1))
         
         // Update UI with closest beacon
         if let closest = topBeacons.first {
@@ -207,8 +207,8 @@ final class BLEService: NSObject, ObservableObject {
             let timeSinceLast = now.timeIntervalSince(last.date)
             let energyDelta = abs(energy - last.energy)
             
-            // Skip if within 5 seconds AND energy change < 1.5
-            if timeSinceLast < 5 && energyDelta < 1.5 {
+            // Skip if within 5 seconds AND energy change < 0.15
+            if timeSinceLast < 5 && energyDelta < 0.15 {
                 return
             }
         }

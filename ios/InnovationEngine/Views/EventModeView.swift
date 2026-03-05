@@ -18,6 +18,15 @@ struct EventModeView: View {
                 // Current Beacon Status
                 if bleService.isScanning {
                     currentBeaconCard
+                    
+                    // Radar Visualization
+                    if let beacon = bleService.closestBeacon {
+                        BeaconRadarView(
+                            beaconId: beacon.beaconId,
+                            beaconLabel: beacon.label
+                        )
+                        .padding(.top, 8)
+                    }
                 }
                 
                 // Error Message
