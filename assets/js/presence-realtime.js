@@ -357,19 +357,11 @@
   function handlePageHide() {
     console.log('👋 [Presence] Page hiding, updating last_seen');
     
-    // Update last_seen immediately (synchronous)
+    // Update last_seen immediately using Supabase client
+    // Note: sendBeacon doesn't work with Supabase because it can't send auth headers
     if (supabase && communityProfileId) {
-      // Use sendBeacon for reliable delivery during page unload
-      const url = `${supabase.supabaseUrl}/rest/v1/community?id=eq.${communityProfileId}`;
-      const data = JSON.stringify({ last_seen_at: new Date().toISOString() });
-      
-      if (navigator.sendBeacon) {
-        const blob = new Blob([data], { type: 'application/json' });
-        navigator.sendBeacon(url, blob);
-      } else {
-        // Fallback: synchronous XHR (not recommended but works)
-        updateLastSeen();
-      }
+      // Use the Supabase client which handles authentication properly
+      updateLastSeen();
     }
 
     // Untrack from presence

@@ -32,6 +32,7 @@ window.__IE_UNIFIED_INIT__ = window.__IE_UNIFIED_INIT__ || false;
 window.__IE_SYNAPSE_BRIDGE_INIT__ = window.__IE_SYNAPSE_BRIDGE_INIT__ || false;
 window.__IE_PRESENCE_INIT__ = window.__IE_PRESENCE_INIT__ || false;
 window.__IE_PRESENCE_UI_INIT__ = window.__IE_PRESENCE_UI_INIT__ || false;
+window.__IE_BLE_INIT__ = window.__IE_BLE_INIT__ || false;
 window.__IE_REALTIME_STARTED__ = window.__IE_REALTIME_STARTED__ || false;
 window.__IE_ADMIN_LOADED__ = window.__IE_ADMIN_LOADED__ || false;
 window.__IE_DESKTOP_DASHBOARD_INIT__ = window.__IE_DESKTOP_DASHBOARD_INIT__ || false;
@@ -149,6 +150,26 @@ async function onProfileLoaded(e) {
     } catch (error) {
       window.__IE_PRESENCE_UI_INIT__ = false;
       log.error("❌ Presence UI initialization failed:", error);
+    }
+  }
+
+  // ------------------------------
+  // BLE Passive Networking init (single-flight)
+  // ------------------------------
+  if (!window.__IE_BLE_INIT__ && profile?.id && window.BLEPassiveNetworking && window.supabase) {
+    window.__IE_BLE_INIT__ = true;
+    log.debug("📡 Initializing BLE Passive Networking...");
+
+    try {
+      const initialized = await window.BLEPassiveNetworking.initialize(window.supabase, profile.id);
+      if (initialized) {
+        log.info("✅ BLE Passive Networking active");
+      } else {
+        log.info("ℹ️ BLE Passive Networking not available (browser not supported)");
+      }
+    } catch (error) {
+      window.__IE_BLE_INIT__ = false;
+      log.error("❌ BLE Passive Networking initialization failed:", error);
     }
   }
 

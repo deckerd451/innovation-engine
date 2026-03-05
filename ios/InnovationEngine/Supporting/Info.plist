@@ -46,5 +46,11 @@
     <!-- Privacy -->
     <key>NSCameraUsageDescription</key>
     <string>Camera access is required to scan QR codes and create connections.</string>
+    
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Location access is required to scan for nearby event beacons and enable passive networking.</string>
+    
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Bluetooth access is required to detect nearby event beacons for passive networking.</string>
 </dict>
 </plist>

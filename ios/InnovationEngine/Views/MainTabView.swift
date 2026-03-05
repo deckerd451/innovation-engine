@@ -14,6 +14,11 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Scan", systemImage: "camera")
                 }
+            
+            EventModeView()
+                .tabItem {
+                    Label("Event Mode", systemImage: "antenna.radiowaves.left.and.right")
+                }
 
             NetworkView()
                 .tabItem {

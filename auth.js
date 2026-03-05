@@ -280,8 +280,19 @@
   async function handleSignUp() {
     clearAuthError();
     
-    const email = (emailInput?.value || document.querySelector('input[type="email"]')?.value || "").toLowerCase().trim();
-    const password = passwordInput?.value || document.querySelector('input[type="password"]')?.value || "";
+    // Get fresh references to input fields
+    const emailField = document.querySelector('input[type="email"]');
+    const passwordField = document.querySelector('input[type="password"]');
+    
+    if (!emailField || !passwordField) {
+      showAuthError("Could not find email or password fields.");
+      return;
+    }
+    
+    const email = (emailField.value || "").toLowerCase().trim();
+    const password = passwordField.value || "";
+    
+    log("🔍 [SIGNUP] Field values:", { email: email || "(empty)", passwordLength: password.length });
 
     if (!email || !password) {
       showAuthError("Please enter your email and password to create an account.");
@@ -308,7 +319,11 @@
       }
 
       log("✅ Sign-up success:", email);
-      showAuthError("Account created! Check your email to confirm your account.", "success");
+      
+      // Clear password field for security
+      passwordField.value = "";
+      
+      showAuthError("Account created! Check your email to verify before logging in.", "success");
       setHint("Check your email to verify your account.");
     } catch (e) {
       showAuthError(e?.message || String(e));
