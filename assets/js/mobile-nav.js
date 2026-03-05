@@ -330,27 +330,23 @@
 
   // ── Helper: Mobile Profile Sheet with Logout ───────────────────
   function showMobileProfileSheet() {
-    // First try to open the existing profile modal
+    // Open the existing profile modal (which already has logout button)
     if (typeof window.openProfileModal === 'function') {
       window.openProfileModal();
       
-      // Add logout button to profile modal if not already there
+      // On mobile, intercept the logout button to show confirmation
       setTimeout(() => {
-        const profileModal = document.getElementById('profile-modal');
-        if (profileModal && !document.getElementById('mobile-profile-logout')) {
-          const content = document.getElementById('modal-profile-content');
-          if (content) {
-            const logoutBtn = document.createElement('button');
-            logoutBtn.id = 'mobile-profile-logout';
-            logoutBtn.style.cssText = `
-              width:100%; padding:0.75rem; margin-top:1rem;
-              background:rgba(255,107,107,0.2); border:1px solid rgba(255,107,107,0.4);
-              border-radius:8px; color:#ff6b6b; font-weight:700; cursor:pointer;
-            `;
-            logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
-            logoutBtn.addEventListener('click', showMobileLogoutConfirm);
-            content.appendChild(logoutBtn);
-          }
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn && window.innerWidth < 1024) {
+          // Remove existing listeners and add mobile confirmation
+          const newLogoutBtn = logoutBtn.cloneNode(true);
+          logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+          
+          newLogoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showMobileLogoutConfirm();
+          });
         }
       }, 100);
     }
