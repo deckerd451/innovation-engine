@@ -95,9 +95,17 @@
   let beaconNode = null;
   let attendeeNodes = new Set();
   let suggestedEdgeElements = new Map();
+  let beaconCounterLabel = null;
   
   // Original forces (to restore)
   let originalForces = null;
+  
+  // Error throttling
+  let lastEdgeErrorTime = 0;
+  let lastPresenceErrorTime = 0;
+  let edgePollingPausedUntil = 0;
+  const ERROR_THROTTLE_MS = 30000; // 30 seconds
+  const EDGE_POLLING_PAUSE_MS = 30000; // 30 seconds
 
   // ============================================================================
   // INITIALIZATION
@@ -282,6 +290,9 @@
   function removeBeaconNode() {
     if (!beaconNode || !synapseCore) return;
 
+    // Remove counter label
+    removeBeaconCounter();
+
     // Unpin beacon
     beaconNode.fx = null;
     beaconNode.fy = null;
@@ -316,6 +327,113 @@
     beaconNode.fy = height / 2;
   }
 
+  /**
+   * Update beacon attendee counter
+   */
+  function updateBeaconCounter() {
+    if (!beaconNode || !synapseCore) return;
+
+    const count = activeAttendees.size;
+    let text = '';
+    
+    if (count === 0) {
+      text = 'No one here yet';
+    } else if (count === 1) {
+      text = '1 here now';
+    } else {
+      text = `${count} here now`;
+    }
+
+    // Create or update label
+    if (!beaconCounterLabel) {
+      createBeaconCounter(text);
+    } else {
+      beaconCounterLabel.textContent = text;
+      
+      // Pulse effect on count increase
+      if (count > 0) {
+        beaconCounterLabel.style.animation = 'none';
+        setTimeout(() => {
+          beaconCounterLabel.style.animation = 'pulse 0.5s ease-out';
+        }, 10);
+      }
+    }
+  }
+
+  /**
+   * Create beacon counter label
+   */
+  function createBeaconCounter(text) {
+    if (!synapseCore || !synapseCore.svg) return;
+
+    const svg = synapseCore.svg;
+    
+    // Create text element
+    beaconCounterLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    beaconCounterLabel.setAttribute('class', 'beacon-counter');
+    beaconCounterLabel.setAttribute('text-anchor', 'middle');
+    beaconCounterLabel.setAttribute('dominant-baseline', 'middle');
+    beaconCounterLabel.textContent = text;
+    
+    // Style
+    beaconCounterLabel.style.cssText = `
+      fill: #00e0ff;
+      font-size: 14px;
+      font-weight: 600;
+      text-shadow: 0 0 10px rgba(0,224,255,0.8);
+      pointer-events: none;
+      user-select: none;
+    `;
+
+    // Position above beacon
+    updateBeaconCounterPosition();
+
+    // Add to SVG
+    svg.node().appendChild(beaconCounterLabel);
+
+    // Update position on simulation tick
+    if (synapseCore.simulation) {
+      synapseCore.simulation.on('tick.beaconCounter', updateBeaconCounterPosition);
+    }
+
+    console.log('✅ [Event Mode] Beacon counter created');
+  }
+
+  /**
+   * Update beacon counter position
+   */
+  function updateBeaconCounterPosition() {
+    if (!beaconCounterLabel || !beaconNode) return;
+
+    const x = beaconNode.x || beaconNode.fx || 0;
+    const y = beaconNode.y || beaconNode.fy || 0;
+
+    // Position above beacon (60px above center)
+    beaconCounterLabel.setAttribute('x', x);
+    beaconCounterLabel.setAttribute('y', y - 60);
+  }
+
+  /**
+   * Remove beacon counter
+   */
+  function removeBeaconCounter() {
+    if (!beaconCounterLabel) return;
+
+    // Remove tick listener
+    if (synapseCore && synapseCore.simulation) {
+      synapseCore.simulation.on('tick.beaconCounter', null);
+    }
+
+    // Remove element
+    if (beaconCounterLabel.parentNode) {
+      beaconCounterLabel.parentNode.removeChild(beaconCounterLabel);
+    }
+
+    beaconCounterLabel = null;
+
+    console.log('✅ [Event Mode] Beacon counter removed');
+  }
+
   // ============================================================================
   // PRESENCE MANAGEMENT
   // ============================================================================
@@ -346,7 +464,12 @@
         .gt('expires_at', new Date().toISOString());
 
       if (error) {
-        console.error('❌ [Event Mode] Failed to fetch presence:', error);
+        // Throttle error logging
+        const now = Date.now();
+        if (now - lastPresenceErrorTime > ERROR_THROTTLE_MS) {
+          console.error('❌ [Event Mode] Failed to fetch presence:', error);
+          lastPresenceErrorTime = now;
+        }
         return;
       }
 
@@ -394,6 +517,9 @@
         removeAttendeeNodes(removed);
       }
 
+      // Update beacon counter
+      updateBeaconCounter();
+
       if (CONFIG.DEBUG && (added.length > 0 || removed.length > 0)) {
         console.log('📊 [Event Mode] Presence updated:', {
           total: activeAttendees.size,
@@ -403,7 +529,12 @@
       }
 
     } catch (error) {
-      console.error('❌ [Event Mode] Error refreshing presence:', error);
+      // Throttle error logging
+      const now = Date.now();
+      if (now - lastPresenceErrorTime > ERROR_THROTTLE_MS) {
+        console.error('❌ [Event Mode] Error refreshing presence:', error);
+        lastPresenceErrorTime = now;
+      }
     }
   }
 
@@ -470,16 +601,34 @@
   async function refreshSuggestedEdges() {
     if (!isActive || !currentBeacon) return;
 
+    // Check if polling is paused
+    const now = Date.now();
+    if (now < edgePollingPausedUntil) {
+      if (CONFIG.DEBUG) {
+        console.log('⏸️ [Event Mode] Edge polling paused until', new Date(edgePollingPausedUntil));
+      }
+      return;
+    }
+
     try {
-      // Query suggested edges
+      // Query suggested edges - BEACON ONLY (no group_id)
       const { data, error } = await supabase
         .from('interaction_edges')
         .select('*')
         .eq('status', 'suggested')
-        .or(`beacon_id.eq.${currentBeacon.id}${currentGroupId ? `,group_id.eq.${currentGroupId}` : ''}`);
+        .eq('beacon_id', currentBeacon.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (error) {
-        console.error('❌ [Event Mode] Failed to fetch suggested edges:', error);
+        // Pause polling and throttle error logging
+        edgePollingPausedUntil = now + EDGE_POLLING_PAUSE_MS;
+        
+        if (now - lastEdgeErrorTime > ERROR_THROTTLE_MS) {
+          console.error('❌ [Event Mode] Failed to fetch suggested edges:', error);
+          console.log('⏸️ [Event Mode] Pausing edge polling for 30 seconds');
+          lastEdgeErrorTime = now;
+        }
         return;
       }
 
@@ -534,7 +683,14 @@
       }
 
     } catch (error) {
-      console.error('❌ [Event Mode] Error refreshing suggested edges:', error);
+      // Pause polling and throttle error logging
+      edgePollingPausedUntil = now + EDGE_POLLING_PAUSE_MS;
+      
+      if (now - lastEdgeErrorTime > ERROR_THROTTLE_MS) {
+        console.error('❌ [Event Mode] Error refreshing suggested edges:', error);
+        console.log('⏸️ [Event Mode] Pausing edge polling for 30 seconds');
+        lastEdgeErrorTime = now;
+      }
     }
   }
 

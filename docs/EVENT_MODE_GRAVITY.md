@@ -61,8 +61,12 @@ AND expires_at > NOW();
 ```sql
 SELECT * FROM interaction_edges
 WHERE status = 'suggested'
-AND (beacon_id = :beacon_id OR group_id = :group_id);
+AND beacon_id = :beacon_id
+ORDER BY created_at DESC
+LIMIT 50;
 ```
+
+Note: Query is beacon-specific only (no group_id). The `infer_ble_edges` RPC can still use group-level inference, but the fetch query filters by beacon_id only to avoid schema errors.
 
 **Connections** (`public.connections`):
 - Existing connections remain unchanged
@@ -101,9 +105,35 @@ supabase.rpc('promote_edge_to_connection', {
 | Task | Interval | Purpose |
 |------|----------|---------|
 | Active Presence | 5s | Update attendee list |
-| Suggested Edges | 10s | Update suggestions |
+| Suggested Edges | 10s | Update suggestions (with error backoff) |
 | Edge Inference | 20s | Generate new suggestions |
 | Presence Ping | 5s | Keep current user active |
+
+### Error Handling
+
+**Suggested Edges Polling**:
+- On fetch error: Pause polling for 30 seconds
+- Error logging throttled to once per 30 seconds
+- Automatic resume after pause period
+- Prevents network spam on persistent errors
+
+**Presence Polling**:
+- Error logging throttled to once per 30 seconds
+- Continues polling (no pause)
+- Graceful degradation
+
+### Beacon Attendee Counter
+
+**Live Counter Display**:
+- Shows "X here now" above beacon node
+- Updates every 5 seconds with presence refresh
+- Text variations:
+  - 0 attendees: "No one here yet"
+  - 1 attendee: "1 here now"
+  - Multiple: "7 here now"
+- Styled in neon cyan (#00e0ff) with glow
+- Positioned 60px above beacon center
+- Pulse animation on count increase
 
 ## Usage
 
@@ -374,15 +404,22 @@ if (!fromNode || !toNode) {
 ## Browser Support
 
 ### Desktop Only
-- Chrome/Edge: Full support
-- Firefox: Full support
-- Safari: Full support
-- Mobile: Not available (use mobile BLE instead)
+- Chrome/Edge: Full support (including Web Bluetooth)
+- Firefox: Full support (Event Mode Gravity only, no Web Bluetooth)
+- Safari: Full support (Event Mode Gravity only, no Web Bluetooth)
+- Mobile: Not available (use native iOS app for BLE scanning)
+
+### Web Bluetooth Compatibility
+- **Available**: Chrome/Edge on Android and Desktop
+- **Not Available**: Safari, Firefox, iOS browsers
+- **Fallback**: Event Mode Gravity visualization works without Web Bluetooth
+- **Message**: "BLE scanning isn't available in this browser. Use the iOS app for automatic proximity detection. Event Mode visualization will still work."
 
 ### Requirements
 - D3.js v7+
 - Modern browser with ES6+
 - WebSocket support (for Supabase Realtime)
+- Web Bluetooth API (optional, for BLE scanning)
 
 ## Testing
 
@@ -431,7 +468,9 @@ assert(state.isActive === false);
 - Run edge inference manually
 - Check `interaction_edges` table
 - Verify `status` is 'suggested'
-- Check beacon_id or group_id filter
+- Check beacon_id filter (group_id not used in query)
+- Wait 30 seconds if polling is paused due to error
+- Check console for throttled error messages
 
 ### Edge Promotion Fails
 - Check RPC function exists

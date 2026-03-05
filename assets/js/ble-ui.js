@@ -222,7 +222,19 @@
    */
   async function toggleEventMode() {
     if (!window.BLEPassiveNetworking) {
-      alert('BLE Passive Networking not available');
+      // If BLE not available, suggest using Event Mode Gravity instead
+      if (window.EventModeGravity) {
+        const useGravity = confirm(
+          'BLE scanning is not available in this browser.\n\n' +
+          'Would you like to use Event Mode Gravity visualization instead?\n' +
+          '(Shows live attendee data without BLE scanning)'
+        );
+        if (useGravity) {
+          toggleEventModeGravity();
+        }
+      } else {
+        alert('BLE Passive Networking not available. Use Chrome/Edge or the iOS app.');
+      }
       return;
     }
 
@@ -523,17 +535,24 @@
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isMobile) return;
 
-    console.warn('⚠️ [BLE UI] Web Bluetooth not available');
+    console.log('ℹ️ [BLE UI] Web Bluetooth not available (expected on Safari/WebKit)');
     
-    // Show subtle notice
+    // Show calm info message (not an error)
     setTimeout(() => {
       if (typeof window.showNotification === 'function') {
         window.showNotification(
-          'BLE Event Mode requires Chrome or Edge browser',
+          'BLE scanning isn\'t available in this browser. Use the iOS app for automatic proximity detection. Event Mode visualization will still work.',
           'info'
         );
       }
     }, 2000);
+
+    // Disable scan button if it exists (but keep Event Mode Gravity working)
+    if (eventModeButton) {
+      eventModeButton.style.opacity = '0.5';
+      eventModeButton.style.cursor = 'not-allowed';
+      eventModeButton.title = 'BLE scanning requires Chrome or Edge. Event Mode Gravity still works.';
+    }
   }
 
   // ============================================================================
