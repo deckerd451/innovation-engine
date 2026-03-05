@@ -39,7 +39,7 @@ Successfully cleaned up the mobile bottom navigation bar by removing non-functio
 - `showMobilePrivacyNotice()` - Privacy consent modal for first-time BLE use
 - `showMobileSuggestionsModal()` - Full-screen suggestions modal with Accept/Ignore actions
 - `loadMobileSuggestions()` - Fetches and displays suggestions
-- `showMobileProfileSheet()` - Profile modal with logout button
+- `showMobileProfileSheet()` - Opens profile and intercepts logout for confirmation
 - `showMobileLogoutConfirm()` - Logout confirmation dialog
 - `syncSuggestionsBadge()` - Updates suggestions badge count
 - `handleMobileSuggestionAccept()` - Global handler for accepting suggestions
@@ -84,8 +84,9 @@ Desktop buttons remain unchanged; mobile uses bottom bar instead.
 
 ### Profile / Logout (Mobile)
 - Tap "You" to open profile modal
-- Logout button added to profile modal
-- Confirmation dialog before logout
+- Logout button already present in profile view (from profile.js)
+- Mobile: Intercepts logout to show confirmation dialog
+- Desktop: Direct logout (no confirmation)
 - Reuses existing `window.doLogout()` handler
 
 ### Your Focus Today (Mobile)
@@ -192,8 +193,8 @@ Desktop buttons remain unchanged; mobile uses bottom bar instead.
 
 ### Profile / Logout
 - [ ] Tap You opens profile
-- [ ] Logout button appears in profile
-- [ ] Tap Logout shows confirmation
+- [ ] Logout button visible in profile (already exists from profile.js)
+- [ ] Tap Logout shows confirmation (mobile only)
 - [ ] Cancel confirmation closes modal
 - [ ] Confirm logout logs out user
 - [ ] Logout clears session

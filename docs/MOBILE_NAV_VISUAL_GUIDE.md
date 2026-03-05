@@ -112,17 +112,18 @@
 ┌──────────┐
 │    👤    │  Icon: User circle
 │   You    │  Label: "You"
-└──────────┘  Action: Open profile + logout
-              New: Logout button inside
+└──────────┘  Action: Open profile
+              Logout: Already in profile view
 ```
 
 **Behavior**:
 - Tap to open profile modal
 - Profile shows your info
-- NEW: Logout button at bottom
-- Logout shows confirmation
+- Logout button already present (from profile.js)
+- Mobile: Shows confirmation before logout
+- Desktop: Direct logout
 
-**Profile Modal with Logout**:
+**Profile Modal (Existing)**:
 ```
 ┌─────────────────────────────────────┐
 │  Your Profile                   [×] │
@@ -131,11 +132,12 @@
 │  John Doe                           │
 │  john@example.com                   │
 │                                     │
-│  [Edit Profile]                     │
+│  Skills: JavaScript, React          │
+│  Interests: AI, Web3                │
 │                                     │
-│  ┌─────────────────────────────┐   │
-│  │  🚪 Logout                  │   │ ← NEW
-│  └─────────────────────────────┘   │
+│  [Edit Profile]                     │
+│  [Change Password]                  │
+│  [🚪 Log out]                       │ ← Already exists
 └─────────────────────────────────────┘
 ```
 
@@ -226,17 +228,20 @@
 ```
 1. User taps You
    ↓
-2. Open profile modal
+2. Open profile modal (existing)
    ↓
-3. User taps Logout button
+3. Profile shows with logout button (already present)
    ↓
-4. Show confirmation dialog
+4. User taps Logout button
    ↓
-5. User confirms:
+5. Mobile: Show confirmation dialog
+   Desktop: Direct logout
+   ↓
+6. User confirms:
    ├─ Cancel → Close dialog
    └─ Logout → Execute logout
    ↓
-6. Clear session & reload
+7. Clear session & reload
 ```
 
 ## Responsive Behavior
