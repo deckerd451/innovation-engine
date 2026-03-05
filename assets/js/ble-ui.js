@@ -40,9 +40,11 @@
     createEventModeButton();
     createSuggestionsButton();
     createStatusIndicator();
+    createEventModeGravityButton(); // NEW: Desktop Event Mode Gravity toggle
 
     // Listen for state changes
     window.addEventListener('ble-state-changed', handleStateChange);
+    window.addEventListener('event-mode-changed', handleEventModeChange); // NEW
 
     // Check if BLE is available
     if (!window.BLEPassiveNetworking?.isBluetoothAvailable()) {
@@ -667,6 +669,114 @@
     }
   `;
   document.head.appendChild(style);
+
+  // ============================================================================
+  // EVENT MODE GRAVITY (Desktop Synapse Overlay)
+  // ============================================================================
+
+  let eventModeGravityButton = null;
+
+  /**
+   * Create Event Mode Gravity button (desktop only)
+   */
+  function createEventModeGravityButton() {
+    // Skip on mobile
+    if (window.innerWidth < 1024) return;
+
+    // Add button next to suggestions button
+    if (!suggestionsButton || !suggestionsButton.parentElement) return;
+
+    eventModeGravityButton = document.createElement('div');
+    eventModeGravityButton.id = 'btn-event-mode-gravity';
+    eventModeGravityButton.setAttribute('role', 'button');
+    eventModeGravityButton.setAttribute('tabindex', '0');
+    eventModeGravityButton.setAttribute('title', 'Toggle Event Mode (Beacon Gravity)');
+    eventModeGravityButton.setAttribute('aria-label', 'Toggle Event Mode Gravity');
+    
+    eventModeGravityButton.style.cssText = `
+      cursor: pointer;
+      padding: 0.75rem;
+      background: rgba(138,43,226,0.1);
+      border: 1px solid rgba(138,43,226,0.3);
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: all 0.2s;
+    `;
+
+    eventModeGravityButton.innerHTML = `
+      <i class="fas fa-satellite-dish" style="color:#8a2be2; font-size:1.2rem;"></i>
+    `;
+
+    eventModeGravityButton.addEventListener('click', toggleEventModeGravity);
+    eventModeGravityButton.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleEventModeGravity();
+      }
+    });
+
+    // Insert after suggestions button
+    suggestionsButton.parentElement.insertBefore(eventModeGravityButton, suggestionsButton.nextSibling);
+
+    console.log('✅ [BLE UI] Event Mode Gravity button created');
+  }
+
+  /**
+   * Toggle Event Mode Gravity
+   */
+  async function toggleEventModeGravity() {
+    if (!window.EventModeGravity) {
+      alert('Event Mode Gravity not available. Please ensure the module is loaded.');
+      return;
+    }
+
+    const isActive = window.EventModeGravity.isActive();
+
+    if (isActive) {
+      window.EventModeGravity.disableEventMode();
+    } else {
+      // Use hardcoded beacon for now (from requirements)
+      const beaconId = '3a4f2cfe-eb2e-4d17-abc3-a075f38b713b';
+      const groupId = 'f270cbe4-fbef-457c-a685-48f83b5492b8';
+
+      await window.EventModeGravity.enableEventMode({ beaconId, groupId });
+    }
+  }
+
+  /**
+   * Handle Event Mode state change
+   */
+  function handleEventModeChange(event) {
+    const { isActive, attendeeCount, suggestedEdgeCount } = event.detail;
+
+    // Update button style
+    if (eventModeGravityButton) {
+      if (isActive) {
+        eventModeGravityButton.style.background = 'rgba(138,43,226,0.2)';
+        eventModeGravityButton.style.borderColor = 'rgba(138,43,226,0.6)';
+        eventModeGravityButton.querySelector('i').style.animation = 'pulse 2s infinite';
+      } else {
+        eventModeGravityButton.style.background = 'rgba(138,43,226,0.1)';
+        eventModeGravityButton.style.borderColor = 'rgba(138,43,226,0.3)';
+        eventModeGravityButton.querySelector('i').style.animation = 'none';
+      }
+    }
+
+    // Show notification
+    if (isActive) {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification(
+          `Event Mode active: ${attendeeCount} attendees, ${suggestedEdgeCount} suggestions`,
+          'success'
+        );
+      }
+    }
+  }
 
   console.log('✅ BLE UI module loaded');
 
