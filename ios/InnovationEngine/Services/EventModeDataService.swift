@@ -17,37 +17,128 @@ final class EventModeDataService {
     /// Query: presence_sessions where context_type='beacon', context_id=beaconId, expires_at > now()
     /// Join: community.id = presence_sessions.user_id
     func fetchActiveAttendees(beaconId: UUID) async throws -> [ActiveAttendee] {
+        // Get current user for diagnostic logging
+        let currentUserId = AuthService.shared.currentUser?.id
+        
+        print("🔍 [ATTENDEE QUERY] Starting attendee fetch")
+        print("  📍 Beacon ID: \(beaconId.uuidString)")
+        print("  👤 Current User ID: \(currentUserId?.uuidString ?? "none")")
+        
+        // Get beacon info for context
+        let beaconInfo = try? await supabase
+            .from("beacons")
+            .select("label, group_id")
+            .eq("id", value: beaconId.uuidString)
+            .single()
+            .execute()
+            .value as? [String: Any]
+        
+        if let beaconLabel = beaconInfo?["label"] as? String {
+            print("  🏷️  Beacon Name: \(beaconLabel)")
+        }
+        
         // Query presence_sessions
+        let now = Date()
+        let isoFormatter = ISO8601DateFormatter()
+        let nowString = isoFormatter.string(from: now)
+        
+        print("  ⏰ Query Time: \(nowString)")
+        print("  🔎 Query Filters:")
+        print("     - context_type = 'beacon'")
+        print("     - context_id = '\(beaconId.uuidString)'")
+        print("     - expires_at > '\(nowString)'")
+        
         let presenceSessions: [PresenceSessionRow] = try await supabase
             .from("presence_sessions")
-            .select("user_id, energy, expires_at")
+            .select("user_id, energy, expires_at, last_seen, is_active, created_at")
             .eq("context_type", value: "beacon")
             .eq("context_id", value: beaconId.uuidString)
-            .gt("expires_at", value: ISO8601DateFormatter().string(from: Date()))
+            .gt("expires_at", value: nowString)
             .execute()
             .value
         
-        guard !presenceSessions.isEmpty else {
+        print("  📊 Raw Presence Rows Returned: \(presenceSessions.count)")
+        
+        // Log raw presence data for debugging
+        if presenceSessions.isEmpty {
+            print("  ⚠️  NO PRESENCE ROWS FOUND")
+            print("  💡 Debug: Checking if ANY presence rows exist for this beacon...")
+            
+            // Debug query: fetch ALL rows for this beacon (no time filter)
+            let allRows: [PresenceSessionRow] = try await supabase
+                .from("presence_sessions")
+                .select("user_id, energy, expires_at, last_seen, is_active, created_at")
+                .eq("context_type", value: "beacon")
+                .eq("context_id", value: beaconId.uuidString)
+                .execute()
+                .value
+            
+            print("  🔍 Total rows for beacon (no time filter): \(allRows.count)")
+            
+            if !allRows.isEmpty {
+                print("  📋 Sample rows (showing expiration status):")
+                for (index, row) in allRows.prefix(5).enumerated() {
+                    let isExpired = row.expiresAt < now
+                    let timeDiff = row.expiresAt.timeIntervalSince(now)
+                    print("     [\(index + 1)] user_id: \(row.userId.uuidString.prefix(8))...")
+                    print("         expires_at: \(isoFormatter.string(from: row.expiresAt))")
+                    print("         status: \(isExpired ? "❌ EXPIRED" : "✅ ACTIVE") (\(Int(timeDiff))s)")
+                    print("         energy: \(row.energy)")
+                }
+            }
+            
             return []
+        }
+        
+        // Log each raw presence row
+        print("  📋 Raw Presence Rows:")
+        for (index, session) in presenceSessions.enumerated() {
+            let isCurrentUser = session.userId == currentUserId
+            let userMarker = isCurrentUser ? "👤 (YOU)" : ""
+            print("     [\(index + 1)] \(userMarker)")
+            print("         user_id: \(session.userId.uuidString)")
+            print("         energy: \(session.energy)")
+            print("         expires_at: \(isoFormatter.string(from: session.expiresAt))")
         }
         
         // Collect user IDs
         let userIds = presenceSessions.map { $0.userId }
+        print("  🔑 User IDs to resolve: \(userIds.count)")
         
         // Batch fetch user profiles from community table
+        print("  🔄 Fetching community profiles...")
         let profiles = await fetchUserProfiles(for: userIds)
+        
+        print("  ✅ Profiles resolved: \(profiles.count) / \(userIds.count)")
+        
+        // Log profile resolution results
+        for userId in userIds {
+            if let profile = profiles[userId] {
+                print("     ✓ \(userId.uuidString.prefix(8))... → \(profile.name)")
+            } else {
+                print("     ✗ \(userId.uuidString.prefix(8))... → FAILED TO RESOLVE")
+            }
+        }
         
         // Build attendee list
         var attendees: [ActiveAttendee] = []
         for session in presenceSessions {
             let profile = profiles[session.userId]
-            attendees.append(ActiveAttendee(
+            let attendee = ActiveAttendee(
                 id: session.userId,
                 name: profile?.name ?? "User \(session.userId.uuidString.prefix(8))",
                 avatarUrl: profile?.avatarUrl,
                 energy: session.energy
-            ))
+            )
+            attendees.append(attendee)
+            
+            let isCurrentUser = session.userId == currentUserId
+            let userMarker = isCurrentUser ? "👤 (YOU)" : ""
+            print("     + Added attendee: \(attendee.name) \(userMarker)")
         }
+        
+        print("  🎯 Final Attendee Count: \(attendees.count)")
+        print("  ✅ [ATTENDEE QUERY] Complete\n")
         
         return attendees
     }
@@ -85,8 +176,12 @@ final class EventModeDataService {
         guard !userIds.isEmpty else { return [:] }
         
         do {
+            print("  🔍 [PROFILE RESOLUTION] Fetching profiles for \(userIds.count) users")
+            
             // Build OR filter for batch query
             let filters = userIds.map { "id.eq.\($0.uuidString)" }.joined(separator: ",")
+            
+            print("  📝 Query: community table with filter: \(filters)")
             
             let response: [CommunityProfile] = try await supabase
                 .from("community")
@@ -95,12 +190,26 @@ final class EventModeDataService {
                 .execute()
                 .value
             
+            print("  ✅ Profiles fetched: \(response.count) / \(userIds.count)")
+            
+            // Log any missing profiles
+            let fetchedIds = Set(response.map { $0.id })
+            let missingIds = Set(userIds).subtracting(fetchedIds)
+            
+            if !missingIds.isEmpty {
+                print("  ⚠️  Missing profiles for \(missingIds.count) users:")
+                for missingId in missingIds.prefix(5) {
+                    print("     - \(missingId.uuidString)")
+                }
+            }
+            
             // Map id -> profile
             return Dictionary(uniqueKeysWithValues: response.map {
                 ($0.id, UserProfile(name: $0.name, avatarUrl: $0.avatarUrl))
             })
         } catch {
-            print("⚠️ Failed to fetch user profiles: \(error)")
+            print("  ❌ [PROFILE RESOLUTION] Failed to fetch user profiles: \(error)")
+            print("  📋 Error details: \(error.localizedDescription)")
             return [:]
         }
     }
@@ -134,11 +243,17 @@ private struct PresenceSessionRow: Codable {
     let userId: UUID
     let energy: Double
     let expiresAt: Date
+    let lastSeen: Date?
+    let isActive: Bool?
+    let createdAt: Date?
     
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case energy
         case expiresAt = "expires_at"
+        case lastSeen = "last_seen"
+        case isActive = "is_active"
+        case createdAt = "created_at"
     }
 }
 

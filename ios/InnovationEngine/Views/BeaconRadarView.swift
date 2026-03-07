@@ -237,6 +237,9 @@ struct BeaconRadarView: View {
     // MARK: - Data Refresh
     
     private func refreshData() async {
+        print("🔄 [RADAR] Refreshing data for beacon: \(beaconLabel)")
+        print("  📍 Beacon ID: \(beaconId.uuidString)")
+        
         do {
             async let attendeesTask = dataService.fetchActiveAttendees(beaconId: beaconId)
             async let edgesTask = dataService.fetchSuggestedEdges(beaconId: beaconId, limit: 5)
@@ -248,9 +251,10 @@ struct BeaconRadarView: View {
                 suggestedEdges = fetchedEdges
             }
             
-            print("✅ Radar refreshed: \(attendees.count) attendees, \(suggestedEdges.count) edges")
+            print("✅ [RADAR] Refresh complete: \(attendees.count) attendees, \(suggestedEdges.count) edges")
         } catch {
-            print("⚠️ Failed to refresh radar data: \(error)")
+            print("❌ [RADAR] Failed to refresh radar data: \(error)")
+            print("  📋 Error details: \(error.localizedDescription)")
         }
     }
     
