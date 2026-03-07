@@ -122,6 +122,11 @@ final class EventModeDataService {
         
         // Build attendee list
         var attendees: [ActiveAttendee] = []
+        
+        print("  🔨 [SELF-EXCLUSION CHECK] Building attendee list...")
+        print("     Current User ID: \(currentUserId?.uuidString ?? "none")")
+        print("     Total presence rows: \(presenceSessions.count)")
+        
         for session in presenceSessions {
             let profile = profiles[session.userId]
             let attendee = ActiveAttendee(
@@ -130,11 +135,32 @@ final class EventModeDataService {
                 avatarUrl: profile?.avatarUrl,
                 energy: session.energy
             )
-            attendees.append(attendee)
             
             let isCurrentUser = session.userId == currentUserId
             let userMarker = isCurrentUser ? "👤 (YOU)" : ""
+            
+            // CRITICAL: Check if this is being excluded
+            if isCurrentUser {
+                print("     ⚠️  FOUND CURRENT USER IN PRESENCE ROWS")
+                print("         user_id: \(session.userId.uuidString)")
+                print("         Will this be excluded? Checking...")
+            }
+            
+            attendees.append(attendee)
             print("     + Added attendee: \(attendee.name) \(userMarker)")
+        }
+        
+        print("  📊 [SELF-EXCLUSION CHECK] Results:")
+        print("     Attendees before filtering: \(attendees.count)")
+        print("     Current user in list: \(attendees.contains(where: { $0.id == currentUserId }))")
+        
+        // Check if there's any filtering happening
+        let currentUserAttendee = attendees.first(where: { $0.id == currentUserId })
+        if let currentUserAttendee = currentUserAttendee {
+            print("     ⚠️  CURRENT USER IS IN ATTENDEE LIST:")
+            print("         ID: \(currentUserAttendee.id.uuidString)")
+            print("         Name: \(currentUserAttendee.name)")
+            print("         This attendee WILL BE SHOWN in the radar")
         }
         
         print("  🎯 Final Attendee Count: \(attendees.count)")
