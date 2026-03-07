@@ -407,6 +407,36 @@
         </div>
       </div>
 
+      <!-- ── Event Presence Controls ───────────────────────────────── -->
+      <div class="cd-network-status" id="cd-event-presence" style="margin-top: 0.5rem;">
+        <div class="cd-section-label">Event Presence</div>
+        <div style="display: flex; gap: 0.5rem; padding: 0 0.75rem;">
+          <button id="btn-join-event" 
+            style="flex: 1; padding: 0.5rem 1rem; background: rgba(0,255,136,0.1); 
+            border: 1px solid rgba(0,255,136,0.3); border-radius: 6px; color: #00ff88; 
+            font-size: 0.85rem; cursor: pointer; transition: all 0.2s;"
+            onmouseenter="this.style.background='rgba(0,255,136,0.2)'; this.style.borderColor='rgba(0,255,136,0.5)'"
+            onmouseleave="this.style.background='rgba(0,255,136,0.1)'; this.style.borderColor='rgba(0,255,136,0.3)'"
+            title="Join test beacon event">
+            <i class="fas fa-broadcast-tower"></i> Join Event
+          </button>
+          <button id="btn-leave-event" 
+            style="flex: 1; padding: 0.5rem 1rem; background: rgba(255,107,107,0.1); 
+            border: 1px solid rgba(255,107,107,0.3); border-radius: 6px; color: #ff6b6b; 
+            font-size: 0.85rem; cursor: pointer; transition: all 0.2s; opacity: 0.5;"
+            onmouseenter="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
+            onmouseleave="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'"
+            title="Leave current event"
+            disabled>
+            <i class="fas fa-sign-out-alt"></i> Leave Event
+          </button>
+        </div>
+        <div id="event-presence-status" 
+          style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: #888; text-align: center;">
+          Not in event
+        </div>
+      </div>
+
       <!-- ── Messages banner (visible only when unread > 0) ────────── -->
       <div class="cd-focus" id="cd-focus" style="display:none;">
         <div class="cd-focus-messages" id="cd-focus-messages"></div>
@@ -920,6 +950,9 @@
   <script src="assets/js/ble-passive-networking.js?v=20260305-1" defer></script>
   <script src="assets/js/ble-ui.js?v=20260305-2" defer></script>
 
+  <!-- Web Event Presence Client -->
+  <script src="assets/js/eventPresenceWeb.js?v=20260307-1" defer></script>
+
   <!-- Event Mode Gravity (Desktop Synapse Overlay) -->
   <script src="assets/js/eventModeGravity.js?v=20260305-1" defer></script>
 
@@ -1064,6 +1097,78 @@
       if (window.UnifiedNotifications && profile) {
         window.UnifiedNotifications.init(profile, user?.id);
       }
+
+      // Initialize Web Event Presence
+      if (window.WebEventPresence && window.supabase && profile?.id) {
+        window.WebEventPresence.initialize(window.supabase, profile.id);
+      }
+    });
+  </script>
+
+  <!-- Web Event Presence UI Wiring -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const joinBtn = document.getElementById('btn-join-event');
+      const leaveBtn = document.getElementById('btn-leave-event');
+      const statusEl = document.getElementById('event-presence-status');
+
+      if (!joinBtn || !leaveBtn || !statusEl) return;
+
+      // Join Event handler
+      joinBtn.addEventListener('click', async () => {
+        if (!window.WebEventPresence) {
+          console.error('❌ WebEventPresence not loaded');
+          return;
+        }
+
+        joinBtn.disabled = true;
+        statusEl.textContent = 'Joining event...';
+        statusEl.style.color = '#00e0ff';
+
+        const success = await window.WebEventPresence.joinEvent();
+        
+        if (success) {
+          joinBtn.style.opacity = '0.5';
+          leaveBtn.disabled = false;
+          leaveBtn.style.opacity = '1';
+          statusEl.textContent = '✓ Active in test beacon event';
+          statusEl.style.color = '#00ff88';
+        } else {
+          joinBtn.disabled = false;
+          statusEl.textContent = 'Failed to join event';
+          statusEl.style.color = '#ff6b6b';
+          setTimeout(() => {
+            statusEl.textContent = 'Not in event';
+            statusEl.style.color = '#888';
+          }, 3000);
+        }
+      });
+
+      // Leave Event handler
+      leaveBtn.addEventListener('click', async () => {
+        if (!window.WebEventPresence) {
+          console.error('❌ WebEventPresence not loaded');
+          return;
+        }
+
+        leaveBtn.disabled = true;
+        statusEl.textContent = 'Leaving event...';
+        statusEl.style.color = '#00e0ff';
+
+        const success = await window.WebEventPresence.leaveEvent();
+        
+        if (success) {
+          joinBtn.disabled = false;
+          joinBtn.style.opacity = '1';
+          leaveBtn.style.opacity = '0.5';
+          statusEl.textContent = 'Not in event';
+          statusEl.style.color = '#888';
+        } else {
+          leaveBtn.disabled = false;
+          statusEl.textContent = 'Failed to leave event';
+          statusEl.style.color = '#ff6b6b';
+        }
+      });
     });
   </script>
 
