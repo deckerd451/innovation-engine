@@ -68,7 +68,7 @@
     supabase = supabaseClient;
     currentUserCommunityId = communityId;
 
-    console.log('[WEB PRESENCE] Initialized', {
+    console.log('✅ [WEB PRESENCE] Initialized', {
       communityId: currentUserCommunityId,
       testBeaconId: CONFIG.TEST_BEACON_ID
     });
@@ -91,12 +91,18 @@
       return false;
     }
 
+    console.log('[WEB PRESENCE] Attempting to join event...', {
+      beaconId,
+      communityId: currentUserCommunityId
+    });
+
     currentBeaconId = beaconId;
     isActive = true;
 
     // Write initial presence
     const success = await writePresence();
     if (!success) {
+      console.error('❌ [WEB PRESENCE] Failed to write initial presence');
       isActive = false;
       currentBeaconId = null;
       return false;
@@ -105,7 +111,7 @@
     // Start heartbeat
     startHeartbeat();
 
-    console.log('[WEB PRESENCE] joined event', {
+    console.log('✅ [WEB PRESENCE] joined event', {
       beaconId: currentBeaconId,
       communityId: currentUserCommunityId
     });
@@ -122,6 +128,11 @@
       return false;
     }
 
+    console.log('[WEB PRESENCE] Leaving event...', {
+      beaconId: currentBeaconId,
+      communityId: currentUserCommunityId
+    });
+
     // Stop heartbeat
     stopHeartbeat();
 
@@ -131,7 +142,7 @@
     isActive = false;
     currentBeaconId = null;
 
-    console.log('[WEB PRESENCE] stopped');
+    console.log('✅ [WEB PRESENCE] stopped');
 
     return true;
   }
@@ -156,6 +167,7 @@
    */
   async function writePresence() {
     if (!supabase || !currentUserCommunityId || !currentBeaconId) {
+      console.error('❌ [WEB PRESENCE] Missing required data for writePresence');
       return false;
     }
 
@@ -173,18 +185,24 @@
         expires_at: expiresAt.toISOString(),
       };
 
-      const { error } = await supabase
+      console.log('[WEB PRESENCE] Writing presence payload:', payload);
+
+      const { data, error } = await supabase
         .from('presence_sessions')
-        .upsert(payload, {
-          onConflict: 'user_id,context_type,context_id',
-        });
+        .insert(payload);
 
       if (error) {
         console.error('❌ [WEB PRESENCE] Failed to write presence:', error);
+        console.error('❌ [WEB PRESENCE] Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         return false;
       }
 
-      console.log('[WEB PRESENCE] heartbeat refresh');
+      console.log('✅ [WEB PRESENCE] heartbeat refresh successful', data);
       return true;
     } catch (error) {
       console.error('❌ [WEB PRESENCE] Error writing presence:', error);
@@ -197,10 +215,17 @@
    */
   async function deletePresence() {
     if (!supabase || !currentUserCommunityId || !currentBeaconId) {
+      console.error('❌ [WEB PRESENCE] Missing required data for deletePresence');
       return false;
     }
 
     try {
+      console.log('[WEB PRESENCE] Deleting presence...', {
+        user_id: currentUserCommunityId,
+        context_type: 'beacon',
+        context_id: currentBeaconId
+      });
+
       const { error } = await supabase
         .from('presence_sessions')
         .delete()
@@ -213,6 +238,7 @@
         return false;
       }
 
+      console.log('✅ [WEB PRESENCE] Presence deleted successfully');
       return true;
     } catch (error) {
       console.error('❌ [WEB PRESENCE] Error deleting presence:', error);
