@@ -2,6 +2,15 @@
  * BLE Passive Networking UI
  * 
  * Provides UI controls for BLE Event Mode and Suggested Connections
+ * 
+ * IMPORTANT: This module creates VISUAL UI elements only.
+ * - "Event Mode Active" status card (bottom of screen)
+ * - Event Mode Gravity button (desktop synapse overlay toggle)
+ * 
+ * These UI elements do NOT write to presence_sessions.
+ * For web event presence (appearing in iOS attendee list), use:
+ * - "Join Event" button in Command Dashboard (left panel)
+ * - Powered by assets/js/eventPresenceWeb.js
  */
 
 (() => {
