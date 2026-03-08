@@ -22,21 +22,7 @@ struct BeaconApp: App {
         WindowGroup {
             Group {
                 if authService.isAuthenticated, let currentUser = authService.currentUser {
-                    VStack(spacing: 0) {
-                        HStack {
-                            Spacer()
-
-                            Button("Sign Out") {
-                                Task {
-                                    try? await AuthService.shared.signOut()
-                                }
-                            }
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-                        }
-
-                        MainTabView(currentUser: currentUser)
-                    }
+                    MainTabView(currentUser: currentUser)
                 } else {
                     LoginView()
                 }
@@ -51,8 +37,6 @@ struct BeaconApp: App {
 }
 
 struct LoginView: View {
-    @State private var email = ""
-    @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
 
@@ -92,52 +76,13 @@ struct LoginView: View {
                 .disabled(isLoading)
             }
 
-            Divider()
-                .padding(.vertical, 8)
-
-            TextField("Email", text: $email)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-
-            SecureField("Password", text: $password)
-                .textFieldStyle(.roundedBorder)
-
             if let errorMessage {
                 Text(errorMessage)
                     .foregroundColor(.red)
                     .font(.caption)
             }
-
-            Button {
-                Task {
-                    await signIn()
-                }
-            } label: {
-                if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    Text("Sign In")
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(isLoading || email.isEmpty || password.isEmpty)
         }
         .padding()
-    }
-
-    private func signIn() async {
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            try await AuthService.shared.signIn(email: email, password: password)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-
-        isLoading = false
     }
 
     private func signInWithOAuth(provider: Provider) async {
