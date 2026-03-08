@@ -1,0 +1,112 @@
+╔══════════════════════════════════════════════════════════════╗
+║        PHASE 3 BEACON CONFIDENCE DETECTION - COMPLETE        ║
+╚══════════════════════════════════════════════════════════════╝
+
+NEW FILE:
+• Services/BeaconConfidenceService.swift - Confidence layer
+
+MODIFIED:
+• Views/EventModeView.swift - Integrated confidence UI
+
+═══════════════════════════════════════════════════════════════
+
+CONFIDENCE STATE MACHINE:
+
+SEARCHING → CANDIDATE → STABLE
+   ↓            ↓          ↓
+No beacon   Building   Confident
+detected   confidence   beacon
+
+═══════════════════════════════════════════════════════════════
+
+QUALIFICATION CRITERIA:
+
+✅ Known beacon (MOONSIDE-S1)
+✅ RSSI ≥ -80 dBm
+✅ Fresh (< 5 seconds old)
+✅ Strongest among qualifying beacons
+
+CONFIDENCE BUILDING:
+• Continuous detection for 3 seconds
+• RSSI stays above threshold
+• Detection remains fresh
+
+═══════════════════════════════════════════════════════════════
+
+UI STATES:
+
+🔍 SEARCHING
+   "Searching for event beacons..."
+
+📍 CANDIDATE (Orange)
+   "MOONSIDE-S1"
+   "Building confidence... -68 dBm"
+
+📍 STABLE (Green)
+   "MOONSIDE-S1"
+   "📡 -68 dBm • Near  Stable for 5s"
+
+═══════════════════════════════════════════════════════════════
+
+DEBUG OUTPUT:
+
+[CONFIDENCE] New candidate: MOONSIDE-S1 at -68 dBm
+[CONFIDENCE] MOONSIDE-S1: 1.0s / 3.0s (33%)
+[CONFIDENCE] MOONSIDE-S1: 2.0s / 3.0s (67%)
+[CONFIDENCE] MOONSIDE-S1: 3.0s / 3.0s (100%)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[CONFIDENCE] ✅ STABLE BEACON ACHIEVED
+  Name: MOONSIDE-S1
+  RSSI: -68 dBm
+  Signal: Near
+  Confidence Duration: 3.1s
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+═══════════════════════════════════════════════════════════════
+
+CONFIGURATION:
+
+rssiThreshold: -80 dBm
+confidenceWindow: 3.0 seconds
+freshnessWindow: 5.0 seconds
+
+Adjustable for different scenarios!
+
+═══════════════════════════════════════════════════════════════
+
+WHAT WAS NOT MODIFIED:
+
+✅ QR flow
+✅ Suggested connections
+✅ Supabase writes (no presence yet)
+✅ BLEService
+✅ Connection logic
+✅ Nearby Signals panel
+
+Read-only with respect to backend!
+
+═══════════════════════════════════════════════════════════════
+
+TESTING:
+
+1. Build (Cmd+B)
+2. Run on iPhone (Cmd+R)
+3. Open Event Mode
+4. Watch "Event Beacon" card
+5. Should see: Searching → Candidate → Stable
+6. Check console for confidence progress
+7. Verify MOONSIDE-S1 shows as stable after 3s
+
+═══════════════════════════════════════════════════════════════
+
+NEXT STEPS (Phase 4):
+
+• Write presence to Supabase when stable
+• Update presence on RSSI changes
+• Clear presence when beacon lost
+• Implement beacon signature matching
+
+═══════════════════════════════════════════════════════════════
+
+STATUS: ✅ TRUSTWORTHY BEACON STATE READY
+

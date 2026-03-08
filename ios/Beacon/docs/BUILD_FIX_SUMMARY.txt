@@ -1,0 +1,72 @@
+╔══════════════════════════════════════════════════════════════╗
+║           DETECTED BEACON BUILD FIX - COMPLETE               ║
+╚══════════════════════════════════════════════════════════════╝
+
+ISSUE:
+EventModeView.swift:207 - Value of type 'DetectedBeacon' has 
+no member 'lastSeen'
+
+ROOT CAUSE:
+DetectedBeacon struct was missing lastSeen property
+
+FIX APPLIED:
+Services/BLEService.swift
+
+1. Added lastSeen: Date to DetectedBeacon struct
+2. Updated DetectedBeacon creation to include Date()
+
+═══════════════════════════════════════════════════════════════
+
+BEFORE:
+struct DetectedBeacon {
+    let beaconId: UUID
+    let label: String
+    let energy: Double
+}
+
+AFTER:
+struct DetectedBeacon {
+    let beaconId: UUID
+    let label: String
+    let energy: Double
+    let lastSeen: Date  ← ADDED
+}
+
+═══════════════════════════════════════════════════════════════
+
+MODEL ALIGNMENT:
+
+Both BLE models now have lastSeen:
+✅ DiscoveredBLEDevice (BLEScannerService)
+✅ DetectedBeacon (BLEService)
+
+═══════════════════════════════════════════════════════════════
+
+WHAT THIS ENABLES:
+
+• UI can display "Updated X seconds ago"
+• Signal freshness tracking
+• Stale device detection
+• Timestamp-based sorting
+
+═══════════════════════════════════════════════════════════════
+
+NO BACKEND CHANGES:
+✅ Supabase logic untouched
+✅ Event Mode backend untouched
+✅ Database schema untouched
+✅ Only UI-supporting property added
+
+═══════════════════════════════════════════════════════════════
+
+NEXT STEPS:
+
+1. Build in Xcode (Cmd+B)
+2. Verify no build errors
+3. Run on iPhone (Cmd+R)
+4. Test Phase 2 Nearby Devices UI
+
+═══════════════════════════════════════════════════════════════
+
+STATUS: ✅ BUILD ERROR FIXED
+

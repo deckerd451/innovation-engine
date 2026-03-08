@@ -1,0 +1,51 @@
+╔══════════════════════════════════════════════════════════════╗
+║              PHASE 1 BLE SCANNER - QUICK STEPS               ║
+╚══════════════════════════════════════════════════════════════╝
+
+✅ CODE COMPLETE - Files created and modified
+
+NEXT STEPS IN XCODE:
+
+1. Open Beacon.xcodeproj
+
+2. Add new file to project:
+   • Right-click "Services" folder
+   • "Add Files to Beacon"
+   • Select: Services/BLEScannerService.swift
+   • Check "Beacon" target
+   • Click Add
+
+3. Build: Cmd+B
+
+4. Run on physical iPhone: Cmd+R
+   (BLE doesn't work in simulator)
+
+5. Open console: View → Debug Area → Show Debug Area
+
+EXPECTED OUTPUT:
+[BLE] scanning started
+[BLE] device discovered: MOONSIDE-S1 -69
+[BLE] device discovered: iPhone -45
+
+FILES CHANGED:
+✅ NEW: Services/BLEScannerService.swift
+✅ MODIFIED: BeaconApp.swift (added init)
+
+WHAT WAS NOT TOUCHED:
+✅ EventModeDataService
+✅ BLEService
+✅ Supabase code
+✅ ConnectionService
+✅ QR scanning
+✅ No UI changes
+✅ No database changes
+
+TROUBLESHOOTING:
+• No logs? → Check running on device, not simulator
+• "Unauthorized"? → Settings → Beacon → Bluetooth → Enable
+• No devices? → Ensure BLE devices nearby and advertising
+
+NEXT PHASE:
+Phase 2 will show devices in Event Mode UI
+
+═══════════════════════════════════════════════════════════════
