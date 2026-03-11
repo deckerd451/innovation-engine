@@ -13,7 +13,9 @@ struct BeaconApp: App {
     @StateObject private var authService = AuthService.shared
 
     init() {
+        _ = BLEAdvertiserService.shared
         _ = BLEScannerService.shared
+        _ = BeaconConfidenceService.shared  // Initialize before EventPresenceService
         _ = EventPresenceService.shared
         _ = EventAttendeesService.shared
     }

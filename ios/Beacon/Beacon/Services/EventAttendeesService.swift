@@ -39,14 +39,13 @@ final class EventAttendeesService: ObservableObject {
     @Published private(set) var attendees: [EventAttendee] = []
     @Published private(set) var isLoading = false
     @Published private(set) var attendeeCount: Int = 0
+    @Published var debugStatus: String = "idle"
     
     private let presence = EventPresenceService.shared
     private let supabase = AppEnvironment.shared.supabaseClient
     private var cancellables = Set<AnyCancellable>()
     
     private var refreshTask: Task<Void, Never>?
-    private var currentContextId: UUID?
-    private var currentUserId: UUID?
     
     private let refreshInterval: TimeInterval = 15.0  // Refresh every 15 seconds
     
@@ -57,57 +56,71 @@ final class EventAttendeesService: ObservableObject {
     // MARK: - Observation
     
     private func observePresenceState() {
-        // Observe when presence service has an active event
-        presence.$currentEvent
-            .receive(on: RunLoop.main)
-            .sink { [weak self] event in
-                if event != nil {
-                    self?.startRefreshing()
-                } else {
-                    self?.stopRefreshing()
-                }
+        // Wait for both event AND actual presence write to ensure context is ready
+        Publishers.CombineLatest(
+            presence.$currentEvent,
+            presence.$lastPresenceWrite
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] event, _ in
+            guard let self else { return }
+            
+            // Only start refreshing when:
+            // 1. Event is active
+            // 2. Context ID is ready
+            // 3. User ID is ready
+            if event != nil,
+               self.presence.currentContextId != nil,
+               self.presence.currentCommunityId != nil {
+                print("[Attendees] 🟢 Presence context ready - starting refresh")
+                print("[Attendees]    Event: \(event!)")
+                print("[Attendees]    Context ID: \(self.presence.currentContextId!)")
+                print("[Attendees]    User ID: \(self.presence.currentCommunityId!)")
+                self.startRefreshing()
+            } else {
+                print("[Attendees] 🔴 Presence context not ready - stopping refresh")
+                print("[Attendees]    Event: \(event ?? "nil")")
+                print("[Attendees]    Context ID: \(self.presence.currentContextId?.uuidString ?? "nil")")
+                print("[Attendees]    User ID: \(self.presence.currentCommunityId?.uuidString ?? "nil")")
+                self.stopRefreshing()
             }
-            .store(in: &cancellables)
+        }
+        .store(in: &cancellables)
     }
     
     // MARK: - Refresh Loop
     
     private func startRefreshing() {
-        // Get current context from presence service
-        guard let contextId = presence.currentContextId,
-              let userId = presence.currentCommunityId else {
-            print("[Attendees] ❌ Cannot start: missing context_id or user_id")
-            print("[Attendees]    context_id: \(presence.currentContextId?.uuidString ?? "nil")")
-            print("[Attendees]    user_id: \(presence.currentCommunityId?.uuidString ?? "nil")")
+        print("[Attendees] Attempting to start attendee refresh")
+        
+        guard presence.currentEvent != nil else {
+            print("[Attendees] ❌ Cannot start: no active event")
             return
         }
         
-        // Check if already refreshing same context
-        if currentContextId == contextId && refreshTask != nil {
-            print("[Attendees] ℹ️ Already refreshing same context, skipping")
+        if let task = refreshTask, !task.isCancelled {
+            print("[Attendees] ℹ️ Refresh task already running")
             return
         }
         
-        currentContextId = contextId
-        currentUserId = userId
-        
-        print("[Attendees] ✅ Starting attendee refresh")
-        print("[Attendees]    Current user community.id: \(userId)")
-        print("[Attendees]    Current event/beacon context_id: \(contextId)")
+        print("[Attendees] ✅ Starting attendee refresh loop")
+        print("[Attendees]    currentEvent: \(presence.currentEvent ?? "nil")")
+        print("[Attendees]    currentContextId: \(presence.currentContextId?.uuidString ?? "nil")")
+        print("[Attendees]    currentCommunityId: \(presence.currentCommunityId?.uuidString ?? "nil")")
         print("[Attendees]    Refresh interval: \(refreshInterval)s")
         
         refreshTask?.cancel()
+        
         refreshTask = Task { [weak self] in
             guard let self else { return }
             
-            // Initial fetch
             await self.fetchAttendees()
             
-            // Periodic refresh
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64(self.refreshInterval * 1_000_000_000))
+                try? await Task.sleep(
+                    nanoseconds: UInt64(self.refreshInterval * 1_000_000_000)
+                )
                 guard !Task.isCancelled else { break }
-                print("[Attendees] 🔄 Periodic refresh triggered")
                 await self.fetchAttendees()
             }
         }
@@ -118,8 +131,6 @@ final class EventAttendeesService: ObservableObject {
         
         refreshTask?.cancel()
         refreshTask = nil
-        currentContextId = nil
-        currentUserId = nil
         
         attendees = []
         attendeeCount = 0
@@ -129,40 +140,52 @@ final class EventAttendeesService: ObservableObject {
     // MARK: - Fetch Attendees
     
     private func fetchAttendees() async {
-        guard let contextId = currentContextId,
-              let userId = currentUserId else {
+        guard let contextId = presence.currentContextId,
+              let userId = presence.currentCommunityId else {
             print("[Attendees] ⚠️ fetchAttendees called but context/user missing")
+            print("[Attendees]    presence.currentContextId: \(presence.currentContextId?.uuidString ?? "nil")")
+            print("[Attendees]    presence.currentCommunityId: \(presence.currentCommunityId?.uuidString ?? "nil")")
             return
         }
         
+        print("[Attendees] 🔍 Live presence values:")
+        print("[Attendees]    presence.currentEvent: \(presence.currentEvent ?? "nil")")
+        print("[Attendees]    presence.currentContextId: \(presence.currentContextId?.uuidString ?? "nil")")
+        print("[Attendees]    presence.currentCommunityId: \(presence.currentCommunityId?.uuidString ?? "nil")")
+        print("[Attendees]    Querying context_id: \(contextId.uuidString)")
+        print("[Attendees]    Excluding user_id: \(userId.uuidString)")
+        
         isLoading = true
         
-        let now = Date()
-        let fiveMinutesAgo = now.addingTimeInterval(-300)
-        let fiveMinutesAgoISO = ISO8601DateFormatter().string(from: fiveMinutesAgo)
+        
+        
         
         print("[Attendees] 📊 Query parameters:")
         print("[Attendees]    context_type: beacon")
         print("[Attendees]    context_id: \(contextId)")
         print("[Attendees]    exclude user_id: \(userId)")
-        print("[Attendees]    created_at >= \(fiveMinutesAgoISO)")
-        print("[Attendees]    (5 minutes ago from now)")
+        print("[Attendees]    NO TIME FILTER - fetching all rows")
         
         do {
-            // Query presence_sessions for active users in this beacon context
+            // SIMPLIFIED: Query presence_sessions without time filters
             let sessions: [AttendeePresenceRow] = try await supabase
                 .from("presence_sessions")
-                .select("user_id, energy, created_at")
+                .select("user_id, energy, created_at, expires_at")
                 .eq("context_type", value: "beacon")
                 .eq("context_id", value: contextId.uuidString)
-                .neq("user_id", value: userId.uuidString)  // Exclude current user
-                .gte("created_at", value: fiveMinutesAgoISO)  // Last 5 minutes
+                .neq("user_id", value: userId.uuidString)
                 .order("created_at", ascending: false)
+                .limit(50)
                 .execute()
                 .value
             
+            debugStatus = "raw sessions count = \(sessions.count), contextId = \(contextId.uuidString), userId = \(userId.uuidString)"
+            
+            let now = Date()
+            
             print("[Attendees] 📥 Raw query results:")
             print("[Attendees]    Total rows returned: \(sessions.count)")
+            print("[Attendees]    debugStatus: \(debugStatus)")
             
             if sessions.isEmpty {
                 print("[Attendees]    ℹ️ No rows matched query")
@@ -170,9 +193,12 @@ final class EventAttendeesService: ObservableObject {
                 print("[Attendees]    Raw user_ids returned:")
                 for (index, session) in sessions.enumerated() {
                     let age = now.timeIntervalSince(session.createdAt)
+                    let timeUntilExpiry = session.expiresAt.timeIntervalSince(now)
                     print("[Attendees]      [\(index)] user_id: \(session.userId)")
                     print("[Attendees]          created_at: \(session.createdAt)")
                     print("[Attendees]          age: \(Int(age))s ago")
+                    print("[Attendees]          expires_at: \(session.expiresAt)")
+                    print("[Attendees]          expires_in: \(Int(timeUntilExpiry))s")
                     print("[Attendees]          energy: \(String(format: "%.2f", session.energy))")
                 }
             }
@@ -228,7 +254,7 @@ final class EventAttendeesService: ObservableObject {
                 let attendee = EventAttendee(
                     id: userId,
                     name: name,
-                    avatarUrl: profile?.avatarUrl,
+                    avatarUrl: profile?.imageUrl,
                     energy: session.energy,
                     lastSeen: session.createdAt
                 )
@@ -246,8 +272,10 @@ final class EventAttendeesService: ObservableObject {
             print("[Attendees] ✅ Final attendee count: \(attendeeCount)")
             
         } catch {
+            debugStatus = "query failed: \(error.localizedDescription)"
             print("[Attendees] ❌ Query failed: \(error)")
             print("[Attendees]    Error details: \(error.localizedDescription)")
+            print("[Attendees]    debugStatus: \(debugStatus)")
         }
         
         isLoading = false
@@ -266,7 +294,7 @@ final class EventAttendeesService: ObservableObject {
         
         let profiles: [AttendeeCommunityRow] = try await supabase
             .from("community")
-            .select("id, name, avatar_url")
+            .select("id, name, image_url")
             .or(filters)
             .execute()
             .value
@@ -278,7 +306,7 @@ final class EventAttendeesService: ObservableObject {
         
         return Dictionary(uniqueKeysWithValues:
             profiles.map {
-                ($0.id, CommunityProfileInfo(name: $0.name, avatarUrl: $0.avatarUrl))
+                ($0.id, CommunityProfileInfo(name: $0.name, imageUrl: $0.imageUrl))
             }
         )
     }
@@ -298,27 +326,29 @@ private struct AttendeePresenceRow: Codable {
     let userId: UUID
     let energy: Double
     let createdAt: Date
+    let expiresAt: Date
     
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case energy
         case createdAt = "created_at"
+        case expiresAt = "expires_at"
     }
 }
 
 private struct AttendeeCommunityRow: Codable {
     let id: UUID
     let name: String
-    let avatarUrl: String?
+    let imageUrl: String?
     
     enum CodingKeys: String, CodingKey {
         case id
         case name
-        case avatarUrl = "avatar_url"
+        case imageUrl = "image_url"
     }
 }
 
 private struct CommunityProfileInfo {
     let name: String
-    let avatarUrl: String?
+    let imageUrl: String?
 }

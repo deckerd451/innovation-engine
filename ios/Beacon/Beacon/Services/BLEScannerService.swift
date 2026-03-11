@@ -11,21 +11,25 @@ struct DiscoveredBLEDevice: Identifiable {
     var rssi: Int
     var lastSeen: Date
     var isKnownBeacon: Bool
-    
+
     // Advertisement metadata
     var serviceUUIDs: [CBUUID]?
     var manufacturerData: Data?
     var isConnectable: Bool?
-    
+
     var signalStrength: String {
         switch rssi {
-        case -40...0: return "Very Close"
-        case -60..<(-40): return "Near"
-        case -80..<(-60): return "Nearby"
-        default: return "Far"
+        case -40...0:
+            return "Very Close"
+        case -60..<(-40):
+            return "Near"
+        case -80..<(-60):
+            return "Nearby"
+        default:
+            return "Far"
         }
     }
-    
+
     var timeSinceLastSeen: String {
         let interval = Date().timeIntervalSince(lastSeen)
         if interval < 2 {
@@ -40,191 +44,266 @@ struct DiscoveredBLEDevice: Identifiable {
 
 // MARK: - BLE Scanner Service
 
+@MainActor
 final class BLEScannerService: NSObject, ObservableObject, CBCentralManagerDelegate {
-    
+
     static let shared = BLEScannerService()
-    
-    // Published for UI observation
+
     @Published private(set) var discoveredDevices: [UUID: DiscoveredBLEDevice] = [:]
     @Published private(set) var isScanning = false
-    
+
     private var centralManager: CBCentralManager!
     private var staleDeviceTimer: Timer?
-    
+
     // Configuration
-    private let rssiThreshold: Int = -95  // Ignore devices weaker than this
-    private let staleDeviceTimeout: TimeInterval = 10  // Remove after 10 seconds
-    
-    // Known beacon signatures
-    private let moonsideServiceUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
-    
+    private let rssiThreshold: Int = -95
+    private let staleDeviceTimeout: TimeInterval = 10
+
     // Track first detection for debug logging
     private var firstDetectionLogged = Set<UUID>()
+
+    // Explicit control flag
+    private var shouldBeScanning = false
     
+    // RSSI smoothing: rolling average of last 5 samples per device
+    private var rssiHistory: [UUID: [Int]] = [:]
+
     override init() {
         super.init()
-        
+
         centralManager = CBCentralManager(
             delegate: self,
             queue: DispatchQueue(label: "ble.scanner")
         )
-        
-        // Start stale device cleanup timer
+
         startStaleDeviceTimer()
     }
-    
+
     // MARK: - Public API
-    
+
+    func startScanning() {
+        print("[BLE] ▶️ startScanning requested")
+        shouldBeScanning = true
+
+        guard centralManager.state == .poweredOn else {
+            print("[BLE] ⏳ Bluetooth not powered on yet, will start when ready")
+            return
+        }
+
+        discoveredDevices = [:]
+        firstDetectionLogged.removeAll()
+
+        centralManager.scanForPeripherals(
+            withServices: nil,
+            options: [CBCentralManagerScanOptionAllowDuplicatesKey: true]
+        )
+
+        isScanning = true
+        print("[BLE] ✅ BLE scanning started")
+    }
+
+    func stopScanning() {
+        print("[BLE] 🛑 Stopping BLE scanning")
+
+        shouldBeScanning = false
+
+        if centralManager.state == .poweredOn {
+            centralManager.stopScan()
+        }
+
+        isScanning = false
+        discoveredDevices = [:]
+        firstDetectionLogged.removeAll()
+        rssiHistory.removeAll()
+
+        print("[BLE] ✅ BLE scanning stopped, devices cleared")
+    }
+
     func getFilteredDevices() -> [DiscoveredBLEDevice] {
-        return discoveredDevices.values
+        discoveredDevices.values
             .filter { $0.rssi >= rssiThreshold }
             .sorted { device1, device2 in
-                // Known beacons first
                 if device1.isKnownBeacon != device2.isKnownBeacon {
                     return device1.isKnownBeacon
                 }
-                // Then by RSSI (strongest first)
                 if device1.rssi != device2.rssi {
                     return device1.rssi > device2.rssi
                 }
-                // Then by most recent
                 return device1.lastSeen > device2.lastSeen
             }
     }
-    
+
     func getKnownBeacons() -> [DiscoveredBLEDevice] {
-        return discoveredDevices.values
+        discoveredDevices.values
             .filter { $0.isKnownBeacon }
             .sorted { $0.rssi > $1.rssi }
     }
     
-    // MARK: - CBCentralManagerDelegate
-    
-    func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        
-        switch central.state {
-        
-        case .poweredOn:
-            print("[BLE] scanning started")
-            isScanning = true
-            centralManager.scanForPeripherals(
-                withServices: nil,
-                options: [CBCentralManagerScanOptionAllowDuplicatesKey: true]  // Allow updates
-            )
-        
-        case .poweredOff:
-            print("[BLE] bluetooth powered off")
-            isScanning = false
-        
-        case .unauthorized:
-            print("[BLE] bluetooth unauthorized")
-            isScanning = false
-        
-        default:
-            print("[BLE] bluetooth unavailable")
-            isScanning = false
+    /// Returns the smoothed RSSI for a device based on rolling average of last 5 samples.
+    /// Returns nil if no history exists for the device.
+    func smoothedRSSI(for deviceId: UUID) -> Int? {
+        guard let history = rssiHistory[deviceId], !history.isEmpty else {
+            return nil
         }
+        return history.reduce(0, +) / history.count
     }
     
-    func centralManager(
+    // MARK: - RSSI Smoothing
+    
+    private func updateRSSIHistory(for deviceId: UUID, rssi: Int) {
+        var history = rssiHistory[deviceId] ?? []
+        history.append(rssi)
+        
+        // Keep only last 5 values
+        if history.count > 5 {
+            history.removeFirst()
+        }
+        
+        rssiHistory[deviceId] = history
+    }
+
+    // MARK: - CBCentralManagerDelegate
+
+    nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        Task { @MainActor in
+            switch central.state {
+            case .poweredOn:
+                print("[BLE] bluetooth powered on")
+
+                if self.shouldBeScanning {
+                    self.centralManager.scanForPeripherals(
+                        withServices: nil,
+                        options: [CBCentralManagerScanOptionAllowDuplicatesKey: true]
+                    )
+                    self.isScanning = true
+                    print("[BLE] ✅ scanning resumed because shouldBeScanning = true")
+                } else {
+                    self.isScanning = false
+                    print("[BLE] ℹ️ powered on but scanner is idle")
+                }
+
+            case .poweredOff:
+                print("[BLE] bluetooth powered off")
+                self.isScanning = false
+                self.discoveredDevices = [:]
+
+            case .unauthorized:
+                print("[BLE] bluetooth unauthorized")
+                self.isScanning = false
+                self.discoveredDevices = [:]
+
+            default:
+                print("[BLE] bluetooth unavailable")
+                self.isScanning = false
+                self.discoveredDevices = [:]
+            }
+        }
+    }
+
+    nonisolated func centralManager(
         _ central: CBCentralManager,
         didDiscover peripheral: CBPeripheral,
-        advertisementData: [String : Any],
+        advertisementData: [String: Any],
         rssi RSSI: NSNumber
     ) {
-        
         let rssiValue = RSSI.intValue
-        
-        // Skip very weak signals unless debugging
-        guard rssiValue >= rssiThreshold else { return }
-        
-        let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? "Unknown"
+        guard rssiValue >= -95 else { return }
+
+        let name = peripheral.name
+            ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
+            ?? "Unknown"
         let identifier = peripheral.identifier
-        
-        // Extract advertisement metadata
+
         let serviceUUIDs = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
         let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
         let isConnectable = advertisementData[CBAdvertisementDataIsConnectable] as? Bool
-        
-        // Determine if this is a known beacon
-        let isKnown = isKnownBeacon(
+
+        let isKnown = Self.isKnownBeacon(
             name: name,
             serviceUUIDs: serviceUUIDs,
             isConnectable: isConnectable
         )
-        
-        // Debug output for MOONSIDE on first detection only
-        let isFirstDetection = !firstDetectionLogged.contains(identifier)
-        if isKnown && isFirstDetection {
-            firstDetectionLogged.insert(identifier)
-            debugMoonsideBeacon(
-                name: name,
-                rssi: rssiValue,
-                serviceUUIDs: serviceUUIDs,
-                manufacturerData: manufacturerData,
-                isConnectable: isConnectable
-            )
-        }
-        
-        // Update or create device entry
-        DispatchQueue.main.async { [weak self] in
-            if var existing = self?.discoveredDevices[identifier] {
-                // Update existing device
+
+        Task { @MainActor in
+            guard self.shouldBeScanning else { return }
+
+            let now = Date()
+
+            let isFirstDetection = !self.firstDetectionLogged.contains(identifier)
+            if isKnown && isFirstDetection {
+                self.firstDetectionLogged.insert(identifier)
+                self.debugKnownBeacon(
+                    name: name,
+                    rssi: rssiValue,
+                    serviceUUIDs: serviceUUIDs,
+                    manufacturerData: manufacturerData,
+                    isConnectable: isConnectable
+                )
+            }
+
+            if var existing = self.discoveredDevices[identifier] {
                 existing.rssi = rssiValue
-                existing.lastSeen = Date()
+                existing.lastSeen = now
                 existing.name = name
                 existing.serviceUUIDs = serviceUUIDs
                 existing.manufacturerData = manufacturerData
                 existing.isConnectable = isConnectable
                 existing.isKnownBeacon = isKnown
-                self?.discoveredDevices[identifier] = existing
+                self.discoveredDevices[identifier] = existing
+                
+                // Update RSSI history for smoothing
+                self.updateRSSIHistory(for: identifier, rssi: rssiValue)
             } else {
-                // New device discovered
                 let device = DiscoveredBLEDevice(
                     id: identifier,
                     identifier: identifier,
                     name: name,
                     rssi: rssiValue,
-                    lastSeen: Date(),
+                    lastSeen: now,
                     isKnownBeacon: isKnown,
                     serviceUUIDs: serviceUUIDs,
                     manufacturerData: manufacturerData,
                     isConnectable: isConnectable
                 )
-                self?.discoveredDevices[identifier] = device
+                self.discoveredDevices[identifier] = device
                 
-                // Log new discoveries
+                // Initialize RSSI history for new device
+                self.updateRSSIHistory(for: identifier, rssi: rssiValue)
+
                 let beaconFlag = isKnown ? " [KNOWN BEACON]" : ""
                 print("[BLE] device discovered: \(name) \(rssiValue) dBm\(beaconFlag)")
             }
         }
     }
-    
+
     // MARK: - Beacon Matching
-    
-    private func isKnownBeacon(
+
+    nonisolated private static func isKnownBeacon(
         name: String,
         serviceUUIDs: [CBUUID]?,
         isConnectable: Bool?
     ) -> Bool {
-        // Primary: Match MOONSIDE beacon by service UUID signature
+        let moonsideServiceUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
+
         if let uuids = serviceUUIDs,
-           uuids.contains(moonsideServiceUUID),
-           isConnectable == true {
+           uuids.contains(moonsideServiceUUID) {
             return true
         }
-        
-        // Fallback: Match by name if service UUID not available
+
+        if name.contains("BEACON-") {
+            return true
+        }
+
         if name.contains("MOONSIDE-S1") {
             return true
         }
-        
+
         return false
     }
-    
+
     // MARK: - Debug
-    
-    private func debugMoonsideBeacon(
+
+    private func debugKnownBeacon(
         name: String,
         rssi: Int,
         serviceUUIDs: [CBUUID]?,
@@ -232,11 +311,11 @@ final class BLEScannerService: NSObject, ObservableObject, CBCentralManagerDeleg
         isConnectable: Bool?
     ) {
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("[BLE] MOONSIDE beacon detected (first time)")
+        print("[BLE] Known beacon detected (first time)")
         print("  Name: \(name)")
         print("  RSSI: \(rssi) dBm")
         print("  Connectable: \(isConnectable?.description ?? "unknown")")
-        
+
         if let uuids = serviceUUIDs, !uuids.isEmpty {
             print("  Service UUIDs:")
             for uuid in uuids {
@@ -245,36 +324,43 @@ final class BLEScannerService: NSObject, ObservableObject, CBCentralManagerDeleg
         } else {
             print("  Service UUIDs: none")
         }
-        
+
         if let data = manufacturerData {
             print("  Manufacturer Data: \(data.map { String(format: "%02x", $0) }.joined(separator: " "))")
         } else {
             print("  Manufacturer Data: none")
         }
+
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
-    
+
     // MARK: - Cleanup
-    
+
     private func startStaleDeviceTimer() {
         staleDeviceTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.removeStaleDevices()
+            guard let self else { return }
+            Task { @MainActor in
+                self.removeStaleDevices()
+            }
         }
     }
-    
+
     private func removeStaleDevices() {
+        guard shouldBeScanning else {
+            discoveredDevices = [:]
+            return
+        }
+
         let cutoff = Date().addingTimeInterval(-staleDeviceTimeout)
-        
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            let before = self.discoveredDevices.count
-            self.discoveredDevices = self.discoveredDevices.filter { _, device in
-                device.lastSeen > cutoff
-            }
-            let removed = before - self.discoveredDevices.count
-            if removed > 0 {
-                print("[BLE] removed \(removed) stale device(s)")
-            }
+
+        let before = discoveredDevices.count
+        discoveredDevices = discoveredDevices.filter { _, device in
+            device.lastSeen > cutoff
+        }
+
+        let removed = before - discoveredDevices.count
+        if removed > 0 {
+            print("[BLE] removed \(removed) stale device(s)")
         }
     }
 }

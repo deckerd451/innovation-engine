@@ -2,11 +2,13 @@ import SwiftUI
 import AVFoundation
 
 struct ScanView: View {
-    @State private var scannedCode: String?
-    @State private var showingResult = false
+    @State private var scannedProfile: User?
+    @State private var showingProfile = false
     @State private var isProcessing = false
-    @State private var resultMessage = "Connection Created"
+    @State private var showError = false
+    @State private var errorMessage = ""
     @State private var cameraAccessDenied = false
+    @State private var scannerKey = UUID() // For resetting scanner
 
     var body: some View {
         ZStack {
@@ -37,15 +39,21 @@ struct ScanView: View {
                 }
                 .padding()
             } else {
-                CameraPreview(
-                    onCodeScanned: { code in
-                        handleScan(code)
-                    },
-                    onPermissionDenied: {
-                        cameraAccessDenied = true
-                    }
-                )
-                .edgesIgnoringSafeArea(.all)
+                ZStack {
+                    CameraPreview(
+                        onCodeScanned: { code in
+                            handleScan(code)
+                        },
+                        onPermissionDenied: {
+                            cameraAccessDenied = true
+                        }
+                    )
+                    .id(scannerKey) // Reset scanner when key changes
+                    .edgesIgnoringSafeArea(.all)
+                    
+                    // Scan guide overlay
+                    scanGuideOverlay
+                }
             }
 
             if isProcessing {
@@ -54,31 +62,126 @@ struct ScanView: View {
                     .tint(.white)
             }
         }
-        .alert(resultMessage, isPresented: $showingResult) {
-            Button("OK") {
-                isProcessing = false
+        .sheet(isPresented: $showingProfile, onDismiss: resetScanner) {
+            if let profile = scannedProfile {
+                ProfileView(profile: profile)
             }
         }
+        .alert("Error", isPresented: $showError) {
+            Button("OK") {
+                isProcessing = false
+                resetScanner()
+            }
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    // MARK: - Scan Guide Overlay
+    
+    private var scanGuideOverlay: some View {
+        VStack {
+            Spacer()
+            
+            // Centered scan frame
+            ZStack {
+                // Semi-transparent background
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white, lineWidth: 3)
+                    .frame(width: 250, height: 250)
+                
+                // Corner brackets
+                VStack {
+                    HStack {
+                        cornerBracket
+                        Spacer()
+                        cornerBracket.rotation3DEffect(.degrees(90), axis: (x: 0, y: 0, z: 1))
+                    }
+                    Spacer()
+                    HStack {
+                        cornerBracket.rotation3DEffect(.degrees(-90), axis: (x: 0, y: 0, z: 1))
+                        Spacer()
+                        cornerBracket.rotation3DEffect(.degrees(180), axis: (x: 0, y: 0, z: 1))
+                    }
+                }
+                .frame(width: 250, height: 250)
+            }
+            
+            Spacer()
+            
+            // Instruction text
+            Text("Align QR code inside the frame")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.white)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 12)
+                .background(Color.black.opacity(0.6))
+                .cornerRadius(8)
+                .padding(.bottom, 60)
+        }
+    }
+    
+    private var cornerBracket: some View {
+        Path { path in
+            path.move(to: CGPoint(x: 40, y: 0))
+            path.addLine(to: CGPoint(x: 0, y: 0))
+            path.addLine(to: CGPoint(x: 0, y: 40))
+        }
+        .stroke(Color.green, lineWidth: 4)
+        .frame(width: 40, height: 40)
+    }
+    
+    // MARK: - Scanner Reset
+    
+    private func resetScanner() {
+        // Reset state to allow new scans
+        scannedProfile = nil
+        isProcessing = false
+        
+        // Regenerate scanner key to reset camera view
+        scannerKey = UUID()
+        
+        print("[Scan] 🔄 Scanner reset, ready for next scan")
     }
 
     private func handleScan(_ code: String) {
         guard !isProcessing else { return }
-        guard let communityId = QRService.parseCommunityId(from: code) else { return }
+        guard let communityId = QRService.parseCommunityId(from: code) else {
+            errorMessage = "Invalid QR code format"
+            showError = true
+            return
+        }
 
         isProcessing = true
-        scannedCode = code
+        
+        print("[Scan] 📷 QR scanned: \(code)")
+        print("[Scan] 🔍 Parsed community ID: \(communityId)")
 
         Task {
             do {
-                try await ConnectionService.shared.createConnection(to: communityId)
+                // Brief delay to debounce duplicate scans
+                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+                
+                // Load the profile for the scanned community ID
+                let profile = try await CommunityIdentityService.shared.loadProfile(
+                    communityId: UUID(uuidString: communityId)!
+                )
+                
+                print("[Scan] ✅ Profile loaded: \(profile.name)")
+                
                 await MainActor.run {
-                    resultMessage = "Connection Created"
-                    showingResult = true
+                    scannedProfile = profile
+                    isProcessing = false
+                    showingProfile = true
                 }
             } catch {
+                print("[Scan] ❌ Failed to load profile: \(error)")
+                
                 await MainActor.run {
-                    resultMessage = "Failed to create connection"
-                    showingResult = true
+                    errorMessage = "Profile not found"
+                    showError = true
+                    isProcessing = false
                 }
             }
         }
@@ -129,6 +232,8 @@ final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var hasConfiguredSession = false
     private var hasScannedCode = false
+    private var lastScanTime: Date?
+    private let scanDebounceInterval: TimeInterval = 2.0 // Prevent duplicate scans for 2 seconds
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -227,6 +332,12 @@ final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
         didOutput metadataObjects: [AVMetadataObject],
         from connection: AVCaptureConnection
     ) {
+        // Debounce: Don't scan if we scanned recently
+        if let lastScan = lastScanTime,
+           Date().timeIntervalSince(lastScan) < scanDebounceInterval {
+            return
+        }
+        
         guard !hasScannedCode else { return }
 
         guard
@@ -237,7 +348,13 @@ final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
         }
 
         hasScannedCode = true
+        lastScanTime = Date()
         delegate?.didScanCode(code)
+        
+        // Reset after a delay to allow new scans
+        DispatchQueue.main.asyncAfter(deadline: .now() + scanDebounceInterval) { [weak self] in
+            self?.hasScannedCode = false
+        }
     }
 
     deinit {

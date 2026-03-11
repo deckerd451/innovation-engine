@@ -99,90 +99,43 @@ final class AuthService: ObservableObject {
     private func loadCurrentUser() async {
         do {
             let session = try await supabase.auth.session
-            let userId = session.user.id
-
-            do {
-                let response: User = try await supabase
-                    .from("community")
-                    .select()
-                    .eq("user_id", value: userId.uuidString)
-                    .single()
-                    .execute()
-                    .value
-
+            
+            // Use CommunityIdentityService for robust profile resolution
+            let result = try await CommunityIdentityService.shared.resolveOrCreateProfile(for: session)
+            
+            switch result {
+            case .resolved(let profile):
                 await MainActor.run {
-                    self.currentUser = response
+                    self.currentUser = profile
                     self.isAuthenticated = true
                 }
-            } catch {
-                print("Community profile not found, creating new profile...")
-                try await createCommunityProfile(session: session)
-
-                let response: User = try await supabase
-                    .from("community")
-                    .select()
-                    .eq("user_id", value: userId.uuidString)
-                    .single()
-                    .execute()
-                    .value
-
+                
+            case .ambiguous(let candidates):
+                // For now, auto-select first candidate
+                // TODO: Show user choice UI in future
+                print("[Auth] ⚠️ Ambiguous profiles found, auto-selecting first")
+                let selected = candidates[0]
+                try await CommunityIdentityService.shared.linkProfile(
+                    communityId: selected.id,
+                    to: session.user.id
+                )
+                
+                let linkedProfile = try await CommunityIdentityService.shared.loadProfile(
+                    communityId: selected.id
+                )
+                
                 await MainActor.run {
-                    self.currentUser = response
+                    self.currentUser = linkedProfile
                     self.isAuthenticated = true
                 }
             }
         } catch {
-            print("Error loading user: \(error)")
-
+            print("[Auth] ❌ Error loading user: \(error)")
+            
             await MainActor.run {
                 self.currentUser = nil
                 self.isAuthenticated = false
             }
-        }
-    }
-
-    private func createCommunityProfile(session: Session) async throws {
-        let userId = session.user.id
-        let email = session.user.email ?? "user@example.com"
-        let metadata = session.user.userMetadata
-
-        let name: String
-        if let fullName = metadata["full_name"]?.stringValue {
-            name = fullName
-        } else if let userName = metadata["name"]?.stringValue {
-            name = userName
-        } else {
-            name = email.components(separatedBy: "@").first ?? "User"
-        }
-
-        let newProfile = NewCommunityProfile(
-            user_id: userId.uuidString,
-            name: name,
-            email: email
-        )
-
-        try await supabase
-            .from("community")
-            .insert(newProfile)
-            .execute()
-
-        print("Created community profile for user: \(userId)")
-    }
-}
-
-private struct NewCommunityProfile: Encodable {
-    let user_id: String
-    let name: String
-    let email: String
-}
-
-private extension AnyJSON {
-    var stringValue: String? {
-        switch self {
-        case .string(let value):
-            return value
-        default:
-            return nil
         }
     }
 }

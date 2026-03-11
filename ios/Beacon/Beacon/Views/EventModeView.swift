@@ -78,6 +78,22 @@ struct EventModeView: View {
     
     // MARK: - Components
     
+    // MARK: - Event Anchor Helpers
+    
+    private func isEventAnchor(_ name: String) -> Bool {
+        return name == "MOONSIDE-S1"
+    }
+    
+    private var activeEventAnchor: ConfidentBeacon? {
+        guard let beacon = confidence.activeBeacon else { return nil }
+        return isEventAnchor(beacon.name) ? beacon : nil
+    }
+    
+    private var candidateEventAnchor: ConfidentBeacon? {
+        guard let beacon = confidence.candidateBeacon else { return nil }
+        return isEventAnchor(beacon.name) ? beacon : nil
+    }
+    
     private var privacyNotice: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -266,8 +282,16 @@ struct EventModeView: View {
                     set: { newValue in
                         Task {
                             if newValue {
+                                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                print("[UI] 🎬 EVENT MODE TOGGLE: ON")
+                                print("  User toggled Event Mode to ACTIVE")
+                                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                                 await bleService.startEventMode()
                             } else {
+                                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                print("[UI] 🛑 EVENT MODE TOGGLE: OFF")
+                                print("  User toggled Event Mode to INACTIVE")
+                                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                                 bleService.stopEventMode()
                             }
                         }
@@ -306,14 +330,17 @@ struct EventModeView: View {
                     )
             }
             
-            if let beacon = confidence.activeBeacon {
-                // Stable beacon detected
+            if let beacon = activeEventAnchor {
+                // Stable event anchor beacon detected
                 VStack(alignment: .leading, spacing: 8) {
                     // Show event name if mapped
                     if let eventName = presence.currentEvent {
                         Text(eventName)
                             .font(.title3)
                             .fontWeight(.semibold)
+                            .onAppear {
+                                print("[UI] 🎯 Event name displayed: '\(eventName)'")
+                            }
                         
                         Text(beacon.name)
                             .font(.caption)
@@ -343,8 +370,8 @@ struct EventModeView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-            } else if let candidate = confidence.candidateBeacon {
-                // Candidate beacon (building confidence)
+            } else if let candidate = candidateEventAnchor {
+                // Candidate event anchor beacon (building confidence)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(candidate.name)
                         .font(.title3)
@@ -364,7 +391,7 @@ struct EventModeView: View {
                     }
                 }
             } else {
-                // Searching
+                // Searching for event anchor beacons
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)

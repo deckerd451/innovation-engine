@@ -4,15 +4,18 @@ import Combine
 // MARK: - Beacon Confidence State
 
 enum BeaconConfidenceState {
-    case searching      // No qualifying beacon detected
-    case candidate      // Beacon detected, building confidence
-    case stable         // Beacon confirmed stable
-    
+    case searching
+    case candidate
+    case stable
+
     var displayText: String {
         switch self {
-        case .searching: return "Searching"
-        case .candidate: return "Candidate"
-        case .stable: return "Stable"
+        case .searching:
+            return "Searching"
+        case .candidate:
+            return "Candidate"
+        case .stable:
+            return "Stable"
         }
     }
 }
@@ -26,109 +29,144 @@ struct ConfidentBeacon: Identifiable {
     let confidenceState: BeaconConfidenceState
     let firstSeen: Date
     let lastSeen: Date
-    
+
     var signalLabel: String {
         switch rssi {
-        case -40...0: return "Very Close"
-        case -60..<(-40): return "Near"
-        case -80..<(-60): return "Nearby"
-        default: return "Far"
+        case -40...0:
+            return "Very Close"
+        case -60..<(-40):
+            return "Near"
+        case -80..<(-60):
+            return "Nearby"
+        default:
+            return "Far"
         }
     }
-    
+
     var confidenceDuration: TimeInterval {
-        return Date().timeIntervalSince(firstSeen)
+        Date().timeIntervalSince(firstSeen)
     }
 }
 
 // MARK: - Beacon Confidence Service
 
+@MainActor
 final class BeaconConfidenceService: ObservableObject {
-    
+
     static let shared = BeaconConfidenceService()
-    
-    // Published state
+
     @Published private(set) var activeBeacon: ConfidentBeacon?
     @Published private(set) var candidateBeacon: ConfidentBeacon?
     @Published private(set) var confidenceState: BeaconConfidenceState = .searching
-    
-    private var scanner = BLEScannerService.shared
+
+    private let scanner = BLEScannerService.shared
     private var cancellables = Set<AnyCancellable>()
     private var confidenceTimer: Timer?
-    
+
     // Configuration
-    private let rssiThreshold: Int = -80           // Minimum RSSI for qualification
-    private let confidenceWindow: TimeInterval = 3.0  // Seconds of continuous detection
-    private let freshnessWindow: TimeInterval = 5.0   // Max age for "fresh" detection
-    
+    private let rssiThreshold: Int = -80
+    private let confidenceWindow: TimeInterval = 3.0
+    private let freshnessWindow: TimeInterval = 10.0
+
     // Tracking
     private var candidateStartTime: Date?
     private var currentCandidateId: UUID?
-    
+
     private init() {
         startMonitoring()
     }
-    
+
+    deinit {
+        confidenceTimer?.invalidate()
+    }
+
     // MARK: - Monitoring
-    
+
     private func startMonitoring() {
-        // Monitor scanner's discovered devices
         scanner.$discoveredDevices
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.evaluateBeacons()
+                self?.evaluateBeacons(trigger: "scanner update")
             }
             .store(in: &cancellables)
-        
-        // Start evaluation timer
+
         confidenceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            self?.evaluateBeacons()
+            guard let self else { return }
+            Task { @MainActor in
+                self.evaluateBeacons(trigger: "timer")
+            }
         }
     }
-    
-    private func evaluateBeacons() {
-        let knownBeacons = scanner.getKnownBeacons()
-        
-        // Filter qualifying beacons
-        let qualifyingBeacons = knownBeacons.filter { beacon in
-            beacon.rssi >= rssiThreshold &&
-            Date().timeIntervalSince(beacon.lastSeen) < freshnessWindow
-        }
-        
-        guard let strongest = qualifyingBeacons.first else {
-            // No qualifying beacons
+
+    // MARK: - Evaluation
+
+    private func evaluateBeacons(trigger: String) {
+        let now = Date()
+
+        let qualifyingBeacons = scanner.getKnownBeacons()
+            .filter { beacon in
+                beacon.rssi >= rssiThreshold &&
+                now.timeIntervalSince(beacon.lastSeen) < freshnessWindow
+            }
+
+        let eventAnchors = qualifyingBeacons
+            .filter { isEventAnchor($0.name) }
+            .sorted { $0.rssi > $1.rssi }
+
+        let peerDevices = qualifyingBeacons
+            .filter { $0.name.hasPrefix("BEACON-") }
+            .sorted { $0.rssi > $1.rssi }
+
+        let otherKnownBeacons = qualifyingBeacons
+            .filter { !isEventAnchor($0.name) && !$0.name.hasPrefix("BEACON-") }
+            .sorted { $0.rssi > $1.rssi }
+
+        print("[CONFIDENCE-EVAL] Trigger: \(trigger)")
+        print("[CONFIDENCE-EVAL] Found \(qualifyingBeacons.count) qualifying beacon(s)")
+        print("[CONFIDENCE-EVAL]   Event anchors: \(eventAnchors.count)")
+        print("[CONFIDENCE-EVAL]   Peer devices: \(peerDevices.count)")
+        print("[CONFIDENCE-EVAL]   Other known beacons: \(otherKnownBeacons.count)")
+
+        guard let strongest = eventAnchors.first ?? otherKnownBeacons.first ?? peerDevices.first else {
             handleNoQualifyingBeacon()
             return
         }
-        
-        // Check if this is a new candidate or same as current
-        if let currentId = currentCandidateId, currentId == strongest.id {
-            // Same candidate, check confidence duration
-            updateCandidateConfidence(beacon: strongest)
+
+        print("[CONFIDENCE-EVAL] Selected beacon: \(strongest.name) (ID: \(strongest.id))")
+        print("[CONFIDENCE-EVAL] Current candidate ID: \(currentCandidateId?.uuidString ?? "nil")")
+
+        if currentCandidateId == strongest.id {
+            print("[CONFIDENCE-EVAL] ✅ SAME beacon - calling updateCandidateConfidence")
+            updateCandidateConfidence(beacon: strongest, now: now)
         } else {
-            // New candidate detected
-            startNewCandidate(beacon: strongest)
+            print("[CONFIDENCE-EVAL] 🆕 DIFFERENT beacon - calling startNewCandidate")
+            print("[CONFIDENCE-EVAL]   Previous: \(currentCandidateId?.uuidString ?? "none")")
+            print("[CONFIDENCE-EVAL]   New: \(strongest.id.uuidString)")
+            startNewCandidate(beacon: strongest, now: now)
         }
     }
-    
+
     private func handleNoQualifyingBeacon() {
-        if confidenceState != .searching {
+        if confidenceState != .searching || activeBeacon != nil || candidateBeacon != nil {
             print("[CONFIDENCE] No qualifying beacon, returning to searching")
         }
-        
-        DispatchQueue.main.async { [weak self] in
-            self?.confidenceState = .searching
-            self?.candidateBeacon = nil
-            self?.activeBeacon = nil
-            self?.currentCandidateId = nil
-            self?.candidateStartTime = nil
-        }
+
+        confidenceState = .searching
+        candidateBeacon = nil
+        activeBeacon = nil
+        currentCandidateId = nil
+        candidateStartTime = nil
     }
-    
-    private func startNewCandidate(beacon: DiscoveredBLEDevice) {
-        let now = Date()
+
+    // MARK: - Candidate Handling
+
+    private func startNewCandidate(beacon: DiscoveredBLEDevice, now: Date) {
         currentCandidateId = beacon.id
         candidateStartTime = now
-        
+
+        print("[CONFIDENCE-NEW] Setting currentCandidateId = \(beacon.id.uuidString)")
+        print("[CONFIDENCE-NEW] Setting candidateStartTime = \(now)")
+
         let confidentBeacon = ConfidentBeacon(
             id: beacon.id,
             name: beacon.name,
@@ -137,46 +175,54 @@ final class BeaconConfidenceService: ObservableObject {
             firstSeen: now,
             lastSeen: beacon.lastSeen
         )
-        
-        print("[CONFIDENCE] New candidate: \(beacon.name) at \(beacon.rssi) dBm")
-        
-        DispatchQueue.main.async { [weak self] in
-            self?.confidenceState = .candidate
-            self?.candidateBeacon = confidentBeacon
-            self?.activeBeacon = nil
-        }
+
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("[CONFIDENCE] 🔍 NEW CANDIDATE DETECTED")
+        print("  Name: \(beacon.name)")
+        print("  RSSI: \(beacon.rssi) dBm")
+        print("  Beacon ID: \(beacon.id)")
+        print("  Building confidence... (need \(String(format: "%.1f", confidenceWindow))s)")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        confidenceState = .candidate
+        candidateBeacon = confidentBeacon
+        activeBeacon = nil
     }
-    
-    private func updateCandidateConfidence(beacon: DiscoveredBLEDevice) {
-        guard let startTime = candidateStartTime else { return }
-        
-        let duration = Date().timeIntervalSince(startTime)
-        let progress = duration / confidenceWindow
-        
-        // Debug output
-        if Int(duration * 2) % 2 == 0 {  // Log every 0.5 seconds
-            print("[CONFIDENCE] \(beacon.name): \(String(format: "%.1f", duration))s / \(String(format: "%.1f", confidenceWindow))s (\(Int(progress * 100))%)")
-        }
-        
-        if duration >= confidenceWindow && confidenceState != .stable {
-            // Confidence achieved! (only promote if not already stable)
-            promoteToStable(beacon: beacon, startTime: startTime)
-        } else if duration < confidenceWindow {
-            // Still building confidence
+
+    private func updateCandidateConfidence(beacon: DiscoveredBLEDevice, now: Date) {
+        print("[CONFIDENCE-UPDATE] Entry: beacon=\(beacon.name), currentCandidateId=\(currentCandidateId?.uuidString ?? "nil")")
+
+        guard let startTime = candidateStartTime else {
+            print("[CONFIDENCE-UPDATE] ⚠️ candidateStartTime was nil, initializing now")
+            candidateStartTime = now
+
             let confidentBeacon = ConfidentBeacon(
                 id: beacon.id,
                 name: beacon.name,
                 rssi: beacon.rssi,
                 confidenceState: .candidate,
-                firstSeen: startTime,
+                firstSeen: now,
                 lastSeen: beacon.lastSeen
             )
-            
-            DispatchQueue.main.async { [weak self] in
-                self?.candidateBeacon = confidentBeacon
+
+            confidenceState = .candidate
+            candidateBeacon = confidentBeacon
+            activeBeacon = nil
+            return
+        }
+
+        let duration = now.timeIntervalSince(startTime)
+        let progress = min(duration / confidenceWindow, 1.0)
+
+        print("[CONFIDENCE-UPDATE] Duration: \(String(format: "%.1f", duration))s, Progress: \(Int(progress * 100))%")
+        print("[CONFIDENCE] \(beacon.name): \(String(format: "%.1f", duration))s / \(String(format: "%.1f", confidenceWindow))s (\(Int(progress * 100))%)")
+
+        if duration >= confidenceWindow {
+            if confidenceState != .stable {
+                promoteToStable(beacon: beacon, startTime: startTime)
+                return
             }
-        } else {
-            // Already stable, just update RSSI
+
             let confidentBeacon = ConfidentBeacon(
                 id: beacon.id,
                 name: beacon.name,
@@ -185,13 +231,29 @@ final class BeaconConfidenceService: ObservableObject {
                 firstSeen: startTime,
                 lastSeen: beacon.lastSeen
             )
-            
-            DispatchQueue.main.async { [weak self] in
-                self?.activeBeacon = confidentBeacon
-            }
+
+            print("[CONFIDENCE] 🔄 Already stable, updating RSSI to \(beacon.rssi) dBm")
+            print("[CONFIDENCE] 📝 Updating activeBeacon RSSI")
+
+            activeBeacon = confidentBeacon
+
+            print("[CONFIDENCE]   activeBeacon = \(activeBeacon?.name ?? "nil") at \(beacon.rssi) dBm")
+            return
         }
+
+        let confidentBeacon = ConfidentBeacon(
+            id: beacon.id,
+            name: beacon.name,
+            rssi: beacon.rssi,
+            confidenceState: .candidate,
+            firstSeen: startTime,
+            lastSeen: beacon.lastSeen
+        )
+
+        confidenceState = .candidate
+        candidateBeacon = confidentBeacon
     }
-    
+
     private func promoteToStable(beacon: DiscoveredBLEDevice, startTime: Date) {
         let confidentBeacon = ConfidentBeacon(
             id: beacon.id,
@@ -201,29 +263,37 @@ final class BeaconConfidenceService: ObservableObject {
             firstSeen: startTime,
             lastSeen: beacon.lastSeen
         )
-        
+
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("[CONFIDENCE] ✅ STABLE BEACON ACHIEVED")
         print("  Name: \(beacon.name)")
+        print("  Beacon ID: \(beacon.id)")
         print("  RSSI: \(beacon.rssi) dBm")
         print("  Signal: \(confidentBeacon.signalLabel)")
         print("  Confidence Duration: \(String(format: "%.1f", confidentBeacon.confidenceDuration))s")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        
-        DispatchQueue.main.async { [weak self] in
-            self?.confidenceState = .stable
-            self?.activeBeacon = confidentBeacon
-            self?.candidateBeacon = nil
-        }
+
+        confidenceState = .stable
+        activeBeacon = confidentBeacon
+        candidateBeacon = nil
+
+        print("[CONFIDENCE] 📝 PUBLISHING activeBeacon NOW")
+        print("[CONFIDENCE] ✅ Published activeBeacon = \(confidentBeacon.name)")
     }
-    
+
+    // MARK: - Helpers
+
+    private func isEventAnchor(_ name: String) -> Bool {
+        name == "MOONSIDE-S1"
+    }
+
     // MARK: - Public API
-    
+
     func getActiveBeaconInfo() -> String? {
         guard let beacon = activeBeacon else { return nil }
         return "\(beacon.name) • \(beacon.rssi) dBm • \(beacon.signalLabel)"
     }
-    
+
     func reset() {
         print("[CONFIDENCE] Reset requested")
         DispatchQueue.main.async { [weak self] in
@@ -232,6 +302,7 @@ final class BeaconConfidenceService: ObservableObject {
             self?.candidateBeacon = nil
             self?.currentCandidateId = nil
             self?.candidateStartTime = nil
+            print("[CONFIDENCE] ✅ Reset complete")
         }
     }
 }
