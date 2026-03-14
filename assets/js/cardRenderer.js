@@ -6,13 +6,14 @@
 import { supabase } from "./supabaseClient.js";
 
 import { showNotification } from "./utils.js";
+import { getCardAvatarUrl } from "./avatar-utils.js";
 
 // Creates user card HTML
 export function generateUserCardHTML(user) {
   const name = user.name || "Unnamed User";
   const skills = user.skills || "No skills listed";
   const bio = user.bio || "";
-  const image = user.image_url || "https://via.placeholder.com/150";
+  const image = getCardAvatarUrl(user) || "https://via.placeholder.com/150";
 
   return `
     <div class="user-card">

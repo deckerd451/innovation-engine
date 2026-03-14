@@ -15,6 +15,7 @@ import {
   deletePerson,
   createPerson
 } from './adminPeopleService.js';
+import { getCardAvatarUrl } from './avatar-utils.js';
 
 // Escape user-supplied content before injecting into innerHTML
 function esc(str) {
@@ -554,7 +555,7 @@ function getInitials(name) {
 }
 
 function getAvatarHTML(person, initials, size) {
-  const imageUrl = person.image_url || person.image_path || person.avatar_storage_path;
+  const imageUrl = getCardAvatarUrl(person) || person.image_path;
   if (imageUrl) {
     return `<img loading="lazy" src="${esc(imageUrl)}" style="width: ${size}px; height: ${size}px; border-radius: 50%; object-fit: cover;" alt="${esc(person.name)}">`;
   }

@@ -1,6 +1,7 @@
 // neuralInteractive.js
 import { supabaseClient as supabase } from './supabaseClient.js';
 import { fetchConnections } from './loadConnections.js';
+import { getGraphAvatarUrl } from './avatar-utils.js';
 
 window.supabase = supabase; // handy for console
 
@@ -620,14 +621,15 @@ function drawNeuron(n,t) {
 
   // MOBILE: Rich rendering for user node
   if (MOBILE_MODE && n._isMe) {
-    // Draw avatar if available
-    if (n.meta.image_url) {
-      let img = avatarCache.get(n.meta.image_url);
+    // Draw avatar if available (use 64×64 graph avatar to reduce bandwidth)
+    const _graphAvatarUrl = n._graphAvatarUrl || (n._graphAvatarUrl = getGraphAvatarUrl(n.meta));
+    if (_graphAvatarUrl) {
+      let img = avatarCache.get(_graphAvatarUrl);
       if (!img) {
         img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = n.meta.image_url;
-        avatarCache.set(n.meta.image_url, img);
+        img.src = _graphAvatarUrl;
+        avatarCache.set(_graphAvatarUrl, img);
       }
       if (img.complete && img.naturalWidth > 0) {
         ctx.save();
