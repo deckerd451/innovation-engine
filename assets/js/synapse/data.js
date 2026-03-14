@@ -3,6 +3,7 @@ console.log("✅ Synapse data module loaded:", new URL(import.meta.url).pathname
 
 import { getAllConnectionsForSynapse } from "../connections.js";
 import { getAllProjectMembers } from "../projects.js";
+import { getGraphAvatarUrl } from "../avatar-utils.js";
 
 // ID canonicalization cache to avoid repeated lookups
 const communityIdCache = new Map();
@@ -437,6 +438,7 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
         name: member.name || "Anonymous",
         email: member.email,
         image_url: member.image_url,
+        graphAvatarUrl: getGraphAvatarUrl(member),
         skills: parseSkills(member.skills),
         interests: member.interests || [],
         bio: member.bio,

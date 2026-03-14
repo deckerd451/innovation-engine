@@ -1,5 +1,6 @@
 // assets/js/synapse/themes.js
 import { showSynapseNotification, escapeHtml } from "./ui.js";
+import { getCardAvatarUrl } from "../avatar-utils.js";
 
 // Minimal “theme node” shape used in rendering.
 export async function fetchActiveThemes(supabase) {
@@ -103,8 +104,9 @@ export async function renderThemeOverlayCard({ themeNode, interestCount, onInter
 
   // Render participant avatars (first 5)
   const participantHTML = participants.slice(0, 5).map(p => {
-    if (p.image_url) {
-      return `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="participant-avatar" style="width:32px; height:32px; border-radius:50%; border:2px solid rgba(0,224,255,0.4); margin-right:4px;" title="${escapeHtml(p.name)}">`;
+    const pAvatarUrl = getCardAvatarUrl(p);
+    if (pAvatarUrl) {
+      return `<img src="${escapeHtml(pAvatarUrl)}" alt="${escapeHtml(p.name)}" class="participant-avatar" style="width:32px; height:32px; border-radius:50%; border:2px solid rgba(0,224,255,0.4); margin-right:4px;" title="${escapeHtml(p.name)}">`;
     } else {
       const initials = p.name ? p.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
       return `<div class="participant-avatar" style="width:32px; height:32px; border-radius:50%; border:2px solid rgba(0,224,255,0.4); background:rgba(0,224,255,0.2); display:inline-flex; align-items:center; justify-content:center; margin-right:4px; font-size:12px; font-weight:bold; color:#00e0ff;" title="${escapeHtml(p.name)}">${initials}</div>`;

@@ -2,6 +2,8 @@
 // Graph Data Store for Unified Network Discovery
 // Version: 1.0.2 (debug instrumentation)
 
+import { getGraphAvatarUrl } from "../avatar-utils.js";
+
 // Debug toggle for edge loading diagnostics
 const EDGE_DEBUG =
   new URLSearchParams(window.location.search).get("debugEdges") === "1" ||
@@ -238,8 +240,8 @@ export class GraphDataStore {
       type: "person",
       name: user.name || user.username || "Unknown",
 
-      // Prefer `image_url` if your community table uses it; fall back to `avatar_url`
-      imageUrl: user.image_url || user.avatar_url,
+      // Use 64×64 graph avatar to minimise bandwidth in graph rendering
+      imageUrl: getGraphAvatarUrl(user),
 
       // Physics properties (set by D3)
       x: 0,

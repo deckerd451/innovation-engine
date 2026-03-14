@@ -354,7 +354,7 @@ export function renderNodes(container, nodes, { onNodeClick } = {}) {
 
       node
         .append("image")
-        .attr("xlink:href", d.image_url)
+        .attr("xlink:href", d.graphAvatarUrl || d.image_url)
         .attr("x", -radius)
         .attr("y", -radius)
         .attr("width", radius * 2)
