@@ -11,7 +11,7 @@
 //   getProfileAvatarUrl(user)  → original — profile detail / modal
 //
 // Supabase image transforms are used when the URL resolves to a
-// Supabase storage object URL. All other URLs are returned unchanged.
+// Supabase storage URL (object or render). All other URLs are unchanged.
 // =============================================================
 
 import { supabase } from "./supabaseClient.js";
@@ -43,7 +43,7 @@ function getSupabaseUrl() {
  *   bucket-prefixed path:  "hacksbucket/avatars/uid/avatar.jpg"
  *
  * Input is coerced to a string and leading slashes are stripped so that
- * values like null-ish numbers or accidentally slash-prefixed paths are
+ * null-ish non-string values and accidentally slash-prefixed paths are
  * handled safely.
  *
  * @param {*} storagePath
@@ -68,10 +68,17 @@ function storagePathToPublicUrl(storagePath) {
 }
 
 /**
- * Apply a Supabase image transform to a full public storage object URL.
- * The Supabase project URL is resolved at call time from the shared client,
- * so no URL is hardcoded here.
- * Returns the original URL unchanged for non-Supabase URLs (e.g. OAuth avatars).
+ * Apply a Supabase image transform, producing a clean render URL for the
+ * requested dimensions.
+ *
+ * Handles both Supabase storage URL forms:
+ *   /storage/v1/object/public/...       — plain public object URL
+ *   /storage/v1/render/image/public/... — already-transformed render URL
+ *
+ * In either case any existing query string is discarded and replaced with
+ * the requested transform parameters, so a second "?" is never appended.
+ *
+ * Non-Supabase URLs (e.g. OAuth provider avatars) are returned unchanged.
  *
  * @param {string|null} url
  * @param {number} width
@@ -81,13 +88,25 @@ function storagePathToPublicUrl(storagePath) {
 function withTransform(url, width, height) {
   if (!url) return url;
   const supabaseUrl = getSupabaseUrl();
-  if (supabaseUrl) {
-    const objectPrefix = `${supabaseUrl}/storage/v1/object/public/`;
-    if (url.startsWith(objectPrefix)) {
-      const path = url.slice(objectPrefix.length);
-      return `${supabaseUrl}/storage/v1/render/image/public/${path}?width=${width}&height=${height}&resize=cover`;
-    }
+  if (!supabaseUrl) return url;
+
+  const objectPrefix = `${supabaseUrl}/storage/v1/object/public/`;
+  const renderPrefix = `${supabaseUrl}/storage/v1/render/image/public/`;
+
+  let storagePath = null;
+
+  if (url.startsWith(objectPrefix)) {
+    // Slice off the prefix, then discard any existing query string
+    storagePath = url.slice(objectPrefix.length).split("?")[0];
+  } else if (url.startsWith(renderPrefix)) {
+    // Already a render URL — strip the existing transform params and rebuild
+    storagePath = url.slice(renderPrefix.length).split("?")[0];
   }
+
+  if (storagePath) {
+    return `${supabaseUrl}/storage/v1/render/image/public/${storagePath}?width=${width}&height=${height}&resize=cover`;
+  }
+
   // Not a Supabase storage URL — return as-is
   return url;
 }
