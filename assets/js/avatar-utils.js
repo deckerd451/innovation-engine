@@ -42,7 +42,11 @@ function getSupabaseUrl() {
  *   bare path:             "avatars/uid/avatar.jpg"
  *   bucket-prefixed path:  "hacksbucket/avatars/uid/avatar.jpg"
  *
- * @param {string} storagePath
+ * Input is coerced to a string and leading slashes are stripped so that
+ * values like null-ish numbers or accidentally slash-prefixed paths are
+ * handled safely.
+ *
+ * @param {*} storagePath
  * @returns {string|null}
  */
 function storagePathToPublicUrl(storagePath) {
@@ -50,8 +54,11 @@ function storagePathToPublicUrl(storagePath) {
   const supabaseUrl = getSupabaseUrl();
   if (!supabaseUrl) return null;
 
+  // Coerce to string, trim whitespace, strip any leading slashes
+  let cleanPath = String(storagePath).trim().replace(/^\/+/, "");
+  if (!cleanPath) return null;
+
   // Strip leading bucket name prefix if the path was stored with it
-  let cleanPath = storagePath;
   const bucketPrefix = `${AVATAR_BUCKET}/`;
   if (cleanPath.startsWith(bucketPrefix)) {
     cleanPath = cleanPath.slice(bucketPrefix.length);
@@ -89,20 +96,24 @@ function withTransform(url, width, height) {
  * Resolve the raw full-size image URL from a user/node object.
  *
  * Priority order:
- *   1. image_url           — primary field written by all upload paths
- *   2. imageUrl            — normalised in-memory field used by graph stores
- *   3. avatar_url          — OAuth provider fallback (auth.users.user_metadata)
- *   4. avatar_storage_path — storage path only, converted to a public URL
+ *   1. avatar_storage_path — authoritative storage location; freshly converted
+ *                            to a public URL, so it is never stale. image_url is
+ *                            kept only for backward compatibility and may lag
+ *                            behind when storage paths change.
+ *   2. image_url           — backward-compat field written alongside storage path
+ *   3. imageUrl            — normalised in-memory field used by graph stores
+ *                            (these objects do not carry avatar_storage_path)
+ *   4. avatar_url          — OAuth provider fallback (auth.users.user_metadata)
  *
  * @param {object|null} user
  * @returns {string|null}
  */
 function resolveBaseUrl(user) {
   if (!user) return null;
+  if (user.avatar_storage_path) return storagePathToPublicUrl(user.avatar_storage_path);
   if (user.image_url) return user.image_url;
   if (user.imageUrl) return user.imageUrl;
   if (user.avatar_url) return user.avatar_url;
-  if (user.avatar_storage_path) return storagePathToPublicUrl(user.avatar_storage_path);
   return null;
 }
 
