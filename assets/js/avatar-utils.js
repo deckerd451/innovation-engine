@@ -6,21 +6,66 @@
 // Usage:
 //   import { getGraphAvatarUrl, getCardAvatarUrl, getProfileAvatarUrl } from './avatar-utils.js';
 //
-//   getGraphAvatarUrl(user)    → 64×64  — network graph nodes only
+//   getGraphAvatarUrl(user)    → 64×64   — network graph nodes only
 //   getCardAvatarUrl(user)     → 128×128 — attendee cards / lists
 //   getProfileAvatarUrl(user)  → original — profile detail / modal
 //
-// Supabase image transforms are used when the URL is a Supabase
-// storage object URL. All other URLs are returned unchanged.
+// Supabase image transforms are used when the URL resolves to a
+// Supabase storage object URL. All other URLs are returned unchanged.
 // =============================================================
 
-const SUPABASE_URL = "https://mqbsjlgnsirqsmfnreqd.supabase.co";
-const STORAGE_OBJECT_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/`;
-const STORAGE_RENDER_PREFIX = `${SUPABASE_URL}/storage/v1/render/image/public/`;
+import { supabase } from "./supabaseClient.js";
+
+// Bucket where all user avatars are stored (matches avatar-upload.js / profile.js).
+const AVATAR_BUCKET = "hacksbucket";
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
 
 /**
- * Apply a Supabase image transform to a storage URL.
- * Returns the original URL unchanged for non-Supabase URLs.
+ * Return the Supabase project base URL, derived from the shared client
+ * instance at call time rather than hardcoded.
+ * Falls back to window.supabase for scripts that load the client differently.
+ * @returns {string|null}
+ */
+function getSupabaseUrl() {
+  const client = supabase || window.supabase;
+  const url = client?.supabaseUrl;
+  return url ? url.replace(/\/$/, "") : null;
+}
+
+/**
+ * Convert an avatar_storage_path value into a full public storage object URL.
+ *
+ * Handles two formats:
+ *   bare path:             "avatars/uid/avatar.jpg"
+ *   bucket-prefixed path:  "hacksbucket/avatars/uid/avatar.jpg"
+ *
+ * @param {string} storagePath
+ * @returns {string|null}
+ */
+function storagePathToPublicUrl(storagePath) {
+  if (!storagePath) return null;
+  const supabaseUrl = getSupabaseUrl();
+  if (!supabaseUrl) return null;
+
+  // Strip leading bucket name prefix if the path was stored with it
+  let cleanPath = storagePath;
+  const bucketPrefix = `${AVATAR_BUCKET}/`;
+  if (cleanPath.startsWith(bucketPrefix)) {
+    cleanPath = cleanPath.slice(bucketPrefix.length);
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/${AVATAR_BUCKET}/${cleanPath}`;
+}
+
+/**
+ * Apply a Supabase image transform to a full public storage object URL.
+ * The Supabase project URL is resolved at call time from the shared client,
+ * so no URL is hardcoded here.
+ * Returns the original URL unchanged for non-Supabase URLs (e.g. OAuth avatars).
+ *
  * @param {string|null} url
  * @param {number} width
  * @param {number} height
@@ -28,24 +73,42 @@ const STORAGE_RENDER_PREFIX = `${SUPABASE_URL}/storage/v1/render/image/public/`;
  */
 function withTransform(url, width, height) {
   if (!url) return url;
-  if (url.startsWith(STORAGE_OBJECT_PREFIX)) {
-    const path = url.slice(STORAGE_OBJECT_PREFIX.length);
-    return `${STORAGE_RENDER_PREFIX}${path}?width=${width}&height=${height}&resize=cover`;
+  const supabaseUrl = getSupabaseUrl();
+  if (supabaseUrl) {
+    const objectPrefix = `${supabaseUrl}/storage/v1/object/public/`;
+    if (url.startsWith(objectPrefix)) {
+      const path = url.slice(objectPrefix.length);
+      return `${supabaseUrl}/storage/v1/render/image/public/${path}?width=${width}&height=${height}&resize=cover`;
+    }
   }
-  // Not a Supabase storage URL — return as-is (e.g. OAuth provider avatars)
+  // Not a Supabase storage URL — return as-is
   return url;
 }
 
 /**
- * Resolve the raw image URL from a user/node object.
- * Checks common field names in priority order.
+ * Resolve the raw full-size image URL from a user/node object.
+ *
+ * Priority order:
+ *   1. image_url           — primary field written by all upload paths
+ *   2. imageUrl            — normalised in-memory field used by graph stores
+ *   3. avatar_url          — OAuth provider fallback (auth.users.user_metadata)
+ *   4. avatar_storage_path — storage path only, converted to a public URL
+ *
  * @param {object|null} user
  * @returns {string|null}
  */
 function resolveBaseUrl(user) {
   if (!user) return null;
-  return user.image_url || user.imageUrl || user.avatar_url || null;
+  if (user.image_url) return user.image_url;
+  if (user.imageUrl) return user.imageUrl;
+  if (user.avatar_url) return user.avatar_url;
+  if (user.avatar_storage_path) return storagePathToPublicUrl(user.avatar_storage_path);
+  return null;
 }
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 /**
  * Graph avatar — 64×64px
