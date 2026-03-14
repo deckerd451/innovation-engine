@@ -1,6 +1,6 @@
 // loadConnections.js
 import { supabaseClient } from './supabaseClient.js';
-import { generateUserCardHTML, attachEndorseButtons } from './cardRenderer.js';
+import { generateUserCardHTML } from './cardRenderer.js';
 import { DOMElements } from './globals.js';
 
 // 🔍 Search by required skills
@@ -21,9 +21,6 @@ export async function searchBySkills(requiredSkills) {
       const cardHTML = await generateUserCardHTML(user);
       DOMElements.cardContainer.insertAdjacentHTML('beforeend', cardHTML);
     }
-
-    // Wire up endorse buttons
-    attachEndorseButtons();
 
   } catch (err) {
     console.error('[SearchBySkills]', err);
@@ -47,8 +44,6 @@ export async function searchByName(name) {
       const cardHTML = await generateUserCardHTML(user);
       DOMElements.cardContainer.insertAdjacentHTML('beforeend', cardHTML);
     }
-
-    attachEndorseButtons();
 
   } catch (err) {
     console.error('[SearchByName]', err);
@@ -75,10 +70,24 @@ export async function buildBestTeam(requiredSkills, teamSize) {
       DOMElements.bestTeamContainer.insertAdjacentHTML('beforeend', cardHTML);
     }
 
-    attachEndorseButtons();
-
   } catch (err) {
     console.error('[BuildBestTeam]', err);
     DOMElements.bestTeamContainer.innerHTML = '<p>Error building team.</p>';
+  }
+}
+
+// Fetch all connections for the neural network graph.
+// Returns an array of { from_id, to_id } objects as expected by neuralInteractive.js.
+export async function fetchConnections() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('connections')
+      .select('from_id, to_id');
+
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('[fetchConnections]', err);
+    return [];
   }
 }

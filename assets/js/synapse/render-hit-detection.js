@@ -1,7 +1,5 @@
-// assets/js/synapse/render.js
-// Rendering helpers for links/nodes + project circles
-
-// assets/js/synapse/render-hit-detection.js - Node and link rendering with hit detection
+// assets/js/synapse/render-hit-detection.js
+// Node and link rendering with hit detection for Synapse visualization
 
 import { getInitials, truncateName } from "./ui.js";
 
@@ -143,12 +141,6 @@ export function getLinkColor(link) {
       return COLORS.edgeSuggested;
     default:
       return "rgba(255, 255, 255, 0.2)";
-  }
-}
-      if (link.engagement_level === "active") return "rgba(0, 224, 255, 0.7)";
-      return "rgba(0, 224, 255, 0.4)";
-    default:
-      return COLORS.edgeDefault;
   }
 }
 
