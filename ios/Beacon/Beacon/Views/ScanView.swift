@@ -1,96 +1,171 @@
 import SwiftUI
 import AVFoundation
 
+// MARK: - Scan State Machine
+
+/// Drives the ScanView UI through each phase of the QR scan lifecycle.
+/// Provides immediate visual feedback so the user never sees a "silent" gap.
+private enum ScanPhase: Equatable {
+    case scanning
+    case detected(label: String)
+    case joining(eventName: String)
+    case success(eventName: String)
+    case failure(message: String)
+    case loadingProfile
+}
+
 struct ScanView: View {
+    @Binding var selectedTab: AppTab
+    @Environment(\.dismiss) private var dismiss
+    @State private var phase: ScanPhase = .scanning
     @State private var scannedProfile: User?
     @State private var showingProfile = false
-    @State private var isProcessing = false
-    @State private var showError = false
-    @State private var errorMessage = ""
     @State private var cameraAccessDenied = false
-    @State private var scannerKey = UUID() // For resetting scanner
+    @State private var scannerKey = UUID()
+    /// Guards against duplicate processing of the same event QR.
+    @State private var lastHandledEventId: String?
+    /// Hard transition guard: once true, ALL scan callbacks, navigation writes,
+    /// dismiss calls, and resets are blocked until the transition completes.
+    @State private var isTransitioningAfterSuccess = false
+    /// Holds a reference to the camera view so we can shut it down synchronously.
+    @State private var activeCameraView: QRCameraView?
 
     var body: some View {
         ZStack {
             if cameraAccessDenied {
-                VStack(spacing: 16) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.gray)
-
-                    Text("Camera Access Needed")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-
-                    Text("Enable camera access in Settings to scan QR codes.")
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal)
-
-                    Button("Open Settings") {
-                        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                        UIApplication.shared.open(url)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-                }
-                .padding()
+                cameraAccessDeniedView
             } else {
                 ZStack {
                     CameraPreview(
-                        onCodeScanned: { code in
-                            handleScan(code)
-                        },
-                        onPermissionDenied: {
-                            cameraAccessDenied = true
-                        }
+                        onCodeScanned: { code in handleScan(code) },
+                        onPermissionDenied: { cameraAccessDenied = true },
+                        onCameraViewCreated: { view in activeCameraView = view }
                     )
-                    .id(scannerKey) // Reset scanner when key changes
+                    .id(scannerKey)
                     .edgesIgnoringSafeArea(.all)
-                    
-                    // Scan guide overlay
+
                     scanGuideOverlay
                 }
             }
 
-            if isProcessing {
-                ProgressView()
-                    .scaleEffect(2)
-                    .tint(.white)
-            }
+            statusOverlay
         }
         .sheet(isPresented: $showingProfile, onDismiss: resetScanner) {
             if let profile = scannedProfile {
                 ProfileView(profile: profile)
             }
         }
-        .alert("Error", isPresented: $showError) {
-            Button("OK") {
-                isProcessing = false
-                resetScanner()
-            }
-        } message: {
-            Text(errorMessage)
-        }
     }
-    
+
+    // MARK: - Status Overlay
+
+    @ViewBuilder
+    private var statusOverlay: some View {
+        VStack {
+            Spacer()
+
+            switch phase {
+            case .scanning:
+                statusPill(icon: "qrcode.viewfinder", text: "Scanning for QR code…", color: .white.opacity(0.8))
+
+            case .detected(let label):
+                statusPill(icon: "checkmark.circle.fill", text: "QR detected — \(label)", color: .green)
+
+            case .joining(let eventName):
+                HStack(spacing: 10) {
+                    ProgressView().tint(.white)
+                    Text("Joining \(eventName)…")
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 24).padding(.vertical, 14)
+                .background(Color.black.opacity(0.75))
+                .cornerRadius(12)
+
+            case .success(let eventName):
+                statusPill(icon: "checkmark.circle.fill", text: "Joined \(eventName) — opening Network", color: .green)
+
+            case .failure(let message):
+                VStack(spacing: 12) {
+                    statusPill(icon: "xmark.circle.fill", text: message, color: .red)
+                    Button {
+                        #if DEBUG
+                        print("[ScanUI] 🔄 Retry tapped")
+                        #endif
+                        resetScanner()
+                    } label: {
+                        Text("Tap to retry")
+                            .font(.subheadline).fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20).padding(.vertical, 10)
+                            .background(Color.white.opacity(0.25))
+                            .cornerRadius(8)
+                    }
+                }
+
+            case .loadingProfile:
+                HStack(spacing: 10) {
+                    ProgressView().tint(.white)
+                    Text("Loading profile…")
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 24).padding(.vertical, 14)
+                .background(Color.black.opacity(0.75))
+                .cornerRadius(12)
+            }
+
+            Spacer().frame(height: 100)
+        }
+        .animation(.easeInOut(duration: 0.25), value: phase)
+    }
+
+    private func statusPill(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).foregroundColor(color)
+            Text(text)
+                .font(.subheadline).fontWeight(.medium)
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 24).padding(.vertical, 14)
+        .background(Color.black.opacity(0.75))
+        .cornerRadius(12)
+    }
+
+    // MARK: - Camera Access Denied
+
+    private var cameraAccessDeniedView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "camera.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.gray)
+            Text("Camera Access Needed")
+                .font(.title3).fontWeight(.semibold)
+            Text("Enable camera access in Settings to scan QR codes.")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .padding(.horizontal)
+            Button("Open Settings") {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(url)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(12)
+        }
+        .padding()
+    }
+
     // MARK: - Scan Guide Overlay
-    
+
     private var scanGuideOverlay: some View {
         VStack {
             Spacer()
-            
-            // Centered scan frame
             ZStack {
-                // Semi-transparent background
                 RoundedRectangle(cornerRadius: 20)
                     .stroke(Color.white, lineWidth: 3)
                     .frame(width: 250, height: 250)
-                
-                // Corner brackets
                 VStack {
                     HStack {
                         cornerBracket
@@ -106,22 +181,10 @@ struct ScanView: View {
                 }
                 .frame(width: 250, height: 250)
             }
-            
             Spacer()
-            
-            // Instruction text
-            Text("Align QR code inside the frame")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 12)
-                .background(Color.black.opacity(0.6))
-                .cornerRadius(8)
-                .padding(.bottom, 60)
         }
     }
-    
+
     private var cornerBracket: some View {
         Path { path in
             path.move(to: CGPoint(x: 40, y: 0))
@@ -131,76 +194,227 @@ struct ScanView: View {
         .stroke(Color.green, lineWidth: 4)
         .frame(width: 40, height: 40)
     }
-    
+
     // MARK: - Scanner Reset
-    
+
     private func resetScanner() {
-        // Reset state to allow new scans
+        guard !isTransitioningAfterSuccess else {
+            #if DEBUG
+            print("[ScanUI] ⛔ Reset blocked — success transition in progress")
+            #endif
+            return
+        }
+        phase = .scanning
         scannedProfile = nil
-        isProcessing = false
-        
-        // Regenerate scanner key to reset camera view
+        lastHandledEventId = nil
+        isTransitioningAfterSuccess = false
         scannerKey = UUID()
-        
-        print("[Scan] 🔄 Scanner reset, ready for next scan")
+        #if DEBUG
+        print("[ScanUI] 🔄 Scanner reset — ready for new scan")
+        #endif
+    }
+
+    // MARK: - Scan Handling
+
+    private var isLocked: Bool {
+        if isTransitioningAfterSuccess { return true }
+        switch phase {
+        case .scanning: return false
+        default: return true
+        }
     }
 
     private func handleScan(_ code: String) {
-        guard !isProcessing else { return }
-        guard let communityId = QRService.parseCommunityId(from: code) else {
-            errorMessage = "Invalid QR code format"
-            showError = true
+        guard !isLocked else { return }
+
+        #if DEBUG
+        print("[ScanUI] 📷 QR scanned: \(code)")
+        #endif
+
+        guard let payload = QRService.parse(from: code) else {
+            #if DEBUG
+            print("[ScanUI] ❌ Invalid QR format")
+            #endif
+            phase = .failure(message: "Invalid QR code format")
             return
         }
 
-        isProcessing = true
-        
-        print("[Scan] 📷 QR scanned: \(code)")
-        print("[Scan] 🔍 Parsed community ID: \(communityId)")
+        switch payload {
+        case .event(let eventId):
+            if let last = lastHandledEventId, last == eventId { return }
+            if EventJoinService.shared.isEventJoined,
+               EventJoinService.shared.currentEventID == eventId {
+                let name = EventJoinService.displayName(for: eventId)
+                #if DEBUG
+                print("[ScanUI] ✅ Already joined \(name)")
+                #endif
+                phase = .success(eventName: name)
+                beginSuccessTransition()
+                return
+            }
+            lastHandledEventId = eventId
+            handleEventScan(eventId: eventId)
+        case .profile(let communityId):
+            handleProfileScan(communityId: communityId)
+        }
+    }
+
+    private func handleEventScan(eventId: String) {
+        let eventName = EventJoinService.displayName(for: eventId)
+        phase = .detected(label: "joining \(eventName)…")
+        #if DEBUG
+        print("[ScanUI] 🎫 Event QR: \(eventId) (\(eventName))")
+        #endif
 
         Task {
-            do {
-                // Brief delay to debounce duplicate scans
-                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-                
-                // Load the profile for the scanned community ID
-                let profile = try await CommunityIdentityService.shared.loadProfile(
-                    communityId: UUID(uuidString: communityId)!
-                )
-                
-                print("[Scan] ✅ Profile loaded: \(profile.name)")
-                
-                await MainActor.run {
-                    scannedProfile = profile
-                    isProcessing = false
-                    showingProfile = true
-                }
-            } catch {
-                print("[Scan] ❌ Failed to load profile: \(error)")
-                
-                await MainActor.run {
-                    errorMessage = "Profile not found"
-                    showError = true
-                    isProcessing = false
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            await MainActor.run { phase = .joining(eventName: eventName) }
+
+            await EventJoinService.shared.joinEvent(eventID: eventId)
+
+            await MainActor.run {
+                guard !isTransitioningAfterSuccess else { return }
+                if EventJoinService.shared.isEventJoined {
+                    #if DEBUG
+                    print("[ScanUI] ✅ Join succeeded: \(eventId)")
+                    #endif
+                    phase = .success(eventName: eventName)
+                    beginSuccessTransition()
+                } else if lastHandledEventId == eventId {
+                    let msg = EventJoinService.shared.joinError ?? "Failed to join event"
+                    #if DEBUG
+                    print("[ScanUI] ❌ Join failed: \(msg)")
+                    #endif
+                    phase = .failure(message: msg)
+                    lastHandledEventId = nil
                 }
             }
         }
     }
+
+    private func handleProfileScan(communityId: String) {
+        phase = .loadingProfile
+        #if DEBUG
+        print("[ScanUI] 🔍 Profile QR: \(communityId)")
+        #endif
+        Task {
+            do {
+                try await Task.sleep(nanoseconds: 300_000_000)
+                let profile = try await CommunityIdentityService.shared.loadProfile(
+                    communityId: UUID(uuidString: communityId)!
+                )
+                await MainActor.run {
+                    scannedProfile = profile
+                    showingProfile = true
+                    phase = .scanning
+                }
+            } catch {
+                await MainActor.run {
+                    phase = .failure(message: "Profile not found")
+                }
+            }
+        }
+    }
+
+    // MARK: - Success Transition (single owner, single fire)
+    //
+    // Sequence:
+    //   1. Set hard transition guard (blocks all further scan/nav/reset)
+    //   2. Shut down camera synchronously (wait for stopRunning to complete)
+    //   3. Sleep 0.8s to show success pill
+    //   4. Frame 1: set selectedTab = .network (invisible under cover)
+    //   5. Frame 2: dismiss the fullScreenCover
+    //
+    // Steps 4 and 5 are in SEPARATE RunLoop frames to avoid the
+    // NavigationRequestObserver multi-update warning.
+
+    private func beginSuccessTransition() {
+        guard !isTransitioningAfterSuccess else {
+            #if DEBUG
+            print("[ScanUI] ⛔ Transition already in progress — blocked")
+            #endif
+            return
+        }
+        isTransitioningAfterSuccess = true
+        #if DEBUG
+        print("[ScanUI] 🔒 Success transition started — all further callbacks blocked")
+        #endif
+
+        // Step 1: Shut down camera synchronously
+        shutdownCameraForDismiss()
+
+        Task {
+            // Step 2: Show success pill
+            try? await Task.sleep(nanoseconds: 800_000_000)
+
+            // Step 3: Set tab (Frame 1)
+            await MainActor.run {
+                #if DEBUG
+                print("[ScanUI] 🧭 Frame 1: selectedTab → .network")
+                #endif
+                selectedTab = .network
+            }
+
+            // Step 4: Wait one full RunLoop frame
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms — one frame
+
+            // Step 5: Dismiss (Frame 2)
+            await MainActor.run {
+                #if DEBUG
+                print("[ScanUI] 🧭 Frame 2: dismiss()")
+                #endif
+                dismiss()
+            }
+
+            #if DEBUG
+            print("[ScanUI] ✅ Success transition complete")
+            #endif
+        }
+    }
+
+    /// Full camera shutdown: disables delegate, removes preview layer,
+    /// stops capture session synchronously, and nils the reference.
+    /// Must be called BEFORE dismiss to prevent FigCaptureSourceRemote errors.
+    private func shutdownCameraForDismiss() {
+        guard let camera = activeCameraView else {
+            #if DEBUG
+            print("[ScanUI] 📷 No camera reference — nothing to shut down")
+            #endif
+            return
+        }
+        #if DEBUG
+        print("[ScanUI] 📷 Camera shutdown started")
+        #endif
+        camera.shutdownForDismiss()
+        activeCameraView = nil
+        #if DEBUG
+        print("[ScanUI] 📷 Camera shutdown complete")
+        #endif
+    }
 }
+
+// MARK: - Camera Infrastructure
 
 struct CameraPreview: UIViewRepresentable {
     let onCodeScanned: (String) -> Void
     let onPermissionDenied: () -> Void
+    var onCameraViewCreated: ((QRCameraView) -> Void)?
 
     func makeUIView(context: Context) -> QRCameraView {
         let view = QRCameraView()
         view.delegate = context.coordinator
         view.permissionDeniedHandler = onPermissionDenied
         view.startCameraIfAuthorized()
+        DispatchQueue.main.async { onCameraViewCreated?(view) }
         return view
     }
 
     func updateUIView(_ uiView: QRCameraView, context: Context) {}
+
+    static func dismantleUIView(_ uiView: QRCameraView, coordinator: Coordinator) {
+        // If shutdownForDismiss was already called, this is a no-op.
+        uiView.shutdownForDismiss()
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onCodeScanned: onCodeScanned)
@@ -208,14 +422,10 @@ struct CameraPreview: UIViewRepresentable {
 
     final class Coordinator: NSObject, QRCameraDelegate {
         let onCodeScanned: (String) -> Void
-
         init(onCodeScanned: @escaping (String) -> Void) {
             self.onCodeScanned = onCodeScanned
         }
-
-        func didScanCode(_ code: String) {
-            onCodeScanned(code)
-        }
+        func didScanCode(_ code: String) { onCodeScanned(code) }
     }
 }
 
@@ -225,15 +435,15 @@ protocol QRCameraDelegate: AnyObject {
 
 final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
     weak var delegate: QRCameraDelegate?
-
     var permissionDeniedHandler: (() -> Void)?
 
     private let captureSession = AVCaptureSession()
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var hasConfiguredSession = false
-    private var hasScannedCode = false
+    /// Once true, metadataOutput delegate callbacks are permanently ignored.
+    private var isShutDown = false
     private var lastScanTime: Date?
-    private let scanDebounceInterval: TimeInterval = 2.0 // Prevent duplicate scans for 2 seconds
+    private let scanDebounceInterval: TimeInterval = 2.0
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -248,22 +458,16 @@ final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             configureAndStartCameraIfNeeded()
-
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
                 DispatchQueue.main.async {
-                    guard let self else { return }
-                    if granted {
-                        self.configureAndStartCameraIfNeeded()
-                    } else {
-                        self.permissionDeniedHandler?()
-                    }
+                    guard let self, !self.isShutDown else { return }
+                    if granted { self.configureAndStartCameraIfNeeded() }
+                    else { self.permissionDeniedHandler?() }
                 }
             }
-
         case .denied, .restricted:
             permissionDeniedHandler?()
-
         @unknown default:
             permissionDeniedHandler?()
         }
@@ -274,24 +478,14 @@ final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
             startRunningSession()
             return
         }
-
         hasConfiguredSession = true
 
-        guard let device = AVCaptureDevice.default(for: .video) else {
+        guard let device = AVCaptureDevice.default(for: .video),
+              let input = try? AVCaptureDeviceInput(device: device),
+              captureSession.canAddInput(input) else {
             permissionDeniedHandler?()
             return
         }
-
-        guard let input = try? AVCaptureDeviceInput(device: device) else {
-            permissionDeniedHandler?()
-            return
-        }
-
-        guard captureSession.canAddInput(input) else {
-            permissionDeniedHandler?()
-            return
-        }
-
         captureSession.addInput(input)
 
         let output = AVCaptureMetadataOutput()
@@ -299,7 +493,6 @@ final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
             permissionDeniedHandler?()
             return
         }
-
         captureSession.addOutput(output)
         output.setMetadataObjectsDelegate(self, queue: .main)
         output.metadataObjectTypes = [.qr]
@@ -314,8 +507,9 @@ final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
     }
 
     private func startRunningSession() {
+        guard !isShutDown else { return }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else { return }
+            guard let self, !self.isShutDown else { return }
             if !self.captureSession.isRunning {
                 self.captureSession.startRunning()
             }
@@ -332,34 +526,53 @@ final class QRCameraView: UIView, AVCaptureMetadataOutputObjectsDelegate {
         didOutput metadataObjects: [AVMetadataObject],
         from connection: AVCaptureConnection
     ) {
-        // Debounce: Don't scan if we scanned recently
+        // Hard gate: once shut down, ignore everything permanently
+        guard !isShutDown else { return }
+
         if let lastScan = lastScanTime,
            Date().timeIntervalSince(lastScan) < scanDebounceInterval {
             return
         }
-        
-        guard !hasScannedCode else { return }
+        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+              let code = object.stringValue else { return }
 
-        guard
-            let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-            let code = object.stringValue
-        else {
-            return
-        }
-
-        hasScannedCode = true
+        // Accept this scan, then block further callbacks via debounce
         lastScanTime = Date()
         delegate?.didScanCode(code)
-        
-        // Reset after a delay to allow new scans
-        DispatchQueue.main.asyncAfter(deadline: .now() + scanDebounceInterval) { [weak self] in
-            self?.hasScannedCode = false
+    }
+
+    /// Complete, deterministic camera shutdown.
+    /// - Disables metadata callbacks permanently (isShutDown flag)
+    /// - Nils the delegate to prevent any straggler callbacks
+    /// - Removes the preview layer from the view hierarchy
+    /// - Stops the capture session SYNCHRONOUSLY on a background queue
+    ///   (dispatch_sync ensures stopRunning completes before we return)
+    /// - Safe to call multiple times (idempotent via isShutDown guard)
+    func shutdownForDismiss() {
+        guard !isShutDown else { return }
+        isShutDown = true
+        delegate = nil
+
+        // Remove preview layer from view hierarchy immediately.
+        // This prevents the capture pipeline from trying to render
+        // frames to a layer that's about to be torn down.
+        previewLayer?.removeFromSuperlayer()
+        previewLayer = nil
+
+        // Stop capture session synchronously.
+        // Using DispatchQueue.sync ensures stopRunning() completes
+        // before this method returns, so the session is fully stopped
+        // before SwiftUI tears down the view.
+        let session = captureSession
+        if session.isRunning {
+            DispatchQueue.global(qos: .userInitiated).sync {
+                session.stopRunning()
+            }
         }
     }
 
     deinit {
-        if captureSession.isRunning {
-            captureSession.stopRunning()
-        }
+        // Safety net — should be a no-op if shutdownForDismiss was called
+        if captureSession.isRunning { captureSession.stopRunning() }
     }
 }

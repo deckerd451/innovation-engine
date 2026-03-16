@@ -35,7 +35,9 @@ final class BeaconRegistryService {
         
         saveCacheToDisk()
         
+        #if DEBUG
         print("✅ Refreshed \(beacons.count) active beacons")
+        #endif
     }
     
     /// Get beacon by beacon_key from cache
@@ -68,7 +70,9 @@ final class BeaconRegistryService {
         
         cache = decoded
         
+        #if DEBUG
         print("✅ Loaded \(cache.beacons.count) beacons from cache")
+        #endif
     }
     
     private func saveCacheToDisk() {

@@ -29,18 +29,43 @@ struct QRService {
         return UIImage(cgImage: cgImage)
     }
 
-    /// Parses a community ID from a scanned QR code.
-    /// Supports both legacy format (raw UUID) and new format (beacon://profile/<uuid>)
-    static func parseCommunityId(from qrString: String) -> String? {
-        // New format: beacon://profile/<community-id>
+    // MARK: - Parsing
+
+    /// Result of parsing a scanned QR code
+    enum QRPayload {
+        case profile(communityId: String)
+        case event(eventId: String)
+    }
+
+    /// Parses a scanned QR string into a typed payload.
+    /// Supports:
+    ///   beacon://event/<event-id>
+    ///   beacon://profile/<community-uuid>
+    ///   <raw-uuid>  (legacy profile format)
+    static func parse(from qrString: String) -> QRPayload? {
+        // Event QR
+        if qrString.hasPrefix("beacon://event/") {
+            let eventId = qrString.replacingOccurrences(of: "beacon://event/", with: "")
+            guard !eventId.isEmpty else { return nil }
+            return .event(eventId: eventId)
+        }
+
+        // Profile QR (new format)
         if qrString.hasPrefix("beacon://profile/") {
             let communityId = qrString.replacingOccurrences(of: "beacon://profile/", with: "")
             guard UUID(uuidString: communityId) != nil else { return nil }
-            return communityId
+            return .profile(communityId: communityId)
         }
-        
-        // Legacy format: raw UUID (for backward compatibility)
+
+        // Legacy: raw UUID = profile
         guard UUID(uuidString: qrString) != nil else { return nil }
-        return qrString
+        return .profile(communityId: qrString)
+    }
+
+    /// Legacy convenience — returns community ID string or nil.
+    /// Kept for backward compatibility with existing callers.
+    static func parseCommunityId(from qrString: String) -> String? {
+        guard case .profile(let id) = parse(from: qrString) else { return nil }
+        return id
     }
 }

@@ -46,6 +46,45 @@ final class ConnectionService {
             .execute()
     }
 
+    // MARK: - createConnectionIfNeeded
+
+    enum ConnectResult {
+        case created
+        case alreadyExists
+    }
+
+    /// Creates a connection if one doesn't already exist. Returns the outcome.
+    func createConnectionIfNeeded(to communityId: String) async throws -> ConnectResult {
+        guard let currentUser = AuthService.shared.currentUser else {
+            throw ConnectionError.notAuthenticated
+        }
+        guard let toId = UUID(uuidString: communityId) else {
+            throw ConnectionError.invalidQRCode
+        }
+
+        let userId = currentUser.id.uuidString
+        let targetId = toId.uuidString
+
+        // Check both directions
+        let orFilter = "and(from_user_id.eq.\(userId),to_user_id.eq.\(targetId)),and(from_user_id.eq.\(targetId),to_user_id.eq.\(userId))"
+
+        struct Row: Decodable { let id: UUID }
+        let existing: [Row] = try await supabase
+            .from("connections")
+            .select("id")
+            .or(orFilter)
+            .limit(1)
+            .execute()
+            .value
+
+        if !existing.isEmpty {
+            return .alreadyExists
+        }
+
+        try await createConnection(to: communityId)
+        return .created
+    }
+
     // MARK: - fetchConnections
 
     /// Fetches every accepted connection where the current user is on either side,

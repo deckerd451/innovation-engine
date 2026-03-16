@@ -10,12 +10,9 @@ enum BeaconConfidenceState {
 
     var displayText: String {
         switch self {
-        case .searching:
-            return "Searching"
-        case .candidate:
-            return "Candidate"
-        case .stable:
-            return "Stable"
+        case .searching: return "Searching"
+        case .candidate: return "Candidate"
+        case .stable: return "Stable"
         }
     }
 }
@@ -32,14 +29,10 @@ struct ConfidentBeacon: Identifiable {
 
     var signalLabel: String {
         switch rssi {
-        case -40...0:
-            return "Very Close"
-        case -60..<(-40):
-            return "Near"
-        case -80..<(-60):
-            return "Nearby"
-        default:
-            return "Far"
+        case -40...0: return "Very Close"
+        case -60..<(-40): return "Near"
+        case -80..<(-60): return "Nearby"
+        default: return "Far"
         }
     }
 
@@ -58,6 +51,10 @@ final class BeaconConfidenceService: ObservableObject {
     @Published private(set) var activeBeacon: ConfidentBeacon?
     @Published private(set) var candidateBeacon: ConfidentBeacon?
     @Published private(set) var confidenceState: BeaconConfidenceState = .searching
+    
+    /// Nearby peer devices (BCN- prefix) detected via BLE.
+    /// Valid proximity signals in a QR-joined event even without a physical event anchor.
+    @Published private(set) var nearbyPeerCount: Int = 0
 
     private let scanner = BLEScannerService.shared
     private var cancellables = Set<AnyCancellable>()
@@ -71,6 +68,14 @@ final class BeaconConfidenceService: ObservableObject {
     // Tracking
     private var candidateStartTime: Date?
     private var currentCandidateId: UUID?
+    
+    // MARK: - Log Deduplication
+    // Tracks a signature of the last logged evaluation state.
+    // Only prints the full diagnostic block when the signature changes,
+    // preventing identical output every 0.5s timer tick.
+    
+    private var lastEvalSignature: String = ""
+    private var lastNoBeaconLogged: Bool = false
 
     private init() {
         startMonitoring()
@@ -83,14 +88,20 @@ final class BeaconConfidenceService: ObservableObject {
     // MARK: - Monitoring
 
     private func startMonitoring() {
+        #if DEBUG
+        print("[CONFIDENCE-DIAG] Starting anchor monitoring (scanner + 2.0s timer)")
+        #endif
+        
         scanner.$discoveredDevices
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.evaluateBeacons(trigger: "scanner update")
+                self?.evaluateBeacons(trigger: "scanner")
             }
             .store(in: &cancellables)
 
-        confidenceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        // 2s interval is sufficient for diagnostic-only anchor confidence tracking.
+        // User-facing status is driven by EventModeState, not this timer.
+        confidenceTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
                 self.evaluateBeacons(trigger: "timer")
@@ -113,43 +124,90 @@ final class BeaconConfidenceService: ObservableObject {
             .filter { isEventAnchor($0.name) }
             .sorted { $0.rssi > $1.rssi }
 
-        let peerDevices = qualifyingBeacons
+        let bcnPeerDevices = qualifyingBeacons
+            .filter { $0.name.hasPrefix("BCN-") }
+            .sorted { $0.rssi > $1.rssi }
+
+        let legacyPeerDevices = qualifyingBeacons
             .filter { $0.name.hasPrefix("BEACON-") }
             .sorted { $0.rssi > $1.rssi }
 
-        let otherKnownBeacons = qualifyingBeacons
-            .filter { !isEventAnchor($0.name) && !$0.name.hasPrefix("BEACON-") }
-            .sorted { $0.rssi > $1.rssi }
+        // Update peer count for external consumers (only on change).
+        let totalPeers = bcnPeerDevices.count + legacyPeerDevices.count
+        if nearbyPeerCount != totalPeers {
+            nearbyPeerCount = totalPeers
+        }
 
-        print("[CONFIDENCE-EVAL] Trigger: \(trigger)")
-        print("[CONFIDENCE-EVAL] Found \(qualifyingBeacons.count) qualifying beacon(s)")
-        print("[CONFIDENCE-EVAL]   Event anchors: \(eventAnchors.count)")
-        print("[CONFIDENCE-EVAL]   Peer devices: \(peerDevices.count)")
-        print("[CONFIDENCE-EVAL]   Other known beacons: \(otherKnownBeacons.count)")
+        // Build a signature of the current evaluation state.
+        // Only log the full block when this changes.
+        let sig = "\(qualifyingBeacons.count)|\(eventAnchors.count)|\(bcnPeerDevices.count)|\(legacyPeerDevices.count)|\(confidenceState.displayText)|\(currentCandidateId?.uuidString.prefix(8) ?? "nil")"
+        let stateChanged = sig != lastEvalSignature
+        
+        if stateChanged {
+            lastEvalSignature = sig
+            #if DEBUG
+            print("[CONFIDENCE-DIAG] \(trigger): \(qualifyingBeacons.count) qualifying — anchors:\(eventAnchors.count) BCN:\(bcnPeerDevices.count) legacy:\(legacyPeerDevices.count) anchor-state:\(confidenceState.displayText)")
+            #endif
+        }
 
-        guard let strongest = eventAnchors.first ?? otherKnownBeacons.first ?? peerDevices.first else {
+        // Only event anchors can become activeBeacon.
+        // Peer devices (BCN- and BEACON-) are valid proximity signals
+        // handled by AttendeeStateResolver — they don't need activeBeacon.
+        guard let strongest = eventAnchors.first else {
+            if stateChanged {
+                if !bcnPeerDevices.isEmpty {
+                    #if DEBUG
+                    print("[CONFIDENCE-DIAG] ✅ No anchors, but \(bcnPeerDevices.count) BCN peer(s) — peer BLE is the active model")
+                    #endif
+                }
+                if !legacyPeerDevices.isEmpty {
+                    #if DEBUG
+                    print("[CONFIDENCE-DIAG] ℹ️ \(legacyPeerDevices.count) legacy BEACON device(s)")
+                    #endif
+                }
+            }
             handleNoQualifyingBeacon()
             return
         }
 
-        print("[CONFIDENCE-EVAL] Selected beacon: \(strongest.name) (ID: \(strongest.id))")
-        print("[CONFIDENCE-EVAL] Current candidate ID: \(currentCandidateId?.uuidString ?? "nil")")
+        // Early return if same beacon is already stable — no need to re-evaluate.
+        if confidenceState == .stable && activeBeacon?.id == strongest.id {
+            return
+        }
 
         if currentCandidateId == strongest.id {
-            print("[CONFIDENCE-EVAL] ✅ SAME beacon - calling updateCandidateConfidence")
-            updateCandidateConfidence(beacon: strongest, now: now)
+            updateCandidateConfidence(beacon: strongest, now: now, stateChanged: stateChanged)
         } else {
-            print("[CONFIDENCE-EVAL] 🆕 DIFFERENT beacon - calling startNewCandidate")
-            print("[CONFIDENCE-EVAL]   Previous: \(currentCandidateId?.uuidString ?? "none")")
-            print("[CONFIDENCE-EVAL]   New: \(strongest.id.uuidString)")
             startNewCandidate(beacon: strongest, now: now)
         }
     }
 
     private func handleNoQualifyingBeacon() {
-        if confidenceState != .searching || activeBeacon != nil || candidateBeacon != nil {
-            print("[CONFIDENCE] No qualifying beacon, returning to searching")
+        // Already in clean state — no-op, minimal logging.
+        if confidenceState == .searching &&
+           activeBeacon == nil &&
+           candidateBeacon == nil &&
+           currentCandidateId == nil {
+            if !lastNoBeaconLogged {
+                lastNoBeaconLogged = true
+                let hasJoinedEvent = EventJoinService.shared.isEventJoined
+                let hasBCNPeers = nearbyPeerCount > 0
+                if hasJoinedEvent || hasBCNPeers {
+                    // Event session or peer BLE is the active model — anchor absence is expected.
+                } else {
+                    #if DEBUG
+                    print("[CONFIDENCE-DIAG] No anchors, no peers, no event session — anchor monitor idle")
+                    #endif
+                }
+            }
+            return
         }
+        
+        // Actual state transition: was tracking an anchor, now lost it.
+        #if DEBUG
+        print("[CONFIDENCE-DIAG] Anchor lost → anchor monitor returning to baseline")
+        #endif
+        lastNoBeaconLogged = false
 
         confidenceState = .searching
         candidateBeacon = nil
@@ -163,9 +221,7 @@ final class BeaconConfidenceService: ObservableObject {
     private func startNewCandidate(beacon: DiscoveredBLEDevice, now: Date) {
         currentCandidateId = beacon.id
         candidateStartTime = now
-
-        print("[CONFIDENCE-NEW] Setting currentCandidateId = \(beacon.id.uuidString)")
-        print("[CONFIDENCE-NEW] Setting candidateStartTime = \(now)")
+        lastNoBeaconLogged = false
 
         let confidentBeacon = ConfidentBeacon(
             id: beacon.id,
@@ -176,26 +232,19 @@ final class BeaconConfidenceService: ObservableObject {
             lastSeen: beacon.lastSeen
         )
 
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("[CONFIDENCE] 🔍 NEW CANDIDATE DETECTED")
-        print("  Name: \(beacon.name)")
-        print("  RSSI: \(beacon.rssi) dBm")
-        print("  Beacon ID: \(beacon.id)")
-        print("  Building confidence... (need \(String(format: "%.1f", confidenceWindow))s)")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        #if DEBUG
+        print("[CONFIDENCE-DIAG] 🔍 New anchor candidate: \(beacon.name) (\(beacon.rssi) dBm) — building confidence (\(String(format: "%.1f", confidenceWindow))s)")
+        #endif
 
         confidenceState = .candidate
         candidateBeacon = confidentBeacon
         activeBeacon = nil
     }
 
-    private func updateCandidateConfidence(beacon: DiscoveredBLEDevice, now: Date) {
-        print("[CONFIDENCE-UPDATE] Entry: beacon=\(beacon.name), currentCandidateId=\(currentCandidateId?.uuidString ?? "nil")")
-
+    private func updateCandidateConfidence(beacon: DiscoveredBLEDevice, now: Date, stateChanged: Bool) {
         guard let startTime = candidateStartTime else {
-            print("[CONFIDENCE-UPDATE] ⚠️ candidateStartTime was nil, initializing now")
+            // Edge case: start time missing — reinitialize.
             candidateStartTime = now
-
             let confidentBeacon = ConfidentBeacon(
                 id: beacon.id,
                 name: beacon.name,
@@ -204,7 +253,6 @@ final class BeaconConfidenceService: ObservableObject {
                 firstSeen: now,
                 lastSeen: beacon.lastSeen
             )
-
             confidenceState = .candidate
             candidateBeacon = confidentBeacon
             activeBeacon = nil
@@ -212,35 +260,23 @@ final class BeaconConfidenceService: ObservableObject {
         }
 
         let duration = now.timeIntervalSince(startTime)
-        let progress = min(duration / confidenceWindow, 1.0)
-
-        print("[CONFIDENCE-UPDATE] Duration: \(String(format: "%.1f", duration))s, Progress: \(Int(progress * 100))%")
-        print("[CONFIDENCE] \(beacon.name): \(String(format: "%.1f", duration))s / \(String(format: "%.1f", confidenceWindow))s (\(Int(progress * 100))%)")
 
         if duration >= confidenceWindow {
             if confidenceState != .stable {
+                // Transition: candidate → stable. Log this important event.
                 promoteToStable(beacon: beacon, startTime: startTime)
-                return
             }
-
-            let confidentBeacon = ConfidentBeacon(
-                id: beacon.id,
-                name: beacon.name,
-                rssi: beacon.rssi,
-                confidenceState: .stable,
-                firstSeen: startTime,
-                lastSeen: beacon.lastSeen
-            )
-
-            print("[CONFIDENCE] 🔄 Already stable, updating RSSI to \(beacon.rssi) dBm")
-            print("[CONFIDENCE] 📝 Updating activeBeacon RSSI")
-
-            activeBeacon = confidentBeacon
-
-            print("[CONFIDENCE]   activeBeacon = \(activeBeacon?.name ?? "nil") at \(beacon.rssi) dBm")
+            // Already stable — silent RSSI refresh, no log needed.
             return
         }
 
+        if stateChanged {
+            #if DEBUG
+            let progress = Int(min(duration / confidenceWindow, 1.0) * 100)
+            print("[CONFIDENCE-DIAG] Building anchor confidence: \(beacon.name) — \(progress)%")
+            #endif
+        }
+        
         let confidentBeacon = ConfidentBeacon(
             id: beacon.id,
             name: beacon.name,
@@ -264,27 +300,23 @@ final class BeaconConfidenceService: ObservableObject {
             lastSeen: beacon.lastSeen
         )
 
+        #if DEBUG
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("[CONFIDENCE] ✅ STABLE BEACON ACHIEVED")
-        print("  Name: \(beacon.name)")
-        print("  Beacon ID: \(beacon.id)")
-        print("  RSSI: \(beacon.rssi) dBm")
-        print("  Signal: \(confidentBeacon.signalLabel)")
-        print("  Confidence Duration: \(String(format: "%.1f", confidentBeacon.confidenceDuration))s")
+        print("[CONFIDENCE-DIAG] ✅ STABLE ANCHOR: \(beacon.name)")
+        print("  RSSI: \(beacon.rssi) dBm · \(confidentBeacon.signalLabel)")
+        print("  Confidence: \(String(format: "%.1f", confidentBeacon.confidenceDuration))s")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        #endif
 
         confidenceState = .stable
         activeBeacon = confidentBeacon
         candidateBeacon = nil
-
-        print("[CONFIDENCE] 📝 PUBLISHING activeBeacon NOW")
-        print("[CONFIDENCE] ✅ Published activeBeacon = \(confidentBeacon.name)")
     }
 
     // MARK: - Helpers
 
     private func isEventAnchor(_ name: String) -> Bool {
-        name == "MOONSIDE-S1"
+        name.contains("MOONSIDE")
     }
 
     // MARK: - Public API
@@ -295,14 +327,15 @@ final class BeaconConfidenceService: ObservableObject {
     }
 
     func reset() {
-        print("[CONFIDENCE] Reset requested")
-        DispatchQueue.main.async { [weak self] in
-            self?.confidenceState = .searching
-            self?.activeBeacon = nil
-            self?.candidateBeacon = nil
-            self?.currentCandidateId = nil
-            self?.candidateStartTime = nil
-            print("[CONFIDENCE] ✅ Reset complete")
-        }
+        #if DEBUG
+        print("[CONFIDENCE-DIAG] Reset")
+        #endif
+        confidenceState = .searching
+        activeBeacon = nil
+        candidateBeacon = nil
+        currentCandidateId = nil
+        candidateStartTime = nil
+        lastEvalSignature = ""
+        lastNoBeaconLogged = false
     }
 }

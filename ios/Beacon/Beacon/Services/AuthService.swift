@@ -8,6 +8,7 @@ final class AuthService: ObservableObject {
 
     @Published var isAuthenticated = false
     @Published var currentUser: User?
+    @Published var profileState: ProfileState = .missing
 
     private let supabase = AppEnvironment.shared.supabaseClient
     private var authStateTask: Task<Void, Never>?
@@ -42,6 +43,7 @@ final class AuthService: ObservableObject {
             await MainActor.run {
                 self.isAuthenticated = false
                 self.currentUser = nil
+                self.profileState = .missing
             }
         }
     }
@@ -51,6 +53,7 @@ final class AuthService: ObservableObject {
             await MainActor.run {
                 self.isAuthenticated = false
                 self.currentUser = nil
+                self.profileState = .missing
             }
             return
         }
@@ -69,6 +72,7 @@ final class AuthService: ObservableObject {
         await MainActor.run {
             self.isAuthenticated = false
             self.currentUser = nil
+            self.profileState = .missing
         }
     }
 
@@ -90,52 +94,45 @@ final class AuthService: ObservableObject {
             _ = try await supabase.auth.session(from: url)
             await loadCurrentUser()
         } catch {
-            print("OAuth callback error: \(error)")
+            print("[Auth] ❌ OAuth callback error: \(error)")
             self.isAuthenticated = false
             self.currentUser = nil
+            self.profileState = .missing
         }
     }
 
     private func loadCurrentUser() async {
         do {
-            let session = try await supabase.auth.session
+            // Use ProfileService for deterministic profile resolution
+            let result = try await ProfileService.shared.resolveCurrentProfile()
             
-            // Use CommunityIdentityService for robust profile resolution
-            let result = try await CommunityIdentityService.shared.resolveOrCreateProfile(for: session)
-            
-            switch result {
-            case .resolved(let profile):
-                await MainActor.run {
-                    self.currentUser = profile
-                    self.isAuthenticated = true
-                }
-                
-            case .ambiguous(let candidates):
-                // For now, auto-select first candidate
-                // TODO: Show user choice UI in future
-                print("[Auth] ⚠️ Ambiguous profiles found, auto-selecting first")
-                let selected = candidates[0]
-                try await CommunityIdentityService.shared.linkProfile(
-                    communityId: selected.id,
-                    to: session.user.id
-                )
-                
-                let linkedProfile = try await CommunityIdentityService.shared.loadProfile(
-                    communityId: selected.id
-                )
-                
-                await MainActor.run {
-                    self.currentUser = linkedProfile
-                    self.isAuthenticated = true
-                }
+            await MainActor.run {
+                self.currentUser = result.profile
+                self.profileState = result.state
+                self.isAuthenticated = true
             }
+            
+            #if DEBUG
+            print("[Auth] ✅ Profile loaded")
+            print("[Auth]    State: \(result.state.rawValue)")
+            print("[Auth]    Name: \(result.profile.name)")
+            #endif
+            
         } catch {
             print("[Auth] ❌ Error loading user: \(error)")
             
             await MainActor.run {
                 self.currentUser = nil
+                self.profileState = .missing
                 self.isAuthenticated = false
             }
         }
+    }
+    
+    // MARK: - Profile Refresh
+    
+    /// Refreshes the current user profile after updates
+    func refreshProfile() async {
+        await loadCurrentUser()
     }
 }

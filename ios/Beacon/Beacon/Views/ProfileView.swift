@@ -170,7 +170,7 @@ struct ProfileView: View {
                 
                 // Check if this is a duplicate connection error
                 if errorDescription.contains("unique_connection_from_to") ||
-                   errorDescription.contains("duplicate key") {
+                    errorDescription.contains("duplicate key") {
                     // Treat duplicate as success - already connected
                     await MainActor.run {
                         isCreatingConnection = false
@@ -216,6 +216,9 @@ struct ProfileView: View {
             id: profile.id,
             name: profile.name,
             avatarUrl: nil,
+            bio: nil,
+            skills: [],
+            interests: [],
             energy: 1.0,
             lastSeen: Date()
         )

@@ -56,7 +56,21 @@ final class BLEService: NSObject, ObservableObject {
 
         await MainActor.run {
             BLEScannerService.shared.startScanning()
-            BLEAdvertiserService.shared.startAdvertising()
+            // Do NOT start legacy advertising here.
+            // BLE advertising with identity (BCN-<prefix>) is started by EventJoinService
+            // when the user joins an event via QR. Starting legacy advertising here would
+            // block the identity-aware advertising from starting later.
+            if let communityId = AuthService.shared.currentUser?.id {
+                #if DEBUG
+                print("[BLEService] Starting identity-aware advertising from Event Mode")
+                #endif
+                BLEAdvertiserService.shared.startAdvertisingForEvent(communityId: communityId)
+            } else {
+                print("[BLEService] ⚠️ No community ID available — skipping BLE advertising")
+                #if DEBUG
+                print("[BLEService]   Advertising will start when user joins an event via QR")
+                #endif
+            }
         }
 
         startMonitoring()
@@ -69,15 +83,19 @@ final class BLEService: NSObject, ObservableObject {
         startScanTimer()
         startRetryTimer()
 
+        #if DEBUG
         print("✅ Event Mode started")
+        #endif
     }
 
     func stopEventMode() {
         guard isScanning else { return }
 
+        #if DEBUG
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("[BLEService] 🛑 STOPPING EVENT MODE")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        #endif
 
         stopMonitoring()
 
@@ -99,11 +117,13 @@ final class BLEService: NSObject, ObservableObject {
             BLEScannerService.shared.stopScanning()
             BeaconConfidenceService.shared.reset()
             EventPresenceService.shared.reset()
-            BLEAdvertiserService.shared.stopAdvertising()
+            BLEAdvertiserService.shared.stopEventAdvertising()
         }
 
+        #if DEBUG
         print("[BLEService] ✅ Event Mode stopped - all services reset")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        #endif
     }
 
     // MARK: - Monitoring
@@ -126,7 +146,9 @@ final class BLEService: NSObject, ObservableObject {
             locationManager.startRangingBeacons(satisfying: constraint)
             monitoredRegions.insert(beacon.id)
 
+            #if DEBUG
             print("📡 Monitoring beacon: \(beacon.label)")
+            #endif
         }
     }
 
@@ -268,7 +290,9 @@ final class BLEService: NSObject, ObservableObject {
                 .rpc("upsert_presence_ping", params: params)
                 .execute()
 
+            #if DEBUG
             print("✅ Ping sent: beacon=\(beaconId) energy=\(String(format: "%.2f", clampedEnergy))")
+            #endif
         } catch {
             print("⚠️ Failed to send ping: \(error)")
             pingQueue.append((beaconId, energy))

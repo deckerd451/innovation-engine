@@ -15,7 +15,7 @@ struct BeaconApp: App {
     init() {
         _ = BLEAdvertiserService.shared
         _ = BLEScannerService.shared
-        _ = BeaconConfidenceService.shared  // Initialize before EventPresenceService
+        _ = BeaconConfidenceService.shared  // Diagnostic-only anchor monitor; must init before EventPresenceService
         _ = EventPresenceService.shared
         _ = EventAttendeesService.shared
     }
@@ -24,7 +24,20 @@ struct BeaconApp: App {
         WindowGroup {
             Group {
                 if authService.isAuthenticated, let currentUser = authService.currentUser {
-                    MainTabView(currentUser: currentUser)
+                    // Route based on profile state
+                    switch authService.profileState {
+                    case .ready:
+                        // Profile complete - enter main app
+                        MainTabView(currentUser: currentUser)
+                        
+                    case .incomplete, .missing:
+                        // Profile needs completion
+                        ProfileCompletionView(profile: currentUser) {
+                            Task {
+                                await authService.refreshProfile()
+                            }
+                        }
+                    }
                 } else {
                     LoginView()
                 }
