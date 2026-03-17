@@ -664,6 +664,13 @@ function updateConnectionUI(targetId) {
   });
 }
 
+// Simple full-table fetch used by cardRenderer.js
+export async function fetchConnections() {
+  const { data, error } = await supabase.from('connections').select('*');
+  if (error) throw error;
+  return data ?? [];
+}
+
 // Keep an export named formatTimeAgo for compatibility.
 export function formatTimeAgo(ts) {
   if (!ts) return "---";
@@ -700,4 +707,5 @@ export default {
 
   // Utils
   formatTimeAgo,
+  fetchConnections,
 };
