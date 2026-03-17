@@ -1142,31 +1142,5 @@ if (!document.getElementById('start-daily-digest-styles')) {
   document.head.appendChild(styleEl);
 }
 
-// ============================================================================
-// DEBUG HOOKS (window-exposed, no secrets emitted)
-// ============================================================================
-
-/** Manually trigger brief generation and log the raw result. */
-window.__debugGenerateDailyBrief = async function () {
-  try {
-    const { generateDailyBrief } = await _loadBriefEngine();
-    const authRes = await window.supabase.auth.getUser();
-    const uid     = authRes && authRes.data && authRes.data.user && authRes.data.user.id;
-    const brief   = await generateDailyBrief({ userAuthId: uid, debug: true });
-    console.log('[DailyBrief Debug]', brief);
-    return brief;
-  } catch (err) {
-    console.error('[DailyBrief Debug] Error:', err);
-  }
-};
-
-/** Inspect mobile split state. */
-window.__debugMobileSplit = function () {
-  return {
-    isMobile:   isMobileSplit(),
-    hasSplit:   !!document.getElementById('ie-mobile-split'),
-    splitBuilt: _splitBuilt,
-  };
-};
 
 console.log('✅ START Daily Digest ready (v2: Intelligence Engine + Mobile Split)');

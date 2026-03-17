@@ -160,18 +160,6 @@ document.addEventListener('DOMContentLoaded', () => applyAdminUIOnce('DOMContent
 // Backward compatibility: expose as ensureAdminButtonVisible
 window.ensureAdminButtonVisible = applyAdminUIOnce;
 
-// Manual trigger for debugging
-window.showAdminUI = () => applyAdminUIOnce('manual');
-
-// Debug helper: check admin status without spam
-window.checkAdminStatus = function() {
-  const isAdmin = isAdminUser();
-  if (window.log?.isDebugMode?.() || window.__DEBUG_ADMIN_CHECKS__) {
-    console.log('Admin status:', isAdmin);
-  }
-  return isAdmin;
-};
-
 // Handle Settings button click
 document.getElementById('dropdown-settings')?.addEventListener('click', () => {
   // Close dropdown

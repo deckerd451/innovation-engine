@@ -29,7 +29,6 @@ window.__IE_MAIN_INIT_DONE__ = window.__IE_MAIN_INIT_DONE__ || false;
 window.__IE_PROFILE_HANDLER_ATTACHED__ = window.__IE_PROFILE_HANDLER_ATTACHED__ || false;
 
 window.__IE_UNIFIED_INIT__ = window.__IE_UNIFIED_INIT__ || false;
-window.__IE_SYNAPSE_BRIDGE_INIT__ = window.__IE_SYNAPSE_BRIDGE_INIT__ || false;
 window.__IE_PRESENCE_INIT__ = window.__IE_PRESENCE_INIT__ || false;
 window.__IE_PRESENCE_UI_INIT__ = window.__IE_PRESENCE_UI_INIT__ || false;
 window.__IE_BLE_INIT__ = window.__IE_BLE_INIT__ || false;
@@ -97,27 +96,11 @@ async function onProfileLoaded(e) {
 
       if (initialized) {
         log.info("✅ Unified Network Discovery active");
-      } else {
-        log.info("ℹ️ Using legacy synapse visualization");
       }
     } catch (error) {
       // Allow retry if init failed
       window.__IE_UNIFIED_INIT__ = false;
       log.error("❌ Unified Network initialization failed:", error);
-    }
-  }
-
-  // ------------------------------
-  // Synapse bridge init (single-flight)
-  // ------------------------------
-  if (!window.__IE_SYNAPSE_BRIDGE_INIT__ && window.synapseBridge) {
-    window.__IE_SYNAPSE_BRIDGE_INIT__ = true;
-    try {
-      log.debug("🌉 Initializing synapse bridge...");
-      window.synapseBridge.init();
-    } catch (error) {
-      window.__IE_SYNAPSE_BRIDGE_INIT__ = false;
-      log.error("❌ Synapse bridge init failed:", error);
     }
   }
 

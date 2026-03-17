@@ -34,10 +34,7 @@ export function initUIEnhancements() {
   // Expose functions globally
   window.showLoadingState = showLoadingState;
   window.hideLoadingState = hideLoadingState;
-  window.animateElement = animateElement;
   window.createToast = createToast;
-  window.showSkeleton = showSkeleton;
-  window.hideSkeleton = hideSkeleton;
   window.smoothScrollTo = smoothScrollTo;
   window.rippleEffect = rippleEffect;
 
@@ -253,20 +250,6 @@ window.hideLoadingState = function(element) {
   delete element.dataset.originalText;
 };
 
-// Animate element
-window.animateElement = function(element, animation = 'fadeInUp', delay = 0) {
-  if (!element) return;
-  
-  element.style.animationDelay = `${delay}ms`;
-  element.classList.add(`animate-${animation}`);
-  
-  // Remove animation class after completion
-  element.addEventListener('animationend', () => {
-    element.classList.remove(`animate-${animation}`);
-    element.style.animationDelay = '';
-  }, { once: true });
-};
-
 // Create toast notification
 window.createToast = function(message, type = 'info', duration = 4000) {
   const toast = document.createElement('div');
@@ -342,51 +325,6 @@ window.createToast = function(message, type = 'info', duration = 4000) {
   return toast;
 };
 
-// Show skeleton loading
-window.showSkeleton = function(container, type = 'default') {
-  if (!container) return;
-  
-  container.dataset.originalContent = container.innerHTML;
-  
-  const skeletons = {
-    default: `
-      <div class="skeleton skeleton-title"></div>
-      <div class="skeleton skeleton-text"></div>
-      <div class="skeleton skeleton-text" style="width: 80%;"></div>
-    `,
-    card: `
-      <div class="skeleton skeleton-avatar" style="margin-bottom: 1rem;"></div>
-      <div class="skeleton skeleton-title"></div>
-      <div class="skeleton skeleton-text"></div>
-      <div class="skeleton skeleton-text" style="width: 60%;"></div>
-    `,
-    list: `
-      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-        <div class="skeleton skeleton-avatar"></div>
-        <div style="flex: 1;">
-          <div class="skeleton skeleton-text" style="width: 40%; margin-bottom: 0.5rem;"></div>
-          <div class="skeleton skeleton-text" style="width: 60%;"></div>
-        </div>
-      </div>
-    `.repeat(3)
-  };
-  
-  container.innerHTML = skeletons[type] || skeletons.default;
-  container.classList.add('skeleton-container');
-};
-
-// Hide skeleton loading
-window.hideSkeleton = function(container) {
-  if (!container) return;
-  
-  const originalContent = container.dataset.originalContent;
-  if (originalContent) {
-    container.innerHTML = originalContent;
-    delete container.dataset.originalContent;
-  }
-  
-  container.classList.remove('skeleton-container');
-};
 
 // Smooth scroll to element
 window.smoothScrollTo = function(target, offset = 0) {

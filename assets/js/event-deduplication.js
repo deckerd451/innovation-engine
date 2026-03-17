@@ -38,50 +38,6 @@ EventTarget.prototype.addEventListener = function(type, listener, options) {
   return originalAddEventListener.call(this, type, listener, options);
 };
 
-// Function to clear duplicate listeners (useful for debugging)
-window.clearDuplicateListeners = function() {
-  const registry = window.__CH_EVENT_REGISTRY__;
-  const cleared = registry.size;
-  registry.clear();
-  console.log(`🧹 Cleared ${cleared} registered event listeners`);
-};
-
-// Function to show current listener stats
-window.showListenerStats = function() {
-  const registry = window.__CH_EVENT_REGISTRY__;
-  const stats = {};
-  
-  for (const [key, info] of registry.entries()) {
-    const eventType = info.type;
-    stats[eventType] = (stats[eventType] || 0) + 1;
-  }
-  
-  console.log("📊 Current Event Listener Stats:", stats);
-  console.log(`📊 Total registered listeners: ${registry.size}`);
-  return stats;
-};
-
-// Initialization guard system for modules
-window.initGuard = function(moduleName, initFunction) {
-  const guardKey = `__${moduleName.toUpperCase()}_INITIALIZED__`;
-  
-  if (window[guardKey]) {
-    console.log(`⚠️ ${moduleName} already initialized, skipping`);
-    return false;
-  }
-  
-  window[guardKey] = true;
-  
-  try {
-    const result = initFunction();
-    console.log(`✅ ${moduleName} initialized successfully`);
-    return result;
-  } catch (error) {
-    console.error(`❌ ${moduleName} initialization failed:`, error);
-    window[guardKey] = false; // Reset so it can be retried
-    throw error;
-  }
-};
 
 // Profile-loaded event deduplication
 let profileLoadedFired = false;
@@ -105,27 +61,6 @@ EventTarget.prototype.dispatchEvent = function(event) {
   return originalDispatchEvent.call(this, event);
 };
 
-// Function to manually trigger profile-loaded for late listeners
-window.triggerProfileLoadedForLateListeners = function() {
-  if (profileLoadedFired && profileLoadedData) {
-    console.log("🔄 Triggering profile-loaded for late listeners");
-    const event = new CustomEvent('profile-loaded', { detail: profileLoadedData });
-    window.dispatchEvent(event);
-  }
-};
-
-// Monitor for excessive duplicate initializations
-let initializationCounts = {};
-
-window.trackInitialization = function(moduleName) {
-  initializationCounts[moduleName] = (initializationCounts[moduleName] || 0) + 1;
-  
-  if (initializationCounts[moduleName] > 3) {
-    console.warn(`⚠️ ${moduleName} has been initialized ${initializationCounts[moduleName]} times - possible duplicate initialization issue`);
-  }
-  
-  return initializationCounts[moduleName];
-};
 
 // Cleanup function for page unload
 window.addEventListener('beforeunload', () => {
