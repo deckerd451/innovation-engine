@@ -2,7 +2,7 @@
 import { el, qs } from './dom.js';
 import { appState, showNotification } from '../globals.js';
 import { getMyProfile, upsertProfile } from '../api/profiles.js';
-import { fetchConnections } from '../api/connections.js';
+import { fetchConnections } from '../connections.js';
 
 // Public entry — called by pages/dashboard.js
 export function renderCards(mountEl) {

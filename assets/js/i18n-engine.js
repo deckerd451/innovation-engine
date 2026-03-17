@@ -287,12 +287,6 @@ function getLocaleCode(language) {
   return localeMap[language] || 'en-US';
 }
 
-// Pluralization helper
-window.plural = function(key, count, params = {}) {
-  const pluralKey = count === 1 ? `${key}.singular` : `${key}.plural`;
-  return t(pluralKey, { count, ...params });
-};
-
 // RTL language detection
 function isRTLLanguage(language) {
   const rtlLanguages = ['ar', 'he', 'fa', 'ur'];

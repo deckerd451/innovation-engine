@@ -95,58 +95,8 @@
         </button>
       </div>
 
-      <!-- Email / Password Login -->
-      <div id="email-auth-section" style="margin-top:1.5rem; width:100%;">
-        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.25rem;">
-          <hr style="flex:1; border:none; border-top:1px solid rgba(255,255,255,0.15);">
-          <span style="color:#888; font-size:0.85rem; white-space:nowrap;">or sign in with email</span>
-          <hr style="flex:1; border:none; border-top:1px solid rgba(255,255,255,0.15);">
-        </div>
 
-        <div style="display:flex; flex-direction:column; gap:0.75rem;">
-          <!-- Accessibility: label associated with input -->
-          <label for="email-input" class="sr-only">Email address</label>
-          <input id="email-input" type="email" placeholder="Email address" autocomplete="email"
-            style="width:100%; padding:0.875rem 1rem; background:rgba(255,255,255,0.07);
-            border:1px solid rgba(0,224,255,0.25); border-radius:8px; color:#fff;
-            font-size:1rem; outline:none; box-sizing:border-box;"
-            onfocus="this.style.borderColor='rgba(0,224,255,0.6)'"
-            onblur="this.style.borderColor='rgba(0,224,255,0.25)'" />
-
-          <!-- Accessibility: label associated with input -->
-          <label for="password-input" class="sr-only">Password</label>
-          <input id="password-input" type="password" placeholder="Password" autocomplete="current-password"
-            style="width:100%; padding:0.875rem 1rem; background:rgba(255,255,255,0.07);
-            border:1px solid rgba(0,224,255,0.25); border-radius:8px; color:#fff;
-            font-size:1rem; outline:none; box-sizing:border-box;"
-            onfocus="this.style.borderColor='rgba(0,224,255,0.6)'"
-            onblur="this.style.borderColor='rgba(0,224,255,0.25)'" />
-
-          <div id="email-auth-msg" style="display:none; font-size:0.875rem; text-align:left; padding:0.25rem 0;"></div>
-
-          <button id="email-login-btn" class="oauth-btn"
-            style="background:linear-gradient(135deg,rgba(0,224,255,0.1),rgba(0,128,255,0.1));
-            border-color:rgba(0,224,255,0.35);">
-            <span class="oauth-icon-circle">
-              <i class="fas fa-envelope"></i>
-            </span>
-            Sign in with Email
-          </button>
-
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.1rem;">
-            <a id="signup-link" href="#"
-              style="color:#00e0ff; font-size:0.875rem; text-decoration:none; opacity:0.75;"
-              onmouseover="this.style.opacity='1'"
-              onmouseout="this.style.opacity='0.75'">Create account</a>
-            <a id="forgot-password-link" href="#"
-              style="color:#00e0ff; font-size:0.875rem; text-decoration:none; opacity:0.75;"
-              onmouseover="this.style.opacity='1'"
-              onmouseout="this.style.opacity='0.75'">Forgot password?</a>
-          </div>
-        </div>
-      </div>
-
-      <div id="login-hint" style="margin-top: 1rem; color: #aaa; font-size: 0.9rem;"></div>
+<div id="login-hint" style="margin-top: 1rem; color: #aaa; font-size: 0.9rem;"></div>
     </div>
   </div>
 
@@ -875,9 +825,6 @@
     window.realtimeHelper = realtimeHelper;
   </script>
 
-  <!-- Non-module scripts -->
-  <script src="assets/js/ecosystem-connector.js?v=fc09b39b-1770146154f916933b2da" defer></script>
-
   <!-- Feature modules -->
   <script type="module" src="assets/js/onboarding.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da"></script>
@@ -895,9 +842,6 @@
   <script type="module" src="auth.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="profile.js?v=fc09b39b-1770146154f916933b2da"></script>
 
-  <!-- Synapse initialization helper -->
-  <script src="assets/js/synapse-init-helper.js?v=fc09b39b-1770146154f916933b2da" defer></script>
-
   <!-- Theme strategy toggle -->
   <script src="assets/js/theme-strategy-toggle.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
@@ -906,9 +850,6 @@
 
   <!-- Critical UX Fixes Module -->
   <script src="assets/js/critical-ux-fixes.js?v=fc09b39b-17701461543" defer></script>
-
-  <!-- Notification Bell Module (superseded by unified-notification-system.js) -->
-  <!-- <script src="assets/js/notification-bell.js?v=08a7ab3a" defer></script> -->
 
   <!-- Settings Modal -->
   <script src="assets/js/settings-modal.js?v=1" defer></script>
@@ -930,9 +871,6 @@
 
   <!-- Opportunity Engine (BEFORE synapse boot) -->
   <script src="assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304"></script>
-
-  <!-- Synapse boot -->
-  <script type="module" src="assets/js/synapse.js?v=render-fix-20260304"></script>
 
   <!-- Unified Network Discovery Integration -->
   <script type="module" src="assets/js/unified-network-integration.js?v=deadline-fix-20260304"></script>
