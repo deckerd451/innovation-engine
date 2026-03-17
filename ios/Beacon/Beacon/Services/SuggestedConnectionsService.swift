@@ -25,17 +25,13 @@ final class SuggestedConnectionsService {
     /// Key: group UUID string (or "global" for nil group).
     private var lastInferenceAt: [String: Date] = [:]
 
-    /// How recently edges must have been created to skip inference entirely.
-    private let recentEdgeThreshold: TimeInterval = 300 // 5 minutes
-
     private init() {}
 
     // MARK: - Inference
 
     /// Call infer_ble_edges RPC to generate suggestions.
     /// Includes a local dedup guard: suppresses repeated calls within
-    /// `inferenceSuppressionWindow` for the same group, and skips the RPC
-    /// entirely if recent edges already exist within `recentEdgeThreshold`.
+    /// `inferenceSuppressionWindow` for the same group.
     func generateSuggestions(
         groupId: UUID?,
         minOverlapSeconds: Int = 120,
@@ -43,7 +39,7 @@ final class SuggestedConnectionsService {
     ) async throws -> Int {
         let groupKey = groupId?.uuidString ?? "global"
 
-        // 1. Time-based suppression: don't call RPC again within the window
+        // Time-based suppression: don't call RPC again within the window
         if let lastCall = lastInferenceAt[groupKey],
            Date().timeIntervalSince(lastCall) < inferenceSuppressionWindow {
             let ago = Int(Date().timeIntervalSince(lastCall))
@@ -51,15 +47,6 @@ final class SuggestedConnectionsService {
             return 0
         }
 
-        // 2. Pre-check: if recent suggested edges already exist, skip the RPC
-        let recentCount = await countRecentEdges(groupId: groupId)
-        if recentCount > 0 {
-            print("⏭️ Edge inference skipped — \(recentCount) recent edge(s) already exist")
-            lastInferenceAt[groupKey] = Date()
-            return 0
-        }
-
-        // 3. Call the RPC
         let params = InferBleEdgesParams(
             p_group_id: groupId?.uuidString,
             p_min_overlap_seconds: minOverlapSeconds,
@@ -74,42 +61,6 @@ final class SuggestedConnectionsService {
         lastInferenceAt[groupKey] = Date()
         print("✅ Generated \(response) suggested connections")
         return response
-    }
-
-    // MARK: - Recent Edge Check
-
-    /// Count suggested ble_proximity edges created within the recent threshold.
-    /// Used to avoid redundant RPC calls when edges already exist.
-    private func countRecentEdges(groupId: UUID?) async -> Int {
-        let cutoff = ISO8601DateFormatter().string(
-            from: Date().addingTimeInterval(-recentEdgeThreshold)
-        )
-
-        do {
-            struct EdgeCountRow: Codable { let id: UUID }
-
-            var query = supabase
-                .from("interaction_edges")
-                .select("id")
-                .eq("type", value: "ble_proximity")
-                .eq("status", value: "suggested")
-                .gte("created_at", value: cutoff)
-
-            if let gid = groupId {
-                query = query.eq("beacon_id", value: gid.uuidString)
-            }
-
-            let rows: [EdgeCountRow] = try await query
-                .limit(1)
-                .execute()
-                .value
-
-            return rows.count
-        } catch {
-            // Don't block inference on a failed pre-check
-            print("⚠️ Recent edge pre-check failed: \(error.localizedDescription)")
-            return 0
-        }
     }
 
     // MARK: - Fetch Suggestions
