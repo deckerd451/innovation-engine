@@ -5,8 +5,7 @@
  *
  * Key properties of this integration file:
  * - SAFE/IDEMPOTENT: It can be loaded multiple times without duplicating listeners/UI.
- * - FEATURE-FLAGGED: Unified network can be enabled via localStorage.
- * - GRACEFUL FALLBACK: Errors fall back to legacy synapse.
+ * - GRACEFUL FALLBACK: Errors are surfaced via notification.
  */
 
 import { unifiedNetworkApi } from './unified-network/api.js';
@@ -15,12 +14,10 @@ import { initializeErrorHandling } from './unified-network/error-integration.js'
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
 
 // ------------------------------------------------------------------
-// Feature flags (read dynamically so changes apply without redeploy)
+// Feature flags
 // ------------------------------------------------------------------
 function getFeatureFlags() {
   return {
-    // Unified network is always enabled for all users
-    ENABLE_UNIFIED_NETWORK: true,
     DEBUG_MODE: localStorage.getItem('unified-network-debug') === 'true'
   };
 }
@@ -525,25 +522,6 @@ export function getIntegrationState() {
 }
 
 /**
- * Enable unified network (for testing/admin)
- */
-export function enableUnifiedNetwork() {
-  // Remove the key so the default-ON check (!== 'false') takes effect cleanly.
-  localStorage.removeItem('enable-unified-network');
-  logger.info(INTEGRATION_NS, 'Unified network enabled - reload page to activate');
-  showSuccessNotification('Unified Network enabled! Reload the page to activate.');
-}
-
-/**
- * Disable unified network
- */
-export function disableUnifiedNetwork() {
-  localStorage.setItem('enable-unified-network', 'false');
-  logger.info(INTEGRATION_NS, 'Unified network disabled - reload page to use legacy');
-  showSuccessNotification('Unified Network disabled! Reload the page to use legacy mode.');
-}
-
-/**
  * Toggle debug mode
  */
 export function toggleDebugMode() {
@@ -565,8 +543,6 @@ if (typeof window !== 'undefined') {
     init: initUnifiedNetwork,
     isActive: isUnifiedNetworkActive,
     getState: getIntegrationState,
-    enable: enableUnifiedNetwork,
-    disable: disableUnifiedNetwork,
     toggleDebug: toggleDebugMode,
     api: unifiedNetworkApi
   });
