@@ -107,6 +107,10 @@
   const ERROR_THROTTLE_MS = 30000; // 30 seconds
   const EDGE_POLLING_PAUSE_MS = 30000; // 30 seconds
 
+  // Inference dedup: suppress repeated RPC calls within this window
+  let lastInferenceAt = 0;
+  const INFERENCE_SUPPRESSION_MS = 120_000; // 2 minutes
+
   // ============================================================================
   // INITIALIZATION
   // ============================================================================
@@ -945,6 +949,15 @@
   async function runEdgeInference() {
     if (!supabase || !currentGroupId) return;
 
+    // Dedup guard: suppress repeated RPC calls within the window
+    const now = Date.now();
+    if (now - lastInferenceAt < INFERENCE_SUPPRESSION_MS) {
+      if (CONFIG.DEBUG) {
+        console.log(`⏭️ [Event Mode] Edge inference suppressed — last call ${Math.round((now - lastInferenceAt) / 1000)}s ago`);
+      }
+      return;
+    }
+
     try {
       if (CONFIG.DEBUG) {
         console.log('🔮 [Event Mode] Running edge inference...');
@@ -955,6 +968,8 @@
         p_min_overlap_seconds: CONFIG.MIN_OVERLAP_SECONDS,
         p_lookback_minutes: CONFIG.LOOKBACK_MINUTES,
       });
+
+      lastInferenceAt = Date.now();
 
       if (CONFIG.DEBUG) {
         console.log('✅ [Event Mode] Edge inference complete');
