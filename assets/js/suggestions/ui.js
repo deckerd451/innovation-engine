@@ -95,6 +95,12 @@ export class DailySuggestionsUI {
         color: '#ff6b6b',
         actionText: data.action || 'View',
         handler: 'viewCoordination'
+      },
+      event_met: {
+        icon: 'broadcast-tower',
+        color: '#ff9f43',
+        actionText: 'Follow Up',
+        handler: 'viewPerson'
       }
     };
     
@@ -122,7 +128,10 @@ export class DailySuggestionsUI {
     
     // Build message for traditional suggestions
     let message = '';
-    if (suggestionType === 'person') {
+    if (suggestionType === 'event_met') {
+      const label = data.beaconLabel ? ` at ${data.beaconLabel}` : ' at an event';
+      message = `You met ${data.name || 'someone'}${label}`;
+    } else if (suggestionType === 'person') {
       message = `Connect with ${data.name || 'someone new'}`;
     } else if (suggestionType === 'project_join') {
       message = `Join: ${data.title || 'a project'}`;

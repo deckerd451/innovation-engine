@@ -16,16 +16,37 @@ final class SuggestedConnectionsService {
 
     private let supabase = AppEnvironment.shared.supabaseClient
 
+    // MARK: - Dedup Guard
+
+    /// Minimum interval between RPC calls for the same group (seconds).
+    private let inferenceSuppressionWindow: TimeInterval = 120 // 2 minutes
+
+    /// Tracks the last successful inference call per group key.
+    /// Key: group UUID string (or "global" for nil group).
+    private var lastInferenceAt: [String: Date] = [:]
+
     private init() {}
 
     // MARK: - Inference
 
-    /// Call infer_ble_edges RPC to generate suggestions
+    /// Call infer_ble_edges RPC to generate suggestions.
+    /// Includes a local dedup guard: suppresses repeated calls within
+    /// `inferenceSuppressionWindow` for the same group.
     func generateSuggestions(
         groupId: UUID?,
         minOverlapSeconds: Int = 120,
         lookbackMinutes: Int = 240
     ) async throws -> Int {
+        let groupKey = groupId?.uuidString ?? "global"
+
+        // Time-based suppression: don't call RPC again within the window
+        if let lastCall = lastInferenceAt[groupKey],
+           Date().timeIntervalSince(lastCall) < inferenceSuppressionWindow {
+            let ago = Int(Date().timeIntervalSince(lastCall))
+            print("⏭️ Edge inference suppressed — last call \(ago)s ago (window: \(Int(inferenceSuppressionWindow))s)")
+            return 0
+        }
+
         let params = InferBleEdgesParams(
             p_group_id: groupId?.uuidString,
             p_min_overlap_seconds: minOverlapSeconds,
@@ -37,6 +58,7 @@ final class SuggestedConnectionsService {
             .execute()
             .value
 
+        lastInferenceAt[groupKey] = Date()
         print("✅ Generated \(response) suggested connections")
         return response
     }

@@ -82,6 +82,10 @@
   // Web Bluetooth support
   let bluetoothAvailable = false;
 
+  // Inference dedup: suppress repeated RPC calls within this window
+  let lastBleInferenceAt = 0;
+  const BLE_INFERENCE_SUPPRESSION_MS = 120_000; // 2 minutes
+
   // ============================================================================
   // BROWSER SUPPORT CHECK
   // ============================================================================
@@ -478,6 +482,13 @@
   async function generateSuggestions(groupId = null, minOverlapSeconds = 120, lookbackMinutes = 240) {
     if (!supabase) return 0;
 
+    // Dedup guard: suppress repeated RPC calls within the window
+    const now = Date.now();
+    if (now - lastBleInferenceAt < BLE_INFERENCE_SUPPRESSION_MS) {
+      console.log(`⏭️ [BLE] Edge inference suppressed — last call ${Math.round((now - lastBleInferenceAt) / 1000)}s ago`);
+      return 0;
+    }
+
     try {
       console.log('🔮 [BLE] Generating suggestions...');
 
@@ -493,6 +504,7 @@
         return 0;
       }
 
+      lastBleInferenceAt = Date.now();
       const count = data || 0;
       console.log(`✅ [BLE] Generated ${count} suggestions`);
       

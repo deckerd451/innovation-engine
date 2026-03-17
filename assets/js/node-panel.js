@@ -763,6 +763,46 @@ async function renderPersonPanel(nodeData) {
   // Get shared projects
   const sharedProjects = await getSharedProjects(profile.id);
 
+  // Get event-derived interaction data (BLE proximity)
+  let eventInteraction = null;
+  if (currentUserProfile && profile.id !== currentUserProfile.id) {
+    try {
+      const cutoff72h = new Date(Date.now() - 72 * 3600_000).toISOString();
+      const { data: edges } = await supabase
+        .from('interaction_edges')
+        .select('id, beacon_id, overlap_seconds, confidence, meta, created_at')
+        .eq('type', 'ble_proximity')
+        .eq('status', 'suggested')
+        .gte('created_at', cutoff72h)
+        .or(
+          `and(from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${profile.id}),` +
+          `and(from_user_id.eq.${profile.id},to_user_id.eq.${currentUserProfile.id})`
+        )
+        .order('confidence', { ascending: false })
+        .limit(1);
+
+      if (edges && edges.length > 0) {
+        const edge = edges[0];
+        // Resolve beacon label
+        let beaconLabel = null;
+        if (edge.beacon_id) {
+          if (window.BeaconRegistry) {
+            const b = window.BeaconRegistry.getBeaconById(edge.beacon_id);
+            if (b?.label) beaconLabel = b.label;
+          }
+          if (!beaconLabel) {
+            const { data: bData } = await supabase
+              .from('beacons').select('label').eq('id', edge.beacon_id).single();
+            if (bData?.label) beaconLabel = bData.label;
+          }
+        }
+        eventInteraction = { ...edge, beaconLabel };
+      }
+    } catch (err) {
+      console.warn('⚠️ Event interaction lookup failed:', err.message);
+    }
+  }
+
   // Track profile view for engagement system
   if (window.DailyEngagement && profile.id !== currentUserProfile?.id) {
     try {
@@ -947,6 +987,40 @@ async function renderPersonPanel(nodeData) {
                     +${mutualConnections.length - 5} more
                   </div>
                 ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Event Interaction Section (BLE Proximity) -->
+      ${eventInteraction ? `
+        <div class="panel-section">
+          <div class="panel-section-header" onclick="togglePanelSection('event-met')">
+            <div class="panel-section-title">
+              <i class="fas fa-broadcast-tower"></i> EVENT INTERACTION
+            </div>
+            <i class="fas fa-chevron-down panel-section-toggle" id="event-met-toggle"></i>
+          </div>
+          <div class="panel-section-content" id="event-met-content">
+            <div class="panel-section-inner">
+              <div style="background: rgba(255,159,67,0.1); border: 1px solid rgba(255,159,67,0.3); border-radius: 8px; padding: 0.75rem;">
+                ${eventInteraction.beaconLabel ? `
+                  <div style="color: #ff9f43; font-weight: bold; margin-bottom: 0.5rem;">
+                    <i class="fas fa-map-marker-alt"></i> Met at ${eventInteraction.beaconLabel}
+                  </div>
+                ` : ''}
+                ${eventInteraction.overlap_seconds > 0 ? `
+                  <div style="color: #ddd; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                    <i class="fas fa-clock"></i> Nearby for ~${Math.round(eventInteraction.overlap_seconds / 60)} min
+                  </div>
+                ` : ''}
+                <div style="color: #ddd; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                  <i class="fas fa-signal"></i> ${(eventInteraction.confidence || 0) >= 0.8 ? 'High' : 'Moderate'}-confidence proximity signal
+                </div>
+                <div style="color: #aaa; font-size: 0.8rem; margin-top: 0.5rem; font-style: italic;">
+                  <i class="fas fa-lightbulb"></i> Suggested follow-up — detected via event networking
+                </div>
               </div>
             </div>
           </div>
