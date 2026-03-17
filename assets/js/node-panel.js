@@ -2868,9 +2868,11 @@ window.deleteTheme = async function(themeId, themeName) {
 };
 
 
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize on DOM ready — or immediately if DOM is already parsed (dynamic import).
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initNodePanel);
+} else {
   initNodePanel();
-});
+}
 
 console.log('✅ Node panel ready');

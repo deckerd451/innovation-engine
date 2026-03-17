@@ -250,6 +250,17 @@ function setupEventBridges() {
   if (GUARDS.bridgesWired) return;
   GUARDS.bridgesWired = true;
 
+  // Node action requested — open profile panel (replaces legacy synapse:focus-node → core.js path)
+  unifiedNetworkApi.on('node-action-requested', ({ node }) => {
+    if (!node) return;
+    if (typeof window.openNodePanel === 'function') {
+      window.openNodePanel(node);
+    } else {
+      // node-panel.js not yet evaluated — dynamic import fallback
+      import('./node-panel.js').then(({ openNodePanel }) => openNodePanel(node)).catch(() => {});
+    }
+  });
+
   // Discovery triggered
   unifiedNetworkApi.on('discovery-triggered', ({ reasons }) => {
     logger.debug(INTEGRATION_NS, 'Discovery triggered', { reasons });
