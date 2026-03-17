@@ -261,3 +261,83 @@ export async function getUserOwnedProjects(communityId) {
   if (error) throw error;
   return data?.map(p => p.id) || [];
 }
+
+
+// ================================================================
+// EVENT-DERIVED INTERACTION QUERIES
+// ================================================================
+
+/**
+ * Get suggested BLE proximity edges involving a user (event-derived).
+ * These are iOS-generated records: type='ble_proximity', status='suggested'.
+ * @param {string} communityId
+ * @param {number} lookbackHours - default 72
+ * @returns {Promise<Array>} edges with otherUserId, beaconId, overlap, confidence
+ */
+export async function getEventInteractionEdges(communityId, lookbackHours = 72) {
+  if (!window.supabase || !communityId) return [];
+
+  try {
+    const cutoff = new Date(Date.now() - lookbackHours * 3600_000).toISOString();
+
+    const { data, error } = await window.supabase
+      .from('interaction_edges')
+      .select('id, from_user_id, to_user_id, beacon_id, overlap_seconds, confidence, meta, created_at')
+      .eq('type', 'ble_proximity')
+      .eq('status', 'suggested')
+      .or(`from_user_id.eq.${communityId},to_user_id.eq.${communityId}`)
+      .gte('created_at', cutoff)
+      .order('confidence', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.warn('[Queries] Event interaction edges error:', error.message);
+      return [];
+    }
+
+    return (data || []).map(edge => ({
+      ...edge,
+      otherUserId: edge.from_user_id === communityId ? edge.to_user_id : edge.from_user_id,
+    }));
+  } catch (err) {
+    console.warn('[Queries] Event interaction edges threw:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Resolve beacon IDs to labels in batch.
+ * @param {string[]} beaconIds
+ * @returns {Promise<Map<string, string>>} beaconId -> label
+ */
+export async function resolveBeaconLabels(beaconIds) {
+  const labelMap = new Map();
+  if (!window.supabase || !beaconIds || beaconIds.length === 0) return labelMap;
+
+  // Try BeaconRegistry first
+  if (window.BeaconRegistry) {
+    for (const bid of beaconIds) {
+      const beacon = window.BeaconRegistry.getBeaconById(bid);
+      if (beacon?.label) labelMap.set(bid, beacon.label);
+    }
+    // If all resolved, return early
+    if (labelMap.size === beaconIds.length) return labelMap;
+  }
+
+  // Fetch remaining from DB
+  const unresolved = beaconIds.filter(bid => !labelMap.has(bid));
+  if (unresolved.length === 0) return labelMap;
+
+  try {
+    const { data, error } = await window.supabase
+      .from('beacons')
+      .select('id, label')
+      .in('id', unresolved);
+
+    if (!error && data) {
+      data.forEach(b => { if (b.label) labelMap.set(b.id, b.label); });
+    }
+  } catch { /* graceful fallback */ }
+
+  return labelMap;
+}

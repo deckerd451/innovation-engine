@@ -634,6 +634,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     activityLog,
     dailySuggestions,
     presenceSessions,
+    eventInteractionEdges,
     community,
   ] = await Promise.all([
     _safe('connections', () => supabase
@@ -707,6 +708,15 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
       .select('user_id, expires_at')
       .limit(500)
     ),
+    _safe('interaction_edges_event', () => supabase
+      .from('interaction_edges')
+      .select('id, from_user_id, to_user_id, beacon_id, overlap_seconds, confidence, meta, created_at')
+      .eq('type', 'ble_proximity')
+      .eq('status', 'suggested')
+      .gte('created_at', cutoffDate)
+      .order('confidence', { ascending: false })
+      .limit(200)
+    ),
     _safe('community', () => supabase
       .from('community')
       .select('id, user_id, name, interests, skills, role, availability, bio, last_seen_at, updated_at, connection_count')
@@ -755,6 +765,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     activityLog,
     dailySuggestions,
     presenceSessions,
+    eventInteractionEdges,
     opportunities,
     community,
     usedSources,
@@ -1341,6 +1352,98 @@ function _buildBlindSpots({ userProfile, themeCircles, opportunities, journey, m
 }
 
 // ================================================================
+// EVENT-DERIVED: People You Met at Events
+// ================================================================
+
+/**
+ * Build "event_connections" section from iOS-generated interaction edges.
+ * These are BLE proximity edges with status='suggested' — intelligence-grade
+ * evidence of in-person meetings, NOT auto-accepted connections.
+ */
+function _buildEventConnections({ eventInteractionEdges, community, userProfile, maxItems }) {
+  if (!eventInteractionEdges || eventInteractionEdges.length === 0) return [];
+
+  const communityId = userProfile.id;
+
+  // Filter to edges involving the current user
+  const userEdges = eventInteractionEdges.filter(
+    e => e.from_user_id === communityId || e.to_user_id === communityId
+  );
+
+  if (userEdges.length === 0) return [];
+
+  // Build community lookup
+  const communityMap = new Map();
+  (community || []).forEach(c => communityMap.set(c.id, c));
+
+  // Deduplicate by other user (keep highest confidence)
+  const bestByUser = new Map();
+  for (const edge of userEdges) {
+    const otherId = edge.from_user_id === communityId ? edge.to_user_id : edge.from_user_id;
+    const existing = bestByUser.get(otherId);
+    if (!existing || (edge.confidence || 0) > (existing.confidence || 0)) {
+      bestByUser.set(otherId, edge);
+    }
+  }
+
+  const items = [];
+  for (const [otherId, edge] of bestByUser) {
+    const person = communityMap.get(otherId);
+    const personName = person?.name || 'Someone';
+
+    // Build duration text
+    let durationText = '';
+    if (edge.overlap_seconds > 0) {
+      const mins = Math.round(edge.overlap_seconds / 60);
+      durationText = mins > 0 ? `${mins} min` : `${edge.overlap_seconds}s`;
+    }
+
+    // Build headline
+    const confidenceLabel = (edge.confidence || 0) >= 0.8 ? 'strong' : 'moderate';
+    const headline = durationText
+      ? `You were near ${personName} for ~${durationText} — ${confidenceLabel} proximity signal.`
+      : `${personName} was detected nearby — ${confidenceLabel} proximity signal.`;
+
+    const factors = [
+      `Proximity type: BLE (Bluetooth Low Energy)`,
+      `Confidence: ${Math.round((edge.confidence || 0) * 100)}%`,
+    ];
+    if (durationText) factors.push(`Duration: ${durationText}`);
+    if (edge.beacon_id) factors.push(`Beacon-scoped event interaction`);
+    if (edge.meta?.avg_energy) factors.push(`Avg signal energy: ${edge.meta.avg_energy.toFixed(2)}`);
+
+    const why_key = registerWhy({
+      label: 'event_met',
+      factors,
+      keywords: _tokenize(person?.skills || '').slice(0, 4),
+      paths: [`user:${communityId} ↔ ble_proximity ↔ user:${otherId}`],
+      signals: {
+        overlap_seconds: edge.overlap_seconds,
+        confidence: edge.confidence,
+        beacon_id: edge.beacon_id,
+      },
+      scores: { confidence: edge.confidence || 0 },
+    });
+
+    items.push({
+      id: _itemId('event_met', otherId),
+      category: 'event_met',
+      headline,
+      subhead: 'Suggested follow-up — event-derived proximity signal',
+      confidence: _clamp01(edge.confidence || 0.5),
+      score: _clamp01((edge.confidence || 0.5) * 0.6 + Math.min((edge.overlap_seconds || 0) / 600, 1) * 0.4),
+      primary_refs: [{ nodeType: 'person', nodeId: otherId, label: personName }],
+      why_key,
+      created_at: edge.created_at || new Date().toISOString(),
+    });
+  }
+
+  return items
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxItems);
+}
+
+// ================================================================
 // MAIN ENTRY POINT
 // ================================================================
 
@@ -1403,6 +1506,7 @@ export async function generateDailyBrief({
       activityLog: graph.activityLog.length,
       dailySuggestions: graph.dailySuggestions.length,
       presence: graph.presenceSessions.length,
+      eventInteractionEdges: graph.eventInteractionEdges.length,
       networkAwakeScore: networkAwakeScore.toFixed(2),
       journeyHasHistory: journey.hasHistory,
     });
@@ -1416,6 +1520,8 @@ export async function generateDailyBrief({
     opportunities:   graph.opportunities,
     organizations:   graph.organizations,
     dailySuggestions: graph.dailySuggestions,
+    eventInteractionEdges: graph.eventInteractionEdges,
+    community:       graph.community,
     memberships,
     activityHitMap,
     now,
@@ -1430,6 +1536,7 @@ export async function generateDailyBrief({
     combination_opportunities:  _buildCombinationOpportunities(sectionCtx),
     opportunities_for_you:      _buildOpportunitiesForYou(sectionCtx),
     blind_spots:                _buildBlindSpots(sectionCtx),
+    event_connections:          _buildEventConnections(sectionCtx),
   };
 
   const elapsed = Date.now() - t0;

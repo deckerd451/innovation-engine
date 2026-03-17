@@ -27,6 +27,7 @@
 })();
 
 import * as queries from './queries.js';
+import { formatProximityDuration, buildExplainabilityText } from '../eventIntelligence.js';
 import { CoordinationDetectorV2 } from '../intelligence/coordination-detector-v2.js';
 
 export class DailySuggestionsEngineV2 {
@@ -163,21 +164,23 @@ export class DailySuggestionsEngineV2 {
       { ...signals, ...activitySignals }
     );
     
-    // Generate traditional suggestions in parallel
-    const [people, projectsJoin, projectsRecruit, themes, orgs] = await Promise.all([
+    // Generate traditional suggestions + event-derived in parallel
+    const [people, projectsJoin, projectsRecruit, themes, orgs, eventMet] = await Promise.all([
       this.generatePeopleSuggestions(profile, connectedIds, pendingIds, cooldownList),
       this.generateProjectJoinSuggestions(profile, [...projectIds, ...projectRequestIds], cooldownList),
       this.generateProjectRecruitSuggestions(profile, ownedProjects, connectedIds, cooldownList),
       this.generateThemeSuggestions(profile, themeIds, cooldownList),
-      this.generateOrganizationSuggestions(profile, orgIds, cooldownList)
+      this.generateOrganizationSuggestions(profile, orgIds, cooldownList),
+      this.generateEventMetSuggestions(profile, connectedIds, pendingIds, cooldownList)
     ]);
     
     // Log suggestion breakdown
-    console.log(`📦 Suggestions by type: people=${people.length}, projects_join=${projectsJoin.length}, projects_recruit=${projectsRecruit.length}, themes=${themes.length}, orgs=${orgs.length}`);
+    console.log(`📦 Suggestions by type: people=${people.length}, projects_join=${projectsJoin.length}, projects_recruit=${projectsRecruit.length}, themes=${themes.length}, orgs=${orgs.length}, event_met=${eventMet.length}`);
     
-    // Combine all suggestions
+    // Combine all suggestions (event-derived first for priority)
     const allSuggestions = [
       ...coordinationMoments,
+      ...eventMet,
       ...people,
       ...projectsJoin,
       ...projectsRecruit,
@@ -292,6 +295,89 @@ export class DailySuggestionsEngineV2 {
     }
     
     return suggestions;
+  }
+
+  /**
+   * Generate event-derived "people you met" suggestions.
+   * Reads interaction_edges where type='ble_proximity' and status='suggested'.
+   * These are NOT auto-converted to connections — they remain intelligence-grade evidence.
+   */
+  async generateEventMetSuggestions(profile, connectedIds, pendingIds, cooldownList) {
+    const excludeIds = new Set([...connectedIds, ...pendingIds, profile.id]);
+    const cooldownPeople = new Set(
+      cooldownList
+        .filter(s => s.suggestion_type === 'event_met')
+        .map(s => s.target_id)
+    );
+
+    try {
+      const eventEdges = await queries.getEventInteractionEdges(profile.id, 72);
+      if (!eventEdges || eventEdges.length === 0) return [];
+
+      // Resolve beacon labels in batch
+      const beaconIds = [...new Set(eventEdges.map(e => e.beacon_id).filter(Boolean))];
+      const labelMap = await queries.resolveBeaconLabels(beaconIds);
+
+      // Deduplicate by otherUserId (keep highest confidence)
+      const bestByUser = new Map();
+      for (const edge of eventEdges) {
+        if (excludeIds.has(edge.otherUserId) || cooldownPeople.has(edge.otherUserId)) continue;
+        const existing = bestByUser.get(edge.otherUserId);
+        if (!existing || (edge.confidence || 0) > (existing.confidence || 0)) {
+          bestByUser.set(edge.otherUserId, edge);
+        }
+      }
+
+      if (bestByUser.size === 0) return [];
+
+      // Fetch names for the other users
+      const otherIds = [...bestByUser.keys()];
+      let nameMap = new Map();
+      try {
+        const { data } = await window.supabase
+          .from('community')
+          .select('id, name, bio')
+          .in('id', otherIds);
+        if (data) data.forEach(p => nameMap.set(p.id, p));
+      } catch { /* graceful */ }
+
+      const suggestions = [];
+      for (const [userId, edge] of bestByUser) {
+        const person = nameMap.get(userId);
+        const beaconLabel = labelMap.get(edge.beacon_id) || null;
+        const reasons = buildExplainabilityText(edge, beaconLabel);
+
+        // Score: base 40 + confidence boost + overlap boost
+        let score = 40;
+        if (edge.confidence >= 0.8) score += 30;
+        else if (edge.confidence >= 0.5) score += 15;
+        if (edge.overlap_seconds > 300) score += 20;
+        else if (edge.overlap_seconds > 120) score += 10;
+
+        suggestions.push({
+          suggestion_type: 'event_met',
+          target_id: userId,
+          score,
+          why: reasons,
+          source: 'event_proximity',
+          data: {
+            suggestionType: 'event_met',
+            name: person?.name || 'Someone nearby',
+            bio: person?.bio || null,
+            beaconLabel,
+            overlapSeconds: edge.overlap_seconds,
+            confidence: edge.confidence,
+            edgeId: edge.id,
+          }
+        });
+      }
+
+      console.log(`📡 Event-derived suggestions: ${suggestions.length} people met at events`);
+      return suggestions;
+    } catch (err) {
+      console.warn('[SuggestionsV2] Event met generation failed:', err.message);
+      return [];
+    }
   }
 
   /**

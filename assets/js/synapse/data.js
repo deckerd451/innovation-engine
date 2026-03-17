@@ -696,6 +696,90 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     }
   }
 
+  // 7. Add event-derived interaction edges as suggested links
+  // These come from iOS BLE proximity detection (interaction_edges table)
+  if (currentUserCommunityId) {
+    try {
+      const cutoff72h = new Date(Date.now() - 72 * 3600_000).toISOString();
+      const { data: eventEdges, error: eventEdgesError } = await supabase
+        .from('interaction_edges')
+        .select('id, from_user_id, to_user_id, beacon_id, overlap_seconds, confidence, meta')
+        .eq('type', 'ble_proximity')
+        .eq('status', 'suggested')
+        .gte('created_at', cutoff72h)
+        .or(`from_user_id.eq.${currentUserCommunityId},to_user_id.eq.${currentUserCommunityId}`)
+        .order('confidence', { ascending: false })
+        .limit(30);
+
+      if (!eventEdgesError && eventEdges && eventEdges.length > 0) {
+        const nodeIdSet = new Set(nodes.filter(n => n.type === 'person').map(n => n.id));
+        const existingPairs = new Set(
+          links.map(l => {
+            const s = typeof l.source === 'object' ? l.source.id : l.source;
+            const t = typeof l.target === 'object' ? l.target.id : l.target;
+            return [s, t].sort().join('-');
+          })
+        );
+
+        // Resolve beacon labels for annotation
+        const beaconIds = [...new Set(eventEdges.map(e => e.beacon_id).filter(Boolean))];
+        let beaconLabelMap = new Map();
+        if (beaconIds.length > 0) {
+          // Try BeaconRegistry first
+          if (window.BeaconRegistry) {
+            beaconIds.forEach(bid => {
+              const b = window.BeaconRegistry.getBeaconById(bid);
+              if (b?.label) beaconLabelMap.set(bid, b.label);
+            });
+          }
+          // Fetch remaining
+          const unresolved = beaconIds.filter(bid => !beaconLabelMap.has(bid));
+          if (unresolved.length > 0) {
+            const { data: beaconData } = await supabase
+              .from('beacons')
+              .select('id, label')
+              .in('id', unresolved);
+            if (beaconData) beaconData.forEach(b => { if (b.label) beaconLabelMap.set(b.id, b.label); });
+          }
+        }
+
+        const eventLinks = [];
+        const seenPairs = new Set();
+
+        for (const edge of eventEdges) {
+          const otherId = edge.from_user_id === currentUserCommunityId
+            ? edge.to_user_id : edge.from_user_id;
+
+          if (!nodeIdSet.has(otherId)) continue;
+
+          const pairKey = [currentUserCommunityId, otherId].sort().join('-');
+          if (existingPairs.has(pairKey) || seenPairs.has(pairKey)) continue;
+          seenPairs.add(pairKey);
+
+          const beaconLabel = beaconLabelMap.get(edge.beacon_id) || null;
+
+          eventLinks.push({
+            id: `event-edge-${edge.id}`,
+            source: currentUserCommunityId,
+            target: otherId,
+            status: 'suggested',
+            type: 'event-proximity',
+            beaconId: edge.beacon_id,
+            beaconLabel,
+            overlapSeconds: edge.overlap_seconds || 0,
+            confidence: edge.confidence || 0,
+            meta: edge.meta,
+          });
+        }
+
+        links = [...links, ...eventLinks];
+        console.log(`📡 Created event-derived proximity links: ${eventLinks.length}`);
+      }
+    } catch (err) {
+      console.warn('⚠️ Error loading event interaction edges for graph:', err.message);
+    }
+  }
+
   console.log("✅ New synapse model loaded:", {
     totalNodes: nodes.length,
     totalLinks: links.length,
@@ -704,7 +788,8 @@ export async function loadSynapseData({ supabase, currentUserCommunityId, showFu
     people: nodes.filter(n => n.type === 'person').length,
     organizations: nodes.filter(n => n.type === 'organization').length,
     themeConnections: links.filter(l => l.type === 'theme').length,
-    orgConnections: links.filter(l => l.type === 'organization').length
+    orgConnections: links.filter(l => l.type === 'organization').length,
+    eventProximityLinks: links.filter(l => l.type === 'event-proximity').length
   });
 
   return {

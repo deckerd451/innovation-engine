@@ -9,6 +9,7 @@ export const COLORS = {
   edgeAccepted: "#00ff88",
   edgePending: "#ffaa00",
   edgeSuggested: "rgba(0, 224, 255, 0.4)",
+  edgeEventProximity: "rgba(255, 159, 67, 0.6)",
   edgeDefault: "rgba(0, 224, 255, 0.08)",
 };
 
@@ -142,6 +143,8 @@ export function getLinkColor(link) {
     case "pending":
       return COLORS.edgePending;
     case "suggested":
+      // Event-proximity edges get a distinct warm color
+      if (link.type === "event-proximity") return COLORS.edgeEventProximity;
       return COLORS.edgeSuggested;
     default:
       return COLORS.edgeDefault;
@@ -206,7 +209,11 @@ export function renderLinks(container, links) {
     .attr("class", d => `synapse-link status-${d.status}`)
     .attr("stroke", d => getLinkColor(d))
     .attr("stroke-width", d => getLinkWidth(d))
-    .attr("stroke-dasharray", d => d.status === "pending" ? "4,4" : "none")
+    .attr("stroke-dasharray", d => {
+      if (d.status === "pending") return "4,4";
+      if (d.type === "event-proximity") return "6,3";
+      return "none";
+    })
     .attr("opacity", d => {
       // Project-member links
       if (d.type === "project-member") {
