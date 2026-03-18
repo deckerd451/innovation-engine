@@ -717,10 +717,14 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         if (e.target.closest('.notification-action-btn')) return; // don't fire on action buttons
         e.stopPropagation(); // Prevent closeOnOutside from interfering
         const convId = item.dataset.conversationId;
+        console.log('💬 Message item clicked, conversation:', convId);
         // Remove panel first, then open messaging to avoid z-index conflicts
         document.getElementById('unified-notification-panel')?.remove();
-        if (window.openMessagingInterface) {
+        if (typeof window.openMessagingInterface === 'function') {
           window.openMessagingInterface(convId);
+        } else {
+          console.error('❌ openMessagingInterface not available — realtime-collaboration.js may not be loaded');
+          showToast('Messaging is loading, please try again', 'info');
         }
       });
     });
