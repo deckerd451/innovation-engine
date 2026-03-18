@@ -707,6 +707,20 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         }
       });
     });
+
+    // Wire up message item clicks (items with data-conversation-id)
+    const msgItems = panel.querySelectorAll('.notification-item[data-conversation-id]');
+    msgItems.forEach(item => {
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.notification-action-btn')) return; // don't fire on action buttons
+        const convId = item.dataset.conversationId;
+        if (window.openMessagingInterface) {
+          window.openMessagingInterface(convId);
+        }
+        document.getElementById('unified-notification-panel')?.remove();
+      });
+    });
   }
 
   function generatePanelContent() {
@@ -780,12 +794,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           subtitle: msg.last_message_at ? getTimeAgo(new Date(msg.last_message_at)) : '',
           icon: '💬',
           badge: msg.unread_count,
-          onClick: () => {
-            if (window.openMessagingInterface) {
-              window.openMessagingInterface(msg.id);
-            }
-            document.getElementById('unified-notification-panel')?.remove();
-          }
+          conversationId: msg.id
         }))
       );
       hasContent = true;
@@ -829,36 +838,6 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     // intentionally omitted here — they live in "Your Network Command" sidebar.
     // This panel shows only what is unique: focus today, action items, and
     // full personal intelligence signals.
-
-    // Download Report — always accessible at the bottom of the panel
-    html += `
-      <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; margin-top: 0.5rem;">
-        <button
-          id="unified-download-report-btn"
-          onclick="window.UnifiedNotifications.downloadReport()"
-          style="
-            width: 100%;
-            background: rgba(255,170,0,0.08);
-            border: 1px solid rgba(255,170,0,0.3);
-            border-radius: 8px;
-            color: #ffaa00;
-            padding: 0.65rem 1rem;
-            font-size: 0.88rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-          "
-          onmouseover="this.style.background='rgba(255,170,0,0.18)'"
-          onmouseout="this.style.background='rgba(255,170,0,0.08)'"
-        >
-          <i class="fas fa-download"></i> Download Report
-        </button>
-      </div>
-    `;
 
     return html;
   }
@@ -1026,13 +1005,13 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           ${title}
         </h4>
         ${items.map((item, index) => `
-          <div class="notification-item" data-index="${index}" data-item-id="${item.id || ''}" data-item-link="${item.link || ''}" style="
+          <div class="notification-item" data-index="${index}" data-item-id="${item.id || ''}" data-item-link="${item.link || ''}" ${item.conversationId ? `data-conversation-id="${item.conversationId}"` : ''} style="
             padding: 0.75rem;
             margin-bottom: 0.5rem;
             background: rgba(0,224,255,0.05);
             border: 1px solid rgba(0,224,255,0.15);
             border-radius: 8px;
-            cursor: ${item.onClick && !item.actions ? 'pointer' : 'default'};
+            cursor: ${(item.onClick || item.conversationId) && !item.actions ? 'pointer' : 'default'};
             transition: all 0.2s;
             display: flex;
             flex-direction: column;
