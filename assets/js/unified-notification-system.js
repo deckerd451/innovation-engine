@@ -484,6 +484,11 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     // Close on outside click
     setTimeout(() => {
       document.addEventListener('click', function closeOnOutside(e) {
+        // If panel was already removed (e.g. by message click), just clean up
+        if (!document.body.contains(panel)) {
+          document.removeEventListener('click', closeOnOutside);
+          return;
+        }
         if (!panel.contains(e.target) && e.target.id !== 'btn-start-nav') {
           panel.remove();
           document.removeEventListener('click', closeOnOutside);
@@ -679,11 +684,13 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       item.style.cursor = 'pointer';
       item.addEventListener('click', (e) => {
         if (e.target.closest('.notification-action-btn')) return; // don't fire on action buttons
+        e.stopPropagation(); // Prevent closeOnOutside from interfering
         const convId = item.dataset.conversationId;
+        // Remove panel first, then open messaging to avoid z-index conflicts
+        document.getElementById('unified-notification-panel')?.remove();
         if (window.openMessagingInterface) {
           window.openMessagingInterface(convId);
         }
-        document.getElementById('unified-notification-panel')?.remove();
       });
     });
   }
