@@ -52,8 +52,9 @@ function createPanelElement() {
     border-left: 2px solid rgba(0, 224, 255, 0.5);
     backdrop-filter: blur(10px);
     z-index: 2000;
-    overflow-y: auto;
-    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     transition: right 0.3s ease-out;
     box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
   `;
@@ -173,6 +174,33 @@ function createPanelElement() {
     #node-side-panel::-webkit-scrollbar-thumb:hover {
       background: rgba(0, 224, 255, 0.5);
     }
+
+    /* Scrollable body + fixed action bar layout */
+    .node-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .node-panel-body::-webkit-scrollbar {
+      width: 8px;
+    }
+    .node-panel-body::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+    .node-panel-body::-webkit-scrollbar-thumb {
+      background: rgba(0, 224, 255, 0.3);
+      border-radius: 4px;
+    }
+    .node-panel-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 224, 255, 0.5);
+    }
+    .node-panel-actions {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
+      border-top: 2px solid rgba(0, 224, 255, 0.5);
+      padding: 1rem 1.5rem;
+      backdrop-filter: blur(10px);
+    }
     
     /* Collapsible section styles */
     .panel-section {
@@ -230,7 +258,7 @@ function createPanelElement() {
 
     /* Make action bars full width on mobile */
     @media (max-width: 768px) {
-      #node-side-panel [style*="width: 420px"] {
+      .node-panel-actions {
         width: 100% !important;
       }
     }
@@ -594,7 +622,7 @@ function renderOrganizationContent(org, members) {
   const initials = org.name ? org.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'ORG';
 
   let html = `
-    <div style="padding: 2rem; padding-bottom: 220px;">
+    <div class="node-panel-body" style="padding: 2rem;">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
         <i class="fas fa-times"></i>
@@ -680,14 +708,14 @@ function renderOrganizationContent(org, members) {
           <p style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">No members yet or membership data unavailable</p>
         </div>
       `}
+    </div>
 
-      <!-- Join Button -->
-      <div style="position: fixed; bottom: 0; left: 0; right: 0; padding: 1rem; background: linear-gradient(to top, rgba(10,14,39,1), rgba(10,14,39,0.9)); border-top: 1px solid rgba(168,85,247,0.3);">
-        <button onclick="if(typeof joinOrganization === 'function') joinOrganization('${escapeHtml(org.id)}'); else if(typeof window.joinOrganization === 'function') window.joinOrganization('${escapeHtml(org.id)}'); else alert('Join feature unavailable');"
-          style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-          <i class="fas fa-plus"></i> Join Organization
-        </button>
-      </div>
+    <!-- Join Button -->
+    <div class="node-panel-actions" style="border-color: rgba(168,85,247,0.3);">
+      <button onclick="if(typeof joinOrganization === 'function') joinOrganization('${escapeHtml(org.id)}'); else if(typeof window.joinOrganization === 'function') window.joinOrganization('${escapeHtml(org.id)}'); else alert('Join feature unavailable');"
+        style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+        <i class="fas fa-plus"></i> Join Organization
+      </button>
     </div>
   `;
 
@@ -777,7 +805,7 @@ async function renderPersonPanel(nodeData) {
   const initials = profile.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
   let html = `
-    <div style="padding-bottom: 220px;">
+    <div class="node-panel-body">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; transition: all 0.2s; z-index: 10;">
         <i class="fas fa-times"></i>
@@ -984,8 +1012,8 @@ async function renderPersonPanel(nodeData) {
       ` : ''}
     </div>
 
-    <!-- Action Bar (Fixed at Bottom) -->
-    <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border-top: 2px solid rgba(0, 224, 255, 0.5); padding: 1.5rem; backdrop-filter: blur(10px); z-index: 100;">
+    <!-- Action Bar (Fixed at Bottom via Flex Layout) -->
+    <div class="node-panel-actions">
       ${profile.id === currentUserProfile?.id ? `
         <!-- Own Profile - Action bar hidden for own profile -->
         <div style="display: none;"></div>
@@ -1100,7 +1128,7 @@ async function renderProjectPanel(nodeData) {
   });
 
   let html = `
-    <div style="padding: 2rem; padding-bottom: 220px;">
+    <div class="node-panel-body" style="padding: 2rem;">
       <!-- Close Button -->
       <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
         <i class="fas fa-times"></i>
@@ -1205,7 +1233,7 @@ async function renderProjectPanel(nodeData) {
     </div>
 
     <!-- Action Bar -->
-    <div style="position: fixed; bottom: 0; right: 0; width: 420px; background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border-top: 2px solid rgba(255, 107, 107, 0.5); padding: 1.5rem; backdrop-filter: blur(10px);">
+    <div class="node-panel-actions" style="border-color: rgba(255, 107, 107, 0.5);">
       ${isCreator ? `
         <!-- Creator Actions -->
         <button onclick="editProjectFromPanel('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
