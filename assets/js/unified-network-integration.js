@@ -9,7 +9,7 @@
  * - GRACEFUL FALLBACK: Errors fall back to legacy synapse.
  */
 
-import { unifiedNetworkApi } from './unified-network/api.js?v=20260318c';
+import { unifiedNetworkApi } from './unified-network/api.js?v=20260318d';
 import { logger } from './logger.js';
 import { initializeErrorHandling } from './unified-network/error-integration.js';
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
@@ -278,6 +278,13 @@ function setupEventBridges() {
     logger.debug(INTEGRATION_NS, 'Discovery triggered', { reasons });
     const FLAGS = getFeatureFlags();
     if (FLAGS.DEBUG_MODE) console.log('🔍 Discovery activated:', (reasons || []).join(', '));
+  });
+
+  // Node tapped → open side panel
+  unifiedNetworkApi.on('node-action-requested', ({ node }) => {
+    if (node && typeof window.openNodePanel === 'function') {
+      window.openNodePanel(node);
+    }
   });
 
   // Action completed

@@ -19,6 +19,7 @@ export class NodeRenderer {
   constructor() {
     this._svg = null;
     this._nodeGroup = null;
+    this._linkGroup = null;
     this._viewport = { width: window.innerWidth, height: window.innerHeight };
     this._cullingMargin = 100;
 
@@ -64,6 +65,9 @@ export class NodeRenderer {
       console.warn(`⚠️ Found ${existingNodesGroups.length} existing .nodes groups - removing all to prevent duplicates`);
       existingNodesGroups.forEach(group => group.remove());
     }
+
+    // Create link group BEFORE nodes group so links render behind nodes
+    this._linkGroup = zoomContainer.append('g').attr('class', 'links');
 
     // Create exactly ONE .nodes group INSIDE the zoom container
     this._nodeGroup = zoomContainer.append('g').attr('class', 'nodes');
@@ -179,6 +183,46 @@ export class NodeRenderer {
     // This would need to be provided by the graph data store
     // For now, return null
     return null;
+  }
+
+  /**
+   * Render edge lines between connected nodes
+   * @param {Edge[]} edges - Edges to render (D3 mutates source/target to objects)
+   */
+  renderLinks(edges) {
+    if (!this._linkGroup || !edges) return;
+
+    const linkSelection = this._linkGroup
+      .selectAll('.link')
+      .data(edges, d => {
+        const s = d.source?.id ?? d.source;
+        const t = d.target?.id ?? d.target;
+        return `${s}-${t}`;
+      });
+
+    linkSelection.exit().remove();
+
+    const linkEnter = linkSelection.enter()
+      .append('line')
+      .attr('class', 'link')
+      .attr('stroke', d => {
+        if (d.type === 'connection') return 'rgba(0, 224, 255, 0.25)';
+        if (d.type === 'project_membership') return 'rgba(0, 255, 136, 0.2)';
+        return 'rgba(255, 255, 255, 0.1)';
+      })
+      .attr('stroke-width', d => {
+        if (d.status === 'accepted') return 1.2;
+        return 0.7;
+      })
+      .style('pointer-events', 'none');
+
+    const linkMerge = linkEnter.merge(linkSelection);
+
+    linkMerge
+      .attr('x1', d => d.source?.x ?? 0)
+      .attr('y1', d => d.source?.y ?? 0)
+      .attr('x2', d => d.target?.x ?? 0)
+      .attr('y2', d => d.target?.y ?? 0);
   }
 
   /**

@@ -8,7 +8,7 @@ import { relevanceScoreEngine } from './relevance-engine.js';
 import { presenceEnergyTracker } from './presence-tracker.js';
 import { stateManager } from './state-manager.js';
 import { effectivePullCalculator } from './effective-pull.js';
-import { nodeRenderer, NodeRenderer } from './node-renderer.js?v=20260318c';
+import { nodeRenderer, NodeRenderer } from './node-renderer.js?v=20260318d';
 import { animationEngine } from './animation-engine.js';
 import { physicsLoop, AdaptiveFrameRateManager } from './physics-loop.js';
 import { interactionHandler } from './interaction-handler.js';
@@ -1062,12 +1062,13 @@ try {
         );
       }
 
-      // Render nodes
+      // Render links and nodes
       const renderState = { ...state };
       if (initialFrames < INITIAL_FORCE_FRAMES) {
         renderState.forceRender = true;
         initialFrames++;
       }
+      this._nodeRenderer.renderLinks(this._graphDataStore.getAllEdges());
       this._nodeRenderer.render(nodes, renderState);
     });
   }
