@@ -946,11 +946,25 @@ try {
       return window.synapseSimulation;
     }
 
+    // Calculate center based on actual SVG dimensions
+    const svgRect = this._svg?.getBoundingClientRect();
+    const cx = svgRect ? svgRect.width / 2 : window.innerWidth / 2;
+    const cy = svgRect ? svgRect.height / 2 : window.innerHeight / 2;
+
+    // Scatter nodes around center so the simulation spreads them naturally
+    // (D3 forceCenter adjusts center-of-mass but doesn't move nodes if they're all at 0,0)
+    for (const node of nodes) {
+      if (node.x === 0 && node.y === 0) {
+        node.x = cx + (Math.random() - 0.5) * 400;
+        node.y = cy + (Math.random() - 0.5) * 400;
+      }
+    }
+
     // Create new simulation
     const simulation = window.d3.forceSimulation(nodes)
       .force('link', window.d3.forceLink(edges).id(d => d.id).distance(100))
       .force('charge', window.d3.forceManyBody().strength(-50))
-      .force('center', window.d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2))
+      .force('center', window.d3.forceCenter(cx, cy))
       .force('collision', window.d3.forceCollide().radius(30));
 
     window.synapseSimulation = simulation;
