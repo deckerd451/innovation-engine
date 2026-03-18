@@ -123,22 +123,32 @@ export class NodeRenderer {
     let glowColor = '#ffffff';
     let scale = VISUAL_CONSTANTS.scaleMin;
 
-    // Determine glow based on presence tier
-    const presenceTier = getPresenceTier(node.presenceEnergy || 0);
-    
-    if (presenceTier === PresenceTier.Actionable) {
-      glowIntensity = GLOW_INTENSITY.actionable;
-      glowColor = GLOW_COLORS.actionable;
-    } else if (presenceTier === PresenceTier.Relevant) {
-      glowIntensity = GLOW_INTENSITY.relevant;
-      glowColor = GLOW_COLORS.relevant;
-    } else if (presenceTier === PresenceTier.Ambient) {
-      glowIntensity = GLOW_INTENSITY.ambient;
-      glowColor = GLOW_COLORS.ambient;
+    // Current user's node gets hero treatment
+    const isCurrentUser = node.isCurrentUser === true;
+    if (isCurrentUser) {
+      scale = 1.6;
+      glowIntensity = 0.45;
+      glowColor = '#00e0ff';
     }
 
-    // Apply dimming if another node is focused
-    if (state && state.currentFocusedNodeId && state.currentFocusedNodeId !== node.id) {
+    // Determine glow based on presence tier (non-user nodes)
+    if (!isCurrentUser) {
+      const presenceTier = getPresenceTier(node.presenceEnergy || 0);
+      
+      if (presenceTier === PresenceTier.Actionable) {
+        glowIntensity = GLOW_INTENSITY.actionable;
+        glowColor = GLOW_COLORS.actionable;
+      } else if (presenceTier === PresenceTier.Relevant) {
+        glowIntensity = GLOW_INTENSITY.relevant;
+        glowColor = GLOW_COLORS.relevant;
+      } else if (presenceTier === PresenceTier.Ambient) {
+        glowIntensity = GLOW_INTENSITY.ambient;
+        glowColor = GLOW_COLORS.ambient;
+      }
+    }
+
+    // Apply dimming if another node is focused (never dim the current user)
+    if (!isCurrentUser && state && state.currentFocusedNodeId && state.currentFocusedNodeId !== node.id) {
       const focusedNode = this._findNodeById(state.currentFocusedNodeId);
       if (focusedNode && node.x !== undefined && node.y !== undefined) {
         const distance = Math.hypot(node.x - focusedNode.x, node.y - focusedNode.y);
@@ -148,9 +158,11 @@ export class NodeRenderer {
       }
     }
 
-    // Scale based on effectivePull
-    const effectivePull = node.effectivePull ?? computeEffectivePull(node);
-    scale = VISUAL_CONSTANTS.scaleMin + (effectivePull * (VISUAL_CONSTANTS.scaleMax - VISUAL_CONSTANTS.scaleMin));
+    // Scale based on effectivePull (only for non-user nodes)
+    if (!isCurrentUser) {
+      const effectivePull = node.effectivePull ?? computeEffectivePull(node);
+      scale = VISUAL_CONSTANTS.scaleMin + (effectivePull * (VISUAL_CONSTANTS.scaleMax - VISUAL_CONSTANTS.scaleMin));
+    }
 
     return {
       radius: baseRadius * scale,
@@ -348,8 +360,8 @@ export class NodeRenderer {
         return visualState.radius;
       })
       .attr('fill', d => d.color || '#4488ff')
-      .attr('stroke', d => d.isGuided ? '#00ffff' : '#ffffff')
-      .attr('stroke-width', d => d.isGuided ? 3 : 1);
+      .attr('stroke', d => d.isCurrentUser ? '#00e0ff' : d.isGuided ? '#00ffff' : '#ffffff')
+      .attr('stroke-width', d => d.isCurrentUser ? 3 : d.isGuided ? 3 : 1);
 
     // Update glow
     nodeMerge.select('.node-glow')

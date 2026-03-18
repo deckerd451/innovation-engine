@@ -254,6 +254,7 @@ export class GraphDataStore {
 
       // State flags
       isMyNetwork: user.id === this._userId,
+      isCurrentUser: user.id === this._userId,
       isDiscovery: false,
       isFocused: false,
       isGuided: false,

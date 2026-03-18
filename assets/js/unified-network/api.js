@@ -3,12 +3,12 @@
 // Version: 1.0.0
 
 import { SystemMode } from './types.js';
-import { graphDataStore } from './graph-data-store.js?v=people-only-20260318';
+import { graphDataStore } from './graph-data-store.js?v=hero-node-20260318';
 import { relevanceScoreEngine } from './relevance-engine.js';
 import { presenceEnergyTracker } from './presence-tracker.js';
 import { stateManager } from './state-manager.js';
 import { effectivePullCalculator } from './effective-pull.js';
-import { nodeRenderer, NodeRenderer } from './node-renderer.js?v=people-only-20260318';
+import { nodeRenderer, NodeRenderer } from './node-renderer.js?v=hero-node-20260318';
 import { animationEngine } from './animation-engine.js';
 import { physicsLoop, AdaptiveFrameRateManager } from './physics-loop.js';
 import { interactionHandler } from './interaction-handler.js';
