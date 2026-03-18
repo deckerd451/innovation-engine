@@ -102,7 +102,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     if (!window.supabase) return;
 
     try {
-      // Get conversations for this user (use select('*') to avoid missing-column errors)
+      // Get conversations for this user
       const { data, error } = await window.supabase
         .from('conversations')
         .select('*')
@@ -112,43 +112,47 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
 
       if (error) throw error;
 
-      // For each conversation, get the latest message from the other person
       const messagesWithUnread = [];
       for (const conv of data || []) {
-        // Try unread count via `read` column first; fall back to showing
-        // the latest inbound message so the panel is never empty.
         let unreadCount = 0;
         let lastPreview = null;
         let lastAt = null;
 
-        // Attempt 1: count unread messages (read = false)
-        const { count, error: countError } = await window.supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('conversation_id', conv.id)
-          .eq('read', false)
-          .neq('sender_id', currentUserProfile.id);
+        // Count unread messages: try read_at IS NULL first, fall back gracefully
+        try {
+          const { count, error: countError } = await window.supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', conv.id)
+            .is('read_at', null)
+            .neq('sender_id', currentUserProfile.id);
 
-        if (!countError && count > 0) {
-          unreadCount = count;
+          if (!countError && count > 0) {
+            unreadCount = count;
+          }
+        } catch (_) {
+          // Column may not exist — skip unread counting
         }
 
         // Get the latest inbound message for preview text
-        const { data: lastMsg, error: lastMsgErr } = await window.supabase
-          .from('messages')
-          .select('content, created_at')
-          .eq('conversation_id', conv.id)
-          .neq('sender_id', currentUserProfile.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        // Use limit(1) without .single() to avoid 406 when no rows
+        try {
+          const { data: msgs, error: lastMsgErr } = await window.supabase
+            .from('messages')
+            .select('content, created_at')
+            .eq('conversation_id', conv.id)
+            .neq('sender_id', currentUserProfile.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
 
-        if (!lastMsgErr && lastMsg) {
-          lastPreview = lastMsg.content;
-          lastAt = lastMsg.created_at;
+          if (!lastMsgErr && msgs && msgs.length > 0) {
+            lastPreview = msgs[0].content;
+            lastAt = msgs[0].created_at;
+          }
+        } catch (_) {
+          // Ignore per-conversation errors
         }
 
-        // Show conversation if there are unread messages OR recent inbound messages
         if (unreadCount > 0 || lastPreview) {
           messagesWithUnread.push({
             ...conv,
@@ -159,8 +163,6 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         }
       }
 
-      // Only keep conversations that actually have unread messages
-      // (if `read` column works, respect it; otherwise show recent inbound)
       unifiedData.messages = messagesWithUnread.filter(m => m.unread_count > 0);
 
     } catch (error) {
