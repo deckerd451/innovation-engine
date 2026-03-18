@@ -114,56 +114,27 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
 
       const messagesWithUnread = [];
       for (const conv of data || []) {
-        let unreadCount = 0;
-        let lastPreview = null;
-        let lastAt = null;
+        // Get the latest inbound message for preview text + count
+        // Skip the read_at column entirely — it doesn't exist on this table
+        const { data: msgs, error: msgErr } = await window.supabase
+          .from('messages')
+          .select('content, created_at')
+          .eq('conversation_id', conv.id)
+          .neq('sender_id', currentUserProfile.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
 
-        // Count unread messages: try read_at IS NULL first, fall back gracefully
-        try {
-          const { count, error: countError } = await window.supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('conversation_id', conv.id)
-            .is('read_at', null)
-            .neq('sender_id', currentUserProfile.id);
-
-          if (!countError && count > 0) {
-            unreadCount = count;
-          }
-        } catch (_) {
-          // Column may not exist — skip unread counting
-        }
-
-        // Get the latest inbound message for preview text
-        // Use limit(1) without .single() to avoid 406 when no rows
-        try {
-          const { data: msgs, error: lastMsgErr } = await window.supabase
-            .from('messages')
-            .select('content, created_at')
-            .eq('conversation_id', conv.id)
-            .neq('sender_id', currentUserProfile.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-          if (!lastMsgErr && msgs && msgs.length > 0) {
-            lastPreview = msgs[0].content;
-            lastAt = msgs[0].created_at;
-          }
-        } catch (_) {
-          // Ignore per-conversation errors
-        }
-
-        if (unreadCount > 0 || lastPreview) {
+        if (!msgErr && msgs && msgs.length > 0) {
           messagesWithUnread.push({
             ...conv,
-            unread_count: unreadCount || 1,
-            last_message_preview: lastPreview || 'New message',
-            last_message_at: lastAt || conv.updated_at
+            unread_count: msgs.length,
+            last_message_preview: msgs[0].content || 'New message',
+            last_message_at: msgs[0].created_at || conv.updated_at
           });
         }
       }
 
-      unifiedData.messages = messagesWithUnread.filter(m => m.unread_count > 0);
+      unifiedData.messages = messagesWithUnread;
 
     } catch (error) {
       console.error('Error loading messages:', error);
