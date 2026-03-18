@@ -111,32 +111,15 @@
     </div>
 
     <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
-      <!-- (Removed: legacy START button — Network Reflection is now the single entry point via bell) -->
+      <!-- (Removed: legacy START button, refresh button, logout button — all consolidated into command dashboard) -->
 
       <!-- Notification Bell (Hidden - replaced by unified notification system) -->
       <div id="notification-bell" style="display:none;">
         <i class="fas fa-bell" style="color:#00e0ff; font-size:1.2rem;"></i>
       </div>
 
-      <!-- Refresh Network Button -->
-      <div id="btn-refresh-network" role="button" tabindex="0"
-        style="cursor:pointer; padding:0.75rem; background:rgba(0,224,255,0.1);
-        border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:48px; height:48px;
-        display:flex; align-items:center; justify-content:center; position:relative;"
-        title="Refresh network view" aria-label="Refresh network view">
-        <i class="fas fa-sync-alt" id="refresh-icon-header" style="color:#00e0ff; font-size:1.2rem;"></i>
-      </div>
-
-      <!-- Logout Button -->
-      <div id="btn-logout-header" role="button" tabindex="0"
-        style="cursor:pointer; padding:0.75rem; background:rgba(255,107,107,0.1);
-        border:1px solid rgba(255,107,107,0.3); border-radius:50%; width:48px; height:48px;
-        display:flex; align-items:center; justify-content:center; transition:all 0.2s;"
-        onmouseenter="this.style.background='rgba(255,107,107,0.2)'; this.style.borderColor='rgba(255,107,107,0.5)'"
-        onmouseleave="this.style.background='rgba(255,107,107,0.1)'; this.style.borderColor='rgba(255,107,107,0.3)'"
-        title="Logout" aria-label="Logout">
-        <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.2rem;"></i>
-      </div>
+      <!-- (Removed: Refresh Network Button — no longer needed) -->
+      <!-- (Removed: Logout Button — moved to command dashboard panel) -->
 
       <!-- Admin Panel Button (Hidden - moved to left side) -->
       <div id="btn-admin-top" style="display:none;"></div>
@@ -298,6 +281,12 @@
                 title="Messages" aria-label="Open messages">
                 <i class="fas fa-bell"></i>
                 <span class="cd-bell-badge" id="cd-bell-badge" style="display:none;">0</span>
+              </button>
+              <!-- Logout button -->
+              <button class="cd-icon-btn" id="cd-logout-btn"
+                title="Logout" aria-label="Logout"
+                style="color:#ff6b6b;">
+                <i class="fas fa-sign-out-alt"></i>
               </button>
             </div>
           </div>
@@ -911,7 +900,7 @@
 
   <!-- Unified Tier Desktop Experience -->
   <script src="assets/js/graph-controller.js" defer></script>
-  <script src="assets/js/command-dashboard.js?v=no-tiers-20260318" defer></script>
+  <script src="assets/js/command-dashboard.js?v=logout-20260318" defer></script>
 
   <!-- Wire up global functions for enhanced START UI -->
   <script>
@@ -976,9 +965,7 @@
         });
       }
 
-      // (Removed: btn-start-nav wiring — star button merged into bell)
-
-      wireKeyClick('btn-logout-header', () => window.doLogout && window.doLogout());
+      // (Removed: btn-start-nav and btn-logout-header wiring — consolidated into command dashboard)
 
       wireKeyClick('btn-admin-top-left', () => {
         if (typeof window.openAdminPanel === 'function') window.openAdminPanel();
@@ -1206,37 +1193,6 @@
     })();
   </script>
 
-  <!-- Refresh Network Logic -->
-  <script>
-    (function() {
-      const refreshBtn = document.getElementById('btn-refresh-network');
-      const refreshIcon = document.getElementById('refresh-icon-header');
-      if (!refreshBtn || !refreshIcon) return;
-
-      function doRefresh() {
-        console.log('🔄 Refreshing network view...');
-        refreshIcon.classList.add('spin');
-
-        if (typeof window.unifiedNetworkIntegration?.api?.resetToMyNetwork === 'function') {
-          window.unifiedNetworkIntegration.api.resetToMyNetwork();
-        } else if (typeof window.refreshSynapseView === 'function') {
-          window.refreshSynapseView();
-        } else {
-          console.warn('⚠️ No refresh function available');
-        }
-
-        setTimeout(() => refreshIcon.classList.remove('spin'), 1000);
-      }
-
-      refreshBtn.addEventListener('click', doRefresh);
-      refreshBtn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          doRefresh();
-        }
-      });
-    })();
-  </script>
 
   <!-- User Dropdown + Settings/Logout (kept; won’t spam warnings if hidden) -->
   <script>
@@ -1502,27 +1458,6 @@
       - .spin (or equivalent) + @keyframes spin for refresh icon
   -->
 
-  <!-- ============================================================ -->
-  <!-- MOBILE BOTTOM TAB BAR (hidden on desktop ≥1024px)           -->
-  <!-- ============================================================ -->
-  <nav id="mobile-tab-bar" aria-label="Main navigation" role="navigation">
-    <button class="mob-tab" id="mob-tab-event-mode" data-tab="event-mode" aria-label="Event Mode">
-      <i class="fas fa-broadcast-tower"></i>
-      <span>Event</span>
-    </button>
-    <button class="mob-tab" id="mob-tab-suggestions" data-tab="suggestions" aria-label="Suggested Connections">
-      <i class="fas fa-user-friends"></i>
-      <span>Nearby</span>
-      <span class="mob-tab-badge" id="mob-tab-suggestions-badge" style="display:none;">0</span>
-    </button>
-    <button class="mob-tab mob-tab-center" id="mob-tab-messages" data-tab="messages" aria-label="Network Reflection">
-      <span class="mob-tab-fab"><i class="fas fa-bell"></i></span>
-      <span class="mob-tab-badge" id="mob-tab-messages-badge" style="display:none;">0</span>
-    </button>
-    <button class="mob-tab" id="mob-tab-profile" data-tab="profile" aria-label="Profile">
-      <i class="fas fa-user-circle"></i>
-      <span>You</span>
-    </button>
-  </nav>
+  <!-- (Removed: mobile bottom tab bar — functionality consolidated into command dashboard) -->
 </body>
 </html>

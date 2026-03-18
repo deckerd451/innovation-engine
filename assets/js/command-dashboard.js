@@ -165,6 +165,7 @@ window.CommandDashboard = (() => {
     _wireAvatarClick();
     _wireAdminBtn();
     _wireBellBtn();
+    _wireLogoutBtn();
     _wireReportBtn();
 
     // Re-render identity if profile reloads (auth refresh / profile edit)
@@ -1377,6 +1378,15 @@ window.CommandDashboard = (() => {
       } else if (typeof window.openMessagesModal === 'function') {
         window.openMessagesModal();
       }
+    });
+  }
+
+  /** Wire logout button in command dashboard */
+  function _wireLogoutBtn() {
+    const btn = $id('cd-logout-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (window.doLogout) window.doLogout();
     });
   }
 
