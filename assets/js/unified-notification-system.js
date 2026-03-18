@@ -75,10 +75,10 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     // Update styling
     startButton.style.background = 'rgba(0,224,255,0.1)';
     startButton.style.borderColor = 'rgba(0,224,255,0.3)';
-    startButton.title = 'View updates, notifications, and Daily Intelligence Brief';
+    startButton.title = 'View updates, notifications, and Network Reflection';
 
     // Override onclick: open the notification panel which renders the
-    // Daily Intelligence Brief inline plus any pending notification items.
+    // Network Reflection inline plus any pending notification items.
     startButton.onclick = function (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -562,7 +562,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     header.innerHTML = `
       <div>
         <h3 style="margin: 0 0 0.25rem 0; color: #00e0ff; font-size: 1.3rem;">
-          <i class="fas fa-bell"></i> Your Intelligence Brief
+          <i class="fas fa-bell"></i> Network Reflection
         </h3>
         <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
           ${unifiedData.totalUnread > 0
@@ -593,9 +593,15 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       padding: 1rem;
     `;
 
+    // ── Action items (connection requests, messages, notifications) ──
+    // Moved to top so urgent items are immediately visible.
+    const notifSections = document.createElement('div');
+    notifSections.innerHTML = generatePanelContent();
+    content.appendChild(notifSections);
+
     // ── Your Focus Today ─────────────────────────────────────────────
-    // Unique to this panel: the most relevant theme and interests
-    // overlap. Loaded async via MentorGuide after the panel is in DOM.
+    // The most relevant theme and interests overlap.
+    // Loaded async via MentorGuide after the panel is in DOM.
     const focusSection = document.createElement('div');
     focusSection.id = 'ie-focus-root-panel';
     focusSection.style.cssText = 'padding-bottom: 0.75rem; border-bottom: 1px solid rgba(0,224,255,0.15); margin-bottom: 0.75rem;';
@@ -612,12 +618,6 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       </div>
     `;
     content.appendChild(focusSection);
-
-    // ── Action items (connection requests, messages, notifications) ──
-    // These are unique to this panel — the Network Command does not show them.
-    const notifSections = document.createElement('div');
-    notifSections.innerHTML = generatePanelContent();
-    content.appendChild(notifSections);
 
     // ── Intelligence Signals ─────────────────────────────────────────
     // Full personal-signal brief from the daily brief engine.
