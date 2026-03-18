@@ -1568,26 +1568,19 @@ window.sendMessage = async function(userId) {
     console.log('📨 Opening message for user:', userId);
     closeNodePanel();
 
-    // Open messages modal
-    const messagesModal = document.getElementById('messages-modal');
-    if (messagesModal) {
-      messagesModal.classList.add('active');
+    // Use sendDirectMessage if available (creates/finds conversation + opens UI)
+    if (typeof window.sendDirectMessage === 'function') {
+      await window.sendDirectMessage(userId, '');
+      return;
     }
 
-    // Wait for messaging module to initialize
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Initialize and start conversation
-    if (window.MessagingModule) {
-      if (typeof window.MessagingModule.init === 'function') {
-        await window.MessagingModule.init();
-      }
-      if (typeof window.MessagingModule.startConversation === 'function') {
-        await window.MessagingModule.startConversation(userId);
-        console.log('✅ Started conversation with user:', userId);
-      }
+    // Fallback: open messaging interface directly
+    if (typeof window.openMessagingInterface === 'function') {
+      await window.openMessagingInterface();
+      console.log('✅ Messaging interface opened for user:', userId);
     } else {
-      console.error('MessagingModule not available');
+      console.error('❌ No messaging function available');
+      alert('Messaging is still loading. Please try again in a moment.');
     }
   } catch (error) {
     console.error('Error starting conversation:', error);
