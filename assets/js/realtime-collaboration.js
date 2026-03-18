@@ -73,15 +73,14 @@ async function sendDirectMessage(userId, message) {
       conversationId = newConversation.id;
     }
 
-    // Send the message if provided (using community ID as sender)
+    // Send the message if provided (using auth user ID as sender — messages.sender_id references auth.users)
     if (message && message.trim()) {
       const { error: messageError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
-          sender_id: currentUserProfile.id, // Use community ID
-          content: message.trim(),
-          message_type: MESSAGE_TYPES.TEXT
+          sender_id: currentUserProfile.user_id,
+          content: message.trim()
         });
 
       if (messageError) throw messageError;
@@ -201,8 +200,8 @@ function handleNewMessage(payload) {
     appendMessageToConversation(message.conversation_id, message);
   }
 
-  // Update unread count
-  if (message.sender_id !== currentUserProfile.id) {
+  // Update unread count (sender_id is auth user ID)
+  if (message.sender_id !== currentUserProfile.user_id) {
     updateUnreadCount(message.conversation_id, 1);
     showMessageNotification(message);
   }
@@ -885,8 +884,8 @@ async function loadConversationMessages(conversationId) {
       `;
     } else {
       messages.forEach(message => {
-        // Check if message is from current user (using community ID)
-        const isOwn = message.sender_id === currentUserProfile.id;
+        // Check if message is from current user (sender_id is auth user ID)
+        const isOwn = message.sender_id === currentUserProfile.user_id;
         const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
         messagesHtml += `
@@ -926,14 +925,13 @@ window.sendMessage = async function() {
   if (!content) return;
 
   try {
-    // Send message using community ID as sender
+    // Send message using auth user ID as sender — messages.sender_id references auth.users
     const { error } = await supabase
       .from('messages')
       .insert({
         conversation_id: activeConversationId,
-        sender_id: currentUserProfile.id, // Use community ID
-        content: content,
-        message_type: MESSAGE_TYPES.TEXT
+        sender_id: currentUserProfile.user_id,
+        content: content
       });
 
     if (error) throw error;
@@ -969,8 +967,8 @@ function appendMessageToConversation(conversationId, message) {
   const messagesArea = document.getElementById('messages-area');
   if (!messagesArea) return;
 
-  // Check if message is from current user (using community ID)
-  const isOwn = message.sender_id === currentUserProfile.id;
+  // Check if message is from current user (sender_id is auth user ID)
+  const isOwn = message.sender_id === currentUserProfile.user_id;
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
   const messageElement = document.createElement('div');

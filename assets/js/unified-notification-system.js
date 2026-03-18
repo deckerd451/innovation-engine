@@ -120,7 +120,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           .from('messages')
           .select('content, created_at')
           .eq('conversation_id', conv.id)
-          .neq('sender_id', currentUserProfile.id)
+          .neq('sender_id', currentUserProfile.user_id)
           .order('created_at', { ascending: false })
           .limit(5);
 
