@@ -59,33 +59,8 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   // ================================================================
 
   function replaceStartButton() {
-    const startButton = document.getElementById('btn-start-nav');
-    if (!startButton) {
-      console.warn('⚠️ START button not found');
-      return;
-    }
-
-    // Update icon to bell
-    const icon = startButton.querySelector('i');
-    if (icon) {
-      icon.className = 'fas fa-bell';
-      icon.style.color = '#00e0ff';
-    }
-
-    // Update styling
-    startButton.style.background = 'rgba(0,224,255,0.1)';
-    startButton.style.borderColor = 'rgba(0,224,255,0.3)';
-    startButton.title = 'View updates, notifications, and Network Reflection';
-
-    // Override onclick: open the notification panel which renders the
-    // Network Reflection inline plus any pending notification items.
-    startButton.onclick = function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      showUnifiedNotificationPanel();
-    };
-
-    console.log('✅ START button changed to notification bell → panel');
+    // No-op: btn-start-nav was removed; bell is now in command dashboard
+    // and mobile header. Kept as stub for back-compat with init() call.
   }
 
   // ================================================================
@@ -208,28 +183,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   // ================================================================
 
   function updateNotificationBadge() {
-    const button = document.getElementById('btn-start-nav');
-    if (button) {
-      // Remove existing badge from synapse button (now hidden, but keep logic safe)
-      const existingBadge = button.querySelector('.notification-badge');
-      if (existingBadge) existingBadge.remove();
-
-      if (unifiedData.totalUnread > 0) {
-        const badge = document.createElement('span');
-        badge.className = 'notification-badge';
-        badge.textContent = unifiedData.totalUnread > 99 ? '99+' : unifiedData.totalUnread;
-        badge.style.cssText = `
-          position: absolute; top: -4px; right: -4px;
-          background: #ff3b30; color: white; border-radius: 10px;
-          padding: 2px 6px; font-size: 0.7rem; font-weight: bold;
-          min-width: 18px; text-align: center;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10;
-        `;
-        button.appendChild(badge);
-      }
-    }
-
-    // Drive the panel bell badge with the same total count
+    // Drive the panel bell badge with the total count
     const panelBadge = document.getElementById('cd-bell-badge');
     if (panelBadge) {
       if (unifiedData.totalUnread > 0) {
