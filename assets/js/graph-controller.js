@@ -21,7 +21,7 @@ window.GraphController = (() => {
 
   const TIER_MAP = { 1: 'T1', 2: 'T2', 3: 'T3' };
 
-  let _currentTier = 1;
+  let _currentTier = 3;
   let _userId = null;
   let _initialized = false;
 
@@ -83,7 +83,7 @@ window.GraphController = (() => {
     _initialized = true;
     _userId = userId;
 
-    console.log('[GraphController] Initializing for desktop (Tier 1 default)...');
+    console.log('[GraphController] Initializing for desktop (Tier 3 ecosystem)...');
 
     // Wait for unified network to be ready, then apply default tier
     let attempts = 0;
@@ -92,11 +92,8 @@ window.GraphController = (() => {
     const tryApplyDefault = () => {
       const api = _api();
       if (api && typeof api.applyTier === 'function' && api.isInitialized()) {
-        setTier(1);
-        if (typeof api.centerOnCurrentUser === 'function') {
-          api.centerOnCurrentUser();
-        }
-        console.log('[GraphController] Default Tier 1 applied on init');
+        setTier(3);
+        console.log('[GraphController] Default Tier 3 applied on init');
         return;
       }
 
@@ -104,7 +101,7 @@ window.GraphController = (() => {
       if (attempts < maxAttempts) {
         setTimeout(tryApplyDefault, 500);
       } else {
-        console.warn('[GraphController] Timed out waiting for unified network — Tier 1 not applied');
+        console.warn('[GraphController] Timed out waiting for unified network — Tier 3 not applied');
       }
     };
 

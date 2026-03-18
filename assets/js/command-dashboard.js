@@ -111,7 +111,7 @@ window.CommandDashboard = (() => {
   }
 
   /* ── Internal state ─────────────────────────────────────────── */
-  let _currentTier = 1;
+  let _currentTier = 3;
   let _userId = null;           // community.id
   let _authUserId = null;       // auth.users.id (for generateDailyBrief)
   let _activeResourceTab = 'people';
@@ -173,8 +173,8 @@ window.CommandDashboard = (() => {
       if (p) _renderIdentity(p);
     });
 
-    // Render initial Tier 1 content
-    await _renderAll(1);
+    // Render initial Tier 3 (ecosystem) content — tier buttons removed
+    await _renderAll(3);
 
     // Enrich status with accepted-connection + active-project data from Supabase.
     // Non-blocking: re-renders compact status once data arrives.
