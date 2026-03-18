@@ -270,6 +270,20 @@ export class NodeRenderer {
     // ✅ UPDATE: Merge enter + existing nodes for updates
     const nodeMerge = nodeEnter.merge(nodeSelection);
 
+    // ONE-TIME DIAGNOSTIC: Log first 3 node positions + SVG structure on first render
+    if (!this._diagLogged) {
+      this._diagLogged = true;
+      const sample = visibleNodes.slice(0, 3).map(n => ({ id: n.id?.substring(0,8), x: n.x?.toFixed(1), y: n.y?.toFixed(1), color: n.color }));
+      const svgRect = this._svg?.getBoundingClientRect();
+      const zoomG = this._svg?.querySelector('.unified-zoom-container, .synapse-container');
+      const nodesG = this._svg?.querySelector('.nodes');
+      console.log('🔬 [DIAG] Node positions sample:', sample);
+      console.log('🔬 [DIAG] SVG rect:', svgRect ? { w: svgRect.width, h: svgRect.height, x: svgRect.x, y: svgRect.y } : 'null');
+      console.log('🔬 [DIAG] Zoom container:', zoomG?.tagName, zoomG?.getAttribute('class'), 'transform:', zoomG?.getAttribute('transform'));
+      console.log('🔬 [DIAG] Nodes group:', nodesG?.tagName, nodesG?.childElementCount, 'children');
+      console.log('🔬 [DIAG] SVG innerHTML (first 500):', this._svg?.innerHTML?.substring(0, 500));
+    }
+
     // Update positions using SVG transform attribute (reliable across all browsers)
     nodeMerge.each((d, i, nodes) => {
       const element = nodes[i];

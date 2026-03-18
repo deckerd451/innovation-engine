@@ -8,7 +8,7 @@ import { relevanceScoreEngine } from './relevance-engine.js';
 import { presenceEnergyTracker } from './presence-tracker.js';
 import { stateManager } from './state-manager.js';
 import { effectivePullCalculator } from './effective-pull.js';
-import { nodeRenderer, NodeRenderer } from './node-renderer.js?v=20260318';
+import { nodeRenderer, NodeRenderer } from './node-renderer.js?v=20260318c';
 import { animationEngine } from './animation-engine.js';
 import { physicsLoop, AdaptiveFrameRateManager } from './physics-loop.js';
 import { interactionHandler } from './interaction-handler.js';
@@ -350,6 +350,14 @@ try {
       this._setupPhysicsLoop(nodes);
       this._physicsLoop.start();
       console.log('🔄 Physics loop started');
+
+      // 17b. CRITICAL: Force AnimationLifecycle into ACTIVE state for initial render.
+      // AnimationLifecycle starts IDLE and only goes ACTIVE on user interaction,
+      // but we need the first render to happen immediately so the graph is visible.
+      if (window.AnimationLifecycle && typeof window.AnimationLifecycle.recordInteraction === 'function') {
+        window.AnimationLifecycle.recordInteraction();
+        console.log('🎬 Forced AnimationLifecycle ACTIVE for initial render');
+      }
 
       // 18. Setup Adaptive Frame Rate
       this._frameRateManager = new AdaptiveFrameRateManager(this._physicsLoop);
@@ -1006,6 +1014,10 @@ try {
    * @private
    */
   _setupPhysicsLoop(nodes) {
+    // Track initial frames to force rendering even if AnimationLifecycle is IDLE
+    let initialFrames = 0;
+    const INITIAL_FORCE_FRAMES = 120; // Force first ~2 seconds of rendering
+
     this._physicsLoop.onUpdate((deltaTime) => {
       // Update simulation
       if (this._simulation) {
@@ -1051,7 +1063,12 @@ try {
       }
 
       // Render nodes
-      this._nodeRenderer.render(nodes, state);
+      const renderState = { ...state };
+      if (initialFrames < INITIAL_FORCE_FRAMES) {
+        renderState.forceRender = true;
+        initialFrames++;
+      }
+      this._nodeRenderer.render(nodes, renderState);
     });
   }
 

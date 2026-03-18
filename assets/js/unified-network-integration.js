@@ -9,7 +9,7 @@
  * - GRACEFUL FALLBACK: Errors fall back to legacy synapse.
  */
 
-import { unifiedNetworkApi } from './unified-network/api.js?v=20260318';
+import { unifiedNetworkApi } from './unified-network/api.js?v=20260318c';
 import { logger } from './logger.js';
 import { initializeErrorHandling } from './unified-network/error-integration.js';
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
