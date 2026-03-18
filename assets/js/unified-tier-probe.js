@@ -312,7 +312,17 @@ export class UnifiedTierProbe {
     this.metrics.lastScale = scale;
     this.metrics.lastScaleTime = Date.now();
 
-    console.log(`📱 UnifiedTierProbe: Scale update: ${scale.toFixed(3)} (source: ${source})`);
+    // Throttle logging to avoid console spam (max once per 2s)
+    const now = Date.now();
+    if (!this._lastScaleLog || now - this._lastScaleLog > 2000) {
+      this._lastScaleLog = now;
+      console.log(`📱 UnifiedTierProbe: Scale update: ${scale.toFixed(3)} (source: ${source})`);
+    }
+
+    // Skip tier decisions if tier system is disabled (desktop)
+    if (this.refs.api && typeof this.refs.api.isTierEnabled === 'function') {
+      try { if (!this.refs.api.isTierEnabled()) return; } catch (_) {}
+    }
 
     // Attempt tier decision
     this._attemptTierDecision(scale);
