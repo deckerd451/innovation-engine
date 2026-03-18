@@ -1093,10 +1093,14 @@ window.closeMessagingInterface = function() {
   console.log('🗑️ Messaging interface closed');
 };
 
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize on DOM ready (or immediately if DOM already loaded — modules execute after parsing)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    initRealtimeCollaboration();
+  });
+} else {
   initRealtimeCollaboration();
-});
+}
 
 console.log('✅ Real-time collaboration ready');
 
