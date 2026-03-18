@@ -125,6 +125,12 @@ window.CommandDashboard = (() => {
   let _enrichedData = {
     acceptedPeerIds: null,   // Set<string> — accepted-only connection peer IDs
     activeProjectIds: null,  // Set<string> — projects with status active/open/etc.
+    // Direct Supabase data for dashboard (projects/orgs/opps no longer in graph)
+    projects: null,          // Array — all projects from Supabase
+    myProjectIds: null,      // Set<string> — projects the user is a member of
+    organizations: null,     // Array — all organizations from Supabase
+    myOrgIds: null,          // Set<string> — orgs the user belongs to
+    opportunities: null,     // Array — all opportunities from Supabase
   };
 
   /* ── Element shortcuts ──────────────────────────────────────── */
@@ -402,18 +408,37 @@ window.CommandDashboard = (() => {
   async function _loadEnrichedData() {
     if (!window.supabase || !_userId) return;
     try {
-      const [connResult, projResult] = await Promise.all([
+      const [connResult, projResult, myProjResult, orgResult, myOrgResult, oppResult] = await Promise.all([
         // Accepted connections only (both directions)
         window.supabase
           .from('connections')
           .select('from_user_id, to_user_id')
           .or(`from_user_id.eq.${_userId},to_user_id.eq.${_userId}`)
           .eq('status', 'accepted'),
-        // Active / open projects
+        // All projects (with basic info for Explore tab)
         window.supabase
           .from('projects')
-          .select('id')
-          .in('status', ['active', 'in-progress', 'open', 'recruiting']),
+          .select('id, title, description, status, creator_id, theme_id'),
+        // Projects the current user is a member of
+        window.supabase
+          .from('project_members')
+          .select('project_id')
+          .eq('user_id', _userId),
+        // All organizations
+        window.supabase
+          .from('organizations')
+          .select('id, name, description'),
+        // Orgs the current user belongs to
+        window.supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('community_id', _userId),
+        // Opportunities (table may not exist — handle gracefully)
+        window.supabase
+          .from('opportunities')
+          .select('id, title, description, status, organization_id')
+          .then(res => res)
+          .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
       ]);
 
       if (connResult.data) {
@@ -423,12 +448,35 @@ window.CommandDashboard = (() => {
           )
         );
       }
+
       if (projResult.data) {
-        _enrichedData.activeProjectIds = new Set(projResult.data.map(p => p.id));
+        _enrichedData.projects = projResult.data;
+        _enrichedData.activeProjectIds = new Set(
+          projResult.data
+            .filter(p => ['active', 'in-progress', 'open', 'recruiting'].includes(p.status))
+            .map(p => p.id)
+        );
       }
 
-      // Re-render compact status now that we have accurate counts
+      if (myProjResult.data) {
+        _enrichedData.myProjectIds = new Set(myProjResult.data.map(p => p.project_id));
+      }
+
+      if (orgResult.data) {
+        _enrichedData.organizations = orgResult.data;
+      }
+
+      if (myOrgResult.data) {
+        _enrichedData.myOrgIds = new Set(myOrgResult.data.map(o => o.organization_id));
+      }
+
+      if (oppResult.data) {
+        _enrichedData.opportunities = oppResult.data;
+      }
+
+      // Re-render compact status and resources now that we have accurate data
       _renderCompactStatus(_currentTier);
+      _renderResources(_currentTier);
     } catch (err) {
       console.warn('[CommandDashboard] enriched data load failed:', err.message);
     }
@@ -463,24 +511,19 @@ window.CommandDashboard = (() => {
         return n && n.type === 'person';
       }).length;
 
-    // Projects: Tier 1 = directly connected; Tier 2/3 = active ecosystem projects
+    // Projects: from Supabase (no longer in graph)
     let projects;
     if (tier === 1) {
-      projects = [...directIds].filter(id => {
-        const n = nodes.find(n => n.id === id);
-        return n && n.type === 'project';
-      }).length;
+      projects = _enrichedData.myProjectIds ? _enrichedData.myProjectIds.size : 0;
     } else {
-      const _activeIds = _enrichedData.activeProjectIds;
-      projects = nodes.filter(n => {
-        if (n.type !== 'project') return false;
-        return !_activeIds || _activeIds.has(n.id);
-      }).length;
+      projects = _enrichedData.activeProjectIds ? _enrichedData.activeProjectIds.size : 0;
     }
 
-    // Themes and opportunities are ecosystem-wide regardless of tier
+    // Themes still come from graph (theme nodes remain)
     const themes = nodes.filter(n => n.type === 'theme' || n.type === 'themeCircle').length;
-    const opps   = nodes.filter(n => n.type === 'opportunity').length;
+
+    // Opportunities: from Supabase (no longer in graph)
+    const opps = _enrichedData.opportunities ? _enrichedData.opportunities.length : 0;
 
     const setVal = (id, val) => {
       const el = $id(id);
@@ -519,16 +562,10 @@ window.CommandDashboard = (() => {
     }).length;
 
     if (tier === 1) {
-      // Projects directly connected to user
-      const myProjectIds = new Set(
-        [...directIds].filter(id => {
-          const n = nodes.find(n => n.id === id);
-          return n && n.type === 'project';
-        })
-      );
+      // Projects from Supabase
+      const myProjectCount = _enrichedData.myProjectIds ? _enrichedData.myProjectIds.size : 0;
 
       // "Weak ties" = pending connections or 2nd-hop persons not already direct
-      // Approximation: neighbors of neighbors not in direct set
       const twohopIds = new Set();
       [...directIds].forEach(did => {
         links.forEach(l => {
@@ -560,9 +597,9 @@ window.CommandDashboard = (() => {
         {
           icon: 'fa-bolt',
           label: 'Your Projects',
-          value: myProjectIds.size || '–',
+          value: myProjectCount || '–',
           action: 'focus-projects',
-          tooltip: 'Projects you\'re connected to',
+          tooltip: 'Projects you\'re a member of',
         },
       ];
     }
@@ -586,13 +623,15 @@ window.CommandDashboard = (() => {
       const bridgeCandidates = [...directIds].filter(id => {
         const n = nodes.find(n => n.id === id);
         if (!n || n.type !== 'person') return false;
-        // Has its own connections beyond just to user
         const neighborCount = links.filter(l => {
           const s = edgeSrc(l), t = edgeTgt(l);
           return (s === id || t === id) && s !== userId && t !== userId;
         }).length;
         return neighborCount >= 2;
       }).length;
+
+      // Active projects from Supabase
+      const activeProjectCount = _enrichedData.activeProjectIds ? _enrichedData.activeProjectIds.size : 0;
 
       return [
         {
@@ -611,28 +650,17 @@ window.CommandDashboard = (() => {
         },
         {
           icon: 'fa-search',
-          label: 'Projects Nearby',
-          value: nodes.filter(n => {
-            if (n.type !== 'project') return false;
-            return links.some(l => {
-              const s = edgeSrc(l), t = edgeTgt(l);
-              return ((s === n.id && directIds.has(t)) || (t === n.id && directIds.has(s)));
-            });
-          }).length,
+          label: 'Active Projects',
+          value: activeProjectCount,
           action: 'focus-adj-projects',
-          tooltip: 'Projects adjacent to your connections',
+          tooltip: 'Active projects in the ecosystem',
         },
       ];
     }
 
     // Tier 3: ecosystem-wide stats
     const allPeople = nodes.filter(n => n.type === 'person').length;
-    // Filter to active/open projects if Supabase data is available
-    const _activeIds = _enrichedData.activeProjectIds;
-    const allProjects = nodes.filter(n => {
-      if (n.type !== 'project') return false;
-      return !_activeIds || _activeIds.has(n.id);
-    }).length;
+    const allProjects = _enrichedData.activeProjectIds ? _enrichedData.activeProjectIds.size : 0;
 
     return [
       {
@@ -1043,8 +1071,8 @@ window.CommandDashboard = (() => {
             </div>
             ${item.isStub
               ? `<span class="udc-resource-stub-badge">sample</span>`
-              : `<button class="udc-resource-show-btn" data-id="${item.id}" title="Show in graph" aria-label="Show ${_escapeHtml(item.name)} in graph">
-                  <i class="fas fa-crosshairs"></i>
+              : `<button class="udc-resource-show-btn" data-id="${item.id}" title="${['people','themes'].includes(_activeResourceTab) ? 'Show in graph' : 'View details'}" aria-label="Show ${_escapeHtml(item.name)}">
+                  <i class="fas ${['people','themes'].includes(_activeResourceTab) ? 'fa-crosshairs' : 'fa-info-circle'}"></i>
                 </button>`
             }
           </div>
@@ -1053,24 +1081,31 @@ window.CommandDashboard = (() => {
       }
     `;
 
-    // Wire "Show in Graph" buttons (preserves node-click → card behavior via GraphController.focusNode)
+    // Wire "Show in Graph" buttons — for people/themes, focus in graph;
+    // for projects/orgs/opps, open the node panel directly (they're not graph nodes)
     list.querySelectorAll('.udc-resource-show-btn').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
         const id = btn.dataset.id;
-        if (id && window.GraphController) {
-          window.GraphController.focusNode(id);
+        if (!id) return;
+        if (_activeResourceTab === 'people' || _activeResourceTab === 'themes') {
+          if (window.GraphController) window.GraphController.focusNode(id);
+        } else if (window.openNodePanel) {
+          window.openNodePanel({ id, type: _activeResourceTab.replace(/s$/, '') });
         }
       });
     });
 
-    // Clicking the row also shows the node
+    // Clicking the row also triggers the same action
     list.querySelectorAll('.udc-resource-item').forEach(row => {
       row.addEventListener('click', e => {
-        if (e.target.closest('.udc-resource-show-btn')) return; // handled above
+        if (e.target.closest('.udc-resource-show-btn')) return;
         const id = row.dataset.id;
-        if (id && window.GraphController) {
-          window.GraphController.focusNode(id);
+        if (!id) return;
+        if (_activeResourceTab === 'people' || _activeResourceTab === 'themes') {
+          if (window.GraphController) window.GraphController.focusNode(id);
+        } else if (window.openNodePanel) {
+          window.openNodePanel({ id, type: _activeResourceTab.replace(/s$/, '') });
         }
       });
     });
@@ -1078,8 +1113,6 @@ window.CommandDashboard = (() => {
 
   function _getResourceItems(tier, resourceType) {
     const { nodes, links } = _getGraphData();
-    if (!nodes.length) return [];
-
     const userId = _userId;
 
     const edgeSrc = l => l.source?.id ?? l.source;
@@ -1095,11 +1128,10 @@ window.CommandDashboard = (() => {
     let filtered = [];
 
     if (resourceType === 'people') {
+      if (!nodes.length) return [];
       if (tier === 1) {
-        // Only direct person connections
         filtered = nodes.filter(n => n.type === 'person' && directIds.has(n.id));
       } else if (tier === 2) {
-        // 2-hop people (direct + their connections)
         const twoHopIds = new Set(directIds);
         [...directIds].forEach(did => {
           links.forEach(l => {
@@ -1110,35 +1142,64 @@ window.CommandDashboard = (() => {
         });
         filtered = nodes.filter(n => n.type === 'person' && n.id !== userId && twoHopIds.has(n.id));
       } else {
-        // Tier 3: all people
         filtered = nodes.filter(n => n.type === 'person' && n.id !== userId);
       }
+      return filtered
+        .slice(0, 10)
+        .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
     } else if (resourceType === 'projects') {
+      // Projects come from Supabase, not graph nodes
+      const allProjects = _enrichedData.projects;
+      if (!allProjects) return [];
       if (tier === 1) {
-        // Only projects directly connected to user
-        filtered = nodes.filter(n => n.type === 'project' && directIds.has(n.id));
+        const myIds = _enrichedData.myProjectIds;
+        filtered = myIds ? allProjects.filter(p => myIds.has(p.id)) : [];
       } else {
-        // Tier 2 + 3: all projects
-        filtered = nodes.filter(n => n.type === 'project');
+        const activeIds = _enrichedData.activeProjectIds;
+        filtered = activeIds ? allProjects.filter(p => activeIds.has(p.id)) : allProjects;
       }
+      return filtered
+        .slice(0, 10)
+        .map(p => ({ id: p.id, name: p.title || 'Untitled Project', meta: p.status || '' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
     } else if (resourceType === 'themes') {
-      // Themes are theme-circle nodes
+      if (!nodes.length) return [];
       filtered = nodes.filter(n => n.type === 'theme' || n.type === 'themeCircle');
+      return filtered
+        .slice(0, 10)
+        .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
     } else if (resourceType === 'organizations') {
-      filtered = nodes.filter(n => n.type === 'organization' || n.type === 'org');
-      // Return stubs if no org nodes exist in the graph yet
-      if (filtered.length === 0) return STUB_ORGANIZATIONS;
+      // Organizations come from Supabase, not graph nodes
+      const allOrgs = _enrichedData.organizations;
+      if (!allOrgs || allOrgs.length === 0) return STUB_ORGANIZATIONS;
+      if (tier === 1) {
+        const myIds = _enrichedData.myOrgIds;
+        filtered = myIds ? allOrgs.filter(o => myIds.has(o.id)) : [];
+        if (filtered.length === 0) return STUB_ORGANIZATIONS;
+      } else {
+        filtered = allOrgs;
+      }
+      return filtered
+        .slice(0, 10)
+        .map(o => ({ id: o.id, name: o.name || 'Unknown Org' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
     } else if (resourceType === 'opportunities') {
-      filtered = nodes.filter(n => n.type === 'opportunity');
-      // Return stubs if no opportunity nodes exist in the graph yet
-      if (filtered.length === 0) return STUB_OPPORTUNITIES;
+      // Opportunities come from Supabase, not graph nodes
+      const allOpps = _enrichedData.opportunities;
+      if (!allOpps || allOpps.length === 0) return STUB_OPPORTUNITIES;
+      return allOpps
+        .slice(0, 10)
+        .map(o => ({ id: o.id, name: o.title || 'Untitled Opportunity', meta: o.status || '' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    // Sort by name, limit to 10 items
-    return filtered
-      .slice(0, 10)
-      .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return [];
   }
 
   function _emptyStateCTA(type) {

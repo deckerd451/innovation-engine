@@ -38,7 +38,7 @@ export {
 export {
   GraphDataStore,
   graphDataStore
-} from './graph-data-store.js';
+} from './graph-data-store.js?v=people-only-20260318';
 
 // Physics and Rendering
 export {
@@ -58,7 +58,7 @@ export {
 export {
   NodeRenderer,
   nodeRenderer
-} from './node-renderer.js';
+} from './node-renderer.js?v=people-only-20260318';
 
 export {
   AnimationEngine,

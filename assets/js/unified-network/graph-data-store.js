@@ -98,12 +98,11 @@ export class GraphDataStore {
     console.log("📊 Loading graph data...");
 
     try {
-      // Load nodes (community members + projects)
+      // Load nodes (community members only — projects/orgs/opps live in Command Dashboard)
       const personNodes = await this._loadNodes();
-      const projectNodes = await this._loadProjectNodes();
-      const nodes = [...personNodes, ...projectNodes];
+      const nodes = [...personNodes];
 
-      console.log(`📊 [STORE] Loaded ${personNodes.length} people, ${projectNodes.length} projects`);
+      console.log(`📊 [STORE] Loaded ${personNodes.length} people (projects excluded from graph)`);
 
       // CRITICAL: Store nodes in memory BEFORE loading edges
       // Edge building checks this._nodes.has() for existence
@@ -113,7 +112,6 @@ export class GraphDataStore {
       edgeDebug("🧪 [EDGES] Nodes loaded and stored", {
         nodeCount: this._nodes.size,
         personCount: personNodes.length,
-        projectCount: projectNodes.length,
         nodeIdSample: Array.from(this._nodes.keys()).slice(0, 3)
       });
 
@@ -128,7 +126,7 @@ export class GraphDataStore {
       await this._markMyNetworkNodes();
 
       // Detailed summary log
-      console.log(`📊 [STORE] Loaded ${nodes.length} nodes (${personNodes.length} people, ${projectNodes.length} projects), ${edges.length} edges (connections=${stats.connections}, projects=${stats.projects}, orgs=${stats.orgs}) userId=${this._userId}`);
+      console.log(`📊 [STORE] Loaded ${nodes.length} nodes (people only), ${edges.length} edges (connections=${stats.connections}, orgs=${stats.orgs}) userId=${this._userId}`);
 
       return { nodes, edges };
     } catch (error) {
@@ -402,59 +400,10 @@ export class GraphDataStore {
       console.warn("[STORE] connections edge load failed", err);
     }
 
-    // 2) Project membership edges (person → project)
-    try {
-      console.log('📊 [STORE] Loading project membership edges...');
-      const { data: projectMembers, error: pmError } = await this._supabase
-        .from("project_members")
-        .select("id, project_id, user_id, role");
-
-      edgeDebug("🧪 [EDGES] project_members result", {
-        ok: !pmError,
-        error: pmError,
-        count: projectMembers?.length || 0,
-        sample: (projectMembers || []).slice(0, 2)
-      });
-
-      if (pmError) {
-        console.warn("[STORE] project_members edge load failed (query error):", pmError);
-      } else if (projectMembers) {
-        console.log(`📊 [STORE] Found ${projectMembers.length} project memberships`);
-
-        let skipped = 0;
-        projectMembers.forEach((pm) => {
-          const userExists = this._nodes.has(pm.user_id);
-          const projectExists = this._nodes.has(pm.project_id);
-
-          if (userExists && projectExists) {
-            edges.push({
-              type: "project_membership",
-              source: pm.user_id,        // person
-              target: pm.project_id,     // project
-              role: pm.role,
-              strength: 0.4,
-              createdAt: new Date(),
-            });
-            stats.projects++;
-          } else {
-            skipped++;
-            skippedMissingNode++;
-            if (window.log?.isDebugMode?.() || EDGE_DEBUG) {
-              console.debug("Skipping project membership edge (node missing)", {
-                user_id: pm.user_id,
-                project_id: pm.project_id,
-                userExists,
-                projectExists,
-              });
-            }
-          }
-        });
-        console.log(`📊 [STORE] Created ${stats.projects} project membership edges (skipped ${skipped} due to missing nodes)`);
-        edgeDebug("🧪 [EDGES] Project membership edge sample", edges.filter(e => e.type === 'project_membership').slice(0, 2));
-      }
-    } catch (err) {
-      console.warn("[STORE] project_members edge load failed", err);
-    }
+    // 2) Project membership edges — REMOVED
+    // Projects are no longer graph nodes; they live in Command Dashboard.
+    // People who share a project are still connected via org edges or direct connections.
+    console.log('📊 [STORE] Skipping project membership edges (projects removed from graph)');
 
     // 3) Organization membership edges (between members of same org)
     try {

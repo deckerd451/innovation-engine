@@ -192,9 +192,12 @@ export class NodeRenderer {
   renderLinks(edges) {
     if (!this._linkGroup || !edges) return;
 
+    // Filter out project_membership edges (projects no longer in graph)
+    const graphEdges = edges.filter(d => d.type !== 'project_membership');
+
     const linkSelection = this._linkGroup
       .selectAll('.link')
-      .data(edges, d => {
+      .data(graphEdges, d => {
         const s = d.source?.id ?? d.source;
         const t = d.target?.id ?? d.target;
         return `${s}-${t}`;
