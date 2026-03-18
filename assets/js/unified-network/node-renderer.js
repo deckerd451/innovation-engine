@@ -270,13 +270,13 @@ export class NodeRenderer {
     // ✅ UPDATE: Merge enter + existing nodes for updates
     const nodeMerge = nodeEnter.merge(nodeSelection);
 
-    // Update positions with GPU acceleration (CSS transforms)
+    // Update positions using SVG transform attribute (reliable across all browsers)
     nodeMerge.each((d, i, nodes) => {
       const element = nodes[i];
       const visualState = this.getVisualState(d, state);
       
-      // Use CSS transform for GPU acceleration
-      element.style.transform = `translate(${d.x}px, ${d.y}px) scale(${visualState.scale})`;
+      // Use SVG transform attribute instead of CSS transform for cross-browser reliability
+      element.setAttribute('transform', `translate(${d.x}, ${d.y}) scale(${visualState.scale})`);
       element.style.opacity = visualState.opacity;
     });
 

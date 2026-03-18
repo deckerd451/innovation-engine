@@ -271,6 +271,10 @@ try {
       NodeRenderer.setupGlowFilter(this._svg);
       console.log('🎨 Renderer initialized');
 
+      // 8b. Setup D3 zoom/pan behavior on the SVG
+      this._setupZoomBehavior();
+      console.log('🔍 Zoom/pan behavior ready');
+
       // 9. Initialize Interaction Handler
       this._interactionHandler.initialize(
         this._svg,
@@ -951,6 +955,36 @@ try {
 
     window.synapseSimulation = simulation;
     return simulation;
+  }
+
+  /**
+   * Setup D3 zoom/pan behavior on the SVG.
+   * Transforms the zoom container so nodes can be panned and zoomed.
+   * @private
+   */
+  _setupZoomBehavior() {
+    if (!this._svg || !window.d3) return;
+
+    const svgSel = window.d3.select(this._svg);
+    // Find the zoom container created by the node renderer
+    let zoomContainer = svgSel.select('.synapse-container');
+    if (zoomContainer.empty()) {
+      zoomContainer = svgSel.select('.unified-zoom-container');
+    }
+    if (zoomContainer.empty()) return;
+
+    const zoom = window.d3.zoom()
+      .scaleExtent([0.1, 4])
+      .on('zoom', (event) => {
+        zoomContainer.attr('transform', event.transform);
+        this.emit('zoom', { transform: event.transform });
+      });
+
+    svgSel.call(zoom);
+
+    // Store for external access
+    this._zoomBehavior = zoom;
+    this._zoomContainer = zoomContainer;
   }
 
   /**
