@@ -693,39 +693,34 @@ body.profile-modal-open .side-panel {
 }
 
 /* ============================================================
-   MOBILE BOTTOM TAB BAR
-   Visible only on mobile (<1024px). Provides persistent nav.
+   MOBILE HEADER BUTTONS (bell + logout)
+   Visible only on mobile (<1024px) where command dashboard is hidden.
    ============================================================ */
-#mobile-tab-bar {
-  display: none; /* hidden by default; shown via media query below */
+#btn-bell-mobile,
+#btn-logout-mobile {
+  display: none; /* hidden by default */
 }
 
 @media (max-width: 1023px) {
-  /* Reserve space at bottom for the tab bar */
-  body {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  #btn-bell-mobile,
+  #btn-logout-mobile {
+    display: flex !important;
   }
+}
 
-  #mobile-tab-bar {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 10000; /* Increased from 800 to ensure it's above everything */
-    background: rgba(5, 7, 15, 0.96);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(0, 224, 255, 0.15);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    height: calc(60px + env(safe-area-inset-bottom, 0px));
-    align-items: stretch;
-    pointer-events: auto; /* Ensure it receives clicks */
-  }
+/* ============================================================
+   MOBILE BOTTOM TAB BAR (removed — kept for CSS cleanup)
+   ============================================================ */
+#mobile-tab-bar {
+  display: none; /* tab bar removed from DOM */
+}
 
-  /* Push toasts above the tab bar */
+@media (max-width: 1023px) {
+  /* (Tab bar removed — no bottom padding needed) */
+
+  /* Push toasts above safe area */
   #toast-container {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 72px) !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
   }
 
   .mob-tab {

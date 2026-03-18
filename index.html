@@ -26,7 +26,7 @@
   </script>
 
   <!-- Core CSS -->
-  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/base.css?v=no-tabbar-20260318" />
   <link rel="stylesheet" href="assets/css/engine.css" />
   <link rel="stylesheet" href="assets/css/overlays.css" />
   <link rel="stylesheet" href="assets/css/connections.css" />
@@ -110,16 +110,28 @@
       <div id="user-profile-combined" style="display:none;"></div>
     </div>
 
-    <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
-      <!-- (Removed: legacy START button, refresh button, logout button — all consolidated into command dashboard) -->
-
-      <!-- Notification Bell (Hidden - replaced by unified notification system) -->
-      <div id="notification-bell" style="display:none;">
-        <i class="fas fa-bell" style="color:#00e0ff; font-size:1.2rem;"></i>
+    <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:0.75rem;">
+      <!-- Bell button — visible on mobile, opens Network Reflection -->
+      <div id="btn-bell-mobile" role="button" tabindex="0"
+        style="cursor:pointer; padding:0.6rem; background:rgba(0,224,255,0.1);
+        border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:42px; height:42px;
+        display:none; align-items:center; justify-content:center; position:relative;"
+        title="Network Reflection" aria-label="Network Reflection">
+        <i class="fas fa-bell" style="color:#00e0ff; font-size:1.1rem;"></i>
+        <span id="mobile-bell-badge" style="display:none; position:absolute; top:-4px; right:-4px;
+          background:#ff3b30; color:#fff; font-size:0.6rem; font-weight:700;
+          min-width:16px; height:16px; border-radius:8px; padding:0 4px;
+          display:flex; align-items:center; justify-content:center;">0</span>
       </div>
 
-      <!-- (Removed: Refresh Network Button — no longer needed) -->
-      <!-- (Removed: Logout Button — moved to command dashboard panel) -->
+      <!-- Logout button — visible on mobile -->
+      <div id="btn-logout-mobile" role="button" tabindex="0"
+        style="cursor:pointer; padding:0.6rem; background:rgba(255,107,107,0.1);
+        border:1px solid rgba(255,107,107,0.3); border-radius:50%; width:42px; height:42px;
+        display:none; align-items:center; justify-content:center; transition:all 0.2s;"
+        title="Logout" aria-label="Logout">
+        <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.1rem;"></i>
+      </div>
 
       <!-- Admin Panel Button (Hidden - moved to left side) -->
       <div id="btn-admin-top" style="display:none;"></div>
@@ -891,7 +903,7 @@
   <script src="assets/js/start-ui-enhanced.js?v=1739311200" defer></script>
 
   <!-- Unified Notification System -->
-  <script src="assets/js/unified-notification-system.js?v=3-20260318a" defer></script>
+  <script src="assets/js/unified-notification-system.js?v=4-mobile-20260318" defer></script>
 
   <!-- Daily Suggestions Engine -->
   <script type="module" src="assets/js/suggestions/index-v2.js"></script>
@@ -966,6 +978,18 @@
       }
 
       // (Removed: btn-start-nav and btn-logout-header wiring — consolidated into command dashboard)
+
+      // Mobile bell button → open Network Reflection
+      wireKeyClick('btn-bell-mobile', () => {
+        if (window.UnifiedNotifications?.showPanel) {
+          window.UnifiedNotifications.showPanel();
+        }
+      });
+
+      // Mobile logout button
+      wireKeyClick('btn-logout-mobile', () => {
+        if (window.doLogout) window.doLogout();
+      });
 
       wireKeyClick('btn-admin-top-left', () => {
         if (typeof window.openAdminPanel === 'function') window.openAdminPanel();

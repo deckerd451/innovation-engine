@@ -239,6 +239,17 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         panelBadge.style.display = 'none';
       }
     }
+
+    // Drive the mobile bell badge
+    const mobileBadge = document.getElementById('mobile-bell-badge');
+    if (mobileBadge) {
+      if (unifiedData.totalUnread > 0) {
+        mobileBadge.textContent = unifiedData.totalUnread > 99 ? '99+' : unifiedData.totalUnread;
+        mobileBadge.style.display = 'flex';
+      } else {
+        mobileBadge.style.display = 'none';
+      }
+    }
   }
 
   // ================================================================
