@@ -10,7 +10,7 @@
 //   - Double-click handle to reset to default width.
 //   - State: localStorage (persists across sessions).
 //
-// Desktop only (≥ 1024px).
+// Desktop only (≥ 1024px). Handlers always attached but check width at runtime.
 // ================================================================
 
 (() => {
@@ -20,11 +20,12 @@
   if (window[GUARD]) return;
   window[GUARD] = true;
 
-  // Desktop only
-  if (window.innerWidth < 1024) return;
+  function isDesktop() {
+    return window.innerWidth >= 1024;
+  }
+
   window.addEventListener('resize', () => {
-    if (window.innerWidth < 1024) {
-      // Remove collapsed state on mobile breakpoint
+    if (!isDesktop()) {
       document.body.classList.remove('panel-collapsed');
     }
   }, { passive: true });
@@ -33,8 +34,6 @@
   const STORAGE_KEY_W = 'cdPanelWidth';
   const DEFAULT_W     = 420;
   const MIN_W         = 300;
-
-  // ── Width helpers ──────────────────────────────────────────────
 
   function getMaxW() {
     return Math.floor(window.innerWidth * 0.65);
@@ -45,8 +44,6 @@
     document.documentElement.style.setProperty('--cd-width', `${clamped}px`);
     return clamped;
   }
-
-  // ── State management ───────────────────────────────────────────
 
   function setCollapsed(collapsed) {
     const icon = document.getElementById('cd-panel-tab-icon');
@@ -66,17 +63,13 @@
       if (tab)  tab.setAttribute('aria-label', 'Collapse navigation panel');
     }
 
-    // Let D3 / Synapse know the viewport changed after the CSS transition
     setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
   }
-
-  // ── Resize handle ─────────────────────────────────────────────
 
   function initResize() {
     const handle = document.getElementById('cd-resize-handle');
     if (!handle) return;
 
-    // Restore saved width (localStorage persists across sessions)
     const saved = parseInt(localStorage.getItem(STORAGE_KEY_W), 10);
     if (saved >= MIN_W) applyWidth(saved);
 
@@ -85,6 +78,7 @@
     let startW   = DEFAULT_W;
 
     function onStart(e) {
+      if (!isDesktop()) return;
       if (document.body.classList.contains('panel-collapsed')) return;
       dragging = true;
       startX   = e.touches ? e.touches[0].clientX : e.clientX;
@@ -119,7 +113,6 @@
       window.dispatchEvent(new Event('resize'));
     }
 
-    // Double-click handle → reset to default width
     handle.addEventListener('dblclick', () => {
       applyWidth(DEFAULT_W);
       localStorage.removeItem(STORAGE_KEY_W);
@@ -134,24 +127,22 @@
     document.addEventListener('touchend',   onEnd);
   }
 
-  // ── Init ───────────────────────────────────────────────────────
-
   function init() {
     const btn = document.getElementById('cd-panel-tab');
     if (!btn) return;
 
-    // Always open at login — reset state when profile loads
     window.addEventListener('profile-loaded', () => {
       sessionStorage.removeItem(STORAGE_KEY);
       setCollapsed(false);
     }, { once: true });
 
-    // Restore within-session state (default = open)
-    const storedCollapsed = sessionStorage.getItem(STORAGE_KEY) === 'true';
-    setCollapsed(storedCollapsed);
+    if (isDesktop()) {
+      const storedCollapsed = sessionStorage.getItem(STORAGE_KEY) === 'true';
+      setCollapsed(storedCollapsed);
+    }
 
-    // Toggle on click
     btn.addEventListener('click', () => {
+      if (!isDesktop()) return;
       const isCollapsed = document.body.classList.contains('panel-collapsed');
       setCollapsed(!isCollapsed);
     });

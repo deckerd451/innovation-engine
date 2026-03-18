@@ -830,7 +830,7 @@
   <script src="assets/js/settings-modal.js?v=1" defer></script>
   <script src="assets/js/mobile-nav.js?v=2" defer></script>
   <script src="assets/js/swipe-dismiss.js?v=1" defer></script>
-  <script src="assets/js/cd-panel-collapse.js?v=1" defer></script>
+  <script src="assets/js/cd-panel-collapse.js?v=2" defer></script>
 
   <!-- Avatar Upload Module -->
   <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>
@@ -1354,9 +1354,6 @@
   <script>
     (function () {
       function initSearchDrag() {
-        // Disable drag on mobile — search bar is fixed at bottom
-        if (window.innerWidth < 1024) return;
-
         const container = document.getElementById('centered-search-container');
         const handle    = document.getElementById('search-drag-handle');
         if (!container || !handle) return;
@@ -1372,6 +1369,7 @@
         }
 
         function beginDrag(clientX, clientY) {
+          if (window.innerWidth < 1024) return; // desktop only
           dragging = true;
           handle.style.cursor = 'grabbing';
 
@@ -1400,7 +1398,6 @@
           handle.style.cursor = 'grab';
         }
 
-        // Mouse events
         handle.addEventListener('mousedown', function (e) {
           e.preventDefault();
           beginDrag(e.clientX, e.clientY);
@@ -1408,7 +1405,6 @@
         document.addEventListener('mousemove', function (e) { moveDrag(e.clientX, e.clientY); });
         document.addEventListener('mouseup', endDrag);
 
-        // Touch events
         handle.addEventListener('touchstart', function (e) {
           const t = e.touches[0];
           beginDrag(t.clientX, t.clientY);
