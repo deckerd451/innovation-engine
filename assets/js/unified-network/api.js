@@ -399,6 +399,11 @@ try {
       this._initialized = true;
       this.emit('initialized', { userId, containerId });
 
+      // Center the graph on the current user after the simulation settles
+      setTimeout(() => {
+        try { this.centerOnCurrentUser(); } catch (e) { /* non-fatal */ }
+      }, 1200);
+
       console.log('✅ Unified Network Discovery System initialized');
     } catch (error) {
       console.error('❌ Initialization failed:', error);
@@ -556,8 +561,30 @@ try {
    */
   centerOnCurrentUser() {
     this._ensureInitialized();
-    console.log('🎯 Centering on current user');
-    // TODO: Implement centering logic
+
+    const userNode = this._graphDataStore.getNode(this._userId);
+    if (!userNode) {
+      console.warn('🎯 Cannot center: user node not found');
+      return;
+    }
+
+    const svgSel = window.d3.select(this._svg);
+    const svgRect = this._svg.getBoundingClientRect();
+    const midX = svgRect.width / 2;
+    const midY = svgRect.height / 2;
+
+    // Zoom scale — close enough to see the user and their neighbors
+    const k = 1.2;
+    const tx = midX - userNode.x * k;
+    const ty = midY - userNode.y * k;
+
+    const transform = window.d3.zoomIdentity.translate(tx, ty).scale(k);
+
+    if (this._zoomBehavior) {
+      svgSel.transition().duration(600).call(this._zoomBehavior.transform, transform);
+    }
+
+    console.log(`🎯 Centered on user node (${userNode.name}) at [${Math.round(userNode.x)}, ${Math.round(userNode.y)}]`);
     this.emit('centered-on-user', { userId: this._userId });
   }
 
