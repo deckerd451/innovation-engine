@@ -1044,22 +1044,9 @@ function updateUserOnlineStatus(presences, isOnline) {
 }
 
 window.markMessagesAsRead = async function(conversationId) {
-  try {
-    const { error } = await supabase
-      .from('messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('conversation_id', conversationId)
-      .neq('sender_id', currentUserProfile.id)
-      .is('read_at', null);
-    
-    if (error) {
-      // read_at column may not exist — silently ignore
-      console.warn('⚠️ Could not mark messages as read:', error.message);
-    }
-    unreadCounts.set(conversationId, 0);
-  } catch (error) {
-    console.warn('⚠️ markMessagesAsRead error:', error.message);
-  }
+  // No-op: messages table has no read_at column.
+  // Just clear the local unread counter.
+  unreadCounts.set(conversationId, 0);
 };
 
 window.startTypingIndicator = function() {
