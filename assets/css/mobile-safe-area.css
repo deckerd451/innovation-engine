@@ -147,8 +147,9 @@
       right: 0 !important;
       bottom: 0 !important;
       transform: none !important;
-      width: 100% !important;
+      width: auto !important;
       max-width: 100% !important;
+      box-sizing: border-box !important;
 
       /* Stack children vertically */
       display: flex !important;
@@ -156,14 +157,25 @@
       align-items: center !important;
       gap: 0.75rem !important;
 
-      /* Safe area padding at bottom */
-      padding: 0 12px calc(var(--safe-bottom) + 12px) 12px !important;
+      /* Safe area padding at bottom + sides */
+      padding: 0 16px calc(var(--safe-bottom) + 12px) 16px !important;
 
       /* Z-index from HUD scale */
       z-index: var(--z-hud) !important;
 
       /* Prevent clicks from passing through */
       pointer-events: auto !important;
+    }
+
+    #centered-search-container #search-container {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Hide drag handle on mobile — search is fixed at bottom */
+    #search-drag-handle {
+      display: none !important;
     }
 
     /* Filter pills row */
@@ -342,7 +354,7 @@
     /* Tighter bottom stack spacing */
     #centered-search-container {
       gap: 0.5rem !important;
-      padding: 0 8px calc(var(--safe-bottom) + 8px) 8px !important;
+      padding: 0 10px calc(var(--safe-bottom) + 8px) 10px !important;
     }
 
     /* Smaller filter buttons */
