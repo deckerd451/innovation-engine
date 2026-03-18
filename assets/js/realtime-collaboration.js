@@ -298,7 +298,38 @@ export async function openMessagingInterface(conversationId = null) {
       overflow: hidden;
       position: relative;
       display: flex;
+      flex-direction: column;
     ">
+      <!-- Top Title Bar -->
+      <div style="
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(0, 224, 255, 0.3);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+        background: rgba(0, 224, 255, 0.03);
+      ">
+        <h2 style="color: #00e0ff; margin: 0; font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem;">
+          <i class="fas fa-comments"></i> Messaging
+        </h2>
+        <button onclick="closeMessagingInterface()" style="
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: white;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          cursor: pointer;
+          font-size: 1rem;
+          transition: all 0.2s;
+        ">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Main Content (sidebar + chat) -->
+      <div style="flex: 1; display: flex; overflow: hidden;">
       <!-- Conversations Sidebar -->
       <div class="conversations-sidebar" style="
         width: 350px;
@@ -306,34 +337,15 @@ export async function openMessagingInterface(conversationId = null) {
         display: flex;
         flex-direction: column;
       ">
-        <!-- Header -->
+        <!-- Sidebar Header -->
         <div style="
-          padding: 1.5rem;
+          padding: 1rem 1.5rem;
           border-bottom: 1px solid rgba(0, 224, 255, 0.2);
           flex-shrink: 0;
         ">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="color: #00e0ff; margin: 0; font-size: 1.2rem;">
-              <i class="fas fa-comments"></i> Messages
-            </h3>
-            <button onclick="closeMessagingInterface()" style="
-              background: rgba(255, 255, 255, 0.1);
-              border: 1px solid rgba(255, 255, 255, 0.2);
-              color: white;
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              cursor: pointer;
-              font-size: 1rem;
-            ">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-          
           <!-- New Message Button -->
           <button onclick="showNewMessageDialog()" style="
             width: 100%;
-            margin-top: 1rem;
             padding: 0.75rem;
             background: rgba(0, 224, 255, 0.1);
             border: 1px solid rgba(0, 224, 255, 0.3);
@@ -435,6 +447,7 @@ export async function openMessagingInterface(conversationId = null) {
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   `;

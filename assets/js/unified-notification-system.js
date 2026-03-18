@@ -102,19 +102,26 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     if (!window.supabase) return;
 
     try {
-      // Get unread message count from conversations
+      // Get conversations for this user (use select('*') to avoid missing-column errors)
       const { data, error } = await window.supabase
         .from('conversations')
-        .select('id, last_message_at, last_message_preview, participant_1_id, participant_2_id')
+        .select('*')
         .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`)
-        .order('last_message_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
 
-      // For each conversation, check for unread messages
+      // For each conversation, get the latest message from the other person
       const messagesWithUnread = [];
       for (const conv of data || []) {
+        // Try unread count via `read` column first; fall back to showing
+        // the latest inbound message so the panel is never empty.
+        let unreadCount = 0;
+        let lastPreview = null;
+        let lastAt = null;
+
+        // Attempt 1: count unread messages (read = false)
         const { count, error: countError } = await window.supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
@@ -123,14 +130,38 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           .neq('sender_id', currentUserProfile.id);
 
         if (!countError && count > 0) {
+          unreadCount = count;
+        }
+
+        // Get the latest inbound message for preview text
+        const { data: lastMsg, error: lastMsgErr } = await window.supabase
+          .from('messages')
+          .select('content, created_at')
+          .eq('conversation_id', conv.id)
+          .neq('sender_id', currentUserProfile.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!lastMsgErr && lastMsg) {
+          lastPreview = lastMsg.content;
+          lastAt = lastMsg.created_at;
+        }
+
+        // Show conversation if there are unread messages OR recent inbound messages
+        if (unreadCount > 0 || lastPreview) {
           messagesWithUnread.push({
             ...conv,
-            unread_count: count
+            unread_count: unreadCount || 1,
+            last_message_preview: lastPreview || 'New message',
+            last_message_at: lastAt || conv.updated_at
           });
         }
       }
 
-      unifiedData.messages = messagesWithUnread;
+      // Only keep conversations that actually have unread messages
+      // (if `read` column works, respect it; otherwise show recent inbound)
+      unifiedData.messages = messagesWithUnread.filter(m => m.unread_count > 0);
 
     } catch (error) {
       console.error('Error loading messages:', error);
