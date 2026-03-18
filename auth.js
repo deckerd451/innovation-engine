@@ -11,7 +11,6 @@
 // ✅ One cleanOAuthUrlSoon() (duplicate removed)
 // ✅ AbortError handling = backoff + retry getSession only (no destructive loops)
 // ✅ Exposes window.__authReady for other modules (ecosystem, session restoration, synapse init)
-// ✅ Email/password button now WORKS (bound even in "OAuth mode")
 // ✅ No silent failures: visible authError UI + console logging
 //
 // Emits:
@@ -126,8 +125,7 @@
   // -----------------------------
   let loginSection, mainContent, mainHeader;
   let githubBtn, googleBtn;
-  let emailBtn; // "Sign in with Email" button
-  let emailInput, passwordInput;
+
 
   // -----------------------------
   // Internal state
@@ -159,23 +157,6 @@
     githubBtn = $("github-login");
     googleBtn = $("google-login");
 
-    // Email/password UI may use different ids historically. Support both.
-    emailBtn =
-      $("email-login-btn") ||
-      $("emailSignInBtn") ||
-      document.querySelector("#email-login-btn, #emailSignInBtn");
-
-    // Inputs: prefer ids if present; fallback to type selectors.
-    emailInput =
-      $("email-input") ||
-      $("login-email") ||
-      document.querySelector('input[type="email"]');
-
-    passwordInput =
-      $("password-input") ||
-      $("login-password") ||
-      document.querySelector('input[type="password"]');
-
     if (!loginSection || !mainContent) {
       err("❌ login-section or main-content not found in DOM");
       return;
@@ -194,222 +175,11 @@
       googleBtn.dataset.bound = "1";
     }
 
-    // ✅ IMPORTANT: Bind email/password login even if the controller is in "OAuth mode"
-    bindEmailPasswordLogin();
-
     loginDOMReady = true;
     log("🎨 Login DOM setup complete (OAuth mode)");
   }
 
-  function bindEmailPasswordLogin() {
-    // Re-resolve in case DOM changed
-    emailBtn =
-      $("email-login-btn") ||
-      $("emailSignInBtn") ||
-      document.querySelector("#email-login-btn, #emailSignInBtn");
 
-    emailInput =
-      $("email-input") ||
-      $("login-email") ||
-      document.querySelector('input[type="email"]');
-
-    passwordInput =
-      $("password-input") ||
-      $("login-password") ||
-      document.querySelector('input[type="password"]');
-
-    if (!emailBtn) {
-      warn("🟡 [AUTH] Email login button not found (expected #email-login-btn)");
-      return;
-    }
-
-    if (emailBtn.dataset.bound === "1") return;
-    emailBtn.dataset.bound = "1";
-
-    // Click handler
-    emailBtn.addEventListener(
-      "click",
-      async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        await emailPasswordLogin();
-      },
-      false
-    );
-
-    // Enter-to-submit (optional, safe)
-    const onEnter = async (e) => {
-      if (e.key !== "Enter") return;
-      // Don’t double-submit if focused on another button
-      e.preventDefault();
-      await emailPasswordLogin();
-    };
-
-    if (emailInput && !emailInput.dataset.boundEnter) {
-      emailInput.addEventListener("keydown", onEnter);
-      emailInput.dataset.boundEnter = "1";
-    }
-    if (passwordInput && !passwordInput.dataset.boundEnter) {
-      passwordInput.addEventListener("keydown", onEnter);
-      passwordInput.dataset.boundEnter = "1";
-    }
-
-    log("✅ [AUTH] Email/password login handler bound");
-    
-    // Bind sign-up link
-    const signupLink = document.getElementById("signup-link");
-    if (signupLink && !signupLink.dataset.bound) {
-      signupLink.dataset.bound = "1";
-      signupLink.addEventListener("click", (e) => {
-        e.preventDefault();
-        handleSignUp();
-      });
-    }
-
-    // Bind forgot password link
-    const forgotLink = document.getElementById("forgot-password-link");
-    if (forgotLink && !forgotLink.dataset.bound) {
-      forgotLink.dataset.bound = "1";
-      forgotLink.addEventListener("click", (e) => {
-        e.preventDefault();
-        handleForgotPassword();
-      });
-    }
-  }
-
-  async function handleSignUp() {
-    clearAuthError();
-    
-    // Get fresh references to input fields
-    const emailField = document.querySelector('input[type="email"]');
-    const passwordField = document.querySelector('input[type="password"]');
-    
-    if (!emailField || !passwordField) {
-      showAuthError("Could not find email or password fields.");
-      return;
-    }
-    
-    const email = (emailField.value || "").toLowerCase().trim();
-    const password = passwordField.value || "";
-    
-    log("🔍 [SIGNUP] Field values:", { email: email || "(empty)", passwordLength: password.length });
-
-    if (!email || !password) {
-      showAuthError("Please enter your email and password to create an account.");
-      return;
-    }
-
-    if (password.length < 6) {
-      showAuthError("Password must be at least 6 characters long.");
-      return;
-    }
-
-    setHint("Creating account…");
-
-    try {
-      const { data, error } = await window.supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) {
-        showAuthError(error.message || "Could not create account.");
-        setHint("Try again.");
-        return;
-      }
-
-      log("✅ Sign-up success:", email);
-      
-      // Clear password field for security
-      passwordField.value = "";
-      
-      showAuthError("Account created! Check your email to verify before logging in.", "success");
-      setHint("Check your email to verify your account.");
-    } catch (e) {
-      showAuthError(e?.message || String(e));
-      setHint("Try again.");
-    }
-  }
-
-  async function handleForgotPassword() {
-    clearAuthError();
-    
-    const email = (emailInput?.value || document.querySelector('input[type="email"]')?.value || "").toLowerCase().trim();
-
-    if (!email) {
-      showAuthError("Please enter your email address.");
-      return;
-    }
-
-    setHint("Sending reset email…");
-
-    try {
-      const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
-      });
-
-      if (error) {
-        showAuthError(error.message || "Could not send reset email.");
-        setHint("Try again.");
-        return;
-      }
-
-      log("✅ Password reset email sent to:", email);
-      showAuthError("Password reset email sent! Check your inbox.", "success");
-      setHint("Check your email for reset instructions.");
-    } catch (e) {
-      showAuthError(e?.message || String(e));
-      setHint("Try again.");
-    }
-  }
-
-  async function emailPasswordLogin() {
-    clearAuthError();
-
-    if (!window.supabase) {
-      showAuthError("System error: Supabase client not available. Please refresh.");
-      return;
-    }
-
-    // Inputs may be missing depending on DOM state
-    const email =
-      (emailInput?.value || document.querySelector('input[type="email"]')?.value || "")
-        .toLowerCase()
-        .trim();
-
-    const password =
-      passwordInput?.value || document.querySelector('input[type="password"]')?.value || "";
-
-    if (!email || !password) {
-      showAuthError("Please enter your email and password.");
-      return;
-    }
-
-    setHint("Signing in…");
-
-    try {
-      log("🔐 Attempting email/password login…", { email });
-
-      const { data, error } = await window.supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        showAuthError(error.message || "Invalid login credentials.");
-        setHint("Try again.");
-        return;
-      }
-
-      // Success: auth listener will bootstrap; this is just for visibility
-      log("✅ Email/password login success:", data?.user?.email || email);
-      setHint("Signed in.");
-      clearAuthError();
-    } catch (e) {
-      showAuthError(e?.message || String(e));
-      setHint("Try again.");
-    }
-  }
 
   function cancelSessionTimer() {
     if (sessionTimer) {
@@ -439,14 +209,9 @@
     mainContent?.classList.add("hidden");
 
     document.body.style.overflow = "hidden";
-    setHint("Continue with GitHub, Google, or sign in with email.");
+    setHint("Continue with GitHub or Google to get started.");
     clearAuthError();
     log("🔒 Showing login UI");
-
-    // Re-bind handlers in case the login DOM is re-rendered
-    try {
-      bindEmailPasswordLogin();
-    } catch (_) {}
 
     markAuthReadyOnce();
   }
@@ -1059,11 +824,6 @@
         try {
           setupLoginDOM();
         } catch (_) {}
-      } else {
-        // ensure binding stays alive if DOM changed
-        try {
-          bindEmailPasswordLogin();
-        } catch (_) {}
       }
 
       // Subscribe to auth changes for future events
@@ -1140,10 +900,6 @@
       );
       console.log("7. Auth localStorage keys:", authKeys);
       console.log("8. __authReady:", window.__authReady);
-
-      console.log("9. Email btn present:", !!(document.querySelector("#email-login-btn") || document.querySelector("#emailSignInBtn")));
-      console.log("10. Email input present:", !!document.querySelector('input[type="email"]'));
-      console.log("11. Password input present:", !!document.querySelector('input[type="password"]'));
     } catch (error) {
       console.error("❌ Auth test failed:", error);
     }

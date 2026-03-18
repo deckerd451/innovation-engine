@@ -195,13 +195,6 @@
     else el.textContent = text;
   }
 
-  function isEmailPasswordUser(user) {
-    if (!user) return false;
-    if (Array.isArray(user.identities)) {
-      return user.identities.some((id) => id.provider === "email");
-    }
-    return user.app_metadata?.provider === "email";
-  }
 
   function shouldCollapseHeader() {
     return window.innerHeight && window.innerHeight <= 680;
@@ -372,7 +365,6 @@
     const availability = profile?.availability || "";
     const imageUrl = profile?.image_url || "";
     const collapsedClass = shouldCollapseHeader() ? "is-collapsed" : "";
-    const showChangePw = isEmailPasswordUser(user);
 
     return `
       <div class="ch-profile-layout ${collapsedClass}">
@@ -417,9 +409,6 @@
           <button id="btn-open-profile-editor" class="btn btn-primary">
             <i class="fas fa-user-edit"></i> Edit Profile
           </button>
-          ${showChangePw ? `<button id="btn-change-password" class="btn ch-btn-secondary">
-            <i class="fas fa-key"></i> Change Password
-          </button>` : ""}
           <button id="logout-btn" class="btn ch-btn-secondary">
             <i class="fas fa-sign-out-alt"></i> Log out
           </button>
@@ -437,7 +426,6 @@
     content.innerHTML = renderProfileView(state.profile, state.user);
 
     $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
-    $("btn-change-password")?.addEventListener("click", () => window.openPasswordChangeView?.(), { once: true });
     $("logout-btn")?.addEventListener("click", () => window.handleLogout?.(), { once: true });
 
     openModal(modal);
@@ -747,125 +735,6 @@ setUploaderStatus("Photo uploaded.", "ok");
     }
   };
 
-  // ================================================================
-  // Password change view (kept as-is, minimal)
-  // ================================================================
-  function renderPasswordChangeView() {
-    return `
-      <div class="ch-profile-layout">
-        <div class="ch-profile-editor" role="region" aria-label="Change password">
-          <h2 class="ch-profile-editor-title">
-            <i class="fas fa-key"></i> Change Password
-          </h2>
-
-          <p class="ch-uploader-hint">
-            Enter and confirm your new password below. It must be at least 8 characters.
-          </p>
-
-          <form id="change-password-form" class="ch-profile-editor-form">
-            <div class="ch-form-group">
-              <label class="ch-form-label" for="pw-new">New Password</label>
-              <input type="password" id="pw-new" class="ch-input" autocomplete="new-password"
-                placeholder="Enter new password" required minlength="8" />
-              <div id="pw-strength" class="ch-uploader-status" aria-live="polite"></div>
-            </div>
-
-            <div class="ch-form-group">
-              <label class="ch-form-label" for="pw-confirm">Confirm New Password</label>
-              <input type="password" id="pw-confirm" class="ch-input" autocomplete="new-password"
-                placeholder="Confirm new password" required minlength="8" />
-              <div id="pw-mismatch" class="ch-uploader-status" aria-live="polite"></div>
-            </div>
-          </form>
-        </div>
-
-        <div class="ch-profile-editor-actions">
-          <button type="submit" form="change-password-form" id="pw-save-btn" class="btn ch-btn-save">
-            <i class="fas fa-lock"></i> Update Password
-          </button>
-          <button type="button" id="pw-cancel" class="btn ch-btn-secondary">
-            Cancel
-          </button>
-        </div>
-      </div>
-    `;
-  }
-
-  window.openPasswordChangeView = function openPasswordChangeView() {
-    const modal = profileModal();
-    const content = profileModalContent();
-    if (!modal || !content) return;
-
-    ensureStyles();
-    content.innerHTML = renderPasswordChangeView();
-
-    const pwNew = $("pw-new");
-    const pwConfirm = $("pw-confirm");
-    const strengthEl = $("pw-strength");
-    const mismatchEl = $("pw-mismatch");
-
-    function strengthLabel(pw) {
-      if (!pw) return "";
-      if (pw.length < 8) return "Too short";
-      let score = 0;
-      if (/[A-Z]/.test(pw)) score++;
-      if (/[0-9]/.test(pw)) score++;
-      if (/[^A-Za-z0-9]/.test(pw)) score++;
-      if (pw.length >= 12) score++;
-      return score <= 1 ? "Weak" : (score === 2 ? "Fair" : "Strong");
-    }
-
-    pwNew?.addEventListener("input", () => {
-      if (strengthEl) strengthEl.textContent = strengthLabel(pwNew.value);
-    });
-
-    pwConfirm?.addEventListener("input", () => {
-      if (mismatchEl) mismatchEl.textContent =
-        pwConfirm.value && pwNew.value !== pwConfirm.value ? "Passwords do not match" : "";
-    });
-
-    $("pw-cancel")?.addEventListener("click", () => window.openProfileModal?.(), { once: true });
-
-    $("change-password-form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const newPw = pwNew?.value || "";
-      const confirmPw = pwConfirm?.value || "";
-
-      if (newPw.length < 8) return toastError("Password must be at least 8 characters.");
-      if (newPw !== confirmPw) return toastError("Passwords do not match.");
-
-      const saveBtn = $("pw-save-btn");
-      if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating…';
-      }
-
-      try {
-        const supabase = ensureSupabase();
-        const { error } = await supabase.auth.updateUser({ password: newPw });
-        if (error) {
-          toastError("Error updating password: " + error.message);
-          if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = '<i class="fas fa-lock"></i> Update Password';
-          }
-          return;
-        }
-        toast("Password updated successfully!");
-        window.openProfileModal?.();
-      } catch (err) {
-        console.error("[PROFILE] password error:", err);
-        toastError("Unexpected error. Please try again.");
-        if (saveBtn) {
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = '<i class="fas fa-lock"></i> Update Password';
-        }
-      }
-    });
-
-    openModal(modal);
-  };
 
   // ================================================================
   // Wiring

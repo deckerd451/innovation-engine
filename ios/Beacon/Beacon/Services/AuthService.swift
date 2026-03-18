@@ -61,11 +61,6 @@ final class AuthService: ObservableObject {
         await loadCurrentUser()
     }
 
-    func signIn(email: String, password: String) async throws {
-        try await supabase.auth.signIn(email: email, password: password)
-        await loadCurrentUser()
-    }
-
     func signOut() async throws {
         try await supabase.auth.signOut()
 
