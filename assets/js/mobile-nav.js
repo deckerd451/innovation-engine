@@ -68,22 +68,6 @@
         return false; // modal, not a destination
       }
     },
-    start: {
-      activate() {
-        // Open the daily brief / START modal
-        if (typeof window.openStartModal === 'function') {
-          window.openStartModal();
-        } else if (window.StartDailyDigest?.show) {
-          window.StartDailyDigest.show();
-        } else {
-          // Fallback: click the hidden start button
-          document.getElementById('btn-start-nav')?.click() ||
-          document.getElementById('btn-start-center')?.click();
-        }
-        // Don't mark as active — it's a modal, not a destination
-        return false;
-      }
-    },
     messages: {
       activate() {
         if (window.UnifiedNotifications?.showPanel) {

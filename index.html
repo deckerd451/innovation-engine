@@ -111,17 +111,7 @@
     </div>
 
     <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:1rem;">
-      <!-- START / notification button — hidden on desktop; bell moved into left panel -->
-      <div id="btn-start-nav" role="button" tabindex="0"
-        style="cursor:pointer; padding:0.75rem; background:rgba(0,255,136,0.1);
-        border:1px solid rgba(0,255,136,0.3); border-radius:50%; width:48px; height:48px;
-        display:none; align-items:center; justify-content:center; position:relative;"
-        title="View START sequence" aria-label="View START sequence">
-        <i class="fas fa-play-circle" style="color:#00ff88; font-size:1.2rem;"></i>
-        <span class="start-updates-badge hidden" id="start-updates-count"
-          style="position:absolute; top:-5px; right:-5px; background:#00ff88; color:#000;
-          font-size:0.7rem; font-weight:bold; padding:2px 6px; border-radius:10px; min-width:18px; text-align:center;">0</span>
-      </div>
+      <!-- (Removed: legacy START button — Intelligence Brief is now the single entry point via bell) -->
 
       <!-- Notification Bell (Hidden - replaced by unified notification system) -->
       <div id="notification-bell" style="display:none;">
@@ -840,7 +830,7 @@
 
   <!-- Settings Modal -->
   <script src="assets/js/settings-modal.js?v=1" defer></script>
-  <script src="assets/js/mobile-nav.js?v=1" defer></script>
+  <script src="assets/js/mobile-nav.js?v=2" defer></script>
   <script src="assets/js/swipe-dismiss.js?v=1" defer></script>
   <script src="assets/js/cd-panel-collapse.js?v=1" defer></script>
 
@@ -986,15 +976,7 @@
         });
       }
 
-      wireKeyClick('btn-start-nav', () => {
-        if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
-          window.EnhancedStartUI.open();
-        } else if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
-          window.UnifiedNotifications.showPanel();
-        } else if (typeof window.openStartModal === 'function') {
-          window.openStartModal();
-        }
-      });
+      // (Removed: btn-start-nav wiring — star button merged into bell)
 
       wireKeyClick('btn-logout-header', () => window.doLogout && window.doLogout());
 
@@ -1533,12 +1515,8 @@
       <span>Nearby</span>
       <span class="mob-tab-badge" id="mob-tab-suggestions-badge" style="display:none;">0</span>
     </button>
-    <button class="mob-tab mob-tab-center" id="mob-tab-start" data-tab="start" aria-label="Daily Brief">
-      <span class="mob-tab-fab"><i class="fas fa-star"></i></span>
-    </button>
-    <button class="mob-tab" id="mob-tab-messages" data-tab="messages" aria-label="Messages">
-      <i class="fas fa-comment-dots"></i>
-      <span>Messages</span>
+    <button class="mob-tab mob-tab-center" id="mob-tab-messages" data-tab="messages" aria-label="Intelligence Brief">
+      <span class="mob-tab-fab"><i class="fas fa-bell"></i></span>
       <span class="mob-tab-badge" id="mob-tab-messages-badge" style="display:none;">0</span>
     </button>
     <button class="mob-tab" id="mob-tab-profile" data-tab="profile" aria-label="Profile">
