@@ -156,6 +156,26 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
           trackClick: (oppId, meta) => window.OpportunityEngine?.trackClick(oppId, meta),
           refresh: () => window.OpportunityEngine?.refresh()
         };
+
+        // Compatibility: provide legacy synapseApi methods via unified network
+        window.synapseApi.open = () => {
+          const synapseView = document.getElementById('synapse-main-view');
+          if (synapseView) {
+            synapseView.style.display = 'block';
+            synapseView.style.visibility = 'visible';
+            synapseView.style.opacity = '1';
+            synapseView.style.zIndex = '1';
+          }
+        };
+        window.synapseApi.focusNode = (nodeId, opts) => {
+          if (nodeId) unifiedNetworkApi.focusNode(nodeId, opts);
+        };
+        window.synapseApi.focusTheme = (themeId) => {
+          if (themeId) unifiedNetworkApi.focusNode(themeId);
+        };
+        window.synapseApi.showActivity = () => {
+          unifiedNetworkApi.centerOnCurrentUser();
+        };
         
         // Verification log
         console.log('[SYNAPSE] synapseApi ready', !!window.synapseApi, !!window.synapseApi.opportunities);

@@ -162,6 +162,10 @@ window.addEventListener('synapse-ready', () => {
   updateStatus('ready');
 });
 
+window.addEventListener('unified-network-ready', () => {
+  updateStatus('ready');
+});
+
 window.addEventListener('user-logged-out', () => {
   hideStatusIndicator();
 });
@@ -170,12 +174,6 @@ window.addEventListener('user-logged-out', () => {
 window.addEventListener('online', () => {
   if (currentStatus === 'offline') {
     updateStatus('initializing');
-    // Trigger re-initialization
-    setTimeout(() => {
-      if (typeof window.ensureSynapseInitialized === 'function') {
-        window.ensureSynapseInitialized();
-      }
-    }, 1000);
   }
 });
 

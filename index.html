@@ -32,7 +32,6 @@
   <link rel="stylesheet" href="assets/css/connections.css" />
   <link rel="stylesheet" href="assets/css/messaging.css" />
   <link rel="stylesheet" href="dashboard.css" />
-  <link rel="stylesheet" href="assets/css/synapse-progressive-disclosure.css" />
   <link rel="stylesheet" href="assets/css/quiet-mode.css" />
   <link rel="stylesheet" href="assets/css/mobile-safe-area.css" />
   <!-- Unified Tier Command Dashboard (desktop split layout) -->
@@ -799,6 +798,9 @@
 
   <!-- Unified Toast System (load early so all modules can use window.showToast) -->
   <script src="assets/js/toast.js?v=1" defer></script>
+
+  <!-- Global notification utility (provides window.showSynapseNotification) -->
+  <script src="assets/js/notification-utils.js?v=1" defer></script>
   <!-- Visibility Guard (pauses polling intervals when tab is hidden) -->
   <script src="assets/js/visibility-guard.js?v=1" defer></script>
 
@@ -846,9 +848,6 @@
   <script type="module" src="auth.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="profile.js?v=fc09b39b-1770146154f916933b2da"></script>
 
-  <!-- Synapse initialization helper -->
-  <script src="assets/js/synapse-init-helper.js?v=fc09b39b-1770146154f916933b2da" defer></script>
-
   <!-- Theme strategy toggle -->
   <script src="assets/js/theme-strategy-toggle.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
@@ -879,11 +878,8 @@
   <!-- Admin People -->
   <script type="module" src="assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543"></script>
 
-  <!-- Opportunity Engine (BEFORE synapse boot) -->
+  <!-- Opportunity Engine -->
   <script src="assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304"></script>
-
-  <!-- Synapse boot -->
-  <script type="module" src="assets/js/synapse.js?v=render-fix-20260304"></script>
 
   <!-- Unified Network Discovery Integration -->
   <script type="module" src="assets/js/unified-network-integration.js?v=deadline-fix-20260304"></script>
@@ -894,8 +890,6 @@
   <!-- Presence Realtime System -->
   <script src="assets/js/presence-realtime.js?v=20260211-1" defer></script>
   <script src="assets/js/presence-ui.js?v=20260211-1" defer></script>
-  <script src="assets/js/synapse-presence-indicator.js?v=20260211-1" defer></script>
-  <script src="assets/js/synapse-message-badges.js?v=20260211-2" defer></script>
 
   <!-- BLE Passive Networking (Web) -->
   <script src="assets/js/ble-passive-networking.js?v=20260305-1" defer></script>
@@ -904,11 +898,8 @@
   <!-- Web Event Presence Client -->
   <script src="assets/js/eventPresenceWeb.js?v=20260307-1" defer></script>
 
-  <!-- Event Mode Gravity (Desktop Synapse Overlay) -->
+  <!-- Event Mode Gravity (Desktop Overlay) -->
   <script src="assets/js/eventModeGravity.js?v=20260305-1" defer></script>
-
-  <!-- Unified Network - Synapse Bridge -->
-  <script type="module" src="assets/js/unified-network-synapse-bridge.js?v=fc09b39b-17701461547"></script>
 
   <!-- Quiet Mode Auto-Disable -->
   <script type="module" src="assets/js/quiet-mode-auto-disable.js?v=1"></script>
@@ -935,7 +926,6 @@
 
   <!-- START-related scripts -->
   <script src="assets/js/start-sequence-report.js?v=3" defer></script>
-  <script src="assets/js/start-synapse-integration.js?v=3" defer></script>
   <script src="assets/js/start-onboarding.js?v=3" defer></script>
   <script src="assets/js/start-daily-digest.js?v=20260221-ie2" defer></script>
   <script src="assets/js/start-ui-enhanced.js?v=1739311200" defer></script>
@@ -1264,10 +1254,10 @@
         console.log('🔄 Refreshing network view...');
         refreshIcon.classList.add('spin');
 
-        if (typeof window.refreshSynapseView === 'function') {
+        if (typeof window.unifiedNetworkIntegration?.api?.resetToMyNetwork === 'function') {
+          window.unifiedNetworkIntegration.api.resetToMyNetwork();
+        } else if (typeof window.refreshSynapseView === 'function') {
           window.refreshSynapseView();
-        } else if (typeof window.renderSynapse === 'function') {
-          window.renderSynapse();
         } else {
           console.warn('⚠️ No refresh function available');
         }

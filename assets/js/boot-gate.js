@@ -247,10 +247,12 @@
       const readyHandler = () => {
         clearTimeout(timeout);
         window.removeEventListener('synapse:ready', readyHandler);
+        window.removeEventListener('unified-network-ready', readyHandler);
         off('SYNAPSE_READY', handler);
         resolve(true);
       };
       window.addEventListener('synapse:ready', readyHandler, { once: true });
+      window.addEventListener('unified-network-ready', readyHandler, { once: true });
 
       // Also listen for legacy SYNAPSE_READY event
       const handler = () => {

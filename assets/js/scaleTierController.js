@@ -20,7 +20,10 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { setFocusOnNode, clearFocusEffects } from "./synapse/focus-system.js";
+// Legacy synapse focus-system has been removed.
+// Provide no-op stubs so the rest of the module still compiles.
+function setFocusOnNode() { /* no-op — unified network handles focus */ }
+function clearFocusEffects() { /* no-op — unified network handles focus */ }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS

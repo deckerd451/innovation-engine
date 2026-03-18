@@ -139,8 +139,8 @@
       return;
     }
 
-    if (!synapseCore) {
-      console.error('❌ [Event Mode] Synapse core not available');
+    if (!synapseCore || !synapseCore.simulation) {
+      console.warn('⚠️ [Event Mode] Synapse core simulation not available — event mode requires legacy synapse');
       return;
     }
 

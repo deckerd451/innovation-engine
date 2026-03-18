@@ -712,9 +712,7 @@
         setTimeout(() => emitProfileNew(user), 10);
       } finally {
         setTimeout(() => {
-          if (typeof window.ensureSynapseInitialized === "function") {
-            window.ensureSynapseInitialized();
-          }
+          // Unified network handles visualization init via profile-loaded event
         }, 500);
       }
     }, 100);

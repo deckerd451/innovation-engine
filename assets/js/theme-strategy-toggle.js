@@ -65,86 +65,18 @@ async function toggleThemeStrategy() {
   const button = document.getElementById('btn-view-toggle');
 
   try {
-    // Show loading state
-    const iconDiv = button.querySelector('.icon');
-    const labelDiv = button.querySelector('.label');
-
-    if (iconDiv && labelDiv) {
-      iconDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-      labelDiv.textContent = 'Loading...';
-    }
-    button.style.pointerEvents = 'none';
-
-    // Reset the current view's state before switching
-    console.log('🔄 Resetting current view state before switch...');
-    try {
-      if (currentStrategy === 'circles') {
-        // We're in circles mode, reset circles before switching
-        const { resetSynapseView } = await import('./synapse/core.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292');
-        resetSynapseView();
-      } else {
-        // We're in cards/sidebar mode, reset before switching
-        const { resetSynapseView } = await import('./synapse/core-cards.js');
-        resetSynapseView();
-      }
-    } catch (resetError) {
-      console.warn('⚠️ Failed to reset current view:', resetError);
-    }
-
-    // Clear current synapse
-    const synapseContainer = document.getElementById('synapse-svg')?.parentElement;
-    if (synapseContainer) {
-      synapseContainer.innerHTML = '';
-    }
-
-    // Toggle between circles and cards only
-    const strategies = ['circles', 'cards'];
-    const currentIndex = strategies.indexOf(currentStrategy);
-    currentStrategy = strategies[(currentIndex + 1) % strategies.length];
-
-    // Update global reference
-    window.currentStrategy = currentStrategy;
-
-    // Dynamically import and initialize the appropriate strategy
-    if (currentStrategy === 'circles') {
-      // Import old circles strategy
-      const { initSynapseView } = await import('./synapse/core.js?v=2c0b13fcc6e615869bc4682741e11e2bcf047292');
-
-      // Setup container for SVG
-      setupSVGContainer();
-
-      // Initialize old system
-      await initSynapseView();
-
-      showNotification('🔄 Switched to Synapse View', 'info');
-
-    } else {
-      // Import new cards strategy for both cards and sidebar modes
-      const { initSynapseView, toggleThemeDisplayMode } = await import('./synapse/core-cards.js');
-
-      // Setup container for cards
-      setupCardsContainer();
-
-      // Initialize new system
-      await initSynapseView();
-
-      // Set cards display mode
-      toggleThemeDisplayMode('cards');
-      showNotification('🎯 Switched to Theme Cards View', 'success');
-    }
-
+    // Legacy synapse view strategies have been removed.
+    // The unified network is now the only visualization.
+    showNotification('Unified Network is the active view', 'info');
   } catch (error) {
     console.error('❌ Failed to switch theme strategy:', error);
     showNotification('Failed to switch strategy: ' + error.message, 'error');
-
-    // Revert strategy on error
-    const strategies = ['circles', 'cards'];
-    const currentIndex = strategies.indexOf(currentStrategy);
-    currentStrategy = strategies[(currentIndex - 1 + strategies.length) % strategies.length];
   } finally {
     isToggling = false;
-    button.style.pointerEvents = 'auto';
-    updateButtonText(button);
+    if (button) {
+      button.style.pointerEvents = 'auto';
+      updateButtonText(button);
+    }
   }
 }
 

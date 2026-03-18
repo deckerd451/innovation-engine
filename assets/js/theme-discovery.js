@@ -3,8 +3,25 @@
  * Help users find and join theme circles that match their interests
  */
 
-import { showSynapseNotification } from "./synapse/ui.js";
-import { markInterested } from "./synapse/themes.js";
+// showSynapseNotification is provided globally by notification-utils.js
+const showSynapseNotification = (...args) => window.showSynapseNotification?.(...args);
+
+/**
+ * Inline replacement for synapse/themes.js markInterested.
+ * Upserts a theme_participants row for the current user.
+ */
+async function markInterested(sb, { themeId, communityId, days = 7 }) {
+  if (!sb || !themeId || !communityId) throw new Error('Missing required params');
+  const { error } = await sb
+    .from('theme_participants')
+    .upsert({
+      theme_id: themeId,
+      community_id: communityId,
+      engagement_level: 'interested',
+      signals: { joined_at: new Date().toISOString() }
+    }, { onConflict: 'theme_id,community_id' });
+  if (error) throw error;
+}
 
 let supabase = null;
 let currentUser = null;
@@ -530,55 +547,23 @@ async function handleJoinTheme(themeId) {
 }
 
 async function handleThemeClick(themeId) {
-  // Open theme details (use existing theme card system)
+  // Open theme details — simplified (legacy overlay card removed with synapse)
   const theme = allThemes.find(t => t.id === themeId);
   if (!theme) return;
 
-  // Import and use existing theme card renderer
-  try {
-    const { renderThemeOverlayCard, getThemeInterestCount } = await import('./synapse/themes.js');
+  const isParticipating = isUserParticipating(theme.id);
+  if (isParticipating) {
+    showSynapseNotification('You are already a member of this theme', 'info');
+    return;
+  }
 
-    const interestCount = await getThemeInterestCount(supabase, theme.id);
-
-    // Load participants
-    const { data: participantData } = await supabase
-      .from('theme_participants')
-      .select(`
-        community_id,
-        engagement_level,
-        community:community_id (
-          id,
-          name,
-          image_url
-        )
-      `)
-      .eq('theme_id', theme.id);
-
-    const participants = (participantData || []).map(p => ({
-      id: p.community?.id,
-      name: p.community?.name || 'Anonymous',
-      image_url: p.community?.image_url,
-      engagement_level: p.engagement_level
-    }));
-
-    await renderThemeOverlayCard({
-      themeNode: {
-        ...theme,
-        theme_id: theme.id
-      },
-      interestCount,
-      participants,
-      onInterested: async () => {
-        if (!currentUser) return;
-        await handleJoinTheme(theme.id);
-      }
-    });
-
-    // Close discovery modal to show theme card
-    closeThemeDiscoveryModal();
-
-  } catch (error) {
-    console.error('Failed to open theme card:', error);
+  if (currentUser) {
+    const confirmed = confirm(`Join "${theme.title}"?`);
+    if (confirmed) {
+      await handleJoinTheme(theme.id);
+    }
+  } else {
+    showSynapseNotification('Please log in to join themes', 'info');
   }
 }
 

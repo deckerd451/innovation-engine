@@ -108,20 +108,6 @@ async function onProfileLoaded(e) {
   }
 
   // ------------------------------
-  // Synapse bridge init (single-flight)
-  // ------------------------------
-  if (!window.__IE_SYNAPSE_BRIDGE_INIT__ && window.synapseBridge) {
-    window.__IE_SYNAPSE_BRIDGE_INIT__ = true;
-    try {
-      log.debug("🌉 Initializing synapse bridge...");
-      window.synapseBridge.init();
-    } catch (error) {
-      window.__IE_SYNAPSE_BRIDGE_INIT__ = false;
-      log.error("❌ Synapse bridge init failed:", error);
-    }
-  }
-
-  // ------------------------------
   // Presence tracking init (single-flight)
   // ------------------------------
   if (!window.__IE_PRESENCE_INIT__ && profile?.id && window.PresenceRealtime && window.supabase) {

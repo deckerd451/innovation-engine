@@ -3,7 +3,8 @@
  * Full CRUD operations for managing theme circles
  */
 
-import { showSynapseNotification } from "./synapse/ui.js";
+// showSynapseNotification is provided globally by notification-utils.js
+const showSynapseNotification = (...args) => window.showSynapseNotification?.(...args);
 
 let supabase = null;
 let currentUserProfile = null;

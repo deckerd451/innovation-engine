@@ -771,8 +771,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     showApp();
     renderHeaderIdentity();
 
-    // Initialize synapse with proper user context
-    await initSynapseOnce();
+    // Network visualization is handled by unified-network-integration.js
 
     // Start loading dashboard counters
     await refreshCounters();
@@ -853,73 +852,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   function xpForNextLevel(level) {
     const thresholds = [0, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
     return thresholds[level] || 20000;
-  }
-
-  // -----------------------------
-  // Synapse
-  // -----------------------------
-  async function initSynapseOnce() {
-    if (state.synapseInitialized) {
-      console.log("⚠️ Synapse already initialized, skipping");
-      return;
-    }
-
-    // Skip legacy synapse when the unified network integration is present —
-    // unified-network-integration.js owns the #synapse-svg container.
-    if (window.unifiedNetworkIntegration) {
-      console.log("ℹ️ Unified Network active — skipping legacy synapse init");
-      return;
-    }
-
-    console.log("🧠 Initializing Synapse visualization...");
-
-    try {
-      // Verify we have the required user context BEFORE initializing
-      if (!state.communityProfile?.id) {
-        throw new Error("Cannot initialize Synapse: Missing community profile ID");
-      }
-
-      // Import and initialize synapse module
-      const mod = await import("./synapse.js");
-      if (typeof mod.initSynapseView === "function") {
-        await mod.initSynapseView();
-        // Only mark as initialized if it actually succeeded
-        state.synapseInitialized = true;
-        console.log("✅ Synapse initialized successfully");
-      } else {
-        throw new Error("synapse.js loaded but initSynapseView not found");
-      }
-    } catch (e) {
-      console.error("❌ Synapse initialization failed:", e);
-      if (e?.stack) console.error("Stack:", e.stack);
-
-      // Show user-facing error message
-      const synapseContainer = document.getElementById("synapse-svg");
-      if (synapseContainer) {
-        synapseContainer.innerHTML = `
-          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                      text-align: center; color: #f44336; max-width: 500px; padding: 2rem;">
-            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-            <h3 style="margin: 0 0 1rem 0; color: #fff;">Visualization Error</h3>
-            <p style="color: #aaa; margin: 0 0 1rem 0;">
-              The network visualization failed to load. This might be due to a connection issue or missing user data.
-            </p>
-            <button onclick="window.location.reload()"
-                    style="background: linear-gradient(135deg, #00e0ff, #0080ff);
-                           border: none; color: white; padding: 0.75rem 1.5rem;
-                           border-radius: 8px; cursor: pointer; font-weight: 600;">
-              <i class="fas fa-sync-alt"></i> Reload Page
-            </button>
-            <p style="color: #666; font-size: 0.85rem; margin-top: 1rem;">
-              Error: ${e.message || "Unknown error"}
-            </p>
-          </div>
-        `;
-      }
-
-      // Don't set synapseInitialized to true on failure - allow retries
-      state.synapseInitialized = false;
-    }
   }
 
   // -----------------------------
