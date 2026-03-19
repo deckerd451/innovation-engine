@@ -7,6 +7,7 @@ console.log("%c🔄 Real-time Collaboration Loading...", "color:#0ff; font-weigh
 
 let supabase = null;
 let currentUserProfile = null;
+let authUserId = null; // auth.users UUID — needed for messages.sender_id
 let realtimeChannel = null;
 let presenceChannel = null;
 let activeConversations = new Map();
@@ -45,12 +46,20 @@ async function sendDirectMessage(userId, message) {
   }
 
   try {
+    // Get auth user ID directly from session
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
     // Check if conversation already exists
-    const { data: existingConversation } = await supabase
+    const { data: existingConversation, error: lookupError } = await supabase
       .from('conversations')
       .select('id')
       .or(`and(participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${userId}),and(participant_1_id.eq.${userId},participant_2_id.eq.${currentUserProfile.id})`)
-      .single();
+      .maybeSingle();
+
+    if (lookupError) {
+      console.warn('⚠️ Conversation lookup error:', lookupError);
+    }
 
     let conversationId;
     
@@ -73,13 +82,13 @@ async function sendDirectMessage(userId, message) {
       conversationId = newConversation.id;
     }
 
-    // Send the message if provided (using auth user ID as sender — messages.sender_id references auth.users)
+    // Send the message if provided (sender_id must equal auth.uid() for RLS)
     if (message && message.trim()) {
       const { error: messageError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
-          sender_id: currentUserProfile.user_id,
+          sender_id: user.id,
           content: message.trim()
         });
 
@@ -120,8 +129,15 @@ export function initRealtimeCollaboration() {
   window.stopTypingIndicator = stopTypingIndicator;
   
   // Listen for profile loaded
-  window.addEventListener('profile-loaded', (e) => {
+  window.addEventListener('profile-loaded', async (e) => {
     currentUserProfile = e.detail.profile;
+    // Cache the auth user ID for message sender_id comparisons
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      authUserId = user?.id || currentUserProfile.user_id;
+    } catch (_) {
+      authUserId = currentUserProfile.user_id;
+    }
     setupRealtimeChannels();
   });
 
@@ -201,7 +217,7 @@ function handleNewMessage(payload) {
   }
 
   // Update unread count (sender_id is auth user ID)
-  if (message.sender_id !== currentUserProfile.user_id) {
+  if (message.sender_id !== authUserId) {
     updateUnreadCount(message.conversation_id, 1);
     showMessageNotification(message);
   }
@@ -885,7 +901,7 @@ async function loadConversationMessages(conversationId) {
     } else {
       messages.forEach(message => {
         // Check if message is from current user (sender_id is auth user ID)
-        const isOwn = message.sender_id === currentUserProfile.user_id;
+        const isOwn = message.sender_id === authUserId;
         const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
         messagesHtml += `
@@ -925,12 +941,15 @@ window.sendMessage = async function() {
   if (!content) return;
 
   try {
-    // Send message using auth user ID as sender — messages.sender_id references auth.users
+    // Get auth user ID directly from session — RLS requires sender_id = auth.uid()
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
     const { error } = await supabase
       .from('messages')
       .insert({
         conversation_id: activeConversationId,
-        sender_id: currentUserProfile.user_id,
+        sender_id: user.id,
         content: content
       });
 
@@ -944,6 +963,13 @@ window.sendMessage = async function() {
       .from('conversations')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', activeConversationId);
+
+    // Append message to UI immediately
+    appendMessageToConversation(activeConversationId, {
+      sender_id: user.id,
+      content: content,
+      created_at: new Date().toISOString()
+    });
 
     console.log('✅ Message sent successfully');
 
@@ -968,7 +994,7 @@ function appendMessageToConversation(conversationId, message) {
   if (!messagesArea) return;
 
   // Check if message is from current user (sender_id is auth user ID)
-  const isOwn = message.sender_id === currentUserProfile.user_id;
+  const isOwn = message.sender_id === authUserId;
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
   const messageElement = document.createElement('div');
@@ -1100,11 +1126,15 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
 
   try {
     // Check if conversation already exists
-    const { data: existingConversation } = await supabase
+    const { data: existingConversation, error: lookupError } = await supabase
       .from('conversations')
       .select('id')
       .or(`and(participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${targetUserId}),and(participant_1_id.eq.${targetUserId},participant_2_id.eq.${currentUserProfile.id})`)
-      .single();
+      .maybeSingle();
+
+    if (lookupError) {
+      console.warn('⚠️ Conversation lookup error:', lookupError);
+    }
 
     let conversationId;
     
