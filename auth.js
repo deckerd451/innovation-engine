@@ -309,7 +309,7 @@
     setHint("Opening provider…");
 
     // Stable redirect target (align with your app)
-    const redirectTo = window.location.origin + "/dashboard.html";
+    const redirectTo = window.location.origin + "/index.html";
 
     const { error } = await window.supabase.auth.signInWithOAuth({
       provider,
