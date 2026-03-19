@@ -7,7 +7,7 @@ console.log("%c🔄 Real-time Collaboration Loading...", "color:#0ff; font-weigh
 
 let supabase = null;
 let currentUserProfile = null;
-let authUserId = null; // auth.users UUID — needed for messages.sender_id
+let authUserId = null; // kept for diagnostics only
 let realtimeChannel = null;
 let presenceChannel = null;
 let activeConversations = new Map();
@@ -36,25 +36,38 @@ const MESSAGE_TYPES = {
   CONNECTION_REQUEST: 'connection_request'
 };
 
+function getCurrentCommunityId() {
+  return currentUserProfile?.id || null;
+}
+
+function isOwnMessage(message) {
+  const currentCommunityId = getCurrentCommunityId();
+  return !!currentCommunityId && message?.sender_id === currentCommunityId;
+}
+
 // Send direct message function
 async function sendDirectMessage(userId, message) {
   console.log('📨 Direct message function called:', userId, message);
-  
+
   if (!currentUserProfile || !userId) {
     console.error('❌ Missing user information for direct message');
     return;
   }
 
   try {
-    // Get auth user ID directly from session
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
+
+    const currentCommunityId = getCurrentCommunityId();
+    if (!currentCommunityId) {
+      throw new Error('Current community profile not loaded');
+    }
 
     // Check if conversation already exists
     const { data: existingConversation, error: lookupError } = await supabase
       .from('conversations')
       .select('id')
-      .or(`and(participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${userId}),and(participant_1_id.eq.${userId},participant_2_id.eq.${currentUserProfile.id})`)
+      .or(`and(participant_1_id.eq.${currentCommunityId},participant_2_id.eq.${userId}),and(participant_1_id.eq.${userId},participant_2_id.eq.${currentCommunityId})`)
       .maybeSingle();
 
     if (lookupError) {
@@ -62,15 +75,14 @@ async function sendDirectMessage(userId, message) {
     }
 
     let conversationId;
-    
+
     if (existingConversation) {
       conversationId = existingConversation.id;
     } else {
-      // Create new conversation
       const { data: newConversation, error: createError } = await supabase
         .from('conversations')
         .insert([{
-          participant_1_id: currentUserProfile.id,
+          participant_1_id: currentCommunityId,
           participant_2_id: userId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -82,30 +94,29 @@ async function sendDirectMessage(userId, message) {
       conversationId = newConversation.id;
     }
 
-    // Send the message if provided (sender_id must equal auth.uid() for RLS)
+    // Send the message if provided
+    // IMPORTANT: messages.sender_id references community.id, not auth.users.id
     if (message && message.trim()) {
       const { error: messageError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
-          sender_id: user.id,
+          sender_id: currentCommunityId,
           content: message.trim()
         });
 
       if (messageError) throw messageError;
 
-      // Update conversation timestamp
       await supabase
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', conversationId);
     }
 
-    // Open messaging interface to the conversation
     await openMessagingInterface(conversationId);
-    
+
     console.log('✅ Direct message sent successfully');
-    
+
   } catch (error) {
     console.error('❌ Error sending direct message:', error);
     if (window.showSynapseNotification) {
@@ -115,11 +126,10 @@ async function sendDirectMessage(userId, message) {
 }
 
 // Initialize real-time collaboration
-// Initialize real-time collaboration
 export function initRealtimeCollaboration() {
   supabase = window.supabase;
-  
-  // Expose functions globally FIRST to prevent undefined errors
+
+  // Expose functions globally FIRST
   window.sendDirectMessage = sendDirectMessage;
   window.openMessagingInterface = openMessagingInterface;
   window.closeMessagingInterface = closeMessagingInterface;
@@ -127,17 +137,23 @@ export function initRealtimeCollaboration() {
   window.showUserPresence = showUserPresence;
   window.startTypingIndicator = startTypingIndicator;
   window.stopTypingIndicator = stopTypingIndicator;
-  
-  // Listen for profile loaded
+  window.sendMessage = sendMessage;
+  window.openConversation = openConversation;
+  window.showNewMessageDialog = showNewMessageDialog;
+  window.createNewMessage = createNewMessage;
+  window.selectUserForMessage = selectUserForMessage;
+  window.closeNewMessageDialog = closeNewMessageDialog;
+
   window.addEventListener('profile-loaded', async (e) => {
     currentUserProfile = e.detail.profile;
-    // Cache the auth user ID for message sender_id comparisons
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      authUserId = user?.id || currentUserProfile.user_id;
+      authUserId = user?.id || currentUserProfile.user_id || null;
     } catch (_) {
-      authUserId = currentUserProfile.user_id;
+      authUserId = currentUserProfile.user_id || null;
     }
+
     setupRealtimeChannels();
   });
 
@@ -151,7 +167,16 @@ async function setupRealtimeChannels() {
   console.log('🔄 Setting up real-time channels for user:', currentUserProfile.name);
 
   try {
-    // Main collaboration channel
+    if (realtimeChannel) {
+      await supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+
+    if (presenceChannel) {
+      await supabase.removeChannel(presenceChannel);
+      presenceChannel = null;
+    }
+
     realtimeChannel = supabase
       .channel('collaboration-main')
       .on('postgres_changes', {
@@ -176,7 +201,6 @@ async function setupRealtimeChannels() {
       }, handleConnectionRequest)
       .subscribe();
 
-    // Presence channel for online status
     presenceChannel = supabase
       .channel('user-presence')
       .on('presence', { event: 'sync' }, handlePresenceSync)
@@ -184,7 +208,6 @@ async function setupRealtimeChannels() {
       .on('presence', { event: 'leave' }, handlePresenceLeave)
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // Track user presence
           await presenceChannel.track({
             user_id: currentUserProfile.id,
             name: currentUserProfile.name,
@@ -195,7 +218,6 @@ async function setupRealtimeChannels() {
         }
       });
 
-    // Load initial data
     await loadActiveConversations();
     await loadUnreadCounts();
 
@@ -211,18 +233,16 @@ function handleNewMessage(payload) {
   const message = payload.new;
   console.log('📨 New message received:', message);
 
-  // Update conversation in UI if open
   if (activeConversations.has(message.conversation_id)) {
     appendMessageToConversation(message.conversation_id, message);
   }
 
-  // Update unread count (sender_id is auth user ID)
-  if (message.sender_id !== authUserId) {
+  // sender_id is community.id
+  if (!isOwnMessage(message)) {
     updateUnreadCount(message.conversation_id, 1);
     showMessageNotification(message);
   }
 
-  // Play notification sound
   playNotificationSound();
 }
 
@@ -231,7 +251,6 @@ function handleConversationUpdate(payload) {
   const conversation = payload.new;
   console.log('💬 Conversation updated:', conversation);
 
-  // Update conversation list if messaging interface is open
   if (document.getElementById('messaging-interface')) {
     refreshConversationList();
   }
@@ -240,8 +259,8 @@ function handleConversationUpdate(payload) {
 // Handle team invitations
 function handleTeamInvite(payload) {
   const invite = payload.new;
-  
-  if (invite.user_id === currentUserProfile.id && invite.role === 'pending') {
+
+  if (invite.user_id === currentUserProfile?.id && invite.role === 'pending') {
     console.log('👥 New team invitation received:', invite);
     showTeamInviteNotification(invite);
   }
@@ -250,8 +269,8 @@ function handleTeamInvite(payload) {
 // Handle connection requests
 function handleConnectionRequest(payload) {
   const connection = payload.new;
-  
-  if (connection.to_user_id === currentUserProfile.id && connection.status === 'pending') {
+
+  if (connection.to_user_id === currentUserProfile?.id && connection.status === 'pending') {
     console.log('🤝 New connection request received:', connection);
     showConnectionRequestNotification(connection);
   }
@@ -259,17 +278,17 @@ function handleConnectionRequest(payload) {
 
 // Presence handlers
 function handlePresenceSync() {
-  const state = presenceChannel.presenceState();
+  const state = presenceChannel?.presenceState?.() || {};
   console.log('👥 Presence sync:', Object.keys(state).length, 'users online');
   updateOnlineUsersList(state);
 }
 
-function handlePresenceJoin({ key, newPresences }) {
+function handlePresenceJoin({ newPresences }) {
   console.log('✅ User joined:', newPresences);
   updateUserOnlineStatus(newPresences, true);
 }
 
-function handlePresenceLeave({ key, leftPresences }) {
+function handlePresenceLeave({ leftPresences }) {
   console.log('👋 User left:', leftPresences);
   updateUserOnlineStatus(leftPresences, false);
 }
@@ -278,11 +297,9 @@ function handlePresenceLeave({ key, leftPresences }) {
 export async function openMessagingInterface(conversationId = null) {
   console.log('💬 Opening messaging interface...');
 
-  // Remove existing interface if present
   const existing = document.getElementById('messaging-interface');
   if (existing) existing.remove();
 
-  // Create messaging interface
   const messagingInterface = document.createElement('div');
   messagingInterface.id = 'messaging-interface';
   messagingInterface.style.cssText = `
@@ -315,7 +332,6 @@ export async function openMessagingInterface(conversationId = null) {
       display: flex;
       flex-direction: column;
     ">
-      <!-- Top Title Bar -->
       <div style="
         padding: 1rem 1.5rem;
         border-bottom: 1px solid rgba(0, 224, 255, 0.3);
@@ -343,131 +359,119 @@ export async function openMessagingInterface(conversationId = null) {
         </button>
       </div>
 
-      <!-- Main Content (sidebar + chat) -->
       <div style="flex: 1; display: flex; overflow: hidden;">
-      <!-- Conversations Sidebar -->
-      <div class="conversations-sidebar" style="
-        width: 350px;
-        border-right: 1px solid rgba(0, 224, 255, 0.2);
-        display: flex;
-        flex-direction: column;
-      ">
-        <!-- Sidebar Header -->
-        <div style="
-          padding: 1rem 1.5rem;
-          border-bottom: 1px solid rgba(0, 224, 255, 0.2);
-          flex-shrink: 0;
-        ">
-          <!-- New Message Button -->
-          <button onclick="showNewMessageDialog()" style="
-            width: 100%;
-            padding: 0.75rem;
-            background: rgba(0, 224, 255, 0.1);
-            border: 1px solid rgba(0, 224, 255, 0.3);
-            border-radius: 8px;
-            color: #00e0ff;
-            cursor: pointer;
-            font-weight: 600;
-          ">
-            <i class="fas fa-plus"></i> New Message
-          </button>
-        </div>
-
-        <!-- Conversations List -->
-        <div id="conversations-list" style="
-          flex: 1;
-          overflow-y: auto;
-          padding: 1rem;
-        ">
-          <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
-            <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-            <p>Loading conversations...</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Chat Area -->
-      <div class="chat-area" style="
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-      ">
-        <!-- Chat Header -->
-        <div id="chat-header" style="
-          padding: 1.5rem;
-          border-bottom: 1px solid rgba(0, 224, 255, 0.2);
-          flex-shrink: 0;
-          display: none;
-        ">
-          <!-- Chat header content will be populated -->
-        </div>
-
-        <!-- Messages Area -->
-        <div id="messages-area" style="
-          flex: 1;
-          overflow-y: auto;
-          padding: 1rem;
+        <div class="conversations-sidebar" style="
+          width: 350px;
+          border-right: 1px solid rgba(0, 224, 255, 0.2);
           display: flex;
-          align-items: center;
-          justify-content: center;
+          flex-direction: column;
         ">
-          <div style="text-align: center; color: rgba(255, 255, 255, 0.6);">
-            <i class="fas fa-comments" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
-            <h3 style="color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem;">Select a conversation</h3>
-            <p>Choose a conversation from the sidebar or start a new one</p>
-          </div>
-        </div>
-
-        <!-- Message Input -->
-        <div id="message-input-area" style="
-          padding: 1.5rem;
-          border-top: 1px solid rgba(0, 224, 255, 0.2);
-          flex-shrink: 0;
-          display: none;
-        ">
-          <div style="display: flex; gap: 1rem; align-items: end;">
-            <div style="flex: 1;">
-              <textarea id="message-input" placeholder="Type your message..." style="
-                width: 100%;
-                min-height: 60px;
-                max-height: 120px;
-                padding: 0.75rem;
-                background: rgba(0, 224, 255, 0.05);
-                border: 1px solid rgba(0, 224, 255, 0.3);
-                border-radius: 8px;
-                color: white;
-                font-size: 1rem;
-                resize: vertical;
-                font-family: inherit;
-              "></textarea>
-              <div id="typing-indicator" style="
-                margin-top: 0.5rem;
-                color: rgba(255, 255, 255, 0.6);
-                font-size: 0.85rem;
-                font-style: italic;
-                min-height: 1.2rem;
-              "></div>
-            </div>
-            <button onclick="sendMessage()" style="
-              padding: 0.75rem 1.5rem;
-              background: linear-gradient(135deg, #00e0ff, #0080ff);
-              border: none;
+          <div style="
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(0, 224, 255, 0.2);
+            flex-shrink: 0;
+          ">
+            <button onclick="showNewMessageDialog()" style="
+              width: 100%;
+              padding: 0.75rem;
+              background: rgba(0, 224, 255, 0.1);
+              border: 1px solid rgba(0, 224, 255, 0.3);
               border-radius: 8px;
-              color: white;
+              color: #00e0ff;
               cursor: pointer;
               font-weight: 600;
-              height: fit-content;
             ">
-              <i class="fas fa-paper-plane"></i>
+              <i class="fas fa-plus"></i> New Message
             </button>
           </div>
+
+          <div id="conversations-list" style="
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+          ">
+            <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
+              <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+              <p>Loading conversations...</p>
+            </div>
+          </div>
         </div>
-      </div>
+
+        <div class="chat-area" style="
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        ">
+          <div id="chat-header" style="
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(0, 224, 255, 0.2);
+            flex-shrink: 0;
+            display: none;
+          "></div>
+
+          <div id="messages-area" style="
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <div style="text-align: center; color: rgba(255, 255, 255, 0.6);">
+              <i class="fas fa-comments" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+              <h3 style="color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem;">Select a conversation</h3>
+              <p>Choose a conversation from the sidebar or start a new one</p>
+            </div>
+          </div>
+
+          <div id="message-input-area" style="
+            padding: 1.5rem;
+            border-top: 1px solid rgba(0, 224, 255, 0.2);
+            flex-shrink: 0;
+            display: none;
+          ">
+            <div style="display: flex; gap: 1rem; align-items: end;">
+              <div style="flex: 1;">
+                <textarea id="message-input" placeholder="Type your message..." style="
+                  width: 100%;
+                  min-height: 60px;
+                  max-height: 120px;
+                  padding: 0.75rem;
+                  background: rgba(0, 224, 255, 0.05);
+                  border: 1px solid rgba(0, 224, 255, 0.3);
+                  border-radius: 8px;
+                  color: white;
+                  font-size: 1rem;
+                  resize: vertical;
+                  font-family: inherit;
+                "></textarea>
+                <div id="typing-indicator" style="
+                  margin-top: 0.5rem;
+                  color: rgba(255, 255, 255, 0.6);
+                  font-size: 0.85rem;
+                  font-style: italic;
+                  min-height: 1.2rem;
+                "></div>
+              </div>
+              <button onclick="sendMessage()" style="
+                padding: 0.75rem 1.5rem;
+                background: linear-gradient(135deg, #00e0ff, #0080ff);
+                border: none;
+                border-radius: 8px;
+                color: white;
+                cursor: pointer;
+                font-weight: 600;
+                height: fit-content;
+              ">
+                <i class="fas fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `;
 
-  // Add styles
   const style = document.createElement('style');
   style.textContent = `
     .conversation-item {
@@ -556,13 +560,9 @@ export async function openMessagingInterface(conversationId = null) {
 
   document.body.appendChild(messagingInterface);
 
-  // Setup event listeners
   setupMessagingEventListeners();
-
-  // Load conversations
   await loadConversationsList();
 
-  // Open specific conversation if provided
   if (conversationId) {
     await openConversation(conversationId);
   }
@@ -570,9 +570,7 @@ export async function openMessagingInterface(conversationId = null) {
   console.log('✅ Messaging interface opened');
 }
 
-// Setup messaging event listeners
 function setupMessagingEventListeners() {
-  // Message input handling
   const messageInput = document.getElementById('message-input');
   if (messageInput) {
     messageInput.addEventListener('keypress', (e) => {
@@ -582,7 +580,6 @@ function setupMessagingEventListeners() {
       }
     });
 
-    // Typing indicators
     let typingTimeout;
     messageInput.addEventListener('input', () => {
       startTypingIndicator();
@@ -593,7 +590,6 @@ function setupMessagingEventListeners() {
     });
   }
 
-  // Close on backdrop click
   const messagingInterface = document.getElementById('messaging-interface');
   if (messagingInterface) {
     messagingInterface.addEventListener('click', (e) => {
@@ -604,26 +600,24 @@ function setupMessagingEventListeners() {
   }
 }
 
-// Helper function to format message timestamps
 function formatMessageTime(timestamp) {
   if (!timestamp) return '';
-  
+
   const now = new Date();
   const messageTime = new Date(timestamp);
   const diffInSeconds = Math.floor((now - messageTime) / 1000);
-  
+
   if (diffInSeconds < 60) return 'Just now';
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  
+
   const diffInDays = Math.floor(diffInSeconds / 86400);
   if (diffInDays === 1) return 'Yesterday';
   if (diffInDays < 7) return `${diffInDays}d ago`;
-  
+
   return messageTime.toLocaleDateString();
 }
 
-// Load conversations list
 async function loadConversationsList() {
   const container = document.getElementById('conversations-list');
   if (!container || !currentUserProfile) return;
@@ -631,7 +625,6 @@ async function loadConversationsList() {
   try {
     console.log('📋 Loading conversations for user:', currentUserProfile.id);
 
-    // Try a simple query first to test table access
     const { data: conversations, error } = await supabase
       .from('conversations')
       .select('*')
@@ -640,8 +633,7 @@ async function loadConversationsList() {
 
     if (error) {
       console.warn('📋 Conversations query failed, checking if table exists:', error);
-      
-      // If conversations table doesn't exist, show a helpful message
+
       if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('does not exist')) {
         container.innerHTML = `
           <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
@@ -655,7 +647,7 @@ async function loadConversationsList() {
         `;
         return;
       }
-      
+
       throw error;
     }
 
@@ -683,14 +675,12 @@ async function loadConversationsList() {
 
     console.log(`📋 Loaded ${conversations.length} conversations`);
 
-    // Get participant details for each conversation
     const participantIds = new Set();
     conversations.forEach(conv => {
       participantIds.add(conv.participant_1_id);
       participantIds.add(conv.participant_2_id);
     });
 
-    // Fetch participant details
     let participantDetails = new Map();
     if (participantIds.size > 0) {
       try {
@@ -698,7 +688,7 @@ async function loadConversationsList() {
           .from('community')
           .select('id, name, image_url')
           .in('id', Array.from(participantIds));
-        
+
         if (participants) {
           participants.forEach(p => participantDetails.set(p.id, p));
         }
@@ -707,10 +697,9 @@ async function loadConversationsList() {
       }
     }
 
-    // Get last messages for each conversation
     const conversationIds = conversations.map(c => c.id);
     let lastMessages = new Map();
-    
+
     if (conversationIds.length > 0) {
       try {
         const { data: messages } = await supabase
@@ -718,9 +707,8 @@ async function loadConversationsList() {
           .select('conversation_id, content, created_at, sender_id')
           .in('conversation_id', conversationIds)
           .order('created_at', { ascending: false });
-        
+
         if (messages) {
-          // Group messages by conversation and get the latest one
           messages.forEach(msg => {
             if (!lastMessages.has(msg.conversation_id)) {
               lastMessages.set(msg.conversation_id, msg);
@@ -734,27 +722,27 @@ async function loadConversationsList() {
 
     let html = '';
     conversations.forEach(conversation => {
-      const otherUserId = conversation.participant_1_id === currentUserProfile.id 
-        ? conversation.participant_2_id 
+      const otherUserId = conversation.participant_1_id === currentUserProfile.id
+        ? conversation.participant_2_id
         : conversation.participant_1_id;
-      
+
       const otherUser = participantDetails.get(otherUserId);
-      
+
       if (!otherUser) {
         console.warn('📋 Skipping conversation with missing user data:', conversation.id);
         return;
       }
-      
+
       const lastMessage = lastMessages.get(conversation.id);
       const unreadCount = unreadCounts.get(conversation.id) || 0;
-      
+
       html += `
         <div class="conversation-item" onclick="openConversation('${conversation.id}')" data-conversation-id="${conversation.id}">
-          <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" 
-               onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'" 
+          <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;"
+               onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'"
                onmouseout="this.style.background='transparent'">
             <div style="position: relative;">
-              ${otherUser.image_url 
+              ${otherUser.image_url
                 ? `<img src="${otherUser.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
                 : `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 1.2rem;">${otherUser.name?.[0] || '?'}</div>`
               }
@@ -804,40 +792,32 @@ async function loadConversationsList() {
   }
 }
 
-// Open specific conversation
 async function openConversation(conversationId) {
   console.log('💬 Opening conversation:', conversationId);
 
-  // Update active conversation
   activeConversations.set(conversationId, true);
 
-  // Update UI selection
   document.querySelectorAll('.conversation-item').forEach(item => {
     item.classList.remove('active');
   });
+
   const selectedItem = document.querySelector(`[data-conversation-id="${conversationId}"]`);
   if (selectedItem) {
     selectedItem.classList.add('active');
   }
 
-  // Show chat header and input
   document.getElementById('chat-header').style.display = 'block';
   document.getElementById('message-input-area').style.display = 'block';
 
-  // Load conversation details and messages
   await loadConversationMessages(conversationId);
-
-  // Mark messages as read
   await markMessagesAsRead(conversationId);
 }
 
-// Load messages for conversation
 async function loadConversationMessages(conversationId) {
   const messagesArea = document.getElementById('messages-area');
   if (!messagesArea) return;
 
   try {
-    // Get conversation details
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('*')
@@ -846,9 +826,8 @@ async function loadConversationMessages(conversationId) {
 
     if (convError) throw convError;
 
-    // Get participant details
-    const otherUserId = conversation.participant_1_id === currentUserProfile.id 
-      ? conversation.participant_2_id 
+    const otherUserId = conversation.participant_1_id === currentUserProfile.id
+      ? conversation.participant_2_id
       : conversation.participant_1_id;
 
     const { data: otherUser, error: userError } = await supabase
@@ -859,12 +838,11 @@ async function loadConversationMessages(conversationId) {
 
     if (userError) throw userError;
 
-    // Update chat header
     const chatHeader = document.getElementById('chat-header');
     chatHeader.innerHTML = `
       <div style="display: flex; align-items: center; gap: 1rem;">
         <div style="position: relative;">
-          ${otherUser.image_url 
+          ${otherUser.image_url
             ? `<img src="${otherUser.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
             : `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 1.2rem;">${otherUser.name[0]}</div>`
           }
@@ -879,7 +857,6 @@ async function loadConversationMessages(conversationId) {
       </div>
     `;
 
-    // Get messages
     const { data: messages, error: msgError } = await supabase
       .from('messages')
       .select('*')
@@ -888,9 +865,8 @@ async function loadConversationMessages(conversationId) {
 
     if (msgError) throw msgError;
 
-    // Render messages
     let messagesHtml = '<div style="display: flex; flex-direction: column; width: 100%; padding: 1rem;">';
-    
+
     if (!messages || messages.length === 0) {
       messagesHtml += `
         <div style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 2rem;">
@@ -900,23 +876,20 @@ async function loadConversationMessages(conversationId) {
       `;
     } else {
       messages.forEach(message => {
-        // Check if message is from current user (sender_id is auth user ID)
-        const isOwn = message.sender_id === authUserId;
+        const own = isOwnMessage(message);
         const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
+
         messagesHtml += `
-          <div class="message-bubble ${isOwn ? 'own' : 'other'}">
-            <div>${message.content}</div>
+          <div class="message-bubble ${own ? 'own' : 'other'}">
+            <div>${escapeHtml(message.content || '')}</div>
             <div class="message-time">${time}</div>
           </div>
         `;
       });
     }
-    
+
     messagesHtml += '</div>';
     messagesArea.innerHTML = messagesHtml;
-
-    // Scroll to bottom
     messagesArea.scrollTop = messagesArea.scrollHeight;
 
   } catch (error) {
@@ -931,56 +904,62 @@ async function loadConversationMessages(conversationId) {
 }
 
 // Send message
-window.sendMessage = async function() {
+async function sendMessage() {
   const messageInput = document.getElementById('message-input');
   const activeConversationId = getActiveConversationId();
-  
+
   if (!messageInput || !activeConversationId) return;
 
   const content = messageInput.value.trim();
   if (!content) return;
 
   try {
-    // Get auth user ID directly from session — RLS requires sender_id = auth.uid()
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    const currentCommunityId = getCurrentCommunityId();
+    if (!currentCommunityId) {
+      throw new Error('Current community profile not loaded');
+    }
+
     console.log('📨 Sending message:', {
       conversation_id: activeConversationId,
-      sender_id: user.id,
+      sender_id: currentCommunityId,
       auth_uid: user.id,
-      community_id: currentUserProfile?.id,
+      community_id: currentCommunityId,
       content_length: content.length
     });
 
-    const { error } = await supabase
+    const optimisticMessage = {
+      conversation_id: activeConversationId,
+      sender_id: currentCommunityId,
+      content,
+      created_at: new Date().toISOString()
+    };
+
+    const { data: insertedMessage, error } = await supabase
       .from('messages')
       .insert({
         conversation_id: activeConversationId,
-        sender_id: user.id,
-        content: content
-      });
+        sender_id: currentCommunityId,
+        content
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('❌ Message insert failed:', JSON.stringify(error));
       throw error;
     }
 
-    // Clear input
     messageInput.value = '';
 
-    // Update conversation timestamp
     await supabase
       .from('conversations')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', activeConversationId);
 
-    // Append message to UI immediately
-    appendMessageToConversation(activeConversationId, {
-      sender_id: user.id,
-      content: content,
-      created_at: new Date().toISOString()
-    });
+    appendMessageToConversation(activeConversationId, insertedMessage || optimisticMessage);
 
     console.log('✅ Message sent successfully');
 
@@ -990,9 +969,8 @@ window.sendMessage = async function() {
       window.showSynapseNotification('Failed to send message', 'error');
     }
   }
-};
+}
 
-// Helper functions
 function getActiveConversationId() {
   const activeItem = document.querySelector('.conversation-item.active');
   return activeItem ? activeItem.dataset.conversationId : null;
@@ -1004,55 +982,60 @@ function appendMessageToConversation(conversationId, message) {
   const messagesArea = document.getElementById('messages-area');
   if (!messagesArea) return;
 
-  // Check if message is from current user (sender_id is auth user ID)
-  const isOwn = message.sender_id === authUserId;
+  const own = isOwnMessage(message);
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  
+
   const messageElement = document.createElement('div');
-  messageElement.className = `message-bubble ${isOwn ? 'own' : 'other'}`;
+  messageElement.className = `message-bubble ${own ? 'own' : 'other'}`;
   messageElement.innerHTML = `
-    <div>${message.content}</div>
+    <div>${escapeHtml(message.content || '')}</div>
     <div class="message-time">${time}</div>
   `;
 
-  const messagesContainer = messagesArea.querySelector('div');
-  if (messagesContainer) {
-    messagesContainer.appendChild(messageElement);
-    messagesArea.scrollTop = messagesArea.scrollHeight;
+  let messagesContainer = messagesArea.querySelector('div');
+  if (!messagesContainer) {
+    messagesContainer = document.createElement('div');
+    messagesContainer.style.display = 'flex';
+    messagesContainer.style.flexDirection = 'column';
+    messagesContainer.style.width = '100%';
+    messagesContainer.style.padding = '1rem';
+    messagesArea.innerHTML = '';
+    messagesArea.appendChild(messagesContainer);
   }
+
+  const emptyState = messagesContainer.querySelector('.messages-empty-state');
+  if (emptyState) emptyState.remove();
+
+  messagesContainer.appendChild(messageElement);
+  messagesArea.scrollTop = messagesArea.scrollHeight;
 }
 
-// Notification functions
 function showMessageNotification(message) {
   if (window.showSynapseNotification) {
-    window.showSynapseNotification(`New message: ${message.content.substring(0, 50)}...`, 'info');
+    window.showSynapseNotification(`New message: ${(message.content || '').substring(0, 50)}...`, 'info');
   }
 }
 
-function showTeamInviteNotification(invite) {
+function showTeamInviteNotification() {
   if (window.showSynapseNotification) {
     window.showSynapseNotification('You have a new team invitation!', 'info');
   }
 }
 
-function showConnectionRequestNotification(connection) {
+function showConnectionRequestNotification() {
   if (window.showSynapseNotification) {
     window.showSynapseNotification('You have a new connection request!', 'info');
   }
 }
 
 function playNotificationSound() {
-  // Play a subtle notification sound
   try {
     const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
     audio.volume = 0.1;
-    audio.play().catch(() => {}); // Ignore errors if audio fails
-  } catch (e) {
-    // Ignore audio errors
-  }
+    audio.play().catch(() => {});
+  } catch (_) {}
 }
 
-// Placeholder functions for future implementation
 async function loadActiveConversations() {
   console.log('📋 Loading active conversations...');
 }
@@ -1078,19 +1061,17 @@ function updateUserOnlineStatus(presences, isOnline) {
   console.log(`${isOnline ? '✅' : '👋'} User status update:`, presences);
 }
 
-window.markMessagesAsRead = async function(conversationId) {
-  // No-op: messages table has no read_at column.
-  // Just clear the local unread counter.
+async function markMessagesAsRead(conversationId) {
   unreadCounts.set(conversationId, 0);
-};
+}
 
-window.startTypingIndicator = function() {
+function startTypingIndicator() {
   console.log('⌨️ User started typing');
-};
+}
 
-window.stopTypingIndicator = function() {
+function stopTypingIndicator() {
   console.log('⏹️ User stopped typing');
-};
+}
 
 window.startNewConversation = function() {
   console.log('💬 Starting new conversation');
@@ -1099,48 +1080,38 @@ window.startNewConversation = function() {
   }
 };
 
-window.showUserPresence = function(userId) {
+function showUserPresence(userId) {
   console.log('👤 Showing user presence for:', userId);
-};
+}
 
-window.closeMessagingInterface = function() {
+function closeMessagingInterface() {
   const messagingInterface = document.getElementById('messaging-interface');
   if (messagingInterface) {
     messagingInterface.remove();
   }
-  
-  // Cleanup channels if needed
-  activeConversations.clear();
-  
-  console.log('🗑️ Messaging interface closed');
-};
 
-// Initialize on DOM ready (or immediately if DOM already loaded — modules execute after parsing)
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    initRealtimeCollaboration();
-  });
-} else {
-  initRealtimeCollaboration();
+  activeConversations.clear();
+  console.log('🗑️ Messaging interface closed');
 }
 
-console.log('✅ Real-time collaboration ready');
-
-// Create new message/conversation
-window.createNewMessage = async function(targetUserId, targetUserName) {
+async function createNewMessage(targetUserId, targetUserName) {
   console.log('💬 Creating new message to:', targetUserName);
-  
+
   if (!currentUserProfile || !targetUserId) {
     console.error('❌ Missing user information for new message');
     return;
   }
 
   try {
-    // Check if conversation already exists
+    const currentCommunityId = getCurrentCommunityId();
+    if (!currentCommunityId) {
+      throw new Error('Current community profile not loaded');
+    }
+
     const { data: existingConversation, error: lookupError } = await supabase
       .from('conversations')
       .select('id')
-      .or(`and(participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${targetUserId}),and(participant_1_id.eq.${targetUserId},participant_2_id.eq.${currentUserProfile.id})`)
+      .or(`and(participant_1_id.eq.${currentCommunityId},participant_2_id.eq.${targetUserId}),and(participant_1_id.eq.${targetUserId},participant_2_id.eq.${currentCommunityId})`)
       .maybeSingle();
 
     if (lookupError) {
@@ -1148,16 +1119,15 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
     }
 
     let conversationId;
-    
+
     if (existingConversation) {
       conversationId = existingConversation.id;
       console.log('💬 Using existing conversation:', conversationId);
     } else {
-      // Create new conversation
       const { data: newConversation, error: createError } = await supabase
         .from('conversations')
         .insert([{
-          participant_1_id: currentUserProfile.id,
+          participant_1_id: currentCommunityId,
           participant_2_id: targetUserId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -1167,8 +1137,7 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
 
       if (createError) {
         console.error('❌ Error creating conversation:', createError);
-        
-        // If table doesn't exist, show helpful message
+
         if (createError.code === 'PGRST116' || createError.message.includes('relation')) {
           if (window.showSynapseNotification) {
             window.showSynapseNotification(
@@ -1178,7 +1147,7 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
           }
           return;
         }
-        
+
         throw createError;
       }
 
@@ -1186,10 +1155,8 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
       console.log('💬 Created new conversation:', conversationId);
     }
 
-    // Open the messaging interface and conversation
     await openMessagingInterface(conversationId);
-    
-    // Focus on message input
+
     setTimeout(() => {
       const messageInput = document.getElementById('message-input');
       if (messageInput) {
@@ -1207,13 +1174,11 @@ window.createNewMessage = async function(targetUserId, targetUserName) {
       );
     }
   }
-};
+}
 
-// Enhanced new message button handler
-window.showNewMessageDialog = function() {
+function showNewMessageDialog() {
   console.log('💬 Showing new message dialog');
-  
-  // Create new message modal
+
   const modal = document.createElement('div');
   modal.id = 'new-message-modal';
   modal.style.cssText = `
@@ -1256,7 +1221,7 @@ window.showNewMessageDialog = function() {
           <i class="fas fa-times"></i>
         </button>
       </div>
-      
+
       <div style="margin-bottom: 1.5rem;">
         <label style="color: rgba(255, 255, 255, 0.8); display: block; margin-bottom: 0.5rem;">
           Search for someone to message:
@@ -1271,7 +1236,7 @@ window.showNewMessageDialog = function() {
           font-family: inherit;
         ">
       </div>
-      
+
       <div id="user-search-results" style="
         max-height: 300px;
         overflow-y: auto;
@@ -1282,7 +1247,7 @@ window.showNewMessageDialog = function() {
           <p>Start typing to search for community members</p>
         </div>
       </div>
-      
+
       <div style="display: flex; gap: 1rem; justify-content: flex-end;">
         <button onclick="closeNewMessageDialog()" style="
           background: rgba(255, 255, 255, 0.1);
@@ -1311,10 +1276,9 @@ window.showNewMessageDialog = function() {
 
   document.body.appendChild(modal);
 
-  // Setup search functionality
   const searchInput = document.getElementById('user-search-input');
   const resultsContainer = document.getElementById('user-search-results');
-  
+
   let searchTimeout;
   searchInput.addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
@@ -1323,18 +1287,15 @@ window.showNewMessageDialog = function() {
     }, 300);
   });
 
-  // Close on backdrop click
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       closeNewMessageDialog();
     }
   });
 
-  // Focus search input
   searchInput.focus();
-};
+}
 
-// Search users for messaging
 async function searchUsers(query, container) {
   if (!query || query.length < 2) {
     container.innerHTML = `
@@ -1360,7 +1321,7 @@ async function searchUsers(query, container) {
       container.innerHTML = `
         <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
           <i class="fas fa-user-slash" style="font-size: 1.5rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
-          <p>No users found matching "${query}"</p>
+          <p>No users found matching "${escapeHtml(query)}"</p>
         </div>
       `;
       return;
@@ -1369,7 +1330,7 @@ async function searchUsers(query, container) {
     let html = '';
     users.forEach(user => {
       html += `
-        <div onclick="selectUserForMessage('${user.id}', '${user.name.replace(/'/g, "\\'")}')" style="
+        <div onclick="selectUserForMessage('${user.id}', '${(user.name || '').replace(/'/g, "\\'")}')" style="
           display: flex;
           align-items: center;
           gap: 1rem;
@@ -1378,16 +1339,16 @@ async function searchUsers(query, container) {
           cursor: pointer;
           transition: background 0.2s;
           border: 1px solid transparent;
-        " onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'; this.style.borderColor='rgba(0, 224, 255, 0.3)'" 
+        " onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'; this.style.borderColor='rgba(0, 224, 255, 0.3)'"
            onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
-          ${user.image_url 
+          ${user.image_url
             ? `<img src="${user.image_url}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
-            : `<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${user.name[0]}</div>`
+            : `<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${user.name?.[0] || '?'}</div>`
           }
           <div style="flex: 1; min-width: 0;">
-            <h4 style="color: white; margin: 0 0 0.25rem 0; font-size: 1rem;">${user.name}</h4>
+            <h4 style="color: white; margin: 0 0 0.25rem 0; font-size: 1rem;">${escapeHtml(user.name || 'Unknown')}</h4>
             <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${user.user_role || 'Community Member'}
+              ${escapeHtml(user.user_role || 'Community Member')}
             </p>
           </div>
           <i class="fas fa-comment" style="color: rgba(0, 224, 255, 0.6);"></i>
@@ -1408,16 +1369,34 @@ async function searchUsers(query, container) {
   }
 }
 
-// Select user for messaging
-window.selectUserForMessage = function(userId, userName) {
+function selectUserForMessage(userId, userName) {
   closeNewMessageDialog();
   createNewMessage(userId, userName);
-};
+}
 
-// Close new message dialog
-window.closeNewMessageDialog = function() {
+function closeNewMessageDialog() {
   const modal = document.getElementById('new-message-modal');
   if (modal) {
     modal.remove();
   }
-};
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+// Initialize on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    initRealtimeCollaboration();
+  });
+} else {
+  initRealtimeCollaboration();
+}
+
+console.log('✅ Real-time collaboration ready');
