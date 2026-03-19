@@ -186,14 +186,16 @@ window.DatabaseHelper = class DatabaseHelper {
   }
 
   async sendMessage(conversationId, content) {
-    const profile = await this.getCurrentCommunityProfile();
-    if (!profile) throw new Error('No community profile found');
+    // sender_id must equal auth.uid() per RLS policy and schema (REFERENCES auth.users)
+    const { data: { session } } = await this.supabase.auth.getSession();
+    const authUserId = session?.user?.id;
+    if (!authUserId) throw new Error('No active session');
 
     const { data, error } = await this.supabase
       .from(DATABASE_SCHEMA.MESSAGES)
       .insert({
         [COLUMN_MAPPINGS.MESSAGES.CONVERSATION_ID]: conversationId,
-        [COLUMN_MAPPINGS.MESSAGES.SENDER_ID]: profile.id,
+        [COLUMN_MAPPINGS.MESSAGES.SENDER_ID]: authUserId,
         [COLUMN_MAPPINGS.MESSAGES.CONTENT]: content,
         [COLUMN_MAPPINGS.MESSAGES.READ]: false
       })
