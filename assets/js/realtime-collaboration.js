@@ -945,6 +945,14 @@ window.sendMessage = async function() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    console.log('📨 Sending message:', {
+      conversation_id: activeConversationId,
+      sender_id: user.id,
+      auth_uid: user.id,
+      community_id: currentUserProfile?.id,
+      content_length: content.length
+    });
+
     const { error } = await supabase
       .from('messages')
       .insert({
@@ -953,7 +961,10 @@ window.sendMessage = async function() {
         content: content
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Message insert failed:', JSON.stringify(error));
+      throw error;
+    }
 
     // Clear input
     messageInput.value = '';
