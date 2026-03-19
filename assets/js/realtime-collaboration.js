@@ -73,13 +73,17 @@ async function sendDirectMessage(userId, message) {
       conversationId = newConversation.id;
     }
 
-    // Send the message if provided (using auth user ID as sender — messages.sender_id references auth.users)
+    // Send the message if provided (sender_id must equal auth.uid() per RLS)
     if (message && message.trim()) {
+      const { data: { session: dmSession } } = await supabase.auth.getSession();
+      const dmAuthUserId = dmSession?.user?.id;
+      if (!dmAuthUserId) throw new Error('No active session');
+
       const { error: messageError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
-          sender_id: currentUserProfile.user_id,
+          sender_id: dmAuthUserId,
           content: message.trim()
         });
 
@@ -918,11 +922,22 @@ async function loadConversationMessages(conversationId) {
 window.sendMessage = async function() {
   const messageInput = document.getElementById('message-input');
   const activeConversationId = getActiveConversationId();
-  
+
   if (!messageInput || !activeConversationId) return;
 
   const content = messageInput.value.trim();
   if (!content) return;
+
+  // Get auth user ID directly from session to guarantee it matches auth.uid() (RLS requirement)
+  const { data: { session } } = await supabase.auth.getSession();
+  const authUserId = session?.user?.id;
+  if (!authUserId) {
+    console.error('Error sending message: no active session');
+    if (window.showSynapseNotification) {
+      window.showSynapseNotification('Not authenticated', 'error');
+    }
+    return;
+  }
 
   try {
     // Send message using auth user ID as sender — messages.sender_id references auth.users
@@ -930,7 +945,7 @@ window.sendMessage = async function() {
       .from('messages')
       .insert({
         conversation_id: activeConversationId,
-        sender_id: currentUserProfile.user_id,
+        sender_id: authUserId,
         content: content
       });
 
