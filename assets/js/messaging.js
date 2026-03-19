@@ -412,18 +412,18 @@ const MessagingModule = (function () {
       return;
     }
 
-    // sender_id is community.id (UUID)
-    const senderCommunityIds = [...new Set((data || []).map((m) => m.sender_id).filter(Boolean))];
+    // sender_id is auth.uid() (UUID from auth.users)
+    const senderAuthIds = [...new Set((data || []).map((m) => m.sender_id).filter(Boolean))];
 
     let senderMap = {};
-    if (senderCommunityIds.length > 0) {
+    if (senderAuthIds.length > 0) {
       const { data: senders } = await window.supabase
         .from("community")
-        .select("id, name, image_url")
-        .in("id", senderCommunityIds);
+        .select("id, user_id, name, image_url")
+        .in("user_id", senderAuthIds);
 
       (senders || []).forEach((s) => {
-        senderMap[s.id] = { id: s.id, name: s.name, image_url: s.image_url };
+        senderMap[s.user_id] = { id: s.id, name: s.name, image_url: s.image_url };
       });
     }
 
@@ -564,12 +564,12 @@ const MessagingModule = (function () {
     try {
       const messageText = content.trim();
 
-      // sender_id is community.id (✅ consistent)
+      // sender_id is auth.uid() per schema (REFERENCES auth.users)
       const { error } = await window.supabase
         .from("messages")
         .insert({
           conversation_id: state.activeConversation.id,
-          sender_id: state.currentUser.communityId,
+          sender_id: state.currentUser.authId,
           content: messageText,
           read: false
         });
@@ -620,7 +620,7 @@ const MessagingModule = (function () {
       .from("messages")
       .update({ read: true })
       .eq("conversation_id", conversationId)
-      .neq("sender_id", state.currentUser.communityId)
+      .neq("sender_id", state.currentUser.authId)
       .eq("read", false);
 
     // Dispatch event for message badges
@@ -655,11 +655,11 @@ const MessagingModule = (function () {
         const isActive = state.activeConversation && newMessage.conversation_id === state.activeConversation.id;
 
         if (isActive) {
-          // sender_id is community.id
+          // sender_id is auth.uid(); look up community profile by user_id
           const { data: sender } = await window.supabase
             .from("community")
-            .select("id, name, image_url")
-            .eq("id", newMessage.sender_id)
+            .select("id, user_id, name, image_url")
+            .eq("user_id", newMessage.sender_id)
             .single()
             .catch(() => ({ data: null }));
 
@@ -674,7 +674,7 @@ const MessagingModule = (function () {
           if (area) area.scrollTop = area.scrollHeight;
 
           // Mark as read if it's not mine
-          if (newMessage.sender_id !== state.currentUser.communityId) {
+          if (newMessage.sender_id !== state.currentUser.authId) {
             await markMessagesAsRead(state.activeConversation.id);
           }
         }
@@ -873,7 +873,7 @@ const MessagingModule = (function () {
 
     container.innerHTML = state.messages
       .map((msg) => {
-        const isSent = msg.sender_id === state.currentUser.communityId;
+        const isSent = msg.sender_id === state.currentUser.authId;
         const senderName = isSent ? "You" : (msg.sender?.name || "Unknown");
         const initials = senderName.substring(0, 2).toUpperCase();
         const timestamp = formatTime(msg.created_at);
