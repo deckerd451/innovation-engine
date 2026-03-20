@@ -282,8 +282,18 @@ function setupEventBridges() {
 
   // Node tapped → open side panel
   unifiedNetworkApi.on('node-action-requested', ({ node }) => {
+    console.log('[NodePanel] node-action-requested fired, openNodePanel type:', typeof window.openNodePanel, 'node:', node?.id);
     if (node && typeof window.openNodePanel === 'function') {
       window.openNodePanel(node);
+    } else if (node) {
+      console.warn('[NodePanel] window.openNodePanel not ready — retrying in 500ms');
+      setTimeout(() => {
+        if (typeof window.openNodePanel === 'function') {
+          window.openNodePanel(node);
+        } else {
+          console.error('[NodePanel] window.openNodePanel still not a function after retry');
+        }
+      }, 500);
     }
   });
 
