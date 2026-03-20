@@ -1373,6 +1373,9 @@
           dragging = true;
           handle.style.cursor = 'grabbing';
 
+          // Disable CSS transitions during drag so movement is instant
+          container.style.transition = 'none';
+
           const pos = getContainerPos();
           container.style.bottom    = 'auto';
           container.style.transform = 'none';
@@ -1385,17 +1388,25 @@
           startY   = clientY;
         }
 
+        let rafId = null;
+
         function moveDrag(clientX, clientY) {
           if (!dragging) return;
-          const dx = clientX - startX;
-          const dy = clientY - startY;
-          container.style.left = (origLeft + dx) + 'px';
-          container.style.top  = (origTop  + dy) + 'px';
+          if (rafId) return; // skip until previous frame paints
+          rafId = requestAnimationFrame(() => {
+            rafId = null;
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+            container.style.left = (origLeft + dx) + 'px';
+            container.style.top  = (origTop  + dy) + 'px';
+          });
         }
 
         function endDrag() {
           dragging = false;
           handle.style.cursor = 'grab';
+          // Re-enable CSS transitions for panel open/close animations
+          container.style.transition = '';
         }
 
         handle.addEventListener('mousedown', function (e) {
