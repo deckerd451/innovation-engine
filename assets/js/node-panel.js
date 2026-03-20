@@ -1758,22 +1758,22 @@ window.endorseSkill = async function(userId) {
       justify-content: center;
     `;
 
-    modal.innerHTML = `
-      <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(0, 224, 255, 0.5); border-radius: 16px; padding: 2rem; max-width: 500px; width: 90%;">
-        <h2 style="color: #00e0ff; margin-bottom: 1rem;">
-          <i class="fas fa-star"></i> Endorse ${profile.name}
-        </h2>
-        <p style="color: #ddd; margin-bottom: 1.5rem;">Select a skill to endorse:</p>
+   modal.innerHTML = `
+  <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(0, 224, 255, 0.5); border-radius: 16px; padding: 2rem; max-width: 500px; width: 90%;">
+    <h2 style="color: #00e0ff; margin-bottom: 1rem;">
+      <i class="fas fa-star"></i> Endorse ${profile.name}
+    </h2>
+    <p style="color: #ddd; margin-bottom: 1.5rem;">Select a skill to endorse:</p>
 
-        <div id="skill-selection" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;">
-          ${skills.map(skill => `
-            <button onclick="confirmEndorsement('${userId}', '${profile.user_id}', '${skill.replace(/'/g, "\\'")}', '${profile.name.replace(/'/g, "\\'")}', this)" style="padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
-              <div style="font-weight: bold; font-size: 1rem; margin-bottom: 0.25rem;">${skill}</div>
-              <div style="color: #aaa; font-size: 0.85rem;">Click to endorse</div>
-            </button>
-          `).join('')}
-        </div>
-
+    <div id="skill-selection" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;">
+      ${skills.map(skill => `
+        <button onclick="confirmEndorsement('${userId}', '${profile.id}', '${skill.replace(/'/g, "\\'")}', '${profile.name.replace(/'/g, "\\'")}', this)" style="padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
+          <div style="font-weight: bold; font-size: 1rem; margin-bottom: 0.25rem;">${skill}</div>
+          <div style="color: #aaa; font-size: 0.85rem;">Click to endorse</div>
+        </button>
+      `).join('')}
+    </div>
+    
         <button onclick="this.closest('[style*=\\'position: fixed\\']').remove()" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
           Cancel
         </button>
