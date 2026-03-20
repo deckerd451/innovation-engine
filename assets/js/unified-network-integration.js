@@ -267,6 +267,94 @@ function waitForInitToSettle(timeoutMs = 8000) {
 }
 
 /**
+ * Self-contained fallback panel used when window.openNodePanel is unavailable
+ * (e.g. node-panel.js is a stub or failed to evaluate).
+ */
+async function _openFallbackPanel(node) {
+  const supabase = window.supabase;
+  if (!supabase) return;
+
+  // Reuse or create the panel element
+  let panel = document.getElementById('node-side-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'node-side-panel';
+    panel.style.cssText = [
+      'position:fixed', 'top:0', 'right:-450px', 'width:420px', 'height:100vh',
+      'background:linear-gradient(135deg,rgba(10,14,39,.95),rgba(26,26,46,.95))',
+      'border-left:2px solid rgba(0,224,255,.5)', 'backdrop-filter:blur(10px)',
+      'z-index:2000', 'overflow-y:auto', 'transition:right .3s ease-out',
+      'box-shadow:-5px 0 30px rgba(0,0,0,.5)'
+    ].join(';');
+    document.body.appendChild(panel);
+  }
+
+  // Close helper
+  window.closeNodePanel = () => {
+    panel.style.right = '-450px';
+    document.body.classList.remove('node-panel-open');
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
+  };
+
+  // Slide in
+  panel.style.right = '0';
+  document.body.classList.add('node-panel-open');
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
+
+  panel.innerHTML = `<div style="padding:2rem;text-align:center;color:#00e0ff">
+    <i class="fas fa-spinner fa-spin" style="font-size:2rem"></i>
+    <p style="margin-top:1rem">Loading...</p></div>`;
+
+  try {
+    const { data: profile, error } = await supabase
+      .from('community').select('*').eq('id', node.id).single();
+    if (error || !profile) throw error || new Error('Not found');
+
+    const initials = (profile.name || '?').split(' ').map(n => n[0]).join('').toUpperCase();
+    const skills = Array.isArray(profile.skills)
+      ? profile.skills
+      : typeof profile.skills === 'string' && profile.skills.trim()
+        ? profile.skills.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
+    panel.innerHTML = `
+      <div style="overflow-y:auto;height:100%">
+        <button onclick="window.closeNodePanel()" style="position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:white;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.2rem">
+          <i class="fas fa-times"></i></button>
+        <div style="text-align:center;padding:2rem 2rem 1rem">
+          ${profile.image_url
+            ? `<img loading="lazy" src="${profile.image_url}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #00e0ff">`
+            : `<div style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#00e0ff,#0080ff);display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:bold;color:white;margin:0 auto">${initials}</div>`}
+          <h2 style="color:#00e0ff;font-size:1.6rem;margin:.75rem 0 .25rem">${profile.name || 'Unknown'}</h2>
+          ${profile.user_role ? `<div style="color:#aaa;font-size:.9rem;margin-bottom:.5rem">${profile.user_role}</div>` : ''}
+          ${profile.availability ? `<div style="display:inline-block;background:rgba(0,255,136,.2);color:#00ff88;padding:.2rem .75rem;border-radius:12px;font-size:.85rem">${profile.availability}</div>` : ''}
+        </div>
+        ${profile.bio ? `<div style="padding:0 1.5rem 1rem"><p style="color:#ddd;line-height:1.6;margin:0">${profile.bio}</p></div>` : ''}
+        ${skills.length ? `
+        <div style="padding:0 1.5rem 1rem">
+          <div style="color:#00e0ff;font-weight:700;font-size:.9rem;margin-bottom:.5rem">SKILLS</div>
+          <div style="display:flex;flex-wrap:wrap;gap:.4rem">
+            ${skills.map(s => `<span style="background:rgba(0,224,255,.1);color:#00e0ff;padding:.3rem .75rem;border-radius:8px;font-size:.85rem;border:1px solid rgba(0,224,255,.3)">${s}</span>`).join('')}
+          </div>
+        </div>` : ''}
+      </div>
+      <div style="position:sticky;bottom:0;background:linear-gradient(135deg,rgba(10,14,39,.98),rgba(26,26,46,.98));border-top:2px solid rgba(0,224,255,.3);padding:1rem 1.5rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <button onclick="if(window.openMessageForUser)window.openMessageForUser('${profile.id}');else window.closeNodePanel()" style="padding:.75rem;background:linear-gradient(135deg,#00e0ff,#0080ff);border:none;border-radius:8px;color:white;font-weight:bold;cursor:pointer">
+            <i class="fas fa-comment"></i> Message</button>
+          <button onclick="if(window.sendConnectionFromPanel)window.sendConnectionFromPanel('${profile.id}')" style="padding:.75rem;background:rgba(0,224,255,.1);border:1px solid rgba(0,224,255,.3);border-radius:8px;color:#00e0ff;font-weight:bold;cursor:pointer">
+            <i class="fas fa-user-plus"></i> Connect</button>
+        </div>
+      </div>`;
+  } catch (err) {
+    panel.innerHTML = `<div style="padding:2rem;text-align:center;color:#ff6666">
+      <button onclick="window.closeNodePanel()" style="position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:white;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.2rem"><i class="fas fa-times"></i></button>
+      <i class="fas fa-exclamation-circle" style="font-size:2rem"></i>
+      <p style="margin-top:1rem">Error loading profile</p></div>`;
+  }
+}
+
+/**
  * Setup event bridges between unified network and dashboard (idempotent).
  */
 function setupEventBridges() {
@@ -285,18 +373,9 @@ function setupEventBridges() {
     if (!node) return;
     if (typeof window.openNodePanel === 'function') {
       window.openNodePanel(node);
-      return;
+    } else {
+      _openFallbackPanel(node);
     }
-    // window.openNodePanel not set — dynamically import node-panel.js to get the function directly
-    import('./node-panel.js').then(({ openNodePanel, initNodePanel }) => {
-      if (!window.openNodePanel) {
-        initNodePanel();
-        window.openNodePanel = openNodePanel;
-      }
-      openNodePanel(node);
-    }).catch(err => {
-      console.error('[NodePanel] Failed to load node-panel.js:', err);
-    });
   });
 
   // Action completed
