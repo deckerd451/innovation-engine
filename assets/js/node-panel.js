@@ -1799,6 +1799,26 @@ window.confirmEndorsement = async function(userId, skill, userName, button) {
       return;
     }
 
+    // Fetch the target's auth user_id (userId is their community.id)
+    const { data: endorsedProfile } = await supabase
+      .from('community')
+      .select('user_id')
+      .eq('id', userId)
+      .single();
+
+    if (!endorsedProfile?.user_id) {
+      alert('Could not resolve target user');
+      return;
+    }
+
+    console.debug('[endorse] ids →', {
+      endorser_id: user.id,
+      endorser_community_id: endorserProfile.id,
+      endorsed_id: endorsedProfile.user_id,
+      endorsed_community_id: userId,
+      skill,
+    });
+
     // Check if already endorsed
     const { data: existing } = await supabase
       .from('endorsements')
@@ -1813,13 +1833,13 @@ window.confirmEndorsement = async function(userId, skill, userName, button) {
       return;
     }
 
-    // Insert endorsement
+    // Insert — auth.users.id in *_id columns, community.id in *_community_id columns
     const { error } = await supabase
       .from('endorsements')
       .insert({
-        endorser_id: endorserProfile.id,           // Fixed: use community ID
+        endorser_id: user.id,                 // auth.users.id of current user
         endorser_community_id: endorserProfile.id,
-        endorsed_id: userId,                        // userId is already community.id from button
+        endorsed_id: endorsedProfile.user_id, // auth.users.id of target
         endorsed_community_id: userId,
         skill: skill
       });
