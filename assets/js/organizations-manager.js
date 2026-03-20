@@ -478,7 +478,7 @@ async function getOpportunities(filters = {}) {
   }
   
   if (filters.skills && filters.skills.length > 0) {
-    query = query.overlaps('required_skills', filters.skills);
+    query = query.overlaps('skills', filters.skills);
   }
   
   if (filters.organization_id) {
@@ -632,7 +632,8 @@ function createOpportunityCard(opp) {
     mentorship: '#9b59b6'
   };
   
-  const typeColor = typeColors[opp.type] || '#00e0ff';
+  const oppType = opp.opportunity_type || opp.type;
+  const typeColor = typeColors[oppType] || '#00e0ff';
   
   return `
     <div class="opportunity-card" data-opp-id="${opp.id}" style="
@@ -657,7 +658,7 @@ function createOpportunityCard(opp) {
         text-transform: uppercase;
         font-weight: 600;
       ">
-        ${opp.type}
+        ${oppType || ''}
       </div>
       
       <div style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1rem;">
@@ -702,7 +703,7 @@ function createOpportunityCard(opp) {
       
       <div style="margin-bottom: 1rem;">
         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
-          ${(opp.required_skills || []).slice(0, 3).map(skill => `
+          ${(opp.skills || []).slice(0, 3).map(skill => `
             <span style="
               background: rgba(155,89,182,0.2);
               border: 1px solid rgba(155,89,182,0.4);

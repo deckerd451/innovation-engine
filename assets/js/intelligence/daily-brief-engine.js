@@ -299,7 +299,7 @@ function _alignmentScore(userProfile, entity) {
     entity.title        || entity.name || '',
     entity.description  || '',
     ...(entity.tags            || []),
-    ...(entity.required_skills || []),
+    ...(entity.required_skills || entity.skills || []),
     industryStr,
     entity.theme        || '',
     entity.category     || '',
@@ -310,10 +310,11 @@ function _alignmentScore(userProfile, entity) {
   // Base overlap score
   let alignment = _tokenOverlap(userTokens, entityTokens);
 
-  // Bonus: exact required_skills matches (higher weight)
-  if (Array.isArray(entity.required_skills) && entity.required_skills.length > 0) {
+  // Bonus: exact skills matches (higher weight) — supports both projects (required_skills) and opps (skills)
+  const entitySkills = entity.required_skills || entity.skills;
+  if (Array.isArray(entitySkills) && entitySkills.length > 0) {
     const userSkillTokens = _tokenize(userProfile.skills || '');
-    const reqTokens = _tokenize(entity.required_skills.join(' '));
+    const reqTokens = _tokenize(entitySkills.join(' '));
     const skillOverlap = _tokenOverlap(userSkillTokens, reqTokens);
     alignment = alignment * 0.6 + skillOverlap * 0.4;
   }
@@ -729,7 +730,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     const nowIso = now.toISOString();
     const { data: oppData, error: oppErr } = await supabase
       .from('opportunities')
-      .select('id, title, description, required_skills, commitment, status, is_public, application_deadline, view_count, application_count, created_at, updated_at, organization_id, theme_id')
+      .select('id, title, description, skills, opportunity_type, commitment, status, is_public, application_deadline, view_count, application_count, created_at, updated_at, organization_id, theme_id')
       .eq('status', 'open')
       .eq('is_public', true)
       .or(`application_deadline.is.null,application_deadline.gt.${nowIso}`)
@@ -1085,7 +1086,7 @@ function _buildCombinationOpportunities({
         entity.title || entity.name || '',
         entity.description || '',
         ...(entity.tags || []),
-        ...(entity.required_skills || []),
+        ...(entity.required_skills || entity.skills || []),
       ].join(' ')).includes(t)).slice(0, 6),
     };
   });
@@ -1207,7 +1208,7 @@ function _buildOpportunitiesForYou({ userProfile, opportunities, memberships, ac
     ].join(' ')).filter(t => _tokenize([
       opp.title || '',
       opp.description || '',
-      ...(opp.required_skills || []),
+      ...(opp.skills || []),
     ].join(' ')).includes(t)).slice(0, 5);
 
     const bucket = _mapAvailability(userProfile.availability || '');

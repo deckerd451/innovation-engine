@@ -419,7 +419,7 @@ export async function getOpportunities(filters = {}) {
     }
 
     if (filters.required_skills && filters.required_skills.length > 0) {
-      query = query.overlaps("required_skills", filters.required_skills);
+      query = query.overlaps("skills", filters.required_skills);
     }
 
     if (filters.theme_id) {
@@ -586,7 +586,7 @@ export async function getRecommendedOpportunities() {
       .eq("status", "open")
       .eq("is_public", true)
       .or("application_deadline.is.null,application_deadline.gt." + new Date().toISOString())
-      .overlaps("required_skills", profile.skills)
+      .overlaps("skills", profile.skills)
       .order("created_at", { ascending: false })
       .limit(10);
 

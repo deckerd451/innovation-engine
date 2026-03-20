@@ -390,9 +390,9 @@ function renderOpportunityCard(opportunity) {
         ${opportunity.remote_ok ? `<span><i class="fas fa-home"></i> Remote OK</span>` : ''}
         ${opportunity.compensation_range ? `<span><i class="fas fa-dollar-sign"></i> ${opportunity.compensation_range}</span>` : ''}
       </div>
-      ${opportunity.required_skills && opportunity.required_skills.length > 0 ? `
+      ${opportunity.skills && opportunity.skills.length > 0 ? `
         <div class="opp-skills">
-          ${opportunity.required_skills.slice(0, 5).map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
+          ${opportunity.skills.slice(0, 5).map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
         </div>
       ` : ''}
       <div class="opp-footer">
