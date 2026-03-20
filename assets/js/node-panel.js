@@ -1806,7 +1806,7 @@ window.endorseSkill = async function(userId) {
 
 // confirmEndorsement(targetCommunityId, targetAuthUserId, skill, userName, button)
 //   targetCommunityId — target community.id
-//   targetAuthUserId  — target auth.users.id (optional for notifications or other uses)
+//   targetAuthUserId  — target auth.users.id (optional; stored only if your schema uses it)
 window.confirmEndorsement = async function(targetCommunityId, targetAuthUserId, skill, userName, button) {
   console.debug('[endorse] confirmEndorsement →', {
     targetCommunityId,
@@ -1822,51 +1822,85 @@ window.confirmEndorsement = async function(targetCommunityId, targetAuthUserId, 
     return;
   }
 
-  if (!currentUserProfile?.id) {
-    console.error('[endorse] missing currentUserProfile.id', currentUserProfile);
-    alert('Your profile is not ready yet. Please try again.');
-    return;
-  }
-
   try {
     if (button) {
       button.disabled = true;
-      button.style.opacity = '0.7';
+      button.style.opacity = '0.5';
     }
 
-    // Insert endorsement using COMMUNITY ids
-    const { error } = await supabase
+    const user = await window.bootstrapSession.getAuthUser();
+    if (!user) {
+      alert('Please log in to endorse');
+      return;
+    }
+
+    const { data: endorserProfile, error: endorserError } = await supabase
+      .from('community')
+      .select('id, name, user_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (endorserError || !endorserProfile) {
+      console.error('[endorse] endorser profile lookup failed:', endorserError);
+      alert('Profile not found');
+      return;
+    }
+
+    console.debug('[endorse] ids →', {
+      endorser_id: user.id,
+      endorser_community_id: endorserProfile.id,
+      endorsed_id: targetAuthUserId,
+      endorsed_community_id: targetCommunityId,
+      skill
+    });
+
+    const { data: existing, error: existingError } = await supabase
+      .from('endorsements')
+      .select('id')
+      .eq('endorser_community_id', endorserProfile.id)
+      .eq('endorsed_community_id', targetCommunityId)
+      .eq('skill', skill)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error('[endorse] existing endorsement check failed:', existingError);
+      throw existingError;
+    }
+
+    if (existing) {
+      alert(`You already endorsed ${userName} for ${skill}.`);
+      return;
+    }
+
+    const { error: insertError } = await supabase
       .from('endorsements')
       .insert({
+        endorser_community_id: endorserProfile.id,
         endorsed_community_id: targetCommunityId,
-        endorser_community_id: currentUserProfile.id,
+        endorsed_id: targetAuthUserId || null,
         skill: skill
       });
 
-    if (error) {
-      console.error('[endorse] insert error:', error);
-
-      // duplicate endorsement
-      if (error.code === '23505') {
+    if (insertError) {
+      console.error('[endorse] endorsement insert failed:', insertError);
+      if (insertError.code === '23505') {
         alert(`You already endorsed ${userName} for ${skill}.`);
         return;
       }
-
-      throw error;
+      throw insertError;
     }
 
-    // Optional notification — only do this if your notifications table expects community.id in user_id
     const { error: notificationError } = await supabase
       .from('notifications')
       .insert({
         user_id: targetCommunityId,
         type: 'endorsement',
         title: 'New Skill Endorsement',
-        message: `${currentUserProfile.name || 'Someone'} endorsed you for ${skill}`,
+        message: `${endorserProfile.name || 'Someone'} endorsed you for ${skill}`,
         data: {
           skill,
-          endorser_community_id: currentUserProfile.id,
-          endorser_name: currentUserProfile.name || null,
+          endorser_community_id: endorserProfile.id,
+          endorser_name: endorserProfile.name || null,
           target_auth_user_id: targetAuthUserId || null
         }
       });
