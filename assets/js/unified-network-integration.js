@@ -282,19 +282,21 @@ function setupEventBridges() {
 
   // Node tapped → open side panel
   unifiedNetworkApi.on('node-action-requested', ({ node }) => {
-    console.log('[NodePanel] node-action-requested fired, openNodePanel type:', typeof window.openNodePanel, 'node:', node?.id);
-    if (node && typeof window.openNodePanel === 'function') {
+    if (!node) return;
+    if (typeof window.openNodePanel === 'function') {
       window.openNodePanel(node);
-    } else if (node) {
-      console.warn('[NodePanel] window.openNodePanel not ready — retrying in 500ms');
-      setTimeout(() => {
-        if (typeof window.openNodePanel === 'function') {
-          window.openNodePanel(node);
-        } else {
-          console.error('[NodePanel] window.openNodePanel still not a function after retry');
-        }
-      }, 500);
+      return;
     }
+    // window.openNodePanel not set — dynamically import node-panel.js to get the function directly
+    import('./node-panel.js').then(({ openNodePanel, initNodePanel }) => {
+      if (!window.openNodePanel) {
+        initNodePanel();
+        window.openNodePanel = openNodePanel;
+      }
+      openNodePanel(node);
+    }).catch(err => {
+      console.error('[NodePanel] Failed to load node-panel.js:', err);
+    });
   });
 
   // Action completed
