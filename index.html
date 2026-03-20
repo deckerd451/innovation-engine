@@ -488,7 +488,7 @@
 
       <div id="category-action-bar" style="display:none; width:100%; justify-content:flex-end;"></div>
 
-      <div id="search-container" style="position: relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); padding:0.75rem 1rem; border-radius:12px;
+      <div id="search-container" style="position: relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); border-radius:12px;
         border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
         <!-- Drag handle -->
         <div id="search-drag-handle" title="Drag to move"
@@ -502,14 +502,14 @@
         <label for="global-search" class="sr-only">Search everything</label>
         <input type="text" id="global-search" placeholder="Search everything..."
           autocomplete="off"
-          style="width:100%; padding:0.75rem 5rem 0.75rem 1.25rem; background:rgba(0,0,0,0.4);
-          border:1px solid rgba(0,224,255,0.3); border-radius:8px; color:#fff; font-size:16px; outline:none;"
+          style="width:100%; padding:0.75rem 4rem 0.75rem 1rem; background:transparent;
+          border:none; border-radius:10px; color:#fff; font-size:16px; outline:none; box-sizing:border-box;"
           aria-describedby="search-suggestions"
         />
 
         <button id="search-button"
-          style="position:absolute; right:1.25rem; top:50%; transform:translateY(-50%);
-          background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.6rem 1rem; border-radius:8px;
+          style="position:absolute; right:0.5rem; top:50%; transform:translateY(-50%);
+          background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.5rem 0.85rem; border-radius:8px;
           color:white; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; z-index:1;">
           <i class="fas fa-search"></i>
         </button>

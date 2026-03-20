@@ -598,19 +598,21 @@ canvas#neural-bg {
   }
 
   #centered-search-container > div:nth-child(2) {
-    padding: 0.5rem 0.75rem !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
 
   #global-search {
-    padding: 0.6rem 4rem 0.6rem 1rem !important;
+    padding: 0.6rem 3.5rem 0.6rem 1rem !important;
     font-size: 16px !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
+    border: none !important;
+    background: transparent !important;
   }
 
   #search-button {
+    right: 0.5rem !important;
     padding: 0.5rem 0.75rem !important;
     font-size: 0.85rem !important;
   }

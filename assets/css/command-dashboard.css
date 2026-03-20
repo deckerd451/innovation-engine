@@ -924,6 +924,7 @@
   color: var(--cd-accent);
   border-color: rgba(0, 224, 255, 0.3);
   background: rgba(0, 224, 255, 0.06);
+  overflow: visible;
 }
 .cd-bell-btn:hover {
   background: rgba(0, 224, 255, 0.15);
@@ -933,21 +934,23 @@
 /* Unread badge on the bell */
 .cd-bell-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -6px;
+  right: -8px;
   background: #ff3b30;
   color: #fff;
-  font-size: 0.52rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  min-width: 14px;
-  height: 14px;
-  border-radius: 7px;
-  padding: 0 3px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  padding: 0 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
   pointer-events: none;
+  z-index: 1;
+  box-shadow: 0 0 0 2px var(--cd-bg, #0a0e27);
 }
 
 /* ── Panel footer — report button ── */

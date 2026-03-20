@@ -346,6 +346,50 @@ const MessagingModule = (function () {
   }
 
   // ============================================================
+  // SIDEBAR COLLAPSE (desktop only)
+  // ============================================================
+
+  function initSidebarCollapse() {
+    const tab = document.getElementById("msg-sidebar-tab");
+    const sidebar = document.getElementById("msg-sidebar");
+    const container = document.querySelector(".messages-container");
+    if (!tab || !sidebar || !container) return;
+
+    // Restore collapsed state from sessionStorage
+    const wasCollapsed = sessionStorage.getItem("msgSidebarCollapsed") === "true";
+    if (wasCollapsed && !isMobile()) {
+      setSidebarCollapsed(true);
+    }
+
+    tab.addEventListener("click", () => {
+      if (isMobile()) return; // On mobile, use the WhatsApp-style navigation instead
+      const isCollapsed = container.classList.contains("sidebar-collapsed");
+      setSidebarCollapsed(!isCollapsed);
+    });
+  }
+
+  function setSidebarCollapsed(collapsed) {
+    const container = document.querySelector(".messages-container");
+    const icon = document.getElementById("msg-sidebar-tab-icon");
+    const tab = document.getElementById("msg-sidebar-tab");
+    if (!container) return;
+
+    if (collapsed) {
+      container.classList.add("sidebar-collapsed");
+      sessionStorage.setItem("msgSidebarCollapsed", "true");
+      if (icon) icon.className = "fas fa-chevron-right";
+      if (tab) tab.title = "Expand conversations";
+      if (tab) tab.setAttribute("aria-label", "Expand conversations");
+    } else {
+      container.classList.remove("sidebar-collapsed");
+      sessionStorage.removeItem("msgSidebarCollapsed");
+      if (icon) icon.className = "fas fa-chevron-left";
+      if (tab) tab.title = "Collapse conversations";
+      if (tab) tab.setAttribute("aria-label", "Collapse conversations");
+    }
+  }
+
+  // ============================================================
   // DATA LOADING
   // ============================================================
 
@@ -700,7 +744,7 @@ const MessagingModule = (function () {
 
     container.innerHTML = `
       <div class="messages-container">
-        <div class="conversations-sidebar">
+        <div class="conversations-sidebar" id="msg-sidebar">
           <div class="conversations-header">
             <h3>
               💬 Messages
@@ -711,6 +755,10 @@ const MessagingModule = (function () {
             </button>
           </div>
           <div class="conversations-list" id="conversations-list"></div>
+          <!-- Collapse handle — right edge of sidebar -->
+          <button class="msg-sidebar-tab" id="msg-sidebar-tab" aria-label="Collapse conversations" title="Collapse conversations">
+            <i class="fas fa-chevron-left" id="msg-sidebar-tab-icon"></i>
+          </button>
         </div>
 
         <div class="chat-panel" id="chat-panel">
@@ -739,6 +787,9 @@ const MessagingModule = (function () {
     `;
 
     renderConversationsList();
+
+    // Wire sidebar collapse toggle
+    initSidebarCollapse();
 
     // Wire resize to keep mobile view sane
     window.removeEventListener("resize", applyResponsiveLayout);

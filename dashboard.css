@@ -1392,7 +1392,9 @@
 
       #centered-search-container input {
         font-size: 0.85rem !important;
-        padding: 0.6rem 4rem 0.6rem 2.5rem !important;
+        padding: 0.6rem 3.5rem 0.6rem 1rem !important;
+        border: none !important;
+        background: transparent !important;
       }
 
       #centered-search-container button {

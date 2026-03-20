@@ -22,6 +22,77 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== SIDEBAR COLLAPSE TAB ===== */
+.msg-sidebar-tab {
+  display: none; /* hidden on mobile */
+}
+
+@media (min-width: 769px) {
+  .msg-sidebar-tab {
+    display: flex;
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 56px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid rgba(0, 224, 255, 0.3);
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    z-index: 10;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    padding: 0;
+    transition: color 0.2s, border-color 0.2s;
+  }
+
+  .msg-sidebar-tab:hover {
+    color: #00e0ff;
+    border-color: #00e0ff;
+  }
+
+  /* Grid transition for smooth collapse */
+  .messages-container {
+    transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Collapsed state */
+  .messages-container.sidebar-collapsed {
+    grid-template-columns: 0px 1fr;
+    gap: 0;
+  }
+
+  .messages-container.sidebar-collapsed .conversations-sidebar {
+    width: 0;
+    min-width: 0;
+    border-color: transparent;
+    overflow: visible;
+  }
+
+  .messages-container.sidebar-collapsed .conversations-sidebar .conversations-header,
+  .messages-container.sidebar-collapsed .conversations-sidebar .conversations-list {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Tab stays on right edge of sidebar (which is now at left:0) */
+  .messages-container.sidebar-collapsed .msg-sidebar-tab {
+    right: -20px;
+  }
+
+  /* Give chat panel a small left margin so the tab doesn't overlap it */
+  .messages-container.sidebar-collapsed .chat-panel {
+    margin-left: 20px;
+  }
 }
 
 .conversations-header {
