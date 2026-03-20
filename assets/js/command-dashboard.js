@@ -1107,6 +1107,16 @@ window.CommandDashboard = (() => {
       }
     `;
 
+    // Opens the node side-panel, preferring window.openNodePanel then the
+    // fallback panel from unified-network-integration.js.
+    function _openPanelForNode(id, type) {
+      if (typeof window.openNodePanel === 'function') {
+        window.openNodePanel({ id, type });
+      } else if (window.unifiedNetworkIntegration?.openFallbackPanel) {
+        window.unifiedNetworkIntegration.openFallbackPanel({ id });
+      }
+    }
+
     // Wire "Show in Graph" buttons — for people/themes, focus in graph;
     // for projects/orgs/opps, open the node panel directly (they're not graph nodes)
     const TAB_TYPE = {
@@ -1121,6 +1131,7 @@ window.CommandDashboard = (() => {
         if (!id) return;
         if (_activeResourceTab === 'people' || _activeResourceTab === 'themes') {
           if (window.GraphController) window.GraphController.focusNode(id);
+          _openPanelForNode(id, 'person');
         } else if (window.openNodePanel) {
           window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }
@@ -1135,6 +1146,7 @@ window.CommandDashboard = (() => {
         if (!id) return;
         if (_activeResourceTab === 'people' || _activeResourceTab === 'themes') {
           if (window.GraphController) window.GraphController.focusNode(id);
+          _openPanelForNode(id, 'person');
         } else if (window.openNodePanel) {
           window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }
