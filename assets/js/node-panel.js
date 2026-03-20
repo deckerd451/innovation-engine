@@ -805,8 +805,6 @@ function renderOrganizationContent(org, members) {
       </button>
     </div>
   `;
-  console.log('renderPersonPanel profile:', profile);
-console.log('renderPersonPanel skills:', profile.skills);
 
   panelElement.innerHTML = html;
 }
