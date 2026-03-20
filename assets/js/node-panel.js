@@ -32,9 +32,6 @@ export function initNodePanel() {
     currentUserProfile = e.detail.profile;
   });
 
-  // Expose functions globally
-  window.createProjectInTheme = createProjectInTheme;
-
   console.log('✅ Node panel initialized');
 }
 
@@ -2703,7 +2700,7 @@ function parseCommaList(text) {
 }
 
 // Function to create a project in a specific theme
-async function createProjectInTheme(themeId, themeName) {
+window.createProjectInTheme = async function createProjectInTheme(themeId, themeName) {
   console.log("🎯 Creating project in theme:", { themeId, themeName });
   
   try {
