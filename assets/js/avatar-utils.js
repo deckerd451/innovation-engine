@@ -20,6 +20,53 @@ import { supabase } from "./supabaseClient.js";
 const AVATAR_BUCKET = "hacksbucket";
 
 // ---------------------------------------------------------------------------
+// In-memory URL cache — keyed by "storagePath::width×height" or "rawUrl::width×height"
+// Ensures the same deterministic URL string is returned for identical inputs,
+// preventing cache-busting and redundant Supabase egress.
+// ---------------------------------------------------------------------------
+const _urlCache = new Map();
+
+// Debug mode — enable with ?debugAvatarCache=1 or localStorage ie_debug_avatar_cache
+const _AVATAR_CACHE_DEBUG =
+  typeof window !== "undefined" &&
+  (new URLSearchParams(window.location.search).get("debugAvatarCache") === "1" ||
+    localStorage.getItem("ie_debug_avatar_cache") === "true");
+
+function _cacheKey(user, suffix) {
+  // Build a stable key from the user's identity-relevant fields
+  const id =
+    user.id || user.user_id || user.avatar_storage_path || user.image_url || user.imageUrl || user.avatar_url || "";
+  return `${id}::${suffix}`;
+}
+
+function _cachedGet(user, suffix, resolver) {
+  const key = _cacheKey(user, suffix);
+  if (_urlCache.has(key)) {
+    if (_AVATAR_CACHE_DEBUG) console.log(`[AVATAR CACHE] HIT  key=${key}`);
+    return _urlCache.get(key);
+  }
+  const url = resolver();
+  _urlCache.set(key, url);
+  if (_AVATAR_CACHE_DEBUG) console.log(`[AVATAR CACHE] MISS key=${key} url=${url}`);
+  return url;
+}
+
+/**
+ * Invalidate cached URLs for a specific user (call after avatar upload/removal).
+ * @param {object} user — must contain at least one identifying field (id, user_id, etc.)
+ */
+export function invalidateAvatarCache(user) {
+  if (!user) return;
+  const prefix =
+    user.id || user.user_id || user.avatar_storage_path || user.image_url || user.imageUrl || user.avatar_url || "";
+  if (!prefix) return;
+  for (const key of _urlCache.keys()) {
+    if (key.startsWith(`${prefix}::`)) _urlCache.delete(key);
+  }
+  if (_AVATAR_CACHE_DEBUG) console.log(`[AVATAR CACHE] INVALIDATED prefix=${prefix}`);
+}
+
+// ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
@@ -148,7 +195,8 @@ function resolveBaseUrl(user) {
  * @returns {string|null}
  */
 export function getGraphAvatarUrl(user) {
-  return withTransform(resolveBaseUrl(user), 64, 64);
+  if (!user) return null;
+  return _cachedGet(user, "64x64", () => withTransform(resolveBaseUrl(user), 64, 64));
 }
 
 /**
@@ -158,7 +206,8 @@ export function getGraphAvatarUrl(user) {
  * @returns {string|null}
  */
 export function getCardAvatarUrl(user) {
-  return withTransform(resolveBaseUrl(user), 128, 128);
+  if (!user) return null;
+  return _cachedGet(user, "128x128", () => withTransform(resolveBaseUrl(user), 128, 128));
 }
 
 /**
@@ -168,5 +217,6 @@ export function getCardAvatarUrl(user) {
  * @returns {string|null}
  */
 export function getProfileAvatarUrl(user) {
-  return resolveBaseUrl(user);
+  if (!user) return null;
+  return _cachedGet(user, "original", () => resolveBaseUrl(user));
 }

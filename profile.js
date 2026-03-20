@@ -92,11 +92,9 @@
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
-  function cacheBust(url) {
-    if (!url) return url;
-    const sep = url.includes("?") ? "&" : "?";
-    return `${url}${sep}v=${Date.now()}`;
-  }
+  // cacheBust removed — stable URLs enable browser/CDN caching and reduce
+  // Supabase Storage egress.  After an avatar upload the page reloads or the
+  // image_url column already points to a new path, so cache-busting is unnecessary.
 
   function openModal(modalEl) {
     if (!modalEl) return;
@@ -117,7 +115,7 @@
     const host = elAvatar();
     if (!host) return;
 
-    const finalUrl = url ? cacheBust(url) : "";
+    const finalUrl = url || "";
 
     if (host.tagName && host.tagName.toLowerCase() === "img") {
       if (finalUrl) {
@@ -372,7 +370,7 @@
           <div class="ch-profile-header">
             ${
               imageUrl
-                ? `<img src="${escapeHtml(cacheBust(imageUrl))}" alt="Profile photo" class="ch-profile-avatar">`
+                ? `<img src="${escapeHtml(imageUrl)}" alt="Profile photo" class="ch-profile-avatar">`
                 : `<div class="ch-profile-avatar-placeholder" aria-hidden="true">
                     <span class="ch-profile-avatar-initials">${escapeHtml(initialsFromName(name))}</span>
                   </div>`
@@ -454,7 +452,7 @@
               <div id="edit-profile-image-preview" class="ch-profile-image-preview">
                 ${
                   existingImageUrl
-                    ? `<img id="avatar-preview-img" src="${escapeHtml(cacheBust(existingImageUrl))}" alt="Profile photo">`
+                    ? `<img id="avatar-preview-img" src="${escapeHtml(existingImageUrl)}" alt="Profile photo">`
                     : `<div class="ch-profile-image-placeholder" aria-hidden="true">
                         <i class="fas fa-user" style="font-size:2.5rem;color:rgba(0,224,255,0.3);"></i>
                       </div>`
@@ -581,7 +579,7 @@
 
       const setPreviewToUrl = (url) => {
         if (!preview) return;
-        if (url) preview.innerHTML = `<img id="avatar-preview-img" src="${escapeHtml(cacheBust(url))}" alt="Profile photo">`;
+        if (url) preview.innerHTML = `<img id="avatar-preview-img" src="${escapeHtml(url)}" alt="Profile photo">`;
         else preview.innerHTML = `<div class="ch-profile-image-placeholder" aria-hidden="true">
           <i class="fas fa-user" style="font-size:2.5rem;color:rgba(0,224,255,0.3);"></i>
         </div>`;
