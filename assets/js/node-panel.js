@@ -988,48 +988,50 @@ async function renderPersonPanel(nodeData) {
         </div>
       ` : ''}
 
-     <!-- Skills Section (Collapsible) -->
-${profile.skills ? `
-  <div class="panel-section">
-    <div class="panel-section-header" onclick="togglePanelSection('skills')">
-      <div class="panel-section-title">
-        <i class="fas fa-code"></i> SKILLS
-      </div>
-      <i class="fas fa-chevron-down panel-section-toggle" id="skills-toggle"></i>
-    </div>
-    <div class="panel-section-content" id="skills-content">
-      <div class="panel-section-inner">
-        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-          ${(() => {
-            let skills = [];
+         <!-- Skills Section (Collapsible) -->
+      ${(() => {
+        let skills = [];
 
-            if (Array.isArray(profile.skills)) {
-              skills = profile.skills;
-            } else if (typeof profile.skills === 'string') {
-              try {
-                const parsed = JSON.parse(profile.skills);
-                if (Array.isArray(parsed)) {
-                  skills = parsed;
-                } else {
-                  skills = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
-                }
-              } catch {
-                skills = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
-              }
+        if (Array.isArray(profile.skills)) {
+          skills = profile.skills;
+        } else if (typeof profile.skills === 'string') {
+          try {
+            const parsed = JSON.parse(profile.skills);
+            if (Array.isArray(parsed)) {
+              skills = parsed;
+            } else {
+              skills = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
             }
+          } catch {
+            skills = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
 
-            return skills.map(skill => `
-              <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">
-                ${skill}
-              </span>
-            `).join('');
-          })()}
-        </div>
-      </div>
-    </div>
-  </div>
-` : ''}
+        if (!skills.length) return '';
 
+        return `
+          <div class="panel-section">
+            <div class="panel-section-header" onclick="togglePanelSection('skills')">
+              <div class="panel-section-title">
+                <i class="fas fa-code"></i> SKILLS
+              </div>
+              <i class="fas fa-chevron-down panel-section-toggle" id="skills-toggle"></i>
+            </div>
+            <div class="panel-section-content" id="skills-content">
+              <div class="panel-section-inner">
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                  ${skills.map(skill => `
+                    <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">
+                      ${skill}
+                    </span>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      })()}
+      
       <!-- Endorsements Section (Collapsible) -->
       ${endorsements && endorsements.length > 0 ? `
         <div class="panel-section">
