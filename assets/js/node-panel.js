@@ -572,6 +572,20 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Safely normalize skills from any storage format (null, array, JSON string, comma-string)
+function normalizeSkills(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(s => String(s).trim()).filter(Boolean);
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(s => String(s).trim()).filter(Boolean);
+    } catch (_) {}
+    return raw.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 // Render opportunity panel — queries public.opportunities by UUID
 async function renderOpportunityPanel(nodeData) {
   const oppId = nodeData.id;
@@ -891,6 +905,26 @@ async function renderPersonPanel(nodeData) {
   // Build panel HTML
   const initials = (profile.name || '?').split(' ').map(n => n[0]).join('').toUpperCase();
 
+  // Pre-compute skills HTML to avoid nested IIFE inside template literal (browser parse risk)
+  const profileSkillList = normalizeSkills(profile.skills);
+  const skillsSectionHtml = profileSkillList.length === 0 ? '' : `
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="togglePanelSection('skills')">
+        <div class="panel-section-title">
+          <i class="fas fa-code"></i> SKILLS
+        </div>
+        <i class="fas fa-chevron-down panel-section-toggle" id="skills-toggle"></i>
+      </div>
+      <div class="panel-section-content" id="skills-content">
+        <div class="panel-section-inner">
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            ${profileSkillList.map(skill => `<span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">${escapeHtml(skill)}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
   let html = `
     <div class="node-panel-body">
       <!-- Close Button -->
@@ -989,39 +1023,7 @@ async function renderPersonPanel(nodeData) {
       ` : ''}
 
       <!-- Skills Section (Collapsible) -->
-      ${(() => {
-        let skillList = [];
-        try {
-          const raw = profile.skills;
-          if (Array.isArray(raw)) {
-            skillList = raw.map(s => String(s).trim()).filter(Boolean);
-          } else if (typeof raw === 'string' && raw.trim()) {
-            try { const p = JSON.parse(raw); if (Array.isArray(p)) { skillList = p.map(s => String(s).trim()).filter(Boolean); } else { skillList = raw.split(',').map(s => s.trim()).filter(Boolean); } } catch(_) { skillList = raw.split(',').map(s => s.trim()).filter(Boolean); }
-          }
-        } catch(_) {}
-        if (!skillList.length) return '';
-        return `
-        <div class="panel-section">
-          <div class="panel-section-header" onclick="togglePanelSection('skills')">
-            <div class="panel-section-title">
-              <i class="fas fa-code"></i> SKILLS
-            </div>
-            <i class="fas fa-chevron-down panel-section-toggle" id="skills-toggle"></i>
-          </div>
-          <div class="panel-section-content" id="skills-content">
-            <div class="panel-section-inner">
-              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                ${skillList.map(skill => `
-                  <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">
-                    ${skill}
-                  </span>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-        </div>
-        `;
-      })()}
+      ${skillsSectionHtml}
 
       <!-- Endorsements Section (Collapsible) -->
       ${endorsements && endorsements.length > 0 ? `
@@ -1753,12 +1755,7 @@ window.endorseSkill = async function(userId) {
 
     console.debug('[endorse] target resolved:', { communityId: userId, authUserId: profile.user_id, name: profile.name });
 
-    let skills = [];
-    if (Array.isArray(profile.skills)) {
-      skills = profile.skills.map(s => String(s).trim()).filter(Boolean);
-    } else if (typeof profile.skills === 'string' && profile.skills.trim()) {
-      try { const p = JSON.parse(profile.skills); skills = Array.isArray(p) ? p.map(s => String(s).trim()).filter(Boolean) : profile.skills.split(',').map(s => s.trim()).filter(Boolean); } catch(_) { skills = profile.skills.split(',').map(s => s.trim()).filter(Boolean); }
-    }
+    const skills = normalizeSkills(profile.skills);
 
     // Create selection modal
     const modal = document.createElement('div');
