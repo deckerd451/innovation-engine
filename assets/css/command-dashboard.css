@@ -581,6 +581,26 @@
   transform: scale(1.08);
 }
 
+.udc-resource-item.pending {
+  border-color: rgba(255, 170, 0, 0.3);
+  background: rgba(255, 170, 0, 0.05);
+}
+
+.udc-resource-item.pending .udc-resource-name {
+  color: #ffaa00;
+}
+
+.udc-pending-label {
+  color: #ffaa00 !important;
+  opacity: 0.85;
+}
+
+.udc-resource-item.pending .udc-resource-show-btn {
+  background: rgba(255, 170, 0, 0.08);
+  border-color: rgba(255, 170, 0, 0.25);
+  color: #ffaa00;
+}
+
 .udc-resource-empty {
   font-size: 0.72rem;
   color: var(--cd-text-dim);
