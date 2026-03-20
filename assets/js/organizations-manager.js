@@ -429,16 +429,18 @@ async function getOrganizationOpportunities(organizationId) {
     throw new Error('Supabase not available');
   }
   
+  // opportunities_with_org view does not exist — query public.opportunities directly
   const { data, error } = await supabase
-    .from('opportunities_with_org')
-    .select('*')
+    .from('opportunities')
+    .select('*, organization:organizations(name, slug, logo_url, verified)')
     .eq('organization_id', organizationId)
     .order('created_at', { ascending: false });
-    
+
   if (error) {
     throw error;
   }
-  
+
+  console.debug('[org-manager] org opportunities loaded:', data?.length ?? 0, 'for org', organizationId);
   return data || [];
 }
 
@@ -451,22 +453,16 @@ async function getOpportunities(filters = {}) {
     throw new Error('Supabase not available');
   }
   
-  // Try the view first, fallback to direct table query
-  let query;
-  try {
-    query = supabase
-      .from('opportunities_with_org')
-      .select('*');
-  } catch (viewError) {
-    console.warn('⚠️ opportunities_with_org view not available, using direct query');
-    query = supabase
-      .from('opportunities')
-      .select(`
-        *,
-        organization:organizations(name, slug, logo_url, verified)
-      `)
-      .eq('status', 'open');
-  }
+  // Query public.opportunities directly — opportunities_with_org view does not exist.
+  // Org data joined inline; gracefully omitted if unavailable.
+  console.debug('[org-manager] getOpportunities — source: public.opportunities, filters:', filters);
+  const nowIso = new Date().toISOString();
+  let query = supabase
+    .from('opportunities')
+    .select('*, organization:organizations(name, slug, logo_url, verified)')
+    .eq('status', 'open')
+    .eq('is_public', true)
+    .or(`application_deadline.is.null,application_deadline.gt.${nowIso}`);
     
   // Apply filters
   if (filters.type) {

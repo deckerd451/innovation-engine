@@ -389,8 +389,10 @@ export async function getOpportunities(filters = {}) {
         )
       `)
       .eq("status", "open")
-      .or("expires_at.is.null,expires_at.gt." + new Date().toISOString());
+      .eq("is_public", true)
+      .or("application_deadline.is.null,application_deadline.gt." + new Date().toISOString());
 
+    console.debug('[opp-manager] getOpportunities — source: public.opportunities');
     // Apply filters
     if (filters.type) {
       query = query.eq("type", filters.type);
@@ -474,7 +476,8 @@ export async function getOpportunitiesByOrganization(organizationId) {
       .select("*")
       .eq("organization_id", organizationId)
       .eq("status", "open")
-      .or("expires_at.is.null,expires_at.gt." + new Date().toISOString())
+      .eq("is_public", true)
+      .or("application_deadline.is.null,application_deadline.gt." + new Date().toISOString())
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -581,7 +584,8 @@ export async function getRecommendedOpportunities() {
         )
       `)
       .eq("status", "open")
-      .or("expires_at.is.null,expires_at.gt." + new Date().toISOString())
+      .eq("is_public", true)
+      .or("application_deadline.is.null,application_deadline.gt." + new Date().toISOString())
       .overlaps("required_skills", profile.skills)
       .order("created_at", { ascending: false })
       .limit(10);
