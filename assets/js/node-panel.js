@@ -1782,7 +1782,7 @@ window.inviteToProject = async function(userId) {
       .from('projects')
       .select('id, title, description, status')
       .eq('creator_id', currentProfile.id)
-      .in('status', ['open', 'active', 'in-progress']);
+      .in('status', ['open', 'active']);
 
     if (!projects || projects.length === 0) {
       alert('You need to create a project first!');
@@ -2057,10 +2057,9 @@ window.editProjectFromPanel = async function(projectId) {
               style="width: 100%; padding: 0.75rem; background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; color: white; font-family: inherit;"
             >
               <option value="open" ${project.status === 'open' ? 'selected' : ''}>Open (Recruiting)</option>
-              <option value="active" ${project.status === 'active' ? 'selected' : ''}>Active (In Progress)</option>
-              <option value="in-progress" ${project.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+              <option value="active" ${project.status === 'active' ? 'selected' : ''}>Active</option>
               <option value="completed" ${project.status === 'completed' ? 'selected' : ''}>Completed</option>
-              <option value="on-hold" ${project.status === 'on-hold' ? 'selected' : ''}>On Hold</option>
+              <option value="archived" ${project.status === 'archived' ? 'selected' : ''}>Archived</option>
             </select>
           </div>
 
