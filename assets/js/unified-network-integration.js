@@ -371,9 +371,12 @@ function setupEventBridges() {
   // Node tapped → open side panel
   unifiedNetworkApi.on('node-action-requested', ({ node }) => {
     if (!node) return;
+    console.log('[NodePanel] node-action-requested — window.openNodePanel type:', typeof window.openNodePanel);
     if (typeof window.openNodePanel === 'function') {
+      console.log('[NodePanel] using window.openNodePanel (full panel)');
       window.openNodePanel(node);
     } else {
+      console.warn('[NodePanel] window.openNodePanel not available — using fallback panel');
       _openFallbackPanel(node);
     }
   });
