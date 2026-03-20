@@ -1109,6 +1109,11 @@ window.CommandDashboard = (() => {
 
     // Wire "Show in Graph" buttons — for people/themes, focus in graph;
     // for projects/orgs/opps, open the node panel directly (they're not graph nodes)
+    const TAB_TYPE = {
+      projects:      'project',
+      organizations: 'organization',
+      opportunities: 'opportunity',
+    };
     list.querySelectorAll('.udc-resource-show-btn').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
@@ -1117,7 +1122,7 @@ window.CommandDashboard = (() => {
         if (_activeResourceTab === 'people' || _activeResourceTab === 'themes') {
           if (window.GraphController) window.GraphController.focusNode(id);
         } else if (window.openNodePanel) {
-          window.openNodePanel({ id, type: _activeResourceTab.replace(/s$/, '') });
+          window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }
       });
     });
@@ -1131,7 +1136,7 @@ window.CommandDashboard = (() => {
         if (_activeResourceTab === 'people' || _activeResourceTab === 'themes') {
           if (window.GraphController) window.GraphController.focusNode(id);
         } else if (window.openNodePanel) {
-          window.openNodePanel({ id, type: _activeResourceTab.replace(/s$/, '') });
+          window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }
       });
     });
@@ -1208,9 +1213,9 @@ window.CommandDashboard = (() => {
         .sort((a, b) => a.name.localeCompare(b.name));
 
     } else if (resourceType === 'opportunities') {
-      // Opportunities come from Supabase, not graph nodes
+      // Opportunities come from Supabase — real UUIDs only, no stubs
       const allOpps = _enrichedData.opportunities;
-      if (!allOpps || allOpps.length === 0) return STUB_OPPORTUNITIES;
+      if (!allOpps || allOpps.length === 0) return [];
       return allOpps
         .slice(0, 10)
         .map(o => ({ id: o.id, name: o.title || 'Untitled Opportunity', meta: o.status || '' }))

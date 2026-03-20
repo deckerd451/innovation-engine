@@ -349,6 +349,8 @@ async function loadNodeDetails(nodeData) {
       await renderProjectPanel(nodeData);
     } else if (nodeData.type === 'organization') {
       await renderOrganizationPanel(nodeData);
+    } else if (nodeData.type === 'opportunity') {
+      await renderOpportunityPanel(nodeData);
     } else {
       await renderPersonPanel(nodeData);
     }
@@ -568,6 +570,90 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Render opportunity panel — queries public.opportunities by UUID
+async function renderOpportunityPanel(nodeData) {
+  const oppId = nodeData.id;
+
+  const { data: opp, error } = await supabase
+    .from('opportunities')
+    .select('*')
+    .eq('id', oppId)
+    .single();
+
+  if (error || !opp) {
+    console.error('Error loading opportunity:', error);
+    panelElement.innerHTML = `
+      <div style="padding: 2rem; text-align: center; color: #ff6666;">
+        <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></button>
+        <i class="fas fa-exclamation-circle" style="font-size: 2rem;"></i>
+        <p style="margin-top: 1rem;">Opportunity not found</p>
+      </div>
+    `;
+    return;
+  }
+
+  const typeColors = {
+    job: '#00e0ff', internship: '#a855f7', volunteer: '#10b981',
+    contract: '#f59e0b', mentorship: '#ec4899',
+  };
+  const typeColor = typeColors[opp.type] || '#00e0ff';
+
+  const skills = Array.isArray(opp.required_skills) ? opp.required_skills : [];
+  const deadline = opp.deadline ? new Date(opp.deadline).toLocaleDateString() : null;
+
+  panelElement.innerHTML = `
+    <div class="node-panel-body" style="padding: 2rem; overflow-y: auto; height: 100%;">
+      <button onclick="closeNodePanel()" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <!-- Header -->
+      <div style="margin-bottom: 1.5rem; text-align: center;">
+        <div style="width: 70px; height: 70px; border-radius: 16px; background: linear-gradient(135deg, ${typeColor}33, ${typeColor}11); border: 2px solid ${typeColor}; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 1rem;">
+          <i class="fas fa-bolt" style="color: ${typeColor};"></i>
+        </div>
+        <h2 style="color: ${typeColor}; font-size: 1.5rem; margin-bottom: 0.5rem;">${escapeHtml(opp.title)}</h2>
+        ${opp.type ? `<span style="background: ${typeColor}22; color: ${typeColor}; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">${escapeHtml(opp.type)}</span>` : ''}
+      </div>
+
+      <!-- Meta -->
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; justify-content: center;">
+        ${opp.experience_level ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-layer-group"></i> ${escapeHtml(opp.experience_level)}</span>` : ''}
+        ${opp.commitment ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-clock"></i> ${escapeHtml(opp.commitment)}</span>` : ''}
+        ${opp.remote_ok ? `<span style="background: rgba(16,185,129,0.15); color: #10b981; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-wifi"></i> Remote OK</span>` : ''}
+        ${opp.location ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(opp.location)}</span>` : ''}
+        ${opp.compensation_type ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-dollar-sign"></i> ${escapeHtml(opp.compensation_type)}${opp.compensation_range ? ': ' + escapeHtml(opp.compensation_range) : ''}</span>` : ''}
+        ${deadline ? `<span style="background: rgba(239,68,68,0.15); color: #ef4444; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-calendar"></i> Due ${escapeHtml(deadline)}</span>` : ''}
+      </div>
+
+      <!-- Description -->
+      ${opp.description ? `
+        <div style="margin-bottom: 1.5rem;">
+          <h3 style="color: ${typeColor}; font-size: 0.9rem; margin-bottom: 0.6rem; text-transform: uppercase;"><i class="fas fa-info-circle"></i> About</h3>
+          <p style="color: #ddd; line-height: 1.6; font-size: 0.9rem;">${escapeHtml(opp.description)}</p>
+        </div>
+      ` : ''}
+
+      <!-- Skills -->
+      ${skills.length > 0 ? `
+        <div style="margin-bottom: 1.5rem;">
+          <h3 style="color: ${typeColor}; font-size: 0.9rem; margin-bottom: 0.6rem; text-transform: uppercase;"><i class="fas fa-tools"></i> Skills</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+            ${skills.map(s => `<span style="background: ${typeColor}18; color: ${typeColor}; border: 1px solid ${typeColor}44; padding: 0.2rem 0.55rem; border-radius: 8px; font-size: 0.78rem;">${escapeHtml(s)}</span>`).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Status badge -->
+      <div style="text-align: center; margin-top: 1rem;">
+        <span style="background: ${opp.status === 'open' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${opp.status === 'open' ? '#10b981' : '#ef4444'}; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
+          ${opp.status === 'open' ? '● Open' : opp.status === 'filled' ? '✓ Filled' : '✕ Closed'}
+        </span>
+      </div>
+    </div>
+  `;
 }
 
 // Render organization panel
