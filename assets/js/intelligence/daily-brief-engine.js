@@ -722,34 +722,27 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     ),
   ]);
 
-  // Opportunities: prefer opportunities_with_org view.
-  // NOTE: opportunities_with_org exposes organization_industry (ARRAY), not industry.
+  // Opportunities: query public.opportunities directly (opportunities_with_org view does not exist).
+  // Visibility: status=open, is_public=true, application_deadline null or in the future.
   let opportunities = [];
   try {
-    const { data: owoData, error: owoErr } = await supabase
-      .from('opportunities_with_org')
-      .select('id, title, description, required_skills, commitment, status, expires_at, view_count, application_count, created_at, updated_at, organization_id, theme_id, organization_name, organization_industry')
+    const nowIso = now.toISOString();
+    const { data: oppData, error: oppErr } = await supabase
+      .from('opportunities')
+      .select('id, title, description, required_skills, commitment, status, is_public, application_deadline, view_count, application_count, created_at, updated_at, organization_id, theme_id')
       .eq('status', 'open')
-      .or(`expires_at.is.null,expires_at.gt.${now.toISOString()}`)
+      .eq('is_public', true)
+      .or(`application_deadline.is.null,application_deadline.gt.${nowIso}`)
       .limit(200);
-
-    if (owoErr) throw new Error(owoErr.message);
-    opportunities = owoData || [];
-    usedSources.push('opportunities_with_org');
-  } catch {
-    // Fallback to base opportunities table
-    try {
-      const { data: oppData, error: oppErr } = await supabase
-        .from('opportunities')
-        .select('id, title, description, required_skills, commitment, status, expires_at, view_count, application_count, created_at, updated_at, organization_id, theme_id')
-        .eq('status', 'open')
-        .or(`expires_at.is.null,expires_at.gt.${now.toISOString()}`)
-        .limit(200);
-      if (!oppErr) {
-        opportunities = oppData || [];
-        usedSources.push('opportunities');
-      }
-    } catch { /* proceed without opportunities */ }
+    if (!oppErr) {
+      opportunities = oppData || [];
+      usedSources.push('opportunities');
+      console.debug('[brief] opportunities loaded:', opportunities.length, '— source: public.opportunities');
+    } else {
+      console.warn('[brief] opportunities query error:', oppErr.message);
+    }
+  } catch (err) {
+    console.warn('[brief] opportunities fetch failed:', err.message);
   }
 
   return {
