@@ -124,6 +124,7 @@ window.CommandDashboard = (() => {
   // Supabase-enriched sets (loaded async after init; null = not yet loaded)
   let _enrichedData = {
     acceptedPeerIds: null,   // Set<string> — accepted-only connection peer IDs
+    pendingConnections: null, // Array<{id, name}> — pending connection peers
     activeProjectIds: null,  // Set<string> — projects with status active/open/etc.
     // Direct Supabase data for dashboard (projects/orgs/opps no longer in graph)
     projects: null,          // Array — all projects from Supabase
@@ -409,13 +410,19 @@ window.CommandDashboard = (() => {
   async function _loadEnrichedData() {
     if (!window.supabase || !_userId) return;
     try {
-      const [connResult, projResult, myProjResult, orgResult, myOrgResult, oppResult] = await Promise.all([
+      const [connResult, pendingResult, projResult, myProjResult, orgResult, myOrgResult, oppResult] = await Promise.all([
         // Accepted connections only (both directions)
         window.supabase
           .from('connections')
           .select('from_user_id, to_user_id')
           .or(`from_user_id.eq.${_userId},to_user_id.eq.${_userId}`)
           .eq('status', 'accepted'),
+        // Pending connections (both directions)
+        window.supabase
+          .from('connections')
+          .select('from_user_id, to_user_id')
+          .or(`from_user_id.eq.${_userId},to_user_id.eq.${_userId}`)
+          .eq('status', 'pending'),
         // All projects (with basic info for Explore tab)
         window.supabase
           .from('projects')
@@ -448,6 +455,23 @@ window.CommandDashboard = (() => {
             c.from_user_id === _userId ? c.to_user_id : c.from_user_id
           )
         );
+      }
+
+      if (pendingResult.data && pendingResult.data.length > 0) {
+        const peerIds = pendingResult.data.map(c =>
+          c.from_user_id === _userId ? c.to_user_id : c.from_user_id
+        );
+        const { data: peers } = await window.supabase
+          .from('community')
+          .select('id, name')
+          .in('id', peerIds);
+        const nameMap = new Map((peers || []).map(p => [p.id, p.name]));
+        _enrichedData.pendingConnections = pendingResult.data.map(c => {
+          const peerId = c.from_user_id === _userId ? c.to_user_id : c.from_user_id;
+          return { id: peerId, name: nameMap.get(peerId) || 'Unknown' };
+        });
+      } else {
+        _enrichedData.pendingConnections = [];
       }
 
       if (projResult.data) {
@@ -1065,10 +1089,11 @@ window.CommandDashboard = (() => {
       <div class="udc-resource-section-label">${_escapeHtml(tabLabel)}</div>
       ${items.length > 0
         ? items.map(item => `
-          <div class="udc-resource-item" data-id="${item.id}">
+          <div class="udc-resource-item${item.pending ? ' pending' : ''}" data-id="${item.id}">
             <div class="udc-resource-info">
               <span class="udc-resource-name" title="${_escapeHtml(item.name)}">${_escapeHtml(item.name)}</span>
               ${item.meta ? `<span class="udc-resource-meta">${_escapeHtml(item.meta)}</span>` : ''}
+              ${item.pending ? `<span class="udc-resource-meta udc-pending-label">pending request</span>` : ''}
             </div>
             ${item.isStub
               ? `<span class="udc-resource-stub-badge">sample</span>`
@@ -1129,26 +1154,18 @@ window.CommandDashboard = (() => {
     let filtered = [];
 
     if (resourceType === 'people') {
-      if (!nodes.length) return [];
-      if (tier === 1) {
-        filtered = nodes.filter(n => n.type === 'person' && directIds.has(n.id));
-      } else if (tier === 2) {
-        const twoHopIds = new Set(directIds);
-        [...directIds].forEach(did => {
-          links.forEach(l => {
-            const s = edgeSrc(l), t = edgeTgt(l);
-            if (s === did) twoHopIds.add(t);
-            if (t === did) twoHopIds.add(s);
-          });
-        });
-        filtered = nodes.filter(n => n.type === 'person' && n.id !== userId && twoHopIds.has(n.id));
-      } else {
-        filtered = nodes.filter(n => n.type === 'person' && n.id !== userId);
-      }
-      return filtered
-        .slice(0, 10)
-        .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
+      // Always show: accepted connections first, then pending requests in yellow
+      const acceptedIds = _enrichedData.acceptedPeerIds;
+      const connected = acceptedIds && nodes.length
+        ? nodes
+            .filter(n => n.type === 'person' && acceptedIds.has(n.id))
+            .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        : [];
+      const pending = (_enrichedData.pendingConnections || [])
+        .map(p => ({ id: p.id, name: p.name, pending: true }))
         .sort((a, b) => a.name.localeCompare(b.name));
+      return [...connected, ...pending].slice(0, 20);
 
     } else if (resourceType === 'projects') {
       // Projects come from Supabase, not graph nodes
