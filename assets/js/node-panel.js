@@ -290,6 +290,16 @@ window.togglePanelSection = function(sectionId) {
 export async function openNodePanel(nodeData) {
   console.log('Opening panel for node:', nodeData);
 
+  // Auto-initialize if initNodePanel wasn't called yet (timing safety)
+  if (!panelElement) {
+    console.warn('[NodePanel] panelElement null — running initNodePanel() now');
+    initNodePanel();
+  }
+  if (!panelElement) {
+    console.error('[NodePanel] panelElement still null after init — aborting openNodePanel');
+    return;
+  }
+
   currentNodeData = nodeData;
 
   // Show panel
@@ -1451,6 +1461,7 @@ async function getSharedProjects(userId) {
 // Action handlers (these will be attached to window)
 window.closeNodePanel = closeNodePanel;
 window.openNodePanel = openNodePanel;
+window.initNodePanel = initNodePanel;
 
 // Open project details by calling openNodePanel with proper project structure
 window.openProjectDetails = function(project) {
