@@ -748,7 +748,8 @@ if (typeof window !== 'undefined') {
     enable: enableUnifiedNetwork,
     disable: disableUnifiedNetwork,
     toggleDebug: toggleDebugMode,
-    api: unifiedNetworkApi
+    api: unifiedNetworkApi,
+    openFallbackPanel: _openFallbackPanel,
   });
 }
 
