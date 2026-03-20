@@ -598,10 +598,11 @@ async function renderOpportunityPanel(nodeData) {
     job: '#00e0ff', internship: '#a855f7', volunteer: '#10b981',
     contract: '#f59e0b', mentorship: '#ec4899',
   };
-  const typeColor = typeColors[opp.type] || '#00e0ff';
+  const oppType = opp.opportunity_type || opp.type;
+  const typeColor = typeColors[oppType] || '#00e0ff';
 
-  const skills = Array.isArray(opp.required_skills) ? opp.required_skills : [];
-  const deadline = opp.deadline ? new Date(opp.deadline).toLocaleDateString() : null;
+  const skills = Array.isArray(opp.skills) ? opp.skills : [];
+  const deadline = opp.application_deadline ? new Date(opp.application_deadline).toLocaleDateString() : null;
 
   panelElement.innerHTML = `
     <div class="node-panel-body" style="padding: 2rem; overflow-y: auto; height: 100%;">
@@ -615,7 +616,7 @@ async function renderOpportunityPanel(nodeData) {
           <i class="fas fa-bolt" style="color: ${typeColor};"></i>
         </div>
         <h2 style="color: ${typeColor}; font-size: 1.5rem; margin-bottom: 0.5rem;">${escapeHtml(opp.title)}</h2>
-        ${opp.type ? `<span style="background: ${typeColor}22; color: ${typeColor}; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">${escapeHtml(opp.type)}</span>` : ''}
+        ${oppType ? `<span style="background: ${typeColor}22; color: ${typeColor}; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">${escapeHtml(oppType)}</span>` : ''}
       </div>
 
       <!-- Meta -->
