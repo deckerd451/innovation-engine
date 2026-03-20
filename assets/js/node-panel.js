@@ -988,28 +988,47 @@ async function renderPersonPanel(nodeData) {
         </div>
       ` : ''}
 
-      <!-- Skills Section (Collapsible) -->
-      ${profile.skills ? `
-        <div class="panel-section">
-          <div class="panel-section-header" onclick="togglePanelSection('skills')">
-            <div class="panel-section-title">
-              <i class="fas fa-code"></i> SKILLS
-            </div>
-            <i class="fas fa-chevron-down panel-section-toggle" id="skills-toggle"></i>
-          </div>
-          <div class="panel-section-content" id="skills-content">
-            <div class="panel-section-inner">
-              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                ${profile.skills.split(',').map(skill => `
-                  <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">
-                    ${skill.trim()}
-                  </span>
-                `).join('')}
-              </div>
-            </div>
-          </div>
+     <!-- Skills Section (Collapsible) -->
+${profile.skills ? `
+  <div class="panel-section">
+    <div class="panel-section-header" onclick="togglePanelSection('skills')">
+      <div class="panel-section-title">
+        <i class="fas fa-code"></i> SKILLS
+      </div>
+      <i class="fas fa-chevron-down panel-section-toggle" id="skills-toggle"></i>
+    </div>
+    <div class="panel-section-content" id="skills-content">
+      <div class="panel-section-inner">
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+          ${(() => {
+            let skills = [];
+
+            if (Array.isArray(profile.skills)) {
+              skills = profile.skills;
+            } else if (typeof profile.skills === 'string') {
+              try {
+                const parsed = JSON.parse(profile.skills);
+                if (Array.isArray(parsed)) {
+                  skills = parsed;
+                } else {
+                  skills = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
+                }
+              } catch {
+                skills = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
+              }
+            }
+
+            return skills.map(skill => `
+              <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">
+                ${skill}
+              </span>
+            `).join('');
+          })()}
         </div>
-      ` : ''}
+      </div>
+    </div>
+  </div>
+` : ''}
 
       <!-- Endorsements Section (Collapsible) -->
       ${endorsements && endorsements.length > 0 ? `
@@ -1788,19 +1807,95 @@ window.endorseSkill = async function(userId) {
   }
 };
 
-// confirmEndorsement(communityId, endorsedAuthUserId, skill, userName, button)
-//   communityId        — target community.id     (endorsed_community_id)
-//   endorsedAuthUserId — target auth.users.id     (endorsed_id, resolved in endorseSkill)
-window.confirmEndorsement = async function(communityId, endorsedAuthUserId, skill, userName, button) {
-  // Guard: endorsedAuthUserId is resolved by endorseSkill before showing the modal.
-  // If it somehow arrives empty, fail loudly before touching the DB.
-  console.debug('[endorse] confirmEndorsement →', { communityId, endorsedAuthUserId, skill });
+// confirmEndorsement(targetCommunityId, targetAuthUserId, skill, userName, button)
+//   targetCommunityId — target community.id
+//   targetAuthUserId  — target auth.users.id (optional for notifications or other uses)
+window.confirmEndorsement = async function(targetCommunityId, targetAuthUserId, skill, userName, button) {
+  console.debug('[endorse] confirmEndorsement →', {
+    targetCommunityId,
+    targetAuthUserId,
+    skill,
+    currentUserProfileId: currentUserProfile?.id,
+    currentUserProfileUserId: currentUserProfile?.user_id
+  });
 
-  if (!endorsedAuthUserId) {
-    console.error('[endorse] missing endorsedAuthUserId — incoming args:', { communityId, endorsedAuthUserId, skill, userName });
-    alert('Could not resolve target user (auth id missing)');
+  if (!targetCommunityId) {
+    console.error('[endorse] missing targetCommunityId');
+    alert('Could not resolve target profile.');
     return;
   }
+
+  if (!currentUserProfile?.id) {
+    console.error('[endorse] missing currentUserProfile.id', currentUserProfile);
+    alert('Your profile is not ready yet. Please try again.');
+    return;
+  }
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.style.opacity = '0.7';
+    }
+
+    // Insert endorsement using COMMUNITY ids
+    const { error } = await supabase
+      .from('endorsements')
+      .insert({
+        endorsed_community_id: targetCommunityId,
+        endorser_community_id: currentUserProfile.id,
+        skill: skill
+      });
+
+    if (error) {
+      console.error('[endorse] insert error:', error);
+
+      // duplicate endorsement
+      if (error.code === '23505') {
+        alert(`You already endorsed ${userName} for ${skill}.`);
+        return;
+      }
+
+      throw error;
+    }
+
+    // Optional notification — only do this if your notifications table expects community.id in user_id
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: targetCommunityId,
+        type: 'endorsement',
+        title: 'New Skill Endorsement',
+        message: `${currentUserProfile.name || 'Someone'} endorsed you for ${skill}`,
+        data: {
+          skill,
+          endorser_community_id: currentUserProfile.id,
+          endorser_name: currentUserProfile.name || null,
+          target_auth_user_id: targetAuthUserId || null
+        }
+      });
+
+    if (notificationError) {
+      console.warn('[endorse] notification insert failed:', notificationError);
+      // do not fail the endorsement if notification creation fails
+    }
+
+    if (button) {
+      button.textContent = 'Endorsed ✓';
+      button.disabled = true;
+      button.style.opacity = '1';
+    }
+
+    alert(`You endorsed ${userName} for ${skill}.`);
+
+  } catch (err) {
+    console.error('Error endorsing skill:', err);
+    alert('Failed to endorse skill.');
+    if (button) {
+      button.disabled = false;
+      button.style.opacity = '1';
+    }
+  }
+};
 
   // Keep legacy alias so rest of function reads clearly
   const userId = communityId;
