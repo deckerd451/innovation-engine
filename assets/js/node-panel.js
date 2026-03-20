@@ -32,9 +32,6 @@ export function initNodePanel() {
     currentUserProfile = e.detail.profile;
   });
 
-  // Expose functions globally
-  window.createProjectInTheme = createProjectInTheme;
-
   console.log('✅ Node panel initialized');
 }
 
