@@ -5,7 +5,6 @@
 // Shows profile details, mutual connections, and clear CTAs
 
 import { makeProfileImageClickable } from './profile-image-modal.js';
-import { sendConnectionRequest as sendConnectionRequestDirect } from './connections.js';
 
 const NODE_PANEL_VERSION = 'v2.2-' + Date.now();
 console.log(`%c👤 Node Panel ${NODE_PANEL_VERSION} (Project Approval Fix)`, "color:#0ff; font-weight: bold; font-size: 16px");
@@ -1364,11 +1363,52 @@ window.openProjectDetails = function(project) {
 
 window.sendConnectionFromPanel = async function(userId) {
   try {
-    // Use the connections.js module directly (bypasses broken window override chain)
-    const result = await sendConnectionRequestDirect(userId);
-    if (!result?.success) return; // toast already shown by connections.js
+    if (!supabase) supabase = window.supabase;
+    if (!supabase || !currentUserProfile?.id) {
+      alert('Please log in first');
+      return;
+    }
+    if (userId === currentUserProfile.id) {
+      alert("You can't connect to yourself");
+      return;
+    }
 
-    // Track connection request for engagement system
+    // Check for existing connection
+    const { data: existing } = await supabase
+      .from('connections')
+      .select('id, status')
+      .or(`and(from_user_id.eq.${currentUserProfile.id},to_user_id.eq.${userId}),and(from_user_id.eq.${userId},to_user_id.eq.${currentUserProfile.id})`)
+      .in('status', ['pending', 'accepted'])
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      alert(`Connection already ${existing[0].status}`);
+      return;
+    }
+
+    // Insert new connection request
+    const { error } = await supabase
+      .from('connections')
+      .insert({
+        from_user_id: currentUserProfile.id,
+        to_user_id: userId,
+        status: 'pending',
+        type: 'generic'
+      });
+
+    if (error) {
+      if (error.code === '23505') {
+        alert('Connection request already exists');
+      } else {
+        console.error('Connection insert error:', error);
+        alert('Failed to send connection request: ' + error.message);
+      }
+      return;
+    }
+
+    console.log('✅ Connection request sent from panel');
+
+    // Track engagement
     if (window.DailyEngagement) {
       try {
         await window.DailyEngagement.awardXP(window.DailyEngagement.XP_REWARDS.SEND_CONNECTION, 'Sent connection request');
@@ -1378,7 +1418,7 @@ window.sendConnectionFromPanel = async function(userId) {
       }
     }
 
-    // Reload panel to update connection status
+    // Reload panel to show updated status (Withdraw button)
     await loadNodeDetails(currentNodeData);
   } catch (error) {
     console.error('Error sending connection:', error);
