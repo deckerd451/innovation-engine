@@ -5,6 +5,7 @@
 // Shows profile details, mutual connections, and clear CTAs
 
 import { makeProfileImageClickable } from './profile-image-modal.js';
+import { sendConnectionRequest as sendConnectionRequestDirect } from './connections.js';
 
 const NODE_PANEL_VERSION = 'v2.2-' + Date.now();
 console.log(`%c👤 Node Panel ${NODE_PANEL_VERSION} (Project Approval Fix)`, "color:#0ff; font-weight: bold; font-size: 16px");
@@ -1363,7 +1364,9 @@ window.openProjectDetails = function(project) {
 
 window.sendConnectionFromPanel = async function(userId) {
   try {
-    await window.sendConnectionRequest(userId);
+    // Use the connections.js module directly (bypasses broken window override chain)
+    const result = await sendConnectionRequestDirect(userId);
+    if (!result?.success) return; // toast already shown by connections.js
 
     // Track connection request for engagement system
     if (window.DailyEngagement) {

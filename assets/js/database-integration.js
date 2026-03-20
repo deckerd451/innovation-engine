@@ -135,14 +135,10 @@ function setupEnhancedFunctions() {
     } catch (error) {
       console.error('❌ Error sending enhanced connection request:', error);
       
-      // Fallback to original function
-      if (window.sendConnectionRequest) {
-        return window.sendConnectionRequest(toCommunityId, targetName, type);
-      }
-      
       if (window.showSynapseNotification) {
         window.showSynapseNotification('Failed to send connection request', 'error');
       }
+      return { success: false, error };
     }
   };
 
