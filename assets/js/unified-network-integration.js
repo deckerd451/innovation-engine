@@ -340,9 +340,9 @@ async function _openFallbackPanel(node) {
       </div>
       <div style="position:sticky;bottom:0;background:linear-gradient(135deg,rgba(10,14,39,.98),rgba(26,26,46,.98));border-top:2px solid rgba(0,224,255,.3);padding:1rem 1.5rem">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-          <button onclick="if(window.openMessageForUser)window.openMessageForUser('${profile.id}');else window.closeNodePanel()" style="padding:.75rem;background:linear-gradient(135deg,#00e0ff,#0080ff);border:none;border-radius:8px;color:white;font-weight:bold;cursor:pointer">
+          <button onclick="window.openMessageForUser('${profile.id}')" style="padding:.75rem;background:linear-gradient(135deg,#00e0ff,#0080ff);border:none;border-radius:8px;color:white;font-weight:bold;cursor:pointer">
             <i class="fas fa-comment"></i> Message</button>
-          <button onclick="if(window.sendConnectionFromPanel)window.sendConnectionFromPanel('${profile.id}')" style="padding:.75rem;background:rgba(0,224,255,.1);border:1px solid rgba(0,224,255,.3);border-radius:8px;color:#00e0ff;font-weight:bold;cursor:pointer">
+          <button data-action="connect" onclick="window.sendConnectionFromPanel('${profile.id}')" style="padding:.75rem;background:rgba(0,224,255,.1);border:1px solid rgba(0,224,255,.3);border-radius:8px;color:#00e0ff;font-weight:bold;cursor:pointer">
             <i class="fas fa-user-plus"></i> Connect</button>
         </div>
       </div>`;
@@ -353,6 +353,65 @@ async function _openFallbackPanel(node) {
       <p style="margin-top:1rem">Error loading profile</p></div>`;
   }
 }
+
+/**
+ * Fallback Connect handler — used when node-panel.js hasn't loaded.
+ */
+window.sendConnectionFromPanel = window.sendConnectionFromPanel || async function(userId) {
+  const supabase = window.supabase;
+  if (!supabase) { alert('Not ready. Please try again.'); return; }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) { alert('Please log in first'); return; }
+  if (userId === user.id) { alert("You can't connect to yourself"); return; }
+
+  // Resolve current user's community row id
+  const { data: me } = await supabase.from('community').select('id').eq('user_id', user.id).single();
+  if (!me) { alert('Profile not found'); return; }
+
+  const { data: existing } = await supabase
+    .from('connections')
+    .select('id, status')
+    .or(`and(from_user_id.eq.${me.id},to_user_id.eq.${userId}),and(from_user_id.eq.${userId},to_user_id.eq.${me.id})`)
+    .in('status', ['pending', 'accepted'])
+    .limit(1);
+
+  if (existing?.length > 0) { alert(`Connection already ${existing[0].status}`); return; }
+
+  const { error } = await supabase.from('connections').insert({
+    from_user_id: me.id,
+    to_user_id: userId,
+    status: 'pending',
+    type: 'generic'
+  });
+
+  if (error) {
+    alert(error.code === '23505' ? 'Connection request already exists' : 'Failed: ' + error.message);
+    return;
+  }
+
+  // Update button in the open panel
+  const btn = document.querySelector('#node-side-panel button[data-action="connect"]');
+  if (btn) { btn.textContent = '✓ Request Sent'; btn.disabled = true; }
+  console.log('✅ Connection request sent');
+};
+
+/**
+ * Fallback Message handler — used when node-panel.js hasn't loaded.
+ */
+window.openMessageForUser = window.openMessageForUser || async function(userId) {
+  if (typeof window.sendDirectMessage === 'function') {
+    if (window.closeNodePanel) window.closeNodePanel();
+    await window.sendDirectMessage(userId, '');
+    return;
+  }
+  if (typeof window.openMessagingInterface === 'function') {
+    if (window.closeNodePanel) window.closeNodePanel();
+    await window.openMessagingInterface();
+    return;
+  }
+  alert('Messaging is still loading. Please try again in a moment.');
+};
 
 /**
  * Setup event bridges between unified network and dashboard (idempotent).
