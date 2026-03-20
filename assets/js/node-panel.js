@@ -1719,10 +1719,12 @@ window.openMessageForUser = async function(userId) {
 };
 
 window.endorseSkill = async function(userId) {
+  // userId = target community.id (set via profile.id in renderPersonPanel)
+  console.debug('[endorse] endorseSkill called with community.id:', userId);
   try {
     const { data: profile } = await supabase
       .from('community')
-      .select('name, skills')
+      .select('name, skills, user_id')
       .eq('id', userId)
       .single();
 
@@ -1730,6 +1732,14 @@ window.endorseSkill = async function(userId) {
       alert('No skills to endorse');
       return;
     }
+
+    if (!profile.user_id) {
+      console.error('[endorse] target community row missing user_id', { communityId: userId });
+      alert('Could not resolve target user (missing auth link)');
+      return;
+    }
+
+    console.debug('[endorse] target resolved:', { communityId: userId, authUserId: profile.user_id, name: profile.name });
 
     const skills = profile.skills.split(',').map(s => s.trim());
 
@@ -1757,7 +1767,7 @@ window.endorseSkill = async function(userId) {
 
         <div id="skill-selection" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;">
           ${skills.map(skill => `
-            <button onclick="confirmEndorsement('${userId}', '${skill.replace(/'/g, "\\'")}', '${profile.name.replace(/'/g, "\\'")}', this)" style="padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
+            <button onclick="confirmEndorsement('${userId}', '${profile.user_id}', '${skill.replace(/'/g, "\\'")}', '${profile.name.replace(/'/g, "\\'")}', this)" style="padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
               <div style="font-weight: bold; font-size: 1rem; margin-bottom: 0.25rem;">${skill}</div>
               <div style="color: #aaa; font-size: 0.85rem;">Click to endorse</div>
             </button>
@@ -1778,7 +1788,23 @@ window.endorseSkill = async function(userId) {
   }
 };
 
-window.confirmEndorsement = async function(userId, skill, userName, button) {
+// confirmEndorsement(communityId, endorsedAuthUserId, skill, userName, button)
+//   communityId        — target community.id     (endorsed_community_id)
+//   endorsedAuthUserId — target auth.users.id     (endorsed_id, resolved in endorseSkill)
+window.confirmEndorsement = async function(communityId, endorsedAuthUserId, skill, userName, button) {
+  // Guard: endorsedAuthUserId is resolved by endorseSkill before showing the modal.
+  // If it somehow arrives empty, fail loudly before touching the DB.
+  console.debug('[endorse] confirmEndorsement →', { communityId, endorsedAuthUserId, skill });
+
+  if (!endorsedAuthUserId) {
+    console.error('[endorse] missing endorsedAuthUserId — incoming args:', { communityId, endorsedAuthUserId, skill, userName });
+    alert('Could not resolve target user (auth id missing)');
+    return;
+  }
+
+  // Keep legacy alias so rest of function reads clearly
+  const userId = communityId;
+
   button.disabled = true;
   button.style.opacity = '0.5';
 
@@ -1800,22 +1826,11 @@ window.confirmEndorsement = async function(userId, skill, userName, button) {
       return;
     }
 
-    // Fetch the target's auth user_id (userId is their community.id)
-    const { data: endorsedProfile } = await supabase
-      .from('community')
-      .select('user_id')
-      .eq('id', userId)
-      .single();
-
-    if (!endorsedProfile?.user_id) {
-      alert('Could not resolve target user');
-      return;
-    }
-
+    // endorsed_id comes from endorseSkill — no second community lookup needed.
     console.debug('[endorse] ids →', {
       endorser_id: user.id,
       endorser_community_id: endorserProfile.id,
-      endorsed_id: endorsedProfile.user_id,
+      endorsed_id: endorsedAuthUserId,
       endorsed_community_id: userId,
       skill,
     });
@@ -1838,9 +1853,9 @@ window.confirmEndorsement = async function(userId, skill, userName, button) {
     const { error } = await supabase
       .from('endorsements')
       .insert({
-        endorser_id: user.id,                 // auth.users.id of current user
+        endorser_id: user.id,                  // auth.users.id of current user
         endorser_community_id: endorserProfile.id,
-        endorsed_id: endorsedProfile.user_id, // auth.users.id of target
+        endorsed_id: endorsedAuthUserId,        // auth.users.id of target (passed from endorseSkill)
         endorsed_community_id: userId,
         skill: skill
       });
