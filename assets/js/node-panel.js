@@ -889,7 +889,7 @@ async function renderPersonPanel(nodeData) {
   }
 
   // Build panel HTML
-  const initials = profile.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  const initials = (profile.name || '?').split(' ').map(n => n[0]).join('').toUpperCase();
 
   let html = `
     <div class="node-panel-body">
@@ -989,7 +989,18 @@ async function renderPersonPanel(nodeData) {
       ` : ''}
 
       <!-- Skills Section (Collapsible) -->
-      ${profile.skills ? `
+      ${(() => {
+        let skillList = [];
+        try {
+          const raw = profile.skills;
+          if (Array.isArray(raw)) {
+            skillList = raw.map(s => String(s).trim()).filter(Boolean);
+          } else if (typeof raw === 'string' && raw.trim()) {
+            try { const p = JSON.parse(raw); if (Array.isArray(p)) { skillList = p.map(s => String(s).trim()).filter(Boolean); } else { skillList = raw.split(',').map(s => s.trim()).filter(Boolean); } } catch(_) { skillList = raw.split(',').map(s => s.trim()).filter(Boolean); }
+          }
+        } catch(_) {}
+        if (!skillList.length) return '';
+        return `
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('skills')">
             <div class="panel-section-title">
@@ -1000,16 +1011,17 @@ async function renderPersonPanel(nodeData) {
           <div class="panel-section-content" id="skills-content">
             <div class="panel-section-inner">
               <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                ${profile.skills.split(',').map(skill => `
+                ${skillList.map(skill => `
                   <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">
-                    ${skill.trim()}
+                    ${skill}
                   </span>
                 `).join('')}
               </div>
             </div>
           </div>
         </div>
-      ` : ''}
+        `;
+      })()}
 
       <!-- Endorsements Section (Collapsible) -->
       ${endorsements && endorsements.length > 0 ? `
@@ -1741,7 +1753,12 @@ window.endorseSkill = async function(userId) {
 
     console.debug('[endorse] target resolved:', { communityId: userId, authUserId: profile.user_id, name: profile.name });
 
-    const skills = profile.skills.split(',').map(s => s.trim());
+    let skills = [];
+    if (Array.isArray(profile.skills)) {
+      skills = profile.skills.map(s => String(s).trim()).filter(Boolean);
+    } else if (typeof profile.skills === 'string' && profile.skills.trim()) {
+      try { const p = JSON.parse(profile.skills); skills = Array.isArray(p) ? p.map(s => String(s).trim()).filter(Boolean) : profile.skills.split(',').map(s => s.trim()).filter(Boolean); } catch(_) { skills = profile.skills.split(',').map(s => s.trim()).filter(Boolean); }
+    }
 
     // Create selection modal
     const modal = document.createElement('div');
