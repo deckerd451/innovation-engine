@@ -1348,16 +1348,10 @@ window.CommandDashboard = (() => {
     });
   }
 
-  /** Wire the Explore section collapsible accordion */
+  /** Explore section is always visible — no toggle needed */
   function _wireExploreToggle() {
-    const toggle = $id('cd-explore-toggle');
-    const body   = $id('cd-explore-body');
-    if (!toggle || !body) return;
-    toggle.addEventListener('click', () => {
-      const expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-      body.hidden = expanded;
-    });
+    const body = $id('cd-explore-body');
+    if (body) body.hidden = false;
   }
 
   /** Auto-open the Insights section once content is ready (first action surface) */
