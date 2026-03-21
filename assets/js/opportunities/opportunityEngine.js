@@ -239,7 +239,7 @@ class OpportunityEngine {
       const { data: opps, error } = await this.supabase
         .from('opportunities')
         .select('*')
-        .eq('status', 'active');
+        .eq('status', 'open');
       
       if (error) {
         // Table might not exist

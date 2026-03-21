@@ -1563,12 +1563,34 @@ window.CommandDashboard = (() => {
       } else {
         _showAddConfirmation('project', name);
       }
+    } else if (resourceType === 'opportunities') {
+      // Map form type values to schema opportunity type + commitment
+      const typeMap = { 'full-time': 'job', 'part-time': 'job', 'contract': 'contract', 'internship': 'internship', 'volunteer': 'volunteer' };
+      const commitmentMap = { 'full-time': 'full-time', 'part-time': 'part-time' };
+      const oppData = {
+        title: name,
+        type: typeMap[opType] || 'volunteer',
+        commitment: commitmentMap[opType] || null,
+        description: desc || name,
+        status: 'open',
+        is_public: true,
+        posted_by: _userId,
+        organization_id: null,
+      };
+      if (window.supabase && _userId) {
+        window.supabase.from('opportunities').insert(oppData).then(({ error }) => {
+          if (error) {
+            console.error('[CommandDashboard] Failed to post opportunity:', error);
+          } else {
+            _loadEnrichedData();
+          }
+        });
+      }
+      const meta = opType ? `${opType}${desc ? ' · ' + desc.slice(0, 30) : ''}` : undefined;
+      _showAddConfirmation(resourceType, name, meta);
     } else {
-      // Stub confirmation for orgs, opportunities, themes
-      // (Full DB integration plugs in here via the respective managers)
-      const meta = resourceType === 'opportunities' && opType
-        ? `${opType}${desc ? ' · ' + desc.slice(0, 30) : ''}`
-        : desc.slice(0, 40) || undefined;
+      // Stub confirmation for orgs and themes
+      const meta = desc.slice(0, 40) || undefined;
       _showAddConfirmation(resourceType, name, meta);
     }
 
