@@ -189,7 +189,12 @@ document.addEventListener('project-created', (event) => {
   if (window.loadProjects) {
     window.loadProjects();
   }
-  
+
+  // Refresh the command dashboard panel so the new project appears immediately
+  if (window.CommandDashboard?.refreshEnrichedData) {
+    window.CommandDashboard.refreshEnrichedData();
+  }
+
   // Show success notification
   if (window.showSynapseNotification) {
     window.showSynapseNotification(
