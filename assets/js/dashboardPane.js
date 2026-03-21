@@ -3446,7 +3446,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       const projectData = {
         title: name,
         description,
-        skills: skills ? skills.split(",").map((s) => s.trim()).filter(Boolean) : [],
         creator_id: state.communityProfile.id,
         status: "active",
       };
