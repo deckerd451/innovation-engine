@@ -809,7 +809,6 @@ window.createEnhancedProject = async function(event) {
     const projectData = {
       title: name,
       description,
-      skills: skills,
       creator_id: currentUserProfile.id,
       status: 'active'
     };
