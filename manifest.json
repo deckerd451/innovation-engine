@@ -4,6 +4,7 @@
   "description": "CharlestonHacks Innovation Engine — connect, collaborate, and build together.",
   "start_url": "index.html",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#050b15",
   "theme_color": "#050b15",
   "icons": [
