@@ -674,9 +674,230 @@ async function renderOpportunityPanel(nodeData) {
           ${opp.status === 'open' ? '● Open' : opp.status === 'filled' ? '✓ Filled' : '✕ Closed'}
         </span>
       </div>
+
+      <!-- Creator Actions -->
+      ${currentUserProfile?.id === opp.posted_by ? `
+        <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+          <button onclick="editOpportunityFromPanel('${opp.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, ${typeColor}, ${typeColor}cc); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
+            <i class="fas fa-edit"></i> Edit Opportunity
+          </button>
+          ${opp.status === 'open' ? `
+            <button onclick="closeOpportunityFromPanel('${opp.id}')" style="width: 100%; padding: 0.75rem; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 8px; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 1rem;">
+              <i class="fas fa-times-circle"></i> Close Opportunity
+            </button>
+          ` : ''}
+        </div>
+      ` : ''}
     </div>
   `;
 }
+
+window.editOpportunityFromPanel = async function(oppId) {
+  const { data: opp, error } = await supabase
+    .from('opportunities')
+    .select('*')
+    .eq('id', oppId)
+    .single();
+
+  if (error || !opp) {
+    alert('Failed to load opportunity');
+    return;
+  }
+
+  const typeColors = {
+    job: '#00e0ff', internship: '#a855f7', volunteer: '#10b981',
+    contract: '#f59e0b', mentorship: '#ec4899',
+  };
+  const oppType = opp.opportunity_type || opp.type;
+  const typeColor = typeColors[oppType] || '#00e0ff';
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.9); z-index: 10000;
+    display: flex; align-items: center; justify-content: center; overflow-y: auto;
+  `;
+
+  const skillsVal = Array.isArray(opp.skills) ? opp.skills.join(', ') : (opp.skills || '');
+  const deadlineVal = opp.application_deadline ? opp.application_deadline.split('T')[0] : '';
+
+  modal.innerHTML = `
+    <div style="background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98)); border: 2px solid ${typeColor}88; border-radius: 16px; padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+      <h2 style="color: ${typeColor}; margin-bottom: 1.5rem;"><i class="fas fa-edit"></i> Edit Opportunity</h2>
+      <form id="edit-opp-form">
+
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Title *</label>
+          <input id="edit-opp-title" type="text" value="${escapeHtml(opp.title || '')}" required
+            style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Type *</label>
+          <select id="edit-opp-type" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+            <option value="job" ${oppType === 'job' ? 'selected' : ''}>Job</option>
+            <option value="internship" ${oppType === 'internship' ? 'selected' : ''}>Internship</option>
+            <option value="volunteer" ${oppType === 'volunteer' ? 'selected' : ''}>Volunteer</option>
+            <option value="contract" ${oppType === 'contract' ? 'selected' : ''}>Contract</option>
+            <option value="mentorship" ${oppType === 'mentorship' ? 'selected' : ''}>Mentorship</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Description *</label>
+          <textarea id="edit-opp-description" rows="4" required
+            style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit; resize: vertical;">${escapeHtml(opp.description || '')}</textarea>
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Skills (comma-separated)</label>
+          <input id="edit-opp-skills" type="text" value="${escapeHtml(skillsVal)}" placeholder="e.g., JavaScript, Design, Marketing"
+            style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Experience Level</label>
+            <select id="edit-opp-experience" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+              <option value="" ${!opp.experience_level ? 'selected' : ''}>Any</option>
+              <option value="entry" ${opp.experience_level === 'entry' ? 'selected' : ''}>Entry</option>
+              <option value="mid" ${opp.experience_level === 'mid' ? 'selected' : ''}>Mid</option>
+              <option value="senior" ${opp.experience_level === 'senior' ? 'selected' : ''}>Senior</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Commitment</label>
+            <select id="edit-opp-commitment" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+              <option value="" ${!opp.commitment ? 'selected' : ''}>Not specified</option>
+              <option value="full-time" ${opp.commitment === 'full-time' ? 'selected' : ''}>Full-time</option>
+              <option value="part-time" ${opp.commitment === 'part-time' ? 'selected' : ''}>Part-time</option>
+              <option value="flexible" ${opp.commitment === 'flexible' ? 'selected' : ''}>Flexible</option>
+              <option value="one-time" ${opp.commitment === 'one-time' ? 'selected' : ''}>One-time</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Compensation</label>
+            <select id="edit-opp-compensation" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+              <option value="" ${!opp.compensation_type ? 'selected' : ''}>Not specified</option>
+              <option value="paid" ${opp.compensation_type === 'paid' ? 'selected' : ''}>Paid</option>
+              <option value="unpaid" ${opp.compensation_type === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+              <option value="stipend" ${opp.compensation_type === 'stipend' ? 'selected' : ''}>Stipend</option>
+              <option value="equity" ${opp.compensation_type === 'equity' ? 'selected' : ''}>Equity</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Compensation Range</label>
+            <input id="edit-opp-comp-range" type="text" value="${escapeHtml(opp.compensation_range || '')}" placeholder="e.g., $50k-70k"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Location</label>
+            <input id="edit-opp-location" type="text" value="${escapeHtml(opp.location || '')}" placeholder="e.g., Charleston, SC"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+          </div>
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Application Deadline</label>
+            <input id="edit-opp-deadline" type="date" value="${deadlineVal}"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Status</label>
+            <select id="edit-opp-status" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+              <option value="open" ${opp.status === 'open' ? 'selected' : ''}>Open</option>
+              <option value="filled" ${opp.status === 'filled' ? 'selected' : ''}>Filled</option>
+              <option value="closed" ${opp.status === 'closed' ? 'selected' : ''}>Closed</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: flex-end; padding-bottom: 0.1rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #aaa; font-weight: bold;">
+              <input id="edit-opp-remote" type="checkbox" ${opp.remote_ok ? 'checked' : ''}
+                style="width: 18px; height: 18px; cursor: pointer;">
+              Remote OK
+            </label>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+          <button type="submit"
+            style="flex: 1; background: linear-gradient(135deg, ${typeColor}, ${typeColor}cc); border: none; padding: 1rem; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+          <button type="button" onclick="this.closest('[style*=\\'position: fixed\\']').remove()"
+            style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 1rem 1.5rem; border-radius: 8px; color: white; cursor: pointer; font-size: 1rem; font-weight: bold;">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  document.getElementById('edit-opp-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const skillsText = document.getElementById('edit-opp-skills').value || '';
+    const skillsArray = parseCommaList(skillsText);
+    const deadlineInput = document.getElementById('edit-opp-deadline').value;
+
+    const updates = {
+      title: document.getElementById('edit-opp-title').value.trim(),
+      type: document.getElementById('edit-opp-type').value,
+      description: document.getElementById('edit-opp-description').value.trim(),
+      skills: skillsArray.length ? skillsArray : null,
+      experience_level: document.getElementById('edit-opp-experience').value || null,
+      commitment: document.getElementById('edit-opp-commitment').value || null,
+      compensation_type: document.getElementById('edit-opp-compensation').value || null,
+      compensation_range: document.getElementById('edit-opp-comp-range').value.trim() || null,
+      location: document.getElementById('edit-opp-location').value.trim() || null,
+      remote_ok: document.getElementById('edit-opp-remote').checked,
+      application_deadline: deadlineInput || null,
+      status: document.getElementById('edit-opp-status').value,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await supabase
+      .from('opportunities')
+      .update(updates)
+      .eq('id', oppId);
+
+    if (updateError) {
+      console.error('Error updating opportunity:', updateError);
+      alert('Error saving: ' + updateError.message);
+      return;
+    }
+
+    modal.remove();
+    showToastNotification('Opportunity updated successfully!', 'success');
+    if (currentNodeData) await loadNodeDetails(currentNodeData);
+  });
+};
+
+window.closeOpportunityFromPanel = async function(oppId) {
+  if (!confirm('Close this opportunity? It will no longer appear in listings.')) return;
+
+  const { error } = await supabase
+    .from('opportunities')
+    .update({ status: 'closed', updated_at: new Date().toISOString() })
+    .eq('id', oppId);
+
+  if (error) {
+    alert('Error: ' + error.message);
+    return;
+  }
+
+  showToastNotification('Opportunity closed.', 'info');
+  if (currentNodeData) await loadNodeDetails(currentNodeData);
+};
 
 // Render organization panel
 async function renderOrganizationPanel(nodeData) {
