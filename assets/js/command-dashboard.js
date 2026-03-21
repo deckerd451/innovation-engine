@@ -1651,6 +1651,10 @@ window.CommandDashboard = (() => {
     renderIdentity(profile) {
       _renderIdentity(profile);
     },
+    /** Refresh Supabase-enriched data (projects, orgs, connections) and re-render */
+    async refreshEnrichedData() {
+      await _loadEnrichedData();
+    },
   };
 
 })();
