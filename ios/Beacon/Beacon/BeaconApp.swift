@@ -72,13 +72,25 @@ struct BeaconApp: App {
                 switch payload {
                 case .event(let eventId):
                     #if DEBUG
-                    print("[DeepLink] 🎫 Event deep link: \(eventId)")
+                    print("[DeepLink] 🎫 Event deep link received — eventId: '\(eventId)'")
+                    print("[DeepLink] 📱 Switching to Network tab immediately (UI signal)")
                     #endif
+                    // Switch to Network tab immediately so there is a visible UI signal
+                    // that the deep link was received, even before the join completes.
+                    selectedTab = .network
                     Task {
+                        #if DEBUG
+                        print("[DeepLink] ⏳ Join attempt starting for: '\(eventId)'")
+                        #endif
                         await EventJoinService.shared.joinEvent(eventID: eventId)
+                        #if DEBUG
                         if EventJoinService.shared.isEventJoined {
-                            selectedTab = .network
+                            print("[DeepLink] ✅ Join succeeded: '\(eventId)'")
+                        } else {
+                            let err = EventJoinService.shared.joinError ?? "unknown error"
+                            print("[DeepLink] ❌ Join failed for '\(eventId)': \(err)")
                         }
+                        #endif
                     }
 
                 case .profile(let communityId):
