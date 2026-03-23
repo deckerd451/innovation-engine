@@ -49,19 +49,19 @@ struct BeaconApp: App {
                 print("[DeepLink] 🔗 Received URL: \(urlString)")
                 #endif
 
-                // OAuth callback — must be checked first, before QRService parsing.
-                // beacon://callback?... is the Supabase OAuth redirect.
+                // ── Gate 1: OAuth callback ───────────────────────────────────
+                // ONLY beacon://callback reaches AuthService. Nothing else does.
                 if urlString.hasPrefix("beacon://callback") {
                     #if DEBUG
-                    print("[DeepLink] 🔐 OAuth callback — forwarding to AuthService")
+                    print("[DeepLink] 🔐 Routing to OAuth")
                     #endif
-                    Task {
-                        await authService.handleOAuthCallback(url: url)
-                    }
+                    Task { await authService.handleOAuthCallback(url: url) }
                     return
                 }
 
-                // All other beacon:// URLs — parse with QRService.
+                // ── Gate 2: QR-scheme URLs ───────────────────────────────────
+                // beacon://event/<id> and beacon://profile/<id> are handled here.
+                // AuthService is NOT involved below this line.
                 guard let payload = QRService.parse(from: urlString) else {
                     #if DEBUG
                     print("[DeepLink] ❓ Unknown or unsupported URL: \(urlString)")
@@ -72,15 +72,14 @@ struct BeaconApp: App {
                 switch payload {
                 case .event(let eventId):
                     #if DEBUG
-                    print("[DeepLink] 🎫 Event deep link received — eventId: '\(eventId)'")
-                    print("[DeepLink] 📱 Switching to Network tab immediately (UI signal)")
+                    print("[DeepLink] 🎫 Event: '\(eventId)'")
+                    print("[DeepLink] 📱 Switching to Network tab (UI signal)")
                     #endif
-                    // Switch to Network tab immediately so there is a visible UI signal
-                    // that the deep link was received, even before the join completes.
+                    // Switch tab immediately — visible proof the deep link landed.
                     selectedTab = .network
                     Task {
                         #if DEBUG
-                        print("[DeepLink] ⏳ Join attempt starting for: '\(eventId)'")
+                        print("[DeepLink] 🎫 Routing to EventJoinService")
                         #endif
                         await EventJoinService.shared.joinEvent(eventID: eventId)
                         #if DEBUG
@@ -95,7 +94,7 @@ struct BeaconApp: App {
 
                 case .profile(let communityId):
                     #if DEBUG
-                    print("[DeepLink] 👤 Profile deep link: \(communityId)")
+                    print("[DeepLink] 👤 Profile: \(communityId)")
                     #endif
                     // TODO: Navigate to profile view for communityId.
                     // No deep-link profile navigation exists yet — requires a
