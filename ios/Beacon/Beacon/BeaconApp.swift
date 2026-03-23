@@ -11,6 +11,7 @@ import Supabase
 @main
 struct BeaconApp: App {
     @StateObject private var authService = AuthService.shared
+    @State private var selectedTab: AppTab = .home
 
     init() {
         _ = BLEAdvertiserService.shared
@@ -28,8 +29,8 @@ struct BeaconApp: App {
                     switch authService.profileState {
                     case .ready:
                         // Profile complete - enter main app
-                        MainTabView(currentUser: currentUser)
-                        
+                        MainTabView(currentUser: currentUser, selectedTab: $selectedTab)
+
                     case .incomplete, .missing:
                         // Profile needs completion
                         ProfileCompletionView(profile: currentUser) {
@@ -43,8 +44,51 @@ struct BeaconApp: App {
                 }
             }
             .onOpenURL { url in
-                Task {
-                    await authService.handleOAuthCallback(url: url)
+                let urlString = url.absoluteString
+                #if DEBUG
+                print("[DeepLink] 🔗 Received URL: \(urlString)")
+                #endif
+
+                // OAuth callback — must be checked first, before QRService parsing.
+                // beacon://callback?... is the Supabase OAuth redirect.
+                if urlString.hasPrefix("beacon://callback") {
+                    #if DEBUG
+                    print("[DeepLink] 🔐 OAuth callback — forwarding to AuthService")
+                    #endif
+                    Task {
+                        await authService.handleOAuthCallback(url: url)
+                    }
+                    return
+                }
+
+                // All other beacon:// URLs — parse with QRService.
+                guard let payload = QRService.parse(from: urlString) else {
+                    #if DEBUG
+                    print("[DeepLink] ❓ Unknown or unsupported URL: \(urlString)")
+                    #endif
+                    return
+                }
+
+                switch payload {
+                case .event(let eventId):
+                    #if DEBUG
+                    print("[DeepLink] 🎫 Event deep link: \(eventId)")
+                    #endif
+                    Task {
+                        await EventJoinService.shared.joinEvent(eventID: eventId)
+                        if EventJoinService.shared.isEventJoined {
+                            selectedTab = .network
+                        }
+                    }
+
+                case .profile(let communityId):
+                    #if DEBUG
+                    print("[DeepLink] 👤 Profile deep link: \(communityId)")
+                    #endif
+                    // TODO: Navigate to profile view for communityId.
+                    // No deep-link profile navigation exists yet — requires a
+                    // sheet/navigation path accessible from BeaconApp.
+                    _ = communityId
                 }
             }
         }

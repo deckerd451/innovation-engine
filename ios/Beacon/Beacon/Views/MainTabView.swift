@@ -10,7 +10,7 @@ enum AppTab: Int {
 
 struct MainTabView: View {
     let currentUser: User
-    @State private var selectedTab: AppTab = .home
+    @Binding var selectedTab: AppTab
 
     var body: some View {
         TabView(selection: $selectedTab) {
