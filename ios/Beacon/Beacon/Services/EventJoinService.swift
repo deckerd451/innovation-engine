@@ -2,9 +2,14 @@ import Foundation
 import Combine
 import Supabase
 
-/// Manages event joining via QR code scan.
-/// This is the primary way users join events. BLE beacon detection is optional
-/// and upgrades the experience with proximity features.
+/// Manages event joining via QR code scan / deep link.
+/// Nearify v1 source of truth:
+/// - ensure_profile RPC
+/// - join_event RPC
+/// - events table
+///
+/// BLE / presence are still started after a successful join so the rest
+/// of the live event experience can continue to function.
 @MainActor
 final class EventJoinService: ObservableObject {
 
@@ -23,141 +28,117 @@ final class EventJoinService: ObservableObject {
     private let presence = EventPresenceService.shared
     private var heartbeatTask: Task<Void, Never>?
     private let heartbeatInterval: TimeInterval = 25.0
-    /// The event ID currently being joined (in-flight guard).
+
     /// Prevents concurrent join attempts for the same event.
     private var joiningEventID: String?
-
-    /// Maps raw event IDs to friendly display names.
-    private static let eventDisplayNames: [String: String] = [
-        "charlestonhacks": "CharlestonHacks",
-    ]
-
-    /// Returns a friendly display name for an event ID.
-    static func displayName(for eventID: String) -> String {
-        eventDisplayNames[eventID.lowercased()] ?? eventID.capitalized
-    }
 
     private init() {}
 
     // MARK: - Join Event
 
-    /// Join an event by its ID (from QR code scan).
-    /// Creates a presence session and starts heartbeat.
-    /// Ignores duplicate/concurrent calls for the same event.
+    /// Join an event by its real Nearify event UUID.
+    /// Primary authoritative join action:
+    /// 1. ensure_profile
+    /// 2. join_event
+    /// 3. fetch event row
+    /// 4. update local state
+    /// 5. start BLE / presence
     func joinEvent(eventID: String) async {
-        // Already joined this event — nothing to do.
         if isEventJoined && currentEventID == eventID {
             #if DEBUG
-            print("[EventJoin] ✅ Already joined \(eventID) — ignoring duplicate")
+            print("[EventJoin] ✅ Already joined \(eventID)")
             #endif
             return
         }
 
-        // Another join for this event is already in flight.
         if joiningEventID == eventID {
             #if DEBUG
-            print("[EventJoin] ⏳ Join already in progress for \(eventID) — ignoring duplicate")
+            print("[EventJoin] ⏳ Join already in progress for \(eventID)")
             #endif
             return
         }
 
         joiningEventID = eventID
         defer { joiningEventID = nil }
+
         #if DEBUG
-        print("[EventJoin] 🎫 Joining event: \(eventID)")
+        print("[EventJoin] 🎫 Joining Nearify event: \(eventID)")
         #endif
+
         joinError = nil
 
-        // Resolve community ID
-        guard let communityId = await resolveCommunityId() else {
-            joinError = "Could not resolve your profile"
-            print("[EventJoin] ❌ Failed to resolve community ID")
+        guard let eventUUID = UUID(uuidString: eventID) else {
+            joinError = "Invalid event ID"
+            print("[EventJoin] ❌ Invalid event UUID: \(eventID)")
             return
         }
 
-        // Resolve event context ID
-        guard let contextId = await resolveEventContextId(eventID: eventID) else {
-            joinError = "Event not found: \(eventID)"
-            print("[EventJoin] ❌ Failed to resolve event context ID for: \(eventID)")
-            return
-        }
-
-        // Write initial presence — this is the authoritative join action.
         do {
-            try await writePresence(communityId: communityId, contextId: contextId)
+            let profile = try await ensureProfile()
             #if DEBUG
-            print("[EventJoin] ✅ Presence write succeeded — join is confirmed")
+            print("[EventJoin] ✅ Profile ensured: \(profile.id)")
+            #endif
+
+            let attendee = try await joinEventRPC(eventID: eventUUID)
+            #if DEBUG
+            print("[EventJoin] ✅ Event joined: \(attendee.id)")
+            #endif
+
+            let event = try await fetchEvent(eventID: eventUUID)
+
+            currentEventID = event.id.uuidString
+            currentEventName = event.name
+            isEventJoined = true
+            joinError = nil
+
+            // Notify presence / UI layer using real Nearify IDs.
+            presence.activateFromQRJoin(
+                eventName: event.name,
+                contextId: event.id,
+                communityId: profile.id
+            )
+
+            // Start BLE using the Nearify profile ID as the identity anchor.
+            #if DEBUG
+            let expectedPrefix = String(profile.id.uuidString.prefix(8)).lowercased()
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print("[EventJoin] 📡 Starting BLE identity layer")
+            print("  Event ID: \(event.id.uuidString)")
+            print("  Event Name: \(event.name)")
+            print("  Profile ID: \(profile.id)")
+            print("  Expected BLE prefix: BCN-\(expectedPrefix)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            #endif
+
+            BLEAdvertiserService.shared.startAdvertisingForEvent(communityId: profile.id)
+            BLEScannerService.shared.startScanning()
+
+            #if DEBUG
+            Task {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                let advState = BLEAdvertiserService.shared.isAdvertising
+                let scanState = BLEScannerService.shared.isScanning
+                let advPrefix = BLEAdvertiserService.shared.advertisedCommunityPrefix
+                print("[EventJoin] 🔍 Post-join BLE verification:")
+                print("  Advertiser active: \(advState)")
+                print("  Advertised prefix: \(advPrefix ?? "nil")")
+                print("  Scanner active: \(scanState)")
+                if !advState {
+                    print("  ⚠️ Advertiser NOT active — BT may still be initializing")
+                }
+            }
+            #endif
+
+            // Keep heartbeat behavior for now, but use the real event UUID as context.
+            startHeartbeat(profileId: profile.id, eventId: event.id)
+
+            #if DEBUG
+            print("[EventJoin] ✅ Joined Nearify event: \(event.name)")
             #endif
         } catch {
-            // Only set error if the join hasn't already succeeded (race protection).
-            if !isEventJoined || currentEventID != eventID {
-                joinError = "Failed to join event"
-            }
-            print("[EventJoin] ❌ Presence write failed: \(error)")
-            return
+            joinError = error.localizedDescription
+            print("[EventJoin] ❌ joinEvent failed: \(error)")
         }
-
-        // Success — update state immediately, before any cleanup.
-        currentEventID = eventID
-        currentEventName = Self.displayName(for: eventID)
-        isEventJoined = true
-        joinError = nil  // Clear any stale error from a prior attempt
-
-        // Best-effort cleanup of stale duplicate rows.
-        // This runs AFTER join success so its failure cannot cause "Failed to join event".
-        Task {
-            do {
-                try await deactivateStaleDuplicates(communityId: communityId, contextId: contextId)
-            } catch {
-                print("[EventJoin] ⚠️ Stale row cleanup failed (non-fatal): \(error.localizedDescription)")
-            }
-        }
-
-        // Notify EventPresenceService so NetworkView/HomeView activate
-        presence.activateFromQRJoin(
-            eventName: Self.displayName(for: eventID),
-            contextId: contextId,
-            communityId: communityId
-        )
-
-        // Start BLE advertising with community ID for peer discovery
-        #if DEBUG
-        let expectedPrefix = String(communityId.uuidString.prefix(8)).lowercased()
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("[EventJoin] 📡 Starting BLE identity layer")
-        print("  Event ID: \(eventID)")
-        print("  Context ID: \(contextId)")
-        print("  Community ID: \(communityId)")
-        print("  Expected BLE prefix: BCN-\(expectedPrefix)")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        #endif
-        
-        BLEAdvertiserService.shared.startAdvertisingForEvent(communityId: communityId)
-        BLEScannerService.shared.startScanning()
-        
-        // Verify advertising state after a short delay
-        #if DEBUG
-        Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            let advState = BLEAdvertiserService.shared.isAdvertising
-            let scanState = BLEScannerService.shared.isScanning
-            let advPrefix = BLEAdvertiserService.shared.advertisedCommunityPrefix
-            print("[EventJoin] 🔍 Post-join BLE verification:")
-            print("  Advertiser active: \(advState)")
-            print("  Advertised prefix: \(advPrefix ?? "nil")")
-            print("  Scanner active: \(scanState)")
-            if !advState {
-                print("  ⚠️ Advertiser NOT active — BT may still be initializing")
-            }
-        }
-        #endif
-
-        // Start heartbeat
-        startHeartbeat(communityId: communityId, contextId: contextId)
-
-        #if DEBUG
-        print("[EventJoin] ✅ Joined event: \(eventID)")
-        #endif
     }
 
     // MARK: - Leave Event
@@ -171,7 +152,6 @@ final class EventJoinService: ObservableObject {
         heartbeatTask = nil
         joiningEventID = nil
 
-        // Stop BLE
         BLEAdvertiserService.shared.stopEventAdvertising()
         BLEScannerService.shared.stopScanning()
 
@@ -187,16 +167,81 @@ final class EventJoinService: ObservableObject {
         #endif
     }
 
+    // MARK: - Nearify Backend Helpers
+
+    private func ensureProfile() async throws -> NearifyProfile {
+        let session = try await supabase.auth.session
+        let user = session.user
+
+        let name =
+            metadataString(user: user, key: "full_name") ??
+            metadataString(user: user, key: "name") ??
+            user.email ??
+            "Nearify User"
+
+        let email = user.email
+        let avatarURL = metadataString(user: user, key: "avatar_url")
+
+        let profile: NearifyProfile = try await supabase
+            .rpc(
+                "ensure_profile",
+                params: [
+                    "p_name": name,
+                    "p_email": email as Any,
+                    "p_avatar_url": avatarURL as Any
+                ]
+            )
+            .execute()
+            .value
+
+        return profile
+    }
+
+    private func joinEventRPC(eventID: UUID) async throws -> NearifyAttendee {
+        let attendee: NearifyAttendee = try await supabase
+            .rpc(
+                "join_event",
+                params: [
+                    "p_event_id": eventID.uuidString
+                ]
+            )
+            .execute()
+            .value
+
+        return attendee
+    }
+
+    private func fetchEvent(eventID: UUID) async throws -> NearifyEvent {
+        let events: [NearifyEvent] = try await supabase
+            .from("events")
+            .select("id,name")
+            .eq("id", value: eventID.uuidString)
+            .limit(1)
+            .execute()
+            .value
+
+        guard let event = events.first else {
+            throw NSError(
+                domain: "Nearify",
+                code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "Event not found"]
+            )
+        }
+
+        return event
+    }
+
     // MARK: - Heartbeat
 
-    private func startHeartbeat(communityId: UUID, contextId: UUID) {
+    private func startHeartbeat(profileId: UUID, eventId: UUID) {
         heartbeatTask?.cancel()
         heartbeatTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64(25.0 * 1_000_000_000))
+                try? await Task.sleep(nanoseconds: UInt64(heartbeatInterval * 1_000_000_000))
                 guard !Task.isCancelled, let self, self.isEventJoined else { break }
+
                 do {
-                    try await self.writePresence(communityId: communityId, contextId: contextId)
+                    try await self.writePresence(profileId: profileId, eventId: eventId)
                     #if DEBUG
                     print("[EventJoin] 💓 Heartbeat")
                     #endif
@@ -207,26 +252,22 @@ final class EventJoinService: ObservableObject {
         }
     }
 
-    // MARK: - Presence Write (Select-then-Update/Insert)
+    // MARK: - Presence Write (kept for live event layer)
 
-    /// Writes presence using a select-then-update/insert pattern.
-    /// 1. SELECT the existing active row id for this user+context.
-    /// 2. If found, UPDATE that row by primary key.
-    /// 3. If not found, INSERT a new row.
-    /// This prevents duplicate active rows from accumulating.
-    private func writePresence(communityId: UUID, contextId: UUID) async throws {
+    /// Writes presence using the Nearify profile ID and event UUID as context.
+    /// This is no longer the primary join action; it is now supportive runtime state.
+    private func writePresence(profileId: UUID, eventId: UUID) async throws {
         let now = Date()
         let expiresAt = now.addingTimeInterval(5 * 60)
         let nowISO = ISO8601DateFormatter().string(from: now)
         let expiresISO = ISO8601DateFormatter().string(from: expiresAt)
 
-        // Step 1: Check for existing active row.
         let existing: [PresenceUpdateRow] = try await supabase
             .from("presence_sessions")
             .select("id")
-            .eq("user_id", value: communityId.uuidString)
+            .eq("user_id", value: profileId.uuidString)
             .eq("context_type", value: "beacon")
-            .eq("context_id", value: contextId.uuidString)
+            .eq("context_id", value: eventId.uuidString)
             .eq("is_active", value: true)
             .order("last_seen", ascending: false)
             .limit(1)
@@ -234,7 +275,6 @@ final class EventJoinService: ObservableObject {
             .value
 
         if let rowId = existing.first?.id {
-            // Step 2a: Update existing row by primary key.
             try await supabase
                 .from("presence_sessions")
                 .update([
@@ -250,18 +290,19 @@ final class EventJoinService: ObservableObject {
             print("[EventJoin] ✅ Presence updated (row \(rowId.uuidString.prefix(8)))")
             #endif
         } else {
-            // Step 2b: No existing row — insert.
             try await supabase
                 .from("presence_sessions")
-                .insert(PresenceInsertPayload(
-                    user_id: communityId,
-                    context_type: "beacon",
-                    context_id: contextId,
-                    energy: 0.5,
-                    expires_at: expiresAt,
-                    last_seen: now,
-                    is_active: true
-                ))
+                .insert(
+                    PresenceInsertPayload(
+                        user_id: profileId,
+                        context_type: "beacon",
+                        context_id: eventId,
+                        energy: 0.5,
+                        expires_at: expiresAt,
+                        last_seen: now,
+                        is_active: true
+                    )
+                )
                 .execute()
 
             #if DEBUG
@@ -270,88 +311,49 @@ final class EventJoinService: ObservableObject {
         }
     }
 
-    // MARK: - Duplicate Cleanup
+    // MARK: - Metadata Helper
 
-    /// Deactivates stale duplicate presence rows, keeping only the most recent one.
-    /// Uses a two-step approach: find the keeper, then deactivate others by exclusion.
-    /// Runs as best-effort after join success — failure here is non-fatal.
-    private func deactivateStaleDuplicates(communityId: UUID, contextId: UUID) async throws {
-        // Step 1: Find the most recent active row (the one to keep).
-        let keeper: [PresenceUpdateRow] = try await supabase
-            .from("presence_sessions")
-            .select("id")
-            .eq("user_id", value: communityId.uuidString)
-            .eq("context_type", value: "beacon")
-            .eq("context_id", value: contextId.uuidString)
-            .eq("is_active", value: true)
-            .order("last_seen", ascending: false)
-            .limit(1)
-            .execute()
-            .value
+    private func metadataString(user: User, key: String) -> String? {
+        // userMetadata is typically [String: AnyJSON] in Supabase Swift.
+        // This helper safely extracts a string without assuming too much.
+        if let raw = user.userMetadata[key] {
+            let text = String(describing: raw)
+            if text == "null" { return nil }
 
-        guard let keeperId = keeper.first?.id else { return }
-
-        // Step 2: Deactivate all OTHER active rows for this user+context.
-        // This uses neq on a single ID instead of a massive OR filter.
-        try await supabase
-            .from("presence_sessions")
-            .update(["is_active": AnyJSON.bool(false)])
-            .eq("user_id", value: communityId.uuidString)
-            .eq("context_type", value: "beacon")
-            .eq("context_id", value: contextId.uuidString)
-            .eq("is_active", value: true)
-            .neq("id", value: keeperId.uuidString)
-            .execute()
-
-        #if DEBUG
-        print("[EventJoin] 🧹 Deactivated stale duplicates (kept row \(keeperId.uuidString.prefix(8)))")
-        #endif
-    }
-
-    // MARK: - Resolution Helpers
-
-    private func resolveCommunityId() async -> UUID? {
-        // Prefer cached from AuthService
-        if let cached = AuthService.shared.currentUser?.id {
-            return cached
+            // Common AnyJSON string rendering includes quotes.
+            let trimmed = text.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            return trimmed.isEmpty ? nil : trimmed
         }
-
-        // Fallback: query community table
-        do {
-            let session = try await supabase.auth.session
-            let rows: [EventPresenceCommunityRow] = try await supabase
-                .from("community")
-                .select("id")
-                .eq("user_id", value: session.user.id.uuidString)
-                .limit(1)
-                .execute()
-                .value
-            return rows.first?.id
-        } catch {
-            print("[EventJoin] ❌ resolveCommunityId error: \(error)")
-            return nil
-        }
-    }
-
-    /// Resolves the context UUID for an event ID string.
-    /// Currently uses the hardcoded context ID (same as beacon presence).
-    /// In the future this could query an events table.
-    private func resolveEventContextId(eventID: String) async -> UUID? {
-        // For now, all events use the same hardcoded context ID
-        // that the beacon presence system uses.
-        // This ensures QR-joined users appear in the same attendee pool.
-        return UUID(uuidString: "8b7c40b1-0c94-497a-8f4e-a815f570cc25")
+        return nil
     }
 }
 
-// MARK: - Presence Write Models
+// MARK: - Models
 
-/// Minimal row returned from an UPDATE ... RETURNING id query.
+private struct NearifyProfile: Decodable {
+    let id: UUID
+    let user_id: UUID
+    let name: String?
+    let email: String?
+    let avatar_url: String?
+}
+
+private struct NearifyAttendee: Decodable {
+    let id: UUID
+    let event_id: UUID
+    let profile_id: UUID
+    let status: String
+}
+
+private struct NearifyEvent: Decodable {
+    let id: UUID
+    let name: String
+}
+
 private struct PresenceUpdateRow: Decodable {
     let id: UUID
 }
 
-/// Payload for inserting a new presence row.
 private struct PresenceInsertPayload: Encodable {
     let user_id: UUID
     let context_type: String
