@@ -36,6 +36,7 @@ final class DeepLinkManager: ObservableObject {
     /// Profile URLs are accepted but have no pending storage yet.
     func handle(url: URL) {
         let urlString = url.absoluteString
+        print("🚨 DeepLinkManager.handle called:", urlString)
 
         guard let payload = QRService.parse(from: urlString) else {
             #if DEBUG
