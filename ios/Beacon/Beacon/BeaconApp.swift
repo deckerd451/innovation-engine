@@ -62,6 +62,12 @@ struct BeaconApp: App {
                 // ── Gate 2: QR-scheme URLs ───────────────────────────────────
                 // beacon://event/<id> and beacon://profile/<id> are handled here.
                 // AuthService is NOT involved below this line.
+                //
+                // DeepLinkManager stores the payload so MainTabView can replay
+                // the join if the authenticated UI wasn't mounted yet when this
+                // closure fired (e.g. cold launch, auth still resolving).
+                DeepLinkManager.shared.handle(url: url)
+
                 guard let payload = QRService.parse(from: urlString) else {
                     #if DEBUG
                     print("[DeepLink] ❓ Unknown or unsupported URL: \(urlString)")
