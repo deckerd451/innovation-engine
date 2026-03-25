@@ -1,21 +1,5 @@
 import UIKit
 
-/// UIKit AppDelegate — UIKit fallback for URL delivery.
-///
-/// Why this exists
-/// ---------------
-/// SwiftUI's `.onOpenURL` is the primary handler, but iOS doesn't guarantee
-/// it fires in every lifecycle state (particularly when the app is already
-/// running in the foreground or is transitioning from the background).
-/// UIApplicationDelegate's `application(_:open:options:)` is the older,
-/// lower-level hook that iOS has called reliably since iOS 9.  Adding it
-/// gives us a second, unconditional delivery path without removing the
-/// SwiftUI handler.
-///
-/// Routing rules (identical to BeaconApp.onOpenURL):
-///   beacon://callback…  →  AuthService.handleOAuthCallback  (OAuth only)
-///   beacon://event/…    →  DeepLinkManager + EventJoinService
-///   anything else       →  DeepLinkManager (stores for MainTabView replay)
 final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(
@@ -27,18 +11,31 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         print("🚨 AppDelegate open url:", url.absoluteString)
 
         // ── Gate 1: OAuth callback ────────────────────────────────────────
+        // beacon://callback ONLY — never reaches the code below.
         if url.absoluteString.hasPrefix("beacon://callback") {
             Task { await AuthService.shared.handleOAuthCallback(url: url) }
             return true
         }
 
         // ── Gate 2: All other beacon:// URLs ──────────────────────────────
-        // Store for guaranteed replay in MainTabView, then attempt an
-        // immediate join in case auth is already loaded.
+        // Store in DeepLinkManager so MainTabView can replay on appear
+        // (handles cold-launch / auth-not-yet-ready timing).
         DeepLinkManager.shared.handle(url: url)
 
-        if case .event(let eventId)? = QRService.parse(from: url.absoluteString) {
-            Task { await EventJoinService.shared.joinEvent(eventID: eventId) }
+        guard let payload = QRService.parse(from: url.absoluteString) else {
+            print("🚨 AppDelegate could not parse URL")
+            return true
+        }
+
+        switch payload {
+        case .event(let eventId):
+            print("🚨 AppDelegate event deep link:", eventId)
+            Task {
+                await EventJoinService.shared.joinEvent(eventID: eventId)
+            }
+
+        case .profile(let communityId):
+            print("🚨 AppDelegate profile deep link:", communityId)
         }
 
         return true
