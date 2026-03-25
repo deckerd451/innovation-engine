@@ -2,6 +2,11 @@ import UIKit
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
 
+    override init() {
+        super.init()
+        print("🚨 AppDelegate initialized")
+    }
+
     func application(
         _ application: UIApplication,
         open url: URL,

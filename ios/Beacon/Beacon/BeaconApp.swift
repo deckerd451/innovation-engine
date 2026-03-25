@@ -15,6 +15,7 @@ struct BeaconApp: App {
     @State private var selectedTab: AppTab = .home
 
     init() {
+        print("🚨 DEBUG BUILD WITH APPDELEGATE INSTALLED")
         _ = BLEAdvertiserService.shared
         _ = BLEScannerService.shared
         _ = BeaconConfidenceService.shared  // Diagnostic-only anchor monitor; must init before EventPresenceService
