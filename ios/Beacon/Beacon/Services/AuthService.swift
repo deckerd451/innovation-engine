@@ -85,6 +85,10 @@ final class AuthService: ObservableObject {
 
     @MainActor
     func handleOAuthCallback(url: URL) async {
+        guard url.absoluteString.hasPrefix("beacon://callback") else {
+            print("[Auth] ⚠️ handleOAuthCallback called with non-OAuth URL — rejected: \(url.absoluteString)")
+            return
+        }
         do {
             _ = try await supabase.auth.session(from: url)
             await loadCurrentUser()
