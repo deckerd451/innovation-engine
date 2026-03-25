@@ -10,6 +10,7 @@ import Supabase
 
 @main
 struct BeaconApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var authService = AuthService.shared
     @State private var selectedTab: AppTab = .home
 
@@ -45,6 +46,7 @@ struct BeaconApp: App {
             }
             .onOpenURL { url in
                 let urlString = url.absoluteString
+                print("🚨 onOpenURL fired:", urlString)
                 #if DEBUG
                 print("[DeepLink] 🔗 Received URL: \(urlString)")
                 #endif
