@@ -27,7 +27,7 @@ struct HomeView: View {
                     }
                 }
             }
-            .navigationTitle("Home")
+            .navigationTitle("DEBUG BUILD SENTINEL")
             .navigationBarTitleDisplayMode(.large)
             .refreshable { attendeesService.refresh() }
             .onAppear {
