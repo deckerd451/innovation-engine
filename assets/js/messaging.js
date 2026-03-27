@@ -46,7 +46,14 @@ const MessagingModule = (function () {
     observer: null,
 
     // Mobile UX
-    mobileMode: null // "list" | "chat" | null
+    mobileMode: null, // "list" | "chat" | null
+
+    // Pagination
+    hasMoreMessages: false,
+    messageOffset: 0,
+
+    // Search
+    conversationSearch: ""
   };
 
   // ============================================================
@@ -137,6 +144,9 @@ const MessagingModule = (function () {
     state.unreadCount = 0;
     state.allUsers = [];
     state.mobileMode = null;
+    state.hasMoreMessages = false;
+    state.messageOffset = 0;
+    state.conversationSearch = "";
 
     // Allow init again if user comes back
     window.__IE_MESSAGING_INIT_DONE__ = false;
@@ -423,6 +433,7 @@ const MessagingModule = (function () {
 
       return {
         ...conv,
+        unreadCount: 0,
         otherUser: other
           ? {
               authId: other.user_id,
@@ -440,24 +451,56 @@ const MessagingModule = (function () {
             }
       };
     });
+
+    // Fetch per-conversation unread counts in one query
+    const convIds = state.conversations.map((c) => c.id);
+    if (convIds.length > 0) {
+      const { data: unreadMsgs } = await window.supabase
+        .from("messages")
+        .select("conversation_id")
+        .in("conversation_id", convIds)
+        .neq("sender_id", state.currentUser.authId)
+        .eq("read", false);
+
+      const unreadMap = {};
+      (unreadMsgs || []).forEach((m) => {
+        unreadMap[m.conversation_id] = (unreadMap[m.conversation_id] || 0) + 1;
+      });
+
+      state.conversations = state.conversations.map((c) => ({
+        ...c,
+        unreadCount: unreadMap[c.id] || 0
+      }));
+    }
   }
+
+  const MSG_PAGE_SIZE = 50;
 
   async function loadMessages(conversationId) {
     requireReady();
 
-    const { data, error } = await window.supabase
+    state.hasMoreMessages = false;
+    state.messageOffset = 0;
+
+    // Load total count + last 50 messages
+    const { data, error, count } = await window.supabase
       .from("messages")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE_SIZE);
 
     if (error) {
       console.error("Error loading messages:", error);
       return;
     }
 
+    const msgs = (data || []).reverse(); // back to chronological order
+    state.hasMoreMessages = (count || 0) > MSG_PAGE_SIZE;
+    state.messageOffset = MSG_PAGE_SIZE;
+
     // sender_id is auth.uid() (UUID from auth.users)
-    const senderAuthIds = [...new Set((data || []).map((m) => m.sender_id).filter(Boolean))];
+    const senderAuthIds = [...new Set(msgs.map((m) => m.sender_id).filter(Boolean))];
 
     let senderMap = {};
     if (senderAuthIds.length > 0) {
@@ -471,12 +514,78 @@ const MessagingModule = (function () {
       });
     }
 
-    state.messages = (data || []).map((msg) => ({
+    state.messages = msgs.map((msg) => ({
       ...msg,
       sender: senderMap[msg.sender_id] || null
     }));
 
     await markMessagesAsRead(conversationId);
+  }
+
+  async function loadEarlierMessages() {
+    if (!state.activeConversation || !state.hasMoreMessages) return;
+
+    const conversationId = state.activeConversation.id;
+
+    const { data, error } = await window.supabase
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .range(state.messageOffset, state.messageOffset + MSG_PAGE_SIZE - 1);
+
+    if (error) {
+      console.error("Error loading earlier messages:", error);
+      return;
+    }
+
+    const olderMsgs = (data || []).reverse(); // chronological
+    if (olderMsgs.length < MSG_PAGE_SIZE) state.hasMoreMessages = false;
+    state.messageOffset += MSG_PAGE_SIZE;
+
+    // Lookup senders
+    const senderAuthIds = [...new Set(olderMsgs.map((m) => m.sender_id).filter(Boolean))];
+    let senderMap = {};
+    if (senderAuthIds.length > 0) {
+      const { data: senders } = await window.supabase
+        .from("community")
+        .select("id, user_id, name, image_url")
+        .in("user_id", senderAuthIds);
+      (senders || []).forEach((s) => {
+        senderMap[s.user_id] = { id: s.id, name: s.name, image_url: s.image_url };
+      });
+    }
+
+    const mapped = olderMsgs.map((msg) => ({ ...msg, sender: senderMap[msg.sender_id] || null }));
+
+    // Preserve scroll position
+    const area = document.getElementById("messages-area");
+    const prevScrollHeight = area ? area.scrollHeight : 0;
+
+    state.messages = [...mapped, ...state.messages];
+    renderMessages();
+
+    if (area) {
+      area.scrollTop = area.scrollHeight - prevScrollHeight;
+    }
+  }
+
+  async function deleteMessage(messageId) {
+    try {
+      const { error } = await window.supabase
+        .from("messages")
+        .delete()
+        .eq("id", messageId)
+        .eq("sender_id", state.currentUser.authId);
+
+      if (error) throw error;
+
+      state.messages = state.messages.filter((m) => m.id !== messageId);
+      renderMessages();
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      showToast("Failed to delete message", "error");
+    }
   }
 
   async function loadAllUsers() {
@@ -671,6 +780,52 @@ const MessagingModule = (function () {
     window.dispatchEvent(new CustomEvent('messages-updated'));
   }
 
+  function filterConversations(query) {
+    state.conversationSearch = (query || "").toLowerCase();
+    renderConversationsList();
+  }
+
+  function scrollToBottom() {
+    const area = document.getElementById("messages-area");
+    if (area) area.scrollTop = area.scrollHeight;
+    const btn = document.getElementById("scroll-to-bottom");
+    if (btn) btn.style.display = "none";
+  }
+
+  function showIncomingToast(senderName, preview, convId) {
+    const existing = document.getElementById("msg-incoming-toast");
+    if (existing) existing.remove();
+
+    const toast = document.createElement("div");
+    toast.id = "msg-incoming-toast";
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: #0d1b2e;
+      border: 1px solid #00e0ff;
+      color: #fff;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      z-index: 16000;
+      max-width: 300px;
+      box-shadow: 0 8px 24px rgba(0,224,255,0.2);
+      cursor: pointer;
+      animation: slideIn 0.3s ease;
+    `;
+    toast.innerHTML = `
+      <div style="font-weight:700;color:#00e0ff;margin-bottom:0.25rem;">💬 ${escapeHtml(senderName)}</div>
+      <div style="color:#aaa;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">${escapeHtml(preview || "Sent you a message")}</div>
+    `;
+    toast.addEventListener("click", () => {
+      toast.remove();
+      selectConversationById(convId);
+    });
+    document.body.appendChild(toast);
+    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
+  }
+
   // ============================================================
   // REALTIME
   // ============================================================
@@ -721,6 +876,11 @@ const MessagingModule = (function () {
           if (newMessage.sender_id !== state.currentUser.authId) {
             await markMessagesAsRead(state.activeConversation.id);
           }
+        } else if (newMessage.sender_id !== state.currentUser.authId) {
+          // Show incoming toast for messages in other conversations
+          const conv = state.conversations.find((c) => c.id === newMessage.conversation_id);
+          const senderName = conv?.otherUser?.name || "Someone";
+          showIncomingToast(senderName, newMessage.content, newMessage.conversation_id);
         }
 
         await loadConversations();
@@ -753,6 +913,11 @@ const MessagingModule = (function () {
             <button class="new-message-btn" onclick="MessagingModule.showNewMessageModal()">
               <i class="fas fa-plus"></i> New
             </button>
+          </div>
+          <div class="conv-search-bar">
+            <input type="text" id="conv-search-input" placeholder="Search conversations..."
+              oninput="MessagingModule.filterConversations(this.value)"
+              value="${escapeHtml(state.conversationSearch || '')}">
           </div>
           <div class="conversations-list" id="conversations-list"></div>
           <!-- Collapse handle — right edge of sidebar -->
@@ -812,14 +977,28 @@ const MessagingModule = (function () {
       return;
     }
 
-    container.innerHTML = state.conversations
+    const q = state.conversationSearch || "";
+    const filtered = q
+      ? state.conversations.filter((c) =>
+          (c.otherUser?.name || "").toLowerCase().includes(q) ||
+          (c.last_message_preview || "").toLowerCase().includes(q)
+        )
+      : state.conversations;
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="empty-conversations"><p>No results for "${escapeHtml(q)}"</p></div>`;
+      return;
+    }
+
+    container.innerHTML = filtered
       .map((conv) => {
         const isActive = state.activeConversation?.id === conv.id;
+        const isUnread = (conv.unreadCount || 0) > 0;
         const initials = (conv.otherUser?.name || "??").substring(0, 2).toUpperCase();
         const timeAgo = formatTimeAgo(conv.last_message_at || conv.created_at);
 
         return `
-          <div class="conversation-item ${isActive ? "active" : ""}"
+          <div class="conversation-item ${isActive ? "active" : ""} ${isUnread ? "unread" : ""}"
             onclick="MessagingModule.selectConversationById('${conv.id}')">
             <div class="conversation-header">
               <div class="conversation-avatar">
@@ -828,6 +1007,7 @@ const MessagingModule = (function () {
                     ? `<img src="${conv.otherUser.avatar}" alt="${escapeHtml(conv.otherUser.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
                     : initials
                 }
+                ${isUnread ? `<span class="conv-unread-dot"></span>` : ""}
               </div>
               <div class="conversation-info">
                 <div class="conversation-name">
@@ -841,10 +1021,11 @@ const MessagingModule = (function () {
                       </div>`
                     : ""
                 }
-                <div class="conversation-preview">
+                <div class="conversation-preview ${isUnread ? "unread-preview" : ""}">
                   ${escapeHtml(conv.last_message_preview || "Start a conversation...")}
                 </div>
               </div>
+              ${isUnread ? `<span class="conv-unread-badge">${conv.unreadCount}</span>` : ""}
             </div>
           </div>
         `;
@@ -882,7 +1063,13 @@ const MessagingModule = (function () {
         }
       </div>
 
-      <div class="messages-area" id="messages-area"></div>
+      <div class="messages-area-wrapper">
+        <div class="messages-area" id="messages-area"></div>
+        <button class="scroll-to-bottom-btn" id="scroll-to-bottom" style="display:none;"
+          onclick="MessagingModule.scrollToBottom()">
+          <i class="fas fa-chevron-down"></i>
+        </button>
+      </div>
 
       <div class="message-input-container" id="message-input-container">
         <div class="message-input-wrapper">
@@ -904,6 +1091,17 @@ const MessagingModule = (function () {
     setupMobileKeyboardHandling();
 
     renderMessages();
+
+    // Wire scroll-to-bottom button visibility
+    const area = document.getElementById("messages-area");
+    if (area) {
+      area.addEventListener("scroll", () => {
+        const btn = document.getElementById("scroll-to-bottom");
+        if (!btn) return;
+        const isNearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+        btn.style.display = isNearBottom ? "none" : "flex";
+      });
+    }
   }
 
   function renderMessages() {
@@ -922,24 +1120,52 @@ const MessagingModule = (function () {
       return;
     }
 
-    container.innerHTML = state.messages
-      .map((msg) => {
-        const isSent = msg.sender_id === state.currentUser.authId;
-        const senderName = isSent ? "You" : (msg.sender?.name || "Unknown");
-        const initials = senderName.substring(0, 2).toUpperCase();
-        const timestamp = formatTime(msg.created_at);
+    let html = "";
 
-        return `
-          <div class="message ${isSent ? "sent" : "received"}">
-            <div class="message-avatar">${initials}</div>
-            <div class="message-content">
-              <div class="message-bubble">${escapeHtml(msg.content)}</div>
-              <div class="message-timestamp">${timestamp}</div>
+    // "Load earlier messages" button at top
+    if (state.hasMoreMessages) {
+      html += `<div class="load-earlier-wrap"><button class="load-earlier-btn" onclick="MessagingModule.loadEarlierMessages()">Load earlier messages</button></div>`;
+    }
+
+    let lastDateStr = null;
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const yesterdayStr = new Date(now - 86400000).toDateString();
+
+    state.messages.forEach((msg) => {
+      const msgDate = new Date(msg.created_at);
+      const msgDateStr = msgDate.toDateString();
+
+      if (msgDateStr !== lastDateStr) {
+        lastDateStr = msgDateStr;
+        let dateLabel;
+        if (msgDateStr === todayStr) dateLabel = "Today";
+        else if (msgDateStr === yesterdayStr) dateLabel = "Yesterday";
+        else dateLabel = msgDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+        html += `<div class="msg-date-separator"><span>${escapeHtml(dateLabel)}</span></div>`;
+      }
+
+      const isSent = msg.sender_id === state.currentUser.authId;
+      const senderName = isSent ? "You" : (msg.sender?.name || "Unknown");
+      const initials = senderName.substring(0, 2).toUpperCase();
+      const timestamp = formatTime(msg.created_at);
+
+      html += `
+        <div class="message ${isSent ? "sent" : "received"}" data-msg-id="${escapeHtml(String(msg.id))}">
+          <div class="message-avatar">${initials}</div>
+          <div class="message-content">
+            <div class="message-bubble">
+              ${escapeHtml(msg.content)}
+              ${isSent ? `<button class="msg-delete-btn" onclick="MessagingModule.deleteMessage('${escapeHtml(String(msg.id))}')" title="Delete">×</button>` : ""}
             </div>
+            <div class="message-timestamp">${timestamp}</div>
           </div>
-        `;
-      })
-      .join("");
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
   }
 
   function renderUsersList(users = state.allUsers) {
@@ -1143,6 +1369,10 @@ const MessagingModule = (function () {
     showNewMessageModal,
     hideNewMessageModal,
     filterUsers,
+    filterConversations,
+    loadEarlierMessages,
+    deleteMessage,
+    scrollToBottom,
     getState: () => ({ ...state })
   };
 })();

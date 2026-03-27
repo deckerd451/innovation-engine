@@ -895,3 +895,191 @@
     flex-direction: column !important;
   }
 }
+
+/* ============================================================
+   CONVERSATION SEARCH BAR
+   ============================================================ */
+.conv-search-bar {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid rgba(0,224,255,0.1);
+}
+
+.conv-search-bar input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(0,224,255,0.2);
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.conv-search-bar input::placeholder {
+  color: #666;
+}
+
+.conv-search-bar input:focus {
+  border-color: rgba(0,224,255,0.5);
+  background: rgba(0,224,255,0.06);
+}
+
+/* ============================================================
+   UNREAD COUNT BADGE ON CONVERSATION ITEMS
+   ============================================================ */
+.conv-unread-badge {
+  background: #00e0ff;
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.conv-unread-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #00e0ff;
+  border: 2px solid #0a0e27;
+}
+
+.conversation-preview.unread-preview {
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+/* ============================================================
+   DATE SEPARATORS IN MESSAGE THREAD
+   ============================================================ */
+.msg-date-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0 0.75rem;
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.msg-date-separator::before,
+.msg-date-separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+.msg-date-separator span {
+  white-space: nowrap;
+  padding: 0.2rem 0.6rem;
+  background: rgba(255,255,255,0.05);
+  border-radius: 20px;
+}
+
+/* ============================================================
+   LOAD EARLIER MESSAGES BUTTON
+   ============================================================ */
+.load-earlier-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0 0.5rem;
+}
+
+.load-earlier-btn {
+  background: rgba(0,224,255,0.1);
+  border: 1px solid rgba(0,224,255,0.3);
+  color: #00e0ff;
+  font-size: 0.8rem;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.load-earlier-btn:hover {
+  background: rgba(0,224,255,0.2);
+}
+
+/* ============================================================
+   MESSAGE DELETE BUTTON (hover on sent messages)
+   ============================================================ */
+.message-bubble {
+  position: relative;
+}
+
+.msg-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 59, 48, 0.85);
+  color: #fff;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+}
+
+.message.sent .message-bubble:hover .msg-delete-btn {
+  display: flex;
+}
+
+/* ============================================================
+   SCROLL-TO-BOTTOM FLOATING BUTTON
+   ============================================================ */
+.messages-area-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.messages-area-wrapper .messages-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0,224,255,0.15);
+  border: 1px solid rgba(0,224,255,0.4);
+  color: #00e0ff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: background 0.2s;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: rgba(0,224,255,0.3);
+}
