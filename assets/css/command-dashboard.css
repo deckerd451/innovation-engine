@@ -909,6 +909,7 @@
   align-items: center;
   gap: 0.2rem;
   flex-shrink: 0;
+  overflow: visible;
 }
 
 .cd-icon-btn {
@@ -955,8 +956,9 @@
 /* Unread badge on the bell */
 .cd-bell-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: 0;
+  right: 0;
+  transform: translate(35%, -35%);
   background: #ff3b30;
   color: #fff;
   font-size: 0.6rem;
@@ -972,7 +974,6 @@
   pointer-events: none;
   z-index: 10;
   box-shadow: 0 0 0 2px var(--cd-bg, #0a0e27);
-  isolation: isolate;
 }
 
 /* ── Panel footer — report button ── */
