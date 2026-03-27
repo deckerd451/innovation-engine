@@ -1396,13 +1396,13 @@ window.CommandDashboard = (() => {
     }
   }
 
-  /** Wire bell button → open unified notification panel (total notifications) */
+  /** Wire bell button → open messaging */
   function _wireBellBtn() {
     const btn = $id('cd-bell-btn');
     if (!btn) return;
     btn.addEventListener('click', () => {
-      if (window.UnifiedNotifications?.showPanel) {
-        window.UnifiedNotifications.showPanel();
+      if (typeof window.openMessagingInterface === 'function') {
+        window.openMessagingInterface();
       } else if (typeof window.openMessagesModal === 'function') {
         window.openMessagesModal();
       }
