@@ -1098,6 +1098,7 @@ async function renderPersonPanel(nodeData) {
     .from('endorsements')
     .select('skill, endorser_community_id')
     .eq('endorsed_community_id', profile.id)
+    .order('created_at', { ascending: false })
     .limit(5);
   
   // Fetch endorser names
