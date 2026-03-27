@@ -1977,12 +1977,10 @@ window.endorseSkill = async function(userId) {
     }
 
     if (!profile.user_id) {
-      console.error('[endorse] target community row missing user_id', { communityId: userId });
-      alert('Could not resolve target user (missing auth link)');
-      return;
+      console.warn('[endorse] target community row missing user_id — endorsing by community id only', { communityId: userId });
     }
 
-    console.debug('[endorse] target resolved:', { communityId: userId, authUserId: profile.user_id, name: profile.name });
+    console.debug('[endorse] target resolved:', { communityId: userId, authUserId: profile.user_id ?? null, name: profile.name });
 
     const skills = normalizeSkills(profile.skills);
 
@@ -2010,7 +2008,7 @@ window.endorseSkill = async function(userId) {
 
         <div id="skill-selection" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;">
           ${skills.map(skill => `
-            <button onclick="confirmEndorsement('${userId}', '${profile.user_id}', '${skill.replace(/'/g, "\\'")}', '${profile.name.replace(/'/g, "\\'")}', this)" style="padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
+            <button onclick="confirmEndorsement('${userId}', '${profile.user_id || ''}', '${skill.replace(/'/g, "\\'")}', '${profile.name.replace(/'/g, "\\'")}', this)" style="padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
               <div style="font-weight: bold; font-size: 1rem; margin-bottom: 0.25rem;">${skill}</div>
               <div style="color: #aaa; font-size: 0.85rem;">Click to endorse</div>
             </button>
@@ -2040,9 +2038,7 @@ window.confirmEndorsement = async function(communityId, endorsedAuthUserId, skil
   console.debug('[endorse] confirmEndorsement →', { communityId, endorsedAuthUserId, skill });
 
   if (!endorsedAuthUserId) {
-    console.error('[endorse] missing endorsedAuthUserId — incoming args:', { communityId, endorsedAuthUserId, skill, userName });
-    alert('Could not resolve target user (auth id missing)');
-    return;
+    console.warn('[endorse] endorsedAuthUserId is null — will endorse by community id only', { communityId, skill, userName });
   }
 
   // Keep legacy alias so rest of function reads clearly
