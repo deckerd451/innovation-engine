@@ -51,6 +51,9 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     // Refresh every 30 seconds
     setInterval(loadAllData, 30000);
 
+    // Refresh immediately when messaging.js marks messages as read
+    window.addEventListener('messages-updated', loadAllData);
+
     console.log('✅ Unified notification system initialized');
   }
 
@@ -121,6 +124,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           .select('content, created_at')
           .eq('conversation_id', conv.id)
           .neq('sender_id', _authUserId || currentUserProfile.user_id)
+          .eq('read', false)
           .order('created_at', { ascending: false })
           .limit(5);
 
