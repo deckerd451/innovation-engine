@@ -945,6 +945,7 @@
   border-color: rgba(0, 224, 255, 0.3);
   background: rgba(0, 224, 255, 0.06);
   overflow: visible;
+  z-index: 1;
 }
 .cd-bell-btn:hover {
   background: rgba(0, 224, 255, 0.15);
@@ -955,7 +956,7 @@
 .cd-bell-badge {
   position: absolute;
   top: -6px;
-  right: -8px;
+  right: -6px;
   background: #ff3b30;
   color: #fff;
   font-size: 0.6rem;
@@ -969,8 +970,9 @@
   justify-content: center;
   line-height: 1;
   pointer-events: none;
-  z-index: 1;
+  z-index: 10;
   box-shadow: 0 0 0 2px var(--cd-bg, #0a0e27);
+  isolation: isolate;
 }
 
 /* ── Panel footer — report button ── */
