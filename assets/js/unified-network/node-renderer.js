@@ -93,6 +93,12 @@ export class NodeRenderer {
 
     window.addEventListener('resize', updateViewport);
 
+    // On mobile, orientationchange fires before the browser recalculates layout,
+    // so delay the update slightly to capture the correct post-rotation dimensions.
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateViewport, 200);
+    });
+
     // Update viewport on visibility change (tab switching)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {

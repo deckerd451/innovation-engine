@@ -430,18 +430,18 @@ const EndorsementsModule = (function() {
         .eq('user_id', currentUser.id)
         .single();
       
-      if (endorserError) {
+      if (endorserError || !endorserProfile) {
         console.error('Error getting endorser profile:', endorserError);
         return [];
       }
-      
+
       const { data: endorsedProfile, error: endorsedError } = await window.supabase
         .from('community')
         .select('id')
         .eq('user_id', userId)
         .single();
-      
-      if (endorsedError) {
+
+      if (endorsedError || !endorsedProfile) {
         console.error('Error getting endorsed profile:', endorsedError);
         return [];
       }
