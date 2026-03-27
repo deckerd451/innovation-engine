@@ -13,6 +13,10 @@ let presenceChannel = null;
 let activeConversations = new Map();
 let unreadCounts = new Map();
 let typingIndicators = new Map();
+let allConversationsCache = []; // for sidebar search
+let participantDetailsCache = new Map(); // for incoming toast
+let msgOffsets = new Map(); // conversationId -> number of messages loaded
+let hasMoreMsgs = new Map(); // conversationId -> boolean
 
 // Collaboration event types
 const COLLAB_EVENTS = {
@@ -143,6 +147,10 @@ export function initRealtimeCollaboration() {
   window.createNewMessage = createNewMessage;
   window.selectUserForMessage = selectUserForMessage;
   window.closeNewMessageDialog = closeNewMessageDialog;
+  window.filterConversationsList = filterConversationsList;
+  window.rtScrollToBottom = rtScrollToBottom;
+  window.deleteConversationMessage = deleteConversationMessage;
+  window.loadEarlierMessages = loadEarlierMessages;
 
   window.addEventListener('profile-loaded', async (e) => {
     currentUserProfile = e.detail.profile;
@@ -233,17 +241,62 @@ function handleNewMessage(payload) {
   const message = payload.new;
   console.log('📨 New message received:', message);
 
-  if (activeConversations.has(message.conversation_id)) {
+  const isActive = activeConversations.has(message.conversation_id);
+
+  if (isActive) {
     appendMessageToConversation(message.conversation_id, message);
   }
 
   // sender_id is community.id
   if (!isOwnMessage(message)) {
     updateUnreadCount(message.conversation_id, 1);
-    showMessageNotification(message);
+
+    if (!isActive) {
+      // Show inline toast for non-active conversations
+      const senderName = participantDetailsCache.get(message.conversation_id)?.name || 'Someone';
+      showIncomingMsgToast(senderName, message.content, message.conversation_id);
+    }
   }
 
   playNotificationSound();
+
+  // Refresh sidebar to update last message + unread badge
+  if (document.getElementById('messaging-interface')) {
+    refreshConversationList();
+  }
+}
+
+function showIncomingMsgToast(senderName, content, conversationId) {
+  const existing = document.getElementById('rt-incoming-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'rt-incoming-toast';
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: #0d1b2e;
+    border: 1px solid #00e0ff;
+    color: #fff;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    z-index: 16000;
+    max-width: 300px;
+    box-shadow: 0 8px 24px rgba(0,224,255,0.2);
+    cursor: pointer;
+  `;
+  toast.innerHTML = `
+    <div style="font-weight:700;color:#00e0ff;margin-bottom:0.25rem;">💬 ${escapeHtml(senderName)}</div>
+    <div style="color:#aaa;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">${escapeHtml((content || '').substring(0, 80))}</div>
+  `;
+  toast.addEventListener('click', () => {
+    toast.remove();
+    openConversation(conversationId);
+  });
+  document.body.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
 }
 
 // Handle conversation updates
@@ -383,6 +436,21 @@ export async function openMessagingInterface(conversationId = null) {
             ">
               <i class="fas fa-plus"></i> New Message
             </button>
+            <input type="text" id="rt-conv-search" placeholder="Search conversations..."
+              oninput="filterConversationsList(this.value)"
+              style="
+                margin-top: 0.6rem;
+                width: 100%;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(0,224,255,0.2);
+                border-radius: 8px;
+                padding: 0.45rem 0.75rem;
+                color: #e0e0e0;
+                font-size: 0.85rem;
+                outline: none;
+                box-sizing: border-box;
+              "
+            >
           </div>
 
           <div id="conversations-list" style="
@@ -409,6 +477,7 @@ export async function openMessagingInterface(conversationId = null) {
             display: none;
           "></div>
 
+          <div style="flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 0;">
           <div id="messages-area" style="
             flex: 1;
             overflow-y: auto;
@@ -422,6 +491,25 @@ export async function openMessagingInterface(conversationId = null) {
               <h3 style="color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem;">Select a conversation</h3>
               <p>Choose a conversation from the sidebar or start a new one</p>
             </div>
+          </div>
+
+            <button id="rt-scroll-btn" onclick="rtScrollToBottom()" style="
+              display: none;
+              position: absolute;
+              bottom: 12px;
+              right: 12px;
+              width: 36px;
+              height: 36px;
+              border-radius: 50%;
+              background: rgba(0,224,255,0.15);
+              border: 1px solid rgba(0,224,255,0.4);
+              color: #00e0ff;
+              cursor: pointer;
+              align-items: center;
+              justify-content: center;
+              z-index: 5;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            "><i class="fas fa-chevron-down"></i></button>
           </div>
 
           <div id="message-input-area" style="
@@ -555,6 +643,65 @@ export async function openMessagingInterface(conversationId = null) {
       background: rgba(0, 224, 255, 0.3);
       border-radius: 4px;
     }
+
+    .rt-date-separator {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1rem 0 0.75rem;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.75rem;
+      width: 100%;
+    }
+    .rt-date-separator::before, .rt-date-separator::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+    }
+    .rt-date-separator span {
+      white-space: nowrap;
+      padding: 0.2rem 0.6rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+    }
+    .rt-load-earlier {
+      display: flex;
+      justify-content: center;
+      padding: 0.5rem 0;
+      width: 100%;
+    }
+    .rt-load-earlier button {
+      background: rgba(0,224,255,0.1);
+      border: 1px solid rgba(0,224,255,0.3);
+      color: #00e0ff;
+      font-size: 0.8rem;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+    .rt-load-earlier button:hover { background: rgba(0,224,255,0.2); }
+    .message-bubble { position: relative; }
+    .rt-del-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,59,48,0.85);
+      color: #fff;
+      font-size: 0.75rem;
+      line-height: 1;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      z-index: 2;
+    }
+    .message-bubble.own:hover .rt-del-btn { display: flex; }
   `;
   document.head.appendChild(style);
 
@@ -590,6 +737,17 @@ function setupMessagingEventListeners() {
     });
   }
 
+  // Wire scroll-to-bottom button visibility
+  const messagesArea = document.getElementById('messages-area');
+  if (messagesArea) {
+    messagesArea.addEventListener('scroll', () => {
+      const btn = document.getElementById('rt-scroll-btn');
+      if (!btn) return;
+      const isNearBottom = messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight < 100;
+      btn.style.display = isNearBottom ? 'none' : 'flex';
+    });
+  }
+
   const messagingInterface = document.getElementById('messaging-interface');
   if (messagingInterface) {
     messagingInterface.addEventListener('click', (e) => {
@@ -598,6 +756,141 @@ function setupMessagingEventListeners() {
       }
     });
   }
+}
+
+function rtScrollToBottom() {
+  const area = document.getElementById('messages-area');
+  if (area) area.scrollTop = area.scrollHeight;
+  const btn = document.getElementById('rt-scroll-btn');
+  if (btn) btn.style.display = 'none';
+}
+
+function filterConversationsList(query) {
+  const q = (query || '').toLowerCase();
+  const container = document.getElementById('conversations-list');
+  if (!container) return;
+
+  if (!allConversationsCache.length) return;
+
+  const filtered = q
+    ? allConversationsCache.filter((c) =>
+        (c._otherName || '').toLowerCase().includes(q) ||
+        (c._lastPreview || '').toLowerCase().includes(q)
+      )
+    : allConversationsCache;
+
+  renderConversationItems(filtered, container);
+}
+
+function renderConversationItems(conversations, container) {
+  if (!conversations.length) {
+    container.innerHTML = `<div style="text-align:center;padding:2rem;color:rgba(255,255,255,0.5);">No results</div>`;
+    return;
+  }
+  let html = '';
+  conversations.forEach((conv) => {
+    html += conv._html;
+  });
+  container.innerHTML = html;
+}
+
+async function deleteConversationMessage(messageId) {
+  try {
+    const { error } = await supabase.from('messages').delete().eq('id', messageId);
+    if (error) throw error;
+    const el = document.querySelector(`[data-msg-id="${messageId}"]`);
+    if (el) el.remove();
+  } catch (e) {
+    console.error('Error deleting message:', e);
+  }
+}
+
+async function loadEarlierMessages(conversationId) {
+  const offset = msgOffsets.get(conversationId) || 0;
+  const PAGE = 50;
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + PAGE - 1);
+
+  if (error) { console.error('Error loading earlier messages:', error); return; }
+
+  const older = (data || []).reverse();
+  if (older.length < PAGE) hasMoreMsgs.set(conversationId, false);
+  msgOffsets.set(conversationId, offset + PAGE);
+
+  const container = document.getElementById('messages-area')?.querySelector('.rt-msg-inner');
+  if (!container) return;
+
+  const loadBtn = container.querySelector('.rt-load-earlier');
+  const prevScrollHeight = document.getElementById('messages-area')?.scrollHeight || 0;
+
+  const fragment = document.createDocumentFragment();
+
+  if (!hasMoreMsgs.get(conversationId)) {
+    const lb = container.querySelector('.rt-load-earlier');
+    if (lb) lb.remove();
+  }
+
+  let lastDate = null;
+  older.forEach((msg) => {
+    const own = isOwnMessage(msg);
+    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateStr = new Date(msg.created_at).toDateString();
+
+    if (dateStr !== lastDate) {
+      lastDate = dateStr;
+      const sep = document.createElement('div');
+      sep.className = 'rt-date-separator';
+      sep.innerHTML = `<span>${formatDateLabel(msg.created_at)}</span>`;
+      fragment.appendChild(sep);
+    }
+
+    const el = document.createElement('div');
+    el.className = `message-bubble ${own ? 'own' : 'other'}`;
+    el.dataset.msgId = msg.id;
+    el.innerHTML = `
+      <div>${escapeHtml(msg.content || '')}</div>
+      <div class="message-time">${time}</div>
+      ${own ? `<button class="rt-del-btn" onclick="deleteConversationMessage('${msg.id}')" title="Delete">×</button>` : ''}
+    `;
+    fragment.appendChild(el);
+  });
+
+  // Insert before first existing message (after the load btn if present)
+  const firstMsg = container.querySelector('.message-bubble');
+  if (firstMsg) {
+    container.insertBefore(fragment, firstMsg);
+  } else {
+    container.appendChild(fragment);
+  }
+
+  // Remove old load btn and re-add if there are more
+  const oldBtn = container.querySelector('.rt-load-earlier');
+  if (oldBtn) oldBtn.remove();
+  if (hasMoreMsgs.get(conversationId)) {
+    const lb = document.createElement('div');
+    lb.className = 'rt-load-earlier';
+    lb.innerHTML = `<button onclick="loadEarlierMessages('${conversationId}')">Load earlier messages</button>`;
+    container.insertBefore(lb, container.firstChild);
+  }
+
+  // Restore scroll
+  const area = document.getElementById('messages-area');
+  if (area) area.scrollTop = area.scrollHeight - prevScrollHeight;
+}
+
+function formatDateLabel(timestamp) {
+  const d = new Date(timestamp);
+  const now = new Date();
+  const todayStr = now.toDateString();
+  const yesterdayStr = new Date(now - 86400000).toDateString();
+  if (d.toDateString() === todayStr) return 'Today';
+  if (d.toDateString() === yesterdayStr) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function formatMessageTime(timestamp) {
@@ -720,7 +1013,7 @@ async function loadConversationsList() {
       }
     }
 
-    let html = '';
+    allConversationsCache = [];
     conversations.forEach(conversation => {
       const otherUserId = conversation.participant_1_id === currentUserProfile.id
         ? conversation.participant_2_id
@@ -735,9 +1028,15 @@ async function loadConversationsList() {
 
       const lastMessage = lastMessages.get(conversation.id);
       const unreadCount = unreadCounts.get(conversation.id) || 0;
+      const preview = lastMessage
+        ? (lastMessage.content.length > 50 ? lastMessage.content.substring(0, 50) + '...' : lastMessage.content)
+        : 'No messages yet - start the conversation!';
 
-      html += `
-        <div class="conversation-item" onclick="openConversation('${conversation.id}')" data-conversation-id="${conversation.id}">
+      // Store for realtime toast lookups
+      participantDetailsCache.set(conversation.id, otherUser);
+
+      const itemHtml = `
+        <div class="conversation-item ${unreadCount > 0 ? 'unread' : ''}" onclick="openConversation('${conversation.id}')" data-conversation-id="${conversation.id}">
           <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;"
                onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'"
                onmouseout="this.style.background='transparent'">
@@ -750,11 +1049,11 @@ async function loadConversationsList() {
             </div>
             <div style="flex: 1; min-width: 0;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                <h4 style="color: white; margin: 0; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${otherUser.name || 'Unknown User'}</h4>
-                ${unreadCount > 0 ? `<div class="unread-badge" style="background: #ff6b6b; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold;">${unreadCount}</div>` : ''}
+                <h4 style="color: white; margin: 0; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ${unreadCount > 0 ? 'font-weight:700;' : ''}">${otherUser.name || 'Unknown User'}</h4>
+                ${unreadCount > 0 ? `<div class="unread-badge" style="background: #ff6b6b; color: white; border-radius: 50%; min-width: 20px; height: 20px; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold;">${unreadCount}</div>` : ''}
               </div>
-              <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ${lastMessage ? (lastMessage.content.length > 50 ? lastMessage.content.substring(0, 50) + '...' : lastMessage.content) : 'No messages yet - start the conversation!'}
+              <p style="color: rgba(255, 255, 255, ${unreadCount > 0 ? '0.95' : '0.7'}); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ${unreadCount > 0 ? 'font-weight:600;' : ''}">
+                ${escapeHtml(preview)}
               </p>
               ${lastMessage ? `
                 <div style="color: rgba(255, 255, 255, 0.5); font-size: 0.75rem; margin-top: 0.25rem;">
@@ -765,9 +1064,16 @@ async function loadConversationsList() {
           </div>
         </div>
       `;
+
+      allConversationsCache.push({
+        id: conversation.id,
+        _otherName: otherUser.name || '',
+        _lastPreview: preview,
+        _html: itemHtml
+      });
     });
 
-    container.innerHTML = html;
+    renderConversationItems(allConversationsCache, container);
     console.log('✅ Conversations list rendered successfully');
 
   } catch (error) {
@@ -857,39 +1163,62 @@ async function loadConversationMessages(conversationId) {
       </div>
     `;
 
-    const { data: messages, error: msgError } = await supabase
+    const MSG_PAGE = 50;
+
+    const { data: messages, error: msgError, count } = await supabase
       .from('messages')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(MSG_PAGE);
 
     if (msgError) throw msgError;
 
-    let messagesHtml = '<div style="display: flex; flex-direction: column; width: 100%; padding: 1rem;">';
+    const msgs = (messages || []).reverse();
+    const totalCount = count || 0;
+    msgOffsets.set(conversationId, MSG_PAGE);
+    hasMoreMsgs.set(conversationId, totalCount > MSG_PAGE);
 
-    if (!messages || messages.length === 0) {
-      messagesHtml += `
+    messagesArea.style.alignItems = '';
+    messagesArea.style.justifyContent = '';
+
+    let innerHtml = '<div class="rt-msg-inner" style="display: flex; flex-direction: column; width: 100%; padding: 1rem;">';
+
+    if (totalCount > MSG_PAGE) {
+      innerHtml += `<div class="rt-load-earlier"><button onclick="loadEarlierMessages('${conversationId}')">Load earlier messages</button></div>`;
+    }
+
+    if (!msgs || msgs.length === 0) {
+      innerHtml += `
         <div style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 2rem;">
           <i class="fas fa-comment" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
           <p>No messages yet. Start the conversation!</p>
         </div>
       `;
     } else {
-      messages.forEach(message => {
+      let lastDateStr = null;
+      msgs.forEach(message => {
         const own = isOwnMessage(message);
         const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = new Date(message.created_at).toDateString();
 
-        messagesHtml += `
-          <div class="message-bubble ${own ? 'own' : 'other'}">
+        if (dateStr !== lastDateStr) {
+          lastDateStr = dateStr;
+          innerHtml += `<div class="rt-date-separator"><span>${formatDateLabel(message.created_at)}</span></div>`;
+        }
+
+        innerHtml += `
+          <div class="message-bubble ${own ? 'own' : 'other'}" data-msg-id="${escapeHtml(String(message.id))}">
             <div>${escapeHtml(message.content || '')}</div>
             <div class="message-time">${time}</div>
+            ${own ? `<button class="rt-del-btn" onclick="deleteConversationMessage('${escapeHtml(String(message.id))}')" title="Delete">×</button>` : ''}
           </div>
         `;
       });
     }
 
-    messagesHtml += '</div>';
-    messagesArea.innerHTML = messagesHtml;
+    innerHtml += '</div>';
+    messagesArea.innerHTML = innerHtml;
     messagesArea.scrollTop = messagesArea.scrollHeight;
 
   } catch (error) {
@@ -987,14 +1316,17 @@ function appendMessageToConversation(conversationId, message) {
 
   const messageElement = document.createElement('div');
   messageElement.className = `message-bubble ${own ? 'own' : 'other'}`;
+  messageElement.dataset.msgId = String(message.id);
   messageElement.innerHTML = `
     <div>${escapeHtml(message.content || '')}</div>
     <div class="message-time">${time}</div>
+    ${own ? `<button class="rt-del-btn" onclick="deleteConversationMessage('${escapeHtml(String(message.id))}')" title="Delete">×</button>` : ''}
   `;
 
-  let messagesContainer = messagesArea.querySelector('div');
+  let messagesContainer = messagesArea.querySelector('.rt-msg-inner');
   if (!messagesContainer) {
     messagesContainer = document.createElement('div');
+    messagesContainer.className = 'rt-msg-inner';
     messagesContainer.style.display = 'flex';
     messagesContainer.style.flexDirection = 'column';
     messagesContainer.style.width = '100%';
@@ -1063,6 +1395,20 @@ function updateUserOnlineStatus(presences, isOnline) {
 
 async function markMessagesAsRead(conversationId) {
   unreadCounts.set(conversationId, 0);
+  const currentCommunityId = getCurrentCommunityId();
+  if (!currentCommunityId) return;
+  try {
+    await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', currentCommunityId)
+      .eq('read', false);
+    // Notify badge system
+    window.dispatchEvent(new CustomEvent('messages-updated'));
+  } catch (e) {
+    console.warn('markMessagesAsRead DB update failed:', e);
+  }
 }
 
 function startTypingIndicator() {
