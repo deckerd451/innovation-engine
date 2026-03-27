@@ -2094,7 +2094,7 @@ window.confirmEndorsement = async function(communityId, endorsedAuthUserId, skil
       .insert({
         endorser_id: user.id,                  // auth.users.id of current user
         endorser_community_id: endorserProfile.id,
-        endorsed_id: endorsedAuthUserId,        // auth.users.id of target (passed from endorseSkill)
+        endorsed_id: endorsedAuthUserId || userId, // auth.users.id preferred; fall back to community.id (NOT NULL)
         endorsed_community_id: userId,
         skill: skill
       });
