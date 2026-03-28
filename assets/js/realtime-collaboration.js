@@ -293,7 +293,14 @@ function showIncomingMsgToast(senderName, content, conversationId) {
   `;
   toast.addEventListener('click', () => {
     toast.remove();
-    openConversation(conversationId);
+    // If the messaging interface is already open, jump straight to the
+    // conversation.  If it's closed, open it (which will call openConversation
+    // internally), so rt-panel-chat is always set via the normal path.
+    if (document.getElementById('messaging-interface')) {
+      openConversation(conversationId);
+    } else {
+      openMessagingInterface(conversationId);
+    }
   });
   document.body.appendChild(toast);
   setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
@@ -781,7 +788,9 @@ export async function openMessagingInterface(conversationId = null) {
           box-shadow: none !important;
         }
 
-        /* Default panel: show sidebar, hide chat */
+        /* Default panel: show sidebar, hide chat.
+           Give the hidden chat-area explicit zero-width so Safari's
+           display:none flex-item layout bug can't leave a residual gap. */
         #messaging-interface .conversations-sidebar {
           width: 100% !important;
           min-width: 0 !important;
@@ -789,15 +798,33 @@ export async function openMessagingInterface(conversationId = null) {
         }
         #messaging-interface .chat-area {
           display: none !important;
-          width: 100% !important;
+          flex: 0 0 0px !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          max-width: 0 !important;
+          overflow: hidden !important;
         }
 
-        /* rt-panel-chat class: flip to chat panel */
+        /* rt-panel-chat class: flip to chat panel.
+           Same zero-width treatment for the hidden sidebar — this is the
+           critical fix: without it, Safari can leave the 350px inline-width
+           sidebar in the flex layout even when display:none is set, which
+           squeezes the chat-area to ~40px and corrupts the composer. */
         #messaging-interface.rt-panel-chat .conversations-sidebar {
           display: none !important;
+          flex: 0 0 0px !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          max-width: 0 !important;
+          overflow: hidden !important;
+          padding: 0 !important;
+          border: none !important;
         }
         #messaging-interface.rt-panel-chat .chat-area {
           display: flex !important;
+          flex: 1 1 auto !important;
+          width: 100% !important;
+          min-width: 0 !important;
         }
 
         /* Back button visible on mobile */
