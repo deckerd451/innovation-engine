@@ -275,7 +275,7 @@ function showIncomingMsgToast(senderName, content, conversationId) {
   toast.style.cssText = `
     position: fixed;
     bottom: 2rem;
-    right: 2rem;
+    right: 1rem;
     background: #0d1b2e;
     border: 1px solid #00e0ff;
     color: #fff;
@@ -283,7 +283,7 @@ function showIncomingMsgToast(senderName, content, conversationId) {
     border-radius: 12px;
     font-size: 0.9rem;
     z-index: 16000;
-    max-width: 300px;
+    max-width: calc(100vw - 2rem);
     box-shadow: 0 8px 24px rgba(0,224,255,0.2);
     cursor: pointer;
   `;
@@ -446,7 +446,7 @@ export async function openMessagingInterface(conversationId = null) {
                 border-radius: 8px;
                 padding: 0.45rem 0.75rem;
                 color: #e0e0e0;
-                font-size: 0.85rem;
+                font-size: 16px;
                 outline: none;
                 box-sizing: border-box;
               "
@@ -485,6 +485,8 @@ export async function openMessagingInterface(conversationId = null) {
             display: flex;
             align-items: center;
             justify-content: center;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
           ">
             <div style="text-align: center; color: rgba(255, 255, 255, 0.6);">
               <i class="fas fa-comments" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
@@ -529,7 +531,7 @@ export async function openMessagingInterface(conversationId = null) {
                   border: 1px solid rgba(0, 224, 255, 0.3);
                   border-radius: 8px;
                   color: white;
-                  font-size: 1rem;
+                  font-size: 16px;
                   resize: vertical;
                   font-family: inherit;
                 "></textarea>
@@ -560,150 +562,257 @@ export async function openMessagingInterface(conversationId = null) {
     </div>
   `;
 
-  const style = document.createElement('style');
-  style.textContent = `
-    .conversation-item {
-      padding: 1rem;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 0.5rem;
-      border: 1px solid transparent;
-    }
+  if (!document.getElementById('rt-messaging-styles')) {
+    const style = document.createElement('style');
+    style.id = 'rt-messaging-styles';
+    style.textContent = `
+      /* ── Base conversation list items ── */
+      .conversation-item {
+        padding: 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        touch-action: manipulation;
+        transition: background 0.15s, border-color 0.15s;
+        margin-bottom: 0.5rem;
+        border: 1px solid transparent;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .conversation-item:hover {
+          background: rgba(0, 224, 255, 0.05);
+          border-color: rgba(0, 224, 255, 0.2);
+        }
+      }
+      .conversation-item.active {
+        background: rgba(0, 224, 255, 0.1);
+        border-color: rgba(0, 224, 255, 0.4);
+      }
 
-    .conversation-item:hover {
-      background: rgba(0, 224, 255, 0.05);
-      border-color: rgba(0, 224, 255, 0.2);
-    }
+      /* ── Message bubbles ── */
+      .message-bubble {
+        position: relative;
+        max-width: 70%;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        margin-bottom: 0.75rem;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+      .message-bubble.own {
+        background: linear-gradient(135deg, #00e0ff, #0080ff);
+        color: white;
+        margin-left: auto;
+        border-bottom-right-radius: 4px;
+      }
+      .message-bubble.other {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        margin-right: auto;
+        border-bottom-left-radius: 4px;
+      }
+      .message-time {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        margin-top: 0.25rem;
+      }
 
-    .conversation-item.active {
-      background: rgba(0, 224, 255, 0.1);
-      border-color: rgba(0, 224, 255, 0.4);
-    }
+      /* ── Delete button: opacity-based, works on touch ── */
+      .rt-del-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255,59,48,0.9);
+        color: #fff;
+        font-size: 0.8rem;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        z-index: 2;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s;
+      }
+      /* Mouse: reveal on hover */
+      @media (hover: hover) and (pointer: fine) {
+        .message-bubble.own:hover .rt-del-btn {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      }
+      /* Touch: always visible at reduced opacity */
+      @media (hover: none) {
+        .message-bubble.own .rt-del-btn {
+          opacity: 0.55;
+          pointer-events: auto;
+        }
+      }
 
-    .message-bubble {
-      max-width: 70%;
-      padding: 0.75rem 1rem;
-      border-radius: 12px;
-      margin-bottom: 0.75rem;
-      word-wrap: break-word;
-    }
+      /* ── Misc badges / indicators ── */
+      .unread-badge {
+        background: #ff4444;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: bold;
+      }
+      .online-indicator {
+        width: 8px;
+        height: 8px;
+        background: #00ff88;
+        border-radius: 50%;
+        border: 2px solid white;
+        position: absolute;
+        bottom: 0;
+        right: 0;
+      }
 
-    .message-bubble.own {
-      background: linear-gradient(135deg, #00e0ff, #0080ff);
-      color: white;
-      margin-left: auto;
-      border-bottom-right-radius: 4px;
-    }
+      /* ── Scrollbar (webkit) ── */
+      #messages-area::-webkit-scrollbar { width: 6px; }
+      #messages-area::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+      #messages-area::-webkit-scrollbar-thumb { background: rgba(0,224,255,0.3); border-radius: 3px; }
 
-    .message-bubble.other {
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      margin-right: auto;
-      border-bottom-left-radius: 4px;
-    }
+      /* ── Date separators ── */
+      .rt-date-separator {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 1rem 0 0.75rem;
+        color: rgba(255,255,255,0.4);
+        font-size: 0.75rem;
+        width: 100%;
+      }
+      .rt-date-separator::before, .rt-date-separator::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: rgba(255,255,255,0.08);
+      }
+      .rt-date-separator span {
+        white-space: nowrap;
+        padding: 0.2rem 0.6rem;
+        background: rgba(255,255,255,0.05);
+        border-radius: 20px;
+      }
 
-    .message-time {
-      font-size: 0.75rem;
-      opacity: 0.7;
-      margin-top: 0.25rem;
-    }
+      /* ── Load earlier button ── */
+      .rt-load-earlier {
+        display: flex;
+        justify-content: center;
+        padding: 0.5rem 0;
+        width: 100%;
+      }
+      .rt-load-earlier button {
+        background: rgba(0,224,255,0.1);
+        border: 1px solid rgba(0,224,255,0.3);
+        color: #00e0ff;
+        font-size: 0.85rem;
+        padding: 0.5rem 1.25rem;
+        border-radius: 20px;
+        cursor: pointer;
+        touch-action: manipulation;
+        min-height: 36px;
+      }
 
-    .unread-badge {
-      background: #ff4444;
-      color: white;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.75rem;
-      font-weight: bold;
-    }
+      /* ── Mobile back button (hidden on desktop) ── */
+      .rt-mobile-back {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid rgba(0,224,255,0.3);
+        background: rgba(0,224,255,0.1);
+        color: #00e0ff;
+        cursor: pointer;
+        flex-shrink: 0;
+        touch-action: manipulation;
+        margin-right: 0.5rem;
+      }
 
-    .online-indicator {
-      width: 8px;
-      height: 8px;
-      background: #00ff88;
-      border-radius: 50%;
-      border: 2px solid white;
-      position: absolute;
-      bottom: 0;
-      right: 0;
-    }
+      /* ── Global touch targets inside the modal ── */
+      #messaging-interface button {
+        touch-action: manipulation;
+      }
 
-    #messages-area::-webkit-scrollbar {
-      width: 8px;
-    }
-    #messages-area::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.3);
-    }
-    #messages-area::-webkit-scrollbar-thumb {
-      background: rgba(0, 224, 255, 0.3);
-      border-radius: 4px;
-    }
+      /* ══════════════════════════════════════════════
+         MOBILE LAYOUT  ≤ 640px
+         Single-panel navigation (WhatsApp style)
+         ══════════════════════════════════════════════ */
+      @media (max-width: 640px) {
+        /* Backdrop: no padding, stretch to fill */
+        #messaging-interface {
+          padding: 0 !important;
+          align-items: stretch !important;
+          justify-content: stretch !important;
+        }
 
-    .rt-date-separator {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin: 1rem 0 0.75rem;
-      color: rgba(255,255,255,0.4);
-      font-size: 0.75rem;
-      width: 100%;
-    }
-    .rt-date-separator::before, .rt-date-separator::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: rgba(255,255,255,0.08);
-    }
-    .rt-date-separator span {
-      white-space: nowrap;
-      padding: 0.2rem 0.6rem;
-      background: rgba(255,255,255,0.05);
-      border-radius: 20px;
-    }
-    .rt-load-earlier {
-      display: flex;
-      justify-content: center;
-      padding: 0.5rem 0;
-      width: 100%;
-    }
-    .rt-load-earlier button {
-      background: rgba(0,224,255,0.1);
-      border: 1px solid rgba(0,224,255,0.3);
-      color: #00e0ff;
-      font-size: 0.8rem;
-      padding: 0.4rem 1rem;
-      border-radius: 20px;
-      cursor: pointer;
-    }
-    .rt-load-earlier button:hover { background: rgba(0,224,255,0.2); }
-    .message-bubble { position: relative; }
-    .rt-del-btn {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: none;
-      background: rgba(255,59,48,0.85);
-      color: #fff;
-      font-size: 0.75rem;
-      line-height: 1;
-      cursor: pointer;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      z-index: 2;
-    }
-    .message-bubble.own:hover .rt-del-btn { display: flex; }
-  `;
-  document.head.appendChild(style);
+        /* Container: full-screen, no rounding */
+        #messaging-interface .messaging-container {
+          height: 100vh !important;   /* fallback */
+          height: 100dvh !important;  /* dynamic — excludes browser chrome */
+          border-radius: 0 !important;
+          max-width: none !important;
+          width: 100% !important;
+          box-shadow: none !important;
+        }
+
+        /* Default panel: show sidebar, hide chat */
+        #messaging-interface .conversations-sidebar {
+          width: 100% !important;
+          min-width: 0 !important;
+          border-right: none !important;
+        }
+        #messaging-interface .chat-area {
+          display: none !important;
+          width: 100% !important;
+        }
+
+        /* rt-panel-chat class: flip to chat panel */
+        #messaging-interface.rt-panel-chat .conversations-sidebar {
+          display: none !important;
+        }
+        #messaging-interface.rt-panel-chat .chat-area {
+          display: flex !important;
+        }
+
+        /* Back button visible on mobile */
+        .rt-mobile-back {
+          display: flex !important;
+        }
+
+        /* Message bubbles wider on narrow screens */
+        .message-bubble {
+          max-width: 85% !important;
+        }
+
+        /* Input area safe-area padding */
+        #message-input-area {
+          padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Lock body scroll (iOS Safari fix)
+  const scrollY = window.scrollY;
+  document.body.dataset.scrollY = scrollY;
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.width = '100%';
+  document.body.style.top = `-${scrollY}px`;
 
   document.body.appendChild(messagingInterface);
 
@@ -1115,6 +1224,9 @@ async function openConversation(conversationId) {
   document.getElementById('chat-header').style.display = 'block';
   document.getElementById('message-input-area').style.display = 'block';
 
+  // Mobile: switch to chat panel view
+  document.getElementById('messaging-interface')?.classList.add('rt-panel-chat');
+
   await loadConversationMessages(conversationId);
   await markMessagesAsRead(conversationId);
 }
@@ -1147,6 +1259,10 @@ async function loadConversationMessages(conversationId) {
     const chatHeader = document.getElementById('chat-header');
     chatHeader.innerHTML = `
       <div style="display: flex; align-items: center; gap: 1rem;">
+        <button class="rt-mobile-back" onclick="document.getElementById('messaging-interface')?.classList.remove('rt-panel-chat')" style="
+          background: none; border: none; color: #00e0ff; cursor: pointer;
+          padding: 0.5rem; font-size: 1.2rem; touch-action: manipulation;
+        "><i class="fas fa-arrow-left"></i></button>
         <div style="position: relative;">
           ${otherUser.image_url
             ? `<img src="${otherUser.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
@@ -1435,6 +1551,15 @@ function closeMessagingInterface() {
   if (messagingInterface) {
     messagingInterface.remove();
   }
+
+  // Restore body scroll (iOS Safari fix)
+  const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
+  document.body.style.top = '';
+  delete document.body.dataset.scrollY;
+  window.scrollTo(0, scrollY);
 
   activeConversations.clear();
   console.log('🗑️ Messaging interface closed');
