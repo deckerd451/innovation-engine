@@ -1657,7 +1657,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           </h3>
           
           <!-- Organization Tabs -->
-          <div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid rgba(168,85,247,0.2); padding-bottom:0.5rem;">
+          <div class="search-tab-bar" style="gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid rgba(168,85,247,0.2); padding-bottom:0.5rem;">
             <button class="org-search-tab active-org-tab" data-org-tab="search" 
               style="padding:0.6rem 1.2rem; background:rgba(168,85,247,0.15); border:none; border-bottom:3px solid #a855f7; 
               color:#a855f7; cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
@@ -1744,7 +1744,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           </h3>
           
           <!-- Theme Tabs -->
-          <div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid rgba(255,170,0,0.2); padding-bottom:0.5rem;">
+          <div class="search-tab-bar" style="gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid rgba(255,170,0,0.2); padding-bottom:0.5rem;">
             <button class="theme-search-tab active-theme-tab" data-theme-tab="search" 
               style="padding:0.6rem 1.2rem; background:rgba(255,170,0,0.15); border:none; border-bottom:3px solid #ffaa00; 
               color:#ffaa00; cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">

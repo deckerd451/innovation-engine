@@ -520,8 +520,8 @@ export async function openMessagingInterface(conversationId = null) {
             flex-shrink: 0;
             display: none;
           ">
-            <div style="display: flex; gap: 1rem; align-items: end;">
-              <div style="flex: 1;">
+            <div class="rt-composer-row" style="display: flex; gap: 1rem; align-items: flex-end;">
+              <div class="rt-composer-input" style="flex: 1 1 auto; min-width: 0;">
                 <textarea id="message-input" placeholder="Type your message..." style="
                   width: 100%;
                   min-height: 60px;
@@ -543,7 +543,7 @@ export async function openMessagingInterface(conversationId = null) {
                   min-height: 1.2rem;
                 "></div>
               </div>
-              <button onclick="sendMessage()" style="
+              <button class="rt-composer-send" onclick="sendMessage()" style="
                 padding: 0.75rem 1.5rem;
                 background: linear-gradient(135deg, #00e0ff, #0080ff);
                 border: none;
@@ -551,7 +551,7 @@ export async function openMessagingInterface(conversationId = null) {
                 color: white;
                 cursor: pointer;
                 font-weight: 600;
-                height: fit-content;
+                flex-shrink: 0;
               ">
                 <i class="fas fa-paper-plane"></i>
               </button>
@@ -797,10 +797,40 @@ export async function openMessagingInterface(conversationId = null) {
           max-width: 85% !important;
         }
 
-        /* Input area safe-area padding */
+        /* Composer: reduce padding + gap so row fits on narrow screens */
         #message-input-area {
-          padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
+          padding: 0.75rem !important;
+          padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)) !important;
         }
+        .rt-composer-row {
+          gap: 0.5rem !important;
+        }
+        /* Icon-only send button on mobile to save space */
+        .rt-composer-send {
+          padding-left: 0.875rem !important;
+          padding-right: 0.875rem !important;
+        }
+      }
+
+      /* ── Composer flex rules (all viewports) ── */
+      .rt-composer-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 1rem;
+        box-sizing: border-box;
+        width: 100%;
+      }
+      .rt-composer-input {
+        flex: 1 1 auto;
+        min-width: 0;          /* prevent textarea from expanding the row */
+      }
+      .rt-composer-input textarea {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
+      }
+      .rt-composer-send {
+        flex: 0 0 auto;        /* button never shrinks or grows */
       }
     `;
     document.head.appendChild(style);
