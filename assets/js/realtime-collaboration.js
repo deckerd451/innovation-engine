@@ -751,11 +751,24 @@ export async function openMessagingInterface(conversationId = null) {
          Single-panel navigation (WhatsApp style)
          ══════════════════════════════════════════════ */
       @media (max-width: 640px) {
-        /* Backdrop: no padding, stretch to fill */
+        /* Backdrop: no padding, stretch to fill.
+           Remove backdrop-filter: on a position:fixed element it creates a
+           compositor layer that gets stuck during iOS keyboard animation,
+           causing the zoom/crop viewport glitch.  The rgba(0,0,0,0.8)
+           background already provides the dimming — the blur is invisible
+           because the full-screen modal covers everything behind it. */
         #messaging-interface {
           padding: 0 !important;
           align-items: stretch !important;
           justify-content: flex-start !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+        /* Same reason: drop backdrop-filter on the container on mobile.
+           The opaque gradient background makes it invisible anyway. */
+        #messaging-interface .messaging-container {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
         }
 
         /* Container: full-screen, no rounding */
@@ -836,13 +849,13 @@ export async function openMessagingInterface(conversationId = null) {
     document.head.appendChild(style);
   }
 
-  // Lock body scroll (iOS Safari fix)
-  const scrollY = window.scrollY;
-  document.body.dataset.scrollY = scrollY;
+  // Prevent body scroll-through while modal is open.
+  // Do NOT use position:fixed on body — on iOS Safari, fixing the body while a
+  // text input inside a position:fixed modal receives focus causes iOS to fall
+  // back to zooming the visual viewport instead of scrolling, producing the
+  // "magnified/cropped" compositor glitch during keyboard-open.
+  // overflow:hidden alone is enough since the modal covers the full viewport.
   document.body.style.overflow = 'hidden';
-  document.body.style.position = 'fixed';
-  document.body.style.width = '100%';
-  document.body.style.top = `-${scrollY}px`;
 
   document.body.appendChild(messagingInterface);
 
@@ -1582,14 +1595,8 @@ function closeMessagingInterface() {
     messagingInterface.remove();
   }
 
-  // Restore body scroll (iOS Safari fix)
-  const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
+  // Restore body scroll
   document.body.style.overflow = '';
-  document.body.style.position = '';
-  document.body.style.width = '';
-  document.body.style.top = '';
-  delete document.body.dataset.scrollY;
-  window.scrollTo(0, scrollY);
 
   activeConversations.clear();
   console.log('🗑️ Messaging interface closed');
