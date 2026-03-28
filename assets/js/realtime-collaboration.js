@@ -755,7 +755,7 @@ export async function openMessagingInterface(conversationId = null) {
         #messaging-interface {
           padding: 0 !important;
           align-items: stretch !important;
-          justify-content: stretch !important;
+          justify-content: flex-start !important;
         }
 
         /* Container: full-screen, no rounding */
