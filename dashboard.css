@@ -1858,9 +1858,33 @@
 /* Prevent content from being pushed off screen */
 .bottom-stats-bar,
 .bottom-bar {
-  max-width: 100vw;
+  max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ── Search-results tab bars: scroll horizontally on narrow screens ── */
+.search-tab-bar {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE / legacy Edge */
+}
+.search-tab-bar::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari / WebKit */
+}
+.search-tab-bar > button {
+  flex-shrink: 0;               /* buttons never shrink below content width */
+  white-space: nowrap;
+}
+
+/* ── Modal content: contain horizontal overflow from children ── */
+@media (max-width: 640px) {
+  .modal-content {
+    overflow-x: hidden;
+  }
 }
 
 /* Ensure notifications panel doesn't overflow */
