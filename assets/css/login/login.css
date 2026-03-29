@@ -12,21 +12,21 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 1.5rem;
+  padding: 1rem;
   box-sizing: border-box;
   background:
-    radial-gradient(circle at top, rgba(0,224,255,0.08), transparent 35%),
+    radial-gradient(circle at top, rgba(0, 224, 255, 0.08), transparent 35%),
     linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
 }
 
 .ie-login-shell {
   width: 100%;
-  max-width: 760px;
+  max-width: 680px;
   min-height: 100%;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 1.5rem 0;
+  padding: 0.75rem 0 1.25rem;
   box-sizing: border-box;
 }
 
@@ -38,17 +38,17 @@
   width: 100%;
   position: relative;
   overflow: hidden;
-  padding: 2rem;
-  border-radius: 24px;
-  border: 1px solid rgba(0,224,255,0.18);
-  background: linear-gradient(135deg, rgba(10,14,39,0.88), rgba(16,20,39,0.92));
+  padding: 1.4rem;
+  border-radius: 22px;
+  border: 1px solid rgba(0, 224, 255, 0.16);
+  background: linear-gradient(135deg, rgba(10, 14, 39, 0.9), rgba(16, 20, 39, 0.94));
   box-shadow:
-    0 20px 60px rgba(0,0,0,0.55),
-    0 0 30px rgba(0,224,255,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.05);
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(0, 224, 255, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  animation: ieLoginFadeIn 0.45s ease;
+  animation: ieLoginFadeIn 0.42s ease;
 }
 
 .ie-login-panel::before {
@@ -56,13 +56,13 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at top right, rgba(0,224,255,0.10), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(0,128,255,0.08), transparent 24%);
+    radial-gradient(circle at top right, rgba(0, 224, 255, 0.09), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(0, 128, 255, 0.07), transparent 24%);
   pointer-events: none;
 }
 
 /* =========================
-   TEXT / HEADER
+   HEADER / HERO
 ========================= */
 
 .ie-login-kicker,
@@ -77,161 +77,174 @@
 
 .ie-login-kicker {
   display: inline-block;
-  margin-bottom: 1rem;
-  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.9rem;
+  padding: 0.38rem 0.72rem;
   border-radius: 999px;
-  border: 1px solid rgba(0,224,255,0.25);
-  background: rgba(0,224,255,0.08);
+  border: 1px solid rgba(0, 224, 255, 0.24);
+  background: rgba(0, 224, 255, 0.08);
   color: #9befff;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .ie-login-logo {
   display: block;
-  max-width: min(100%, 460px);
-  margin-bottom: 1rem;
+  max-width: min(100%, 430px);
+  height: auto;
+  margin-bottom: 0.7rem;
 }
 
 .ie-login-title-fallback {
   display: none;
-  margin-bottom: 1rem;
+  margin: 0 0 0.75rem;
   color: #00e0ff;
-  font-size: 2rem;
-}
-
-.ie-login-title {
-  margin: 0 0 0.85rem;
-  max-width: 12ch;
-  color: #ffffff;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: 1.9rem;
   font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 
 .ie-login-title {
-  margin-bottom: 1.75rem;
+  margin: 0 0 1.15rem;
+  max-width: 11ch;
+  color: #ffffff;
+  font-size: clamp(1.9rem, 3.6vw, 2.65rem);
+  font-weight: 800;
+  line-height: 1.03;
+  letter-spacing: -0.035em;
 }
 
 /* =========================
-   MODULE
+   ACCESS MODULE
 ========================= */
 
 .ie-login-module {
-  margin-bottom: 1rem;
-  padding: 1rem;
+  margin-bottom: 0.9rem;
+  padding: 0.95rem;
   border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .ie-login-module-label {
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.75rem;
   color: #9aa8bd;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 /* =========================
-   OAUTH BUTTONS (FIXED)
+   OAUTH BUTTONS
 ========================= */
 
 .ie-oauth-buttons {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.7rem;
 }
 
 .ie-oauth-btn {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
+  gap: 0.85rem;
   width: 100%;
-  padding: 0.95rem 1rem;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   color: #ffffff;
   text-align: left;
-  transition: all 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 
 .ie-oauth-btn:hover {
   transform: translateY(-1px);
-  border-color: rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.06);
-  box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
-/* ✅ BRAND-CORRECT ICON CONTAINER */
+.ie-oauth-btn:active {
+  transform: translateY(0);
+}
 
 .ie-oauth-provider-mark {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  border-radius: 12px;
-  display: flex;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 10px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   flex-shrink: 0;
 }
 
-/* SVG icons */
-
 .ie-oauth-svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: block;
 }
 
 .ie-oauth-svg--github {
-  color: #111;
+  color: #111111;
+}
+
+.ie-oauth-svg--google {
+  width: 18px;
+  height: 18px;
 }
 
 .ie-oauth-copy {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.14rem;
+  min-width: 0;
 }
 
 .ie-oauth-copy strong {
-  font-size: 0.98rem;
+  color: #ffffff;
+  font-size: 0.95rem;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .ie-oauth-copy small {
-  font-size: 0.82rem;
   color: #98a7bc;
+  font-size: 0.8rem;
+  line-height: 1.25;
 }
 
 /* =========================
-   FOOTER
+   HELP TEXT / FOOTER
 ========================= */
 
 .ie-login-hint {
-  margin-top: 0.9rem;
-  min-height: 1.2rem;
+  min-height: 1.15rem;
+  margin-top: 0.8rem;
   color: #8d9ab0;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
 }
 
 .ie-login-footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.9rem 1.25rem;
+  gap: 0.75rem 1rem;
   color: #8ea1bb;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .ie-login-footer-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.42rem;
 }
 
 .ie-login-footer-item i {
@@ -245,11 +258,11 @@
 @keyframes ieLoginFadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.98);
+    transform: translateY(10px) scale(0.985);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -258,36 +271,68 @@
 ========================= */
 
 @media (max-width: 768px) {
-  .ie-login-screen { padding: 1rem; }
+  .ie-login-screen {
+    padding: 0.9rem;
+  }
+
+  .ie-login-shell {
+    padding-top: 0.4rem;
+    padding-bottom: 1rem;
+  }
 
   .ie-login-panel {
-    padding: 1.25rem;
+    padding: 1.15rem;
     border-radius: 20px;
+  }
+
+  .ie-login-logo {
+    max-width: min(100%, 380px);
+    margin-bottom: 0.6rem;
   }
 
   .ie-login-title {
     max-width: none;
-    font-size: 2rem;
+    font-size: 1.9rem;
+    margin-bottom: 1rem;
   }
 
-  .ie-login-subtitle {
-    font-size: 1rem;
+  .ie-oauth-btn {
+    padding: 0.82rem 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
-  .ie-login-screen { padding: 0.75rem; }
+  .ie-login-screen {
+    padding: 0.75rem;
+  }
+
+  .ie-login-shell {
+    padding-top: 0.2rem;
+    padding-bottom: 0.9rem;
+  }
 
   .ie-login-panel {
     padding: 1rem;
     border-radius: 18px;
   }
 
+  .ie-login-logo {
+    max-width: min(100%, 340px);
+  }
+
   .ie-login-title {
-    font-size: 1.8rem;
+    font-size: 1.75rem;
+    line-height: 1.04;
+  }
+
+  .ie-oauth-provider-mark {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
   }
 
   .ie-login-footer {
     flex-direction: column;
+    gap: 0.6rem;
   }
 }
