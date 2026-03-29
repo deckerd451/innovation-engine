@@ -1,23 +1,47 @@
+.ie-login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at top, rgba(0, 224, 255, 0.08), transparent 35%),
+    linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+}
+
 .ie-login-shell {
   width: 100%;
   max-width: 760px;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+  box-sizing: border-box;
 }
 
 .ie-login-panel {
   width: 100%;
-  background: linear-gradient(135deg, rgba(10,14,39,0.88), rgba(16,20,39,0.92));
+  background: linear-gradient(135deg, rgba(10, 14, 39, 0.88), rgba(16, 20, 39, 0.92));
   border: 1px solid rgba(0, 224, 255, 0.18);
   border-radius: 24px;
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.55),
     0 0 30px rgba(0, 224, 255, 0.08),
-    inset 0 1px 0 rgba(255,255,255,0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   padding: 2rem;
   position: relative;
   overflow: hidden;
+  animation: ieLoginFadeIn 0.45s ease;
 }
 
 .ie-login-panel::before {
@@ -25,20 +49,30 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at top right, rgba(0,224,255,0.10), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(0,128,255,0.08), transparent 24%);
+    radial-gradient(circle at top right, rgba(0, 224, 255, 0.10), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(0, 128, 255, 0.08), transparent 24%);
   pointer-events: none;
 }
 
-.ie-login-kicker {
+.ie-login-kicker,
+.ie-login-logo,
+.ie-login-title-fallback,
+.ie-login-title,
+.ie-login-subtitle,
+.ie-login-status-row,
+.ie-login-module,
+.ie-login-footer {
   position: relative;
   z-index: 1;
+}
+
+.ie-login-kicker {
   display: inline-block;
   margin-bottom: 1rem;
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  border: 1px solid rgba(0,224,255,0.25);
-  background: rgba(0,224,255,0.08);
+  border: 1px solid rgba(0, 224, 255, 0.25);
+  background: rgba(0, 224, 255, 0.08);
   color: #9befff;
   font-size: 0.78rem;
   font-weight: 700;
@@ -47,8 +81,6 @@
 }
 
 .ie-login-logo {
-  position: relative;
-  z-index: 1;
   max-width: min(100%, 460px);
   height: auto;
   margin-bottom: 1rem;
@@ -56,14 +88,13 @@
 }
 
 .ie-login-title-fallback {
+  display: none;
   color: #00e0ff;
   font-size: 2rem;
   margin-bottom: 1rem;
 }
 
 .ie-login-title {
-  position: relative;
-  z-index: 1;
   color: #ffffff;
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.08;
@@ -74,8 +105,6 @@
 }
 
 .ie-login-subtitle {
-  position: relative;
-  z-index: 1;
   color: #b8c4d6;
   font-size: 1.05rem;
   line-height: 1.65;
@@ -84,17 +113,15 @@
 }
 
 .ie-login-status-row {
-  position: relative;
-  z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
   margin-bottom: 1.5rem;
 }
 
 .ie-login-pill {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(0,224,255,0.14);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(0, 224, 255, 0.14);
   border-radius: 16px;
   padding: 1rem 0.85rem;
   display: flex;
@@ -117,10 +144,8 @@
 }
 
 .ie-login-module {
-  position: relative;
-  z-index: 1;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 18px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -147,8 +172,8 @@
   width: 100%;
   padding: 0.95rem 1rem;
   border-radius: 16px;
-  border: 1px solid rgba(0,224,255,0.18);
-  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+  border: 1px solid rgba(0, 224, 255, 0.18);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
   color: #fff;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   text-align: left;
@@ -156,8 +181,8 @@
 
 .ie-oauth-btn:hover {
   transform: translateY(-1px);
-  border-color: rgba(0,224,255,0.4);
-  box-shadow: 0 10px 24px rgba(0,224,255,0.12);
+  border-color: rgba(0, 224, 255, 0.4);
+  box-shadow: 0 10px 24px rgba(0, 224, 255, 0.12);
 }
 
 .ie-oauth-btn:active {
@@ -172,8 +197,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,224,255,0.10);
-  border: 1px solid rgba(0,224,255,0.18);
+  background: rgba(0, 224, 255, 0.10);
+  border: 1px solid rgba(0, 224, 255, 0.18);
   color: #00e0ff;
   font-size: 1.1rem;
 }
@@ -203,8 +228,6 @@
 }
 
 .ie-login-footer {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 0.9rem 1.25rem;
@@ -222,7 +245,28 @@
   color: #00e0ff;
 }
 
+@keyframes ieLoginFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (max-width: 768px) {
+  .ie-login-screen {
+    padding: 1rem;
+    align-items: flex-start;
+  }
+
+  .ie-login-shell {
+    padding-top: 0.5rem;
+    padding-bottom: 1.25rem;
+  }
+
   .ie-login-panel {
     padding: 1.25rem;
     border-radius: 20px;
@@ -233,6 +277,11 @@
     font-size: 2rem;
   }
 
+  .ie-login-subtitle {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
   .ie-login-status-row {
     grid-template-columns: 1fr;
   }
@@ -241,27 +290,33 @@
     padding: 0.9rem;
   }
 }
-.ie-login-screen {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: calc(var(--vh, 1vh) * 100);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  overflow-y: auto;
-  padding: 1.5rem;
-  box-sizing: border-box;
-  background:
-    radial-gradient(circle at top, rgba(0, 224, 255, 0.08), transparent 35%),
-    linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
-}
 
-.ie-login-title-fallback {
-  display: none;
-  color: #00e0ff;
-  font-size: 2rem;
-  margin-bottom: 1rem;
+@media (max-width: 480px) {
+  .ie-login-screen {
+    padding: 0.75rem;
+  }
+
+  .ie-login-shell {
+    padding-top: 0.25rem;
+    padding-bottom: 1rem;
+  }
+
+  .ie-login-panel {
+    padding: 1rem;
+    border-radius: 18px;
+  }
+
+  .ie-login-title {
+    font-size: 1.8rem;
+    line-height: 1.05;
+  }
+
+  .ie-login-pill {
+    min-height: auto;
+  }
+
+  .ie-login-footer {
+    flex-direction: column;
+    gap: 0.65rem;
+  }
 }
