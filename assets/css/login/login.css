@@ -1,3 +1,7 @@
+/* =========================
+   LOGIN SCREEN LAYOUT
+========================= */
+
 .ie-login-screen {
   position: fixed;
   inset: 0;
@@ -11,7 +15,7 @@
   padding: 1.5rem;
   box-sizing: border-box;
   background:
-    radial-gradient(circle at top, rgba(0, 224, 255, 0.08), transparent 35%),
+    radial-gradient(circle at top, rgba(0,224,255,0.08), transparent 35%),
     linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
 }
 
@@ -22,10 +26,13 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 1.5rem;
-  padding-bottom: 1.5rem;
+  padding: 1.5rem 0;
   box-sizing: border-box;
 }
+
+/* =========================
+   PANEL
+========================= */
 
 .ie-login-panel {
   width: 100%;
@@ -33,12 +40,12 @@
   overflow: hidden;
   padding: 2rem;
   border-radius: 24px;
-  border: 1px solid rgba(0, 224, 255, 0.18);
-  background: linear-gradient(135deg, rgba(10, 14, 39, 0.88), rgba(16, 20, 39, 0.92));
+  border: 1px solid rgba(0,224,255,0.18);
+  background: linear-gradient(135deg, rgba(10,14,39,0.88), rgba(16,20,39,0.92));
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.55),
-    0 0 30px rgba(0, 224, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 20px 60px rgba(0,0,0,0.55),
+    0 0 30px rgba(0,224,255,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.05);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   animation: ieLoginFadeIn 0.45s ease;
@@ -49,10 +56,14 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at top right, rgba(0, 224, 255, 0.10), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(0, 128, 255, 0.08), transparent 24%);
+    radial-gradient(circle at top right, rgba(0,224,255,0.10), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(0,128,255,0.08), transparent 24%);
   pointer-events: none;
 }
+
+/* =========================
+   TEXT / HEADER
+========================= */
 
 .ie-login-kicker,
 .ie-login-logo,
@@ -70,8 +81,8 @@
   margin-bottom: 1rem;
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  border: 1px solid rgba(0, 224, 255, 0.25);
-  background: rgba(0, 224, 255, 0.08);
+  border: 1px solid rgba(0,224,255,0.25);
+  background: rgba(0,224,255,0.08);
   color: #9befff;
   font-size: 0.78rem;
   font-weight: 700;
@@ -82,7 +93,6 @@
 .ie-login-logo {
   display: block;
   max-width: min(100%, 460px);
-  height: auto;
   margin-bottom: 1rem;
 }
 
@@ -98,8 +108,8 @@
   max-width: 12ch;
   color: #ffffff;
   font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1.08;
   font-weight: 800;
+  line-height: 1.08;
   letter-spacing: -0.03em;
 }
 
@@ -111,12 +121,16 @@
   line-height: 1.65;
 }
 
+/* =========================
+   MODULE
+========================= */
+
 .ie-login-module {
   margin-bottom: 1rem;
   padding: 1rem;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
 }
 
 .ie-login-module-label {
@@ -128,6 +142,10 @@
   text-transform: uppercase;
 }
 
+/* =========================
+   OAUTH BUTTONS (FIXED)
+========================= */
+
 .ie-oauth-buttons {
   display: grid;
   gap: 0.85rem;
@@ -135,69 +153,74 @@
 
 .ie-oauth-btn {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.9rem;
   width: 100%;
   padding: 0.95rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
   color: #ffffff;
   text-align: left;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: all 0.18s ease;
 }
 
 .ie-oauth-btn:hover {
   transform: translateY(-1px);
-  border-color: rgba(0, 224, 255, 0.35);
-  box-shadow: 0 10px 24px rgba(0, 224, 255, 0.12);
+  border-color: rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.25);
 }
 
-.ie-oauth-btn:active {
-  transform: translateY(0);
-}
+/* ✅ BRAND-CORRECT ICON CONTAINER */
 
-.ie-oauth-icon {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
+.ie-oauth-provider-mark {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 2px;
-  color: #00e0ff;
-  font-size: 1.4rem;
-  line-height: 1;
+  background: #ffffff;
   flex-shrink: 0;
 }
 
-.ie-oauth-btn:hover .ie-oauth-icon {
-  text-shadow: 0 0 12px rgba(0, 224, 255, 0.6);
+/* SVG icons */
+
+.ie-oauth-svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.ie-oauth-svg--github {
+  color: #111;
 }
 
 .ie-oauth-copy {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  min-width: 0;
 }
 
 .ie-oauth-copy strong {
-  color: #ffffff;
   font-size: 0.98rem;
   font-weight: 700;
-  line-height: 1.25;
 }
 
 .ie-oauth-copy small {
-  color: #98a7bc;
   font-size: 0.82rem;
-  line-height: 1.3;
+  color: #98a7bc;
 }
 
+/* =========================
+   FOOTER
+========================= */
+
 .ie-login-hint {
-  min-height: 1.2rem;
   margin-top: 0.9rem;
+  min-height: 1.2rem;
   color: #8d9ab0;
   font-size: 0.88rem;
 }
@@ -220,26 +243,27 @@
   color: #00e0ff;
 }
 
+/* =========================
+   ANIMATION
+========================= */
+
 @keyframes ieLoginFadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.985);
+    transform: translateY(10px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-@media (max-width: 768px) {
-  .ie-login-screen {
-    padding: 1rem;
-  }
+/* =========================
+   RESPONSIVE
+========================= */
 
-  .ie-login-shell {
-    padding-top: 0.5rem;
-    padding-bottom: 1.25rem;
-  }
+@media (max-width: 768px) {
+  .ie-login-screen { padding: 1rem; }
 
   .ie-login-panel {
     padding: 1.25rem;
@@ -253,23 +277,11 @@
 
   .ie-login-subtitle {
     font-size: 1rem;
-    line-height: 1.55;
-  }
-
-  .ie-oauth-btn {
-    padding: 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
-  .ie-login-screen {
-    padding: 0.75rem;
-  }
-
-  .ie-login-shell {
-    padding-top: 0.25rem;
-    padding-bottom: 1rem;
-  }
+  .ie-login-screen { padding: 0.75rem; }
 
   .ie-login-panel {
     padding: 1rem;
@@ -278,11 +290,9 @@
 
   .ie-login-title {
     font-size: 1.8rem;
-    line-height: 1.05;
   }
 
   .ie-login-footer {
     flex-direction: column;
-    gap: 0.65rem;
   }
 }
