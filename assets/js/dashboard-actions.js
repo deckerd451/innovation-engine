@@ -3639,25 +3639,39 @@ async function loadOrgsTabContent(tabName) {
     // Wire up form submission
     document.getElementById('create-org-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      debugger; // ← PATH B: remove after confirming which handler fires
+      console.warn('[dashboard-actions] PATH B create-org-form fired — this is the STALE handler, not organization-manager.js');
       await createOrganization();
     });
   }
 }
 
+// STALE PATH — does not use OrganizationManager, does not set created_by.
+// If you see [dashboard-actions PATH B] in the console, this is your bug source.
+// Fix: replace the body with a delegation to window.OrganizationManager.createOrganization()
+// See the TODO comment at the end of this function.
 async function createOrganization() {
+  console.group('[dashboard-actions] createOrganization() — STALE PATH B');
+  console.log('window.supabase:', !!window.supabase);
+  console.log('window.currentUserProfile:', window.currentUserProfile);
+
   const supabase = window.supabase;
   if (!supabase) {
-    
-_toast('Database connection not available');
+    console.error('[dashboard-actions] BLOCKED — supabase not on window');
+    console.groupEnd();
+    _toast('Database connection not available');
     return;
   }
 
   const currentUser = window.currentUserProfile;
   if (!currentUser) {
-    
-_toast('Please log in to create an organization');
+    console.error('[dashboard-actions] BLOCKED — window.currentUserProfile is null');
+    console.groupEnd();
+    _toast('Please log in to create an organization');
     return;
   }
+
+  console.log('currentUser.id (used as community_id):', currentUser.id);
 
   const name = document.getElementById('org-name')?.value?.trim();
   const description = document.getElementById('org-description')?.value?.trim();
@@ -3667,8 +3681,9 @@ _toast('Please log in to create an organization');
   const website = document.getElementById('org-website')?.value?.trim();
 
   if (!name) {
-    
-_toast('Organization name is required');
+    console.error('[dashboard-actions] BLOCKED — name is empty');
+    console.groupEnd();
+    _toast('Organization name is required');
     return;
   }
 
@@ -3683,47 +3698,50 @@ _toast('Organization name is required');
     .maybeSingle();
 
   if (existing) {
-    // Add a numeric suffix
     slug = `${slug}-${Date.now().toString(36)}`;
   }
 
+  const insertPayload = {
+    name,
+    slug,
+    description: description || null,
+    industry: industry && industry.length ? industry : null,
+    location: location || null,
+    website: website || null,
+    // NOTE: created_by is intentionally omitted here — the DB trigger will set it.
+    // To fix this properly, delegate to window.OrganizationManager.createOrganization().
+  };
+  console.log('[dashboard-actions] INSERT payload:', insertPayload);
+
   try {
-    // Create the organization
     const { data: org, error: orgError } = await supabase
       .from('organizations')
-      .insert([{
-        name,
-        slug,
-        description: description || null,
-        industry: industry && industry.length ? industry : null,
-        location: location || null,
-        website: website || null
-      }])
+      .insert([insertPayload])
       .select()
       .single();
 
-    if (orgError) throw orgError;
-
-    // Add creator as owner (this may fail if organization_members table doesn't exist)
-    try {
-      const { error: memberError } = await supabase
-        .from('organization_members')
-        .insert([{
-          organization_id: org.id,
-          community_id: currentUser.id,
-          role: 'owner'
-        }]);
-
-      if (memberError) {
-        console.warn('Could not add owner membership (table may not exist):', memberError.message);
-        // Don't fail the whole operation - org was created successfully
-      }
-    } catch (memberErr) {
-      console.warn('Exception adding owner membership:', memberErr.message);
+    if (orgError) {
+      console.error('[dashboard-actions] INSERT error:', orgError);
+      throw orgError;
     }
 
-    
-_toast('Organization created successfully!' +
+    console.log('[dashboard-actions] INSERT succeeded:', org.id, '| created_by:', org.created_by);
+
+    // Add creator as owner
+    const memberPayload = { organization_id: org.id, community_id: currentUser.id, role: 'owner' };
+    console.log('[dashboard-actions] organization_members INSERT payload:', memberPayload);
+    const { error: memberError } = await supabase
+      .from('organization_members')
+      .insert([memberPayload]);
+
+    if (memberError) {
+      console.error('[dashboard-actions] organization_members INSERT FAILED — org will not appear in my-orgs tab:', memberError);
+    } else {
+      console.log('[dashboard-actions] organization_members INSERT succeeded');
+    }
+
+    console.groupEnd();
+    _toast('Organization created successfully!' +
       (await checkOrgMembersTableExists(supabase) ? '' : '\n\nNote: Membership features are being set up.'));
 
     // Refresh the organizations list
@@ -3735,9 +3753,9 @@ _toast('Organization created successfully!' +
     }
 
   } catch (error) {
-    console.error('Error creating organization:', error);
-    
-_toast('Failed to create organization: ' + (error.message || 'Unknown error'));
+    console.error('[dashboard-actions] createOrganization THREW:', error);
+    console.groupEnd();
+    _toast('Failed to create organization: ' + (error.message || 'Unknown error'));
   }
 }
 
