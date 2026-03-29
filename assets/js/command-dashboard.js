@@ -68,15 +68,6 @@ window.CommandDashboard = (() => {
     },
   };
 
-  /* ── Stub data (shown when graph has no nodes of that type) ─ */
-  const STUB_OPPORTUNITIES = [
-    { id: 'opp-stub-1', name: 'Frontend Developer',   meta: 'volunteer · Open Source',      isStub: true },
-    { id: 'opp-stub-2', name: 'UX Designer',           meta: 'internship · Innovation Hub',  isStub: true },
-    { id: 'opp-stub-3', name: 'Project Lead',          meta: 'contract · CharlestonHacks',   isStub: true },
-    { id: 'opp-stub-4', name: 'Data Analyst',          meta: 'part-time · SC Tech',          isStub: true },
-    { id: 'opp-stub-5', name: 'Community Manager',     meta: 'full-time · Coastal Ventures', isStub: true },
-  ];
-
   const STUB_ORGANIZATIONS = [
     { id: 'org-stub-1', name: 'CharlestonHacks',    isStub: true },
     { id: 'org-stub-2', name: 'Charleston Tech',    isStub: true },
