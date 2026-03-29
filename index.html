@@ -68,7 +68,7 @@
         class="ie-login-logo"
         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
       />
-      <h1 class="ie-login-title-fallback" style="display:none;">
+      <h1 class="ie-login-title-fallback">
         CharlestonHacks Innovation Engine
       </h1>
 
@@ -857,7 +857,7 @@
                 loginSection.classList.remove("hidden");
                 loginSection.classList.add("active-tab-pane");
                 if (mainContent) mainContent.classList.add("hidden");
-                document.body.style.overflow = "hidden";
+                document.body.style.overflowX = "hidden";
               }
             }
           } catch (e) {
