@@ -1563,7 +1563,7 @@ window.CommandDashboard = (() => {
       const commitmentMap = { 'full-time': 'full-time', 'part-time': 'part-time' };
       const oppData = {
         title: name,
-        type: typeMap[opType] || 'volunteer',
+        opportunity_type: typeMap[opType] || 'volunteer',
         commitment: commitmentMap[opType] || null,
         description: desc || name,
         status: 'open',
