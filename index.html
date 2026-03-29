@@ -54,42 +54,102 @@
   ></canvas>
 
   <div
-    id="login-section"
-    class="active-tab-pane"
-    style="position: fixed; inset: 0; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; z-index: 9999; overflow-y: auto; padding: 1.5rem 1rem; box-sizing: border-box; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"
-  >
-    <div class="login-container">
+  id="login-section"
+  class="active-tab-pane"
+  style="
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    overflow-y: auto;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    background: radial-gradient(circle at top, rgba(0,224,255,0.08), transparent 35%),
+                linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+  "
+>
+  <div class="ie-login-shell">
+    <div class="ie-login-panel">
+      <div class="ie-login-kicker">Innovation Engine</div>
+
       <img
         src="ieheader.webp"
         alt="CharlestonHacks Innovation Engine"
         loading="eager"
-        style="max-width: 100%; height: auto; margin-bottom: 1rem;"
+        class="ie-login-logo"
         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
       />
-      <h1 style="display:none; color:#00e0ff; font-size:2rem; margin-bottom:1rem;">
+      <h1 class="ie-login-title-fallback" style="display:none;">
         CharlestonHacks Innovation Engine
       </h1>
 
-      <p style="color:#ddd; font-size:1.1rem; line-height:1.6; margin-bottom:2rem; max-width:520px;">
-        Discover people, skills, and collaboration opportunities in your innovation ecosystem.
+      <h1 class="ie-login-title">Map your network. Find your people. Build faster.</h1>
+
+      <p class="ie-login-subtitle">
+        Discover people, skills, projects, and collaboration opportunities across the CharlestonHacks ecosystem.
       </p>
 
-      <div
-        style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem; margin-bottom:2rem; max-width:620px;"
-      >
-        <div style="text-align:center;">
-          <i class="fas fa-network-wired" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
-          <div style="color:#ddd; font-size:0.9rem;">Visualize Your Network</div>
+      <div class="ie-login-status-row">
+        <div class="ie-login-pill">
+          <span class="ie-login-pill-value"><i class="fas fa-network-wired"></i></span>
+          <span class="ie-login-pill-label">Network Graph</span>
         </div>
-        <div style="text-align:center;">
-          <i class="fas fa-search" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
-          <div style="color:#ddd; font-size:0.9rem;">Find Skills &amp; People</div>
+        <div class="ie-login-pill">
+          <span class="ie-login-pill-value"><i class="fas fa-search"></i></span>
+          <span class="ie-login-pill-label">Search People + Skills</span>
         </div>
-        <div style="text-align:center;">
-          <i class="fas fa-users" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
-          <div style="color:#ddd; font-size:0.9rem;">Build Together</div>
+        <div class="ie-login-pill">
+          <span class="ie-login-pill-value"><i class="fas fa-users"></i></span>
+          <span class="ie-login-pill-label">Collaboration Engine</span>
         </div>
       </div>
+
+      <div class="ie-login-module">
+        <div class="ie-login-module-label">Access</div>
+
+        <div class="oauth-buttons ie-oauth-buttons">
+          <button id="github-login" class="oauth-btn ie-oauth-btn">
+            <span class="oauth-icon-circle ie-oauth-icon-circle">
+              <i class="fab fa-github"></i>
+            </span>
+            <span class="ie-oauth-copy">
+              <strong>Continue with GitHub</strong>
+              <small>For builders, hackers, and project collaborators</small>
+            </span>
+          </button>
+
+          <button id="google-login" class="oauth-btn ie-oauth-btn">
+            <span class="oauth-icon-circle ie-oauth-icon-circle">
+              <i class="fab fa-google"></i>
+            </span>
+            <span class="ie-oauth-copy">
+              <strong>Continue with Google</strong>
+              <small>Fast sign-in for community access</small>
+            </span>
+          </button>
+        </div>
+
+        <div id="login-hint" class="ie-login-hint"></div>
+      </div>
+
+      <div class="ie-login-footer">
+        <div class="ie-login-footer-item">
+          <i class="fas fa-shield-alt"></i>
+          <span>Secure OAuth authentication</span>
+        </div>
+        <div class="ie-login-footer-item">
+          <i class="fas fa-bolt"></i>
+          <span>Realtime network experience</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
       <div class="oauth-buttons">
         <button id="github-login" class="oauth-btn">
