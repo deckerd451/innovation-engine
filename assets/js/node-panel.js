@@ -1051,11 +1051,36 @@ function renderOrganizationContent(org, members) {
   panelElement.innerHTML = html;
 }
 
+// ── Presence helpers ──────────────────────────────────────────────────────────
+function isCurrentlyActive(person) {
+  return !!(
+    person.presence_expires_at &&
+    new Date(person.presence_expires_at) > new Date()
+  );
+}
+
+function getLastSeenText(person) {
+  if (isCurrentlyActive(person)) return 'Active now';
+  if (!person.presence_last_seen) return 'Last seen: unknown';
+
+  const diffMs = Date.now() - new Date(person.presence_last_seen).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr  = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+
+  if (diffMin < 1)  return 'Last seen: just now';
+  if (diffMin < 60) return `Last seen: ${diffMin}m ago`;
+  if (diffHr  < 24) return `Last seen: ${diffHr}h ago`;
+  if (diffDay <  7) return `Last seen: ${diffDay}d ago`;
+  return `Last seen: ${new Date(person.presence_last_seen).toLocaleDateString()}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Render person profile panel
 async function renderPersonPanel(nodeData) {
-  // Fetch full profile data
+  // Fetch full profile data including presence fields from the view
   const { data: profile, error } = await supabase
-    .from('community')
+    .from('community_with_last_seen')
     .select('*')
     .eq('id', nodeData.id)
     .single();
@@ -1176,16 +1201,24 @@ async function renderPersonPanel(nodeData) {
 
         <h2 style="color: #00e0ff; font-size: 1.75rem; margin-bottom: 0.5rem;">${profile.name}</h2>
 
-        <!-- Presence Status -->
+        <!-- Presence Status (initial values from community_with_last_seen; PresenceUI will keep them live) -->
+        ${(() => {
+          const active = isCurrentlyActive(profile);
+          const sc = active ? '#00ff88' : '#666';
+          const st = active ? 'active' : 'offline';
+          const ls = getLastSeenText(profile);
+          const lc = active ? '#00ff88' : '#888';
+          return `
         <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-          <i class="fas fa-circle" data-presence-status-user-id="${profile.id}" style="font-size: 0.5rem; color: #666;"></i>
-          <span data-presence-status-user-id="${profile.id}" style="color: #666; font-size: 0.85rem;">offline</span>
+          <i class="fas fa-circle" data-presence-status-user-id="${profile.id}" style="font-size: 0.5rem; color: ${sc};"></i>
+          <span data-presence-status-user-id="${profile.id}" style="color: ${sc}; font-size: 0.85rem;">${st}</span>
         </div>
 
         <!-- Last Seen -->
-        <div data-presence-lastseen-user-id="${profile.id}" style="color: #888; font-size: 0.75rem; margin-bottom: 0.5rem;">
-          Last seen: unknown
-        </div>
+        <div data-presence-lastseen-user-id="${profile.id}" style="color: ${lc}; font-size: 0.75rem; margin-bottom: 0.5rem;">
+          ${ls}
+        </div>`;
+        })()}
 
         ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
 

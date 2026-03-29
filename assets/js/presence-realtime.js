@@ -273,37 +273,40 @@
   }
 
   /**
-   * Poll last_seen from database
+   * Poll presence data from database
    */
   async function pollLastSeen() {
     if (!supabase) return;
 
     try {
-      // Query minimal data: only active users' last_seen
-      const threshold = new Date(Date.now() - CONFIG.ONLINE_THRESHOLD).toISOString();
-      
+      // community_with_last_seen joins community with the latest presence_session row
       const { data, error } = await supabase
-        .from('community')
-        .select('id, last_seen_at')
-        .gte('last_seen_at', threshold)
-        .order('last_seen_at', { ascending: false })
-        .limit(100);
+        .from('community_with_last_seen')
+        .select('id, presence_last_seen, presence_expires_at')
+        .not('presence_last_seen', 'is', null)
+        .order('presence_last_seen', { ascending: false })
+        .limit(200);
 
       if (error) {
         console.error('❌ [Presence] Polling error:', error);
         return;
       }
 
-      // Update cache
+      // Cache stores { lastSeen: ms, expiresAt: ms|null } per profileId
       lastSeenCache.clear();
       (data || []).forEach(user => {
-        if (user.last_seen_at) {
-          lastSeenCache.set(user.id, new Date(user.last_seen_at).getTime());
+        if (user.presence_last_seen) {
+          lastSeenCache.set(user.id, {
+            lastSeen: new Date(user.presence_last_seen).getTime(),
+            expiresAt: user.presence_expires_at
+              ? new Date(user.presence_expires_at).getTime()
+              : null,
+          });
         }
       });
 
-      console.log(`🔄 [Presence] Polled: ${data?.length || 0} active users`);
-      
+      console.log(`🔄 [Presence] Polled: ${data?.length || 0} users with presence`);
+
       // Notify UI
       notifyPresenceUpdate();
 
@@ -410,11 +413,10 @@
       return true;
     }
 
-    // Fallback: check last_seen cache
+    // Fallback: check last_seen cache (presence_expires_at is authoritative)
     if (lastSeenCache.has(profileId)) {
-      const lastSeen = lastSeenCache.get(profileId);
-      const threshold = Date.now() - CONFIG.ONLINE_THRESHOLD;
-      return lastSeen > threshold;
+      const entry = lastSeenCache.get(profileId);
+      return !!(entry.expiresAt && entry.expiresAt > Date.now());
     }
 
     return false;
@@ -439,7 +441,7 @@
 
     // Fallback: check last_seen cache
     if (lastSeenCache.has(profileId)) {
-      return lastSeenCache.get(profileId);
+      return lastSeenCache.get(profileId).lastSeen || null;
     }
 
     return null;
