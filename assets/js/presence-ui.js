@@ -157,14 +157,17 @@
   }
 
   /**
-   * Update a "last seen" text element
+   * Update a "last seen" text element.
+   * When PresenceRealtime has no data for this user we leave the element's
+   * existing text unchanged — the initial render (from community_with_last_seen)
+   * already set the correct value and we must not clobber it with "unknown".
    */
   function updateLastSeenText(element, userId) {
     if (!window.PresenceRealtime) return;
-    
+
     const isOnline = window.PresenceRealtime.isOnline(userId);
     const lastSeen = window.PresenceRealtime.getLastSeen(userId);
-    
+
     if (isOnline) {
       element.textContent = 'Active now';
       element.style.color = '#00ff88';
@@ -172,10 +175,8 @@
       const timeAgo = getTimeAgo(lastSeen);
       element.textContent = `Last seen ${timeAgo}`;
       element.style.color = '#888';
-    } else {
-      element.textContent = 'Last seen: unknown';
-      element.style.color = '#666';
     }
+    // No data → leave existing text (DB-sourced initial render is correct)
   }
 
   /**
