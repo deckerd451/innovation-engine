@@ -84,13 +84,37 @@ let currentUserId = null; // auth.user.id
 let currentUserCommunityId = null; // community.id
 
 // ========================
+// DIAGNOSTIC LOGGER
+// ========================
+// Structured logger that makes "disappearing record" issues obvious in the
+// browser console. Each log includes a timestamp and a structured payload so
+// you can grep the console for [OrgManager] to see the full operation trail.
+function orgLog(level, event, payload = {}) {
+  const ts = new Date().toISOString();
+  const style =
+    level === "error"
+      ? "color:#f44336;font-weight:bold"
+      : level === "warn"
+      ? "color:#ff9800;font-weight:bold"
+      : "color:#00e0ff";
+  console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](
+    `%c[OrgManager ${ts}] ${event}`,
+    style,
+    payload
+  );
+}
+
+// ========================
 // INIT / CURRENT USER
 // ========================
 export async function initOrganizationManager(supabaseClient) {
   supabase = supabaseClient;
   await refreshCurrentUser();
 
-  console.log("%c✓ Organization Manager initialized", "color: #0f0");
+  orgLog("log", "initialized", { currentUserId, currentUserCommunityId });
+  if (!currentUserCommunityId) {
+    orgLog("warn", "no community profile found for authenticated user — org create/edit will be blocked", { currentUserId });
+  }
   return { currentUserId, currentUserCommunityId };
 }
 
@@ -103,6 +127,7 @@ export async function refreshCurrentUser() {
       error: sessionError,
     } = await supabase.auth.getSession();
     if (sessionError || !session?.user) {
+      orgLog("warn", "refreshCurrentUser: no active session", { sessionError });
       currentUserId = null;
       currentUserCommunityId = null;
       return null;
@@ -117,15 +142,28 @@ export async function refreshCurrentUser() {
       .eq("user_id", currentUserId)
       .single();
 
-    if (profileError || !profile) {
+    if (profileError) {
+      orgLog("error", "refreshCurrentUser: failed to fetch community profile", {
+        userId: currentUserId,
+        error: profileError,
+      });
+      currentUserCommunityId = null;
+      return null;
+    }
+
+    if (!profile) {
+      orgLog("warn", "refreshCurrentUser: authenticated user has no community profile — cannot create orgs", {
+        userId: currentUserId,
+      });
       currentUserCommunityId = null;
       return null;
     }
 
     currentUserCommunityId = profile.id;
+    orgLog("log", "refreshCurrentUser: resolved", { currentUserId, currentUserCommunityId });
     return { currentUserId, currentUserCommunityId };
   } catch (error) {
-    console.error("Error refreshing current user:", error);
+    orgLog("error", "refreshCurrentUser: unexpected error", { error });
     return null;
   }
 }
@@ -165,16 +203,45 @@ function validateOrganizationData(data) {
 // ========================
 
 /**
- * Create a new organization
+ * Create a new organization.
+ *
+ * Design notes:
+ * - created_by is always set to currentUserCommunityId; never left null.
+ * - The DB trigger fn_auto_create_org_owner() provides a server-side fallback
+ *   that creates the owner member row atomically, so even if the JS addMember
+ *   call below fails (e.g. network error), the row won't be orphaned.
+ * - All errors are thrown so callers can surface them; toast is advisory only.
+ *
  * @param {Object} organizationData - Organization details
  * @returns {Promise<Object>} Created organization
  */
 export async function createOrganization(organizationData) {
-  try {
-    if (!currentUserId || !currentUserCommunityId) {
-      throw new Error("User must be authenticated to create an organization");
-    }
+  // Ensure session is current before doing anything
+  if (!currentUserId || !currentUserCommunityId) {
+    await refreshCurrentUser();
+  }
 
+  if (!currentUserId) {
+    const err = new Error("User must be authenticated to create an organization");
+    orgLog("error", "createOrganization: blocked — no authenticated user");
+    showToast(err.message, "error");
+    throw err;
+  }
+
+  if (!currentUserCommunityId) {
+    const err = new Error(
+      "Your profile is not fully set up yet. Please complete onboarding before creating an organization."
+    );
+    orgLog("error", "createOrganization: blocked — authenticated user has no community profile", {
+      userId: currentUserId,
+    });
+    showToast(err.message, "error");
+    throw err;
+  }
+
+  orgLog("log", "createOrganization: starting", { name: organizationData.name, createdBy: currentUserCommunityId });
+
+  try {
     // Validate data
     const errors = validateOrganizationData(organizationData);
     if (errors.length > 0) {
@@ -192,7 +259,6 @@ export async function createOrganization(organizationData) {
       .maybeSingle();
 
     if (existingOrg) {
-      // Find a unique slug by appending a number
       let suffix = 2;
       let uniqueSlug = `${slug}-${suffix}`;
       while (true) {
@@ -209,11 +275,14 @@ export async function createOrganization(organizationData) {
       slug = uniqueSlug;
     }
 
-    // Create organization
-    const { data: organization, error } = await supabase
+    // Strip slug from input so it cannot be overridden with the unresolved value
+    const { slug: _inputSlug, ...rest } = organizationData;
+
+    // Insert with created_by explicitly set — never rely on DB default being null
+    const { data: organization, error: insertError } = await supabase
       .from("organizations")
       .insert({
-        ...organizationData,
+        ...rest,
         slug,
         created_by: currentUserCommunityId,
         status: "active",
@@ -221,19 +290,53 @@ export async function createOrganization(organizationData) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (insertError) {
+      orgLog("error", "createOrganization: INSERT failed", { error: insertError });
+      throw insertError;
+    }
 
-    // Add creator as owner
-    await addMember(organization.id, currentUserCommunityId, "owner", {
-      can_post_opportunities: true,
-      can_manage_members: true,
-      can_edit_profile: true,
+    orgLog("log", "createOrganization: org row created", {
+      id: organization.id,
+      slug: organization.slug,
+      created_by: organization.created_by,
     });
+
+    // Sanity-check: created_by should never be null at this point.
+    // If it is, something is wrong with the session or trigger.
+    if (!organization.created_by) {
+      orgLog("warn", "createOrganization: org was saved but created_by is null — DB trigger may have failed", {
+        orgId: organization.id,
+        userId: currentUserId,
+        communityId: currentUserCommunityId,
+      });
+    }
+
+    // Add creator as owner in organization_members.
+    // The DB trigger fn_auto_create_org_owner() does this too, so this call is
+    // redundant on success — but the ON CONFLICT DO NOTHING on the trigger means
+    // a double-insert is safe. We still call it here to get the member record
+    // returned and to surface errors if the trigger somehow didn't fire.
+    try {
+      await addMember(organization.id, currentUserCommunityId, "owner", {
+        can_post_opportunities: true,
+        can_manage_members: true,
+        can_edit_profile: true,
+      });
+      orgLog("log", "createOrganization: owner member row confirmed", { orgId: organization.id });
+    } catch (memberError) {
+      // The org row exists. The DB trigger should have created the member row.
+      // Log loudly but do not fail the whole operation — the user's org was saved.
+      orgLog("warn", "createOrganization: addMember call failed (DB trigger should have created member row)", {
+        orgId: organization.id,
+        communityId: currentUserCommunityId,
+        error: memberError,
+      });
+    }
 
     showToast("Organization created successfully!", "success");
     return organization;
   } catch (error) {
-    console.error("Error creating organization:", error);
+    orgLog("error", "createOrganization: failed", { name: organizationData.name, error });
     showToast(error.message || "Failed to create organization", "error");
     throw error;
   }
@@ -742,6 +845,236 @@ export async function canUserPostOpportunities(organizationId) {
 }
 
 // ========================
+// ORGANIZATION VIEWS
+// ========================
+
+/**
+ * All active organizations (public discovery feed).
+ * Uses the active_organizations_summary view which already filters status = 'active'.
+ *
+ * @param {Object} filters - Same filters accepted by getOrganizations()
+ * @returns {Promise<Array>}
+ */
+export async function getAllActiveOrganizations(filters = {}) {
+  orgLog("log", "getAllActiveOrganizations: fetching", filters);
+  return getOrganizations(filters);
+}
+
+/**
+ * Organizations created by the current user (created_by = my community id).
+ *
+ * Note: older rows may have created_by = null even though the user created them.
+ * For those, use getMyMemberOrganizations() which relies on organization_members.
+ *
+ * @returns {Promise<Array>}
+ */
+export async function getMyOrganizations() {
+  try {
+    if (!currentUserCommunityId) {
+      orgLog("warn", "getMyOrganizations: no community profile — returning empty");
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("*")
+      .eq("created_by", currentUserCommunityId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      orgLog("error", "getMyOrganizations: query failed", { error });
+      throw error;
+    }
+
+    orgLog("log", "getMyOrganizations: result", { count: data?.length ?? 0, communityId: currentUserCommunityId });
+
+    if (!data || data.length === 0) {
+      orgLog("warn", "getMyOrganizations: no results — if you recently created an org check that created_by was set", {
+        communityId: currentUserCommunityId,
+      });
+    }
+
+    return data || [];
+  } catch (error) {
+    orgLog("error", "getMyOrganizations: unexpected error", { error });
+    return [];
+  }
+}
+
+/**
+ * Organizations the current user belongs to via organization_members.
+ * This is the authoritative "my orgs" query — it works even when created_by is null.
+ *
+ * @param {Object} options
+ * @param {String} [options.role] - Filter to a specific role ('owner', 'admin', 'member', …)
+ * @returns {Promise<Array>}
+ */
+export async function getMyMemberOrganizations({ role } = {}) {
+  try {
+    if (!currentUserCommunityId) {
+      orgLog("warn", "getMyMemberOrganizations: no community profile — returning empty");
+      return [];
+    }
+
+    let membersQuery = supabase
+      .from("organization_members")
+      .select(`
+        role,
+        title,
+        joined_at,
+        organization:organizations (
+          id,
+          name,
+          slug,
+          description,
+          logo_url,
+          industry,
+          size,
+          location,
+          verified,
+          status,
+          follower_count,
+          opportunity_count,
+          created_by,
+          created_at
+        )
+      `)
+      .eq("community_id", currentUserCommunityId)
+      .eq("status", "active");
+
+    if (role) {
+      membersQuery = membersQuery.eq("role", role);
+    }
+
+    const { data, error } = await membersQuery.order("joined_at", { ascending: false });
+
+    if (error) {
+      orgLog("error", "getMyMemberOrganizations: query failed", { error });
+      throw error;
+    }
+
+    // Filter out any joined orgs that are no longer active, and flatten
+    const activeOrgs = (data || [])
+      .filter((m) => m.organization && m.organization.status === "active")
+      .map((m) => ({ ...m.organization, memberRole: m.role, memberTitle: m.title, joinedAt: m.joined_at }));
+
+    orgLog("log", "getMyMemberOrganizations: result", {
+      count: activeOrgs.length,
+      communityId: currentUserCommunityId,
+      roleFilter: role ?? "all",
+    });
+
+    if (activeOrgs.length === 0) {
+      orgLog("warn", "getMyMemberOrganizations: no results — check organization_members rows for this community_id", {
+        communityId: currentUserCommunityId,
+      });
+    }
+
+    return activeOrgs;
+  } catch (error) {
+    orgLog("error", "getMyMemberOrganizations: unexpected error", { error });
+    return [];
+  }
+}
+
+/**
+ * Diagnostic: check why a specific org might not appear in the UI.
+ * Logs a full visibility report to the browser console.
+ * Call this from DevTools: OrganizationManager.diagnoseVisibility('<org-id>')
+ *
+ * @param {String} orgId - Organization UUID
+ */
+export async function diagnoseOrgVisibility(orgId) {
+  orgLog("log", "diagnoseOrgVisibility: starting", { orgId });
+
+  // 1. Raw fetch (bypasses any app-layer filters)
+  const { data: rawOrg, error: rawError } = await supabase
+    .from("organizations")
+    .select("id, name, status, created_by, created_at")
+    .eq("id", orgId)
+    .maybeSingle();
+
+  if (rawError) {
+    orgLog("error", "diagnoseOrgVisibility: could not fetch org row — RLS may be blocking SELECT", {
+      orgId,
+      error: rawError,
+    });
+    return;
+  }
+
+  if (!rawOrg) {
+    orgLog("error", "diagnoseOrgVisibility: org row not found — either wrong ID or RLS SELECT policy blocked it", {
+      orgId,
+    });
+    return;
+  }
+
+  orgLog("log", "diagnoseOrgVisibility: org row found", rawOrg);
+
+  if (rawOrg.status !== "active") {
+    orgLog("warn", "diagnoseOrgVisibility: org is NOT active — it will be hidden by the SELECT policy", {
+      orgId,
+      status: rawOrg.status,
+    });
+  }
+
+  if (!rawOrg.created_by) {
+    orgLog("warn", "diagnoseOrgVisibility: created_by is null — org will not appear in getMyOrganizations()", { orgId });
+  } else if (rawOrg.created_by !== currentUserCommunityId) {
+    orgLog("warn", "diagnoseOrgVisibility: created_by does not match current user's community profile", {
+      orgId,
+      orgCreatedBy: rawOrg.created_by,
+      currentUserCommunityId,
+    });
+  }
+
+  // 2. Check organization_members
+  const { data: memberRow, error: memberError } = await supabase
+    .from("organization_members")
+    .select("id, role, status, community_id")
+    .eq("organization_id", orgId)
+    .eq("community_id", currentUserCommunityId)
+    .maybeSingle();
+
+  if (memberError) {
+    orgLog("error", "diagnoseOrgVisibility: could not query organization_members", { orgId, error: memberError });
+  } else if (!memberRow) {
+    orgLog("warn", "diagnoseOrgVisibility: no organization_members row for current user — org will not appear in getMyMemberOrganizations()", {
+      orgId,
+      communityId: currentUserCommunityId,
+    });
+  } else {
+    orgLog("log", "diagnoseOrgVisibility: organization_members row found", memberRow);
+    if (memberRow.status !== "active") {
+      orgLog("warn", "diagnoseOrgVisibility: member row status is not active", { status: memberRow.status });
+    }
+  }
+
+  // 3. Check view
+  const { data: viewRow, error: viewError } = await supabase
+    .from("active_organizations_summary")
+    .select("id, name")
+    .eq("id", orgId)
+    .maybeSingle();
+
+  if (viewError || !viewRow) {
+    orgLog("warn", "diagnoseOrgVisibility: org is NOT in active_organizations_summary view", {
+      orgId,
+      viewError,
+    });
+  } else {
+    orgLog("log", "diagnoseOrgVisibility: org IS in active_organizations_summary view — it will appear in getAllActiveOrganizations()", viewRow);
+  }
+
+  orgLog("log", "diagnoseOrgVisibility: complete", {
+    orgId,
+    sessionUserId: currentUserId,
+    communityId: currentUserCommunityId,
+  });
+}
+
+// ========================
 // EXPORTS
 // ========================
 
@@ -755,6 +1088,12 @@ if (typeof window !== "undefined") {
     deleteOrganization,
     getOrganization,
     getOrganizations,
+    // Three explicit view queries — use these in the UI instead of raw getOrganizations()
+    getAllActiveOrganizations,
+    getMyOrganizations,
+    getMyMemberOrganizations,
+    // Diagnostics — call from DevTools: OrganizationManager.diagnoseVisibility('<id>')
+    diagnoseOrgVisibility,
     followOrganization,
     unfollowOrganization,
     isFollowing,
