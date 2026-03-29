@@ -1319,12 +1319,28 @@ async function loadConversationMessages(conversationId) {
       : conversation.participant_1_id;
 
     const { data: otherUser, error: userError } = await supabase
-      .from('community')
-      .select('id, name, image_url')
+      .from('community_with_last_seen')
+      .select('id, name, image_url, presence_last_seen, presence_expires_at')
       .eq('id', otherUserId)
       .single();
 
     if (userError) throw userError;
+
+    // Compute last-seen text from presence view data
+    const _rtActive = !!(otherUser.presence_expires_at && new Date(otherUser.presence_expires_at) > new Date());
+    const _rtLastSeen = (() => {
+      if (_rtActive) return 'Active now';
+      if (!otherUser.presence_last_seen) return 'Last seen: unknown';
+      const diffMs  = Date.now() - new Date(otherUser.presence_last_seen).getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      const diffHr  = Math.floor(diffMs / 3600000);
+      const diffDay = Math.floor(diffMs / 86400000);
+      if (diffMin < 1)  return 'Last seen: just now';
+      if (diffMin < 60) return `Last seen: ${diffMin}m ago`;
+      if (diffHr  < 24) return `Last seen: ${diffHr}h ago`;
+      if (diffDay <  7) return `Last seen: ${diffDay}d ago`;
+      return `Last seen: ${new Date(otherUser.presence_last_seen).toLocaleDateString()}`;
+    })();
 
     const chatHeader = document.getElementById('chat-header');
     chatHeader.innerHTML = `
@@ -1343,7 +1359,7 @@ async function loadConversationMessages(conversationId) {
         <div>
           <h3 style="color: white; margin: 0; font-size: 1.1rem;">${otherUser.name}</h3>
           <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem;">
-            <span id="user-status">Last seen recently</span>
+            <span id="user-status">${_rtLastSeen}</span>
           </div>
         </div>
       </div>
