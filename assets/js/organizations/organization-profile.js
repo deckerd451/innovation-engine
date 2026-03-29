@@ -23,10 +23,12 @@
 import {
   getOrganization,
   getOrganizationMembers,
+  updateOrganization,
   followOrganization,
   unfollowOrganization,
   isFollowing,
-  canUserEdit,
+  canEditOrganization,
+  getCurrentUserCommunityId,
 } from "./organization-manager.js";
 
 // ========================
@@ -36,34 +38,42 @@ let currentOrganization = null;
 let currentMembers = [];
 let isUserFollowing = false;
 let userCanEdit = false;
+// Resolved once during init; used by canEditOrganization() and the edit modal.
+let _communityId = null;
 
 // ========================
 // INIT
 // ========================
 export async function initOrganizationProfile(organizationIdOrSlug) {
   try {
-    // Load organization data
+    // Resolve current user's community profile id from the manager module state.
+    // No extra DB call — the manager already did this during initOrganizationManager().
+    _communityId = getCurrentUserCommunityId();
+    console.log("[org-profile] init — communityId:", _communityId, "| lookup:", organizationIdOrSlug);
+
+    // Load organization + members in a single query (getOrganization now embeds members)
     currentOrganization = await getOrganization(organizationIdOrSlug);
     if (!currentOrganization) {
       showError("Organization not found");
       return;
     }
 
-    // Load members
-    currentMembers = await getOrganizationMembers(currentOrganization.id);
+    // Use the embedded members from the org query (no second round-trip)
+    currentMembers = (currentOrganization.organization_members || []).filter(
+      (m) => m.status === "active"
+    );
 
-    // Check following status
+    // Determine edit permission synchronously from already-fetched member data
+    userCanEdit = canEditOrganization(currentOrganization, _communityId);
+    console.log("[org-profile] userCanEdit:", userCanEdit, "| members in payload:", currentOrganization.organization_members?.length ?? 0);
+
+    // Check following status (still needs a DB call)
     isUserFollowing = await isFollowing(currentOrganization.id);
 
-    // Check edit permissions
-    userCanEdit = await canUserEdit(currentOrganization.id);
-
-    // Render profile
     renderOrganizationProfile();
-
-    console.log("%c✓ Organization Profile loaded", "color: #0f0");
+    console.log("%c✓ Organization Profile loaded", "color: #0f0", { id: currentOrganization.id, userCanEdit });
   } catch (error) {
-    console.error("Error initializing organization profile:", error);
+    console.error("[org-profile] initOrganizationProfile failed:", error);
     showError("Failed to load organization profile");
   }
 }
@@ -457,8 +467,230 @@ async function handleUnfollow() {
 }
 
 function handleEdit() {
-  // Redirect to organization admin page
-  window.location.href = `/organization-admin.html?id=${currentOrganization.id}`;
+  // Double-check permission against live member data before opening modal.
+  // This catches the edge case where permission changed since the page loaded.
+  const stillCanEdit = canEditOrganization(currentOrganization, _communityId);
+  console.log("[org-profile] handleEdit — canEditOrganization:", stillCanEdit, { orgId: currentOrganization.id, _communityId });
+  if (!stillCanEdit) {
+    alert("You no longer have permission to edit this organization.");
+    return;
+  }
+  openEditModal();
+}
+
+// ========================
+// EDIT MODAL
+// ========================
+
+function openEditModal() {
+  const existing = document.getElementById("org-edit-modal-overlay");
+  if (existing) existing.remove();
+
+  const org = currentOrganization;
+  const overlay = document.createElement("div");
+  overlay.id = "org-edit-modal-overlay";
+  overlay.style.cssText = [
+    "position:fixed", "inset:0", "background:rgba(0,0,0,0.75)",
+    "z-index:10000", "display:flex", "align-items:center",
+    "justify-content:center", "backdrop-filter:blur(4px)",
+  ].join(";");
+
+  overlay.innerHTML = `
+    <div id="org-edit-modal" style="
+      background:rgba(15,20,50,0.98);
+      border:1px solid rgba(168,85,247,0.4);
+      border-radius:16px;
+      padding:2rem;
+      width:min(560px,92vw);
+      max-height:90vh;
+      overflow-y:auto;
+      position:relative;
+    ">
+      <button id="org-edit-close-btn" style="
+        position:absolute;top:1rem;right:1rem;background:none;border:none;
+        color:#aaa;font-size:1.2rem;cursor:pointer;
+      "><i class="fas fa-times"></i></button>
+
+      <h2 style="color:#a855f7;margin:0 0 1.5rem;">
+        <i class="fas fa-edit"></i> Edit Organization
+      </h2>
+
+      <form id="org-edit-form" autocomplete="off">
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">Name *</label>
+          <input type="text" id="edit-org-name" required
+            value="${escapeAttr(org.name)}"
+            style="${inputStyle()}">
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">Description</label>
+          <textarea id="edit-org-description" rows="4" style="${inputStyle()}">${escapeHtml(org.description || "")}</textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">Location</label>
+            <input type="text" id="edit-org-location"
+              value="${escapeAttr(org.location || "")}"
+              placeholder="e.g. Charleston, SC"
+              style="${inputStyle()}">
+          </div>
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">Size</label>
+            <select id="edit-org-size" style="${inputStyle()}">
+              <option value="">— select —</option>
+              ${["startup","small","medium","large","enterprise"].map(s =>
+                `<option value="${s}" ${org.size === s ? "selected" : ""}>${formatSize(s)}</option>`
+              ).join("")}
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">Industry (comma-separated)</label>
+          <input type="text" id="edit-org-industry"
+            value="${escapeAttr((org.industry || []).join(", "))}"
+            placeholder="e.g. Technology, Education"
+            style="${inputStyle()}">
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">Website</label>
+          <input type="url" id="edit-org-website"
+            value="${escapeAttr(org.website || "")}"
+            placeholder="https://..."
+            style="${inputStyle()}">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">LinkedIn URL</label>
+            <input type="url" id="edit-org-linkedin"
+              value="${escapeAttr(org.linkedin_url || "")}"
+              style="${inputStyle()}">
+          </div>
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">Twitter URL</label>
+            <input type="url" id="edit-org-twitter"
+              value="${escapeAttr(org.twitter_url || "")}"
+              style="${inputStyle()}">
+          </div>
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.4rem;font-size:0.875rem;">GitHub URL</label>
+            <input type="url" id="edit-org-github"
+              value="${escapeAttr(org.github_url || "")}"
+              style="${inputStyle()}">
+          </div>
+        </div>
+
+        <div id="org-edit-error" style="display:none;color:#f44336;margin-bottom:1rem;font-size:0.875rem;padding:0.75rem;background:rgba(244,67,54,0.1);border-radius:6px;"></div>
+
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+          <button type="button" id="org-edit-cancel-btn"
+            style="padding:0.7rem 1.25rem;background:transparent;border:1px solid rgba(255,255,255,0.2);
+                   border-radius:8px;color:#aaa;cursor:pointer;font-size:0.9rem;">
+            Cancel
+          </button>
+          <button type="submit" id="org-edit-save-btn"
+            style="padding:0.7rem 1.5rem;background:linear-gradient(135deg,#a855f7,#8b5cf6);
+                   border:none;border-radius:8px;color:white;font-weight:600;cursor:pointer;font-size:0.9rem;">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Close handlers
+  document.getElementById("org-edit-close-btn").addEventListener("click", () => overlay.remove());
+  document.getElementById("org-edit-cancel-btn").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+
+  // Submit handler
+  document.getElementById("org-edit-form").addEventListener("submit", handleSaveEdit);
+}
+
+async function handleSaveEdit(e) {
+  e.preventDefault();
+
+  const errEl = document.getElementById("org-edit-error");
+  const saveBtn = document.getElementById("org-edit-save-btn");
+  errEl.style.display = "none";
+
+  const industryRaw = document.getElementById("edit-org-industry").value.trim();
+  const updates = {
+    name:         document.getElementById("edit-org-name").value.trim(),
+    description:  document.getElementById("edit-org-description").value.trim() || null,
+    location:     document.getElementById("edit-org-location").value.trim() || null,
+    size:         document.getElementById("edit-org-size").value || null,
+    industry:     industryRaw ? industryRaw.split(",").map(s => s.trim()).filter(Boolean) : null,
+    website:      document.getElementById("edit-org-website").value.trim() || null,
+    linkedin_url: document.getElementById("edit-org-linkedin").value.trim() || null,
+    twitter_url:  document.getElementById("edit-org-twitter").value.trim() || null,
+    github_url:   document.getElementById("edit-org-github").value.trim() || null,
+  };
+
+  if (!updates.name || updates.name.length < 2) {
+    errEl.textContent = "Organization name must be at least 2 characters.";
+    errEl.style.display = "block";
+    return;
+  }
+
+  console.log("[org-profile] handleSaveEdit — payload:", updates, "| orgId:", currentOrganization.id);
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+
+  try {
+    const updated = await updateOrganization(currentOrganization.id, updates);
+    console.log("[org-profile] handleSaveEdit — update result:", updated);
+
+    // Merge the saved fields back into local state so the re-render is instant
+    currentOrganization = { ...currentOrganization, ...updated };
+
+    // Close modal and re-render the profile in place
+    const overlay = document.getElementById("org-edit-modal-overlay");
+    if (overlay) overlay.remove();
+    renderOrganizationProfile();
+
+    // Also refresh the discovery list if it's on the same page
+    if (typeof window.OrganizationDiscovery?.loadOrganizations === "function") {
+      window.OrganizationDiscovery.loadOrganizations();
+    }
+  } catch (error) {
+    console.error("[org-profile] handleSaveEdit — updateOrganization threw:", error);
+    errEl.textContent = error.message || "Failed to save changes. Check console for details.";
+    errEl.style.display = "block";
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+  }
+}
+
+// Shared input style string so the modal form is consistent
+function inputStyle() {
+  return [
+    "width:100%",
+    "padding:0.65rem 0.75rem",
+    "background:rgba(168,85,247,0.06)",
+    "border:1px solid rgba(168,85,247,0.25)",
+    "border-radius:8px",
+    "color:white",
+    "font-family:inherit",
+    "font-size:0.9rem",
+    "box-sizing:border-box",
+  ].join(";");
+}
+
+// Escape a string for use in an HTML attribute value
+function escapeAttr(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+}
+
+// Escape a string for use as HTML text content
+function escapeHtml(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 // ========================

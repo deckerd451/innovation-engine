@@ -427,13 +427,21 @@ export async function deleteOrganization(id) {
 }
 
 /**
- * Get a single organization by ID or slug
- * @param {String} idOrSlug - Organization ID or slug
- * @returns {Promise<Object>} Organization data
+ * Get a single organization by ID or slug.
+ *
+ * organization_members rows are fetched for ALL statuses so the array is
+ * complete. Callers should use canEditOrganization(org, communityId) which
+ * filters to active members internally.
+ *
+ * Fields included on each member row:
+ *   community_id, role, status, title, bio,
+ *   can_post_opportunities, can_manage_members, can_edit_profile
+ *
+ * @param {String} idOrSlug - Organization ID or UUID
+ * @returns {Promise<Object>} Organization data with nested members
  */
 export async function getOrganization(idOrSlug) {
   try {
-    // Try to get by ID first
     let query = supabase
       .from("organizations")
       .select(`
@@ -442,8 +450,12 @@ export async function getOrganization(idOrSlug) {
           id,
           community_id,
           role,
+          status,
           title,
           bio,
+          can_post_opportunities,
+          can_manage_members,
+          can_edit_profile,
           community (
             id,
             name,
@@ -454,22 +466,56 @@ export async function getOrganization(idOrSlug) {
       `)
       .eq("status", "active");
 
-    // Check if idOrSlug looks like a UUID
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug)) {
-      query = query.eq("id", idOrSlug);
-    } else {
-      query = query.eq("slug", idOrSlug);
-    }
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+    query = isUUID ? query.eq("id", idOrSlug) : query.eq("slug", idOrSlug);
 
     const { data: organization, error } = await query.single();
 
-    if (error) throw error;
+    if (error) {
+      orgLog("error", "getOrganization: query failed", { idOrSlug, error });
+      throw error;
+    }
 
     return organization;
   } catch (error) {
-    console.error("Error fetching organization:", error);
+    orgLog("error", "getOrganization: failed", { idOrSlug, error });
     throw error;
   }
+}
+
+/**
+ * Pure synchronous permission check — no DB call.
+ * Checks org.organization_members (already fetched by getOrganization) for an
+ * active owner, admin, or can_edit_profile member matching communityId.
+ *
+ * @param {Object} org - Organization object returned by getOrganization()
+ * @param {String} communityId - The current user's community profile UUID
+ * @returns {Boolean}
+ */
+export function canEditOrganization(org, communityId) {
+  if (!org || !communityId) return false;
+  const members = org.organization_members || [];
+  const match = members.find(
+    (m) =>
+      m.community_id === communityId &&
+      m.status === "active" &&
+      (m.role === "owner" || m.role === "admin" || m.can_edit_profile === true)
+  );
+  orgLog(
+    match ? "log" : "warn",
+    "canEditOrganization:",
+    match ? `true (role=${match.role})` : "false — no active owner/admin member found",
+    { orgId: org.id, communityId }
+  );
+  return !!match;
+}
+
+/**
+ * Expose the current user's community profile ID for use in profile/UI modules.
+ * Returns null if the manager has not been initialized or user is not logged in.
+ */
+export function getCurrentUserCommunityId() {
+  return currentUserCommunityId;
 }
 
 /**
@@ -1092,6 +1138,9 @@ if (typeof window !== "undefined") {
     getAllActiveOrganizations,
     getMyOrganizations,
     getMyMemberOrganizations,
+    // Pure sync permission helper — works on the already-fetched org object
+    canEditOrganization,
+    getCurrentUserCommunityId,
     // Diagnostics — call from DevTools: OrganizationManager.diagnoseVisibility('<id>')
     diagnoseOrgVisibility,
     followOrganization,
