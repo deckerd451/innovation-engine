@@ -1,31 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- Cache refresh: 2026-02-08 FORCE DEPLOYMENT - OPPORTUNITY ENGINE -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="mobile-web-app-capable" content="yes"/>
-  <title>CharlestonHacks Innovation Engine</title>
-  <link rel="icon" href="favicon.ico"/>
-  <link rel="apple-touch-icon" href="images/bubbleh512.png"/>
-  <meta name="apple-mobile-web-app-title" content="CharlestonHacks"/>
-  <link rel="manifest" href="./manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="CharlestonHacks" />
 
-  <!-- Production log suppression: silence console.log/debug unless ?debug=1 or localStorage.DEBUG=1 -->
+  <title>CharlestonHacks Innovation Engine</title>
+
+  <link rel="icon" href="favicon.ico" />
+  <link rel="apple-touch-icon" href="images/bubbleh512.png" />
+  <link rel="manifest" href="./manifest.json" />
+
   <script>
     (function () {
-      var _d = (typeof localStorage !== 'undefined' && localStorage.getItem('DEBUG') === '1') ||
-                /[?&]debug=1/.test(window.location.search);
-      if (!_d) { var n = function(){}; console.log = n; console.debug = n; }
+      var _d =
+        (typeof localStorage !== "undefined" && localStorage.getItem("DEBUG") === "1") ||
+        /[?&]debug=1/.test(window.location.search);
+      if (!_d) {
+        var n = function () {};
+        console.log = n;
+        console.debug = n;
+      }
     })();
   </script>
 
-  <!-- Core CSS -->
   <link rel="stylesheet" href="assets/css/base.css?v=search-icon-20260318" />
   <link rel="stylesheet" href="assets/css/engine.css" />
   <link rel="stylesheet" href="assets/css/overlays.css" />
@@ -34,44 +38,52 @@
   <link rel="stylesheet" href="dashboard.css?v=mobile-fix-20260328a" />
   <link rel="stylesheet" href="assets/css/quiet-mode.css" />
   <link rel="stylesheet" href="assets/css/mobile-safe-area.css?v=search-fix-20260318" />
-  <!-- Unified Tier Command Dashboard (desktop split layout) -->
   <link rel="stylesheet" href="assets/css/command-dashboard.css?v=20260327a" />
   <link rel="stylesheet" href="assets/css/ui-enhancements.css" />
 
-  <!-- Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  />
 </head>
 
 <body>
-  <!-- Neural Background -->
-  <canvas id="neural-bg"
-    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-    background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"></canvas>
+  <canvas
+    id="neural-bg"
+    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"
+  ></canvas>
 
-  <!-- Login -->
-  <div id="login-section" class="active-tab-pane"
-    style="position: fixed; inset: 0; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-    z-index: 9999; overflow-y: auto; padding: 1.5rem 1rem; box-sizing: border-box; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);">
+  <div
+    id="login-section"
+    class="active-tab-pane"
+    style="position: fixed; inset: 0; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; z-index: 9999; overflow-y: auto; padding: 1.5rem 1rem; box-sizing: border-box; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"
+  >
     <div class="login-container">
-      <img src="ieheader.webp"
-           alt="CharlestonHacks Innovation Engine"
-           loading="eager"
-           style="max-width: 100%; height: auto; margin-bottom: 1rem;"
-           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-      <h1 style="display:none; color:#00e0ff; font-size:2rem; margin-bottom:1rem;">CharlestonHacks Innovation Engine</h1>
+      <img
+        src="ieheader.webp"
+        alt="CharlestonHacks Innovation Engine"
+        loading="eager"
+        style="max-width: 100%; height: auto; margin-bottom: 1rem;"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+      />
+      <h1 style="display:none; color:#00e0ff; font-size:2rem; margin-bottom:1rem;">
+        CharlestonHacks Innovation Engine
+      </h1>
 
       <p style="color:#ddd; font-size:1.1rem; line-height:1.6; margin-bottom:2rem; max-width:520px;">
         Discover people, skills, and collaboration opportunities in your innovation ecosystem.
       </p>
 
-      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem; margin-bottom:2rem; max-width:620px;">
+      <div
+        style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem; margin-bottom:2rem; max-width:620px;"
+      >
         <div style="text-align:center;">
           <i class="fas fa-network-wired" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
           <div style="color:#ddd; font-size:0.9rem;">Visualize Your Network</div>
         </div>
         <div style="text-align:center;">
           <i class="fas fa-search" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
-          <div style="color:#ddd; font-size:0.9rem;">Find Skills & People</div>
+          <div style="color:#ddd; font-size:0.9rem;">Find Skills &amp; People</div>
         </div>
         <div style="text-align:center;">
           <i class="fas fa-users" style="font-size:2rem; color:#00e0ff; margin-bottom:0.5rem;"></i>
@@ -81,399 +93,257 @@
 
       <div class="oauth-buttons">
         <button id="github-login" class="oauth-btn">
-          <span class="oauth-icon-circle">
-            <i class="fab fa-github"></i>
-          </span>
+          <span class="oauth-icon-circle"><i class="fab fa-github"></i></span>
           Continue with GitHub
         </button>
         <button id="google-login" class="oauth-btn">
-          <span class="oauth-icon-circle">
-            <i class="fab fa-google"></i>
-          </span>
+          <span class="oauth-icon-circle"><i class="fab fa-google"></i></span>
           Continue with Google
         </button>
       </div>
-
-
 
       <div id="login-hint" style="margin-top: 1rem; color: #aaa; font-size: 0.9rem;"></div>
     </div>
   </div>
 
-  <!-- Main -->
-  <div class="unified-main" id="main-content" style="position: fixed; inset: 0; overflow: hidden; background: #000000; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); max-width: 100vw; touch-action: pan-y pinch-zoom;">
-    <!-- Header Elements (No Background Bar) -->
-    <!-- Left side: hidden stub — admin crown + avatar moved into #command-dashboard panel -->
-    <div id="desktop-top-left-actions" style="display:none;">
-      <span id="user-initials-left" style="display:none;"></span>
-      <div id="btn-admin-top-left" style="display:none;"></div>
-      <div id="user-profile-combined" style="display:none;"></div>
-    </div>
-
-    <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:0.75rem;">
-      <!-- Bell button — visible on mobile, opens Network Reflection -->
-      <div id="btn-bell-mobile" role="button" tabindex="0"
-        style="cursor:pointer; padding:0.6rem; background:rgba(0,224,255,0.1);
-        border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:42px; height:42px;
-        display:none; align-items:center; justify-content:center; position:relative;"
-        title="Network Reflection" aria-label="Network Reflection">
+  <div
+    class="unified-main"
+    id="main-content"
+    style="position: fixed; inset: 0; overflow: hidden; background: #000000; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); max-width: 100vw; touch-action: pan-y pinch-zoom;"
+  >
+    <div
+      style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:0.75rem;"
+    >
+      <div
+        id="btn-bell-mobile"
+        role="button"
+        tabindex="0"
+        style="cursor:pointer; padding:0.6rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; position:relative;"
+        title="Network Reflection"
+        aria-label="Network Reflection"
+      >
         <i class="fas fa-bell" style="color:#00e0ff; font-size:1.1rem;"></i>
-        <span id="mobile-bell-badge" style="display:none; position:absolute; top:-4px; right:-4px;
-          background:#ff3b30; color:#fff; font-size:0.6rem; font-weight:700;
-          min-width:16px; height:16px; border-radius:8px; padding:0 4px;
-          display:flex; align-items:center; justify-content:center;">0</span>
+        <span
+          id="mobile-bell-badge"
+          style="display:none; position:absolute; top:-4px; right:-4px; background:#ff3b30; color:#fff; font-size:0.6rem; font-weight:700; min-width:16px; height:16px; border-radius:8px; padding:0 4px; display:flex; align-items:center; justify-content:center;"
+        >0</span>
       </div>
 
-      <!-- Logout button — visible on mobile -->
-      <div id="btn-logout-mobile" role="button" tabindex="0"
-        style="cursor:pointer; padding:0.6rem; background:rgba(255,107,107,0.1);
-        border:1px solid rgba(255,107,107,0.3); border-radius:50%; width:42px; height:42px;
-        display:none; align-items:center; justify-content:center; transition:all 0.2s;"
-        title="Logout" aria-label="Logout">
+      <div
+        id="btn-logout-mobile"
+        role="button"
+        tabindex="0"
+        style="cursor:pointer; padding:0.6rem; background:rgba(255,107,107,0.1); border:1px solid rgba(255,107,107,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; transition:all 0.2s;"
+        title="Logout"
+        aria-label="Logout"
+      >
         <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.1rem;"></i>
       </div>
-
-      <!-- Admin Panel Button (Hidden - moved to left side) -->
-      <div id="btn-admin-top" style="display:none;"></div>
-
-      <!-- User Profile with Dropdown (Hidden - moved to left side) -->
-      <div id="user-menu-container-right" style="display:none;">
-        <div id="user-menu" style="cursor:pointer; padding:0.5rem 1rem; background:rgba(0,224,255,0.1);
-          border:1px solid rgba(0,224,255,0.3); border-radius:25px; display:flex; align-items:center; gap:0.75rem;
-          transition:all 0.3s;"
-          title="View your profile">
-          <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff);
-            display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem;" id="user-avatar-header">
-            <span id="user-initials-header">?</span>
-          </div>
-          <span id="user-name-header" style="color:#fff; font-weight:600;">Loading...</span>
-          <span id="admin-badge-header" style="display:none; background:rgba(255,170,0,0.2); color:#ffa500;
-            font-size:0.7rem; font-weight:700; padding:0.25rem 0.5rem; border-radius:4px; border:1px solid rgba(255,170,0,0.4);">
-            ADMIN
-          </span>
-          <i class="fas fa-chevron-down" id="user-menu-chevron" style="color:#00e0ff; font-size:0.9rem; transition:transform 0.3s;"></i>
-        </div>
-
-        <div id="user-dropdown" style="
-          position:absolute;
-          top:calc(100% + 0.5rem);
-          right:0;
-          min-width:220px;
-          background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98));
-          border:2px solid rgba(0,224,255,0.4);
-          border-radius:12px;
-          padding:0.5rem;
-          display:none;
-          flex-direction:column;
-          gap:0.25rem;
-          box-shadow:0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(0,224,255,0.2);
-          backdrop-filter:blur(10px);
-          z-index:10000;
-          animation:dropdownFadeIn 0.2s ease;
-        ">
-          <div id="dropdown-badges" style="display:none; flex-direction:column; gap:0.5rem; padding:0.5rem; margin-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.1);">
-            <div style="padding:0.5rem 0.75rem; background:rgba(0,224,255,0.15); border:1px solid rgba(0,224,255,0.3); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div style="color:#00e0ff; font-size:0.75rem; font-weight:600;">Level 6</div>
-                <div style="color:#aaa; font-size:0.65rem;">Leader</div>
-              </div>
-              <div style="color:#888; font-size:0.6rem;">2173 / 5000 XP</div>
-            </div>
-            <div style="padding:0.5rem 0.75rem; background:rgba(255,59,48,0.15); border:1px solid rgba(255,59,48,0.3); border-radius:8px; display:flex; align-items:center; gap:0.5rem;">
-              <i class="fas fa-fire" style="color:#ff3b30; font-size:1rem;"></i>
-              <div style="flex:1;">
-                <div style="color:#ff3b30; font-size:0.75rem; font-weight:700;">25 Day Streak</div>
-                <div style="color:#ff8a80; font-size:0.6rem;">Keep it going!</div>
-              </div>
-            </div>
-          </div>
-
-          <button id="dropdown-profile" style="
-            width:100%;
-            padding:0.75rem 1rem;
-            background:transparent;
-            border:none;
-            border-radius:8px;
-            color:#fff;
-            font-size:0.95rem;
-            font-weight:500;
-            cursor:pointer;
-            display:flex;
-            align-items:center;
-            gap:0.75rem;
-            transition:all 0.2s;
-            text-align:left;
-          ">
-            <i class="fas fa-user" style="color:#00e0ff; font-size:1.1rem; width:20px;"></i>
-            <span>View Profile</span>
-          </button>
-
-          <button id="dropdown-settings" style="
-            width:100%;
-            padding:0.75rem 1rem;
-            background:transparent;
-            border:none;
-            border-radius:8px;
-            color:#fff;
-            font-size:0.95rem;
-            font-weight:500;
-            cursor:pointer;
-            display:flex;
-            align-items:center;
-            gap:0.75rem;
-            transition:all 0.2s;
-            text-align:left;
-          ">
-            <i class="fas fa-cog" style="color:#00e0ff; font-size:1.1rem; width:20px;"></i>
-            <span>Settings</span>
-            <span id="admin-settings-indicator" style="display:none; margin-left:auto; background:rgba(255,170,0,0.2);
-              color:#ffa500; font-size:0.65rem; font-weight:700; padding:0.2rem 0.4rem; border-radius:3px;
-              border:1px solid rgba(255,170,0,0.4);">
-              ADMIN
-            </span>
-          </button>
-
-          <div style="height:1px; background:rgba(255,255,255,0.1); margin:0.25rem 0;"></div>
-
-          <button id="dropdown-logout" style="
-            width:100%;
-            padding:0.75rem 1rem;
-            background:transparent;
-            border:none;
-            border-radius:8px;
-            color:#ff6b6b;
-            font-size:0.95rem;
-            font-weight:600;
-            cursor:pointer;
-            display:flex;
-            align-items:center;
-            gap:0.75rem;
-            transition:all 0.2s;
-            text-align:left;
-          ">
-            <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.1rem; width:20px;"></i>
-            <span>Logout</span>
-          </button>
-        </div>
-      </div>
     </div>
 
-    <!-- ================================================================ -->
-    <!-- UNIFIED COMMAND DASHBOARD (Desktop only, ≥1024px)              -->
-    <!-- New 4-layer hierarchy: Identity → Status → Focus → Explore     -->
-    <!-- ================================================================ -->
     <aside id="command-dashboard" aria-label="Network Command Dashboard">
-
-      <!-- ── Scrollable content area ───────────────────────────────── -->
       <div class="cd-scroll-area">
-
-      <!-- ── Layer 1: Identity ─────────────────────────────────────── -->
-      <div class="cd-identity" id="cd-identity">
-        <!-- Avatar — clickable to open profile -->
-        <button class="cd-identity-avatar" id="cd-avatar"
-          title="View / edit your profile" aria-label="View your profile">
-          <img id="cd-avatar-img" src="" alt="" style="display:none;">
-          <span id="cd-avatar-initials">?</span>
-          <div class="cd-avatar-edit-hint" aria-hidden="true">
-            <i class="fas fa-pencil-alt"></i>
-          </div>
-        </button>
-        <div class="cd-identity-info">
-          <!-- Name + action icons on same row -->
-          <div class="cd-identity-info-header">
-            <div class="cd-identity-name" id="cd-user-name">Loading...</div>
-            <div class="cd-identity-actions">
-              <!-- Admin crown — hidden unless user is admin -->
-              <button class="cd-icon-btn cd-admin-btn" id="cd-admin-btn"
-                title="Admin Panel" aria-label="Admin Panel" style="display:none;">
-                <i class="fas fa-crown"></i>
-              </button>
-              <!-- Messaging bell — always visible, badge shows unread count -->
-              <button class="cd-icon-btn cd-bell-btn" id="cd-bell-btn"
-                title="Messages" aria-label="Open messages">
-                <i class="fas fa-bell"></i>
-                <span class="cd-bell-badge" id="cd-bell-badge" style="display:none;">0</span>
-              </button>
-              <!-- Logout button -->
-              <button class="cd-icon-btn" id="cd-logout-btn"
-                title="Logout" aria-label="Logout"
-                style="color:#ff6b6b;">
-                <i class="fas fa-sign-out-alt"></i>
-              </button>
+        <div class="cd-identity" id="cd-identity">
+          <button
+            class="cd-identity-avatar"
+            id="cd-avatar"
+            title="View / edit your profile"
+            aria-label="View your profile"
+          >
+            <img id="cd-avatar-img" src="" alt="" style="display:none;" />
+            <span id="cd-avatar-initials">?</span>
+            <div class="cd-avatar-edit-hint" aria-hidden="true">
+              <i class="fas fa-pencil-alt"></i>
             </div>
-          </div>
-          <div class="cd-identity-meta">
-            <span class="cd-level-badge" id="cd-level-badge">Lv 1</span>
-            <span class="cd-streak" id="cd-streak" style="display:none;">
-              <i class="fas fa-fire"></i>
-              <span id="cd-streak-count">0</span>
-            </span>
-          </div>
-          <div class="cd-xp-bar-wrap" title="XP Progress">
-            <div class="cd-xp-bar" id="cd-xp-bar" style="width:0%"></div>
-          </div>
-          <div id="cd-profile-completeness" style="display:none;" title="Profile completeness">
-            <div class="cd-completeness-label">
-              <span>Profile</span>
-              <span id="cd-completeness-pct">0%</span>
-            </div>
-            <div class="cd-completeness-bar-wrap">
-              <div class="cd-completeness-bar" id="cd-completeness-bar" style="width:0%"></div>
-            </div>
-          </div>
-          <div class="cd-greeting" id="cd-greeting"></div>
-        </div>
-      </div>
-
-      <!-- ── Layer 2: Network Status ───────────────────────────────── -->
-      <div class="cd-network-status" id="cd-network-status">
-        <div class="cd-section-label">Network Status</div>
-        <div class="cd-status-row" id="cd-status-row">
-          <div class="cd-status-pill" data-action="focus-direct" title="Your direct connections" role="button" tabindex="0">
-            <span class="cd-status-value" id="cd-stat-connections">—</span>
-            <span class="cd-status-label">Connected</span>
-          </div>
-          <div class="cd-status-pill" data-action="focus-projects" title="Your projects" role="button" tabindex="0">
-            <span class="cd-status-value" id="cd-stat-projects">—</span>
-            <span class="cd-status-label">Projects</span>
-          </div>
-          <div class="cd-status-pill" title="Themes you participate in">
-            <span class="cd-status-value" id="cd-stat-themes">—</span>
-            <span class="cd-status-label">Themes</span>
-          </div>
-          <div class="cd-status-pill" title="Open opportunities">
-            <span class="cd-status-value" id="cd-stat-opportunities">—</span>
-            <span class="cd-status-label">Opps</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Layer 4: Explore ──────────────────────────────────────── -->
-      <div class="cd-explore" id="cd-explore">
-        <div class="cd-section-toggle-row" style="pointer-events:none;">
-          <span style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#aaa; padding:0.6rem 0.75rem 0.4rem; display:block;">EXPLORE</span>
-          <button class="udc-resource-add-btn" id="udc-add-resource-btn"
-            title="Add new item" aria-label="Add new resource" style="display:none; pointer-events:all;">
-            <i class="fas fa-plus"></i>
           </button>
-        </div>
-        <div class="cd-section-body" id="cd-explore-body">
-          <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist">
-            <button class="udc-resource-tab active" data-resource="people"
-              role="tab" aria-selected="true">People</button>
-            <button class="udc-resource-tab" data-resource="projects"
-              role="tab" aria-selected="false">Projects</button>
-            <button class="udc-resource-tab" data-resource="themes"
-              role="tab" aria-selected="false">Themes</button>
-            <button class="udc-resource-tab" data-resource="organizations"
-              role="tab" aria-selected="false">Orgs</button>
-            <button class="udc-resource-tab" data-resource="opportunities"
-              role="tab" aria-selected="false">Opps</button>
+
+          <div class="cd-identity-info">
+            <div class="cd-identity-info-header">
+              <div class="cd-identity-name" id="cd-user-name">Loading...</div>
+              <div class="cd-identity-actions">
+                <button
+                  class="cd-icon-btn cd-admin-btn"
+                  id="cd-admin-btn"
+                  title="Admin Panel"
+                  aria-label="Admin Panel"
+                  style="display:none;"
+                >
+                  <i class="fas fa-crown"></i>
+                </button>
+
+                <button
+                  class="cd-icon-btn cd-bell-btn"
+                  id="cd-bell-btn"
+                  title="Messages"
+                  aria-label="Open messages"
+                >
+                  <i class="fas fa-bell"></i>
+                  <span class="cd-bell-badge" id="cd-bell-badge" style="display:none;">0</span>
+                </button>
+
+                <button
+                  class="cd-icon-btn"
+                  id="cd-logout-btn"
+                  title="Logout"
+                  aria-label="Logout"
+                  style="color:#ff6b6b;"
+                >
+                  <i class="fas fa-sign-out-alt"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="cd-identity-meta">
+              <span class="cd-level-badge" id="cd-level-badge">Lv 1</span>
+              <span class="cd-streak" id="cd-streak" style="display:none;">
+                <i class="fas fa-fire"></i>
+                <span id="cd-streak-count">0</span>
+              </span>
+            </div>
+
+            <div class="cd-xp-bar-wrap" title="XP Progress">
+              <div class="cd-xp-bar" id="cd-xp-bar" style="width:0%"></div>
+            </div>
+
+            <div id="cd-profile-completeness" style="display:none;" title="Profile completeness">
+              <div class="cd-completeness-label">
+                <span>Profile</span>
+                <span id="cd-completeness-pct">0%</span>
+              </div>
+              <div class="cd-completeness-bar-wrap">
+                <div class="cd-completeness-bar" id="cd-completeness-bar" style="width:0%"></div>
+              </div>
+            </div>
+
+            <div class="cd-greeting" id="cd-greeting"></div>
           </div>
-          <div id="udc-add-form" class="udc-add-form hidden"></div>
-          <div id="udc-resource-list" role="tabpanel">
-            <div class="udc-resource-empty">Loading...</div>
+        </div>
+
+        <div class="cd-network-status" id="cd-network-status">
+          <div class="cd-section-label">Network Status</div>
+          <div class="cd-status-row" id="cd-status-row">
+            <div class="cd-status-pill" data-action="focus-direct" title="Your direct connections" role="button" tabindex="0">
+              <span class="cd-status-value" id="cd-stat-connections">—</span>
+              <span class="cd-status-label">Connected</span>
+            </div>
+            <div class="cd-status-pill" data-action="focus-projects" title="Your projects" role="button" tabindex="0">
+              <span class="cd-status-value" id="cd-stat-projects">—</span>
+              <span class="cd-status-label">Projects</span>
+            </div>
+            <div class="cd-status-pill" title="Themes you participate in">
+              <span class="cd-status-value" id="cd-stat-themes">—</span>
+              <span class="cd-status-label">Themes</span>
+            </div>
+            <div class="cd-status-pill" title="Open opportunities">
+              <span class="cd-status-value" id="cd-stat-opportunities">—</span>
+              <span class="cd-status-label">Opps</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="cd-explore" id="cd-explore">
+          <div class="cd-section-toggle-row" style="pointer-events:none;">
+            <span
+              style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#aaa; padding:0.6rem 0.75rem 0.4rem; display:block;"
+            >EXPLORE</span>
+            <button
+              class="udc-resource-add-btn"
+              id="udc-add-resource-btn"
+              title="Add new item"
+              aria-label="Add new resource"
+              style="display:none; pointer-events:all;"
+            >
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+
+          <div class="cd-section-body" id="cd-explore-body">
+            <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist">
+              <button class="udc-resource-tab active" data-resource="people" role="tab" aria-selected="true">People</button>
+              <button class="udc-resource-tab" data-resource="projects" role="tab" aria-selected="false">Projects</button>
+              <button class="udc-resource-tab" data-resource="themes" role="tab" aria-selected="false">Themes</button>
+              <button class="udc-resource-tab" data-resource="organizations" role="tab" aria-selected="false">Orgs</button>
+              <button class="udc-resource-tab" data-resource="opportunities" role="tab" aria-selected="false">Opps</button>
+            </div>
+
+            <div id="udc-add-form" class="udc-add-form hidden"></div>
+
+            <div id="udc-resource-list" role="tabpanel">
+              <div class="udc-resource-empty">Loading...</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- ── Network View removed — dashboard always shows ecosystem scope ── -->
-
-      </div><!-- end .cd-scroll-area -->
-
-      <!-- ── Resize handle — drag right edge to widen/narrow panel ── -->
       <div id="cd-resize-handle" aria-hidden="true"></div>
 
-      <!-- ── Panel Footer ──────────────────────────────────────────── -->
       <div class="cd-panel-footer">
-        <button class="cd-report-btn" id="cd-report-btn"
-          title="Generate your network report" aria-label="Network Report">
+        <button
+          class="cd-report-btn"
+          id="cd-report-btn"
+          title="Generate your network report"
+          aria-label="Network Report"
+        >
           <i class="fas fa-chart-bar"></i>
           <span>Network Report</span>
         </button>
       </div>
-
     </aside>
-    <!-- END COMMAND DASHBOARD -->
 
-    <!-- Panel collapse tab — desktop only, JS activates it -->
     <button id="cd-panel-tab" aria-label="Toggle navigation panel" title="Collapse panel">
       <i class="fas fa-chevron-left" id="cd-panel-tab-icon"></i>
     </button>
 
-    <div id="synapse-main-view" style="position:absolute; inset:0; z-index:1; background: #000000; overflow: hidden; touch-action: pan-y pinch-zoom;">
-      <svg id="synapse-svg" style="width:100%; height:100%; background: #000000; touch-action: none;"></svg>
+    <div
+      id="synapse-main-view"
+      style="position:absolute; inset:0; z-index:1; background:#000000; overflow:hidden; touch-action:pan-y pinch-zoom;"
+    >
+      <svg id="synapse-svg" style="width:100%; height:100%; background:#000000; touch-action:none;"></svg>
     </div>
 
-    <!-- Centered Round START Button with Background Panel (HIDDEN - replaced by nav button) -->
-    <div id="start-button-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh; height: calc(var(--vh, 1vh) * 100);
-      z-index:1000; display:none; align-items:center; justify-content:center;">
-      <div style="position:absolute; inset:0; background:rgba(10,14,39,0.75); backdrop-filter:blur(10px);"></div>
-      <div style="position:relative; display:flex; flex-direction:column; align-items:center; gap:1.5rem;">
-        <button id="btn-start-center"
-          style="background:linear-gradient(135deg, rgba(0,255,136,0.3), rgba(0,224,255,0.25));
-          border:3px solid rgba(0,255,136,0.6); border-radius:50%; color:#00ff88; font-weight:700; font-size:1.5rem;
-          cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.5rem;
-          box-shadow:0 8px 30px rgba(0,255,136,0.4); padding:0; width:200px; height:200px; opacity:0.75;"
-          title="Start your journey">
-          <i class="fas fa-play-circle" style="font-size:3rem;"></i>
-          <span style="font-size:1.5rem;">START</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Category Filter Buttons (Bottom Center) -->
-    <div id="centered-search-container"
-      style="position:absolute; bottom:100px;
-      width:min(700px, 85vw); max-width:min(700px, 85vw); z-index:100; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
-
+    <div
+      id="centered-search-container"
+      style="position:absolute; bottom:100px; width:min(700px, 85vw); max-width:min(700px, 85vw); z-index:100; display:flex; flex-direction:column; align-items:center; gap:0.75rem;"
+    >
       <div id="category-action-bar" style="display:none; width:100%; justify-content:flex-end;"></div>
 
-      <div id="search-container" style="position: relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); border-radius:12px;
-        border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);">
-        <!-- Drag handle -->
-        <div id="search-drag-handle" title="Drag to move"
-          style="position:absolute; top:-14px; left:50%; transform:translateX(-50%);
-          width:48px; height:14px; cursor:grab; display:flex; align-items:center; justify-content:center;
-          background:rgba(10,14,39,0.7); border:1px solid rgba(0,224,255,0.25); border-radius:6px 6px 0 0;">
+      <div
+        id="search-container"
+        style="position:relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); border-radius:12px; border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);"
+      >
+        <div
+          id="search-drag-handle"
+          title="Drag to move"
+          style="position:absolute; top:-14px; left:50%; transform:translateX(-50%); width:48px; height:14px; cursor:grab; display:flex; align-items:center; justify-content:center; background:rgba(10,14,39,0.7); border:1px solid rgba(0,224,255,0.25); border-radius:6px 6px 0 0;"
+        >
           <div style="width:28px; height:3px; background:rgba(0,224,255,0.4); border-radius:2px;"></div>
         </div>
 
-        <!-- Accessibility: label associated with input -->
         <label for="global-search" class="sr-only">Search everything</label>
-        <input type="text" id="global-search" placeholder="Search everything..."
+        <input
+          type="text"
+          id="global-search"
+          placeholder="Search everything..."
           autocomplete="off"
-          style="width:100%; padding:0.75rem 4rem 0.75rem 1rem; background:transparent;
-          border:none; border-radius:10px; color:#fff; font-size:16px; outline:none; box-sizing:border-box;"
           aria-describedby="search-suggestions"
+          style="width:100%; padding:0.75rem 4rem 0.75rem 1rem; background:transparent; border:none; border-radius:10px; color:#fff; font-size:16px; outline:none; box-sizing:border-box;"
         />
 
-        <button id="search-button"
-          style="position:absolute; right:0.5rem; top:50%; transform:translateY(-50%);
-          background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.5rem 0.85rem; border-radius:8px;
-          color:white; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; z-index:1;">
+        <button
+          id="search-button"
+          style="position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.5rem 0.85rem; border-radius:8px; color:white; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; z-index:1;"
+        >
           <i class="fas fa-search"></i>
         </button>
 
-        <div id="search-suggestions" style="display:none; position:absolute; left:1rem; right:1rem;
-          background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px;
-          max-height:min(400px, 60vh); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1000;
-          box-shadow:0 8px 32px rgba(0,224,255,0.3);"></div>
+        <div
+          id="search-suggestions"
+          style="display:none; position:absolute; left:1rem; right:1rem; background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px; max-height:min(400px, 60vh); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1000; box-shadow:0 8px 32px rgba(0,224,255,0.3);"
+        ></div>
       </div>
     </div>
   </div>
 
-  <!-- Hidden elements for compatibility -->
-  <div id="main-header" class="hidden"></div>
-  <button id="logout-btn" style="display:none;"></button>
-  <button id="btn-start-header" style="display:none;"></button>
-  <button id="btn-start-fullwidth" style="display:none;"></button>
-  <button id="btn-messages" style="display:none;"></button>
-  <button id="btn-projects-modal" style="display:none;"></button>
-  <button id="btn-endorsements" style="display:none;"></button>
-  <button id="fab-bbs-trigger" style="display:none;"></button>
-
-  <!-- Profile Modal -->
   <div class="modal" id="profile-modal">
     <div class="modal-content">
       <button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button>
@@ -482,76 +352,87 @@
   </div>
 
   <script>
-    // Hide search container when any modal opens
-    (function() {
-      const searchContainer = document.getElementById('centered-search-container');
+    (function () {
+      const searchContainer = document.getElementById("centered-search-container");
       if (!searchContainer) return;
 
       function updateSearchVisibility() {
-        const anyModalOpen = document.querySelector('.modal.active');
-        searchContainer.style.display = anyModalOpen ? 'none' : 'flex';
+        const anyModalOpen = document.querySelector(".modal.active");
+        searchContainer.style.display = anyModalOpen ? "none" : "flex";
       }
 
       const observer = new MutationObserver(updateSearchVisibility);
-      document.querySelectorAll('.modal').forEach(modal => {
-        observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+      document.querySelectorAll(".modal").forEach((modal) => {
+        observer.observe(modal, { attributes: true, attributeFilter: ["class"] });
       });
 
       setTimeout(updateSearchVisibility, 100);
     })();
   </script>
 
-  <!-- Messages Modal -->
   <div class="modal" id="messages-modal">
-    <div class="modal-content messages-modal-content" style="max-width: 1000px; max-height: 80vh;">
+    <div class="modal-content messages-modal-content" style="max-width:1000px; max-height:80vh;">
       <button class="modal-close" onclick="closeMessagesModal()"><i class="fas fa-times"></i></button>
       <div id="messages-container"></div>
     </div>
   </div>
 
-  <!-- Projects Modal -->
   <div class="modal" id="projects-modal">
-    <div class="modal-content" style="max-width: 800px;">
+    <div class="modal-content" style="max-width:800px;">
       <button class="modal-close" onclick="closeProjectsModal()"><i class="fas fa-times"></i></button>
       <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-lightbulb"></i> Projects</h2>
 
       <div style="margin-bottom:1.5rem;">
-        <button onclick="if(typeof showEnhancedProjectCreation==='function'){showEnhancedProjectCreation();}else{showCreateProjectForm();}" class="btn btn-primary"><i class="fas fa-plus"></i> New Project</button>
+        <button onclick="if(typeof showEnhancedProjectCreation==='function'){showEnhancedProjectCreation();}else{showCreateProjectForm();}" class="btn btn-primary">
+          <i class="fas fa-plus"></i> New Project
+        </button>
       </div>
 
-      <div id="project-form" style="display:none; background: rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
-          border-radius:12px; padding:1.5rem; margin-bottom:1.5rem;">
+      <div
+        id="project-form"
+        style="display:none; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px; padding:1.5rem; margin-bottom:1.5rem;"
+      >
         <h3 style="color:#00e0ff; margin-bottom:1rem;">Create New Project</h3>
 
         <form onsubmit="createProject(event)">
           <div style="margin-bottom:1rem;">
             <label for="project-name" style="display:block; color:#aaa; margin-bottom:0.5rem;">Project Name *</label>
-            <input type="text" id="project-name" required
-                   style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
-                   border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
+            <input
+              type="text"
+              id="project-name"
+              required
+              style="width:100%; padding:0.75rem; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;"
+            />
           </div>
 
           <div style="margin-bottom:1rem;">
             <label for="project-description" style="display:block; color:#aaa; margin-bottom:0.5rem;">Description *</label>
-            <textarea id="project-description" rows="3" required
-              style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
-              border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit; resize:vertical;"></textarea>
+            <textarea
+              id="project-description"
+              rows="3"
+              required
+              style="width:100%; padding:0.75rem; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit; resize:vertical;"
+            ></textarea>
           </div>
 
           <div style="margin-bottom:1rem;">
             <label for="project-skills" style="display:block; color:#aaa; margin-bottom:0.5rem;">Required Skills (comma-separated)</label>
-            <input type="text" id="project-skills" placeholder="e.g., JavaScript, React, Design"
-                   style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
-                   border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
+            <input
+              type="text"
+              id="project-skills"
+              placeholder="e.g., JavaScript, React, Design"
+              style="width:100%; padding:0.75rem; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;"
+            />
           </div>
 
           <div style="margin-bottom:1rem;">
             <label for="project-theme" style="display:block; color:#aaa; margin-bottom:0.5rem;">
               <i class="fas fa-bullseye" style="color:#00e0ff;"></i> Associate with Theme Circle (optional)
             </label>
-            <select id="project-theme"
-                    style="width:100%; padding:0.75rem; background: rgba(0,224,255,0.05);
-                    border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;">
+            <select
+              id="project-theme"
+              style="width:100%; padding:0.75rem; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; font-family:inherit;"
+            >
               <option value="">No theme (standalone project)</option>
             </select>
             <small style="color:#888; display:block; margin-top:0.3rem;">
@@ -566,24 +447,27 @@
         </form>
       </div>
 
-      <div id="projects-list" style="max-height: 400px; overflow-y:auto;"></div>
+      <div id="projects-list" style="max-height:400px; overflow-y:auto;"></div>
     </div>
   </div>
 
-  <!-- Endorsements Modal -->
   <div class="modal" id="endorsements-modal">
-    <div class="modal-content" style="max-width: 700px;">
+    <div class="modal-content" style="max-width:700px;">
       <button class="modal-close" onclick="closeEndorsementsModal()"><i class="fas fa-times"></i></button>
       <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-star"></i> Endorsements</h2>
 
       <div style="margin-bottom:2rem;">
         <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-          <button onclick="showEndorsementsTab('received')" id="endorsements-tab-received"
-                  style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#00e0ff,#0080ff);
-                  border:none; border-radius:8px; color:white; cursor:pointer; font-weight:bold;">Received</button>
-          <button onclick="showEndorsementsTab('given')" id="endorsements-tab-given"
-                  style="flex:1; padding:0.75rem; background:rgba(255,255,255,0.1); border:1px solid rgba(0,224,255,0.2);
-                  border-radius:8px; color:white; cursor:pointer;">Given</button>
+          <button
+            onclick="showEndorsementsTab('received')"
+            id="endorsements-tab-received"
+            style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:bold;"
+          >Received</button>
+          <button
+            onclick="showEndorsementsTab('given')"
+            id="endorsements-tab-given"
+            style="flex:1; padding:0.75rem; background:rgba(255,255,255,0.1); border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; cursor:pointer;"
+          >Given</button>
         </div>
 
         <div id="endorsements-received" style="max-height:400px; overflow-y:auto;"></div>
@@ -592,49 +476,49 @@
     </div>
   </div>
 
-  <!-- Network Stats Modal -->
   <div class="modal" id="network-stats-modal">
-    <div class="modal-content" style="max-width: 800px;">
-      <button class="modal-close" onclick="closeNetworkStatsModal()">
-        <i class="fas fa-times"></i>
-      </button>
-      <h2 style="color: #00e0ff; margin-bottom: 1.5rem;">
-        <i class="fas fa-users"></i> Your Network Stats
-      </h2>
+    <div class="modal-content" style="max-width:800px;">
+      <button class="modal-close" onclick="closeNetworkStatsModal()"><i class="fas fa-times"></i></button>
+      <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-users"></i> Your Network Stats</h2>
 
-      <div id="network-stats-content" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-        <div style="text-align: center; color: #aaa; padding: 3rem;">
-          <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #00e0ff;"></i>
-          <p style="margin-top: 1rem;">Loading network stats...</p>
+      <div
+        id="network-stats-content"
+        style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;"
+      >
+        <div style="text-align:center; color:#aaa; padding:3rem;">
+          <i class="fas fa-spinner fa-spin" style="font-size:3rem; color:#00e0ff;"></i>
+          <p style="margin-top:1rem;">Loading network stats...</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Quick Connect Modal -->
   <div class="modal" id="quick-connect-modal">
-    <div class="modal-content" style="max-width: 1000px; max-height: 85vh;">
+    <div class="modal-content" style="max-width:1000px; max-height:85vh;">
       <button class="modal-close" onclick="closeQuickConnectModal()"><i class="fas fa-times"></i></button>
       <h2 id="quick-connect-title" style="color:#00e0ff; margin-bottom:1rem;"><i class="fas fa-search"></i> Search Results</h2>
       <p id="quick-connect-subtitle" style="color:#aaa; margin-bottom:1.5rem;">Showing results across all categories</p>
-      <div id="quick-connect-list" style="max-height: 65vh; overflow-y:auto;"></div>
+      <div id="quick-connect-list" style="max-height:65vh; overflow-y:auto;"></div>
     </div>
   </div>
 
-  <!-- Notification Center Modal -->
   <div class="modal" id="notification-center-modal">
-    <div class="modal-content" style="max-width: 700px;">
+    <div class="modal-content" style="max-width:700px;">
       <button class="modal-close" onclick="closeNotificationCenter()"><i class="fas fa-times"></i></button>
       <h2 style="color:#00e0ff; margin-bottom:1.5rem;"><i class="fas fa-bell"></i> Notifications</h2>
 
       <div style="margin-bottom:1.5rem;">
         <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-          <button onclick="showNotificationsTab('all')" id="notifications-tab-all"
-                  style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#00e0ff,#0080ff);
-                  border:none; border-radius:8px; color:white; cursor:pointer; font-weight:bold;">All</button>
-          <button onclick="showNotificationsTab('unread')" id="notifications-tab-unread"
-                  style="flex:1; padding:0.75rem; background:rgba(255,255,255,0.1); border:1px solid rgba(0,224,255,0.2);
-                  border-radius:8px; color:white; cursor:pointer;">Unread</button>
+          <button
+            onclick="showNotificationsTab('all')"
+            id="notifications-tab-all"
+            style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:bold;"
+          >All</button>
+          <button
+            onclick="showNotificationsTab('unread')"
+            id="notifications-tab-unread"
+            style="flex:1; padding:0.75rem; background:rgba(255,255,255,0.1); border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:white; cursor:pointer;"
+          >Unread</button>
         </div>
 
         <div id="notifications-all" style="max-height:400px; overflow-y:auto;"></div>
@@ -642,31 +526,27 @@
       </div>
 
       <div style="text-align:center; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.1);">
-        <button onclick="clearAllNotifications()" style="padding:0.5rem 1.5rem; background:rgba(255,255,255,0.1);
-          border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:#00e0ff; cursor:pointer;">
+        <button
+          onclick="clearAllNotifications()"
+          style="padding:0.5rem 1.5rem; background:rgba(255,255,255,0.1); border:1px solid rgba(0,224,255,0.2); border-radius:8px; color:#00e0ff; cursor:pointer;"
+        >
           <i class="fas fa-check-double"></i> Mark All as Read
         </button>
       </div>
     </div>
   </div>
 
-  <!-- BBS Modal -->
   <div id="bbs-modal"></div>
 
-  <!-- START Modal -->
-  <div id="start-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%) scale(0.95);
-    width:auto; max-width:min(600px, 90vw); max-height:90vh;
-    background:linear-gradient(135deg, rgba(10,14,39,0.95), rgba(16,20,39,0.95));
-    border:2px solid rgba(0,255,136,0.4); border-radius:16px; padding:2rem; z-index:10002;
-    overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,255,136,0.2);
-    backdrop-filter:blur(20px); opacity:0; transition:all 0.3s ease;">
-
-    <button class="mentor-panel-close" onclick="closeStartModal()"
-      style="position:absolute; top:1rem; right:1rem;
-      background:rgba(255,102,102,0.2); border:1px solid rgba(255,102,102,0.4);
-      border-radius:50%; width:36px; height:36px;
-      display:flex; align-items:center; justify-content:center; cursor:pointer; color:#f66;
-      font-size:1.2rem; transition:all 0.2s;">
+  <div
+    id="start-modal"
+    style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%) scale(0.95); width:auto; max-width:min(600px, 90vw); max-height:90vh; background:linear-gradient(135deg, rgba(10,14,39,0.95), rgba(16,20,39,0.95)); border:2px solid rgba(0,255,136,0.4); border-radius:16px; padding:2rem; z-index:10002; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,255,136,0.2); backdrop-filter:blur(20px); opacity:0; transition:all 0.3s ease;"
+  >
+    <button
+      class="mentor-panel-close"
+      onclick="closeStartModal()"
+      style="position:absolute; top:1rem; right:1rem; background:rgba(255,102,102,0.2); border:1px solid rgba(255,102,102,0.4); border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#f66; font-size:1.2rem; transition:all 0.2s;"
+    >
       <i class="fas fa-times"></i>
     </button>
 
@@ -681,17 +561,28 @@
     <div id="start-options-container" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;"></div>
   </div>
 
-  <div id="start-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
-    backdrop-filter:blur(5px); z-index:10001;"></div>
+  <div
+    id="start-modal-backdrop"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); z-index:10001;"
+  ></div>
 
-  <!-- External libs (ONLY ONCE) -->
+  <div
+    id="rotate-device-overlay"
+    style="display:none; position:fixed; inset:0; z-index:10050; background:rgba(10,14,39,0.98); color:#fff; align-items:center; justify-content:center; text-align:center; padding:2rem;"
+  >
+    <div style="max-width:320px; display:flex; flex-direction:column; gap:1rem; align-items:center;">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="color:#00e0ff;" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zm-6.25-.77c-.59-.59-1.54-.59-2.12 0L1.75 8.11c-.59.59-.59 1.54 0 2.12l12.02 12.02c.59.59 1.54.59 2.12 0l6.36-6.36c.59-.59.59-1.54 0-2.12L10.23 1.75zm4.6 19.44L2.81 9.17l6.36-6.36 12.02 12.02-6.36 6.36zm-7.31.29C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32z" fill="currentColor"/>
+      </svg>
+      <p style="font-size:1.1rem; font-weight:600; margin:0;">Please rotate your device</p>
+      <p style="font-size:0.9rem; color:#aaa; margin:0;">This app works best in portrait mode</p>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" defer></script>
 
-  <!-- Centralized Logger (MUST LOAD FIRST among modules) -->
   <script type="module" src="assets/js/logger.js?v=fc09b39b-17701461547"></script>
 
-  <!-- UI Helpers (LOAD EARLY) -->
-  <script src="assets/js/debug-helper.js?v=1"></script>
   <script src="assets/js/ui-helpers.js?v=1"></script>
   <script src="assets/js/onboarding.js?v=1"></script>
   <script src="assets/js/tooltips.js?v=1"></script>
@@ -699,46 +590,26 @@
   <script src="assets/js/keyboard-shortcuts.js?v=1"></script>
   <script src="assets/js/micro-interactions.js?v=1"></script>
   <script src="assets/js/mobile-enhancements.js?v=1"></script>
-  
-  <!-- Animation Lifecycle Controller (MUST LOAD EARLY) -->
+
   <script type="module" src="assets/js/animation-lifecycle.js?v=1"></script>
 
-  <!-- Unified Toast System (load early so all modules can use window.showToast) -->
   <script src="assets/js/toast.js?v=1" defer></script>
-
-  <!-- Global notification utility (provides window.showSynapseNotification) -->
   <script src="assets/js/notification-utils.js?v=1" defer></script>
-  <!-- Visibility Guard (pauses polling intervals when tab is hidden) -->
   <script src="assets/js/visibility-guard.js?v=1" defer></script>
-
-  <!-- Boot Gate (Auth-Aware Boot Coordinator) -->
   <script src="assets/js/boot-gate.js?v=1" defer></script>
 
-  <!-- Required base modules -->
   <script type="module" src="assets/js/supabaseClient.js?v=fc09b39b-1770146154f916933b2da"></script>
-
-  <!-- ✅ SUPABASE OPTIMIZATION: Bootstrap Session (Single Source of Truth) -->
   <script src="assets/js/bootstrapSession.js?v=6e6a1b33" defer></script>
-
-  <!-- ✅ SUPABASE OPTIMIZATION: Realtime Manager (Subscription Deduping) -->
   <script src="assets/js/realtimeManager.js?v=6e6a1b33" defer></script>
-
-  <!-- ✅ SUPABASE OPTIMIZATION: Migration Helper (Temporary Compatibility) -->
   <script src="assets/js/migrationHelper.js?v=phase2" defer></script>
 
-  <!-- ✅ SUPABASE OPTIMIZATION: Startup Metrics (Dev Only) -->
-  <script src="assets/js/startupMetrics.js?v=6e6a1b33" defer></script>
-
-  <!-- Realtime Helper (load early for all subscriptions) -->
   <script type="module">
-    import * as realtimeHelper from './assets/js/realtime-helper.js?v=fc09b39b-1770146154f916933b2da';
+    import * as realtimeHelper from "./assets/js/realtime-helper.js?v=fc09b39b-1770146154f916933b2da";
     window.realtimeHelper = realtimeHelper;
   </script>
 
-  <!-- Non-module scripts -->
   <script src="assets/js/ecosystem-connector.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
-  <!-- Feature modules -->
   <script type="module" src="assets/js/onboarding.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="assets/js/graph-legend.js?v=fc09b39b-1770146154f916933b2da"></script>
@@ -748,133 +619,85 @@
   <script type="module" src="assets/js/daily-engagement.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da"></script>
 
-  <!-- Messaging -->
   <script src="assets/js/messaging.js?v=msg-20260327a" defer></script>
 
-  <!-- Auth + profile -->
   <script type="module" src="auth.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="profile.js?v=fc09b39b-1770146154f916933b2da"></script>
 
-  <!-- Theme strategy toggle -->
   <script src="assets/js/theme-strategy-toggle.js?v=fc09b39b-1770146154f916933b2da" defer></script>
-
-  <!-- Comprehensive Fixes Module -->
   <script src="assets/js/comprehensive-fixes.js?v=fc09b39b-17701461543" defer></script>
-
-  <!-- Critical UX Fixes Module -->
   <script src="assets/js/critical-ux-fixes.js?v=fc09b39b-17701461543" defer></script>
 
-  <!-- Notification Bell Module (superseded by unified-notification-system.js) -->
-  <!-- <script src="assets/js/notification-bell.js?v=08a7ab3a" defer></script> -->
-
-  <!-- Settings Modal -->
   <script src="assets/js/settings-modal.js?v=1" defer></script>
   <script src="assets/js/mobile-nav.js?v=2" defer></script>
   <script src="assets/js/swipe-dismiss.js?v=1" defer></script>
   <script src="assets/js/cd-panel-collapse.js?v=2" defer></script>
 
-  <!-- Avatar Upload Module -->
   <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>
-
-  <!-- Node Panel (eager load so window.openNodePanel is available for search/dashboard) -->
   <script type="module" src="assets/js/node-panel.js?v=opp-schema-fix-20260329a"></script>
-
-  <!-- Node Panel Fixes -->
   <script src="assets/js/node-panel-fixes.js?v=fc09b39b-17701461543" defer></script>
-
-  <!-- Controllers -->
   <script src="assets/js/dashboard-actions.js?v=fc09b39b-1770146154f916933b2da" defer></script>
-
-  <!-- Admin People -->
   <script type="module" src="assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543"></script>
 
-  <!-- Opportunity Engine -->
   <script src="assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304"></script>
-
-  <!-- Unified Network Discovery Integration -->
   <script type="module" src="assets/js/unified-network-integration.js?v=panel-debug-20260320b"></script>
 
-  <!-- Mobile Safe Area Debug Helper -->
-  <script src="assets/js/mobile-safe-area-debug.js?v=1" defer></script>
-
-  <!-- Presence Realtime System -->
   <script src="assets/js/presence-realtime.js?v=presence-fix-20260329b" defer></script>
   <script src="assets/js/presence-ui.js?v=presence-fix-20260329b" defer></script>
 
-  <!-- BLE Passive Networking (Web) -->
   <script src="assets/js/ble-passive-networking.js?v=20260305-1" defer></script>
   <script src="assets/js/ble-ui.js?v=20260305-2" defer></script>
 
-  <!-- Web Event Presence Client -->
   <script src="assets/js/eventPresenceWeb.js?v=20260307-1" defer></script>
-
-  <!-- Event Mode Gravity (Desktop Overlay) -->
   <script src="assets/js/eventModeGravity.js?v=20260305-1" defer></script>
-
-  <!-- Quiet Mode Auto-Disable -->
   <script type="module" src="assets/js/quiet-mode-auto-disable.js?v=1"></script>
 
-  <!-- Main app boot -->
   <script type="module" src="main.js?v=fc09b39b-1770146154f916933b2da"></script>
-
-  <!-- Dashboard controller -->
   <script type="module" src="assets/js/dashboardPane.js?v=mobile-fix-20260328a"></script>
-
-  <!-- Enhanced project creation modal -->
   <script type="module" src="assets/js/enhanced-project-creation.js?v=1"></script>
 
-  <!-- Prevent old START flow from running if cached -->
   <script>
     if (window.startFlowManager) {
-      console.log('⚠️ Old START flow detected, disabling...');
       window.startFlowManager = null;
     }
   </script>
 
-  <!-- Mentor Guide System -->
   <script src="assets/js/mentor-guide.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
-  <!-- START-related scripts -->
   <script src="assets/js/start-sequence-report.js?v=3" defer></script>
   <script src="assets/js/start-onboarding.js?v=3" defer></script>
   <script src="assets/js/start-daily-digest.js?v=20260221-ie2" defer></script>
   <script src="assets/js/start-ui-enhanced.js?v=1739311200" defer></script>
 
-  <!-- Unified Notification System -->
   <script type="module" src="assets/js/realtime-collaboration.js?v=presence-fix-20260329a"></script>
   <script src="assets/js/unified-notification-system.js?v=fix-msg-20260327a" defer></script>
 
-  <!-- Daily Suggestions Engine -->
   <script type="module" src="assets/js/suggestions/index-v2.js"></script>
   <script type="module" src="assets/js/suggestions/start-integration.js?v=1"></script>
   <script type="module" src="assets/js/suggestions/navigation.js?v=1"></script>
 
-  <!-- Unified Tier Desktop Experience -->
   <script src="assets/js/graph-controller.js" defer></script>
   <script src="assets/js/command-dashboard.js?v=rm-stub-opps-20260329a" defer></script>
 
-  <!-- Wire up global functions for enhanced START UI -->
   <script>
-    window.closeStartModal = function() {
+    window.closeStartModal = function () {
       if (window.EnhancedStartUI && window.EnhancedStartUI.close) {
         window.EnhancedStartUI.close();
       }
     };
 
-    window.openStartModal = async function() {
+    window.openStartModal = async function () {
       if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
         await window.EnhancedStartUI.open();
       }
     };
   </script>
 
-  <!-- Unified logout (single source of truth) -->
   <script>
     window.doLogout = async function doLogout() {
-      if (!confirm('Are you sure you want to logout?')) return;
+      if (!confirm("Are you sure you want to logout?")) return;
 
       try {
-        console.log('🚪 Logging out...');
         if (window.handleLogout) {
           await window.handleLogout();
         } else if (window.supabase) {
@@ -882,103 +705,74 @@
           if (error) throw error;
         }
       } catch (err) {
-        console.error('❌ Logout error:', err);
-        alert('Error logging out. Please try again.');
+        console.error("Logout error:", err);
+        alert("Error logging out. Please try again.");
         return;
       }
 
       try {
-        localStorage.removeItem('start_flow_state');
-        localStorage.removeItem('chs_splash_seen_v2');
+        localStorage.removeItem("start_flow_state");
+        localStorage.removeItem("chs_splash_seen_v2");
         sessionStorage.clear();
-        window.dispatchEvent(new CustomEvent('user-logged-out'));
-      } catch (e) {
-        // ignore
-      }
+        window.dispatchEvent(new CustomEvent("user-logged-out"));
+      } catch (e) {}
 
       window.location.reload();
     };
   </script>
 
-  <!-- Keyboard accessibility for div-buttons -->
   <script>
     (function () {
       function wireKeyClick(id, onClick) {
         const el = document.getElementById(id);
         if (!el) return;
-        if (typeof onClick === 'function') el.addEventListener('click', onClick);
+        if (typeof onClick === "function") el.addEventListener("click", onClick);
 
-        el.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             el.click();
           }
         });
       }
 
-      // (Removed: btn-start-nav and btn-logout-header wiring — consolidated into command dashboard)
-
-      // Mobile bell button → open Network Reflection
-      wireKeyClick('btn-bell-mobile', () => {
+      wireKeyClick("btn-bell-mobile", () => {
         if (window.UnifiedNotifications?.showPanel) {
           window.UnifiedNotifications.showPanel();
         }
       });
 
-      // Mobile logout button
-      wireKeyClick('btn-logout-mobile', () => {
+      wireKeyClick("btn-logout-mobile", () => {
         if (window.doLogout) window.doLogout();
-      });
-
-      wireKeyClick('btn-admin-top-left', () => {
-        if (typeof window.openAdminPanel === 'function') window.openAdminPanel();
-      });
-
-      wireKeyClick('user-profile-combined', () => {
-        if (typeof window.openProfileModal === 'function') window.openProfileModal();
       });
     })();
   </script>
 
-  <!-- Initialize Notification Bell on Profile Load -->
   <script>
-    window.addEventListener('profile-loaded', (e) => {
+    window.addEventListener("profile-loaded", (e) => {
       const { profile, user } = e.detail || {};
-      if (window.NotificationBell && profile) {
-        window.NotificationBell.init(profile);
-      }
 
       if (window.UnifiedNotifications && profile) {
         window.UnifiedNotifications.init(profile, user?.id);
       }
-
-
     });
   </script>
 
-  <!-- Hidden logout-btn compatibility hook -->
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const logoutBtn = document.getElementById('logout-btn');
-      if (!logoutBtn) return;
-      logoutBtn.addEventListener('click', () => window.doLogout && window.doLogout());
-    });
-  </script>
-
-  <!-- Session Restoration Handler -->
-  <script>
-    (function() {
+    (function () {
       let lastActiveTime = Date.now();
       let restoreInFlight = false;
 
-      document.addEventListener('visibilitychange', async () => {
+      document.addEventListener("visibilitychange", async () => {
         if (document.hidden) return;
 
         const timeSinceActive = Date.now() - lastActiveTime;
+
         if (!window.__authReady) {
           lastActiveTime = Date.now();
           return;
         }
+
         if (restoreInFlight) {
           lastActiveTime = Date.now();
           return;
@@ -988,54 +782,57 @@
           restoreInFlight = true;
 
           try {
-            const { data: { session }, error } = await window.supabase.auth.getSession();
+            const {
+              data: { session },
+              error,
+            } = await window.supabase.auth.getSession();
+
             if (error) {
-              console.error('❌ Session check error:', error);
+              console.error("Session check error:", error);
               return;
             }
 
-            const loginSection = document.getElementById('login-section');
-            const mainContent  = document.getElementById('main-content');
-            const mainHeader   = document.getElementById('main-header');
+            const loginSection = document.getElementById("login-section");
+            const mainContent = document.getElementById("main-content");
 
             if (session?.user) {
-              if (loginSection && !loginSection.classList.contains('hidden')) {
-                loginSection.classList.add('hidden');
-                loginSection.classList.remove('active-tab-pane');
-                if (mainContent) mainContent.classList.remove('hidden');
-                if (mainHeader) mainHeader.classList.remove('hidden');
-                document.body.style.overflow = 'auto';
+              if (loginSection && !loginSection.classList.contains("hidden")) {
+                loginSection.classList.add("hidden");
+                loginSection.classList.remove("active-tab-pane");
+                if (mainContent) mainContent.classList.remove("hidden");
+                document.body.style.overflow = "auto";
               }
 
               if (!window.currentUserProfile) {
                 try {
                   const { data: profile } = await window.supabase
-                    .from('community')
-                    .select('*')
-                    .eq('user_id', session.user.id)
+                    .from("community")
+                    .select("*")
+                    .eq("user_id", session.user.id)
                     .limit(1);
 
                   if (profile && profile.length > 0) {
                     window.currentUserProfile = profile[0];
-                    window.dispatchEvent(new CustomEvent('profile-loaded', {
-                      detail: { user: session.user, profile: profile[0] }
-                    }));
+                    window.dispatchEvent(
+                      new CustomEvent("profile-loaded", {
+                        detail: { user: session.user, profile: profile[0] },
+                      })
+                    );
                   }
                 } catch (e) {
-                  console.error('❌ Error reloading profile:', e);
+                  console.error("Error reloading profile:", e);
                 }
               }
             } else {
-              if (loginSection && loginSection.classList.contains('hidden')) {
-                loginSection.classList.remove('hidden');
-                loginSection.classList.add('active-tab-pane');
-                if (mainContent) mainContent.classList.add('hidden');
-                if (mainHeader) mainHeader.classList.add('hidden');
-                document.body.style.overflow = 'hidden';
+              if (loginSection && loginSection.classList.contains("hidden")) {
+                loginSection.classList.remove("hidden");
+                loginSection.classList.add("active-tab-pane");
+                if (mainContent) mainContent.classList.add("hidden");
+                document.body.style.overflow = "hidden";
               }
             }
           } catch (e) {
-            console.error('❌ Error checking session:', e);
+            console.error("Error checking session:", e);
           } finally {
             restoreInFlight = false;
           }
@@ -1050,354 +847,46 @@
     })();
   </script>
 
-  <!-- Search input mobile keyboard behavior (no global scroll locks) -->
   <script>
-    (function() {
-      const searchInput = document.getElementById('global-search');
-      const searchContainer = document.getElementById('centered-search-container');
+    (function () {
+      const searchInput = document.getElementById("global-search");
+      const searchContainer = document.getElementById("centered-search-container");
       if (!searchInput || !searchContainer) return;
 
       function lockHorizontalOnly(lock) {
-        // Only prevent sideways drift; do NOT hard-freeze the page with position:fixed.
-        document.documentElement.style.overflowX = lock ? 'hidden' : '';
-        document.body.style.overflowX = lock ? 'hidden' : '';
+        document.documentElement.style.overflowX = lock ? "hidden" : "";
+        document.body.style.overflowX = lock ? "hidden" : "";
       }
 
-      searchInput.addEventListener('focus', () => {
+      searchInput.addEventListener("focus", () => {
         lockHorizontalOnly(true);
-        if (window.innerWidth <= 768) searchContainer.classList.add('keyboard-open');
+        if (window.innerWidth <= 768) searchContainer.classList.add("keyboard-open");
       });
 
-      searchInput.addEventListener('blur', () => {
+      searchInput.addEventListener("blur", () => {
         lockHorizontalOnly(false);
-        searchContainer.classList.remove('keyboard-open');
-      });
-
-      let lastHeight = window.innerHeight;
-      window.addEventListener('resize', () => {
-        const currentHeight = window.innerHeight;
-        if (currentHeight < lastHeight - 100 && document.activeElement === searchInput) {
-          if (window.innerWidth <= 768) searchContainer.classList.add('keyboard-open');
-        } else if (currentHeight > lastHeight + 100) {
-          searchContainer.classList.remove('keyboard-open');
-        }
-        lastHeight = currentHeight;
+        searchContainer.classList.remove("keyboard-open");
       });
     })();
   </script>
 
-
-  <!-- User Dropdown + Settings/Logout (kept; won’t spam warnings if hidden) -->
-  <script>
-    (function() {
-      setTimeout(() => {
-        const userMenu = document.getElementById('user-menu');
-        const userDropdown = document.getElementById('user-dropdown');
-        const chevron = document.getElementById('user-menu-chevron');
-        const dropdownProfile = document.getElementById('dropdown-profile');
-        const dropdownSettings = document.getElementById('dropdown-settings');
-        const dropdownLogout = document.getElementById('dropdown-logout');
-
-        // If right-side dropdown is not in use, silently exit.
-        if (!userMenu || !userDropdown) return;
-
-        let isDropdownOpen = false;
-
-        function toggleDropdown(e) {
-          e.stopPropagation();
-          e.preventDefault();
-          isDropdownOpen = !isDropdownOpen;
-
-          if (isDropdownOpen) {
-            userDropdown.style.display = 'flex';
-            if (chevron) chevron.style.transform = 'rotate(180deg)';
-            userMenu.style.background = 'rgba(0,224,255,0.15)';
-            userMenu.style.borderColor = 'rgba(0,224,255,0.5)';
-          } else {
-            userDropdown.style.display = 'none';
-            if (chevron) chevron.style.transform = 'rotate(0deg)';
-            userMenu.style.background = 'rgba(0,224,255,0.1)';
-            userMenu.style.borderColor = 'rgba(0,224,255,0.3)';
-          }
-        }
-
-        function closeDropdown() {
-          if (!isDropdownOpen) return;
-          isDropdownOpen = false;
-          userDropdown.style.display = 'none';
-          if (chevron) chevron.style.transform = 'rotate(0deg)';
-          userMenu.style.background = 'rgba(0,224,255,0.1)';
-          userMenu.style.borderColor = 'rgba(0,224,255,0.3)';
-        }
-
-        function openProfile(e) {
-          e.stopPropagation();
-          closeDropdown();
-          setTimeout(() => {
-            if (typeof window.openProfileModal === 'function') window.openProfileModal();
-          }, 100);
-        }
-
-        function openSettings(e) {
-          e.stopPropagation();
-          closeDropdown();
-
-          if (typeof window.isAdminUser === 'function' && window.isAdminUser()) {
-            if (typeof window.openAdminPanel === 'function') window.openAdminPanel();
-            else alert('Admin panel not available');
-          } else {
-            alert('Settings feature coming soon!');
-          }
-        }
-
-        function logout(e) {
-          e.stopPropagation();
-          closeDropdown();
-          if (window.doLogout) window.doLogout();
-        }
-
-        userMenu.addEventListener('click', toggleDropdown, true);
-        if (dropdownProfile) dropdownProfile.addEventListener('click', openProfile);
-        if (dropdownSettings) dropdownSettings.addEventListener('click', openSettings);
-        if (dropdownLogout) dropdownLogout.addEventListener('click', logout);
-
-        document.addEventListener('click', (e) => {
-          if (!userMenu.contains(e.target) && !userDropdown.contains(e.target)) closeDropdown();
-        });
-
-        document.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape' && isDropdownOpen) closeDropdown();
-        });
-      }, 500);
-    })();
-  </script>
-
-  <!-- START Button Logic (center overlay remains disabled; uses bell panel) -->
-  <script>
-    (function() {
-      const startContainer = document.getElementById('start-button-container');
-      const startBtn = document.getElementById('btn-start-center');
-
-      let startDismissed = sessionStorage.getItem('start_dismissed') === 'true';
-
-      function hideStartButton() {
-        if (startContainer) {
-          startContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-          startContainer.style.opacity = '0';
-          startContainer.style.transform = 'translate(-50%, -50%) scale(0.5)';
-
-          setTimeout(() => {
-            startContainer.style.display = 'none';
-          }, 500);
-        }
-
-        startDismissed = true;
-        sessionStorage.setItem('start_dismissed', 'true');
-        sessionStorage.setItem('chs_session_started', 'true');
-        localStorage.setItem('chs_start_last_used', Date.now());
-      }
-
-      if (startBtn) {
-        startBtn.addEventListener('click', async (e) => {
-          if (window.EnhancedStartUI && window.EnhancedStartUI.isOpen) {
-            e.stopPropagation();
-            e.preventDefault();
-            return;
-          }
-
-          hideStartButton();
-
-          setTimeout(async () => {
-            if (window.UnifiedNotifications && window.UnifiedNotifications.showPanel) {
-              window.UnifiedNotifications.showPanel();
-            } else if (typeof window.EnhancedStartUI !== 'undefined' && window.EnhancedStartUI.open) {
-              await window.EnhancedStartUI.open();
-            } else if (typeof window.openStartModal === 'function') {
-              window.openStartModal();
-            }
-          }, 300);
-        });
-      }
-    })();
-  </script>
-
-  <!-- Search bar drag-to-move -->
   <script>
     (function () {
-      function initSearchDrag() {
-        const container = document.getElementById('centered-search-container');
-        const handle    = document.getElementById('search-drag-handle');
-        if (!container || !handle) return;
-
-        let dragging = false;
-        let startX, startY, origLeft, origTop;
-
-        function getContainerPos() {
-          const rect = container.getBoundingClientRect();
-          const parent = container.offsetParent || document.documentElement;
-          const pr = parent.getBoundingClientRect();
-          return { left: rect.left - pr.left, top: rect.top - pr.top };
-        }
-
-        function beginDrag(clientX, clientY) {
-          if (window.innerWidth < 1024) return; // desktop only
-          dragging = true;
-          handle.style.cursor = 'grabbing';
-
-          // Disable CSS transitions during drag so movement is instant
-          container.style.transition = 'none';
-
-          const pos = getContainerPos();
-          container.style.bottom    = 'auto';
-          container.style.transform = 'none';
-          container.style.left      = pos.left + 'px';
-          container.style.top       = pos.top  + 'px';
-
-          origLeft = pos.left;
-          origTop  = pos.top;
-          startX   = clientX;
-          startY   = clientY;
-        }
-
-        let rafId = null;
-
-        function moveDrag(clientX, clientY) {
-          if (!dragging) return;
-          if (rafId) return; // skip until previous frame paints
-          rafId = requestAnimationFrame(() => {
-            rafId = null;
-            const dx = clientX - startX;
-            const dy = clientY - startY;
-            container.style.left = (origLeft + dx) + 'px';
-            container.style.top  = (origTop  + dy) + 'px';
-          });
-        }
-
-        function endDrag() {
-          dragging = false;
-          handle.style.cursor = 'grab';
-          // Re-enable CSS transitions for panel open/close animations
-          container.style.transition = '';
-        }
-
-        handle.addEventListener('mousedown', function (e) {
-          e.preventDefault();
-          beginDrag(e.clientX, e.clientY);
-        });
-        document.addEventListener('mousemove', function (e) { moveDrag(e.clientX, e.clientY); });
-        document.addEventListener('mouseup', endDrag);
-
-        handle.addEventListener('touchstart', function (e) {
-          const t = e.touches[0];
-          beginDrag(t.clientX, t.clientY);
-        }, { passive: true });
-        document.addEventListener('touchmove', function (e) {
-          if (!dragging) return;
-          const t = e.touches[0];
-          moveDrag(t.clientX, t.clientY);
-        }, { passive: true });
-        document.addEventListener('touchend', endDrag);
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSearchDrag);
-      } else {
-        initSearchDrag();
-      }
-    })();
-  </script>
-
-  <!-- Dynamic Viewport Height Detection -->
-  <script>
-    (function() {
-      function setViewportHeight() {
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-        if (window.location.search.includes('debug')) {
-          console.log(`📐 Viewport height updated: ${window.innerHeight}px (--vh: ${vh}px)`);
-        }
-      }
-
-      setViewportHeight();
-
-      let resizeTimer;
-      window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => setViewportHeight(), 100);
-      });
-
-      window.addEventListener('orientationchange', () => {
-        setTimeout(setViewportHeight, 100);
-      });
-
-      let scrollTimer;
-      window.addEventListener('scroll', () => {
-        clearTimeout(scrollTimer);
-        scrollTimer = setTimeout(() => setViewportHeight(), 150);
-      }, { passive: true });
-
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) setTimeout(setViewportHeight, 100);
-      });
-    })();
-  </script>
-
-  <!-- Portrait-only lock -->
-  <style>
-    #rotate-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 999999;
-      background: #050b15;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1.5rem;
-      color: #00e0ff;
-      font-family: sans-serif;
-      text-align: center;
-      padding: 2rem;
-    }
-    #rotate-overlay svg {
-      width: 64px;
-      height: 64px;
-      fill: #00e0ff;
-      animation: rotate-hint 1.5s ease-in-out infinite;
-    }
-    @keyframes rotate-hint {
-      0%, 100% { transform: rotate(0deg); }
-      50% { transform: rotate(-90deg); }
-    }
-    @media (max-width: 900px) and (orientation: landscape) {
-      #rotate-overlay { display: flex; }
-    }
-  </style>
-  <div id="rotate-overlay" aria-live="polite">
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zm-6.25-.77c-.59-.59-1.54-.59-2.12 0L1.75 8.11c-.59.59-.59 1.54 0 2.12l12.02 12.02c.59.59 1.54.59 2.12 0l6.36-6.36c.59-.59.59-1.54 0-2.12L10.23 1.75zm4.6 19.44L2.81 9.17l6.36-6.36 12.02 12.02-6.36 6.36zm-7.31.29C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32z"/>
-    </svg>
-    <p style="font-size: 1.1rem; font-weight: 600; margin: 0;">Please rotate your device</p>
-    <p style="font-size: 0.9rem; color: #aaa; margin: 0;">This app works best in portrait mode</p>
-  </div>
-  <script>
-    // Lock orientation via Screen Orientation API where supported (PWA / full-screen)
-    (function() {
       function tryLockPortrait() {
         const so = screen.orientation || screen.mozOrientation || screen.msOrientation;
         if (so && so.lock) {
-          so.lock('portrait').catch(() => {});
+          so.lock("portrait").catch(() => {});
         }
       }
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', tryLockPortrait);
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", tryLockPortrait);
       } else {
         tryLockPortrait();
       }
     })();
   </script>
 
-  <!-- Service Worker -->
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -1407,15 +896,5 @@
       });
     }
   </script>
-
-  <!--
-    Force rebuild Tue Feb 10 16:16:09 EST 2026
-    Note: Inline CSS blocks removed from index.html. Base.css is expected to include:
-      - .sr-only (visually hidden labels)
-      - search-suggestions responsive positioning and scroll smoothing
-      - .spin (or equivalent) + @keyframes spin for refresh icon
-  -->
-
-  <!-- (Removed: mobile bottom tab bar — functionality consolidated into command dashboard) -->
 </body>
 </html>
