@@ -1146,8 +1146,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     document.getElementById('quick-org-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      debugger; // ← PATH C: remove after confirming which handler fires
+      console.warn('[dashboardPane] PATH C quick-org-form submit fired — STALE handler, does not set created_by');
       const supabase = window.supabase;
       const currentUser = window.currentUserProfile;
+      console.log('[dashboardPane] currentUser:', currentUser?.id, '| supabase:', !!supabase);
       const errEl = document.getElementById('qorg-error');
       const btn = document.getElementById('qorg-submit');
 

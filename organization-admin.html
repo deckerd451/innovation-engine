@@ -329,41 +329,92 @@
     });
 
     // Initialize
+    // IMPORTANT: initOrganizationManager is async. The submit handler below
+    // guards against firing before init completes by calling refreshCurrentUser()
+    // inline, but we still track readiness here so the button can reflect it.
+    let _orgManagerReady = false;
     document.addEventListener('DOMContentLoaded', async () => {
       const supabase = window.supabase;
-      if (!supabase) return;
+      if (!supabase) {
+        console.error('[org-admin] Supabase client not found on window — check supabaseClient.js load order');
+        return;
+      }
 
+      console.log('[org-admin] DOMContentLoaded — initializing managers');
       await initOrganizationManager(supabase);
       await initOpportunityManager(supabase);
+      _orgManagerReady = true;
+      console.log('[org-admin] managers ready');
     });
 
     // Create Organization Form
     document.getElementById('create-org-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      debugger; // ← PROOF: remove after confirming this handler fires
+
+      const _t0 = Date.now();
+      console.group('[org-admin] create-org-form submit');
+      console.log('manager ready at submit time:', _orgManagerReady);
+      console.log('supabase URL:', window.supabase?.supabaseUrl ?? '(not found)');
+
+      // Capture session at submit time — do not rely on module-level state alone
+      const _session = await window.supabase?.auth?.getSession?.();
+      const _authUserId = _session?.data?.session?.user?.id ?? null;
+      console.log('auth user id at submit:', _authUserId);
+      if (!_authUserId) {
+        console.error('[org-admin] SUBMIT BLOCKED — no authenticated session');
+        showMessage('You must be logged in to create an organization', 'error');
+        console.groupEnd();
+        return;
+      }
 
       const industries = document.getElementById('org-industry').value
         .split(',')
         .map(i => i.trim())
         .filter(Boolean);
 
+      const payload = {
+        name: document.getElementById('org-name').value,
+        description: document.getElementById('org-description').value,
+        website: document.getElementById('org-website').value || null,
+        logo_url: document.getElementById('org-logo').value || null,
+        industry: industries.length > 0 ? industries : null,
+        size: document.getElementById('org-size').value || null,
+        location: document.getElementById('org-location').value || null,
+      };
+      console.log('payload:', payload);
+
+      if (!payload.name || payload.name.trim().length < 2) {
+        console.error('[org-admin] SUBMIT BLOCKED — name validation failed', payload.name);
+        showMessage('Organization name must be at least 2 characters', 'error');
+        console.groupEnd();
+        return;
+      }
+
+      let _createdOrg = null;
       try {
-        await createOrganization({
-          name: document.getElementById('org-name').value,
-          description: document.getElementById('org-description').value,
-          website: document.getElementById('org-website').value || null,
-          logo_url: document.getElementById('org-logo').value || null,
-          industry: industries.length > 0 ? industries : null,
-          size: document.getElementById('org-size').value || null,
-          location: document.getElementById('org-location').value || null,
-        });
+        console.log('[org-admin] calling createOrganization()...');
+        _createdOrg = await createOrganization(payload);
+        console.log('[org-admin] createOrganization() returned:', _createdOrg);
+
+        if (!_createdOrg || !_createdOrg.id) {
+          throw new Error('createOrganization returned no row — check [OrgManager] logs above');
+        }
+
+        console.log('[org-admin] SUCCESS — inserted org id:', _createdOrg.id,
+          '| created_by:', _createdOrg.created_by,
+          '| status:', _createdOrg.status,
+          '| elapsed:', Date.now() - _t0, 'ms');
+        console.groupEnd();
 
         showMessage('Organization created successfully!', 'success');
         e.target.reset();
+        setTimeout(() => { window.location.href = '/organizations.html'; }, 2000);
 
-        setTimeout(() => {
-          window.location.href = '/organizations.html';
-        }, 2000);
       } catch (error) {
+        console.error('[org-admin] createOrganization() threw:', error);
+        console.error('[org-admin] partial state — org created before throw?', _createdOrg);
+        console.groupEnd();
         showMessage(error.message || 'Failed to create organization', 'error');
       }
     });
