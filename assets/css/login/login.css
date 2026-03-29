@@ -69,7 +69,6 @@
 .ie-login-logo,
 .ie-login-title-fallback,
 .ie-login-title,
-.ie-login-subtitle,
 .ie-login-module,
 .ie-login-footer {
   position: relative;
@@ -113,12 +112,8 @@
   letter-spacing: -0.03em;
 }
 
-.ie-login-subtitle {
-  margin: 0 0 1.75rem;
-  max-width: 620px;
-  color: #b8c4d6;
-  font-size: 1.05rem;
-  line-height: 1.65;
+.ie-login-title {
+  margin-bottom: 1.75rem;
 }
 
 /* =========================
