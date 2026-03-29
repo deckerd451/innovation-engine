@@ -646,7 +646,7 @@ async function renderOpportunityPanel(nodeData) {
         ${opp.commitment ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-clock"></i> ${escapeHtml(opp.commitment)}</span>` : ''}
         ${opp.remote_ok ? `<span style="background: rgba(16,185,129,0.15); color: #10b981; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-wifi"></i> Remote OK</span>` : ''}
         ${opp.location ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(opp.location)}</span>` : ''}
-        ${opp.compensation_type ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-dollar-sign"></i> ${escapeHtml(opp.compensation_type)}${opp.compensation_range ? ': ' + escapeHtml(opp.compensation_range) : ''}</span>` : ''}
+        ${opp.compensation_type ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-dollar-sign"></i> ${escapeHtml(opp.compensation_type)}${opp.compensation_min != null ? ': ' + opp.compensation_min + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '–' + opp.compensation_max : '') : ''}</span>` : ''}
         ${deadline ? `<span style="background: rgba(239,68,68,0.15); color: #ef4444; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-calendar"></i> Due ${escapeHtml(deadline)}</span>` : ''}
       </div>
 
@@ -790,7 +790,7 @@ window.editOpportunityFromPanel = async function(oppId) {
           </div>
           <div>
             <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Compensation Range</label>
-            <input id="edit-opp-comp-range" type="text" value="${escapeHtml(opp.compensation_range || '')}" placeholder="e.g., $50k-70k"
+            <input id="edit-opp-comp-range" type="text" value="${escapeHtml(opp.compensation_min != null ? String(opp.compensation_min) + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '-' + opp.compensation_max : '') : '')}" placeholder="e.g., 50000-70000"
               style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
           </div>
         </div>
@@ -849,17 +849,22 @@ window.editOpportunityFromPanel = async function(oppId) {
     const skillsArray = parseCommaList(skillsText);
     const deadlineInput = document.getElementById('edit-opp-deadline').value;
 
+    // Parse compensation range text (e.g. "$50k-70k" or "50000") into min/max numbers
+    const compRaw = (document.getElementById('edit-opp-comp-range').value || '').trim();
+    const compNums = compRaw.match(/\d+(?:\.\d+)?/g);
+    const compMin = compNums ? (parseFloat(compNums[0]) || null) : null;
+    const compMax = (compNums && compNums[1]) ? (parseFloat(compNums[1]) || null) : null;
+
     const updates = {
       title: document.getElementById('edit-opp-title').value.trim(),
-      type: document.getElementById('edit-opp-type').value,
+      opportunity_type: document.getElementById('edit-opp-type').value,
       description: document.getElementById('edit-opp-description').value.trim(),
       skills: skillsArray.length ? skillsArray : null,
-      experience_level: document.getElementById('edit-opp-experience').value || null,
       commitment: document.getElementById('edit-opp-commitment').value || null,
       compensation_type: document.getElementById('edit-opp-compensation').value || null,
-      compensation_range: document.getElementById('edit-opp-comp-range').value.trim() || null,
+      compensation_min: compMin,
+      compensation_max: compMax,
       location: document.getElementById('edit-opp-location').value.trim() || null,
-      remote_ok: document.getElementById('edit-opp-remote').checked,
       application_deadline: deadlineInput || null,
       status: document.getElementById('edit-opp-status').value,
       updated_at: new Date().toISOString(),
