@@ -540,6 +540,25 @@
     console.log('✅ [Presence] Cleanup complete');
   }
 
+  /**
+   * Seed the lastSeenCache from a profile object that already has presence fields.
+   * Call this after fetching from community_with_last_seen so the cache is
+   * immediately populated and presence-ui.js won't overwrite with "unknown".
+   * @param {object} profile - Object with id, presence_last_seen, presence_expires_at
+   */
+  function seedFromProfile(profile) {
+    if (!profile?.id || !profile.presence_last_seen) return;
+    lastSeenCache.set(profile.id, {
+      lastSeen:  new Date(profile.presence_last_seen).getTime(),
+      expiresAt: profile.presence_expires_at
+        ? new Date(profile.presence_expires_at).getTime()
+        : null,
+    });
+    console.log(`🌱 [Presence] Seeded cache for ${profile.id} from profile fetch`);
+    // Notify UI so indicators update immediately with the correct data
+    notifyPresenceUpdate();
+  }
+
   // ============================================================================
   // EXPORTS
   // ============================================================================
@@ -552,6 +571,7 @@
     getOnlineCount,
     getMode,
     getDebugInfo,
+    seedFromProfile,
     cleanup,
   };
 

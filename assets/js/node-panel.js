@@ -1089,6 +1089,10 @@ async function renderPersonPanel(nodeData) {
     throw error;
   }
 
+  // Seed PresenceRealtime cache immediately so presence-ui.js updates
+  // use DB-sourced data rather than overwriting with "Last seen: unknown".
+  window.PresenceRealtime?.seedFromProfile(profile);
+
   // Get connection status
   let connectionStatus = 'none';
   let connectionId = null;
@@ -1249,7 +1253,7 @@ async function renderPersonPanel(nodeData) {
           </div>
         ` : ''}
 
-        ${profile.availability ? `
+        ${profile.availability && (profile.availability !== 'Available now' || isCurrentlyActive(profile)) ? `
           <div style="display: inline-block; background: rgba(0,255,136,0.2); color: #00ff88; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; margin-bottom: 1rem;">
             <i class="fas fa-circle" style="font-size: 0.5rem;"></i> ${profile.availability}
           </div>
