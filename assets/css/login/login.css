@@ -1,5 +1,5 @@
 /* =========================
-   LOGIN SCREEN LAYOUT
+   LOGIN SCREEN
 ========================= */
 
 .ie-login-screen {
@@ -21,12 +21,12 @@
 
 .ie-login-shell {
   width: 100%;
-  max-width: 680px;
+  max-width: 720px;
   min-height: 100%;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 0.75rem 0 1.25rem;
+  padding: 0.75rem 0 1rem;
   box-sizing: border-box;
 }
 
@@ -35,20 +35,20 @@
 ========================= */
 
 .ie-login-panel {
-  width: 100%;
   position: relative;
+  width: 100%;
   overflow: hidden;
   padding: 1.4rem;
   border-radius: 22px;
   border: 1px solid rgba(0, 224, 255, 0.16);
   background: linear-gradient(135deg, rgba(10, 14, 39, 0.9), rgba(16, 20, 39, 0.94));
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 18px 48px rgba(0, 0, 0, 0.5),
     0 0 24px rgba(0, 224, 255, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  animation: ieLoginFadeIn 0.42s ease;
+  animation: ieLoginFadeIn 0.4s ease;
 }
 
 .ie-login-panel::before {
@@ -62,7 +62,7 @@
 }
 
 /* =========================
-   HEADER / HERO
+   STACKING CONTEXT
 ========================= */
 
 .ie-login-kicker,
@@ -75,15 +75,19 @@
   z-index: 1;
 }
 
+/* =========================
+   HEADER
+========================= */
+
 .ie-login-kicker {
   display: inline-block;
-  margin-bottom: 0.9rem;
-  padding: 0.38rem 0.72rem;
+  margin-bottom: 0.85rem;
+  padding: 0.35rem 0.7rem;
   border-radius: 999px;
   border: 1px solid rgba(0, 224, 255, 0.24);
   background: rgba(0, 224, 255, 0.08);
   color: #9befff;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -98,18 +102,17 @@
 
 .ie-login-title-fallback {
   display: none;
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.7rem;
   color: #00e0ff;
   font-size: 1.9rem;
   font-weight: 800;
-  line-height: 1.05;
 }
 
 .ie-login-title {
   margin: 0 0 1.15rem;
   max-width: 11ch;
   color: #ffffff;
-  font-size: clamp(1.9rem, 3.6vw, 2.65rem);
+  font-size: clamp(1.85rem, 3.6vw, 2.7rem);
   font-weight: 800;
   line-height: 1.03;
   letter-spacing: -0.035em;
@@ -165,9 +168,9 @@
 
 .ie-oauth-btn:hover {
   transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
 }
 
 .ie-oauth-btn:active {
@@ -183,14 +186,14 @@
   align-items: center;
   justify-content: center;
   background: #ffffff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .ie-oauth-svg {
+  display: block;
   width: 18px;
   height: 18px;
-  display: block;
 }
 
 .ie-oauth-svg--github {
@@ -205,7 +208,7 @@
 .ie-oauth-copy {
   display: flex;
   flex-direction: column;
-  gap: 0.14rem;
+  gap: 0.12rem;
   min-width: 0;
 }
 
@@ -223,11 +226,11 @@
 }
 
 /* =========================
-   HELP TEXT / FOOTER
+   HINT / FOOTER
 ========================= */
 
 .ie-login-hint {
-  min-height: 1.15rem;
+  min-height: 1.1rem;
   margin-top: 0.8rem;
   color: #8d9ab0;
   font-size: 0.84rem;
@@ -244,7 +247,7 @@
 .ie-login-footer-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.45rem;
 }
 
 .ie-login-footer-item i {
@@ -276,8 +279,7 @@
   }
 
   .ie-login-shell {
-    padding-top: 0.4rem;
-    padding-bottom: 1rem;
+    padding: 0.35rem 0 0.9rem;
   }
 
   .ie-login-panel {
@@ -292,12 +294,18 @@
 
   .ie-login-title {
     max-width: none;
-    font-size: 1.9rem;
     margin-bottom: 1rem;
+    font-size: 1.9rem;
   }
 
   .ie-oauth-btn {
     padding: 0.82rem 0.9rem;
+  }
+
+  .ie-oauth-provider-mark {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
   }
 }
 
@@ -307,8 +315,7 @@
   }
 
   .ie-login-shell {
-    padding-top: 0.2rem;
-    padding-bottom: 0.9rem;
+    padding: 0.2rem 0 0.85rem;
   }
 
   .ie-login-panel {
@@ -316,19 +323,9 @@
     border-radius: 18px;
   }
 
-  .ie-login-logo {
-    max-width: min(100%, 340px);
-  }
-
   .ie-login-title {
-    font-size: 1.75rem;
-    line-height: 1.04;
-  }
-
-  .ie-oauth-provider-mark {
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
+    font-size: 1.72rem;
+    line-height: 1.02;
   }
 
   .ie-login-footer {
