@@ -3329,9 +3329,25 @@ window.deleteTheme = async function(themeId, themeName) {
 
 
 // ── Organization Delete ────────────────────────────────────────────────────────
-// Soft-deletes by setting status='inactive'. The SELECT RLS policy filters on
-// status='active', so the org disappears from all queries immediately.
-// Hard delete is intentionally avoided — data remains recoverable by an admin.
+// Uses a SECURITY DEFINER RPC to bypass the UPDATE RLS policy, which blocks
+// direct PATCH calls due to WITH CHECK evaluation on the new row values.
+// The RPC (deactivate_organization) does its own explicit owner check server-side.
+//
+// SQL to run once in Supabase SQL Editor:
+//
+//   CREATE OR REPLACE FUNCTION deactivate_organization(org_id UUID)
+//   RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+//   DECLARE v_community_id UUID;
+//   BEGIN
+//     SELECT id INTO v_community_id FROM community WHERE user_id = auth.uid() LIMIT 1;
+//     IF v_community_id IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
+//     IF NOT EXISTS (
+//       SELECT 1 FROM organization_members
+//       WHERE organization_id = org_id AND community_id = v_community_id
+//         AND role = 'owner' AND status = 'active'
+//     ) THEN RAISE EXCEPTION 'Permission denied: only the owner can remove this organization'; END IF;
+//     UPDATE organizations SET status = 'inactive', updated_at = NOW() WHERE id = org_id;
+//   END; $$;
 
 window._deleteOrgFromPanel = async function(orgId, orgName) {
   const confirmed = confirm(
@@ -3339,25 +3355,20 @@ window._deleteOrgFromPanel = async function(orgId, orgName) {
   );
   if (!confirmed) return;
 
-  console.log('[node-panel] _deleteOrgFromPanel: soft-deleting', orgId, orgName);
+  console.log('[node-panel] _deleteOrgFromPanel: calling deactivate_organization RPC', orgId, orgName);
 
-  const { error } = await supabase
-    .from('organizations')
-    .update({ status: 'inactive', updated_at: new Date().toISOString() })
-    .eq('id', orgId);
+  const { error } = await supabase.rpc('deactivate_organization', { org_id: orgId });
 
   if (error) {
-    console.error('[node-panel] _deleteOrgFromPanel: update failed', error);
+    console.error('[node-panel] _deleteOrgFromPanel: RPC failed', error);
     alert('Failed to remove organization: ' + error.message);
     return;
   }
 
   console.log('[node-panel] _deleteOrgFromPanel: succeeded — org is now inactive');
 
-  // Close the panel first so there's no stale UI
   if (typeof closeNodePanel === 'function') closeNodePanel();
 
-  // Refresh the synapse graph and org list
   if (typeof window.reloadAllData === 'function') {
     await window.reloadAllData();
     if (typeof window.rebuildGraph === 'function') await window.rebuildGraph();
