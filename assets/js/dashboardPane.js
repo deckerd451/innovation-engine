@@ -1178,7 +1178,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           description: document.getElementById('qorg-description').value.trim() || null,
           industry,
           location: document.getElementById('qorg-location').value.trim() || null,
-          website: document.getElementById('qorg-website').value.trim() || null
+          website: document.getElementById('qorg-website').value.trim() || null,
+          status: 'active'
         }]).select().single();
 
         if (orgErr) throw orgErr;
@@ -2193,7 +2194,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           industry: industry && industry.length ? industry : null,
           location: location || null,
           website: website || null,
-          created_by: state.communityProfile.id
+          created_by: state.communityProfile.id,
+          status: 'active'
         }])
         .select()
         .single();
