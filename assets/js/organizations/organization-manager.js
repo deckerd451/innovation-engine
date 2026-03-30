@@ -568,11 +568,56 @@ export async function getOrganizations(filters = {}) {
 
     const { data: organizations, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      // PGRST205 = view/table not found in schema cache (view was never created in live DB)
+      if (error.code === "PGRST205" || error.message?.includes("active_organizations_summary")) {
+        console.warn(
+          "[org-manager] active_organizations_summary view not found — falling back to direct organizations query. " +
+          "Run the CREATE VIEW SQL in Supabase to fix this permanently."
+        );
+        return getOrganizationsDirect(filters);
+      }
+      throw error;
+    }
 
     return organizations || [];
   } catch (error) {
     console.error("Error fetching organizations:", error);
+    return [];
+  }
+}
+
+/**
+ * Fallback query used when active_organizations_summary view doesn't exist.
+ * Queries the organizations table directly.
+ */
+async function getOrganizationsDirect(filters = {}) {
+  try {
+    let query = supabase
+      .from("organizations")
+      .select("id, name, slug, description, logo_url, industry, size, location, follower_count, opportunity_count, verified, status")
+      .eq("status", "active");
+
+    if (filters.industry) query = query.contains("industry", [filters.industry]);
+    if (filters.size) query = query.eq("size", filters.size);
+    if (filters.location) query = query.ilike("location", `%${filters.location}%`);
+    if (filters.verified !== undefined) query = query.eq("verified", filters.verified);
+    if (filters.search) {
+      query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+    }
+
+    const sortBy = filters.sortBy || "follower_count";
+    const sortOrder = filters.sortOrder || "desc";
+    query = query.order(sortBy, { ascending: sortOrder === "asc" });
+
+    if (filters.limit) query = query.limit(filters.limit);
+    if (filters.offset) query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("[org-manager] getOrganizationsDirect fallback also failed:", error);
     return [];
   }
 }
