@@ -94,25 +94,18 @@ DROP POLICY IF EXISTS "Organization admins can update" ON organizations;
 CREATE POLICY "Organization admins can update"
   ON organizations FOR UPDATE
   USING (
-    id IN (
-      SELECT om.organization_id
+    EXISTS (
+      SELECT 1
       FROM organization_members om
       JOIN community c ON c.id = om.community_id
-      WHERE c.user_id = auth.uid()
-        AND om.role IN ('owner', 'admin')
-        AND om.status = 'active'
-    )
-  )
-  WITH CHECK (
-    id IN (
-      SELECT om.organization_id
-      FROM organization_members om
-      JOIN community c ON c.id = om.community_id
-      WHERE c.user_id = auth.uid()
+      WHERE om.organization_id = organizations.id
+        AND c.user_id = auth.uid()
         AND om.role IN ('owner', 'admin')
         AND om.status = 'active'
     )
   );
+-- No WITH CHECK — PostgreSQL reuses USING automatically.
+-- EXISTS used instead of id IN (...) for clarity and index efficiency.
 
 -- Allow org owners to soft-delete (set status = 'inactive') their own org.
 DROP POLICY IF EXISTS "Org owners can deactivate organizations" ON organizations;
