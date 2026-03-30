@@ -937,23 +937,51 @@ async function renderOrganizationPanel(nodeData) {
     const { data: memberData, error: membersError } = await supabase
       .from('organization_members')
       .select(`
+        community_id,
         role,
+        status,
         community:community_id(id, name, image_url)
       `)
-      .eq('organization_id', orgId);
+      .eq('organization_id', orgId)
+      .eq('status', 'active');
 
     if (!membersError && memberData) {
       members = memberData;
+    } else if (membersError) {
+      console.warn('[node-panel] org members query error:', membersError);
     }
   } catch (e) {
-    console.warn('Could not load organization members:', e);
+    console.warn('[node-panel] Could not load organization members:', e);
   }
 
-  renderOrganizationContent(org, members);
+  // Derive current user's membership from the fetched rows (no extra query)
+  const currentCommunityId = currentUserProfile?.id ?? null;
+  console.log('[node-panel] renderOrganizationPanel', {
+    orgId,
+    currentCommunityId,
+    memberCount: members.length,
+    memberCommunityIds: members.map(m => m.community_id),
+  });
+
+  renderOrganizationContent(org, members, currentCommunityId);
 }
 
-function renderOrganizationContent(org, members) {
+function renderOrganizationContent(org, members, currentCommunityId) {
   const initials = org.name ? org.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'ORG';
+
+  // Derive membership state from the fetched rows — no extra DB call
+  const myMember = currentCommunityId
+    ? members.find(m => m.community_id === currentCommunityId)
+    : null;
+  const isOwnerOrAdmin = !!(myMember && (myMember.role === 'owner' || myMember.role === 'admin'));
+  const isAlreadyMember = !!myMember;
+
+  console.log('[node-panel] renderOrganizationContent permission check', {
+    currentCommunityId,
+    myMember,
+    isOwnerOrAdmin,
+    isAlreadyMember,
+  });
 
   let html = `
     <div class="node-panel-body" style="padding: 2rem;">
@@ -1044,12 +1072,38 @@ function renderOrganizationContent(org, members) {
       `}
     </div>
 
-    <!-- Join Button -->
-    <div class="node-panel-actions" style="border-color: rgba(168,85,247,0.3);">
-      <button onclick="if(typeof joinOrganization === 'function') joinOrganization('${escapeHtml(org.id)}'); else if(typeof window.joinOrganization === 'function') window.joinOrganization('${escapeHtml(org.id)}'); else alert('Join feature unavailable');"
-        style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-        <i class="fas fa-plus"></i> Join Organization
-      </button>
+    <!-- Action Bar -->
+    <div class="node-panel-actions" style="border-color: rgba(168,85,247,0.3); display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem 1.5rem;">
+
+      ${isOwnerOrAdmin ? `
+        <!-- Edit button — only visible to owners and admins -->
+        <button
+          onclick="window._openOrgEditPanel('${escapeHtml(org.id)}')"
+          style="width:100%; padding:0.9rem; background:linear-gradient(135deg,#a855f7,#8b5cf6);
+                 border:none; border-radius:12px; color:white; font-weight:bold; font-size:1rem;
+                 cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+          <i class="fas fa-edit"></i> Edit Organization
+        </button>
+      ` : ''}
+
+      ${!isAlreadyMember ? `
+        <!-- Join button — hidden from existing members -->
+        <button
+          onclick="if(typeof joinOrganization==='function') joinOrganization('${escapeHtml(org.id)}'); else if(typeof window.joinOrganization==='function') window.joinOrganization('${escapeHtml(org.id)}'); else alert('Join feature unavailable');"
+          style="width:100%; padding:0.9rem; background:${isOwnerOrAdmin ? 'transparent' : 'linear-gradient(135deg,#a855f7,#8b5cf6)'};
+                 border:${isOwnerOrAdmin ? '1px solid rgba(168,85,247,0.4)' : 'none'};
+                 border-radius:12px; color:white; font-weight:bold; font-size:1rem;
+                 cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+          <i class="fas fa-plus"></i> Join Organization
+        </button>
+      ` : `
+        <!-- Already a member badge -->
+        <div style="text-align:center; color:rgba(168,85,247,0.8); font-size:0.9rem; padding:0.5rem 0;">
+          <i class="fas fa-check-circle"></i>
+          You are a member${myMember.role === 'owner' ? ' (Owner)' : myMember.role === 'admin' ? ' (Admin)' : ''}
+        </div>
+      `}
+
     </div>
   `;
 
@@ -3258,6 +3312,182 @@ window.deleteTheme = async function(themeId, themeName) {
     console.error('Error deleting theme:', error);
     alert('Failed to delete theme. Please try again.');
   }
+};
+
+
+// ── Organization Edit Modal ────────────────────────────────────────────────────
+// Opens an overlay edit form pre-populated with the org's current fields.
+// Saves via supabase.from('organizations').update(...) and re-renders the panel.
+
+window._openOrgEditPanel = async function(orgId) {
+  // Fetch fresh org data to pre-populate the form
+  const { data: org, error } = await supabase
+    .from('organizations')
+    .select('*')
+    .eq('id', orgId)
+    .single();
+
+  if (error || !org) {
+    console.error('[node-panel] _openOrgEditPanel: failed to load org', error);
+    alert('Could not load organization data.');
+    return;
+  }
+
+  console.log('[node-panel] _openOrgEditPanel: opening edit for', org.id, org.name);
+
+  // Remove any existing modal
+  document.getElementById('org-edit-panel-overlay')?.remove();
+
+  const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const inp = [
+    'width:100%','padding:0.6rem 0.75rem','box-sizing:border-box',
+    'background:rgba(168,85,247,0.07)','border:1px solid rgba(168,85,247,0.3)',
+    'border-radius:8px','color:white','font-size:0.875rem','font-family:inherit',
+  ].join(';');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'org-edit-panel-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:20000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+
+  overlay.innerHTML = `
+    <div style="background:rgba(12,16,40,0.99);border:1px solid rgba(168,85,247,0.4);
+                border-radius:16px;padding:1.75rem;width:min(520px,94vw);
+                max-height:90vh;overflow-y:auto;position:relative;">
+
+      <button id="_oeClose" style="position:absolute;top:0.9rem;right:0.9rem;
+        background:none;border:none;color:#aaa;font-size:1.1rem;cursor:pointer;">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <h2 style="color:#a855f7;margin:0 0 1.25rem;font-size:1.2rem;">
+        <i class="fas fa-edit"></i> Edit Organization
+      </h2>
+
+      <form id="org-edit-panel-form" autocomplete="off">
+
+        <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">Name *</label>
+        <input id="_oeName" required value="${esc(org.name)}" style="${inp};margin-bottom:1rem;">
+
+        <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">Description</label>
+        <textarea id="_oeDesc" rows="3" style="${inp};margin-bottom:1rem;resize:vertical;">${esc(org.description ?? '')}</textarea>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">Location</label>
+            <input id="_oeLoc" value="${esc(org.location ?? '')}" placeholder="e.g. Charleston, SC" style="${inp}">
+          </div>
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">Size</label>
+            <select id="_oeSize" style="${inp}">
+              <option value="">— select —</option>
+              ${['startup','small','medium','large','enterprise'].map(s =>
+                `<option value="${s}"${org.size===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+
+        <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">Industry (comma-separated)</label>
+        <input id="_oeInd" value="${esc((org.industry??[]).join(', '))}" placeholder="e.g. Technology, Education" style="${inp};margin-bottom:1rem;">
+
+        <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">Website</label>
+        <input id="_oeWeb" type="url" value="${esc(org.website ?? '')}" placeholder="https://..." style="${inp};margin-bottom:1rem;">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:1.25rem;">
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">LinkedIn</label>
+            <input id="_oeLI" type="url" value="${esc(org.linkedin_url??'')}" style="${inp}">
+          </div>
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">Twitter</label>
+            <input id="_oeTW" type="url" value="${esc(org.twitter_url??'')}" style="${inp}">
+          </div>
+          <div>
+            <label style="display:block;color:#aaa;margin-bottom:0.35rem;font-size:0.8rem;">GitHub</label>
+            <input id="_oeGH" type="url" value="${esc(org.github_url??'')}" style="${inp}">
+          </div>
+        </div>
+
+        <div id="_oeErr" style="display:none;color:#f44336;background:rgba(244,67,54,0.1);
+          border-radius:6px;padding:0.6rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;"></div>
+
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+          <button type="button" id="_oeCancel"
+            style="padding:0.65rem 1.1rem;background:transparent;border:1px solid rgba(255,255,255,0.2);
+                   border-radius:8px;color:#aaa;cursor:pointer;font-size:0.875rem;">
+            Cancel
+          </button>
+          <button type="submit" id="_oeSave"
+            style="padding:0.65rem 1.25rem;background:linear-gradient(135deg,#a855f7,#8b5cf6);
+                   border:none;border-radius:8px;color:white;font-weight:600;cursor:pointer;font-size:0.875rem;">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Close handlers
+  const close = () => overlay.remove();
+  document.getElementById('_oeClose').addEventListener('click', close);
+  document.getElementById('_oeCancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  // Submit handler
+  document.getElementById('org-edit-panel-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('_oeErr');
+    const saveBtn = document.getElementById('_oeSave');
+    errEl.style.display = 'none';
+
+    const indRaw = document.getElementById('_oeInd').value.trim();
+    const updates = {
+      name:         document.getElementById('_oeName').value.trim(),
+      description:  document.getElementById('_oeDesc').value.trim() || null,
+      location:     document.getElementById('_oeLoc').value.trim() || null,
+      size:         document.getElementById('_oeSize').value || null,
+      industry:     indRaw ? indRaw.split(',').map(s => s.trim()).filter(Boolean) : null,
+      website:      document.getElementById('_oeWeb').value.trim() || null,
+      linkedin_url: document.getElementById('_oeLI').value.trim() || null,
+      twitter_url:  document.getElementById('_oeTW').value.trim() || null,
+      github_url:   document.getElementById('_oeGH').value.trim() || null,
+      updated_at:   new Date().toISOString(),
+    };
+
+    if (!updates.name || updates.name.length < 2) {
+      errEl.textContent = 'Name must be at least 2 characters.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    console.log('[node-panel] org edit save — orgId:', orgId, '| payload:', updates);
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('organizations')
+      .update(updates)
+      .eq('id', orgId)
+      .select()
+      .single();
+
+    if (updateErr) {
+      console.error('[node-panel] org update failed:', updateErr);
+      errEl.textContent = updateErr.message || 'Save failed — check console.';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+      return;
+    }
+
+    console.log('[node-panel] org update succeeded:', updated);
+    close();
+
+    // Re-render the panel with fresh data
+    await loadNodeDetails({ id: 'org:' + orgId, type: 'organization', name: updated.name });
+  });
 };
 
 
