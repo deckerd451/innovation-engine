@@ -974,6 +974,7 @@ function renderOrganizationContent(org, members, currentCommunityId) {
     ? members.find(m => m.community_id === currentCommunityId)
     : null;
   const isOwnerOrAdmin = !!(myMember && (myMember.role === 'owner' || myMember.role === 'admin'));
+  const isOwner = !!(myMember && myMember.role === 'owner');
   const isAlreadyMember = !!myMember;
 
   console.log('[node-panel] renderOrganizationContent permission check', {
@@ -1076,13 +1077,25 @@ function renderOrganizationContent(org, members, currentCommunityId) {
     <div class="node-panel-actions" style="border-color: rgba(168,85,247,0.3); display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem 1.5rem;">
 
       ${isOwnerOrAdmin ? `
-        <!-- Edit button — only visible to owners and admins -->
+        <!-- Edit button — visible to owners and admins -->
         <button
           onclick="window._openOrgEditPanel('${escapeHtml(org.id)}')"
           style="width:100%; padding:0.9rem; background:linear-gradient(135deg,#a855f7,#8b5cf6);
                  border:none; border-radius:12px; color:white; font-weight:bold; font-size:1rem;
                  cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
           <i class="fas fa-edit"></i> Edit Organization
+        </button>
+      ` : ''}
+
+      ${isOwner ? `
+        <!-- Remove button — owners only; soft-deletes by setting status=inactive -->
+        <button
+          onclick="window._deleteOrgFromPanel('${escapeHtml(org.id)}', '${escapeHtml(org.name)}')"
+          style="width:100%; padding:0.75rem; background:transparent;
+                 border:1px solid rgba(244,67,54,0.5); border-radius:12px;
+                 color:#f44336; font-weight:600; font-size:0.9rem;
+                 cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+          <i class="fas fa-trash-alt"></i> Remove Organization
         </button>
       ` : ''}
 
@@ -3314,6 +3327,42 @@ window.deleteTheme = async function(themeId, themeName) {
   }
 };
 
+
+// ── Organization Delete ────────────────────────────────────────────────────────
+// Soft-deletes by setting status='inactive'. The SELECT RLS policy filters on
+// status='active', so the org disappears from all queries immediately.
+// Hard delete is intentionally avoided — data remains recoverable by an admin.
+
+window._deleteOrgFromPanel = async function(orgId, orgName) {
+  const confirmed = confirm(
+    `Remove "${orgName}"?\n\nThis will deactivate the organization and hide it from all listings. This can be undone by an admin.`
+  );
+  if (!confirmed) return;
+
+  console.log('[node-panel] _deleteOrgFromPanel: soft-deleting', orgId, orgName);
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({ status: 'inactive', updated_at: new Date().toISOString() })
+    .eq('id', orgId);
+
+  if (error) {
+    console.error('[node-panel] _deleteOrgFromPanel: update failed', error);
+    alert('Failed to remove organization: ' + error.message);
+    return;
+  }
+
+  console.log('[node-panel] _deleteOrgFromPanel: succeeded — org is now inactive');
+
+  // Close the panel first so there's no stale UI
+  if (typeof closeNodePanel === 'function') closeNodePanel();
+
+  // Refresh the synapse graph and org list
+  if (typeof window.reloadAllData === 'function') {
+    await window.reloadAllData();
+    if (typeof window.rebuildGraph === 'function') await window.rebuildGraph();
+  }
+};
 
 // ── Organization Edit Modal ────────────────────────────────────────────────────
 // Opens an overlay edit form pre-populated with the org's current fields.
