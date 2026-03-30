@@ -1146,56 +1146,49 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     document.getElementById('quick-org-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      debugger; // ← PATH C: remove after confirming which handler fires
-      console.warn('[dashboardPane] PATH C quick-org-form submit fired — STALE handler, does not set created_by');
-      const supabase = window.supabase;
-      const currentUser = window.currentUserProfile;
-      console.log('[dashboardPane] currentUser:', currentUser?.id, '| supabase:', !!supabase);
+      console.log('[OrgCreate] quick-org-form submit fired');
       const errEl = document.getElementById('qorg-error');
       const btn = document.getElementById('qorg-submit');
 
-      if (!supabase) { errEl.textContent = 'Database not available.'; errEl.style.display = 'block'; return; }
-      if (!currentUser) { errEl.textContent = 'Please log in first.'; errEl.style.display = 'block'; return; }
+      // Route through OrganizationManager — same authoritative path as organization-admin.html
+      if (!window.OrganizationManager?.createOrganization) {
+        errEl.textContent = 'Organization manager not ready. Please refresh and try again.';
+        errEl.style.display = 'block';
+        console.error('[OrgCreate] window.OrganizationManager not available');
+        return;
+      }
 
       const name = document.getElementById('qorg-name').value.trim();
       if (!name) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; return; }
 
       const industryRaw = document.getElementById('qorg-industry').value.trim();
-      const industry = industryRaw ? industryRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
-      let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const payload = {
+        name,
+        description: document.getElementById('qorg-description').value.trim() || null,
+        industry: industryRaw ? industryRaw.split(',').map(s => s.trim()).filter(Boolean) : null,
+        location: document.getElementById('qorg-location').value.trim() || null,
+        website: document.getElementById('qorg-website').value.trim() || null,
+      };
 
+      console.log('[OrgCreate] payload:', payload);
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating…';
       errEl.style.display = 'none';
 
       try {
-        const { data: existing } = await supabase.from('organizations').select('slug').eq('slug', slug).maybeSingle();
-        if (existing) slug = `${slug}-${Date.now().toString(36)}`;
-
-        const { data: org, error: orgErr } = await supabase.from('organizations').insert([{
-          name,
-          slug,
-          description: document.getElementById('qorg-description').value.trim() || null,
-          industry,
-          location: document.getElementById('qorg-location').value.trim() || null,
-          website: document.getElementById('qorg-website').value.trim() || null,
-          status: 'active'
-        }]).select().single();
-
-        if (orgErr) throw orgErr;
-
-        // Add creator as owner
-        await supabase.from('organization_members').insert([{
-          organization_id: org.id,
-          community_id: currentUser.id,
-          role: 'owner'
-        }]).then(() => {});
+        const org = await window.OrganizationManager.createOrganization(payload);
+        console.log('[OrgCreate] success — org id:', org?.id, '| created_by:', org?.created_by);
 
         if (typeof window.showNotification === 'function') {
           window.showNotification(`Organization "${name}" created!`, 'success');
         }
         overlay.remove();
+
+        // Refresh graph if available
+        if (typeof window.reloadAllData === 'function') await window.reloadAllData();
+        else if (typeof window.refreshSynapse === 'function') await window.refreshSynapse();
       } catch (err) {
+        console.error('[OrgCreate] createOrganization failed:', err);
         errEl.textContent = err.message || 'Failed to create organization.';
         errEl.style.display = 'block';
         btn.disabled = false;
@@ -2169,61 +2162,42 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       return;
     }
     
+    console.log('[OrgCreate] createOrganizationFromSearch fired');
+
+    // Route through OrganizationManager — same authoritative path as all other create flows
+    if (!window.OrganizationManager?.createOrganization) {
+      alert('Organization manager not ready. Please refresh and try again.');
+      console.error('[OrgCreate] window.OrganizationManager not available');
+      return;
+    }
+
+    const payload = {
+      name,
+      description: description || null,
+      industry: industry && industry.length ? industry : null,
+      location: location || null,
+      website: website || null,
+    };
+
+    console.log('[OrgCreate] payload:', payload);
+
     try {
-      // Generate slug
-      let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      
-      // Check if slug exists
-      const { data: existing } = await state.supabase
-        .from('organizations')
-        .select('slug')
-        .eq('slug', slug)
-        .maybeSingle();
-      
-      if (existing) {
-        slug = `${slug}-${Date.now().toString(36)}`;
-      }
-      
-      // Create organization
-      const { data: org, error } = await state.supabase
-        .from('organizations')
-        .insert([{
-          name,
-          slug,
-          description: description || null,
-          industry: industry && industry.length ? industry : null,
-          location: location || null,
-          website: website || null,
-          created_by: state.communityProfile.id,
-          status: 'active'
-        }])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Auto-follow the created organization
-      await state.supabase
-        .from('organization_followers')
-        .insert([{
-          organization_id: org.id,
-          community_id: state.communityProfile.id
-        }]);
-      
+      const org = await window.OrganizationManager.createOrganization(payload);
+      console.log('[OrgCreate] success — org id:', org?.id, '| created_by:', org?.created_by);
+
       alert('Organization created successfully!');
-      
-      // Refresh synapse
-      if (typeof window.refreshSynapse === 'function') {
-        await window.refreshSynapse();
-      }
-      
+
+      // Refresh graph/synapse
+      if (typeof window.reloadAllData === 'function') await window.reloadAllData();
+      else if (typeof window.refreshSynapse === 'function') await window.refreshSynapse();
+
       // Switch to browse tab to show the new org
       await loadOrgSearchTabContent('browse');
       const browseTab = document.querySelector('[data-org-tab="browse"]');
       if (browseTab) browseTab.click();
-      
+
     } catch (error) {
-      console.error('Error creating organization:', error);
+      console.error('[OrgCreate] createOrganization failed:', error);
       alert('Failed to create organization: ' + (error.message || 'Unknown error'));
     }
   };

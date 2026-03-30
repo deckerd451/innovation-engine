@@ -3042,6 +3042,7 @@ async function loadOrganizationsList() {
     const { data: organizations, error } = await supabase
       .from('organizations')
       .select('*')
+      .eq('status', 'active')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -3113,71 +3114,43 @@ async function loadOrganizationsList() {
 }
 
 window.deleteOrganization = async function(orgId) {
-  console.log('🗑️ Delete organization called with ID:', orgId);
+  console.log('[OrgDelete] deleteOrganization called — org id:', orgId);
 
-  if (!confirm("Are you sure you want to delete this organization? This will also remove all member associations.")) {
-    console.log('🗑️ Delete cancelled by user');
-    return;
-  }
-
-  const supabase = window.supabase;
-  if (!supabase) {
-    console.error('❌ Supabase not available');
-    
-_toast('Database connection not available');
+  if (!confirm("Remove this organization? It will be deactivated and hidden from all listings.")) {
+    console.log('[OrgDelete] cancelled by user');
     return;
   }
 
   try {
-    console.log('🗑️ Attempting to delete organization:', orgId);
-
-    // First try to delete member associations (may fail if table doesn't exist)
-    try {
-      await supabase
-        .from('organization_members')
-        .delete()
-        .eq('organization_id', orgId);
-    } catch (e) {
-      console.warn('Could not delete member associations (table may not exist):', e);
+    // Prefer OrganizationManager.deleteOrganization — it checks ownership via
+    // organization_members and soft-deletes (status='inactive') instead of hard-deleting.
+    if (window.OrganizationManager?.deleteOrganization) {
+      console.log('[OrgDelete] routing through OrganizationManager.deleteOrganization');
+      await window.OrganizationManager.deleteOrganization(orgId);
+    } else {
+      // Fallback: soft delete directly — same result, no member row deletion
+      console.warn('[OrgDelete] OrganizationManager not available — falling back to direct soft delete');
+      const supabase = window.supabase;
+      if (!supabase) throw new Error('Database not available');
+      const { error } = await supabase
+        .from('organizations')
+        .update({ status: 'inactive', updated_at: new Date().toISOString() })
+        .eq('id', orgId);
+      if (error) throw error;
     }
 
-    // Delete the organization and return the deleted row to verify it worked
-    const { data: deleted, error } = await supabase
-      .from('organizations')
-      .delete()
-      .eq('id', orgId)
-      .select();
+    console.log('[OrgDelete] organization deactivated successfully');
+    if (typeof _toast === 'function') _toast('Organization removed successfully!');
 
-    if (error) {
-      console.error('❌ Delete error:', error);
-      throw error;
-    }
+    // Refresh the admin list and graph
+    if (typeof loadOrganizationsList === 'function') loadOrganizationsList();
+    if (typeof window.reloadAllData === 'function') await window.reloadAllData();
+    else if (typeof window.refreshSynapseConnections === 'function') await window.refreshSynapseConnections();
 
-    // Check if any rows were actually deleted
-    if (!deleted || deleted.length === 0) {
-      console.error('❌ No rows deleted - RLS policy may be blocking');
-      
-_toast("Could not delete organization. You may not have permission to delete this organization.");
-      return;
-    }
-
-    console.log('✅ Organization deleted successfully:', deleted);
-    
-_toast("Organization deleted successfully!");
-
-    // Refresh the organizations list
-    if (typeof loadOrganizationsList === 'function') {
-      loadOrganizationsList();
-    }
-
-    // Refresh synapse view
-    if (typeof window.refreshSynapseConnections === 'function') {
-      await window.refreshSynapseConnections();
-    }
   } catch (error) {
-    console.error("❌ Error deleting organization:", error);
-    
-_toast("Failed to delete organization: " + (error.message || 'Unknown error'));
+    console.error('[OrgDelete] failed:', error);
+    if (typeof _toast === 'function') _toast('Failed to remove organization: ' + (error.message || 'Unknown error'));
+    else alert('Failed to remove organization: ' + (error.message || 'Unknown error'));
   }
 };
 
