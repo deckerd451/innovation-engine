@@ -4,13 +4,14 @@ import UIKit
 
 struct QRService {
 
+    // MARK: - QR Generation
+
     /// Generates a QR code for a community profile using the app route format.
     /// Format: beacon://profile/<community-id>
     static func generateQRCode(for communityId: String) -> UIImage {
         let context = CIContext()
         let filter = CIFilter.qrCodeGenerator()
 
-        // Generate app route payload
         let payload = "beacon://profile/\(communityId)"
         filter.message = Data(payload.utf8)
         filter.correctionLevel = "M"
@@ -31,41 +32,135 @@ struct QRService {
 
     // MARK: - Parsing
 
-    /// Result of parsing a scanned QR code
-    enum QRPayload {
+    enum QRPayload: Equatable {
         case profile(communityId: String)
         case event(eventId: String)
     }
 
     /// Parses a scanned QR string into a typed payload.
-    /// Supports:
-    ///   beacon://event/<event-id>
-    ///   beacon://profile/<community-uuid>
-    ///   <raw-uuid>  (legacy profile format)
+    ///
+    /// Supported formats:
+    /// - beacon://event/<event-id>
+    /// - beacon://profile/<community-id>
+    /// - https://nearify.org/join/?event=<event-id>&name=<event-name>
+    /// - raw UUID (legacy profile format)
     static func parse(from qrString: String) -> QRPayload? {
-        // Event QR
-        if qrString.hasPrefix("beacon://event/") {
-            let eventId = qrString.replacingOccurrences(of: "beacon://event/", with: "")
-            guard !eventId.isEmpty else { return nil }
-            return .event(eventId: eventId)
+        let trimmed = qrString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        #if DEBUG
+        print("[QRService] Parsing QR: \(trimmed)")
+        #endif
+
+        if let payload = parseBeaconRoute(trimmed) {
+            return payload
         }
 
-        // Profile QR (new format)
-        if qrString.hasPrefix("beacon://profile/") {
-            let communityId = qrString.replacingOccurrences(of: "beacon://profile/", with: "")
-            guard UUID(uuidString: communityId) != nil else { return nil }
-            return .profile(communityId: communityId)
+        if let payload = parseNearifyJoinURL(trimmed) {
+            return payload
         }
 
-        // Legacy: raw UUID = profile
-        guard UUID(uuidString: qrString) != nil else { return nil }
-        return .profile(communityId: qrString)
+        if UUID(uuidString: trimmed) != nil {
+            #if DEBUG
+            print("[QRService] ✅ Parsed legacy raw UUID as profile")
+            #endif
+            return .profile(communityId: trimmed)
+        }
+
+        #if DEBUG
+        print("[QRService] ❌ Unsupported QR format")
+        #endif
+        return nil
     }
 
     /// Legacy convenience — returns community ID string or nil.
-    /// Kept for backward compatibility with existing callers.
     static func parseCommunityId(from qrString: String) -> String? {
         guard case .profile(let id) = parse(from: qrString) else { return nil }
         return id
+    }
+
+    // MARK: - Private Helpers
+
+    private static func parseBeaconRoute(_ value: String) -> QRPayload? {
+        guard let components = URLComponents(string: value),
+              components.scheme?.lowercased() == "beacon" else {
+            return nil
+        }
+
+        let host = components.host?.lowercased()
+        let pathComponents = components.path
+            .split(separator: "/")
+            .map(String.init)
+
+        if host == "event" {
+            let eventId = pathComponents.first ?? ""
+            guard UUID(uuidString: eventId) != nil else {
+                #if DEBUG
+                print("[QRService] ❌ Invalid beacon event UUID")
+                #endif
+                return nil
+            }
+
+            #if DEBUG
+            print("[QRService] ✅ Parsed beacon event route")
+            #endif
+            return .event(eventId: eventId)
+        }
+
+        if host == "profile" {
+            let communityId = pathComponents.first ?? ""
+            guard UUID(uuidString: communityId) != nil else {
+                #if DEBUG
+                print("[QRService] ❌ Invalid beacon profile UUID")
+                #endif
+                return nil
+            }
+
+            #if DEBUG
+            print("[QRService] ✅ Parsed beacon profile route")
+            #endif
+            return .profile(communityId: communityId)
+        }
+
+        return nil
+    }
+
+    private static func parseNearifyJoinURL(_ value: String) -> QRPayload? {
+        guard let components = URLComponents(string: value),
+              let scheme = components.scheme?.lowercased(),
+              scheme == "https" || scheme == "http",
+              let host = components.host?.lowercased() else {
+            return nil
+        }
+
+        let allowedHosts = [
+            "nearify.org",
+            "www.nearify.org"
+        ]
+
+        guard allowedHosts.contains(host) else {
+            return nil
+        }
+
+        let normalizedPath = components.path.lowercased()
+        guard normalizedPath == "/join" || normalizedPath == "/join/" else {
+            return nil
+        }
+
+        guard let eventId = components.queryItems?
+            .first(where: { $0.name == "event" })?
+            .value?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              UUID(uuidString: eventId) != nil else {
+            #if DEBUG
+            print("[QRService] ❌ nearify join URL missing valid event param")
+            #endif
+            return nil
+        }
+
+        #if DEBUG
+        print("[QRService] ✅ Parsed nearify join URL")
+        #endif
+        return .event(eventId: eventId)
     }
 }

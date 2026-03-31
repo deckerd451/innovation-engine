@@ -19,7 +19,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		D7E94DCC2F5B21F500B71B65 /* Exceptions for "Beacon" folder in "Beacon" target */ = {
+		D7B4910E2F7C0F360046AE1A /* Exceptions for "Beacon" folder in "Beacon" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Supporting/Info.plist,
@@ -32,7 +32,7 @@
 		D7E94D862F5B1CD700B71B65 /* Beacon */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				D7E94DCC2F5B21F500B71B65 /* Exceptions for "Beacon" folder in "Beacon" target */,
+				D7B4910E2F7C0F360046AE1A /* Exceptions for "Beacon" folder in "Beacon" target */,
 			);
 			path = Beacon;
 			sourceTree = "<group>";

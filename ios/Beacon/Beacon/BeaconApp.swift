@@ -121,7 +121,7 @@ struct LoginView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("Nearlify")
+            Text("Nearify")
                 .font(.largeTitle)
                 .fontWeight(.bold)
 
