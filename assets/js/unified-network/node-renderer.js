@@ -239,11 +239,30 @@ export class NodeRenderer {
 
     const linkMerge = linkEnter.merge(linkSelection);
 
+    // --- Synapse Filter integration ---
+    // Apply filter-aware opacity/stroke on every tick so filtered edge state persists.
+    const filterState = window.__synapseFilterState;
+    const hasFilter = filterState && filterState.mode !== 'all';
+
     linkMerge
       .attr('x1', d => d.source?.x ?? 0)
       .attr('y1', d => d.source?.y ?? 0)
       .attr('x2', d => d.target?.x ?? 0)
       .attr('y2', d => d.target?.y ?? 0);
+
+    if (hasFilter) {
+      linkMerge.each(function (d) {
+        const s = d.source?.id ?? d.source;
+        const t = d.target?.id ?? d.target;
+        const key = `${s}-${t}`;
+        const el = window.d3.select(this);
+        if (filterState.activeEdgeKeys.has(key)) {
+          el.style('opacity', 0.6).style('stroke-width', '1.8px');
+        } else {
+          el.style('opacity', 0.03).style('stroke-width', '0.4px');
+        }
+      });
+    }
   }
 
   /**
@@ -356,7 +375,16 @@ export class NodeRenderer {
       
       // Use SVG transform attribute instead of CSS transform for cross-browser reliability
       element.setAttribute('transform', `translate(${d.x}, ${d.y}) scale(${visualState.scale})`);
-      element.style.opacity = visualState.opacity;
+
+      // --- Synapse Filter integration ---
+      // If a filter is active, override opacity based on the filter's active/dim sets.
+      // This runs every tick so the filter persists across simulation updates.
+      const filterState = window.__synapseFilterState;
+      if (filterState && filterState.mode !== 'all') {
+        element.style.opacity = filterState.activeNodeIds.has(d.id) ? 1.0 : 0.12;
+      } else {
+        element.style.opacity = visualState.opacity;
+      }
     });
 
     // Update visual properties

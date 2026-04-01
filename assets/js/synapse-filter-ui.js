@@ -89,14 +89,24 @@ function _applyCurrentFilter() {
   if (!nodes.length) return;
 
   const filtered = computeFilteredNodeState(mode, { nodes, edges }, _userId, _extra);
-  _applyFilteredView(filtered);
+
+  // Persist filter state globally so the NodeRenderer can read it every tick.
+  // This is the canonical contract: renderer checks window.__synapseFilterState
+  // on each frame and applies opacity accordingly.
+  window.__synapseFilterState = filtered;
+
+  console.log(`[SynapseFilter] Applied: mode=${filtered.mode}, active=${filtered.activeNodeIds.size}, dim=${filtered.dimNodeIds.size}, activeEdges=${filtered.activeEdgeKeys.size}, dimEdges=${filtered.dimEdgeKeys.size}`);
+
+  // Apply edge styling via D3 (edges are not overwritten per-tick by renderLinks merge)
+  _applyFilteredEdges(filtered);
 }
 
 /**
- * Apply visual filter state to the live SVG graph.
- * Uses D3 selections on existing DOM elements — no re-init.
+ * Apply filter state to edges only.
+ * Node opacity is handled by the NodeRenderer reading window.__synapseFilterState
+ * on every tick, so we don't touch nodes here (they'd just get overwritten).
  */
-function _applyFilteredView(filtered) {
+function _applyFilteredEdges(filtered) {
   const d3 = window.d3;
   if (!d3) return;
 
@@ -105,32 +115,6 @@ function _applyFilteredView(filtered) {
 
   const isAll = filtered.mode === FILTER_MODES.ALL;
 
-  // --- Nodes ---
-  svg.selectAll('.node').each(function (d) {
-    if (!d) return;
-    const id = d.id;
-    const el = d3.select(this);
-
-    if (isAll) {
-      // Restore: remove inline filter override, let normal renderer control opacity
-      el.classed('synapse-filter-dim', false)
-        .classed('synapse-filter-active', false)
-        .transition().duration(300)
-        .style('opacity', null);
-    } else if (filtered.activeNodeIds.has(id)) {
-      el.classed('synapse-filter-dim', false)
-        .classed('synapse-filter-active', true)
-        .transition().duration(300)
-        .style('opacity', 1.0);
-    } else {
-      el.classed('synapse-filter-dim', true)
-        .classed('synapse-filter-active', false)
-        .transition().duration(300)
-        .style('opacity', 0.12);
-    }
-  });
-
-  // --- Edges ---
   svg.selectAll('.link').each(function (d) {
     if (!d) return;
     const key = _edgeKey(d);
@@ -139,15 +123,15 @@ function _applyFilteredView(filtered) {
     if (isAll) {
       el.transition().duration(300)
         .style('opacity', null)
-        .attr('stroke-width', d.status === 'accepted' ? 1.2 : 0.7);
+        .style('stroke-width', null);
     } else if (filtered.activeEdgeKeys.has(key)) {
       el.transition().duration(300)
         .style('opacity', 0.6)
-        .attr('stroke-width', 1.8);
+        .style('stroke-width', '1.8px');
     } else {
       el.transition().duration(300)
         .style('opacity', 0.03)
-        .attr('stroke-width', 0.4);
+        .style('stroke-width', '0.4px');
     }
   });
 }
