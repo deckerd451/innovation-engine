@@ -13,6 +13,7 @@ import { unifiedNetworkApi } from './unified-network/api.js?v=center-user-202603
 import { logger } from './logger.js';
 import { initializeErrorHandling } from './unified-network/error-integration.js';
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
+import { initSynapseFilterUI } from './synapse-filter-ui.js';
 
 // ------------------------------------------------------------------
 // Feature flags (read dynamically so changes apply without redeploy)
@@ -221,6 +222,13 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
     }
 
 // Emit custom event for other systems
+
+    // Initialize Synapse filter bar (graph lens chips)
+    try {
+      initSynapseFilterUI(communityId);
+    } catch (filterErr) {
+      logger.warn(INTEGRATION_NS, 'Synapse filter UI init failed (non-fatal):', filterErr);
+    }
 
     window.dispatchEvent(
       new CustomEvent('unified-network-ready', {
