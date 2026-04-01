@@ -815,6 +815,8 @@
             const mainContent = document.getElementById("main-content");
 
             if (session?.user) {
+              // Only manipulate login/app UI visibility if auth.js hasn't already
+              // done so (hasBootstrappedThisLoad tracks this via window.__authReady).
               if (loginSection && !loginSection.classList.contains("hidden")) {
                 loginSection.classList.add("hidden");
                 loginSection.classList.remove("active-tab-pane");
@@ -822,7 +824,14 @@
                 document.body.style.overflow = "auto";
               }
 
-              if (!window.currentUserProfile) {
+              // Only re-dispatch profile-loaded if systems haven't been initialized
+              // yet. Re-dispatching while all init flags are set would re-trigger 14+
+              // profile-loaded listeners uselessly and could confuse single-flight guards
+              // that reset themselves on error.
+              const systemsAlreadyUp = window.__IE_PRESENCE_INIT__ &&
+                                       window.__IE_UNIFIED_INIT__ &&
+                                       window.__IE_DESKTOP_DASHBOARD_INIT__;
+              if (!window.currentUserProfile && !systemsAlreadyUp) {
                 try {
                   const { data: profile } = await window.supabase
                     .from("community")

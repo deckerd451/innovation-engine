@@ -14,10 +14,17 @@
 
   const GUARD = '__CH_PRESENCE_UI_LOADED__';
   if (window[GUARD]) {
-    console.log('⚠️ Presence UI already loaded');
+    console.warn('⚠️ Presence UI already loaded');
     return;
   }
   window[GUARD] = true;
+
+  const _log = window.log ?? {
+    debug: () => {},
+    info:  (...a) => console.info(...a),
+    warn:  (...a) => console.warn(...a),
+    error: (...a) => console.error(...a),
+  };
 
   let updateInterval = null;
   const UPDATE_INTERVAL = 5 * 1000; // Update UI every 5 seconds
@@ -26,7 +33,7 @@
    * Initialize presence UI system
    */
   async function init(supabaseClient, currentUserId = null) {
-    console.log('👁️ [PresenceUI] Initializing...');
+    _log.debug('👁️ [PresenceUI] Initializing...');
 
     // Store current user ID globally for presence checks
     if (currentUserId) {
@@ -35,15 +42,17 @@
 
     // Wait for PresenceRealtime to be available
     if (!window.PresenceRealtime) {
-      console.warn('⚠️ [PresenceUI] PresenceRealtime not loaded yet, waiting...');
+      _log.warn('⚠️ [PresenceUI] PresenceRealtime not loaded yet, waiting...');
       await waitForPresenceRealtime();
     }
 
     // Initial update
     updateAllIndicators();
 
-    // Update periodically (UI refresh only, no network calls)
-    updateInterval = setInterval(() => {
+    // Update periodically (UI refresh only, no network calls).
+    // Use visibilitySetInterval so the timer pauses when the tab is hidden.
+    const _vsi = window.visibilitySetInterval || setInterval;
+    updateInterval = _vsi(() => {
       updateAllIndicators();
     }, UPDATE_INTERVAL);
 
@@ -59,7 +68,7 @@
       }
     });
 
-    console.log('✅ [PresenceUI] Initialized');
+    _log.info('✅ [PresenceUI] Initialized');
   }
 
   /**
@@ -245,7 +254,8 @@
    */
   window.addEventListener('beforeunload', () => {
     if (updateInterval) {
-      clearInterval(updateInterval);
+      const _vci = window.visibilityClearInterval || clearInterval;
+      _vci(updateInterval);
     }
   });
 
@@ -261,5 +271,5 @@
     isOnline: (userId) => window.PresenceRealtime?.isOnline(userId) || false
   };
 
-  console.log('✅ Presence UI module loaded');
+  _log.info('✅ Presence UI module loaded');
 })();
