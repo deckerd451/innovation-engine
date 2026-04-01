@@ -22,6 +22,15 @@
   }
   window[GUARD] = true;
 
+  // Debug-gated logger: verbose logs only appear when DEBUG=1 or ?debug=1.
+  // Errors and warnings always surface.
+  const _log = window.log ?? {
+    debug: (...a) => {},          // suppressed in production
+    info:  (...a) => console.info(...a),
+    warn:  (...a) => console.warn(...a),
+    error: (...a) => console.error(...a),
+  };
+
   // ============================================================================
   // CONFIGURATION
   // ============================================================================
@@ -52,6 +61,9 @@
   let pollingInterval = null;
   let lastSeenUpdateInterval = null;
   let lastSeenUpdateTimeout = null;
+  // Debounce guard: prevents duplicate track() calls when the channel
+  // reconnects and handleVisibilityChange fire in the same tick.
+  let _pendingTrackTimer = null;
   
   // Online users from Realtime Presence
   const onlineUsers = new Map(); // profileId -> presence state
@@ -77,7 +89,7 @@
     supabase = supabaseClient;
     communityProfileId = profileId;
 
-    console.log('🔌 [Presence] Initializing for profile:', profileId);
+    _log.debug('🔌 [Presence] Initializing for profile:', profileId);
 
     // Register with realtimeManager
     if (window.realtimeManager) {
@@ -85,9 +97,9 @@
         'presence:global',
         (supabase, context) => createPresenceChannel(supabase, context)
       );
-      console.log('✅ [Presence] Registered with realtimeManager');
+      _log.debug('✅ [Presence] Registered with realtimeManager');
     } else {
-      console.warn('⚠️ [Presence] realtimeManager not available, creating channel directly');
+      _log.warn('⚠️ [Presence] realtimeManager not available, creating channel directly');
       await createPresenceChannel(supabase, { communityUser: { id: profileId } });
     }
 
@@ -102,7 +114,7 @@
     window.addEventListener('beforeunload', handlePageHide);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    console.log('✅ [Presence] Initialization complete');
+    _log.info('✅ [Presence] Initialization complete');
   }
 
   // ============================================================================
@@ -120,7 +132,7 @@
       return null;
     }
 
-    console.log('🔌 [Presence] Creating Realtime Presence channel for profile:', profileId);
+    _log.debug('🔌 [Presence] Creating Realtime Presence channel for profile:', profileId);
 
     // Use internal channel method if dev guard is active
     const channelFn = supabaseClient._internalChannel || supabaseClient.channel;
@@ -141,33 +153,32 @@
         handlePresenceSync(state);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        console.log('👋 [Presence] User joined:', key);
         handlePresenceJoin(key, newPresences);
       })
       .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        console.log('👋 [Presence] User left:', key);
         handlePresenceLeave(key, leftPresences);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           isRealtimeConnected = true;
-          console.log('✅ [Presence] Realtime connected');
-          console.log('📊 [Presence] Mode: Realtime (ephemeral)');
-          console.log('🆔 [Presence] Using profile ID as key:', profileId);
-          
-          // Track current user as online (key is already set in channel config)
+          _log.debug('✅ [Presence] Realtime connected — mode: Realtime (ephemeral), profile:', profileId);
+
+          // Debounce: cancel any pending track() from handleVisibilityChange
+          // so the subscribe callback and visibility handler don't both fire
+          // in the same reconnect cycle, causing a spurious leave+join.
+          if (_pendingTrackTimer) {
+            clearTimeout(_pendingTrackTimer);
+            _pendingTrackTimer = null;
+          }
           await presenceChannel.track({
             profile_id: profileId,
             online_at: new Date().toISOString(),
           });
-          
-          console.log('✅ [Presence] Tracked with profile ID:', profileId);
-          
+
           // Cancel mobile fallback
           if (pollingInterval) {
             clearInterval(pollingInterval);
             pollingInterval = null;
-            console.log('✅ [Presence] Polling fallback cancelled');
           }
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           isRealtimeConnected = false;
@@ -199,7 +210,7 @@
       }
     }
 
-    console.log(`📊 [Presence] Sync: ${count} users online`);
+    _log.debug(`📊 [Presence] Sync: ${count} users online`);
     
     // Notify UI to update
     notifyPresenceUpdate();
@@ -215,7 +226,7 @@
       const profileId = presence.profile_id;
       if (profileId) {
         onlineUsers.set(profileId, presence);
-        console.log('👋 [Presence] User joined with profile ID:', profileId);
+        _log.debug('👋 [Presence] User joined with profile ID:', profileId);
         notifyPresenceUpdate();
       }
     }
@@ -231,7 +242,7 @@
       const profileId = presence.profile_id;
       if (profileId) {
         onlineUsers.delete(profileId);
-        console.log('👋 [Presence] User left with profile ID:', profileId);
+        _log.debug('👋 [Presence] User left with profile ID:', profileId);
         notifyPresenceUpdate();
       }
     }
@@ -248,7 +259,7 @@
     // Wait for realtime to connect
     setTimeout(() => {
       if (!isRealtimeConnected) {
-        console.log('📱 [Presence] Realtime not connected, enabling polling fallback');
+        _log.debug('📱 [Presence] Realtime not connected, enabling polling fallback');
         enablePollingFallback();
       }
     }, CONFIG.POLLING_TIMEOUT);
@@ -260,7 +271,7 @@
   function enablePollingFallback() {
     if (pollingInterval) return;
 
-    console.log('🔄 [Presence] Mode: Polling (every 60s)');
+    _log.debug('🔄 [Presence] Mode: Polling (every 60s)');
 
     // Poll immediately
     pollLastSeen();
@@ -305,7 +316,7 @@
         }
       });
 
-      console.log(`🔄 [Presence] Polled: ${data?.length || 0} users with presence`);
+      _log.debug(`🔄 [Presence] Polled: ${data?.length || 0} users with presence`);
 
       // Notify UI
       notifyPresenceUpdate();
@@ -329,7 +340,7 @@
       updateLastSeen();
     }, CONFIG.LAST_SEEN_UPDATE_INTERVAL);
 
-    console.log(`💾 [Presence] Last seen persistence: every ${CONFIG.LAST_SEEN_UPDATE_INTERVAL / 60000}min`);
+    _log.debug(`💾 [Presence] Last seen persistence: every ${CONFIG.LAST_SEEN_UPDATE_INTERVAL / 60000}min`);
   }
 
   /**
@@ -347,7 +358,7 @@
       if (error) {
         console.error('❌ [Presence] Failed to update last_seen:', error);
       } else {
-        console.log('💾 [Presence] Updated last_seen (throttled)');
+        _log.debug('💾 [Presence] Updated last_seen (throttled)');
       }
     } catch (error) {
       console.error('❌ [Presence] Error updating last_seen:', error);
@@ -358,7 +369,7 @@
    * Handle page hide (update last_seen immediately)
    */
   function handlePageHide() {
-    console.log('👋 [Presence] Page hiding, updating last_seen');
+    _log.debug('👋 [Presence] Page hiding, updating last_seen');
     
     // Update last_seen immediately using Supabase client
     // Note: sendBeacon doesn't work with Supabase because it can't send auth headers
@@ -378,17 +389,25 @@
    */
   function handleVisibilityChange() {
     if (document.hidden) {
-      console.log('😴 [Presence] Tab hidden');
       // Update last_seen when tab becomes hidden
       updateLastSeen();
     } else {
-      console.log('👀 [Presence] Tab visible');
-      // Re-track presence when tab becomes visible (key is already set in channel config)
+      // Re-track presence when tab becomes visible.
+      // Debounce with a short delay: if the Supabase channel is in the middle
+      // of reconnecting it will fire its own SUBSCRIBED callback (which also
+      // calls track()).  Letting that settle first prevents the channel from
+      // emitting a spurious leave+join pair for the local user.
       if (presenceChannel && isRealtimeConnected) {
-        presenceChannel.track({
-          profile_id: communityProfileId,
-          online_at: new Date().toISOString(),
-        });
+        if (_pendingTrackTimer) clearTimeout(_pendingTrackTimer);
+        _pendingTrackTimer = setTimeout(() => {
+          _pendingTrackTimer = null;
+          if (presenceChannel && isRealtimeConnected) {
+            presenceChannel.track({
+              profile_id: communityProfileId,
+              online_at: new Date().toISOString(),
+            });
+          }
+        }, 250);
       }
     }
   }
@@ -456,10 +475,10 @@
       return Array.from(onlineUsers.keys());
     }
 
-    // Fallback: filter last_seen cache
-    const threshold = Date.now() - CONFIG.ONLINE_THRESHOLD;
+    // Fallback: use expiresAt (authoritative) to match isOnline() logic
+    const now = Date.now();
     return Array.from(lastSeenCache.entries())
-      .filter(([_, lastSeen]) => lastSeen > threshold)
+      .filter(([_, entry]) => entry.expiresAt && entry.expiresAt > now)
       .map(([profileId]) => profileId);
   }
 
@@ -511,7 +530,7 @@
    * Cleanup
    */
   function cleanup() {
-    console.log('🧹 [Presence] Cleaning up');
+    _log.debug('🧹 [Presence] Cleaning up');
 
     // Clear intervals
     if (pollingInterval) {
@@ -529,6 +548,11 @@
       lastSeenUpdateTimeout = null;
     }
 
+    if (_pendingTrackTimer) {
+      clearTimeout(_pendingTrackTimer);
+      _pendingTrackTimer = null;
+    }
+
     // Untrack presence
     if (presenceChannel && isRealtimeConnected) {
       presenceChannel.untrack();
@@ -537,7 +561,7 @@
     // Update last_seen one final time
     updateLastSeen();
 
-    console.log('✅ [Presence] Cleanup complete');
+    _log.debug('✅ [Presence] Cleanup complete');
   }
 
   /**
@@ -554,7 +578,7 @@
         ? new Date(profile.presence_expires_at).getTime()
         : null,
     });
-    console.log(`🌱 [Presence] Seeded cache for ${profile.id} from profile fetch`);
+    _log.debug(`🌱 [Presence] Seeded cache for ${profile.id} from profile fetch`);
     // Notify UI so indicators update immediately with the correct data
     notifyPresenceUpdate();
   }
@@ -575,6 +599,6 @@
     cleanup,
   };
 
-  console.log('✅ Presence realtime module loaded');
+  _log.info('✅ Presence realtime module loaded');
 
 })();

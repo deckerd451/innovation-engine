@@ -755,7 +755,6 @@
 
       if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
         cancelSessionTimer();
-        cleanOAuthUrlSoon();
         await bootstrapForUser(session.user, event);
         return;
       }
@@ -848,7 +847,6 @@
         const session = data?.session;
         if (session?.user) {
           log("🟢 Already logged in as:", session.user.email);
-          cleanOAuthUrlSoon();
           await bootstrapForUser(session.user, "getSession");
         } else {
           log("🟡 No active session");
