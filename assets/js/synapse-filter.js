@@ -48,6 +48,22 @@ export function onFilterChange(fn) {
 export { FILTER_MODES };
 
 // ----------------------------------------------------------------
+// Per-filter visual signature
+// Each filter gets a distinct color so the user can immediately
+// tell which lens is active from the graph's color palette.
+// ----------------------------------------------------------------
+
+const FILTER_VISUALS = Object.freeze({
+  [FILTER_MODES.ALL]:       { glowColor: null,      strokeColor: null,      edgeColor: null,                        label: 'All' },
+  [FILTER_MODES.CONNECTED]: { glowColor: '#00e0ff', strokeColor: '#00e0ff', edgeColor: 'rgba(0, 224, 255, 0.55)',   label: 'Connected' },
+  [FILTER_MODES.PROJECTS]:  { glowColor: '#00ff88', strokeColor: '#00ff88', edgeColor: 'rgba(0, 255, 136, 0.50)',   label: 'Projects' },
+  [FILTER_MODES.THEMES]:    { glowColor: '#a855f7', strokeColor: '#a855f7', edgeColor: 'rgba(168, 85, 247, 0.45)',  label: 'Themes' },
+  [FILTER_MODES.OPPS]:      { glowColor: '#ffaa00', strokeColor: '#ffaa00', edgeColor: 'rgba(255, 170, 0, 0.50)',   label: 'Opps' },
+});
+
+export { FILTER_VISUALS };
+
+// ----------------------------------------------------------------
 // Filter computation — returns { activeNodeIds, dimNodeIds,
 //   activeEdgeKeys, dimEdgeKeys }
 // ----------------------------------------------------------------
@@ -83,6 +99,7 @@ export function computeFilteredNodeState(mode, graphData, currentUserId, extra =
       dimNodeIds: new Set(),
       activeEdgeKeys: new Set(edges.map(_edgeKey)),
       dimEdgeKeys: new Set(),
+      visuals: FILTER_VISUALS[FILTER_MODES.ALL],
     };
   }
 
@@ -124,7 +141,7 @@ export function computeFilteredNodeState(mode, graphData, currentUserId, extra =
     }
   });
 
-  return { mode, activeNodeIds, dimNodeIds, activeEdgeKeys, dimEdgeKeys };
+  return { mode, activeNodeIds, dimNodeIds, activeEdgeKeys, dimEdgeKeys, visuals: FILTER_VISUALS[mode] || FILTER_VISUALS[FILTER_MODES.ALL] };
 }
 
 // ----------------------------------------------------------------

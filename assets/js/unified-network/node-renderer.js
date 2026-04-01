@@ -251,15 +251,20 @@ export class NodeRenderer {
       .attr('y2', d => d.target?.y ?? 0);
 
     if (hasFilter) {
+      const edgeColor = filterState.visuals?.edgeColor || 'rgba(0, 224, 255, 0.55)';
       linkMerge.each(function (d) {
         const s = d.source?.id ?? d.source;
         const t = d.target?.id ?? d.target;
         const key = `${s}-${t}`;
         const el = window.d3.select(this);
         if (filterState.activeEdgeKeys.has(key)) {
-          el.style('opacity', 0.6).style('stroke-width', '1.8px');
+          el.style('opacity', 0.7)
+            .style('stroke-width', '1.8px')
+            .attr('stroke', edgeColor);
         } else {
-          el.style('opacity', 0.03).style('stroke-width', '0.4px');
+          el.style('opacity', 0.02)
+            .style('stroke-width', '0.3px')
+            .attr('stroke', 'rgba(255,255,255,0.05)');
         }
       });
     }
@@ -381,33 +386,57 @@ export class NodeRenderer {
       // This runs every tick so the filter persists across simulation updates.
       const filterState = window.__synapseFilterState;
       if (filterState && filterState.mode !== 'all') {
-        element.style.opacity = filterState.activeNodeIds.has(d.id) ? 1.0 : 0.12;
+        const isActive = filterState.activeNodeIds.has(d.id);
+        element.style.opacity = isActive ? 1.0 : 0.08;
       } else {
         element.style.opacity = visualState.opacity;
       }
     });
 
     // Update visual properties
+    // --- Synapse Filter: per-filter stroke color for active nodes ---
+    const _fs = window.__synapseFilterState;
+    const _hasFilter = _fs && _fs.mode !== 'all';
+    const _filterVisuals = _hasFilter ? _fs.visuals : null;
+
     nodeMerge.select('.node-circle')
       .attr('r', d => {
         const visualState = this.getVisualState(d, state);
         return visualState.radius;
       })
       .attr('fill', d => d.color || '#4488ff')
-      .attr('stroke', d => d.isCurrentUser ? '#00e0ff' : d.isGuided ? '#00ffff' : '#ffffff')
-      .attr('stroke-width', d => d.isCurrentUser ? 3 : d.isGuided ? 3 : 1);
+      .attr('stroke', d => {
+        if (d.isCurrentUser) return '#00e0ff';
+        if (_hasFilter && _filterVisuals) {
+          return _fs.activeNodeIds.has(d.id) ? _filterVisuals.strokeColor : 'rgba(255,255,255,0.15)';
+        }
+        return d.isGuided ? '#00ffff' : '#ffffff';
+      })
+      .attr('stroke-width', d => {
+        if (d.isCurrentUser) return 3;
+        if (_hasFilter && _filterVisuals && _fs.activeNodeIds.has(d.id)) return 2.5;
+        return d.isGuided ? 3 : 1;
+      });
 
-    // Update glow
+    // Update glow — per-filter glow color for active nodes
     nodeMerge.select('.node-glow')
       .attr('r', d => {
         const visualState = this.getVisualState(d, state);
+        // Slightly larger halo for filter-active nodes
+        if (_hasFilter && _fs.activeNodeIds.has(d.id)) return visualState.radius * 1.5;
         return visualState.radius * 1.2;
       })
       .attr('fill', d => {
+        if (_hasFilter && _filterVisuals && _fs.activeNodeIds.has(d.id)) {
+          return _filterVisuals.glowColor;
+        }
         const visualState = this.getVisualState(d, state);
         return visualState.glowColor;
       })
       .attr('opacity', d => {
+        if (_hasFilter) {
+          return _fs.activeNodeIds.has(d.id) ? 0.55 : 0;
+        }
         const visualState = this.getVisualState(d, state);
         return visualState.glowIntensity;
       });

@@ -114,6 +114,7 @@ function _applyFilteredEdges(filtered) {
   if (svg.empty()) return;
 
   const isAll = filtered.mode === FILTER_MODES.ALL;
+  const edgeColor = filtered.visuals?.edgeColor || 'rgba(0, 224, 255, 0.55)';
 
   svg.selectAll('.link').each(function (d) {
     if (!d) return;
@@ -123,15 +124,18 @@ function _applyFilteredEdges(filtered) {
     if (isAll) {
       el.transition().duration(300)
         .style('opacity', null)
-        .style('stroke-width', null);
+        .style('stroke-width', null)
+        .attr('stroke', d.type === 'connection' ? 'rgba(0, 224, 255, 0.25)' : 'rgba(255, 255, 255, 0.1)');
     } else if (filtered.activeEdgeKeys.has(key)) {
       el.transition().duration(300)
-        .style('opacity', 0.6)
-        .style('stroke-width', '1.8px');
+        .style('opacity', 0.7)
+        .style('stroke-width', '1.8px')
+        .attr('stroke', edgeColor);
     } else {
       el.transition().duration(300)
-        .style('opacity', 0.03)
-        .style('stroke-width', '0.4px');
+        .style('opacity', 0.02)
+        .style('stroke-width', '0.3px')
+        .attr('stroke', 'rgba(255,255,255,0.05)');
     }
   });
 }
