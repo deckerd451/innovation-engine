@@ -173,6 +173,12 @@ window.CommandDashboard = (() => {
     // Non-blocking: re-renders compact status once data arrives.
     _loadEnrichedData();
 
+    // Re-render status when the graph finishes loading (themes count and
+    // graph-based fallback depend on graph nodes/edges being available).
+    window.addEventListener('unified-network-ready', () => {
+      _renderCompactStatus(_currentTier);
+    }, { once: true });
+
     console.log('[CommandDashboard] Initialized for userId:', userId);
   }
 
@@ -512,20 +518,25 @@ window.CommandDashboard = (() => {
     const edgeSrc = l => l.source?.id ?? l.source;
     const edgeTgt = l => l.target?.id ?? l.target;
 
-    // Direct neighbor IDs
-    const directIds = new Set();
-    links.forEach(l => {
-      if (edgeSrc(l) === userId) directIds.add(edgeTgt(l));
-      if (edgeTgt(l) === userId) directIds.add(edgeSrc(l));
-    });
-
-    // Connections: prefer Supabase-confirmed accepted peers
+    // Connections: prefer Supabase-confirmed accepted peer count.
+    // acceptedPeerIds is authoritative — no need to cross-check against
+    // graph nodes (graph may not be loaded yet).
     const _acceptedIds = _enrichedData.acceptedPeerIds;
-    const connections = (_acceptedIds ? [..._acceptedIds] : [...directIds])
-      .filter(id => {
+    let connections;
+    if (_acceptedIds) {
+      connections = _acceptedIds.size;
+    } else {
+      // Fallback: count direct person-type neighbors from graph edges
+      const directIds = new Set();
+      links.forEach(l => {
+        if (edgeSrc(l) === userId) directIds.add(edgeTgt(l));
+        if (edgeTgt(l) === userId) directIds.add(edgeSrc(l));
+      });
+      connections = [...directIds].filter(id => {
         const n = nodes.find(n => n.id === id);
         return n && n.type === 'person';
       }).length;
+    }
 
     // Projects: from Supabase (no longer in graph)
     let projects;
