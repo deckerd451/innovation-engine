@@ -7,6 +7,7 @@
 
 import {
   FILTER_MODES,
+  FILTER_VISUALS,
   getSynapseFilter,
   setSynapseFilter,
   onFilterChange,
@@ -22,6 +23,26 @@ const _extra = {
   projectCollaboratorIds: null,
   oppRelevantIds: null,
   oppSkills: null,
+};
+
+// Per-node explanation context (rebuilt on each filter application)
+// Map<nodeId, { reason: string, detail: string }>
+let _nodeContext = new Map();
+
+// Pre-computed counts per filter (updated when enrichment data loads)
+const _filterCounts = {
+  connected: 0,
+  projects: 0,
+  themes: 0,
+  opps: 0,
+};
+
+// Header labels per filter
+const FILTER_HEADERS = {
+  [FILTER_MODES.CONNECTED]: 'Your Network',
+  [FILTER_MODES.PROJECTS]:  'Collaborators',
+  [FILTER_MODES.THEMES]:    'Shared Interests',
+  [FILTER_MODES.OPPS]:      'Opportunities',
 };
 
 // ----------------------------------------------------------------
@@ -77,6 +98,7 @@ function _updateChipStates(mode) {
 function _onFilterChanged(mode) {
   _updateChipStates(mode);
   _applyCurrentFilter();
+  _updateHeader(mode);
 }
 
 function _applyCurrentFilter() {
@@ -91,15 +113,138 @@ function _applyCurrentFilter() {
   const filtered = computeFilteredNodeState(mode, { nodes, edges }, _userId, _extra);
 
   // Persist filter state globally so the NodeRenderer can read it every tick.
-  // This is the canonical contract: renderer checks window.__synapseFilterState
-  // on each frame and applies opacity accordingly.
   window.__synapseFilterState = filtered;
+
+  // Build per-node explanation context
+  _buildNodeContext(mode, nodes, filtered.activeNodeIds);
+
+  // Update count for the active filter's header
+  _updateHeader(mode, filtered.activeNodeIds.size - 1); // -1 for current user
 
   console.log(`[SynapseFilter] Applied: mode=${filtered.mode}, active=${filtered.activeNodeIds.size}, dim=${filtered.dimNodeIds.size}, activeEdges=${filtered.activeEdgeKeys.size}, dimEdges=${filtered.dimEdgeKeys.size}`);
 
-  // Apply edge styling via D3 (edges are not overwritten per-tick by renderLinks merge)
+  // Apply edge styling via D3
   _applyFilteredEdges(filtered);
 }
+
+// ----------------------------------------------------------------
+// Header + count badges
+// ----------------------------------------------------------------
+
+function _updateHeader(mode, count) {
+  const header = document.getElementById('synapse-filter-header');
+  if (!header) return;
+
+  if (mode === FILTER_MODES.ALL || !FILTER_HEADERS[mode]) {
+    header.classList.remove('visible');
+    header.textContent = '';
+    return;
+  }
+
+  const label = FILTER_HEADERS[mode];
+  const n = typeof count === 'number' ? count : (_filterCounts[mode] || 0);
+  const vis = FILTER_VISUALS[mode];
+  const color = vis?.glowColor || '#fff';
+
+  header.innerHTML = `<span style="color:${color}">${label}</span> — <span class="filter-header-count">${Math.max(0, n)}</span> people`;
+  header.classList.add('visible');
+}
+
+function _updateAllChipCounts() {
+  Object.keys(_filterCounts).forEach(mode => {
+    const badge = document.querySelector(`.synapse-filter-count[data-count="${mode}"]`);
+    if (badge) {
+      const c = _filterCounts[mode];
+      badge.textContent = c > 0 ? c : '';
+    }
+  });
+}
+
+// ----------------------------------------------------------------
+// Per-node explanation context
+// ----------------------------------------------------------------
+
+function _buildNodeContext(mode, nodes, activeNodeIds) {
+  _nodeContext.clear();
+  if (mode === FILTER_MODES.ALL) return;
+
+  const store = window.graphDataStore;
+
+  nodes.forEach(n => {
+    if (!activeNodeIds.has(n.id) || n.id === _userId) return;
+
+    let reason = '';
+    let detail = '';
+
+    switch (mode) {
+      case FILTER_MODES.CONNECTED:
+        reason = 'Accepted connection';
+        break;
+
+      case FILTER_MODES.PROJECTS: {
+        // Find shared project names
+        const names = _extra._sharedProjectNames?.get(n.id);
+        if (names && names.length > 0) {
+          reason = 'Shared project';
+          detail = names.slice(0, 3).join(', ');
+        } else {
+          reason = 'Project collaborator';
+        }
+        break;
+      }
+
+      case FILTER_MODES.THEMES: {
+        // Find overlapping skills
+        const mySkills = _extractNodeSkills(nodes.find(nd => nd.id === _userId));
+        const theirSkills = _extractNodeSkills(n);
+        const shared = [...theirSkills].filter(s => mySkills.has(s));
+        if (shared.length > 0) {
+          reason = 'Shared interests';
+          detail = shared.slice(0, 4).join(', ');
+        } else {
+          reason = 'Thematic match';
+        }
+        break;
+      }
+
+      case FILTER_MODES.OPPS:
+        if (_extra.oppRelevantIds?.has(n.id)) {
+          reason = 'Linked to opportunity';
+        } else {
+          reason = 'Opportunity-relevant skills';
+        }
+        break;
+    }
+
+    if (reason) _nodeContext.set(n.id, { reason, detail });
+  });
+}
+
+function _extractNodeSkills(node) {
+  const skills = new Set();
+  if (!node) return skills;
+  const raw = node._raw || node;
+  [raw.skills, raw.interests, raw.themes].forEach(src => {
+    if (Array.isArray(src)) {
+      src.forEach(s => { if (typeof s === 'string' && s.trim()) skills.add(s.trim().toLowerCase()); });
+    } else if (typeof src === 'string' && src.trim()) {
+      src.split(',').forEach(s => { if (s.trim()) skills.add(s.trim().toLowerCase()); });
+    }
+  });
+  return skills;
+}
+
+/**
+ * Get filter context for a node (used by node panel).
+ * Returns { reason, detail } or null if no filter active or node not in active set.
+ */
+export function getNodeFilterContext(nodeId) {
+  return _nodeContext.get(nodeId) || null;
+}
+
+// ----------------------------------------------------------------
+// Edge styling
+// ----------------------------------------------------------------
 
 /**
  * Apply filter state to edges only.
@@ -196,6 +341,30 @@ async function _loadEnrichmentData(userId) {
         }
       });
       _extra.projectCollaboratorIds = collaborators;
+
+      // Build per-user shared project name map for node context
+      const sharedProjectNames = new Map();
+      const myProjIdArr = [...myProjectIds];
+      if (myProjIdArr.length > 0) {
+        const { data: projData } = await supabase
+          .from('projects')
+          .select('id, title')
+          .in('id', myProjIdArr);
+        const projNameMap = new Map((projData || []).map(p => [p.id, p.title || 'Untitled']));
+
+        // For each collaborator, find which projects they share
+        projMembersRes.data.forEach(pm => {
+          if (pm.user_id !== userId && myProjectIds.has(pm.project_id)) {
+            const name = projNameMap.get(pm.project_id);
+            if (name) {
+              if (!sharedProjectNames.has(pm.user_id)) sharedProjectNames.set(pm.user_id, []);
+              const arr = sharedProjectNames.get(pm.user_id);
+              if (!arr.includes(name)) arr.push(name);
+            }
+          }
+        });
+      }
+      _extra._sharedProjectNames = sharedProjectNames;
     }
 
     // Opportunity-relevant IDs and skills
@@ -222,6 +391,30 @@ async function _loadEnrichmentData(userId) {
       }
     }
 
+    // Update filter counts for chip badges
+    _filterCounts.connected = _extra.acceptedPeerIds?.size || 0;
+    _filterCounts.projects = _extra.projectCollaboratorIds?.size || 0;
+    _filterCounts.opps = _extra.oppRelevantIds?.size || 0;
+
+    // Themes count requires graph nodes — compute from current graph data
+    const store = window.graphDataStore;
+    if (store && typeof store.getAllNodes === 'function') {
+      const nodes = store.getAllNodes();
+      const me = nodes.find(n => n.id === userId);
+      const mySkills = _extractNodeSkills(me);
+      if (mySkills.size > 0) {
+        let themeCount = 0;
+        nodes.forEach(n => {
+          if (n.id === userId) return;
+          const theirs = _extractNodeSkills(n);
+          for (const s of theirs) { if (mySkills.has(s)) { themeCount++; break; } }
+        });
+        _filterCounts.themes = themeCount;
+      }
+    }
+
+    _updateAllChipCounts();
+
     // Re-apply filter now that enrichment data is available
     _applyCurrentFilter();
   } catch (err) {
@@ -237,4 +430,5 @@ window.SynapseFilter = {
   get: getSynapseFilter,
   set: setSynapseFilter,
   modes: FILTER_MODES,
+  getNodeContext: getNodeFilterContext,
 };

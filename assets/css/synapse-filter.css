@@ -98,8 +98,44 @@
   margin-left: 1px;
 }
 
+.synapse-filter-count:empty {
+  display: none;
+}
+
 .synapse-filter-chip[aria-pressed="true"] .synapse-filter-count {
-  opacity: 0.8;
+  opacity: 0.9;
+}
+
+/* Filter context header */
+#synapse-filter-header {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 49;
+  padding: 4px 14px;
+  background: rgba(10, 14, 39, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#synapse-filter-header.visible {
+  opacity: 1;
+}
+
+#synapse-filter-header .filter-header-count {
+  font-weight: 700;
+  margin: 0 2px;
 }
 
 /* Mobile: slightly smaller */

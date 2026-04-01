@@ -271,6 +271,54 @@ function waitForInitToSettle(timeoutMs = 8000) {
 }
 
 /**
+ * Inject a filter context banner into the node panel after it renders.
+ * Shows WHY this node is visible under the current filter.
+ */
+function _injectFilterContextBanner(node) {
+  if (!node || !window.SynapseFilter) return;
+  const ctx = window.SynapseFilter.getNodeContext(node.id);
+  if (!ctx) return;
+
+  const filterState = window.__synapseFilterState;
+  if (!filterState || filterState.mode === 'all') return;
+
+  const color = filterState.visuals?.glowColor || '#00e0ff';
+
+  // Wait for panel to render, then inject banner
+  setTimeout(() => {
+    const panel = document.getElementById('node-panel');
+    if (!panel) return;
+    const body = panel.querySelector('.node-panel-body');
+    if (!body) return;
+
+    // Remove any existing filter banner
+    const existing = body.querySelector('.synapse-filter-context-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.className = 'synapse-filter-context-banner';
+    banner.style.cssText = `
+      margin: 0 1rem 0.5rem; padding: 0.5rem 0.75rem;
+      background: ${color}12; border: 1px solid ${color}40;
+      border-radius: 8px; font-size: 0.8rem; color: ${color};
+      display: flex; align-items: center; gap: 0.5rem;
+    `;
+    banner.innerHTML = `
+      <i class="fas fa-filter" style="opacity:0.7"></i>
+      <span><strong>${ctx.reason}</strong>${ctx.detail ? ' — ' + ctx.detail : ''}</span>
+    `;
+
+    // Insert after the close button / before the profile header
+    const header = body.querySelector('div[style*="text-align: center"]');
+    if (header) {
+      body.insertBefore(banner, header);
+    } else {
+      body.prepend(banner);
+    }
+  }, 400); // Wait for panel async render
+}
+
+/**
  * Self-contained fallback panel used when window.openNodePanel is unavailable
  * (e.g. node-panel.js is a stub or failed to evaluate).
  */
@@ -438,6 +486,9 @@ function setupEventBridges() {
     if (typeof window.openNodePanel === 'function') {
       console.log('[NodePanel] using window.openNodePanel (full panel)');
       window.openNodePanel(node);
+
+      // Inject filter context banner if a filter is active
+      _injectFilterContextBanner(node);
     } else {
       console.warn('[NodePanel] window.openNodePanel not available — using fallback panel');
       _openFallbackPanel(node);
