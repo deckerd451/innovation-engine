@@ -114,15 +114,16 @@ window.CommandDashboard = (() => {
   let _unreadMessages = 0;      // unread messages from notification system
   // Supabase-enriched sets (loaded async after init; null = not yet loaded)
   let _enrichedData = {
-    acceptedPeerIds: null,   // Set<string> — accepted-only connection peer IDs
-    pendingConnections: null, // Array<{id, name}> — pending connection peers
-    activeProjectIds: null,  // Set<string> — projects with status active/open/etc.
+    acceptedPeerIds: null,       // Set<string> — accepted-only connection peer IDs
+    acceptedConnections: null,   // Array<{id, name}> — accepted connection peers with names
+    pendingConnections: null,    // Array<{id, name}> — pending connection peers
+    activeProjectIds: null,      // Set<string> — projects with status active/open/etc.
     // Direct Supabase data for dashboard (projects/orgs/opps no longer in graph)
-    projects: null,          // Array — all projects from Supabase
-    myProjectIds: null,      // Set<string> — projects the user is a member of
-    organizations: null,     // Array — all organizations from Supabase
-    myOrgIds: null,          // Set<string> — orgs the user belongs to
-    opportunities: null,     // Array — all opportunities from Supabase
+    projects: null,              // Array — all projects from Supabase
+    myProjectIds: null,          // Set<string> — projects the user is a member of
+    organizations: null,         // Array — all organizations from Supabase
+    myOrgIds: null,              // Set<string> — orgs the user belongs to
+    opportunities: null,         // Array — all opportunities from Supabase
   };
 
   /* ── Element shortcuts ──────────────────────────────────────── */
@@ -447,11 +448,26 @@ window.CommandDashboard = (() => {
       ]);
 
       if (connResult.data) {
-        _enrichedData.acceptedPeerIds = new Set(
-          connResult.data.map(c =>
-            c.from_user_id === _userId ? c.to_user_id : c.from_user_id
-          )
+        const acceptedPeerIds = connResult.data.map(c =>
+          c.from_user_id === _userId ? c.to_user_id : c.from_user_id
         );
+        _enrichedData.acceptedPeerIds = new Set(acceptedPeerIds);
+
+        // Resolve names for accepted peers so the people list doesn't
+        // depend on graph nodes being loaded.
+        if (acceptedPeerIds.length > 0) {
+          const { data: acceptedPeers } = await window.supabase
+            .from('community')
+            .select('id, name')
+            .in('id', acceptedPeerIds);
+          const nameMap = new Map((acceptedPeers || []).map(p => [p.id, p.name]));
+          _enrichedData.acceptedConnections = acceptedPeerIds.map(id => ({
+            id,
+            name: nameMap.get(id) || 'Unknown'
+          }));
+        } else {
+          _enrichedData.acceptedConnections = [];
+        }
       }
 
       if (pendingResult.data && pendingResult.data.length > 0) {
@@ -1173,14 +1189,12 @@ window.CommandDashboard = (() => {
     let filtered = [];
 
     if (resourceType === 'people') {
-      // Always show: accepted connections first, then pending requests in yellow
-      const acceptedIds = _enrichedData.acceptedPeerIds;
-      const connected = acceptedIds && nodes.length
-        ? nodes
-            .filter(n => n.type === 'person' && acceptedIds.has(n.id))
-            .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
-            .sort((a, b) => a.name.localeCompare(b.name))
-        : [];
+      // Always show: accepted connections first, then pending requests in yellow.
+      // Use pre-resolved acceptedConnections (names from Supabase) so the list
+      // doesn't depend on graph nodes being loaded.
+      const connected = (_enrichedData.acceptedConnections || [])
+        .map(p => ({ id: p.id, name: p.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
       const pending = (_enrichedData.pendingConnections || [])
         .map(p => ({ id: p.id, name: p.name, pending: true }))
         .sort((a, b) => a.name.localeCompare(b.name));
