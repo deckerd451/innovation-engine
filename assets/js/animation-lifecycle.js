@@ -164,10 +164,27 @@ function stopAnimationLoop() {
 
 let uiActive = false; // true once authenticated UI is shown
 
+/**
+ * Guard: returns true only when the authenticated app UI is actually rendered.
+ * Checks both that main-content is visible AND that the login section is hidden,
+ * preventing activation during the brief window where main-content hasn't been
+ * hidden yet but the user is unauthenticated.
+ */
+function _authUIVisible() {
+  const mc = document.getElementById('main-content');
+  const login = document.getElementById('login-section');
+  // main-content must exist and not be hidden
+  if (!mc || mc.classList.contains('hidden')) return false;
+  // login section must be hidden (i.e. we're past the login screen)
+  if (login && !login.classList.contains('hidden')) return false;
+  return true;
+}
+
 function activateUI() {
   if (uiActive) return;
+  if (!_authUIVisible()) return;
   uiActive = true;
-  console.log('🎬 Animation UI gate opened (authenticated UI visible)');
+  console.log('🎬 Animation UI gate opened');
   attachInteractionListeners();
 }
 
@@ -180,16 +197,11 @@ function deactivateUI() {
 }
 
 // Listen for app-ready (auth.js emits this when showAppUI runs)
+// Verify the authenticated UI is actually rendered before activating.
 window.addEventListener('app-ready', () => activateUI(), { once: false });
 
-// Also accept boot-gate AUTH_READY for safety
-window.addEventListener('auth-ready', () => {
-  // Only activate if the main-content is actually visible
-  const mc = document.getElementById('main-content');
-  if (mc && !mc.classList.contains('hidden')) {
-    activateUI();
-  }
-});
+// Also accept boot-gate AUTH_READY for safety — same visibility guard.
+window.addEventListener('auth-ready', () => activateUI());
 
 // Deactivate on logout
 window.addEventListener('user-logged-out', () => deactivateUI());

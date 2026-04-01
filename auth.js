@@ -758,8 +758,8 @@
       if (event === "INITIAL_SESSION" && !session?.user) {
         log("🟡 INITIAL_SESSION received - no active session");
         cancelSessionTimer();
-        markAuthReadyOnce();
         showLoginUI();
+        markAuthReadyOnce();
         return;
       }
 
