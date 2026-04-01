@@ -778,7 +778,25 @@ function injectStylesOnce() {
 localStorage.removeItem('enable-unified-network');
 
 logger.info(INTEGRATION_NS, 'Integration module loaded (idempotent)');
-window.addEventListener('profile-loaded', () => {
-  initUnifiedNetwork(null, 'synapse-svg').catch(() => {});
-}, { once: true });
+
+// --- Late-join bootstrap ---
+// If this module loads after profile-loaded / app-ready already fired (e.g.
+// because the script was deferred), detect the existing state and init now.
+// Otherwise, fall back to the event listener.
+const _profileAlreadyResolved =
+  window.currentUserProfile?.id ||
+  window.communityUser?.id ||
+  window.bootstrapSession?.communityUser?.id;
+
+if (_profileAlreadyResolved) {
+  // Profile is already available — init immediately on next microtask so the
+  // rest of the module-level code finishes first.
+  logger.info(INTEGRATION_NS, 'Profile already resolved on load — bootstrapping immediately');
+  Promise.resolve().then(() => initUnifiedNetwork(null, 'synapse-svg').catch(() => {}));
+} else {
+  // Normal path: wait for the profile event.
+  window.addEventListener('profile-loaded', () => {
+    initUnifiedNetwork(null, 'synapse-svg').catch(() => {});
+  }, { once: true });
+}
 
