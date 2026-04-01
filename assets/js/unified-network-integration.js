@@ -14,6 +14,7 @@ import { logger } from './logger.js';
 import { initializeErrorHandling } from './unified-network/error-integration.js';
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
 import { initSynapseFilterUI } from './synapse-filter-ui.js';
+import './synapse-context.js';
 
 // ------------------------------------------------------------------
 // Feature flags (read dynamically so changes apply without redeploy)

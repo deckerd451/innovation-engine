@@ -49,6 +49,12 @@ window.GraphController = (() => {
     if (!id) return;
     const api = _api();
     if (api && typeof api.focusNode === 'function') {
+      // Guard: only focus person nodes (graph is people-only)
+      const node = api.getNode?.(id);
+      if (!node) {
+        console.log(`[GraphController] focusNode(${id}) — not a graph node, ignoring`);
+        return;
+      }
       api.focusNode(id);
     }
     if (typeof window.openNodePanel === 'function') {

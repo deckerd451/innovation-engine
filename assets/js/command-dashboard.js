@@ -1135,8 +1135,8 @@ window.CommandDashboard = (() => {
       }
     }
 
-    // Wire "Show in Graph" buttons — for people/themes, focus in graph;
-    // for projects/orgs/opps, open the node panel directly (they're not graph nodes)
+    // Wire "Show in Graph" buttons — for people, focus in graph;
+    // for projects/orgs/themes, set as context lens (highlights related people)
     const TAB_TYPE = {
       projects:      'project',
       organizations: 'organization',
@@ -1147,9 +1147,21 @@ window.CommandDashboard = (() => {
         e.stopPropagation();
         const id = btn.dataset.id;
         if (!id) return;
-        if (_activeResourceTab === 'people' || _activeResourceTab === 'themes') {
+        if (_activeResourceTab === 'people') {
           if (window.GraphController) window.GraphController.focusNode(id);
           _openPanelForNode(id, 'person');
+        } else if (_activeResourceTab === 'themes') {
+          // Theme: set as context lens to highlight people with matching skills
+          const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || id;
+          if (window.SynapseContext) window.SynapseContext.setTheme(name);
+        } else if (_activeResourceTab === 'projects') {
+          const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || 'Project';
+          if (window.SynapseContext) window.SynapseContext.setProject(id, name);
+          if (window.openNodePanel) window.openNodePanel({ id, type: 'project' });
+        } else if (_activeResourceTab === 'organizations') {
+          const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || 'Organization';
+          if (window.SynapseContext) window.SynapseContext.setOrg(id, name);
+          if (window.openNodePanel) window.openNodePanel({ id, type: 'organization' });
         } else if (window.openNodePanel) {
           window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }
@@ -1162,9 +1174,20 @@ window.CommandDashboard = (() => {
         if (e.target.closest('.udc-resource-show-btn')) return;
         const id = row.dataset.id;
         if (!id) return;
-        if (_activeResourceTab === 'people' || _activeResourceTab === 'themes') {
+        if (_activeResourceTab === 'people') {
           if (window.GraphController) window.GraphController.focusNode(id);
           _openPanelForNode(id, 'person');
+        } else if (_activeResourceTab === 'themes') {
+          const name = row.querySelector('.udc-resource-name')?.textContent || id;
+          if (window.SynapseContext) window.SynapseContext.setTheme(name);
+        } else if (_activeResourceTab === 'projects') {
+          const name = row.querySelector('.udc-resource-name')?.textContent || 'Project';
+          if (window.SynapseContext) window.SynapseContext.setProject(id, name);
+          if (window.openNodePanel) window.openNodePanel({ id, type: 'project' });
+        } else if (_activeResourceTab === 'organizations') {
+          const name = row.querySelector('.udc-resource-name')?.textContent || 'Organization';
+          if (window.SynapseContext) window.SynapseContext.setOrg(id, name);
+          if (window.openNodePanel) window.openNodePanel({ id, type: 'organization' });
         } else if (window.openNodePanel) {
           window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }

@@ -14,6 +14,13 @@ import {
   computeFilteredNodeState,
 } from './synapse-filter.js';
 
+import {
+  getContext,
+  hasContext,
+  clearContext,
+  onContextChange,
+} from './synapse-context.js';
+
 let _initialized = false;
 let _userId = null;
 
@@ -56,6 +63,7 @@ export function initSynapseFilterUI(userId) {
 
   _wireChips();
   onFilterChange(_onFilterChanged);
+  onContextChange(_onContextChanged);
 
   // Load enrichment data in background
   _loadEnrichmentData(userId);
@@ -90,6 +98,46 @@ function _updateChipStates(mode) {
   });
 }
 
+// ----------------------------------------------------------------
+// Context lens integration
+// ----------------------------------------------------------------
+
+function _onContextChanged(ctx) {
+  _renderContextChip(ctx);
+  _applyCurrentFilter();
+}
+
+function _renderContextChip(ctx) {
+  const bar = document.getElementById('synapse-filter-bar');
+  if (!bar) return;
+
+  // Remove existing context chip
+  const existing = bar.querySelector('.synapse-context-chip');
+  if (existing) existing.remove();
+
+  if (!ctx || !ctx.type) return;
+
+  const icons = { project: 'fa-project-diagram', organization: 'fa-building', theme: 'fa-palette' };
+  const colors = { project: '#00ff88', organization: '#00e0ff', theme: '#a855f7' };
+  const icon = icons[ctx.type] || 'fa-filter';
+  const color = colors[ctx.type] || '#fff';
+
+  const chip = document.createElement('button');
+  chip.className = 'synapse-filter-chip synapse-context-chip';
+  chip.setAttribute('aria-pressed', 'true');
+  chip.style.cssText = `color:${color}; border-color:${color}50; background:${color}18;`;
+  chip.innerHTML = `<i class="fas ${icon}"></i><span>${_escapeHtmlSimple(ctx.name)}</span><i class="fas fa-times" style="opacity:0.6;margin-left:2px;font-size:0.6rem"></i>`;
+  chip.title = `${ctx.type}: ${ctx.name} — click to remove`;
+  chip.addEventListener('click', () => clearContext());
+  bar.appendChild(chip);
+}
+
+function _escapeHtmlSimple(s) {
+  const d = document.createElement('span');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
 
 // ----------------------------------------------------------------
 // Filter application — reads graph data, computes state, applies visuals
@@ -112,16 +160,70 @@ function _applyCurrentFilter() {
 
   const filtered = computeFilteredNodeState(mode, { nodes, edges }, _userId, _extra);
 
+  // --- Context lens integration ---
+  // If a context lens is active, narrow the highlighted set to context members.
+  const ctx = getContext();
+  if (ctx.type && ctx.memberIds && ctx.memberIds.size > 0) {
+    const contextIds = ctx.memberIds;
+    const allNodeIds = new Set(nodes.map(n => n.id));
+
+    if (mode !== FILTER_MODES.ALL) {
+      // Intersect filter + context
+      const intersected = new Set();
+      filtered.activeNodeIds.forEach(id => {
+        if (id === _userId || contextIds.has(id)) intersected.add(id);
+      });
+      filtered.activeNodeIds = intersected;
+    } else {
+      // Context alone drives highlighting
+      filtered.activeNodeIds = new Set([_userId, ...contextIds]);
+    }
+
+    // Recompute dim/edge sets
+    filtered.dimNodeIds = new Set();
+    allNodeIds.forEach(id => { if (!filtered.activeNodeIds.has(id)) filtered.dimNodeIds.add(id); });
+    filtered.activeEdgeKeys = new Set();
+    filtered.dimEdgeKeys = new Set();
+    edges.forEach(e => {
+      const s = e.source?.id ?? e.source;
+      const t = e.target?.id ?? e.target;
+      const key = `${s}-${t}`;
+      if (filtered.activeNodeIds.has(s) && filtered.activeNodeIds.has(t)) {
+        filtered.activeEdgeKeys.add(key);
+      } else {
+        filtered.dimEdgeKeys.add(key);
+      }
+    });
+
+    // Override mode so renderer applies filter visuals
+    if (mode === FILTER_MODES.ALL) {
+      filtered.mode = '__context';
+      const ctxColors = { project: '#00ff88', organization: '#00e0ff', theme: '#a855f7' };
+      const color = ctxColors[ctx.type] || '#00e0ff';
+      filtered.visuals = { glowColor: color, strokeColor: color, edgeColor: `${color}88` };
+    }
+  }
+
   // Persist filter state globally so the NodeRenderer can read it every tick.
   window.__synapseFilterState = filtered;
 
   // Build per-node explanation context
-  _buildNodeContext(mode, nodes, filtered.activeNodeIds);
+  _buildNodeContext(filtered.mode === '__context' ? '__context' : mode, nodes, filtered.activeNodeIds);
 
-  // Update count for the active filter's header
-  _updateHeader(mode, filtered.activeNodeIds.size - 1); // -1 for current user
+  // Update header
+  if (ctx.type) {
+    const ctxLabel = ctx.type === 'project' ? 'Project' : ctx.type === 'organization' ? 'Organization' : 'Theme';
+    const color = filtered.visuals?.glowColor || '#fff';
+    const header = document.getElementById('synapse-filter-header');
+    if (header) {
+      header.innerHTML = `<span style="color:${color}">${ctxLabel}: ${_escapeHtmlSimple(ctx.name)}</span> — <span class="filter-header-count">${Math.max(0, filtered.activeNodeIds.size - 1)}</span> people`;
+      header.classList.add('visible');
+    }
+  } else {
+    _updateHeader(mode, filtered.activeNodeIds.size - 1);
+  }
 
-  console.log(`[SynapseFilter] Applied: mode=${filtered.mode}, active=${filtered.activeNodeIds.size}, dim=${filtered.dimNodeIds.size}, activeEdges=${filtered.activeEdgeKeys.size}, dimEdges=${filtered.dimEdgeKeys.size}`);
+  console.log(`[SynapseFilter] Applied: mode=${filtered.mode}, active=${filtered.activeNodeIds.size}, dim=${filtered.dimNodeIds.size}${ctx.type ? `, context=${ctx.type}:${ctx.name}` : ''}`);
 
   // Apply edge styling via D3
   _applyFilteredEdges(filtered);
