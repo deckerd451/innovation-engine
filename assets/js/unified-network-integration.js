@@ -137,13 +137,13 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
     // ================================================================
     // OPPORTUNITY ENGINE INITIALIZATION
     // ================================================================
-    console.log('[SYNAPSE] Initializing Opportunity Engine...');
+    logger.debug(INTEGRATION_NS, 'Initializing Opportunity Engine...');
     try {
       if (window.OpportunityEngine && window.supabase) {
         await window.OpportunityEngine.init(window.supabase, communityId);
         const oppCount = window.OpportunityEngine.getActiveCount();
-        console.log(`[SYNAPSE] ✅ Opportunity Engine initialized with ${oppCount} opportunities`);
-        
+        logger.debug(INTEGRATION_NS, `Opportunity Engine ready — ${oppCount} opportunities`);
+
         // Expose API on window.synapseApi
         window.synapseApi = window.synapseApi || {};
         window.synapseApi.opportunities = {
@@ -176,18 +176,15 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
         window.synapseApi.showActivity = () => {
           unifiedNetworkApi.centerOnCurrentUser();
         };
-        
-        // Verification log
-        console.log('[SYNAPSE] synapseApi ready', !!window.synapseApi, !!window.synapseApi.opportunities);
-        
+
         // Compatibility alias for graph-controller.js
         window.synapseCore = window.synapseCore || window.synapseApi || unifiedNetworkApi;
-        console.log('[SYNAPSE] synapseCore compatibility alias set');
+        logger.debug(INTEGRATION_NS, 'synapseApi + synapseCore aliases ready');
       } else {
-        console.warn('[SYNAPSE] ⚠️ OpportunityEngine or Supabase not available');
+        logger.warn(INTEGRATION_NS, 'OpportunityEngine or Supabase not available — skipping');
       }
     } catch (error) {
-      console.error('[SYNAPSE] ❌ Failed to initialize Opportunity Engine:', error);
+      logger.error(INTEGRATION_NS, 'Failed to initialize Opportunity Engine:', error);
       // Non-fatal: continue with network initialization
     }
 
@@ -213,16 +210,15 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
     // ================================================================
     window.__SYNAPSE_READY__ = true;
     window.dispatchEvent(new CustomEvent('synapse:ready', { detail: { ts: Date.now() } }));
-    console.log('[SYNAPSE] ready signal emitted');
+    logger.debug(INTEGRATION_NS, 'synapse:ready signal emitted');
 
-// Install tier probe for mobile debugging (idempotent)
-try {
-  installUnifiedTierProbe(unifiedNetworkApi);
-  console.log("📱 Unified Tier Probe installed");
-} catch (probeError) {
-  console.warn("📱 Unified Tier Probe installation failed:", probeError);
-  // Non-fatal, continue
-}
+    // Install tier probe for mobile debugging (idempotent, non-fatal)
+    try {
+      installUnifiedTierProbe(unifiedNetworkApi);
+      logger.debug(INTEGRATION_NS, 'Unified Tier Probe installed');
+    } catch (probeError) {
+      logger.warn(INTEGRATION_NS, 'Unified Tier Probe installation failed:', probeError);
+    }
 
 // Emit custom event for other systems
 

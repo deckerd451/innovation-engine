@@ -266,7 +266,17 @@ try {
       applyEffectivePullForces(this._simulation, nodes, edges);
       console.log('⚙️ Physics forces applied');
 
-      // 8. Initialize Node Renderer
+      // 8. Ensure the zoom container exists before the renderer runs.
+      //    NodeRenderer looks for .synapse-container; creating it here means
+      //    the renderer never needs its "last resort" fallback path.
+      if (this._svg && window.d3) {
+        const svgSel = window.d3.select(this._svg);
+        if (svgSel.select('.synapse-container').empty()) {
+          svgSel.append('g').attr('class', 'synapse-container');
+        }
+      }
+
+      // 8b. Initialize Node Renderer (will find .synapse-container above)
       this._nodeRenderer.initialize(this._svg);
       NodeRenderer.setupGlowFilter(this._svg);
       console.log('🎨 Renderer initialized');
