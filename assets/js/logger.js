@@ -23,6 +23,12 @@
 const log = (() => {
   'use strict';
 
+  // Guard: the logger IIFE runs once even when the file is loaded under two
+  // different URLs (e.g. script tag with ?v=... query AND a bare ES6 import).
+  // Return the already-initialised instance so all callers share one logger.
+  const GUARD = '__CH_LOGGER_LOADED__';
+  if (window[GUARD]) return window[GUARD];
+
   // ================================================================
   // DEBUG MODE DETECTION
   // ================================================================
@@ -278,7 +284,10 @@ const log = (() => {
   }
   
   logger.info('✅ Centralized logger initialized');
-  
+
+  // Register so subsequent IIFE evaluations return this instance immediately.
+  window[GUARD] = logger;
+
   // Return logger for ES6 module export
   return logger;
 })();

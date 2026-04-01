@@ -5,7 +5,11 @@
 // Eliminates continuous main-thread work after initial render
 // ================================================================
 
-console.log('%c🎬 Animation Lifecycle Controller Loading...', 'color:#0ff; font-weight: bold; font-size: 16px');
+// Lightweight debug helper — mirrors window.log.isDebugMode() but works
+// before the logger module has been evaluated.
+function _isDebug() {
+  try { return localStorage.getItem('DEBUG') === '1'; } catch { return false; }
+}
 
 // ================================================================
 // STATE
@@ -33,8 +37,8 @@ const animationSystems = new Set();
  */
 function enterActiveState() {
   if (animationState === 'ACTIVE') return;
-  
-  console.log('🎬 Animation State: ACTIVE');
+
+  if (_isDebug()) console.log('🎬 Animation State: ACTIVE');
   animationState = 'ACTIVE';
   isAnimating = true;
   
@@ -64,8 +68,8 @@ function enterActiveState() {
  */
 function enterIdleState() {
   if (animationState === 'IDLE') return;
-  
-  console.log('😴 Animation State: IDLE');
+
+  if (_isDebug()) console.log('😴 Animation State: IDLE');
   animationState = 'IDLE';
   isAnimating = false;
   
@@ -89,8 +93,8 @@ function enterIdleState() {
  */
 function enterSleepState() {
   if (animationState === 'SLEEP') return;
-  
-  console.log('💤 Animation State: SLEEP');
+
+  if (_isDebug()) console.log('💤 Animation State: SLEEP');
   animationState = 'SLEEP';
   isAnimating = false;
   
@@ -141,15 +145,11 @@ function animationLoop(timestamp) {
 
 function startAnimationLoop() {
   if (rafId !== null) return; // Already running
-  
-  console.log('▶️ Starting animation loop');
   rafId = requestAnimationFrame(animationLoop);
 }
 
 function stopAnimationLoop() {
   if (rafId === null) return; // Already stopped
-  
-  console.log('⏹️ Stopping animation loop');
   cancelAnimationFrame(rafId);
   rafId = null;
 }
@@ -193,7 +193,7 @@ export function registerAnimationSystem(system) {
   }
   
   animationSystems.add(system);
-  console.log('✅ Registered animation system:', system.name || 'unnamed');
+  if (_isDebug()) console.log('✅ Registered animation system:', system.name || 'unnamed');
   
   // If currently active, notify the system
   if (animationState === 'ACTIVE' && system.onActive) {
@@ -206,7 +206,7 @@ export function registerAnimationSystem(system) {
  */
 export function unregisterAnimationSystem(system) {
   animationSystems.delete(system);
-  console.log('❌ Unregistered animation system:', system.name || 'unnamed');
+  if (_isDebug()) console.log('❌ Unregistered animation system:', system.name || 'unnamed');
 }
 
 // ================================================================
@@ -243,23 +243,27 @@ export function isSleeping() {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    console.log('👁️ Page hidden - entering SLEEP state');
     enterSleepState();
   } else {
-    console.log('👁️ Page visible - entering ACTIVE state');
     recordInteraction();
   }
 });
 
 // Window blur/focus
 window.addEventListener('blur', () => {
-  console.log('👁️ Window blurred - entering SLEEP state');
   enterSleepState();
 });
 
 window.addEventListener('focus', () => {
-  console.log('👁️ Window focused - entering ACTIVE state');
-  recordInteraction();
+  // Only wake from SLEEP (user returning to a backgrounded window).
+  // Do NOT call recordInteraction() when the page is in its initial IDLE
+  // boot state — the browser fires 'focus' immediately on page load, which
+  // would otherwise cause a spurious IDLE→ACTIVE→IDLE cycle before any
+  // real user interaction has occurred.
+  if (animationState === 'SLEEP') {
+    console.log('👁️ Window focused - waking from SLEEP');
+    recordInteraction();
+  }
 });
 
 // ================================================================
@@ -302,7 +306,3 @@ window.AnimationLifecycle = {
   isSleeping,
   recordInteraction
 };
-
-console.log('✅ Animation Lifecycle Controller ready');
-console.log('   State:', animationState);
-console.log('   Systems registered:', animationSystems.size);

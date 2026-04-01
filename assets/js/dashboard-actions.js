@@ -151,11 +151,12 @@ function applyAdminUIOnce(reason = "") {
   }
 }
 
-// Canonical trigger: profile-loaded event (once)
+// Sole trigger: profile-loaded event.
+// DOMContentLoaded fires before auth completes, so isAdminUser() always
+// returns false then and the call is a guaranteed no-op. Removing it
+// eliminates a redundant execution path and prevents the edge case where
+// a cached localStorage identity shows admin UI before auth is confirmed.
 document.addEventListener('profile-loaded', () => applyAdminUIOnce('profile-loaded'), { once: true });
-
-// Fallback trigger: DOMContentLoaded (once)
-document.addEventListener('DOMContentLoaded', () => applyAdminUIOnce('DOMContentLoaded-fallback'), { once: true });
 
 // Backward compatibility: expose as ensureAdminButtonVisible
 window.ensureAdminButtonVisible = applyAdminUIOnce;
@@ -1150,56 +1151,21 @@ function applyVisualizationFilters(filterState) {
   });
 }
 
-// Initialize legend when DOM is ready
+// Initialize legend when DOM is ready.
+// Admin button wiring is handled exclusively by applyAdminUIOnce() on profile-loaded.
 document.addEventListener('DOMContentLoaded', () => {
   // Wait a bit for synapse to load
   setTimeout(createSynapseLegend, 1000);
-  
-  // Also check for admin button immediately
-  setTimeout(() => {
-    if (isAdminUser()) {
-      const cdAdminBtn = document.getElementById('cd-admin-btn');
-      if (cdAdminBtn) {
-        cdAdminBtn.style.display = '';
-        console.log('👑 Admin button shown in panel (DOMContentLoaded)');
-      }
-    }
-  }, 1500);
 });
 
-// Also create legend when profile is loaded
+// Also create legend when profile is loaded.
+// Admin button wiring is handled exclusively by applyAdminUIOnce() above.
 window.addEventListener('profile-loaded', () => {
   // Prevent duplicate legend creation
   if (window.__LEGEND_PROFILE_LISTENER_ADDED__) return;
   window.__LEGEND_PROFILE_LISTENER_ADDED__ = true;
-  
-  setTimeout(createSynapseLegend, 500);
 
-  // Show admin button if user is admin
-  if (isAdminUser()) {
-    // Show panel-embedded admin button (btn-admin-top-left is now hidden/removed)
-    const cdAdminBtn = document.getElementById('cd-admin-btn');
-    if (cdAdminBtn) {
-      cdAdminBtn.style.display = '';
-      console.log('👑 Admin button shown in panel (profile-loaded)');
-    }
-    
-    // Show admin badge in dropdown
-    const adminBadgeDropdown = document.getElementById('admin-badge-dropdown');
-    if (adminBadgeDropdown) {
-      adminBadgeDropdown.style.display = 'inline-block';
-    }
-    
-    // Show Discovery Mode button for all users
-    const discoveryBtn = document.getElementById('discovery-mode-btn');
-    if (discoveryBtn) {
-      discoveryBtn.style.display = 'flex';
-      console.log('🌐 Discovery Mode button available to all users');
-    }
-  }
-  
-  // Wire up Discovery Mode - now always enabled
-  console.log('🌐 Discovery Mode: Always enabled (no toggle needed)');
+  setTimeout(createSynapseLegend, 500);
 });
 
 // Discovery Mode is now always on - no setup needed

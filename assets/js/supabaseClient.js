@@ -59,14 +59,13 @@ if (window.supabase) {
     console.log("✅ Supabase client initialized");
     console.log("ℹ️ WebSocket errors are expected and handled gracefully - system uses polling fallback");
     
-    // ✅ SUPABASE OPTIMIZATION: Initialize bootstrap session and realtime manager
+    // ✅ SUPABASE OPTIMIZATION: Initialize bootstrap session and realtime manager.
+    // Each module logs its own ready message; no extra log needed here.
     if (window.bootstrapSession) {
       window.bootstrapSession.initialize(supabaseInstance);
-      console.log("✅ Bootstrap session initialized");
     }
     if (window.realtimeManager) {
       window.realtimeManager.initialize(supabaseInstance);
-      console.log("✅ Realtime manager initialized");
     }
   } catch (error) {
     console.error("❌ Failed to initialize Supabase client:", error);
