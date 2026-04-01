@@ -155,10 +155,53 @@ function stopAnimationLoop() {
 }
 
 // ================================================================
+// AUTH-AWARE ACTIVATION GATE
+// ================================================================
+// Animations should only enter ACTIVE when the authenticated UI
+// (graph / synapse) is actually visible. Before auth resolves the
+// user is staring at the login screen — no reason to spin up 60fps.
+// ================================================================
+
+let uiActive = false; // true once authenticated UI is shown
+
+function activateUI() {
+  if (uiActive) return;
+  uiActive = true;
+  console.log('🎬 Animation UI gate opened (authenticated UI visible)');
+  attachInteractionListeners();
+}
+
+function deactivateUI() {
+  if (!uiActive) return;
+  uiActive = false;
+  enterIdleState();
+  detachInteractionListeners();
+  console.log('🎬 Animation UI gate closed');
+}
+
+// Listen for app-ready (auth.js emits this when showAppUI runs)
+window.addEventListener('app-ready', () => activateUI(), { once: false });
+
+// Also accept boot-gate AUTH_READY for safety
+window.addEventListener('auth-ready', () => {
+  // Only activate if the main-content is actually visible
+  const mc = document.getElementById('main-content');
+  if (mc && !mc.classList.contains('hidden')) {
+    activateUI();
+  }
+});
+
+// Deactivate on logout
+window.addEventListener('user-logged-out', () => deactivateUI());
+
+// ================================================================
 // INTERACTION TRACKING
 // ================================================================
 
 function recordInteraction() {
+  // Gate: ignore interactions when authenticated UI is not visible
+  if (!uiActive) return;
+
   lastInteractionTime = Date.now();
   
   // Enter active state
@@ -242,6 +285,7 @@ export function isSleeping() {
 // ================================================================
 
 document.addEventListener('visibilitychange', () => {
+  if (!uiActive) return;
   if (document.hidden) {
     enterSleepState();
   } else {
@@ -251,26 +295,26 @@ document.addEventListener('visibilitychange', () => {
 
 // Window blur/focus
 window.addEventListener('blur', () => {
+  if (!uiActive) return;
   enterSleepState();
 });
 
 window.addEventListener('focus', () => {
+  if (!uiActive) return;
   // Only wake from SLEEP (user returning to a backgrounded window).
-  // Do NOT call recordInteraction() when the page is in its initial IDLE
-  // boot state — the browser fires 'focus' immediately on page load, which
-  // would otherwise cause a spurious IDLE→ACTIVE→IDLE cycle before any
-  // real user interaction has occurred.
+  // Do NOT call recordInteraction() when the page is in its initial boot
+  // state — the browser fires 'focus' immediately on page load, which
+  // would otherwise cause a spurious IDLE→ACTIVE→IDLE cycle.
   if (animationState === 'SLEEP') {
-    console.log('👁️ Window focused - waking from SLEEP');
+    if (_isDebug()) console.log('👁️ Window focused - waking from SLEEP');
     recordInteraction();
   }
 });
 
 // ================================================================
-// INTERACTION LISTENERS
+// INTERACTION LISTENERS (attached only after auth)
 // ================================================================
 
-// Track user interactions to trigger ACTIVE state
 const interactionEvents = [
   'mousedown',
   'mousemove',
@@ -281,18 +325,32 @@ const interactionEvents = [
   'click'
 ];
 
-interactionEvents.forEach(eventType => {
-  document.addEventListener(eventType, () => {
-    recordInteraction();
-  }, { passive: true });
-});
+const interactionHandler = () => recordInteraction();
+let listenersAttached = false;
+
+function attachInteractionListeners() {
+  if (listenersAttached) return;
+  listenersAttached = true;
+  interactionEvents.forEach(eventType => {
+    document.addEventListener(eventType, interactionHandler, { passive: true });
+  });
+}
+
+function detachInteractionListeners() {
+  if (!listenersAttached) return;
+  listenersAttached = false;
+  interactionEvents.forEach(eventType => {
+    document.removeEventListener(eventType, interactionHandler);
+  });
+}
 
 // ================================================================
 // INITIALIZATION
 // ================================================================
 
-// Start in IDLE state (will transition to ACTIVE on first interaction)
-enterIdleState();
+// Stay dormant until authenticated UI is visible.
+// enterIdleState() is NOT called here — the controller starts silent
+// and only activates once app-ready fires.
 
 // Export for global access
 window.AnimationLifecycle = {
@@ -304,5 +362,7 @@ window.AnimationLifecycle = {
   isActive,
   isIdle,
   isSleeping,
-  recordInteraction
+  recordInteraction,
+  activateUI,
+  deactivateUI
 };

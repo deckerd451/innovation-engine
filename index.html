@@ -629,14 +629,10 @@
 
   <script src="assets/js/ecosystem-connector.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
+  <!-- Feature modules (DEFERRED UNTIL AUTH — loaded by post-auth loader below) -->
+  <!-- admin-analytics, theme-admin, theme-discovery, daily-engagement,
+       connectionRequests, network-filters, graph-legend are auth-only -->
   <script type="module" src="assets/js/onboarding.js?v=fc09b39b-1770146154f916933b2da"></script>
-  <script type="module" src="assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da"></script>
-  <script type="module" src="assets/js/graph-legend.js?v=fc09b39b-1770146154f916933b2da"></script>
-  <script type="module" src="assets/js/admin-analytics.js?v=fc09b39b-1770146154f916933b2da"></script>
-  <script type="module" src="assets/js/theme-admin.js?v=fc09b39b-1770146154f916933b2da"></script>
-  <script type="module" src="assets/js/theme-discovery.js?v=fc09b39b-1770146154f916933b2da"></script>
-  <script type="module" src="assets/js/daily-engagement.js?v=fc09b39b-1770146154f916933b2da"></script>
-  <script type="module" src="assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da"></script>
 
   <script src="assets/js/messaging.js?v=msg-20260327a" defer></script>
 
@@ -656,10 +652,12 @@
   <script type="module" src="assets/js/node-panel.js?v=opp-schema-fix-20260329a"></script>
   <script src="assets/js/node-panel-fixes.js?v=fc09b39b-17701461543" defer></script>
   <script src="assets/js/dashboard-actions.js?v=fc09b39b-1770146154f916933b2da" defer></script>
-  <script type="module" src="assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543"></script>
 
-  <script src="assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304"></script>
-  <script type="module" src="assets/js/unified-network-integration.js?v=panel-debug-20260320b"></script>
+  <!-- Admin People (DEFERRED UNTIL AUTH) -->
+
+  <!-- Opportunity Engine (DEFERRED UNTIL AUTH) -->
+
+  <!-- Unified Network Discovery Integration (DEFERRED UNTIL AUTH) -->
 
   <script src="assets/js/presence-realtime.js?v=presence-fix-20260329b" defer></script>
   <script src="assets/js/presence-ui.js?v=presence-fix-20260329b" defer></script>
@@ -672,8 +670,69 @@
   <script type="module" src="assets/js/quiet-mode-auto-disable.js?v=1"></script>
 
   <script type="module" src="main.js?v=fc09b39b-1770146154f916933b2da"></script>
+
+  <!-- ================================================================ -->
+  <!-- POST-AUTH MODULE LOADER                                          -->
+  <!-- Loads authenticated-only modules after boot-gate confirms auth.  -->
+  <!-- Keeps the unauthenticated cold-start path lightweight.           -->
+  <!-- ================================================================ -->
+  <script>
+  (function() {
+    'use strict';
+
+    const AUTH_MODULES = [
+      // Feature modules (type=module)
+      { src: 'assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da', module: true },
+      { src: 'assets/js/graph-legend.js?v=fc09b39b-1770146154f916933b2da', module: true },
+      { src: 'assets/js/admin-analytics.js?v=fc09b39b-1770146154f916933b2da', module: true },
+      { src: 'assets/js/theme-admin.js?v=fc09b39b-1770146154f916933b2da', module: true },
+      { src: 'assets/js/theme-discovery.js?v=fc09b39b-1770146154f916933b2da', module: true },
+      { src: 'assets/js/daily-engagement.js?v=fc09b39b-1770146154f916933b2da', module: true },
+      { src: 'assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da', module: true },
+      // Admin People
+      { src: 'assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543', module: true },
+      // Opportunity Engine
+      { src: 'assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304', module: false },
+      // Unified Network Discovery
+      { src: 'assets/js/unified-network-integration.js?v=panel-debug-20260320b', module: true },
+      // Realtime Collaboration (use latest version from remote)
+      { src: 'assets/js/realtime-collaboration.js?v=presence-fix-20260329a', module: true },
+      // Suggestions
+      { src: 'assets/js/suggestions/index-v2.js', module: true },
+      { src: 'assets/js/suggestions/start-integration.js?v=1', module: true },
+      { src: 'assets/js/suggestions/navigation.js?v=1', module: true },
+      // Enhanced project creation
+      { src: 'assets/js/enhanced-project-creation.js?v=1', module: true },
+    ];
+
+    let loaded = false;
+
+    function loadAuthModules() {
+      if (loaded) return;
+      loaded = true;
+      console.log('📦 Loading ' + AUTH_MODULES.length + ' post-auth modules...');
+      AUTH_MODULES.forEach(function(m) {
+        var s = document.createElement('script');
+        s.src = m.src;
+        if (m.module) s.type = 'module';
+        else s.async = true;
+        document.body.appendChild(s);
+      });
+    }
+
+    // Use boot-gate if available, otherwise fall back to events
+    if (window.bootGate) {
+      window.bootGate.on('AUTH_READY', loadAuthModules);
+    } else {
+      window.addEventListener('authenticated-user', loadAuthModules, { once: true });
+    }
+  })();
+  </script>
+
+  <!-- Dashboard controller -->
   <script type="module" src="assets/js/dashboardPane.js?v=mobile-fix-20260328a"></script>
-  <script type="module" src="assets/js/enhanced-project-creation.js?v=1"></script>
+
+  <!-- Enhanced project creation modal (DEFERRED UNTIL AUTH) -->
 
   <script>
     if (window.startFlowManager) {
@@ -688,12 +747,10 @@
   <script src="assets/js/start-daily-digest.js?v=20260221-ie2" defer></script>
   <script src="assets/js/start-ui-enhanced.js?v=1739311200" defer></script>
 
-  <script type="module" src="assets/js/realtime-collaboration.js?v=presence-fix-20260329a"></script>
+  <!-- Unified Notification System (realtime-collaboration DEFERRED UNTIL AUTH) -->
   <script src="assets/js/unified-notification-system.js?v=fix-msg-20260327a" defer></script>
 
-  <script type="module" src="assets/js/suggestions/index-v2.js"></script>
-  <script type="module" src="assets/js/suggestions/start-integration.js?v=1"></script>
-  <script type="module" src="assets/js/suggestions/navigation.js?v=1"></script>
+  <!-- Daily Suggestions Engine (DEFERRED UNTIL AUTH) -->
 
   <script src="assets/js/graph-controller.js" defer></script>
   <script src="assets/js/command-dashboard.js?v=rm-stub-opps-20260329a" defer></script>

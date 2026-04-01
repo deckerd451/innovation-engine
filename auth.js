@@ -194,6 +194,8 @@
     window.dispatchEvent(new CustomEvent("auth-ready", { detail: {} }));
   }
 
+  let loginUIShown = false; // single-owner: only render login UI once per page load
+
   function showLoginUI() {
     // never let login UI override an already-booted app
     if (hasBootstrappedThisLoad) {
@@ -201,6 +203,14 @@
       markAuthReadyOnce();
       return;
     }
+
+    // Single-owner: only render login UI once
+    if (loginUIShown) {
+      warn("🟡 showLoginUI ignored (already shown).");
+      markAuthReadyOnce();
+      return;
+    }
+    loginUIShown = true;
 
     loginSection?.classList.remove("hidden");
     loginSection?.classList.add("active-tab-pane");

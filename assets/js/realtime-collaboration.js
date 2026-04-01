@@ -1941,13 +1941,14 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-// Initialize on DOM ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
+// Initialize on DOM ready (single-flight guard)
+if (!window.__IE_REALTIME_COLLAB_INIT__) {
+  window.__IE_REALTIME_COLLAB_INIT__ = true;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initRealtimeCollaboration();
+    }, { once: true });
+  } else {
     initRealtimeCollaboration();
-  });
-} else {
-  initRealtimeCollaboration();
+  }
 }
-
-console.log('✅ Real-time collaboration ready');
