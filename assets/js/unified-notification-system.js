@@ -244,6 +244,78 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   }
 
   // ================================================================
+  // IN-APP NOTIFICATION NAVIGATION
+  // ================================================================
+  // Instead of navigating to potentially broken URLs, parse the link
+  // and open the relevant panel in-app.
+
+  function _navigateNotification(link, type, notifId) {
+    console.log(`[Notifications] View clicked: type=${type}, link=${link}, id=${notifId}`);
+
+    // Close the notification panel first
+    document.getElementById('unified-notification-panel')?.remove();
+
+    // Parse project ID from link patterns like /?project=<id> or /anything?project=<id>
+    const projectMatch = link.match(/[?&]project=([^&]+)/);
+    if (projectMatch) {
+      const projectId = projectMatch[1];
+      console.log(`[Notifications] Opening project in-app: ${projectId}`);
+      if (typeof window.openNodePanel === 'function') {
+        window.openNodePanel({ id: projectId, type: 'project' });
+      } else if (typeof window.openProjectsModal === 'function') {
+        window.openProjectsModal();
+      }
+      return;
+    }
+
+    // Parse org ID from link patterns like /anything?org=<id>
+    const orgMatch = link.match(/[?&]org=([^&]+)/);
+    if (orgMatch) {
+      const orgId = orgMatch[1];
+      console.log(`[Notifications] Opening organization in-app: ${orgId}`);
+      if (typeof window.openNodePanel === 'function') {
+        window.openNodePanel({ id: orgId, type: 'organization' });
+      }
+      return;
+    }
+
+    // Route by notification type when link doesn't contain parseable IDs
+    if (type === 'project_invite' || type === 'project_accepted' || type === 'project_request') {
+      console.log('[Notifications] Opening projects modal for project notification');
+      if (typeof window.openProjectsModal === 'function') {
+        window.openProjectsModal();
+      }
+      return;
+    }
+
+    if (type === 'org_join_request' || type === 'org_accepted') {
+      console.log('[Notifications] Opening org panel for org notification');
+      return;
+    }
+
+    if (type === 'message') {
+      console.log('[Notifications] Opening messaging for message notification');
+      if (typeof window.openMessagingInterface === 'function') {
+        window.openMessagingInterface();
+      }
+      return;
+    }
+
+    // Fallback: if the link is a full absolute URL on the same origin, navigate
+    // but rewrite root-domain GitHub Pages URLs to include the repo path.
+    if (link) {
+      const basePath = window.location.pathname.replace(/\/[^/]*$/, '/');
+      let safeUrl = link;
+      // Relative paths like /dashboard.html → prepend base path
+      if (link.startsWith('/') && !link.startsWith(basePath)) {
+        safeUrl = basePath + link.replace(/^\//, '');
+      }
+      console.log(`[Notifications] Navigating to: ${safeUrl}`);
+      window.location.href = safeUrl;
+    }
+  }
+
+  // ================================================================
   // CONNECTION REQUEST HANDLERS
   // ================================================================
 
@@ -668,9 +740,10 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         if (itemEl && (itemEl.dataset.itemId || itemEl.dataset.itemLink)) {
           const notifId = itemEl.dataset.itemId;
           const notifLink = itemEl.dataset.itemLink;
+          const notifType = itemEl.dataset.itemType || '';
 
           if (actionLabel === 'View' && notifLink) {
-            window.location.href = notifLink;
+            _navigateNotification(notifLink, notifType, notifId);
             return;
           }
           if (actionLabel === 'Dismiss') {
@@ -822,6 +895,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         unifiedData.notifications.map(notif => ({
           id: notif.id,
           link: notif.link || '',
+          type: notif.type || '',
           title: notif.title,
           subtitle: notif.created_at ? getTimeAgo(new Date(notif.created_at)) : '',
           icon: getNotificationIcon(notif.type),
@@ -1018,7 +1092,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           ${title}
         </h4>
         ${items.map((item, index) => `
-          <div class="notification-item" data-index="${index}" data-item-id="${item.id || ''}" data-item-link="${item.link || ''}" ${item.conversationId ? `data-conversation-id="${item.conversationId}"` : ''} style="
+          <div class="notification-item" data-index="${index}" data-item-id="${item.id || ''}" data-item-link="${item.link || ''}" data-item-type="${item.type || ''}" ${item.conversationId ? `data-conversation-id="${item.conversationId}"` : ''} style="
             padding: 0.75rem;
             margin-bottom: 0.5rem;
             background: rgba(0,224,255,0.05);
@@ -1261,6 +1335,8 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     refresh: loadAllData,
     // showPanel — open the notification dropdown (bell panel)
     showPanel: showUnifiedNotificationPanel,
+    // navigateNotification — smart in-app routing for notification links
+    navigateNotification: _navigateNotification,
     // downloadReport — load data if needed then trigger the HTML export
     downloadReport: handleDownloadReport,
     // _restoreMobileDashboard — called by start-daily-digest._destroySplit

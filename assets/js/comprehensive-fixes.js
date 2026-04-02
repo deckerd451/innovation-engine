@@ -297,7 +297,7 @@
           'project_request',
           'New Project Request',
           `Someone wants to join your project: ${project.title}`,
-          `/?project=${projectId}`
+          `?project=${projectId}`
         );
       }
 
@@ -363,7 +363,7 @@
           'org_join_request',
           'New Organization Join Request',
           `Someone wants to join ${org.name}`,
-          `/organization-admin.html?org=${orgId}`
+          `?org=${orgId}`
         );
       }
 

@@ -293,7 +293,19 @@
 
     if (notif.link) {
       item.addEventListener('click', () => {
-        window.location.href = notif.link;
+        // Use unified smart navigation to avoid broken root-domain URLs
+        if (window.UnifiedNotifications?.navigateNotification) {
+          window.UnifiedNotifications.navigateNotification(notif.link, notif.type, notif.id);
+        } else {
+          // Fallback: rewrite root-relative paths to include base path
+          const basePath = window.location.pathname.replace(/\/[^/]*$/, '/');
+          let safeUrl = notif.link;
+          if (notif.link.startsWith('/') && !notif.link.startsWith(basePath)) {
+            safeUrl = basePath + notif.link.replace(/^\//, '');
+          }
+          console.log(`[Notifications] Navigating to: ${safeUrl}`);
+          window.location.href = safeUrl;
+        }
       });
       item.style.cursor = 'pointer';
       item.addEventListener('mouseenter', () => {
