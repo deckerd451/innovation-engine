@@ -438,20 +438,20 @@
 
   // ── Badge sync: messages + suggestions ─────────────────────────
   function syncBadge() {
-    // Sync messages badge from bell badge
-    const bellBadge = document.getElementById('cd-bell-badge');
+    // Sync messages badge from the split messages badge
+    const msgBadge = document.getElementById('cd-messages-badge');
     const tabBadge  = document.getElementById('mob-tab-messages-badge');
-    if (bellBadge && tabBadge) {
+    if (msgBadge && tabBadge) {
       const observer = new MutationObserver(() => {
-        const hidden = bellBadge.style.display === 'none' || !bellBadge.textContent.trim();
+        const hidden = msgBadge.style.display === 'none' || !msgBadge.textContent.trim();
         tabBadge.style.display = hidden ? 'none' : '';
-        tabBadge.textContent   = bellBadge.textContent;
+        tabBadge.textContent   = msgBadge.textContent;
       });
-      observer.observe(bellBadge, { attributes: true, childList: true, characterData: true });
+      observer.observe(msgBadge, { attributes: true, childList: true, characterData: true });
       // Initial sync
-      const hidden = bellBadge.style.display === 'none';
+      const hidden = msgBadge.style.display === 'none';
       tabBadge.style.display = hidden ? 'none' : '';
-      tabBadge.textContent   = bellBadge.textContent;
+      tabBadge.textContent   = msgBadge.textContent;
     }
 
     // Sync suggestions badge

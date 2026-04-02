@@ -940,21 +940,47 @@
   border-color: rgba(255, 165, 0, 0.55);
 }
 
-/* Bell — cyan */
-.cd-bell-btn {
+/* Messages — cyan */
+.cd-messages-btn {
   color: var(--cd-accent);
   border-color: rgba(0, 224, 255, 0.3);
   background: rgba(0, 224, 255, 0.06);
   overflow: visible;
   z-index: 1;
 }
-.cd-bell-btn:hover {
+.cd-messages-btn:hover {
   background: rgba(0, 224, 255, 0.15);
   border-color: rgba(0, 224, 255, 0.5);
 }
 
-/* Unread badge on the bell */
-.cd-bell-badge {
+/* Notifications — amber */
+.cd-notif-btn {
+  color: #ffaa00;
+  border-color: rgba(255, 170, 0, 0.3);
+  background: rgba(255, 170, 0, 0.06);
+  overflow: visible;
+  z-index: 1;
+}
+.cd-notif-btn:hover {
+  background: rgba(255, 170, 0, 0.15);
+  border-color: rgba(255, 170, 0, 0.5);
+}
+
+/* Actions — green */
+.cd-actions-btn {
+  color: #00ff88;
+  border-color: rgba(0, 255, 136, 0.3);
+  background: rgba(0, 255, 136, 0.06);
+  overflow: visible;
+  z-index: 1;
+}
+.cd-actions-btn:hover {
+  background: rgba(0, 255, 136, 0.15);
+  border-color: rgba(0, 255, 136, 0.5);
+}
+
+/* Unread badge (shared across messages/notifications/actions) */
+.cd-notif-badge {
   position: absolute;
   top: 0;
   right: 0;

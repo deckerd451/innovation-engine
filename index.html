@@ -134,18 +134,55 @@
     <div
       style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:0.75rem;"
     >
+      <!-- Split notification badges: Messages / Notifications / Actions -->
       <div
-        id="btn-bell-mobile"
+        id="btn-messages-mobile"
         role="button"
         tabindex="0"
+        class="mobile-notif-btn"
         style="cursor:pointer; padding:0.6rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; position:relative;"
-        title="Network Reflection"
-        aria-label="Network Reflection"
+        title="Messages"
+        aria-label="Open messages"
       >
-        <i class="fas fa-bell" style="color:#00e0ff; font-size:1.1rem;"></i>
+        <i class="fas fa-comment" style="color:#00e0ff; font-size:1.1rem;"></i>
         <span
-          id="mobile-bell-badge"
-          style="display:none; position:absolute; top:-4px; right:-4px; background:#ff3b30; color:#fff; font-size:0.6rem; font-weight:700; min-width:16px; height:16px; border-radius:8px; padding:0 4px; display:flex; align-items:center; justify-content:center;"
+          id="mobile-messages-badge"
+          class="mobile-notif-badge"
+          style="display:none; position:absolute; top:-4px; right:-4px; background:#ff3b30; color:#fff; font-size:0.6rem; font-weight:700; min-width:16px; height:16px; border-radius:8px; padding:0 4px; align-items:center; justify-content:center;"
+        >0</span>
+      </div>
+
+      <div
+        id="btn-notif-mobile"
+        role="button"
+        tabindex="0"
+        class="mobile-notif-btn"
+        style="cursor:pointer; padding:0.6rem; background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; position:relative;"
+        title="Notifications"
+        aria-label="Open notifications"
+      >
+        <i class="fas fa-bell" style="color:#ffaa00; font-size:1.1rem;"></i>
+        <span
+          id="mobile-notif-badge"
+          class="mobile-notif-badge"
+          style="display:none; position:absolute; top:-4px; right:-4px; background:#ff3b30; color:#fff; font-size:0.6rem; font-weight:700; min-width:16px; height:16px; border-radius:8px; padding:0 4px; align-items:center; justify-content:center;"
+        >0</span>
+      </div>
+
+      <div
+        id="btn-actions-mobile"
+        role="button"
+        tabindex="0"
+        class="mobile-notif-btn"
+        style="cursor:pointer; padding:0.6rem; background:rgba(0,255,136,0.1); border:1px solid rgba(0,255,136,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; position:relative;"
+        title="Actions required"
+        aria-label="Open actions"
+      >
+        <i class="fas fa-bolt" style="color:#00ff88; font-size:1.1rem;"></i>
+        <span
+          id="mobile-actions-badge"
+          class="mobile-notif-badge"
+          style="display:none; position:absolute; top:-4px; right:-4px; background:#ff3b30; color:#fff; font-size:0.6rem; font-weight:700; min-width:16px; height:16px; border-radius:8px; padding:0 4px; align-items:center; justify-content:center;"
         >0</span>
       </div>
 
@@ -192,13 +229,34 @@
                 </button>
 
                 <button
-                  class="cd-icon-btn cd-bell-btn"
-                  id="cd-bell-btn"
+                  class="cd-icon-btn cd-messages-btn"
+                  id="cd-messages-btn"
                   title="Messages"
                   aria-label="Open messages"
                 >
+                  <i class="fas fa-comment"></i>
+                  <span class="cd-notif-badge" id="cd-messages-badge" style="display:none;">0</span>
+                </button>
+
+                <button
+                  class="cd-icon-btn cd-notif-btn"
+                  id="cd-notif-btn"
+                  title="Notifications"
+                  aria-label="Open notifications"
+                >
                   <i class="fas fa-bell"></i>
-                  <span class="cd-bell-badge" id="cd-bell-badge" style="display:none;">0</span>
+                  <span class="cd-notif-badge" id="cd-notif-badge" style="display:none;">0</span>
+                </button>
+
+                <button
+                  class="cd-icon-btn cd-actions-btn"
+                  id="cd-actions-btn"
+                  title="Actions required"
+                  aria-label="Open actions"
+                  style="display:none;"
+                >
+                  <i class="fas fa-bolt"></i>
+                  <span class="cd-notif-badge" id="cd-actions-badge" style="display:none;">0</span>
                 </button>
 
                 <button
@@ -834,7 +892,19 @@
         });
       }
 
-      wireKeyClick("btn-bell-mobile", () => {
+      wireKeyClick("btn-messages-mobile", () => {
+        if (typeof window.openMessagingInterface === 'function') {
+          window.openMessagingInterface();
+        }
+      });
+
+      wireKeyClick("btn-notif-mobile", () => {
+        if (window.UnifiedNotifications?.showPanel) {
+          window.UnifiedNotifications.showPanel();
+        }
+      });
+
+      wireKeyClick("btn-actions-mobile", () => {
         if (window.UnifiedNotifications?.showPanel) {
           window.UnifiedNotifications.showPanel();
         }

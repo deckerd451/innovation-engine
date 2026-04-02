@@ -695,18 +695,22 @@ body.profile-modal-open .side-panel {
 }
 
 /* ============================================================
-   MOBILE HEADER BUTTONS (bell + logout)
+   MOBILE HEADER BUTTONS (messages + notifications + actions + logout)
    Visible only on mobile (<1024px) where command dashboard is hidden.
    ============================================================ */
-#btn-bell-mobile,
+.mobile-notif-btn,
 #btn-logout-mobile {
   display: none; /* hidden by default */
 }
 
 @media (max-width: 1023px) {
-  #btn-bell-mobile,
+  .mobile-notif-btn,
   #btn-logout-mobile {
     display: flex !important;
+  }
+  /* Hide actions button on mobile when it has no count (managed by JS) */
+  #btn-actions-mobile[data-empty="true"] {
+    display: none !important;
   }
 }
 

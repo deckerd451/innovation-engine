@@ -1538,17 +1538,41 @@ window.CommandDashboard = (() => {
     }
   }
 
-  /** Wire bell button → open messaging */
+  /** Wire messages button → open messaging */
   function _wireBellBtn() {
-    const btn = $id('cd-bell-btn');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      if (typeof window.openMessagingInterface === 'function') {
-        window.openMessagingInterface();
-      } else if (typeof window.openMessagesModal === 'function') {
-        window.openMessagesModal();
-      }
-    });
+    // Messages button → open messaging
+    const msgBtn = $id('cd-messages-btn');
+    if (msgBtn) {
+      msgBtn.addEventListener('click', () => {
+        if (typeof window.openMessagingInterface === 'function') {
+          window.openMessagingInterface();
+        } else if (typeof window.openMessagesModal === 'function') {
+          window.openMessagesModal();
+        }
+      });
+    }
+
+    // Notifications button → open notification panel
+    const notifBtn = $id('cd-notif-btn');
+    if (notifBtn) {
+      notifBtn.addEventListener('click', () => {
+        if (window.NotificationBell?.showPanel) {
+          window.NotificationBell.showPanel();
+        } else if (window.UnifiedNotifications?.showPanel) {
+          window.UnifiedNotifications.showPanel();
+        }
+      });
+    }
+
+    // Actions button → open unified panel (shows connection requests, bids, etc.)
+    const actionsBtn = $id('cd-actions-btn');
+    if (actionsBtn) {
+      actionsBtn.addEventListener('click', () => {
+        if (window.UnifiedNotifications?.showPanel) {
+          window.UnifiedNotifications.showPanel();
+        }
+      });
+    }
   }
 
   /** Wire logout button in command dashboard */
@@ -1794,8 +1818,8 @@ window.CommandDashboard = (() => {
     setUnreadMessages(n) {
       _unreadMessages = Math.max(0, parseInt(n, 10) || 0);
       _renderMessages();
-      // Drive the bell badge in the identity header
-      const badge = $id('cd-bell-badge');
+      // Drive the messages badge in the identity header
+      const badge = $id('cd-messages-badge');
       if (badge) {
         if (_unreadMessages > 0) {
           badge.textContent = _unreadMessages > 99 ? '99+' : _unreadMessages;

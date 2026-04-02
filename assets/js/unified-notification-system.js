@@ -25,7 +25,10 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     startSequence: null,
     messages: [],
     notifications: [],
-    totalUnread: 0
+    totalUnread: 0,
+    msgUnread: 0,
+    notifUnread: 0,
+    actionsCount: 0
   };
   let realtimeSubscriptions = [];
   // Tracks where #command-dashboard lived before being moved into the split pane
@@ -193,35 +196,50 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     total += actionsCount;
 
     unifiedData.totalUnread = total;
+    unifiedData.msgUnread = msgUnread;
+    unifiedData.notifUnread = notifUnread;
+    unifiedData.actionsCount = actionsCount;
 
-    console.log(`[Badge] top-right count source: messages=${msgUnread}, notifications=${notifUnread}, actions=${actionsCount}, total=${total}`);
+    console.log(`[Badge] messages=${msgUnread}, notifications=${notifUnread}, actions=${actionsCount}, total=${total}`);
   }
 
   // ================================================================
-  // UPDATE BADGE
+  // UPDATE BADGES (split: messages / notifications / actions)
   // ================================================================
 
+  function _setBadge(el, count, showStyle) {
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = count > 99 ? '99+' : count;
+      el.style.display = showStyle;
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
   function updateNotificationBadge() {
-    // Drive the panel bell badge with the total count
-    const panelBadge = document.getElementById('cd-bell-badge');
-    if (panelBadge) {
-      if (unifiedData.totalUnread > 0) {
-        panelBadge.textContent = unifiedData.totalUnread > 99 ? '99+' : unifiedData.totalUnread;
-        panelBadge.style.display = '';
-      } else {
-        panelBadge.style.display = 'none';
-      }
+    const { msgUnread, notifUnread, actionsCount } = unifiedData;
+
+    // ── Desktop command-dashboard badges ──
+    _setBadge(document.getElementById('cd-messages-badge'), msgUnread, '');
+    _setBadge(document.getElementById('cd-notif-badge'), notifUnread, '');
+    _setBadge(document.getElementById('cd-actions-badge'), actionsCount, '');
+
+    // Show/hide the actions button itself (only visible when there are actions)
+    const actionsBtn = document.getElementById('cd-actions-btn');
+    if (actionsBtn) {
+      actionsBtn.style.display = actionsCount > 0 ? '' : 'none';
     }
 
-    // Drive the mobile bell badge
-    const mobileBadge = document.getElementById('mobile-bell-badge');
-    if (mobileBadge) {
-      if (unifiedData.totalUnread > 0) {
-        mobileBadge.textContent = unifiedData.totalUnread > 99 ? '99+' : unifiedData.totalUnread;
-        mobileBadge.style.display = 'flex';
-      } else {
-        mobileBadge.style.display = 'none';
-      }
+    // ── Mobile header badges ──
+    _setBadge(document.getElementById('mobile-messages-badge'), msgUnread, 'flex');
+    _setBadge(document.getElementById('mobile-notif-badge'), notifUnread, 'flex');
+    _setBadge(document.getElementById('mobile-actions-badge'), actionsCount, 'flex');
+
+    // Show/hide mobile actions button
+    const mobileActionsBtn = document.getElementById('btn-actions-mobile');
+    if (mobileActionsBtn) {
+      mobileActionsBtn.setAttribute('data-empty', actionsCount > 0 ? 'false' : 'true');
     }
   }
 
