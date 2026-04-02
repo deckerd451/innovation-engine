@@ -42,22 +42,23 @@ async function loadThemesIntoDropdown() {
   if (!dropdown) return;
 
   try {
+    // Use the same safe query pattern as CommandDashboard _loadThemes:
+    // no status filter (column may not exist), filter by expires_at instead
+    const now = new Date().toISOString();
     const { data: themes, error } = await supabase
       .from('theme_circles')
-      .select('id, title, tags, expires_at')
-      .eq('status', 'active')
-      .gt('expires_at', new Date().toISOString())
+      .select('id, title, tags, expires_at, created_at')
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
       .order('title', { ascending: true });
 
     if (error) {
-      console.error('Error loading themes:', error);
-      return;
+      console.warn('[Project Modal] theme_circles query failed:', error.message);
     }
 
     // Clear existing options except the first one
     dropdown.innerHTML = '<option value="">No theme (standalone project)</option>';
 
-    // Add theme options
+    // Add theme circle options
     if (themes && themes.length > 0) {
       themes.forEach(theme => {
         const option = document.createElement('option');
@@ -66,10 +67,39 @@ async function loadThemesIntoDropdown() {
         option.textContent = `${theme.title}${tags}`;
         dropdown.appendChild(option);
       });
-      console.log(`✅ Loaded ${themes.length} themes into project form`);
-    } else {
-      console.log('ℹ️ No active themes available');
     }
+
+    // Fallback: add aggregated skills from community table as theme options
+    const { data: people } = await supabase.from('community').select('skills');
+    if (people) {
+      const skillCounts = new Map();
+      const skillLabels = new Map();
+      people.forEach(p => {
+        const items = Array.isArray(p.skills) ? p.skills
+          : (typeof p.skills === 'string' && p.skills.trim()) ? p.skills.split(',') : [];
+        items.forEach(s => {
+          const skill = String(s || '').trim();
+          if (!skill) return;
+          const key = skill.toLowerCase();
+          skillCounts.set(key, (skillCounts.get(key) || 0) + 1);
+          if (!skillLabels.has(key)) skillLabels.set(key, skill);
+        });
+      });
+      // Add skills with 2+ people that aren't already theme circles
+      const existingTitles = new Set((themes || []).map(t => (t.title || '').toLowerCase()));
+      const sorted = [...skillCounts.entries()]
+        .filter(([k, c]) => c >= 2 && !existingTitles.has(k))
+        .sort((a, b) => b[1] - a[1]);
+      sorted.forEach(([key, count]) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = `${skillLabels.get(key)} (${count} people)`;
+        dropdown.appendChild(option);
+      });
+    }
+
+    const totalOptions = dropdown.options.length - 1; // minus the "No theme" option
+    console.log(`[Project Modal] loaded ${totalOptions} themes`);
   } catch (err) {
     console.error('Error loading themes dropdown:', err);
   }
@@ -113,7 +143,11 @@ export async function createProject(event) {
   
   if (error) {
     console.error('Error creating project:', error);
-    alert('Error creating project. Please try again.');
+    if (error.code === '23505') {
+      alert('You already have a project with this name. Please choose a different title.');
+    } else {
+      alert('Error creating project. Please try again.');
+    }
     return;
   }
 
