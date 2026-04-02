@@ -925,6 +925,7 @@
   font-size: 0.85rem;
   transition: background 0.15s, border-color 0.15s;
   position: relative;
+  overflow: visible;
   padding: 0;
   color: inherit;
 }
@@ -987,16 +988,18 @@
   transform: translate(35%, -35%);
   background: #ff3b30;
   color: #fff;
-  font-size: 0.6rem;
+  font-size: 11px;
   font-weight: 700;
   min-width: 18px;
   height: 18px;
-  border-radius: 9px;
-  padding: 0 4px;
+  padding: 0 5px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+  box-sizing: border-box;
+  white-space: nowrap;
   pointer-events: none;
   z-index: 10;
   box-shadow: 0 0 0 2px var(--cd-bg, #0a0e27);
