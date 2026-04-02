@@ -530,80 +530,83 @@ window.CommandDashboard = (() => {
    */
   async function _loadThemes() {
     const themes = new Map(); // key → { id, label, count }
-    let circleSource = 0;
+    let circleRows = 0;
+    let fallbackRows = 0;
 
-    // 1. Theme circles from Supabase (safe query — no status filter)
+    // 1. Theme circles — use only columns known to exist
     if (window.supabase) {
       try {
         const now = new Date().toISOString();
         const { data: circles, error } = await window.supabase
           .from('theme_circles')
-          .select('id, title, description, participant_count, expires_at')
+          .select('id, title, description, expires_at, created_at')
           .or(`expires_at.is.null,expires_at.gt.${now}`)
-          .order('participant_count', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(50);
 
         if (error) {
           console.warn('[Themes] theme_circles query failed:', error.message);
         } else if (circles && circles.length > 0) {
-          circleSource = circles.length;
+          circleRows = circles.length;
           circles.forEach(c => {
             const label = (c.title || '').trim();
             if (label) {
-              themes.set(label.toLowerCase(), {
-                id: c.id,
-                label,
-                count: c.participant_count || 0,
-              });
+              themes.set(label.toLowerCase(), { id: c.id, label, count: 0 });
             }
           });
         }
-        console.log(`[Themes] theme_circles result: ${circleSource} rows`);
       } catch (e) {
         console.warn('[Themes] theme_circles fetch error:', e.message);
       }
+      console.log(`[Themes] theme_circles rows: ${circleRows}`);
     }
 
-    // 2. Aggregate skills from graph person nodes (community.skills via _raw)
-    let skillSource = 0;
-    const store = window.graphDataStore;
-    if (store && typeof store.getAllNodes === 'function') {
-      const skillCounts = new Map(); // lowercase skill → count
-      const skillLabels = new Map(); // lowercase skill → original-case label
-      store.getAllNodes().forEach(n => {
-        if (n.type !== 'person') return;
-        const raw = n._raw || n;
-        const sources = [raw.skills, raw.interests];
-        sources.forEach(src => {
-          const items = Array.isArray(src)
-            ? src
-            : (typeof src === 'string' && src.trim()) ? src.split(',') : [];
-          items.forEach(s => {
-            const skill = String(s || '').trim();
-            if (!skill) return;
-            const key = skill.toLowerCase();
-            skillCounts.set(key, (skillCounts.get(key) || 0) + 1);
-            if (!skillLabels.has(key)) skillLabels.set(key, skill);
-          });
-        });
-      });
+    // 2. Aggregate skills directly from community table (always works,
+    //    does not depend on graphDataStore being loaded)
+    if (window.supabase) {
+      try {
+        const { data: people, error } = await window.supabase
+          .from('community')
+          .select('skills');
 
-      // Promote skills with 2+ people that aren't already theme circles
-      skillCounts.forEach((count, key) => {
-        if (count >= 2 && !themes.has(key)) {
-          skillSource++;
-          themes.set(key, {
-            id: key,
-            label: skillLabels.get(key) || key,
-            count,
+        if (error) {
+          console.warn('[Themes] community.skills query failed:', error.message);
+        } else if (people) {
+          const skillCounts = new Map();
+          const skillLabels = new Map();
+
+          people.forEach(p => {
+            const src = p.skills;
+            const items = Array.isArray(src)
+              ? src
+              : (typeof src === 'string' && src.trim()) ? src.split(',') : [];
+            items.forEach(s => {
+              const skill = String(s || '').trim();
+              if (!skill) return;
+              const key = skill.toLowerCase();
+              skillCounts.set(key, (skillCounts.get(key) || 0) + 1);
+              if (!skillLabels.has(key)) skillLabels.set(key, skill);
+            });
+          });
+
+          // Promote skills with 2+ people; merge counts into theme circles
+          skillCounts.forEach((count, key) => {
+            if (count < 2) return;
+            if (themes.has(key)) {
+              // Update count on existing theme circle
+              themes.get(key).count = count;
+            } else {
+              fallbackRows++;
+              themes.set(key, { id: key, label: skillLabels.get(key) || key, count });
+            }
           });
         }
-      });
-
-      if (skillSource > 0) console.log(`[Themes] fallback used: community skills (${skillSource} added)`);
+      } catch (e) {
+        console.warn('[Themes] community.skills fallback error:', e.message);
+      }
+      if (fallbackRows > 0) console.log(`[Themes] fallback used: community.skills (${fallbackRows} added)`);
     }
 
-    // Sort by count descending
     _enrichedData.themes = [...themes.values()].sort((a, b) => b.count - a.count);
     console.log(`[Themes] final theme count: ${_enrichedData.themes.length}`);
   }
