@@ -471,6 +471,9 @@ const MessagingModule = (function () {
         ...c,
         unreadCount: unreadMap[c.id] || 0
       }));
+
+      const totalUnread = state.conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+      console.log(`[Messages] unread count: ${totalUnread}`);
     }
   }
 
@@ -518,6 +521,8 @@ const MessagingModule = (function () {
       ...msg,
       sender: senderMap[msg.sender_id] || null
     }));
+
+    console.log(`[Messages] loaded ${state.messages.length} messages`);
 
     await markMessagesAsRead(conversationId);
   }
@@ -776,6 +781,8 @@ const MessagingModule = (function () {
       .neq("sender_id", state.currentUser.authId)
       .eq("read", false);
 
+    console.log(`[Messages] marked as read for conversation: ${conversationId}`);
+
     // Dispatch event for message badges
     window.dispatchEvent(new CustomEvent('messages-updated'));
   }
@@ -1010,7 +1017,7 @@ const MessagingModule = (function () {
                 ${isUnread ? `<span class="conv-unread-dot"></span>` : ""}
               </div>
               <div class="conversation-info">
-                <div class="conversation-name">
+                <div class="conversation-name${isUnread ? " conv-name-unread" : ""}">
                   <span>${escapeHtml(conv.otherUser?.name || "Unknown")}</span>
                   <span class="conversation-time">${timeAgo}</span>
                 </div>
@@ -1147,12 +1154,13 @@ const MessagingModule = (function () {
       }
 
       const isSent = msg.sender_id === state.currentUser.authId;
+      const isUnread = !isSent && msg.read === false;
       const senderName = isSent ? "You" : (msg.sender?.name || "Unknown");
       const initials = senderName.substring(0, 2).toUpperCase();
       const timestamp = formatTime(msg.created_at);
 
       html += `
-        <div class="message ${isSent ? "sent" : "received"}" data-msg-id="${escapeHtml(String(msg.id))}">
+        <div class="message ${isSent ? "sent" : "received"}${isUnread ? " unread" : ""}" data-msg-id="${escapeHtml(String(msg.id))}">
           <div class="message-avatar">${initials}</div>
           <div class="message-content">
             <div class="message-bubble">

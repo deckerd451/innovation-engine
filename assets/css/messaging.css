@@ -1101,3 +1101,20 @@
 .scroll-to-bottom-btn:hover {
   background: rgba(0,224,255,0.3);
 }
+
+/* ============================================================
+   UNREAD MESSAGE HIGHLIGHTING (received + unread)
+   ============================================================ */
+.message.received.unread .message-bubble {
+  background: rgba(0, 224, 255, 0.18);
+  border-color: rgba(0, 224, 255, 0.5);
+  font-weight: 600;
+}
+
+/* ============================================================
+   BOLD CONVERSATION NAME WHEN UNREAD
+   ============================================================ */
+.conversation-name.conv-name-unread span:first-child {
+  font-weight: 800;
+  color: #fff;
+}
