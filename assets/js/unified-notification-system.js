@@ -123,7 +123,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
           .from('messages')
           .select('content, created_at')
           .eq('conversation_id', conv.id)
-          .neq('sender_id', _authUserId || currentUserProfile.user_id)
+          .neq('sender_id', currentUserProfile.id)
           .eq('read', false)
           .order('created_at', { ascending: false })
           .limit(5);
@@ -170,20 +170,26 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     let total = 0;
 
     // Count unread messages
-    total += unifiedData.messages.reduce((sum, msg) => sum + (msg.unread_count || 0), 0);
+    const msgUnread = unifiedData.messages.reduce((sum, msg) => sum + (msg.unread_count || 0), 0);
+    total += msgUnread;
 
     // Count unread notifications
-    total += unifiedData.notifications.length;
+    const notifUnread = unifiedData.notifications.length;
+    total += notifUnread;
 
     // Count START sequence immediate actions
+    let actionsCount = 0;
     if (unifiedData.startSequence?.immediate_actions) {
       const actions = unifiedData.startSequence.immediate_actions;
-      total += (actions.pending_requests?.count || 0);
-      total += (actions.pending_bids?.count || 0);
-      total += (actions.bids_to_review?.count || 0);
+      actionsCount += (actions.pending_requests?.count || 0);
+      actionsCount += (actions.pending_bids?.count || 0);
+      actionsCount += (actions.bids_to_review?.count || 0);
     }
+    total += actionsCount;
 
     unifiedData.totalUnread = total;
+
+    console.log(`[Badge] top-right count source: messages=${msgUnread}, notifications=${notifUnread}, actions=${actionsCount}, total=${total}`);
   }
 
   // ================================================================

@@ -64,14 +64,34 @@
 
       notifications = data || [];
       
-      // Get unread MESSAGE count from SynapseMessageBadges if available
-      if (window.SynapseMessageBadges?.getTotalUnreadCount) {
-        unreadCount = window.SynapseMessageBadges.getTotalUnreadCount();
-      } else {
-        // Fallback to RPC if message badges not loaded yet
-        const { data: messageCount, error: countError } = await window.supabase.rpc('get_unread_count');
-        unreadCount = (!countError && messageCount !== null) ? messageCount : 0;
+      // Get unread MESSAGE count using community ID (sender_id stores community IDs)
+      // The get_unread_count RPC compares sender_id against auth.uid() which is
+      // a different UUID space, producing inflated counts. Query directly instead.
+      try {
+        const { data: convData } = await window.supabase
+          .from('conversations')
+          .select('id')
+          .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`);
+
+        const convIds = (convData || []).map(c => c.id);
+        if (convIds.length > 0) {
+          const { data: unreadRows } = await window.supabase
+            .from('messages')
+            .select('id')
+            .in('conversation_id', convIds)
+            .neq('sender_id', currentUserProfile.id)
+            .eq('read', false);
+
+          unreadCount = (unreadRows || []).length;
+        } else {
+          unreadCount = 0;
+        }
+      } catch (countErr) {
+        console.warn('[Badge] unread message count query failed:', countErr);
+        unreadCount = 0;
       }
+
+      console.log(`[Notifications] unread total: ${unreadCount} messages, ${notifications.length} notifications`);
 
       updateBellBadge();
       console.log(`📬 Loaded ${notifications.length} notifications (${unreadCount} unread messages)`);
