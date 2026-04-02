@@ -28,7 +28,7 @@ export async function initAuth() {
   document.getElementById('loginBtn')?.addEventListener('click', async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: location.href }
+      options: { redirectTo: location.origin + location.pathname.replace(/\/[^/]*$/, '/index.html') }
     });
     if (error) showNotification?.('Login error.');
   });

@@ -587,7 +587,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   async function oauthLogin(provider) {
     try {
       $("login-hint") && ($("login-hint").textContent = "Opening login…");
-      const redirectTo = window.location.href.split("#")[0];
+      const base = window.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '');
+      const redirectTo = window.location.origin + base + '/index.html';
       const { error } = await state.supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo },

@@ -318,8 +318,11 @@
     clearAuthError();
     setHint("Opening provider…");
 
-    // Stable redirect target (align with your app)
-    const redirectTo = window.location.origin + "/index.html";
+    // Stable redirect target — use the full path including any GitHub Pages
+    // project-site prefix (e.g. /innovation-engine/) so OAuth returns to the
+    // correct URL on both desktop and mobile Safari.
+    const base = window.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '');
+    const redirectTo = window.location.origin + base + '/index.html';
 
     const { error } = await window.supabase.auth.signInWithOAuth({
       provider,
