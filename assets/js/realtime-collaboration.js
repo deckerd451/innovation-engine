@@ -593,6 +593,10 @@ export async function openMessagingInterface(conversationId = null) {
         background: rgba(0, 224, 255, 0.1);
         border-color: rgba(0, 224, 255, 0.4);
       }
+      .conversation-item.unread {
+        border-left: 3px solid #00e0ff;
+        background: rgba(0, 224, 255, 0.06);
+      }
 
       /* ── Message bubbles ── */
       .message-bubble {
@@ -615,6 +619,11 @@ export async function openMessagingInterface(conversationId = null) {
         color: white;
         margin-right: auto;
         border-bottom-left-radius: 4px;
+      }
+      .message-bubble.other.rt-unread {
+        background: rgba(0, 224, 255, 0.18);
+        border: 1px solid rgba(0, 224, 255, 0.45);
+        font-weight: 600;
       }
       .message-time {
         font-size: 0.75rem;
@@ -1398,9 +1407,15 @@ async function loadConversationMessages(conversationId) {
         </div>
       `;
     } else {
+      const currentCommunityId = getCurrentCommunityId();
+      const unreadInConv = msgs.filter(m => m.sender_id !== currentCommunityId && m.read === false).length;
+      console.log(`[Messages UI] rendering ${msgs.length} messages`);
+      if (unreadInConv > 0) console.log(`[Messages UI] unread in conversation: ${unreadInConv}`);
+
       let lastDateStr = null;
       msgs.forEach(message => {
         const own = isOwnMessage(message);
+        const isUnread = !own && message.read === false;
         const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const dateStr = new Date(message.created_at).toDateString();
 
@@ -1410,7 +1425,7 @@ async function loadConversationMessages(conversationId) {
         }
 
         innerHtml += `
-          <div class="message-bubble ${own ? 'own' : 'other'}" data-msg-id="${escapeHtml(String(message.id))}">
+          <div class="message-bubble ${own ? 'own' : 'other'}${isUnread ? ' rt-unread' : ''}" data-msg-id="${escapeHtml(String(message.id))}">
             <div>${escapeHtml(message.content || '')}</div>
             <div class="message-time">${time}</div>
             ${own ? `<button class="rt-del-btn" onclick="deleteConversationMessage('${escapeHtml(String(message.id))}')" title="Delete">×</button>` : ''}
@@ -1575,7 +1590,34 @@ async function loadActiveConversations() {
 }
 
 async function loadUnreadCounts() {
-  console.log('📊 Loading unread counts...');
+  const currentCommunityId = getCurrentCommunityId();
+  if (!currentCommunityId) return;
+
+  try {
+    // Fetch all unread messages not sent by me, grouped by conversation
+    const { data, error } = await supabase
+      .from('messages')
+      .select('conversation_id')
+      .neq('sender_id', currentCommunityId)
+      .eq('read', false);
+
+    if (error) {
+      console.warn('[Messages UI] loadUnreadCounts failed:', error);
+      return;
+    }
+
+    // Reset and rebuild counts
+    unreadCounts.clear();
+    (data || []).forEach(m => {
+      const prev = unreadCounts.get(m.conversation_id) || 0;
+      unreadCounts.set(m.conversation_id, prev + 1);
+    });
+
+    const total = [...unreadCounts.values()].reduce((s, v) => s + v, 0);
+    console.log(`[Messages UI] unread count: ${total}`);
+  } catch (e) {
+    console.warn('[Messages UI] loadUnreadCounts error:', e);
+  }
 }
 
 function updateUnreadCount(conversationId, increment) {
@@ -1600,12 +1642,17 @@ async function markMessagesAsRead(conversationId) {
   const currentCommunityId = getCurrentCommunityId();
   if (!currentCommunityId) return;
   try {
-    await supabase
+    const { data, error } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('conversation_id', conversationId)
       .neq('sender_id', currentCommunityId)
-      .eq('read', false);
+      .eq('read', false)
+      .select('id');
+
+    const marked = data?.length || 0;
+    if (error) console.warn('markMessagesAsRead DB update failed:', error);
+    else console.log(`[Messages UI] marked as read: ${marked} (conversation ${conversationId})`);
     // Notify badge system
     window.dispatchEvent(new CustomEvent('messages-updated'));
   } catch (e) {
