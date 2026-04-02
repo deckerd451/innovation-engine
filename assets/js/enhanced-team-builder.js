@@ -1234,6 +1234,12 @@ window.createTeamAndInvite = async function() {
       await window.refreshSynapseProjectCircles();
     }
 
+    // 6b. Refresh Command Dashboard project list
+    if (window.CommandDashboard && typeof window.CommandDashboard.refreshEnrichedData === 'function') {
+      console.log('[Projects] command list refresh triggered from enhanced-team-builder.js');
+      await window.CommandDashboard.refreshEnrichedData();
+    }
+
     // 7. Close modal
     closeTeamBuilder();
 

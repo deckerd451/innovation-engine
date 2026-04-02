@@ -3463,6 +3463,12 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (typeof window.refreshSynapseConnections === "function") {
         await window.refreshSynapseConnections();
       }
+
+      // Refresh Command Dashboard project list
+      if (window.CommandDashboard && typeof window.CommandDashboard.refreshEnrichedData === "function") {
+        console.log("[Projects] command list refresh triggered from dashboardPane.js/createProject");
+        await window.CommandDashboard.refreshEnrichedData();
+      }
     } catch (e) {
       console.error("createProject failed:", e);
       alert(`Project create failed: ${e.message || e}`);

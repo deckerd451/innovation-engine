@@ -163,6 +163,12 @@ export async function createProject(event) {
   if (window.refreshSynapseProjectCircles) {
     await window.refreshSynapseProjectCircles();
   }
+
+  // Refresh Command Dashboard project list
+  if (window.CommandDashboard && typeof window.CommandDashboard.refreshEnrichedData === 'function') {
+    console.log('[Projects] command list refresh triggered from projects.js/createProject');
+    await window.CommandDashboard.refreshEnrichedData();
+  }
 }
 
 // ========================

@@ -496,6 +496,7 @@ window.CommandDashboard = (() => {
             .map(p => p.id)
         );
         console.log(`[Projects] command list now has ${projResult.data.length} items`);
+        console.log(`[Projects] titles: [${projResult.data.map(p => p.title).join(', ')}]`);
       }
 
       if (myProjResult.data) {
@@ -1321,7 +1322,10 @@ window.CommandDashboard = (() => {
       if (!allProjects) return [];
       if (tier === 1) {
         const myIds = _enrichedData.myProjectIds;
-        filtered = myIds ? allProjects.filter(p => myIds.has(p.id)) : [];
+        // Show projects where user is a member OR the creator
+        filtered = allProjects.filter(p =>
+          (myIds && myIds.has(p.id)) || p.creator_id === _userId
+        );
       } else {
         const activeIds = _enrichedData.activeProjectIds;
         filtered = activeIds ? allProjects.filter(p => activeIds.has(p.id)) : allProjects;

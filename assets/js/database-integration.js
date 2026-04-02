@@ -164,7 +164,7 @@ window.createEnhancedProject = async function(projectData) {
 
     // Refresh Command Dashboard project list
     if (window.CommandDashboard && typeof window.CommandDashboard.refreshEnrichedData === 'function') {
-      console.log('[Projects] command list refresh triggered');
+      console.log('[Projects] command list refresh triggered from database-integration.js');
       await window.CommandDashboard.refreshEnrichedData();
     }
     

@@ -916,7 +916,7 @@ window.createEnhancedProject = async function(event) {
 
     // Refresh Command Dashboard project list so the new project appears immediately
     if (window.CommandDashboard && typeof window.CommandDashboard.refreshEnrichedData === 'function') {
-      console.log('[Projects] command list refresh triggered');
+      console.log('[Projects] command list refresh triggered from enhanced-project-creation.js');
       await window.CommandDashboard.refreshEnrichedData();
     }
 
