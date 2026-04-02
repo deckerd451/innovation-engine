@@ -9,7 +9,7 @@
 //   creator – user is the project creator (creator_id match OR role === 'creator')
 //
 // Usage:
-//   const rel = getProjectRelationshipState(project, currentUserId, membership);
+//   const rel = getProjectRelationshipState(project, communityUserId, membership);
 //   // rel.state   → 'viewer' | 'member' | 'creator'
 //   // rel.membership → null | { role, ... }
 //   // rel.isCreator  → boolean
@@ -25,12 +25,12 @@
   /**
    * Compute the relationship state between a user and a project.
    *
-   * @param {Object} project          – project row (must include creator_id)
-   * @param {string|null} currentUserId – the logged-in user's community id
-   * @param {Object|null} membership   – the user's project_members row, or null
+   * @param {Object} project            – project row (must include creator_id)
+   * @param {string|null} communityUserId – the logged-in user's community.id
+   * @param {Object|null} membership     – the user's project_members row, or null
    * @returns {{ state: 'viewer'|'member'|'creator', membership: Object|null, isCreator: boolean, hasPendingRequest: boolean }}
    */
-  function getProjectRelationshipState(project, currentUserId, membership) {
+  function getProjectRelationshipState(project, communityUserId, membership) {
     const result = {
       state: 'viewer',
       membership: membership || null,
@@ -38,12 +38,12 @@
       hasPendingRequest: false,
     };
 
-    if (!project || !currentUserId) {
+    if (!project || !communityUserId) {
       return result;
     }
 
-    // Creator check: creator_id on the project row, or membership role === 'creator'
-    const isCreatorById = project.creator_id === currentUserId;
+    // creator_id must be compared to communityUserId
+    const isCreatorById = project.creator_id === communityUserId;
     const isCreatorByRole = membership && membership.role === 'creator';
     result.isCreator = isCreatorById || !!isCreatorByRole;
 
@@ -76,18 +76,18 @@
    *
    * @param {Object} supabaseClient
    * @param {string} projectId
-   * @param {string} userId
+   * @param {string} communityUserId – community.id (NOT auth user ID)
    * @returns {Promise<Object|null>}
    */
-  async function fetchProjectMembership(supabaseClient, projectId, userId) {
-    if (!supabaseClient || !projectId || !userId) return null;
+  async function fetchProjectMembership(supabaseClient, projectId, communityUserId) {
+    if (!supabaseClient || !projectId || !communityUserId) return null;
 
     try {
       const { data, error } = await supabaseClient
         .from('project_members')
         .select('*')
         .eq('project_id', projectId)
-        .eq('user_id', userId)
+        .eq('user_id', communityUserId) // project_members.user_id stores community.id
         .maybeSingle();
 
       if (error) {
@@ -108,13 +108,13 @@
    * Convenience: fetch membership + compute state in one call.
    *
    * @param {Object} supabaseClient
-   * @param {Object} project        – must include creator_id
-   * @param {string} currentUserId
+   * @param {Object} project          – must include creator_id
+   * @param {string} communityUserId  – community.id
    * @returns {Promise<{ state: string, membership: Object|null, isCreator: boolean, hasPendingRequest: boolean }>}
    */
-  async function resolveProjectRelationship(supabaseClient, project, currentUserId) {
-    const membership = await fetchProjectMembership(supabaseClient, project?.id, currentUserId);
-    const rel = getProjectRelationshipState(project, currentUserId, membership);
+  async function resolveProjectRelationship(supabaseClient, project, communityUserId) {
+    const membership = await fetchProjectMembership(supabaseClient, project?.id, communityUserId);
+    const rel = getProjectRelationshipState(project, communityUserId, membership);
 
     // Structured logging
     if (rel.state === 'creator') {

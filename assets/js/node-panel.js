@@ -1545,13 +1545,13 @@ async function renderProjectPanel(nodeData) {
   const pendingRequests = project.project_members?.filter(m => m.role === 'pending') || [];
 
   // --- Compute relationship state via the central helper ---
-  const currentUserId = currentUserProfile?.id || null;
+  const communityUserId = currentUserProfile?.id || null;
   let userMembership = null;
-  if (currentUserId) {
+  if (communityUserId) {
     // Find the current user's membership row from the already-fetched members list
     const allMembers = project.project_members || [];
     const myRow = allMembers.find(m =>
-      m.user?.id === currentUserId || m.user_id === currentUserId
+      m.user?.id === communityUserId || m.user_id === communityUserId
     );
     if (myRow) {
       userMembership = myRow;
@@ -1559,7 +1559,7 @@ async function renderProjectPanel(nodeData) {
   }
 
   const rel = window.ProjectRelationship
-    ? window.ProjectRelationship.getProjectRelationshipState(project, currentUserId, userMembership)
+    ? window.ProjectRelationship.getProjectRelationshipState(project, communityUserId, userMembership)
     : { state: 'viewer', membership: null, isCreator: false, hasPendingRequest: false };
 
   const isCreator = rel.isCreator;
@@ -2517,16 +2517,16 @@ window.viewProjectDetails = async function(projectId) {
   const pendingRequests = (project.project_members || []).filter(m => m.role === 'pending');
 
   // Relationship state
-  const currentUserId = currentUserProfile?.id || null;
+  const communityUserId = currentUserProfile?.id || null;
   let userMembership = null;
-  if (currentUserId) {
+  if (communityUserId) {
     const myRow = (project.project_members || []).find(m =>
-      m.user?.id === currentUserId || m.user_id === currentUserId
+      m.user?.id === communityUserId || m.user_id === communityUserId
     );
     if (myRow) userMembership = myRow;
   }
   const rel = window.ProjectRelationship
-    ? window.ProjectRelationship.getProjectRelationshipState(project, currentUserId, userMembership)
+    ? window.ProjectRelationship.getProjectRelationshipState(project, communityUserId, userMembership)
     : { state: 'viewer', membership: null, isCreator: false, hasPendingRequest: false };
 
   // --- Build action buttons based on relationship state ---

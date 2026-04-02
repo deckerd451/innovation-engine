@@ -18,7 +18,9 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   window[GUARD] = true;
 
   let currentUserProfile = null;
-  let _authUserId = null;          // auth.users.id — needed for CommandDashboard
+  // _authUserId is retained for backward compatibility with callers that pass it,
+  // but is NOT used in any query. All data queries use communityUserId.
+  let _authUserId = null;
   let unifiedData = {
     startSequence: null,
     messages: [],

@@ -52,10 +52,10 @@ function isOwnMessage(message) {
 }
 
 // Send direct message function
-async function sendDirectMessage(userId, message) {
-  console.log('📨 Direct message function called:', userId, message);
+async function sendDirectMessage(targetCommunityUserId, message) {
+  console.log('📨 Direct message function called:', targetCommunityUserId, message);
 
-  if (!currentUserProfile || !userId) {
+  if (!currentUserProfile || !targetCommunityUserId) {
     console.error('❌ Missing user information for direct message');
     return;
   }
@@ -69,11 +69,11 @@ async function sendDirectMessage(userId, message) {
       throw new Error('Current community profile not loaded');
     }
 
-    // Check if conversation already exists
+    // participant IDs are community.id
     const { data: existingConversation, error: lookupError } = await supabase
       .from('conversations')
       .select('id')
-      .or(`and(participant_1_id.eq.${currentCommunityId},participant_2_id.eq.${userId}),and(participant_1_id.eq.${userId},participant_2_id.eq.${currentCommunityId})`)
+      .or(`and(participant_1_id.eq.${currentCommunityId},participant_2_id.eq.${targetCommunityUserId}),and(participant_1_id.eq.${targetCommunityUserId},participant_2_id.eq.${currentCommunityId})`)
       .maybeSingle();
 
     if (lookupError) {
@@ -89,7 +89,7 @@ async function sendDirectMessage(userId, message) {
         .from('conversations')
         .insert([{
           participant_1_id: currentCommunityId,
-          participant_2_id: userId,
+          participant_2_id: targetCommunityUserId, // community.id
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -1597,7 +1597,8 @@ async function loadUnreadCounts() {
   if (!currentCommunityId) return;
 
   try {
-    // Fetch all unread messages not sent by me, grouped by conversation
+    // Fetch all unread messages not sent by current user, grouped by conversation
+    // sender_id stores community.id — compare against communityUserId
     const { data, error } = await supabase
       .from('messages')
       .select('conversation_id')
@@ -1678,8 +1679,8 @@ window.startNewConversation = function() {
   }
 };
 
-function showUserPresence(userId) {
-  console.log('👤 Showing user presence for:', userId);
+function showUserPresence(communityUserId) {
+  console.log('👤 Showing user presence for:', communityUserId);
 }
 
 function closeMessagingInterface() {
@@ -1695,10 +1696,10 @@ function closeMessagingInterface() {
   console.log('🗑️ Messaging interface closed');
 }
 
-async function createNewMessage(targetUserId, targetUserName) {
+async function createNewMessage(targetCommunityUserId, targetUserName) {
   console.log('💬 Creating new message to:', targetUserName);
 
-  if (!currentUserProfile || !targetUserId) {
+  if (!currentUserProfile || !targetCommunityUserId) {
     console.error('❌ Missing user information for new message');
     return;
   }
@@ -1712,7 +1713,7 @@ async function createNewMessage(targetUserId, targetUserName) {
     const { data: existingConversation, error: lookupError } = await supabase
       .from('conversations')
       .select('id')
-      .or(`and(participant_1_id.eq.${currentCommunityId},participant_2_id.eq.${targetUserId}),and(participant_1_id.eq.${targetUserId},participant_2_id.eq.${currentCommunityId})`)
+      .or(`and(participant_1_id.eq.${currentCommunityId},participant_2_id.eq.${targetCommunityUserId}),and(participant_1_id.eq.${targetCommunityUserId},participant_2_id.eq.${currentCommunityId})`)
       .maybeSingle();
 
     if (lookupError) {
@@ -1729,7 +1730,7 @@ async function createNewMessage(targetUserId, targetUserName) {
         .from('conversations')
         .insert([{
           participant_1_id: currentCommunityId,
-          participant_2_id: targetUserId,
+          participant_2_id: targetCommunityUserId, // community.id
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -1970,9 +1971,9 @@ async function searchUsers(query, container) {
   }
 }
 
-function selectUserForMessage(userId, userName) {
+function selectUserForMessage(targetCommunityUserId, userName) {
   closeNewMessageDialog();
-  createNewMessage(userId, userName);
+  createNewMessage(targetCommunityUserId, userName);
 }
 
 function closeNewMessageDialog() {
