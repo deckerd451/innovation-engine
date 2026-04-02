@@ -2477,10 +2477,245 @@ window.joinProjectFromPanel = async function(projectId) {
   }
 };
 
-window.viewProjectDetails = function(projectId) {
-  closeNodePanel();
-  // Open project details in projects modal
-  window.openProjectsModal();
+window.viewProjectDetails = async function(projectId) {
+  console.log(`[Project Detail] opened: ${projectId}`);
+
+  if (!supabase) supabase = window.supabase;
+  if (!supabase) return;
+
+  // Highlight project members in the graph while detail view is open
+  if (window.SynapseContext) {
+    const titleHint = document.querySelector('.udc-resource-name')?.textContent || 'Project';
+    window.SynapseContext.setProject(projectId, titleHint);
+  }
+
+  // Fetch full project data (same shape as renderProjectPanel)
+  const { data: project, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      creator:community!projects_creator_id_fkey(id, name, image_url),
+      project_members(
+        user_id,
+        role,
+        user:community(id, name, image_url, skills)
+      )
+    `)
+    .eq('id', projectId)
+    .single();
+
+  if (error || !project) {
+    console.error('[Project Detail] fetch error:', error);
+    alert('Could not load project details.');
+    return;
+  }
+
+  const esc = window.escapeHtml || (s => s);
+  const activeMembers = (project.project_members || []).filter(m => m.role !== 'pending');
+  const pendingRequests = (project.project_members || []).filter(m => m.role === 'pending');
+
+  // Relationship state
+  const currentUserId = currentUserProfile?.id || null;
+  let userMembership = null;
+  if (currentUserId) {
+    const myRow = (project.project_members || []).find(m =>
+      m.user?.id === currentUserId || m.user_id === currentUserId
+    );
+    if (myRow) userMembership = myRow;
+  }
+  const rel = window.ProjectRelationship
+    ? window.ProjectRelationship.getProjectRelationshipState(project, currentUserId, userMembership)
+    : { state: 'viewer', membership: null, isCreator: false, hasPendingRequest: false };
+
+  // --- Build action buttons based on relationship state ---
+  let actionsHTML = '';
+  if (rel.isCreator) {
+    actionsHTML = `
+      <button onclick="this.closest('#project-detail-overlay').remove(); editProjectFromPanel('${project.id}')"
+        style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer; font-size:0.95rem;">
+        <i class="fas fa-edit"></i> Edit Project
+      </button>
+      ${pendingRequests.length > 0 ? `
+        <button onclick="this.closest('#project-detail-overlay').remove(); manageProjectRequests('${project.id}')"
+          style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#ffa500,#ff8c00); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer; font-size:0.95rem;">
+          <i class="fas fa-user-clock"></i> Requests (${pendingRequests.length})
+        </button>
+      ` : ''}
+      <button onclick="this.closest('#project-detail-overlay').remove(); deleteProjectSoft('${project.id}', '${esc(project.title).replace(/'/g, "\\'")}')"
+        style="padding:0.75rem 1.25rem; background:rgba(255,60,60,0.1); border:1px solid rgba(255,60,60,0.35); border-radius:8px; color:#ff4444; font-weight:bold; cursor:pointer; font-size:0.95rem;">
+        <i class="fas fa-trash-alt"></i>
+      </button>`;
+  } else if (rel.state === 'member') {
+    actionsHTML = `
+      <div style="flex:1; text-align:center; color:#00ff88; font-weight:bold; padding:0.75rem; background:rgba(0,255,136,0.1); border-radius:8px; border:1px solid rgba(0,255,136,0.3);">
+        <i class="fas fa-check-circle"></i> You're a member
+      </div>`;
+  } else if (rel.hasPendingRequest) {
+    actionsHTML = `
+      <div style="flex:1; text-align:center; color:#ffa500; font-weight:bold; padding:0.75rem; background:rgba(255,165,0,0.1); border-radius:8px; border:1px solid rgba(255,165,0,0.3);">
+        <i class="fas fa-clock"></i> Join request pending
+      </div>`;
+  } else {
+    actionsHTML = `
+      <button onclick="this.closest('#project-detail-overlay').remove(); joinProjectFromPanel('${project.id}')"
+        style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer; font-size:0.95rem;">
+        <i class="fas fa-plus-circle"></i> Request to Join
+      </button>`;
+  }
+
+  // --- Skills chips ---
+  const skillsHTML = (project.required_skills && project.required_skills.length > 0)
+    ? project.required_skills.map(s => `
+        <span style="background:rgba(255,107,107,0.1); color:#ff6b6b; padding:0.4rem 0.85rem; border-radius:8px; font-size:0.85rem; border:1px solid rgba(255,107,107,0.3);">${esc(s)}</span>
+      `).join('')
+    : '<span style="color:#666; font-size:0.85rem;">None specified</span>';
+
+  // --- Tags ---
+  const tagsArr = Array.isArray(project.tags) ? project.tags : (project.tags ? project.tags.split(',') : []);
+  const tagsHTML = tagsArr.length > 0
+    ? tagsArr.map(t => `
+        <span style="background:rgba(0,224,255,0.1); color:#00e0ff; padding:0.35rem 0.75rem; border-radius:8px; font-size:0.8rem; border:1px solid rgba(0,224,255,0.25);">${esc(t.trim())}</span>
+      `).join('')
+    : '';
+
+  // --- Members list ---
+  const membersHTML = activeMembers.map(m => {
+    const u = m.user;
+    if (!u) return '';
+    const initials = (u.name || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    const roleLabel = m.role === 'creator' ? 'Creator' : (m.role || 'Member');
+    const roleBadgeColor = m.role === 'creator' ? '#ff6b6b' : '#00e0ff';
+    return `
+      <div style="display:flex; align-items:center; gap:0.75rem; padding:0.65rem 0.75rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px;">
+        <div style="width:38px; height:38px; border-radius:50%; overflow:hidden; flex-shrink:0; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size:0.85rem;">
+          ${u.image_url ? `<img src="${u.image_url}" style="width:100%;height:100%;object-fit:cover;">` : initials}
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="color:white; font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(u.name || 'Unknown')}</div>
+          <div style="color:${roleBadgeColor}; font-size:0.75rem; font-weight:600;">${roleLabel}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // --- Creator info ---
+  const creatorName = project.creator?.name || 'Unknown';
+  const creatorInitial = creatorName[0] || '?';
+
+  // --- Build overlay ---
+  const overlay = document.createElement('div');
+  overlay.id = 'project-detail-overlay';
+  overlay.style.cssText = `
+    position:fixed; top:0; left:0; width:100vw; height:100vh;
+    background:rgba(0,0,0,0.75); backdrop-filter:blur(4px);
+    z-index:9999; display:flex; align-items:center; justify-content:center;
+    animation: pdFadeIn 0.2s ease-out;
+  `;
+
+  // Inject keyframes if not already present
+  if (!document.getElementById('pd-overlay-keyframes')) {
+    const style = document.createElement('style');
+    style.id = 'pd-overlay-keyframes';
+    style.textContent = `
+      @keyframes pdFadeIn { from { opacity:0; } to { opacity:1; } }
+      @keyframes pdSlideUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+    `;
+    document.head.appendChild(style);
+  }
+
+  overlay.innerHTML = `
+    <div style="
+      background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
+      border:2px solid rgba(255,107,107,0.4); border-radius:16px;
+      width:90%; max-width:680px; max-height:90vh; overflow-y:auto;
+      padding:2rem; position:relative;
+      animation: pdSlideUp 0.25s ease-out;
+    ">
+      <!-- Close -->
+      <button id="pd-close-btn" style="
+        position:absolute; top:1rem; right:1rem; background:rgba(255,255,255,0.1);
+        border:1px solid rgba(255,255,255,0.2); border-radius:50%; width:36px; height:36px;
+        display:flex; align-items:center; justify-content:center; cursor:pointer;
+        color:rgba(255,255,255,0.6); font-size:1rem; transition:all 0.15s; z-index:1;
+      "><i class="fas fa-times"></i></button>
+
+      <!-- Header -->
+      <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; padding-right:2.5rem;">
+        <div style="width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:white; flex-shrink:0;">
+          <i class="fas fa-lightbulb"></i>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <h2 style="color:#ff6b6b; font-size:1.4rem; margin:0 0 0.25rem 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(project.title)}</h2>
+          <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+            <span style="background:rgba(255,107,107,0.2); color:#ff6b6b; padding:0.2rem 0.6rem; border-radius:10px; font-size:0.8rem; font-weight:600;">${esc(project.status || 'active')}</span>
+            <span style="color:#888; font-size:0.85rem;"><i class="fas fa-users"></i> ${activeMembers.length} member${activeMembers.length !== 1 ? 's' : ''}</span>
+            <span style="color:#888; font-size:0.85rem;"><i class="fas fa-eye"></i> ${project.view_count || 0} views</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Creator -->
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.5rem; padding:0.75rem; background:rgba(255,107,107,0.05); border:1px solid rgba(255,107,107,0.15); border-radius:10px;">
+        <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size:1rem; flex-shrink:0;">
+          ${project.creator?.image_url ? `<img src="${project.creator.image_url}" style="width:100%;height:100%;object-fit:cover;">` : creatorInitial}
+        </div>
+        <div>
+          <div style="color:white; font-weight:600; font-size:0.9rem;">${esc(creatorName)}</div>
+          <div style="color:#ff6b6b; font-size:0.75rem; font-weight:600;">Project Creator</div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div style="margin-bottom:1.5rem;">
+        <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Description</h4>
+        <p style="color:#ddd; line-height:1.65; font-size:0.95rem; margin:0;">${esc(project.description || 'No description provided.')}</p>
+      </div>
+
+      <!-- Skills -->
+      <div style="margin-bottom:1.5rem;">
+        <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Required Skills</h4>
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${skillsHTML}</div>
+      </div>
+
+      <!-- Tags -->
+      ${tagsHTML ? `
+        <div style="margin-bottom:1.5rem;">
+          <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Tags</h4>
+          <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${tagsHTML}</div>
+        </div>
+      ` : ''}
+
+      <!-- Members -->
+      ${activeMembers.length > 0 ? `
+        <div style="margin-bottom:1.5rem;">
+          <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Team Members (${activeMembers.length})</h4>
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:0.5rem;">
+            ${membersHTML}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Actions -->
+      <div style="display:flex; gap:0.75rem; flex-wrap:wrap; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.08);">
+        ${actionsHTML}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Close handlers
+  const closeOverlay = () => {
+    overlay.remove();
+    console.log('[Project Detail] closed');
+  };
+  overlay.querySelector('#pd-close-btn').addEventListener('click', closeOverlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeOverlay(); });
+  document.addEventListener('keydown', function _escHandler(e) {
+    if (e.key === 'Escape' && document.getElementById('project-detail-overlay')) {
+      closeOverlay();
+      document.removeEventListener('keydown', _escHandler);
+    }
+  });
 };
 
 window.editProjectFromPanel = async function(projectId) {
