@@ -1196,6 +1196,11 @@ window.CommandDashboard = (() => {
     const tabLabel = meta.resourcesLabel[_activeResourceTab] || _activeResourceTab;
     const items = _getResourceItems(tier, _activeResourceTab);
 
+    if (_activeResourceTab === 'projects') {
+      console.log(`[Projects UI] rendered ${items.length} items`);
+      console.log(`[Projects UI] rendered titles: [${items.map(i => i.name).join(', ')}]`);
+    }
+
     list.innerHTML = `
       <div class="udc-resource-section-label">${_escapeHtml(tabLabel)}</div>
       ${items.length > 0
@@ -1330,10 +1335,11 @@ window.CommandDashboard = (() => {
         const activeIds = _enrichedData.activeProjectIds;
         filtered = activeIds ? allProjects.filter(p => activeIds.has(p.id)) : allProjects;
       }
+      // Sort first, then slice so the newest/alphabetically-first items survive truncation
       return filtered
-        .slice(0, 10)
         .map(p => ({ id: p.id, name: p.title || 'Untitled Project', meta: p.status || '' }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 20);
 
     } else if (resourceType === 'themes') {
       // Themes come from Supabase + aggregated skills, not graph nodes
