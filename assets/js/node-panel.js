@@ -1519,6 +1519,8 @@ async function renderPersonPanel(nodeData) {
 }
 // Render project panel
 async function renderProjectPanel(nodeData) {
+  if (window.Identity) window.Identity.audit('project-panel');
+
   // Fetch full project data
   const { data: project, error } = await supabase
     .from('projects')

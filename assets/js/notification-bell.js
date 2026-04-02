@@ -25,6 +25,7 @@
   function init(userProfile) {
     currentUserProfile = userProfile;
     console.log('🔔 Initializing notification bell for user:', userProfile.id);
+    if (window.Identity) window.Identity.audit('notification-bell');
 
     // Load initial notifications
     loadNotifications();
@@ -49,11 +50,14 @@
   async function loadNotifications() {
     if (!currentUserProfile) return;
 
+    // Use Identity module for consistent community ID resolution
+    const communityId = window.Identity?.getCommunityUserId() || currentUserProfile.id;
+
     try {
       const { data, error } = await window.supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', currentUserProfile.id)
+        .eq('user_id', communityId)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -64,14 +68,14 @@
 
       notifications = data || [];
       
-      // Get unread MESSAGE count using community ID (sender_id stores community IDs)
+      // Get unread MESSAGE count using community ID (sender_id stores community IDs).
       // The get_unread_count RPC compares sender_id against auth.uid() which is
       // a different UUID space, producing inflated counts. Query directly instead.
       try {
         const { data: convData } = await window.supabase
           .from('conversations')
           .select('id')
-          .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`);
+          .or(`participant_1_id.eq.${communityId},participant_2_id.eq.${communityId}`);
 
         const convIds = (convData || []).map(c => c.id);
         if (convIds.length > 0) {
@@ -79,7 +83,7 @@
             .from('messages')
             .select('id')
             .in('conversation_id', convIds)
-            .neq('sender_id', currentUserProfile.id)
+            .neq('sender_id', communityId)
             .eq('read', false);
 
           unreadCount = (unreadRows || []).length;

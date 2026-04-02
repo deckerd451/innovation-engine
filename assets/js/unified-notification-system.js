@@ -38,6 +38,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     currentUserProfile = userProfile;
     _authUserId = authUserId || null;
     console.log('🔔 Initializing unified notifications for user:', userProfile.id);
+    if (window.Identity) window.Identity.audit('unified-notification-system');
 
     // Replace the green START button with notification button
     replaceStartButton();
@@ -104,12 +105,16 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   async function loadMessages() {
     if (!window.supabase) return;
 
+    // Use Identity module for consistent community ID
+    const communityId = window.Identity?.getCommunityUserId() || currentUserProfile?.id;
+    if (!communityId) return;
+
     try {
       // Get conversations for this user
       const { data, error } = await window.supabase
         .from('conversations')
         .select('*')
-        .or(`participant_1_id.eq.${currentUserProfile.id},participant_2_id.eq.${currentUserProfile.id}`)
+        .or(`participant_1_id.eq.${communityId},participant_2_id.eq.${communityId}`)
         .order('updated_at', { ascending: false })
         .limit(10);
 
@@ -117,13 +122,11 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
 
       const messagesWithUnread = [];
       for (const conv of data || []) {
-        // Get the latest inbound message for preview text + count
-        // Skip the read_at column entirely — it doesn't exist on this table
         const { data: msgs, error: msgErr } = await window.supabase
           .from('messages')
           .select('content, created_at')
           .eq('conversation_id', conv.id)
-          .neq('sender_id', currentUserProfile.id)
+          .neq('sender_id', communityId)
           .eq('read', false)
           .order('created_at', { ascending: false })
           .limit(5);

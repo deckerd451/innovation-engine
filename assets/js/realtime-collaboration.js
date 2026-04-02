@@ -41,6 +41,8 @@ const MESSAGE_TYPES = {
 };
 
 function getCurrentCommunityId() {
+  // Prefer the Identity module if available, fall back to direct access
+  if (window.Identity) return window.Identity.getCommunityUserId();
   return currentUserProfile?.id || null;
 }
 
@@ -356,6 +358,7 @@ function handlePresenceLeave({ leftPresences }) {
 // Open messaging interface
 export async function openMessagingInterface(conversationId = null) {
   console.log('💬 Opening messaging interface...');
+  if (window.Identity) window.Identity.audit('messaging');
 
   const existing = document.getElementById('messaging-interface');
   if (existing) existing.remove();
