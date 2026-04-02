@@ -1542,29 +1542,27 @@ async function renderProjectPanel(nodeData) {
   const activeMembers = project.project_members?.filter(m => m.role !== 'pending') || [];
   const pendingRequests = project.project_members?.filter(m => m.role === 'pending') || [];
 
-  // Check if user is an active member (exclude pending)
-  const isMember = activeMembers.some(m =>
-    m.user?.id === currentUserProfile?.id || m.user_id === currentUserProfile?.id
-  );
+  // --- Compute relationship state via the central helper ---
+  const currentUserId = currentUserProfile?.id || null;
+  let userMembership = null;
+  if (currentUserId) {
+    // Find the current user's membership row from the already-fetched members list
+    const allMembers = project.project_members || [];
+    const myRow = allMembers.find(m =>
+      m.user?.id === currentUserId || m.user_id === currentUserId
+    );
+    if (myRow) {
+      userMembership = myRow;
+    }
+  }
 
-  // Check if user has a pending request
-  const hasPendingRequest = pendingRequests.some(m =>
-    m.user?.id === currentUserProfile?.id || m.user_id === currentUserProfile?.id
-  );
+  const rel = window.ProjectRelationship
+    ? window.ProjectRelationship.getProjectRelationshipState(project, currentUserId, userMembership)
+    : { state: 'viewer', membership: null, isCreator: false, hasPendingRequest: false };
 
-  // Check if current user is the creator
-  const isCreator = project.creator_id === currentUserProfile?.id;
-  
-  console.log('🔍 Project panel debug:', {
-    projectId: project.id,
-    projectTitle: project.title,
-    creatorId: project.creator_id,
-    currentUserId: currentUserProfile?.id,
-    isCreator,
-    isMember,
-    hasPendingRequest,
-    pendingRequestsCount: pendingRequests.length
-  });
+  const isCreator = rel.isCreator;
+  const isMember = rel.state === 'member';
+  const hasPendingRequest = rel.hasPendingRequest;
 
   let html = `
     <div class="node-panel-body" style="padding: 2rem;">
@@ -2424,12 +2422,13 @@ window.joinProjectFromPanel = async function(projectId) {
     }
 
     // Check if already a member or has pending request
+    // Use maybeSingle() – a null result simply means the user is not a member
     const { data: existingMember } = await supabase
       .from('project_members')
       .select('id, role')
       .eq('project_id', projectId)
       .eq('user_id', currentUserProfile.id)
-      .single();
+      .maybeSingle();
 
     if (existingMember) {
       if (existingMember.role === 'pending') {
@@ -2813,16 +2812,21 @@ window.approveJoinRequest = async function(projectId, requestId, userId) {
       throw new Error('Database connection not available');
     }
 
-    // First, verify the request exists
+    // First, verify the request exists (may already be processed)
     const { data: existingRequest, error: checkError } = await supabase
       .from('project_members')
       .select('*')
       .eq('id', requestId)
-      .single();
+      .maybeSingle();
 
     if (checkError) {
       console.error('❌ Error checking request:', checkError);
       throw new Error('Request not found: ' + checkError.message);
+    }
+
+    if (!existingRequest) {
+      showToastNotification('Request no longer exists — it may have been withdrawn.', 'info');
+      return;
     }
 
     console.log('📋 Found request to approve:', existingRequest);
@@ -2918,16 +2922,21 @@ window.declineJoinRequest = async function(projectId, requestId) {
       throw new Error('Database connection not available');
     }
 
-    // First, verify the request exists
+    // First, verify the request exists (may already be processed)
     const { data: existingRequest, error: checkError } = await supabase
       .from('project_members')
       .select('*')
       .eq('id', requestId)
-      .single();
+      .maybeSingle();
 
     if (checkError) {
       console.error('❌ Error checking request:', checkError);
       throw new Error('Request not found: ' + checkError.message);
+    }
+
+    if (!existingRequest) {
+      showToastNotification('Request no longer exists — it may have been withdrawn.', 'info');
+      return;
     }
 
     console.log('📋 Found request to decline:', existingRequest);

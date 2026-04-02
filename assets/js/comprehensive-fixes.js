@@ -228,13 +228,14 @@
         .select('*')
         .eq('project_id', projectId)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+      if (error) {
         console.error('Error checking project request:', error);
         return null;
       }
 
+      // null data means no request exists – not an error
       return data;
     } catch (err) {
       console.error('Error checking project request:', err);

@@ -287,7 +287,80 @@
     if (!panel) return;
 
     const currentUser = window.currentUserProfile;
-    const isCreator = currentUser && project.creator_id === currentUser.id;
+    const currentUserId = currentUser?.id || null;
+
+    // --- Compute relationship state via the central helper ---
+    // Find the current user's membership from the fetched members list
+    let userMembership = null;
+    if (currentUserId && members) {
+      const myRow = members.find(m =>
+        m.user?.id === currentUserId || m.user_id === currentUserId
+      );
+      if (myRow) userMembership = myRow;
+    }
+
+    const rel = window.ProjectRelationship
+      ? window.ProjectRelationship.getProjectRelationshipState(project, currentUserId, userMembership)
+      : { state: 'viewer', membership: null, isCreator: false, hasPendingRequest: false };
+
+    const isCreator = rel.isCreator;
+    const isMember = rel.state === 'member';
+
+    // Log relationship state
+    if (rel.state === 'creator') {
+      console.log('[Project Panel] relationship state: creator');
+    } else if (rel.state === 'member') {
+      console.log(`[Project Panel] relationship state: member role=${rel.membership?.role}`);
+    } else {
+      console.log(`[Project Panel] relationship state: viewer${rel.hasPendingRequest ? ' (pending request)' : ''}`);
+    }
+
+    // Filter active members for display (exclude pending)
+    const activeMembers = (members || []).filter(m => m.role !== 'pending');
+
+    // Determine action button based on relationship state
+    let actionButtonHTML = '';
+    if (isCreator) {
+      // Creator: show edit controls (handled outside this block)
+      actionButtonHTML = '';
+    } else if (isMember) {
+      actionButtonHTML = `
+        <div style="text-align: center; color: #00ff88; font-weight: bold; padding: 0.75rem; background: rgba(0,255,136,0.1); border-radius: 8px; border: 1px solid rgba(0,255,136,0.3);">
+          <i class="fas fa-check-circle"></i> You're a member of this project
+        </div>`;
+    } else if (rel.hasPendingRequest || (userRequest && userRequest.status === 'pending')) {
+      const requestId = userRequest?.id || '';
+      actionButtonHTML = `
+        <button onclick="window.ComprehensiveFixes.withdrawProjectRequest('${requestId}')" style="
+          width: 100%;
+          padding: 0.75rem;
+          background: rgba(255,107,107,0.2);
+          border: 1px solid rgba(255,107,107,0.4);
+          border-radius: 8px;
+          color: #ff6b6b;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.2s;
+        " onmouseenter="this.style.background='rgba(255,107,107,0.3)'" onmouseleave="this.style.background='rgba(255,107,107,0.2)'">
+          <i class="fas fa-clock"></i> Request Pending — Withdraw
+        </button>`;
+    } else {
+      // Viewer: show join button
+      actionButtonHTML = `
+        <button onclick="window.ComprehensiveFixes.submitProjectRequest('${project.id}', '${currentUserId || ''}')" style="
+          width: 100%;
+          padding: 0.75rem;
+          background: linear-gradient(135deg, #00e0ff, #0080ff);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.2s;
+        " onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform='translateY(0)'">
+          <i class="fas fa-hand-paper"></i> Request to Join
+        </button>`;
+    }
 
     panel.innerHTML = `
       <div style="padding: 1.5rem; height: 100%; overflow-y: auto; display: flex; flex-direction: column;">
@@ -359,10 +432,10 @@
         ` : ''}
 
         <!-- Project Members (Clickable) -->
-        ${members.length > 0 ? `
+        ${activeMembers.length > 0 ? `
           <div style="margin-bottom: 1.5rem; max-height: 200px; overflow-y: auto;">
-            <h4 style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-bottom: 0.75rem;">Team Members (${members.length})</h4>
-            ${members.map(member => {
+            <h4 style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-bottom: 0.75rem;">Team Members (${activeMembers.length})</h4>
+            ${activeMembers.map(member => {
               const user = member.user;
               if (!user) return '';
               const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
@@ -393,40 +466,10 @@
           </div>
         ` : ''}
 
-        <!-- Action Button -->
-        ${!isCreator ? `
-          <div style="margin-top: auto; padding-top: 1rem;">
-            ${userRequest && userRequest.status === 'pending' ? `
-              <button onclick="window.ComprehensiveFixes.withdrawProjectRequest('${userRequest.id}')" style="
-                width: 100%;
-                padding: 0.75rem;
-                background: rgba(255,107,107,0.2);
-                border: 1px solid rgba(255,107,107,0.4);
-                border-radius: 8px;
-                color: #ff6b6b;
-                font-weight: bold;
-                cursor: pointer;
-                transition: all 0.2s;
-              " onmouseenter="this.style.background='rgba(255,107,107,0.3)'" onmouseleave="this.style.background='rgba(255,107,107,0.2)'">
-                <i class="fas fa-times"></i> Withdraw Request
-              </button>
-            ` : `
-              <button onclick="window.ComprehensiveFixes.submitProjectRequest('${project.id}', '${currentUser?.id || ''}')" style="
-                width: 100%;
-                padding: 0.75rem;
-                background: linear-gradient(135deg, #00e0ff, #0080ff);
-                border: none;
-                border-radius: 8px;
-                color: white;
-                font-weight: bold;
-                cursor: pointer;
-                transition: all 0.2s;
-              " onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform='translateY(0)'">
-                <i class="fas fa-hand-paper"></i> Request to Join
-              </button>
-            `}
-          </div>
-        ` : ''}
+        <!-- Action Button (relationship-state aware) -->
+        <div style="margin-top: auto; padding-top: 1rem;">
+          ${actionButtonHTML}
+        </div>
       </div>
     `;
 
