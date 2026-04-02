@@ -124,6 +124,7 @@ window.CommandDashboard = (() => {
     organizations: null,         // Array — all organizations from Supabase
     myOrgIds: null,              // Set<string> — orgs the user belongs to
     opportunities: null,         // Array — all opportunities from Supabase
+    themes: null,                // Array<{id, label, count}> — aggregated themes/skills
   };
 
   /* ── Element shortcuts ──────────────────────────────────────── */
@@ -512,12 +513,93 @@ window.CommandDashboard = (() => {
         _enrichedData.opportunities = oppResult.data;
       }
 
+      // Build themes list from theme_circles + aggregated community skills
+      await _loadThemes();
+
       // Re-render compact status and resources now that we have accurate data
       _renderCompactStatus(_currentTier);
       _renderResources(_currentTier);
     } catch (err) {
       console.warn('[CommandDashboard] enriched data load failed:', err.message);
     }
+  }
+
+  /**
+   * Load themes from theme_circles + aggregated community skills.
+   * Produces a sorted list of { id, label, count } items.
+   */
+  async function _loadThemes() {
+    const themes = new Map(); // label → { id, label, count }
+
+    try {
+      // 1. Theme circles from Supabase
+      if (window.supabase) {
+        const { data: circles } = await window.supabase
+          .from('theme_circles')
+          .select('id, title, participant_count, status')
+          .eq('status', 'active');
+
+        if (circles) {
+          circles.forEach(c => {
+            const label = (c.title || '').trim();
+            if (label) {
+              themes.set(label.toLowerCase(), {
+                id: c.id,
+                label,
+                count: c.participant_count || 0,
+              });
+            }
+          });
+        }
+      }
+
+      // 2. Aggregate skills from graph nodes (community.skills via _raw)
+      const store = window.graphDataStore;
+      if (store && typeof store.getAllNodes === 'function') {
+        const skillCounts = new Map();
+        store.getAllNodes().forEach(n => {
+          if (n.type !== 'person') return;
+          const raw = n._raw || n;
+          const sources = [raw.skills, raw.interests];
+          sources.forEach(src => {
+            if (Array.isArray(src)) {
+              src.forEach(s => {
+                const skill = String(s || '').trim();
+                if (skill) {
+                  const key = skill.toLowerCase();
+                  skillCounts.set(key, (skillCounts.get(key) || 0) + 1);
+                }
+              });
+            } else if (typeof src === 'string' && src.trim()) {
+              src.split(',').forEach(s => {
+                const skill = s.trim();
+                if (skill) {
+                  const key = skill.toLowerCase();
+                  skillCounts.set(key, (skillCounts.get(key) || 0) + 1);
+                }
+              });
+            }
+          });
+        });
+
+        // Add skills with count >= 2 that aren't already theme circles
+        skillCounts.forEach((count, key) => {
+          if (count >= 2 && !themes.has(key)) {
+            themes.set(key, {
+              id: key,
+              label: key.charAt(0).toUpperCase() + key.slice(1),
+              count,
+            });
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('[CommandDashboard] theme loading failed:', err.message);
+    }
+
+    // Sort by count descending
+    _enrichedData.themes = [...themes.values()].sort((a, b) => b.count - a.count);
+    console.log(`[Themes] Loaded ${_enrichedData.themes.length} themes from theme_circles + community skills`);
   }
 
   /* ================================================================
@@ -1240,12 +1322,12 @@ window.CommandDashboard = (() => {
         .sort((a, b) => a.name.localeCompare(b.name));
 
     } else if (resourceType === 'themes') {
-      if (!nodes.length) return [];
-      filtered = nodes.filter(n => n.type === 'theme' || n.type === 'themeCircle');
-      return filtered
-        .slice(0, 10)
-        .map(n => ({ id: n.id, name: n.name || n.title || 'Unknown' }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      // Themes come from Supabase + aggregated skills, not graph nodes
+      const themes = _enrichedData.themes;
+      if (!themes || themes.length === 0) return [];
+      return themes
+        .slice(0, 15)
+        .map(t => ({ id: t.id, name: t.label, meta: `${t.count} people` }));
 
     } else if (resourceType === 'organizations') {
       // Organizations come from Supabase, not graph nodes
