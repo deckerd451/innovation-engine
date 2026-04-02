@@ -1327,9 +1327,10 @@ window.CommandDashboard = (() => {
       if (!allProjects) return [];
       if (tier === 1) {
         const myIds = _enrichedData.myProjectIds;
-        // Show projects where user is a member OR the creator
+        // Show projects where user is a member OR the creator, excluding archived/deleted
         filtered = allProjects.filter(p =>
-          (myIds && myIds.has(p.id)) || p.creator_id === _userId
+          p.status !== 'archived' &&
+          ((myIds && myIds.has(p.id)) || p.creator_id === _userId)
         );
       } else {
         const activeIds = _enrichedData.activeProjectIds;

@@ -1681,6 +1681,9 @@ async function renderProjectPanel(nodeData) {
             <i class="fas fa-user-clock"></i> Manage Requests (${pendingRequests.length})
           </button>
         ` : ''}
+        <button onclick="deleteProjectSoft('${project.id}', '${(project.title || '').replace(/'/g, "\\'")}')" style="width: 100%; padding: 0.75rem; background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.35); border-radius: 8px; color: #ff4444; font-weight: bold; cursor: pointer; font-size: 0.9rem; margin-bottom: 0.75rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(255,60,60,0.2)'" onmouseleave="this.style.background='rgba(255,60,60,0.1)'">
+          <i class="fas fa-trash-alt"></i> Delete Project
+        </button>
       ` : isMember ? `
         <!-- Member Status -->
         <div style="text-align: center; color: #00ff88; font-weight: bold; margin-bottom: 0.75rem;">
@@ -2591,6 +2594,20 @@ window.editProjectFromPanel = async function(projectId) {
               Cancel
             </button>
           </div>
+
+          <!-- Danger Zone -->
+          <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,60,60,0.2);">
+            <div style="color: rgba(255,60,60,0.6); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Danger Zone</div>
+            <button
+              type="button"
+              onclick="this.closest('[style*=\\'position: fixed\\']').remove(); deleteProjectSoft('${projectId}', '${(project.title || '').replace(/'/g, "\\'")}')"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.35); border-radius: 8px; color: #ff4444; font-weight: bold; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;"
+              onmouseenter="this.style.background='rgba(255,60,60,0.2)'"
+              onmouseleave="this.style.background='rgba(255,60,60,0.1)'"
+            >
+              <i class="fas fa-trash-alt"></i> Delete Project
+            </button>
+          </div>
         </form>
       </div>
     `;
@@ -2667,6 +2684,152 @@ window.editProjectFromPanel = async function(projectId) {
     alert('Failed to open project editor');
   }
 };
+
+
+// ================================================================
+// SOFT DELETE PROJECT (creator-only)
+// ================================================================
+window.deleteProjectSoft = async function(projectId, projectTitle) {
+  console.log(`[Projects] delete requested: ${projectId}`);
+
+  // --- Authorization: only the creator may delete ---
+  if (!currentUserProfile?.id) {
+    alert('Please log in to delete a project.');
+    return;
+  }
+
+  if (!supabase) supabase = window.supabase;
+  if (!supabase) {
+    alert('Database connection not available.');
+    return;
+  }
+
+  // Verify creator ownership before showing the confirmation dialog
+  const { data: proj, error: fetchErr } = await supabase
+    .from('projects')
+    .select('creator_id')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (fetchErr || !proj) {
+    console.error('[Projects] delete: failed to fetch project', fetchErr);
+    alert('Could not verify project ownership.');
+    return;
+  }
+
+  if (proj.creator_id !== currentUserProfile.id) {
+    alert('Only the project creator can delete this project.');
+    return;
+  }
+
+  // --- Confirmation modal ---
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.85); z-index: 10001;
+    display: flex; align-items: center; justify-content: center;
+  `;
+  overlay.innerHTML = `
+    <div style="background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
+                border: 2px solid rgba(255,60,60,0.5); border-radius: 16px;
+                padding: 2rem; max-width: 420px; width: 90%; text-align: center;">
+      <div style="font-size: 2.5rem; margin-bottom: 1rem; color: #ff4444;">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <h3 style="color: #ff4444; margin-bottom: 0.75rem; font-size: 1.2rem;">Delete project?</h3>
+      <p style="color: #ccc; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.5rem;">
+        This will remove <strong style="color:white;">${(window.escapeHtml || (s => s))(projectTitle || 'this project')}</strong> from normal views.<br>
+        Team members and related data will be preserved.
+      </p>
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button id="confirm-delete-project-btn" style="
+          padding: 0.75rem 1.5rem; background: #ff4444; border: none;
+          border-radius: 8px; color: white; font-weight: bold; cursor: pointer;
+          font-size: 0.95rem; transition: all 0.2s;
+        ">Delete</button>
+        <button id="cancel-delete-project-btn" style="
+          padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.1);
+          border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+          color: white; font-weight: bold; cursor: pointer; font-size: 0.95rem;
+        ">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Cancel
+  overlay.querySelector('#cancel-delete-project-btn').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  // Confirm
+  overlay.querySelector('#confirm-delete-project-btn').addEventListener('click', async () => {
+    console.log('[Projects] delete confirmed by creator');
+    const btn = overlay.querySelector('#confirm-delete-project-btn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    btn.disabled = true;
+
+    try {
+      const { error: updateErr } = await supabase
+        .from('projects')
+        .update({ status: 'archived' })
+        .eq('id', projectId)
+        .eq('creator_id', currentUserProfile.id);
+
+      if (updateErr) {
+        console.error('[Projects] soft-delete failed:', updateErr);
+        alert('Failed to delete project: ' + (updateErr.message || updateErr));
+        overlay.remove();
+        return;
+      }
+
+      console.log(`[Projects] soft-deleted project: ${projectId}`);
+
+      // Remove confirmation overlay
+      overlay.remove();
+
+      // Close the node panel
+      if (typeof closeNodePanel === 'function') closeNodePanel();
+
+      // Clear synapse context if this project was the active lens
+      if (window.SynapseContext) {
+        try {
+          const ctx = window.SynapseContext.get?.();
+          if (ctx && ctx.type === 'project' && ctx.id === projectId) {
+            window.SynapseContext.clear();
+            console.log('[Projects] cleared active synapse context for deleted project');
+          }
+        } catch (_) { /* context API may vary */ }
+      }
+
+      // Refresh Command Dashboard
+      if (window.CommandDashboard?.refreshEnrichedData) {
+        console.log('[Projects] command list refresh triggered after delete');
+        await window.CommandDashboard.refreshEnrichedData();
+      }
+
+      // Refresh other project lists
+      if (typeof window.loadProjects === 'function') {
+        await window.loadProjects();
+      }
+      if (typeof window.refreshSynapseConnections === 'function') {
+        await window.refreshSynapseConnections();
+      }
+
+      // Toast
+      if (typeof showToastNotification === 'function') {
+        showToastNotification('Project deleted.', 'success');
+      } else if (window.showSynapseNotification) {
+        window.showSynapseNotification('Project deleted.', 'success');
+      }
+
+    } catch (err) {
+      console.error('[Projects] delete error:', err);
+      alert('Failed to delete project. Please try again.');
+      overlay.remove();
+    }
+  });
+};
+
 
 window.manageProjectRequests = async function(projectId) {
   console.log('🔧 manageProjectRequests called for project:', projectId);
