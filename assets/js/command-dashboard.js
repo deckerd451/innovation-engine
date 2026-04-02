@@ -495,6 +495,7 @@ window.CommandDashboard = (() => {
             .filter(p => ['active', 'in-progress', 'open', 'recruiting'].includes(p.status))
             .map(p => p.id)
         );
+        console.log(`[Projects] command list now has ${projResult.data.length} items`);
       }
 
       if (myProjResult.data) {

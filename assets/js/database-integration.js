@@ -155,10 +155,17 @@ window.createEnhancedProject = async function(projectData) {
     const project = await window.dbHelper.createProject(projectData);
     
     console.log('✅ Enhanced project created:', project);
+    console.log(`[Projects] create success: ${project.id}`);
     
     // Refresh UI components
     if (typeof window.refreshCounters === 'function') {
       await window.refreshCounters();
+    }
+
+    // Refresh Command Dashboard project list
+    if (window.CommandDashboard && typeof window.CommandDashboard.refreshEnrichedData === 'function') {
+      console.log('[Projects] command list refresh triggered');
+      await window.CommandDashboard.refreshEnrichedData();
     }
     
     if (typeof window.refreshSynapseConnections === 'function') {

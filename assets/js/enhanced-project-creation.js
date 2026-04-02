@@ -867,6 +867,7 @@ window.createEnhancedProject = async function(event) {
     }
 
     console.log('✅ Project created successfully:', data[0]);
+    console.log(`[Projects] create success: ${data[0].id}`);
 
     // Add creator as a project member
     try {
@@ -912,6 +913,12 @@ window.createEnhancedProject = async function(event) {
 
     // Close modal
     closeEnhancedProjectModal();
+
+    // Refresh Command Dashboard project list so the new project appears immediately
+    if (window.CommandDashboard && typeof window.CommandDashboard.refreshEnrichedData === 'function') {
+      console.log('[Projects] command list refresh triggered');
+      await window.CommandDashboard.refreshEnrichedData();
+    }
 
     // Refresh projects list if available
     if (window.loadProjects) {
