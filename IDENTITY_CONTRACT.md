@@ -23,3 +23,9 @@
 
 - Never use generic user_id in new code unless it explicitly means auth.users.id.
 - Prefer auth_user_id or community_id / community_user_id as column names.
+
+- Confirmed table semantics
+
+- project_members.user_id = community.id
+- presence_sessions.user_id = community.id
+- project_requests.user_id = unverified (no rows yet)
