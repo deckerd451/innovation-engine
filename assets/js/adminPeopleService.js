@@ -47,6 +47,7 @@ export async function listPeople({
         is_disabled,
         user_id,
         created_at,
+        updated_at,
         last_login,
         image_url,
         image_path,
@@ -358,6 +359,65 @@ export async function createPerson({ email, name = null }) {
   } catch (error) {
     console.error('❌ Error creating person:', error);
     return { data: null, error };
+  }
+}
+
+/**
+ * Get claim stats for admin dashboard
+ * @returns {Promise<{total: number, claimed: number, unclaimed: number, error: any}>}
+ */
+export async function getClaimStats() {
+  try {
+    const supabase = window.supabase;
+    if (!supabase) throw new Error('Supabase not available');
+
+    // Total count
+    const { count: total, error: totalErr } = await supabase
+      .from('community')
+      .select('*', { count: 'exact', head: true });
+
+    if (totalErr) throw totalErr;
+
+    // Claimed count (user_id IS NOT NULL)
+    const { count: claimed, error: claimedErr } = await supabase
+      .from('community')
+      .select('*', { count: 'exact', head: true })
+      .not('user_id', 'is', null);
+
+    if (claimedErr) throw claimedErr;
+
+    const unclaimed = (total || 0) - (claimed || 0);
+
+    return { total: total || 0, claimed: claimed || 0, unclaimed, error: null };
+
+  } catch (error) {
+    console.error('❌ Error getting claim stats:', error);
+    return { total: 0, claimed: 0, unclaimed: 0, error };
+  }
+}
+
+/**
+ * Get emails for selected people (for bulk claim email)
+ * @param {Array<string>} ids - Array of person IDs
+ * @returns {Promise<{emails: Array<string>, error: any}>}
+ */
+export async function getEmailsForPeople(ids) {
+  try {
+    const supabase = window.supabase;
+    if (!supabase) throw new Error('Supabase not available');
+
+    const { data, error } = await supabase
+      .from('community')
+      .select('id, email, name')
+      .in('id', ids);
+
+    if (error) throw error;
+
+    return { data: data || [], error: null };
+
+  } catch (error) {
+    console.error('❌ Error getting emails:', error);
+    return { data: [], error };
   }
 }
 

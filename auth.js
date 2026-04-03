@@ -711,6 +711,33 @@
     cancelSessionTimer();
     cleanOAuthUrlSoon();
 
+    // ============================================================
+    // IDENTITY CLAIM: Attempt to claim orphaned community profile
+    // Runs ONCE per login. Non-blocking — does not fail login.
+    // ============================================================
+    try {
+      log("🔗 [IDENTITY-CLAIM] Attempting to claim community profile by email…");
+      const { data: claimedId, error: claimError } = await window.supabase.rpc(
+        "claim_community_profile_by_email"
+      );
+
+      if (claimError) {
+        // "already linked" is expected for returning users — not a real error
+        if (String(claimError.message || "").includes("already linked")) {
+          log("ℹ️ [IDENTITY-CLAIM] User already has a linked profile — skipping claim.");
+        } else {
+          warn("⚠️ [IDENTITY-CLAIM] Claim RPC error:", claimError.message || claimError);
+        }
+      } else if (claimedId) {
+        log("✅ [IDENTITY-CLAIM] Successfully claimed community profile:", claimedId);
+        window.__claimedCommunityId = claimedId;
+      } else {
+        log("ℹ️ [IDENTITY-CLAIM] No orphaned profile found for this email.");
+      }
+    } catch (claimEx) {
+      warn("⚠️ [IDENTITY-CLAIM] Exception during claim (non-fatal):", claimEx);
+    }
+
     // Set global user and emit authenticated-user event for other modules
     window.currentAuthUser = user;
     window.dispatchEvent(new CustomEvent("authenticated-user", { detail: { user } }));
