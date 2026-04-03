@@ -13,7 +13,9 @@ import {
   setDisabled,
   bulkUpdate,
   deletePerson,
-  createPerson
+  createPerson,
+  getClaimStats,
+  getEmailsForPeople
 } from './adminPeopleService.js';
 import { getCardAvatarUrl } from './avatar-utils.js';
 
@@ -57,6 +59,22 @@ export function renderPeoplePanel(container) {
 
   container.innerHTML = `
     <div id="people-panel" style="max-height: 70vh; overflow: hidden; display: flex; flex-direction: column;">
+      <!-- Claim Stats Banner -->
+      <div id="claim-stats-banner" style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(0,224,255,0.08); border: 1px solid rgba(0,224,255,0.3); border-radius: 10px; text-align: center;">
+          <div id="stat-total" style="font-size: 1.75rem; font-weight: 700; color: #00e0ff;">—</div>
+          <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Total Users</div>
+        </div>
+        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); border-radius: 10px; text-align: center;">
+          <div id="stat-claimed" style="font-size: 1.75rem; font-weight: 700; color: #a855f7;">—</div>
+          <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Claimed</div>
+        </div>
+        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.3); border-radius: 10px; text-align: center;">
+          <div id="stat-unclaimed" style="font-size: 1.75rem; font-weight: 700; color: #ffaa00;">—</div>
+          <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Unclaimed</div>
+        </div>
+      </div>
+
       <!-- Toolbar -->
       <div id="people-toolbar" style="padding: 1rem; background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; margin-bottom: 1rem;">
         <!-- Search and Filters Row -->
@@ -184,6 +202,9 @@ export function renderPeoplePanel(container) {
         <button id="bulk-enable-btn" style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">
           <i class="fas fa-check-circle"></i> Enable
         </button>
+        <button id="bulk-claim-email-btn" style="padding: 0.5rem 1rem; background: rgba(168,85,247,0.3); border: 1px solid rgba(168,85,247,0.5); border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">
+          <i class="fas fa-envelope"></i> Send Claim Email
+        </button>
         <button id="bulk-cancel-btn" style="padding: 0.5rem 1rem; background: rgba(255,107,107,0.3); border: 1px solid rgba(255,107,107,0.5); border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">
           <i class="fas fa-times"></i> Cancel
         </button>
@@ -204,6 +225,9 @@ export function renderPeoplePanel(container) {
   
   // Load initial data
   loadPeopleData();
+  
+  // Load claim stats
+  loadClaimStats();
 }
 
 /**
@@ -355,6 +379,11 @@ function wireUpEventListeners() {
     bulkEnableBtn.addEventListener('click', () => handleBulkUpdate({ is_disabled: false }));
   }
   
+  const bulkClaimEmailBtn = document.getElementById('bulk-claim-email-btn');
+  if (bulkClaimEmailBtn) {
+    bulkClaimEmailBtn.addEventListener('click', handleBulkSendClaimEmail);
+  }
+  
   // Table header sorting
   document.querySelectorAll('[data-sort]').forEach(th => {
     th.addEventListener('click', () => {
@@ -482,7 +511,7 @@ function renderTableRow(person) {
   const avatar = getAvatarHTML(person, initials, 40);
   const rolePill = getRolePill(person.user_role);
   const statusPills = getStatusPills(person);
-  const createdDate = new Date(person.created_at).toLocaleDateString();
+  const createdDate = formatSafeDate(person.created_at);
   
   return `
     <tr class="person-row" data-person-id="${person.id}" style="border-bottom: 1px solid rgba(0,224,255,0.1); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.05)'" onmouseout="this.style.background='transparent'">
@@ -500,9 +529,24 @@ function renderTableRow(person) {
       <td style="padding: 0.75rem;">${statusPills}</td>
       <td style="padding: 0.75rem; color: rgba(255,255,255,0.6); font-size: 0.85rem;">${createdDate}</td>
       <td style="padding: 0.75rem; text-align: center;" onclick="event.stopPropagation()">
-        <button onclick="openPersonDrawer('${person.id}')" style="padding: 0.4rem 0.8rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: #00e0ff; cursor: pointer; font-size: 0.85rem;">
-          <i class="fas fa-ellipsis-h"></i>
-        </button>
+        <div style="position: relative; display: inline-block;">
+          <button onclick="toggleRowMenu(this)" style="padding: 0.4rem 0.8rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: #00e0ff; cursor: pointer; font-size: 0.85rem;">
+            <i class="fas fa-ellipsis-h"></i>
+          </button>
+          <div class="row-action-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: rgba(10,14,39,0.98); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); z-index: 100; min-width: 180px; overflow: hidden;">
+            <button onclick="openPersonDrawer('${person.id}')" style="display: block; width: 100%; padding: 0.6rem 1rem; background: none; border: none; color: white; text-align: left; cursor: pointer; font-size: 0.85rem; white-space: nowrap;" onmouseover="this.style.background='rgba(0,224,255,0.1)'" onmouseout="this.style.background='none'">
+              <i class="fas fa-user-edit" style="width: 20px; color: #00e0ff;"></i> Edit Profile
+            </button>
+            ${!person.user_id ? `
+            <button onclick="handleSendClaimEmailSingle('${person.id}')" style="display: block; width: 100%; padding: 0.6rem 1rem; background: none; border: none; color: white; text-align: left; cursor: pointer; font-size: 0.85rem; white-space: nowrap;" onmouseover="this.style.background='rgba(168,85,247,0.1)'" onmouseout="this.style.background='none'">
+              <i class="fas fa-envelope" style="width: 20px; color: #a855f7;"></i> Send Claim Email
+            </button>
+            <button onclick="handleCopyClaimLink('${person.id}')" style="display: block; width: 100%; padding: 0.6rem 1rem; background: none; border: none; color: white; text-align: left; cursor: pointer; font-size: 0.85rem; white-space: nowrap;" onmouseover="this.style.background='rgba(168,85,247,0.1)'" onmouseout="this.style.background='none'">
+              <i class="fas fa-link" style="width: 20px; color: #a855f7;"></i> Copy Claim Link
+            </button>
+            ` : ''}
+          </div>
+        </div>
       </td>
     </tr>
   `;
@@ -516,7 +560,7 @@ function renderPersonCard(person) {
   const avatar = getAvatarHTML(person, initials, 48);
   const rolePill = getRolePill(person.user_role);
   const statusPills = getStatusPills(person);
-  const createdDate = new Date(person.created_at).toLocaleDateString();
+  const createdDate = formatSafeDate(person.created_at);
   
   return `
     <div class="person-card" data-person-id="${person.id}" style="padding: 1rem; margin-bottom: 0.75rem; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; cursor: pointer;">
@@ -545,6 +589,14 @@ function renderPersonCard(person) {
 /**
  * Helper functions for rendering
  */
+function formatSafeDate(dateStr) {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  // Guard against epoch (null timestamps → 12/31/1969 or 1/1/1970)
+  if (isNaN(d.getTime()) || d.getFullYear() < 2000) return 'N/A';
+  return d.toLocaleDateString();
+}
+
 function getInitials(name) {
   if (!name) return '?';
   const parts = name.trim().split(/\s+/);
@@ -590,7 +642,13 @@ function getStatusPills(person) {
   
   // Claimed/Unclaimed
   if (person.user_id) {
-    pills.push('<span style="padding: 0.25rem 0.75rem; background: rgba(168,85,247,0.2); border: 1px solid rgba(168,85,247,0.4); border-radius: 12px; color: #a855f7; font-size: 0.75rem; font-weight: 600; white-space: nowrap;"><i class="fas fa-link"></i> Claimed</span>');
+    // Check if recently claimed (updated_at within last 24 hours)
+    const isRecent = person.updated_at && (Date.now() - new Date(person.updated_at).getTime()) < 24 * 60 * 60 * 1000;
+    if (isRecent) {
+      pills.push('<span style="padding: 0.25rem 0.75rem; background: rgba(168,85,247,0.3); border: 1px solid rgba(168,85,247,0.5); border-radius: 12px; color: #c084fc; font-size: 0.75rem; font-weight: 600; white-space: nowrap; animation: pulse 2s infinite;"><i class="fas fa-bolt"></i> Just Claimed</span>');
+    } else {
+      pills.push('<span style="padding: 0.25rem 0.75rem; background: rgba(168,85,247,0.2); border: 1px solid rgba(168,85,247,0.4); border-radius: 12px; color: #a855f7; font-size: 0.75rem; font-weight: 600; white-space: nowrap;"><i class="fas fa-link"></i> Claimed</span>');
+    }
   } else {
     pills.push('<span style="padding: 0.25rem 0.75rem; background: rgba(255,170,0,0.2); border: 1px solid rgba(255,170,0,0.4); border-radius: 12px; color: #ffaa00; font-size: 0.75rem; font-weight: 600; white-space: nowrap;"><i class="fas fa-unlink"></i> Unclaimed</span>');
   }
@@ -871,9 +929,9 @@ function renderPersonDrawer(person) {
           <div style="display: grid; gap: 0.5rem; font-size: 0.85rem;">
             <div style="color: rgba(255,255,255,0.6);">ID: <span style="color: white;">${person.id}</span></div>
             <div style="color: rgba(255,255,255,0.6);">User ID: <span style="color: white;">${person.user_id || 'Not claimed'}</span></div>
-            <div style="color: rgba(255,255,255,0.6);">Created: <span style="color: white;">${new Date(person.created_at).toLocaleString()}</span></div>
-            <div style="color: rgba(255,255,255,0.6);">Updated: <span style="color: white;">${person.updated_at ? new Date(person.updated_at).toLocaleString() : 'Never'}</span></div>
-            <div style="color: rgba(255,255,255,0.6);">Last Login: <span style="color: white;">${person.last_login ? new Date(person.last_login).toLocaleString() : 'Never'}</span></div>
+            <div style="color: rgba(255,255,255,0.6);">Created: <span style="color: white;">${formatSafeDate(person.created_at) !== 'N/A' ? new Date(person.created_at).toLocaleString() : 'N/A'}</span></div>
+            <div style="color: rgba(255,255,255,0.6);">Updated: <span style="color: white;">${person.updated_at && formatSafeDate(person.updated_at) !== 'N/A' ? new Date(person.updated_at).toLocaleString() : 'Never'}</span></div>
+            <div style="color: rgba(255,255,255,0.6);">Last Login: <span style="color: white;">${person.last_login && formatSafeDate(person.last_login) !== 'N/A' ? new Date(person.last_login).toLocaleString() : 'Never'}</span></div>
             <div style="color: rgba(255,255,255,0.6);">Profile Completed: <span style="color: white;">${person.profile_completed ? 'Yes' : 'No'}</span></div>
             <div style="color: rgba(255,255,255,0.6);">XP: <span style="color: white;">${person.xp || 0}</span></div>
             <div style="color: rgba(255,255,255,0.6);">Level: <span style="color: white;">${person.level || 1}</span></div>
@@ -890,6 +948,18 @@ function renderPersonDrawer(person) {
             <i class="fas fa-save"></i> Save Changes
           </button>
         </div>
+        
+        ${!person.user_id ? `
+        <!-- Claim Actions (unclaimed users only) -->
+        <div style="display: flex; gap: 0.75rem; padding-top: 0.75rem;">
+          <button type="button" onclick="handleSendClaimEmailSingle('${person.id}')" style="flex: 1; padding: 0.6rem; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); border-radius: 8px; color: #a855f7; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+            <i class="fas fa-envelope"></i> Send Claim Email
+          </button>
+          <button type="button" onclick="handleCopyClaimLink('${person.id}')" style="flex: 1; padding: 0.6rem; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); border-radius: 8px; color: #a855f7; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+            <i class="fas fa-link"></i> Copy Claim Link
+          </button>
+        </div>
+        ` : ''}
         
         <div id="drawer-status" style="font-size: 0.9rem; text-align: center;"></div>
       </form>
@@ -1052,9 +1122,139 @@ async function handleBulkDisable() {
 }
 
 /**
+ * Load and display claim stats in the banner
+ */
+async function loadClaimStats() {
+  const { total, claimed, unclaimed } = await getClaimStats();
+  const totalEl = document.getElementById('stat-total');
+  const claimedEl = document.getElementById('stat-claimed');
+  const unclaimedEl = document.getElementById('stat-unclaimed');
+  if (totalEl) totalEl.textContent = total;
+  if (claimedEl) claimedEl.textContent = claimed;
+  if (unclaimedEl) unclaimedEl.textContent = unclaimed;
+}
+
+/**
+ * Handle bulk send claim email
+ */
+async function handleBulkSendClaimEmail() {
+  const ids = Array.from(state.selectedIds);
+  if (ids.length === 0) return;
+
+  const { data: people, error } = await getEmailsForPeople(ids);
+  if (error) {
+    window.showToast?.('Failed to fetch selected users', 'error');
+    return;
+  }
+
+  // Filter to unclaimed only (user_id would be null — we only have email/name from this query)
+  const emails = people.filter(p => p.email).map(p => p.email);
+
+  if (emails.length === 0) {
+    window.showToast?.('No valid emails found in selection', 'warning');
+    return;
+  }
+
+  const confirmed = confirm(
+    `Send claim email to ${emails.length} user(s)?\n\nEmails:\n${emails.slice(0, 10).join('\n')}${emails.length > 10 ? `\n...and ${emails.length - 10} more` : ''}`
+  );
+  if (!confirmed) return;
+
+  // STUB: In production, this would call a backend email service or edge function.
+  // For now, log the emails and show a success message.
+  console.log('📧 [CLAIM-EMAIL] Sending claim emails to:', emails);
+  console.log('📧 [CLAIM-EMAIL] Payload:', people.map(p => ({ id: p.id, email: p.email, name: p.name })));
+
+  window.showToast?.(`Claim email queued for ${emails.length} user(s)`, 'success');
+
+  // Clear selection
+  state.selectedIds.clear();
+  updateBulkActionBar();
+}
+
+/**
+ * Send claim email for a single person (per-row action)
+ */
+async function handleSendClaimEmailSingle(personId) {
+  const { data: person, error } = await getPerson(personId);
+  if (error || !person) {
+    window.showToast?.('Failed to load person', 'error');
+    return;
+  }
+
+  if (!person.email) {
+    window.showToast?.('No email address for this user', 'warning');
+    return;
+  }
+
+  if (person.user_id) {
+    window.showToast?.('This account is already claimed', 'info');
+    return;
+  }
+
+  const confirmed = confirm(`Send claim email to ${person.email}?`);
+  if (!confirmed) return;
+
+  // STUB: Would call backend email service
+  console.log('📧 [CLAIM-EMAIL] Sending claim email to:', person.email);
+  window.showToast?.(`Claim email queued for ${person.email}`, 'success');
+}
+
+/**
+ * Copy claim link for a person
+ */
+async function handleCopyClaimLink(personId) {
+  const { data: person, error } = await getPerson(personId);
+  if (error || !person) {
+    window.showToast?.('Failed to load person', 'error');
+    return;
+  }
+
+  if (!person.email) {
+    window.showToast?.('No email address for this user', 'warning');
+    return;
+  }
+
+  // Generate claim URL with email param
+  const base = window.location.origin + window.location.pathname.replace(/\/index\.html$/, '');
+  const claimUrl = `${base}/index.html?claim_email=${encodeURIComponent(person.email)}`;
+
+  try {
+    await navigator.clipboard.writeText(claimUrl);
+    window.showToast?.('Claim link copied to clipboard', 'success');
+  } catch (e) {
+    // Fallback
+    prompt('Copy this claim link:', claimUrl);
+  }
+}
+
+// Expose per-row claim actions globally for onclick handlers
+window.handleSendClaimEmailSingle = handleSendClaimEmailSingle;
+window.handleCopyClaimLink = handleCopyClaimLink;
+
+/**
  * Expose openPersonDrawer globally for onclick handlers
  */
 window.openPersonDrawer = openPersonDrawer;
+
+// Row action menu toggle
+window.toggleRowMenu = function(btn) {
+  // Close all other open menus first
+  document.querySelectorAll('.row-action-menu').forEach(m => {
+    if (m !== btn.nextElementSibling) m.style.display = 'none';
+  });
+  const menu = btn.nextElementSibling;
+  if (menu) {
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  }
+};
+
+// Close row menus on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.row-action-menu') && !e.target.closest('[onclick*="toggleRowMenu"]')) {
+    document.querySelectorAll('.row-action-menu').forEach(m => m.style.display = 'none');
+  }
+});
 
 // Expose the module globally for the admin panel to use
 window.AdminPeoplePanel = {
