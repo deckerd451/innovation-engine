@@ -137,6 +137,7 @@
   let profileLoadPromise = null; // in-flight profile request (single flight)
 
   let hasBootstrappedThisLoad = false;
+  let signedInBootstrapStarted = false; // true as soon as SIGNED_IN bootstrap begins (before async work)
   let sessionTimer = null;
 
   // Auth subscription guard
@@ -358,6 +359,7 @@
     bootUserId = null;
     profileLoadPromise = null;
     hasBootstrappedThisLoad = false;
+    signedInBootstrapStarted = false;
 
     log("✅ Logged out successfully");
     window.dispatchEvent(new CustomEvent("user-logged-out"));
@@ -705,44 +707,47 @@
       return;
     }
 
+    // Mark immediately — before any async work — so timeout paths can check this
+    signedInBootstrapStarted = true;
     bootUserId = user.id;
     log(`🟢 Bootstrapping app for user (${sourceEvent}):`, user.email);
 
     cancelSessionTimer();
     cleanOAuthUrlSoon();
 
-    // ============================================================
-    // IDENTITY CLAIM: Attempt to claim orphaned community profile
-    // Runs ONCE per login. Non-blocking — does not fail login.
-    // ============================================================
-    try {
-      log("🔗 [IDENTITY-CLAIM] Attempting to claim community profile by email…");
-      const { data: claimedId, error: claimError } = await window.supabase.rpc(
-        "claim_community_profile_by_email"
-      );
-
-      if (claimError) {
-        // "already linked" is expected for returning users — not a real error
-        if (String(claimError.message || "").includes("already linked")) {
-          log("ℹ️ [IDENTITY-CLAIM] User already has a linked profile — skipping claim.");
-        } else {
-          warn("⚠️ [IDENTITY-CLAIM] Claim RPC error:", claimError.message || claimError);
-        }
-      } else if (claimedId) {
-        log("✅ [IDENTITY-CLAIM] Successfully claimed community profile:", claimedId);
-        window.__claimedCommunityId = claimedId;
-      } else {
-        log("ℹ️ [IDENTITY-CLAIM] No orphaned profile found for this email.");
-      }
-    } catch (claimEx) {
-      warn("⚠️ [IDENTITY-CLAIM] Exception during claim (non-fatal):", claimEx);
-    }
-
     // Set global user and emit authenticated-user event for other modules
     window.currentAuthUser = user;
     window.dispatchEvent(new CustomEvent("authenticated-user", { detail: { user } }));
 
     showAppUI(user);
+
+    // ============================================================
+    // IDENTITY CLAIM: Fire in background — never blocks auth path
+    // ============================================================
+    (async () => {
+      try {
+        log("🔗 [IDENTITY-CLAIM] Starting identity claim in background…");
+        const { data: claimedId, error: claimError } = await window.supabase.rpc(
+          "claim_community_profile_by_email"
+        );
+
+        if (claimError) {
+          // "already linked" is expected for returning users — not a real error
+          if (String(claimError.message || "").includes("already linked")) {
+            log("ℹ️ [IDENTITY-CLAIM] User already has a linked profile — skipping claim.");
+          } else {
+            warn("⚠️ [IDENTITY-CLAIM] Claim RPC error:", claimError.message || claimError);
+          }
+        } else if (claimedId) {
+          log("✅ [IDENTITY-CLAIM] Successfully claimed community profile:", claimedId);
+          window.__claimedCommunityId = claimedId;
+        } else {
+          log("ℹ️ [IDENTITY-CLAIM] No orphaned profile found for this email.");
+        }
+      } catch (claimEx) {
+        warn("⚠️ [IDENTITY-CLAIM] Exception during claim (non-fatal):", claimEx);
+      }
+    })();
 
     setTimeout(async () => {
       try {
@@ -794,6 +799,7 @@
       }
 
       if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
+        log("🛡️ [AUTH-GUARD] SIGNED_IN guard activated — authenticated bootstrap starting for:", session.user.email);
         cancelSessionTimer();
         await bootstrapForUser(session.user, event);
         return;
@@ -805,6 +811,7 @@
         bootUserId = null;
         profileLoadPromise = null;
         hasBootstrappedThisLoad = false;
+        signedInBootstrapStarted = false;
         showLoginUI();
         return;
       }
@@ -877,8 +884,8 @@
           new Promise((_, reject) => setTimeout(() => reject(new Error("Session check timeout")), 3000)),
         ]);
 
-        if (hasBootstrappedThisLoad) {
-          log("✅ App already bootstrapped via auth event");
+        if (hasBootstrappedThisLoad || signedInBootstrapStarted) {
+          log("✅ App already bootstrapped via auth event — session check result ignored");
           return;
         }
 
@@ -894,7 +901,9 @@
         }
       } catch (e) {
         err("❌ Session check failed:", e);
-        if (!hasBootstrappedThisLoad) {
+        if (hasBootstrappedThisLoad || signedInBootstrapStarted) {
+          log("🛡️ [AUTH-GUARD] Session check timeout ignored — authenticated bootstrap already started");
+        } else {
           showLoginUI();
         }
       }
