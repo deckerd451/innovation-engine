@@ -1148,6 +1148,35 @@ function getLastSeenText(person) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Fetch the latest QR-confirmed in-person interaction between two users.
+ * Returns the matching row or null.
+ */
+async function getLatestInPersonInteraction(currentCommunityId, targetCommunityId) {
+  if (!currentCommunityId || !targetCommunityId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('interaction_edges')
+      .select('*')
+      .or(
+        `and(from_user_id.eq.${currentCommunityId},to_user_id.eq.${targetCommunityId}),and(from_user_id.eq.${targetCommunityId},to_user_id.eq.${currentCommunityId})`
+      )
+      .eq('type', 'qr_confirmed')
+      .eq('status', 'accepted')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.warn('⚠️ [MET-BADGE] Failed to fetch in-person interaction:', error);
+      return null;
+    }
+    return (data && data.length > 0) ? data[0] : null;
+  } catch (err) {
+    console.warn('⚠️ [MET-BADGE] Error:', err);
+    return null;
+  }
+}
+
 // Render person profile panel
 async function renderPersonPanel(nodeData) {
   // Fetch full profile data including presence fields from the view
@@ -1189,6 +1218,12 @@ async function renderPersonPanel(nodeData) {
         connectionDirection = 'incoming'; // They sent me the request
       }
     }
+  }
+
+  // Check for QR-confirmed in-person interaction
+  let inPersonInteraction = null;
+  if (currentUserProfile && profile.id !== currentUserProfile.id) {
+    inPersonInteraction = await getLatestInPersonInteraction(currentUserProfile.id, profile.id);
   }
 
   // Get mutual connections
@@ -1297,6 +1332,13 @@ async function renderPersonPanel(nodeData) {
         })()}
 
         ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
+
+        <!-- Met in Person Badge -->
+        ${inPersonInteraction ? `
+          <div class="met-in-person-badge" title="QR-confirmed interaction" style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(0,255,136,0.15); color: #00ff88; padding: 0.3rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(0,255,136,0.3); margin-bottom: 0.5rem;">
+            <i class="fas fa-handshake" style="font-size: 0.75rem;"></i> Met in person
+          </div>
+        ` : ''}
 
         <!-- Show email to admins or connected users -->
         ${((typeof window.isAdminUser === 'function' && window.isAdminUser()) || connectionStatus === 'accepted') && profile.email ? `
