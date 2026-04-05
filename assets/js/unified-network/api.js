@@ -1005,12 +1005,26 @@ try {
       }
     }
 
+    // On mobile, pin the center-of-mass slightly above vertical center
+    // so the ego node feels anchored and the graph doesn't drift off-screen.
+    const isMobile = window.innerWidth < 768;
+    const targetCy = isMobile ? cy * 0.88 : cy;
+
     // Create new simulation
     const simulation = window.d3.forceSimulation(nodes)
       .force('link', window.d3.forceLink(edges).id(d => d.id).distance(100))
       .force('charge', window.d3.forceManyBody().strength(-50))
-      .force('center', window.d3.forceCenter(cx, cy))
+      .force('center', window.d3.forceCenter(cx, targetCy))
       .force('collision', window.d3.forceCollide().radius(30));
+
+    // On mobile, add explicit X/Y attraction forces so nodes don't drift to edges.
+    // These supplement forceCenter (which only pulls the center-of-mass, not
+    // individual nodes) with per-node restoring forces toward the screen center.
+    if (isMobile) {
+      simulation
+        .force('x', window.d3.forceX(cx).strength(0.07))
+        .force('y', window.d3.forceY(targetCy).strength(0.07));
+    }
 
     window.synapseSimulation = simulation;
     return simulation;
@@ -1059,6 +1073,19 @@ try {
       // Update simulation
       if (this._simulation) {
         this._simulation.tick();
+
+        // Mobile boundary clamping — keep nodes within visible viewport
+        // so avatars don't escape off-screen edges on small displays.
+        if (window.innerWidth < 768) {
+          const svgRect = this._svg?.getBoundingClientRect();
+          const w = svgRect ? svgRect.width : window.innerWidth;
+          const h = svgRect ? svgRect.height : window.innerHeight;
+          const padding = 32; // minimum margin from edge
+          for (const node of nodes) {
+            if (node.x !== undefined) node.x = Math.max(padding, Math.min(w - padding, node.x));
+            if (node.y !== undefined) node.y = Math.max(padding, Math.min(h - padding, node.y));
+          }
+        }
       }
 
       // Calculate average velocity
