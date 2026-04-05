@@ -751,7 +751,8 @@
   #messages-modal .modal-content,
   #messages-modal .messages-modal-content {
     width: 100vw !important;
-    height: 100dvh !important;
+    height: 100vh !important;   /* fallback for browsers without dvh support */
+    height: 100dvh !important;  /* override: excludes browser chrome on mobile */
     max-width: none !important;
     max-height: none !important;
     margin: 0 !important;
@@ -777,7 +778,9 @@
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-    height: 100% !important;
+    /* height: 100% alone fails when parent has height:auto (dvh unsupported);
+       use flex: 1 1 auto (already set above) to fill remaining space instead */
+    height: auto !important;
   }
 
   /* Kill desktop height math inside full-screen */
