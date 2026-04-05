@@ -75,6 +75,50 @@
     max-width: 100%;
     max-height: 95vh;
     margin: var(--space-sm);
+    /* Prevent horizontal content overflow inside modals */
+    overflow-x: hidden !important;
+  }
+
+  /* Search results list — clip any child that overflows horizontally */
+  #quick-connect-list {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Person result cards — ensure the "→ View Profile" label
+     never pushes the card wider than the container */
+  #quick-connect-list [style*="display:flex"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Org / Theme tab buttons — shrink and wrap gracefully on narrow screens */
+  .org-search-tab,
+  .theme-search-tab {
+    padding: 0.5rem 0.6rem !important;
+    font-size: 0.75rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+  }
+
+  /* Tab rows — allow wrapping so buttons don't overflow */
+  .org-search-tabs,
+  .theme-search-tabs,
+  [style*="org-search-tab"],
+  div:has(> .org-search-tab),
+  div:has(> .theme-search-tab) {
+    flex-wrap: wrap !important;
+    gap: 0.25rem !important;
+  }
+
+  /* Empty state messages — prevent overflow from long quoted strings */
+  #quick-connect-list [style*="text-align:center"],
+  #quick-connect-list [style*="text-align: center"] {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
   }
 
   .modal-header {
