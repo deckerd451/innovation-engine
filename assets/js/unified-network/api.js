@@ -998,10 +998,13 @@ try {
 
     // Scatter nodes around center so the simulation spreads them naturally
     // (D3 forceCenter adjusts center-of-mass but doesn't move nodes if they're all at 0,0)
+    // On mobile, use a tighter initial scatter so nodes start inside the viewport
+    // rather than spawning beyond the edges before forces have a chance to pull them back.
+    const initialScatter = window.innerWidth < 768 ? 180 : 400;
     for (const node of nodes) {
       if (node.x === 0 && node.y === 0) {
-        node.x = cx + (Math.random() - 0.5) * 400;
-        node.y = cy + (Math.random() - 0.5) * 400;
+        node.x = cx + (Math.random() - 0.5) * initialScatter;
+        node.y = cy + (Math.random() - 0.5) * initialScatter;
       }
     }
 

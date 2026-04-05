@@ -399,7 +399,41 @@
 
 
 /* ============================================================================
-   12. LANDSCAPE MODE (Mobile devices in landscape)
+   12. KEYBOARD-OPEN STATE (soft keyboard visible on mobile)
+   ============================================================================
+   When the iOS/Android soft keyboard opens, --keyboard-height is set by JS
+   (visualViewport API) and body gains .keyboard-open.
+   Shrink the graph canvas so it doesn't get crushed behind the keyboard,
+   and lift the search bar so it stays visible just above the keyboard.
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  :root {
+    --keyboard-height: 0px;
+  }
+
+  body.keyboard-open #synapse-main-view {
+    /* Pull the bottom of the graph up by the keyboard height */
+    bottom: var(--keyboard-height) !important;
+    transition: bottom 0.25s ease;
+  }
+
+  body.keyboard-open #centered-search-container {
+    /* Lift the search bar above the keyboard */
+    bottom: var(--keyboard-height) !important;
+    transition: bottom 0.25s ease;
+  }
+
+  /* When keyboard is closed, animate back smoothly */
+  #synapse-main-view,
+  #centered-search-container {
+    transition: bottom 0.25s ease;
+  }
+}
+
+
+/* ============================================================================
+   13. LANDSCAPE MODE (Mobile devices in landscape)
    ============================================================================ */
 
 @media (max-width: 768px) and (orientation: landscape) {

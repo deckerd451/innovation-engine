@@ -129,10 +129,11 @@ export class NodeRenderer {
     let glowColor = '#ffffff';
     let scale = VISUAL_CONSTANTS.scaleMin;
 
-    // Current user's node gets hero treatment
+    // Current user's node gets hero treatment — slightly larger than peers but
+    // not so large it overlaps neighbours; 1.25x is clearly distinct without dominating.
     const isCurrentUser = node.isCurrentUser === true;
     if (isCurrentUser) {
-      scale = 1.6;
+      scale = 1.25;
       glowIntensity = 0.45;
       glowColor = '#00e0ff';
     }
