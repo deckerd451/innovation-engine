@@ -65,55 +65,70 @@
     margin-bottom: var(--space-lg);
   }
 
+  /* ── Notification buttons: push below sticky filter bar ── */
+  #mobile-notif-container {
+    /* Filter bar is 52px + safe-area-inset-top; keep 6px breathing room */
+    top: calc(env(safe-area-inset-top, 0px) + 58px) !important;
+  }
+
   /* Modal Adjustments */
   .modal {
     padding: var(--space-sm);
   }
 
+  /* Override inline max-width:1000px so the modal content never wider than viewport */
   .modal-content {
     padding: var(--space-lg);
-    max-width: 100%;
+    max-width: calc(100vw - 16px) !important;
     max-height: 95vh;
     margin: var(--space-sm);
-    /* Prevent horizontal content overflow inside modals */
     overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
 
-  /* Search results list — clip any child that overflows horizontally */
+  /* Search results list container */
   #quick-connect-list {
     overflow-x: hidden !important;
     width: 100% !important;
     box-sizing: border-box !important;
   }
 
-  /* Person result cards — ensure the "→ View Profile" label
-     never pushes the card wider than the container */
+  /* Every direct section child inside the list */
+  #quick-connect-list > * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Person result card rows — constrain so "→ View Profile" can't push wider */
   #quick-connect-list [style*="display:flex"] {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  /* Org / Theme tab buttons — shrink and wrap gracefully on narrow screens */
-  .org-search-tab,
-  .theme-search-tab {
-    padding: 0.5rem 0.6rem !important;
-    font-size: 0.75rem !important;
-    white-space: nowrap !important;
-    flex-shrink: 1 !important;
+    max-width: 100% !important;
     min-width: 0 !important;
+    box-sizing: border-box !important;
   }
 
-  /* Tab rows — allow wrapping so buttons don't overflow */
-  .org-search-tabs,
-  .theme-search-tabs,
-  [style*="org-search-tab"],
-  div:has(> .org-search-tab),
-  div:has(> .theme-search-tab) {
-    flex-wrap: wrap !important;
+  /* Tab bars (org / theme) — horizontally scrollable strip, no wrapping overflow */
+  .search-tab-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;   /* Firefox */
     gap: 0.25rem !important;
   }
+  .search-tab-bar::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
-  /* Empty state messages — prevent overflow from long quoted strings */
+  /* Tab buttons — compact but still readable */
+  .org-search-tab,
+  .theme-search-tab {
+    padding: 0.45rem 0.65rem !important;
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;  /* don't squash — let the bar scroll instead */
+  }
+
+  /* Empty state messages — break long quoted search strings */
+  #quick-connect-list p,
   #quick-connect-list [style*="text-align:center"],
   #quick-connect-list [style*="text-align: center"] {
     word-break: break-word !important;
