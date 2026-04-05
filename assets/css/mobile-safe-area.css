@@ -1,13 +1,15 @@
 /**
  * Mobile Safe Area + HUD Layout Contract
  * ========================================
- * Fixes overlap issues on mobile (iOS notch, Android nav bars) when Unified Network is enabled.
+ * Fixes overlap issues on mobile (iOS notch, Android nav bars).
+ * Core safe-area and z-index variables apply unconditionally.
+ * HUD layout fixes apply to all mobile users; some features also
+ * activate only when Unified Network is enabled (data-unified-network="on").
  *
  * Goals:
  * 1. Reserve space for safe-area-inset (notch, status bar, navigation bar)
  * 2. Define consistent HUD heights for top and bottom overlays
  * 3. Establish z-index layering to prevent UI elements from blocking each other
- * 4. Scope all fixes to mobile viewport + unified network enabled
  */
 
 /* ============================================================================
@@ -81,56 +83,43 @@
 
 
 /* ============================================================================
-   3. MOBILE-ONLY + UNIFIED NETWORK SCOPING
-   ============================================================================
-
-   Apply fixes only when:
-   - Viewport is mobile (max-width: 768px)
-   - Unified network is enabled (body has data-unified-network="on")
-*/
+   3. MOBILE-ONLY SAFE AREA — applies unconditionally on all mobile users
+   ============================================================================ */
 
 @media (max-width: 768px) {
 
+  /* ========================================================================
+     4. TOP REGION - HUD with Safe Area (all users)
+     ======================================================================== */
+
+  /* Top-left admin button: position below safe area */
+  #btn-admin-top-left {
+    position: fixed !important;
+    top: calc(var(--safe-top) + 8px) !important;
+    left: calc(var(--safe-left) + 8px) !important;
+    z-index: var(--z-hud) !important;
+  }
+
+  /* Top-right controls */
+  #btn-admin-top-right,
+  .top-right-controls {
+    position: fixed !important;
+    top: calc(var(--safe-top) + 8px) !important;
+    right: calc(var(--safe-right) + 8px) !important;
+    z-index: var(--z-hud) !important;
+  }
+
+  /* Notification buttons: below the filter bar + safe area */
+  #mobile-notif-container {
+    top: calc(env(safe-area-inset-top, 0px) + 58px) !important;
+  }
+
+  /* ========================================================================
+     5. UNIFIED NETWORK — additional layout fixes when feature is active
+     ======================================================================== */
+
   /* Apply when unified network is ON */
   body[data-unified-network="on"] {
-
-    /* ========================================================================
-       4. TOP REGION - HUD with Safe Area
-       ======================================================================== */
-
-    /* Target the top-left HUD container (user profile + admin) */
-    body > div[style*="position:absolute"][style*="top:20px"][style*="left:20px"] {
-      top: calc(var(--safe-top) + 20px) !important;
-      left: calc(var(--safe-left) + 20px) !important;
-    }
-
-    /* Target the top-right HUD container (action buttons) */
-    body > div[style*="position:absolute"][style*="top:20px"][style*="right:20px"] {
-      top: calc(var(--safe-top) + 20px) !important;
-      right: calc(var(--safe-right) + 20px) !important;
-    }
-
-    /* Top-left admin button: position below safe area */
-    #btn-admin-top-left {
-      position: fixed !important;
-      top: calc(var(--safe-top) + 8px) !important;
-      left: calc(var(--safe-left) + 8px) !important;
-      z-index: var(--z-hud) !important;
-    }
-
-    /* User profile combined button */
-    #user-profile-combined {
-      /* Inherits position from parent container */
-    }
-
-    /* Top-right controls (if any exist) */
-    #btn-admin-top-right,
-    .top-right-controls {
-      position: fixed !important;
-      top: calc(var(--safe-top) + 8px) !important;
-      right: calc(var(--safe-right) + 8px) !important;
-      z-index: var(--z-hud) !important;
-    }
 
 
     /* ========================================================================

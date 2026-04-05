@@ -58,7 +58,9 @@ h1 {
    viewport so that the page header remains visible.  Adjust the
    subtraction value if the header size changes. */
 #events-list {
-  max-height: calc(100vh - 220px);
+  /* Use dynamic viewport height and HUD variables so this accounts for
+     notch/home-indicator safe areas on mobile automatically. */
+  max-height: calc(var(--mobile-vh, 100vh) - var(--hud-top, 60px) - var(--hud-bottom, 220px));
   overflow-y: auto;
   padding-right: 0.5rem;
 }
@@ -118,7 +120,7 @@ h1 {
 /* Responsive adjustments */
 @media (max-width: 600px) {
   #events-list {
-    max-height: calc(100vh - 180px);
+    max-height: calc(var(--mobile-vh, 100vh) - var(--hud-top, 60px) - 120px);
   }
   h1 {
     font-size: 1.6rem;

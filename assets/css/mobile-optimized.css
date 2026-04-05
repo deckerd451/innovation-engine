@@ -65,12 +65,6 @@
     margin-bottom: var(--space-lg);
   }
 
-  /* ── Notification buttons: push below sticky filter bar ── */
-  #mobile-notif-container {
-    /* Filter bar is 52px + safe-area-inset-top; keep 6px breathing room */
-    top: calc(env(safe-area-inset-top, 0px) + 58px) !important;
-  }
-
   /* Modal Adjustments */
   .modal {
     padding: var(--space-sm);
