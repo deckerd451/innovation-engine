@@ -155,10 +155,16 @@
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
-      gap: 0.75rem !important;
+      gap: 0.5rem !important;
+
+      /* Frosted glass docked bar — gives the bottom a clear visual anchor */
+      background: rgba(6, 9, 22, 0.82) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border-top: 1px solid rgba(0, 224, 255, 0.13) !important;
 
       /* Safe area padding at bottom + sides */
-      padding: 0 16px calc(var(--safe-bottom) + 12px) 16px !important;
+      padding: 10px 14px calc(var(--safe-bottom) + 10px) 14px !important;
 
       /* Z-index from HUD scale */
       z-index: var(--z-hud) !important;
