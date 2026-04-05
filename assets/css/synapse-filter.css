@@ -162,21 +162,23 @@
     border-bottom: 1px solid rgba(0, 224, 255, 0.13) !important;
     border-radius: 0 !important;
 
-    /* Layout: space chips evenly across full width */
+    /* Layout: filter chips fill the left; reserve right edge for
+       notification buttons which dock into this same bar row */
     display: flex !important;
     flex-direction: row !important;
-    justify-content: space-around !important;
+    justify-content: flex-start !important;
     align-items: center !important;
     gap: 0 !important;
-    padding: calc(env(safe-area-inset-top, 0px) + 6px) 8px 6px !important;
+    /* Reserve ~108px on the right for up to 3 notification icon buttons */
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 110px 6px 4px !important;
 
     z-index: 200 !important;
     min-height: 52px !important;
   }
 
   .synapse-filter-chip {
-    /* Grow to fill available width equally */
-    flex: 1 !important;
+    /* Divide the remaining (non-button) width equally */
+    flex: 1 1 0 !important;
     justify-content: center !important;
 
     /* Larger touch target */
