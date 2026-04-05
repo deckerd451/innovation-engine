@@ -305,6 +305,7 @@
   top: 80px;
   right: 20px;
   width: 340px;
+  max-width: calc(100vw - 32px); /* prevent overflow on any viewport width */
   max-height: calc(100vh - 120px);
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   border: 1px solid rgba(0, 224, 255, 0.3);
@@ -782,11 +783,17 @@
 /* ======================== */
 @media (max-width: 768px) {
   .connection-requests-panel {
-    top: 70px;
+    /* Push below sticky filter bar (52px) + safe area */
+    top: calc(env(safe-area-inset-top, 0px) + 62px);
     right: 10px;
     left: 10px;
     width: auto;
     max-height: calc(100vh - 150px);
+  }
+
+  /* Push the close button below the sticky filter bar */
+  .synapse-close-btn {
+    top: calc(env(safe-area-inset-top, 0px) + 62px) !important;
   }
 
   .crp-header {

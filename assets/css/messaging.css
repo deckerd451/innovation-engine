@@ -696,11 +696,18 @@
   }
 }
 
+@media (max-width: 480px) {
+  /* Collapse sidebar entirely on phones — single-column chat view */
+  .messages-container {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (max-width: 640px) {
   .messages-container {
     padding: 0.5rem;
-    height: calc(100vh - 150px);  /* fallback */
-    height: calc(100dvh - 150px);
+    height: calc(100vh - 150px);  /* fallback — must come first */
+    height: calc(100dvh - 150px); /* override with dynamic vh where supported */
   }
   
   .chat-header {
