@@ -572,9 +572,14 @@ export async function openMessagingInterface(conversationId = null) {
     </div>
   `;
 
+  // v2 = mobile breakpoint bumped to 768px; remove stale v1 element so new CSS applies
+  const staleStyle = document.getElementById('rt-messaging-styles');
+  if (staleStyle && !staleStyle.dataset.v2) staleStyle.remove();
+
   if (!document.getElementById('rt-messaging-styles')) {
     const style = document.createElement('style');
     style.id = 'rt-messaging-styles';
+    style.dataset.v2 = '1';
     style.textContent = `
       /* ── Base conversation list items ── */
       .conversation-item {
@@ -766,10 +771,10 @@ export async function openMessagingInterface(conversationId = null) {
       }
 
       /* ══════════════════════════════════════════════
-         MOBILE LAYOUT  ≤ 640px
+         MOBILE LAYOUT  ≤ 768px
          Single-panel navigation (WhatsApp style)
          ══════════════════════════════════════════════ */
-      @media (max-width: 640px) {
+      @media (max-width: 768px) {
         /* Backdrop: no padding, stretch to fill.
            Remove backdrop-filter: on a position:fixed element it creates a
            compositor layer that gets stuck during iOS keyboard animation,
