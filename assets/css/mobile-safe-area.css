@@ -109,35 +109,32 @@
     z-index: var(--z-hud) !important;
   }
 
-  /* Notification buttons: escape #main-content stacking context by switching
-     to position:fixed, then dock into the RIGHT side of the filter bar row.
-     position:absolute inside #main-content (z-index:1000) can never beat
-     the filter bar at z:200 which is inside #synapse-main-view (z:1) — the
-     two are in different stacking contexts and the notif container always wins.
-     Making it position:fixed lets us set z-index:201 so it sits just above
-     the filter bar (z:200) in the same root stacking context. */
+  /* Notification buttons: floating frosted-glass pill at top-right.
+     Filter bar is hidden on mobile, so these float standalone over the graph. */
   #mobile-notif-container {
     position: fixed !important;
-    /* Align with filter bar top + safe area */
-    top: env(safe-area-inset-top, 0px) !important;
-    right: 4px !important;
+    top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
+    right: 10px !important;
     left: auto !important;
     bottom: auto !important;
-    /* Match filter bar height so buttons visually live inside it */
-    height: calc(env(safe-area-inset-top, 0px) + 52px) !important;
-    /* Sit just above filter bar */
+    height: auto !important;
     z-index: 201 !important;
-    gap: 4px !important;
-    padding: calc(env(safe-area-inset-top, 0px) + 4px) 0 4px !important;
-    background: transparent !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+    /* Frosted glass pill */
+    background: rgba(6, 9, 22, 0.82) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border-radius: 22px !important;
+    border: 1px solid rgba(0, 224, 255, 0.18) !important;
   }
 
-  /* Shrink notification buttons to fit neatly in the bar.
+  /* Notification buttons — comfortably tappable inside the pill.
      Do NOT set display here — JS toggles display:none / display:flex. */
   #mobile-notif-container .mobile-notif-btn,
   #btn-logout-mobile {
-    width: 30px !important;
-    height: 30px !important;
+    width: 36px !important;
+    height: 36px !important;
     padding: 0 !important;
     align-items: center !important;
     justify-content: center !important;
@@ -145,10 +142,10 @@
   }
 
   #mobile-notif-container i {
-    font-size: 0.8rem !important;
+    font-size: 0.95rem !important;
   }
 
-  /* Shrink notification badge dots to match smaller buttons */
+  /* Badge dots */
   #mobile-notif-container .mobile-notif-badge {
     font-size: 9px !important;
     min-width: 14px !important;
