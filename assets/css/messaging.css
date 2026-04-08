@@ -1128,3 +1128,85 @@
   font-weight: 800;
   color: #fff;
 }
+
+/* ============================================================
+   #messaging-interface MOBILE PORTRAIT FIX
+   The realtime-collaboration.js panel uses a fixed 350px sidebar
+   that overflows narrow phones. This block forces full-screen
+   single-panel layout on mobile as a guaranteed override layer.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Overlay: full-screen, no padding gap */
+  #messaging-interface {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    /* Drop backdrop-filter — iOS can glitch during keyboard animation */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Container: full-screen */
+  #messaging-interface .messaging-container {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100vh !important;          /* fallback */
+    height: 100dvh !important;         /* dynamic — excludes browser chrome */
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Sidebar: full width, remove fixed 350px */
+  #messaging-interface .conversations-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(0, 224, 255, 0.15) !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Chat area: hidden by default (WhatsApp list-first pattern) */
+  #messaging-interface .chat-area {
+    display: none !important;
+    flex: 0 0 0px !important;
+    width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* rt-panel-chat class toggled by JS when user selects a conversation */
+  #messaging-interface.rt-panel-chat .conversations-sidebar {
+    display: none !important;
+    flex: 0 0 0px !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  #messaging-interface.rt-panel-chat .chat-area {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Back button visible only on mobile */
+  .rt-mobile-back {
+    display: flex !important;
+  }
+
+  /* Wider bubbles on narrow screens */
+  #messaging-interface .message-bubble {
+    max-width: 88% !important;
+  }
+
+  /* Composer row: tighter on mobile */
+  #messaging-interface #message-input-area {
+    padding: 0.75rem !important;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
