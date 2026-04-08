@@ -63,11 +63,11 @@ function createPanelElement() {
     @media (max-width: 768px) and (orientation: portrait) {
       #node-side-panel {
         width: 100vw !important;
-        height: 55vh !important;
-        height: 55dvh !important;
+        height: 65vh !important;
+        height: 65dvh !important;
         top: auto !important;
-        bottom: -55vh !important;
-        bottom: -55dvh !important;
+        bottom: -65vh !important;
+        bottom: -65dvh !important;
         right: 0 !important;
         border-left: none !important;
         border-top: 2px solid rgba(0, 224, 255, 0.5) !important;
@@ -75,14 +75,27 @@ function createPanelElement() {
         transition: bottom 0.3s ease-out !important;
       }
 
+      /* Drag handle indicator */
+      #node-side-panel::before {
+        content: '';
+        display: flex;
+        width: 40px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 2px;
+        margin: 10px auto 0;
+        flex-shrink: 0;
+        align-self: center;
+      }
+
       #node-side-panel.open {
         bottom: 0 !important;
       }
 
-      /* Graph occupies top 45dvh when the bottom sheet is open */
+      /* Graph occupies top 35dvh when the bottom sheet is open */
       body.node-panel-open #synapse-main-view {
-        bottom: 55vh !important;
-        bottom: 55dvh !important;
+        bottom: 65vh !important;
+        bottom: 65dvh !important;
         transition: bottom 0.3s ease-out !important;
       }
 
@@ -95,7 +108,25 @@ function createPanelElement() {
         padding: 0.75rem 1rem !important;
       }
 
-      /* Make buttons stack on mobile */
+      /* Action bar: safe-area bottom padding + reliable touch targets */
+      #node-side-panel .node-panel-actions {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem) !important;
+      }
+
+      /* Stack action button grids into single column on mobile */
+      #node-side-panel .node-panel-actions [style*="display: grid"] {
+        grid-template-columns: 1fr !important;
+        gap: 0.5rem !important;
+      }
+
+      /* Ensure every action button is a generous touch target */
+      #node-side-panel .node-panel-actions button {
+        min-height: 48px !important;
+        touch-action: manipulation !important;
+        -webkit-tap-highlight-color: rgba(0, 224, 255, 0.15) !important;
+      }
+
+      /* Make buttons inside flex containers full-width */
       #node-side-panel .action-buttons,
       #node-side-panel [style*="display: flex"][style*="gap"] {
         flex-direction: column !important;
