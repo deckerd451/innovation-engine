@@ -142,7 +142,9 @@ function validateOpportunityData(data) {
     errors.push("Description must be at least 20 characters");
   }
 
-  if (!data.type || !["job", "internship", "volunteer", "contract", "mentorship"].includes(data.type)) {
+  // Accept either key; normalize so callers don't need to know the DB column name
+  const oppType = data.opportunity_type || data.type;
+  if (!oppType || !["job", "internship", "volunteer", "contract", "mentorship"].includes(oppType)) {
     errors.push("Invalid opportunity type");
   }
 
@@ -194,11 +196,14 @@ export async function createOpportunity(opportunityData) {
       throw new Error("You don't have permission to post opportunities for this organization");
     }
 
-    // Create opportunity
+    // Create opportunity — normalize field names at the app boundary so callers
+    // can pass either 'type' or 'opportunity_type' and the right column is written
     const { data: opportunity, error } = await supabase
       .from("opportunities")
       .insert({
         ...opportunityData,
+        // opportunity_type is the canonical DB column; accept legacy 'type' key too
+        opportunity_type: opportunityData.opportunity_type || opportunityData.type,
         posted_by: currentUserCommunityId,
         status: opportunityData.status || "open",
         view_count: 0,
@@ -393,9 +398,9 @@ export async function getOpportunities(filters = {}) {
       .or("application_deadline.is.null,application_deadline.gt." + new Date().toISOString());
 
     console.debug('[opp-manager] getOpportunities — source: public.opportunities');
-    // Apply filters
-    if (filters.type) {
-      query = query.eq("type", filters.type);
+    // Apply filters — opportunity_type is the canonical DB column
+    if (filters.opportunity_type || filters.type) {
+      query = query.eq("opportunity_type", filters.opportunity_type || filters.type);
     }
 
     if (filters.experience_level) {
@@ -431,8 +436,9 @@ export async function getOpportunities(filters = {}) {
     }
 
     if (filters.search) {
+      // Search across title, summary (short field), and description (long field)
       query = query.or(
-        `title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
+        `title.ilike.%${filters.search}%,summary.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
       );
     }
 
