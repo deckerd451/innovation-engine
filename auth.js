@@ -61,7 +61,6 @@
   }
 
   function showNotification(message, type = "info") {
-    // Keep lightweight; your app also has a global notifier elsewhere
     log(`[${String(type).toUpperCase()}] ${message}`);
     if (typeof window.showNotification === "function") {
       try {
@@ -71,7 +70,6 @@
   }
 
   function ensureAuthErrorEl() {
-    // Prefer existing authError element if present, otherwise create one under login hint.
     let el = $("authError");
     if (el) return el;
 
@@ -113,7 +111,6 @@
       el.style.display = "block";
       el.style.color = type === "success" ? "#4caf50" : "#ff6b6b";
     } else {
-      // ultra-safe fallback
       try {
         alert(msg);
       } catch (_) {}
@@ -126,25 +123,22 @@
   let loginSection, mainContent, mainHeader;
   let githubBtn, googleBtn;
 
-
   // -----------------------------
   // Internal state
   // -----------------------------
   let loginDOMReady = false;
   let initPromise = null;
 
-  let bootUserId = null; // booted user id for this page load
-  let profileLoadPromise = null; // in-flight profile request (single flight)
+  let bootUserId = null;
+  let profileLoadPromise = null;
 
   let hasBootstrappedThisLoad = false;
-  let signedInBootstrapStarted = false; // true as soon as SIGNED_IN bootstrap begins (before async work)
+  let signedInBootstrapStarted = false;
   let sessionTimer = null;
 
-  // Auth subscription guard
   let authSubAttached = false;
   let authUnsub = null;
 
-  // Signal to other modules that initial auth decision is done
   window.__authReady = false;
 
   // -----------------------------
@@ -163,7 +157,6 @@
       return;
     }
 
-    // Ensure non-silent error UI exists when login UI is rendered
     ensureAuthErrorEl();
 
     if (githubBtn && !githubBtn.dataset.bound) {
@@ -180,8 +173,6 @@
     log("🎨 Login DOM setup complete (OAuth mode)");
   }
 
-
-
   function cancelSessionTimer() {
     if (sessionTimer) {
       clearTimeout(sessionTimer);
@@ -195,17 +186,15 @@
     window.dispatchEvent(new CustomEvent("auth-ready", { detail: {} }));
   }
 
-  let loginUIShown = false; // single-owner: only render login UI once per page load
+  let loginUIShown = false;
 
   function showLoginUI() {
-    // never let login UI override an already-booted app
     if (hasBootstrappedThisLoad) {
       warn("🟡 showLoginUI ignored (app already bootstrapped).");
       markAuthReadyOnce();
       return;
     }
 
-    // Single-owner: only render login UI once
     if (loginUIShown) {
       warn("🟡 showLoginUI ignored (already shown).");
       markAuthReadyOnce();
@@ -257,7 +246,6 @@
   // -----------------------------
   // OAuth URL cleanup
   // -----------------------------
-  // Immediate cleanup for ?code / ?error to break login loops (safe to do before session)
   function cleanOAuthUrlNow() {
     const url = new URL(window.location.href);
     const hasOAuthCode = url.searchParams.has("code");
@@ -271,7 +259,6 @@
     return false;
   }
 
-  // Clean OAuth hash (access_token etc.) AFTER auth had a chance to parse it
   function cleanOAuthUrlSoon() {
     const url = new URL(window.location.href);
     const hasOAuthHash =
@@ -319,11 +306,10 @@
     clearAuthError();
     setHint("Opening provider…");
 
-    // Stable redirect target — use the full path including any GitHub Pages
-    // project-site prefix (e.g. /innovation-engine/) so OAuth returns to the
-    // correct URL on both desktop and mobile Safari.
-    const base = window.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '');
-    const redirectTo = window.location.origin + base + '/index.html';
+    const base = window.location.pathname
+      .replace(/\/index\.html$/, "/")
+      .replace(/\/+$/, "");
+    const redirectTo = window.location.origin + base + "/index.html";
 
     const { error } = await window.supabase.auth.signInWithOAuth({
       provider,
@@ -393,9 +379,6 @@
       emailNorm
     );
 
-    // ============================================================
-    // STEP 1: Try to find profile by user_id (primary lookup)
-    // ============================================================
     const { data: uidData, error: uidError } = await withTimeout(
       window.supabase.from("community").select("*").eq("user_id", uid).limit(1),
       15000,
@@ -415,9 +398,6 @@
 
     log("🔍 [PROFILE-LINK] No profile found by user_id, proceeding to email lookup");
 
-    // ============================================================
-    // STEP 2: Link by email (handle migrated profiles)
-    // ============================================================
     if (!emailNorm) {
       log("⚠️ [PROFILE-LINK] No email available, cannot link by email");
       return null;
@@ -448,13 +428,9 @@
       emailNorm
     );
 
-    // ============================================================
-    // CASE A: Exactly one profile with this email
-    // ============================================================
     if (emailMatches.length === 1) {
       const row = emailMatches[0];
 
-      // migrated profile - link it
       if (!row.user_id) {
         log("🔗 [PROFILE-LINK] Linking migrated profile (user_id=NULL) to user:", row.id);
 
@@ -473,7 +449,12 @@
           return null;
         }
 
-        log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", row.id, "to uid:", uid);
+        log(
+          "✅ [PROFILE-LINK] linked-by-email: Successfully linked profile",
+          row.id,
+          "to uid:",
+          uid
+        );
 
         setTimeout(() => {
           if (typeof window.showNotification === "function") {
@@ -487,7 +468,6 @@
         return updatedData;
       }
 
-      // collision: already linked to different user_id
       if (row.user_id !== uid) {
         err(
           "⚠️ [PROFILE-LINK] duplicate-email-collision: Profile",
@@ -502,9 +482,6 @@
       return row;
     }
 
-    // ============================================================
-    // CASE B: Multiple profiles with same email (duplicates)
-    // ============================================================
     log(
       "⚠️ [PROFILE-LINK] duplicate-email-detected: Found",
       emailMatches.length,
@@ -512,8 +489,6 @@
       emailNorm
     );
 
-    // Choose canonical profile:
-    // 1) completed flags, else 2) oldest created_at (already sorted)
     let canonical = null;
     for (const row of emailMatches) {
       if (row.profile_completed === true || row.onboarding_completed === true) {
@@ -524,10 +499,14 @@
     }
     if (!canonical) {
       canonical = emailMatches[0];
-      log("🎯 [PROFILE-LINK] Selected canonical (oldest):", canonical.id, "created_at:", canonical.created_at);
+      log(
+        "🎯 [PROFILE-LINK] Selected canonical (oldest):",
+        canonical.id,
+        "created_at:",
+        canonical.created_at
+      );
     }
 
-    // If uid is currently on a non-canonical row, clear it
     const uidRow = emailMatches.find((r) => r.user_id === uid);
     if (uidRow && uidRow.id !== canonical.id) {
       log(
@@ -558,7 +537,6 @@
       }
     }
 
-    // Link canonical to this uid
     if (!canonical.user_id) {
       log("🔗 [PROFILE-LINK] Linking canonical profile", canonical.id, "to uid:", uid);
 
@@ -588,13 +566,17 @@
       return canonical;
     }
 
-    // Hide non-canonical duplicates
     const nonCanonicalIds = emailMatches
       .filter((r) => r.id !== canonical.id)
       .map((r) => r.id);
 
     if (nonCanonicalIds.length > 0) {
-      log("🗑️ [PROFILE-LINK] Hiding", nonCanonicalIds.length, "non-canonical duplicate profile(s):", nonCanonicalIds);
+      log(
+        "🗑️ [PROFILE-LINK] Hiding",
+        nonCanonicalIds.length,
+        "non-canonical duplicate profile(s):",
+        nonCanonicalIds
+      );
 
       const { error: hideError } = await window.supabase
         .from("community")
@@ -632,9 +614,6 @@
       try {
         let profile = await fetchUserProfile(user);
 
-        // ============================================================
-        // STEP 3: Create new profile if no match found
-        // ============================================================
         if (!profile) {
           log(
             "🆕 [PROFILE-LINK] created-new: No existing profile found, creating new profile for uid:",
@@ -667,10 +646,10 @@
           log("✅ [PROFILE-LINK] Successfully created new profile:", profile.id);
         }
 
-        // ============================================================
-        // Enforce onboarding if needed
-        // ============================================================
-        const needsOnboarding = !profile.onboarding_completed || !profile.profile_completed || !profile.name;
+        const needsOnboarding =
+          !profile.onboarding_completed ||
+          !profile.profile_completed ||
+          !profile.name;
 
         if (needsOnboarding) {
           log("⚠️ [PROFILE-LINK] onboarding-forced: Profile", profile.id, "requires onboarding");
@@ -707,7 +686,6 @@
       return;
     }
 
-    // Mark immediately — before any async work — so timeout paths can check this
     signedInBootstrapStarted = true;
     bootUserId = user.id;
     log(`🟢 Bootstrapping app for user (${sourceEvent}):`, user.email);
@@ -715,7 +693,6 @@
     cancelSessionTimer();
     cleanOAuthUrlSoon();
 
-    // Set global user and emit authenticated-user event for other modules
     window.currentAuthUser = user;
     window.dispatchEvent(new CustomEvent("authenticated-user", { detail: { user } }));
 
@@ -723,23 +700,24 @@
 
     // ============================================================
     // IDENTITY CLAIM: Fire in background — never blocks auth path
+    // Assumes claim_community_profile_by_email() is idempotent:
+    // - returns existing linked profile id when already linked
+    // - returns claimed profile id when an orphaned profile is claimed
+    // - returns null when nothing is claimable
+    // - only returns error for true failures
     // ============================================================
     (async () => {
       try {
         log("🔗 [IDENTITY-CLAIM] Starting identity claim in background…");
+
         const { data: claimedId, error: claimError } = await window.supabase.rpc(
           "claim_community_profile_by_email"
         );
 
         if (claimError) {
-          // "already linked" is expected for returning users — not a real error
-          if (String(claimError.message || "").includes("already linked")) {
-            log("ℹ️ [IDENTITY-CLAIM] User already has a linked profile — skipping claim.");
-          } else {
-            warn("⚠️ [IDENTITY-CLAIM] Claim RPC error:", claimError.message || claimError);
-          }
+          warn("⚠️ [IDENTITY-CLAIM] Claim RPC error:", claimError.message || claimError);
         } else if (claimedId) {
-          log("✅ [IDENTITY-CLAIM] Successfully claimed community profile:", claimedId);
+          log("✅ [IDENTITY-CLAIM] Community profile available:", claimedId);
           window.__claimedCommunityId = claimedId;
         } else {
           log("ℹ️ [IDENTITY-CLAIM] No orphaned profile found for this email.");
@@ -789,7 +767,6 @@
         session?.user ? `user: ${session.user.email}` : "no user"
       );
 
-      // INITIAL_SESSION with no user means user is logged out
       if (event === "INITIAL_SESSION" && !session?.user) {
         log("🟡 INITIAL_SESSION received - no active session");
         cancelSessionTimer();
@@ -799,7 +776,10 @@
       }
 
       if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
-        log("🛡️ [AUTH-GUARD] SIGNED_IN guard activated — authenticated bootstrap starting for:", session.user.email);
+        log(
+          "🛡️ [AUTH-GUARD] SIGNED_IN guard activated — authenticated bootstrap starting for:",
+          session.user.email
+        );
         cancelSessionTimer();
         await bootstrapForUser(session.user, event);
         return;
@@ -841,7 +821,6 @@
         return;
       }
 
-      // Handle OAuth callback (code exchange) if present
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
       if (code) {
@@ -855,11 +834,9 @@
         } catch (e) {
           err("❌ Failed to exchange code:", e);
           cleanOAuthUrlNow();
-          // Continue to show login UI if session isn't present
         }
       }
 
-      // Clean any OAuth error params
       if (url.searchParams.has("error")) {
         cleanOAuthUrlNow();
       }
@@ -870,18 +847,17 @@
         } catch (_) {}
       }
 
-      // Subscribe to auth changes for future events
       attachAuthSubscriptionOnce();
 
-      // Give Supabase a moment to finish any internal initialization
       await sleep(100);
 
-      // Manual session check once (avoid unreliable INITIAL_SESSION in some environments)
       try {
         log("🔍 Checking initial session state...");
         const { data, error } = await Promise.race([
           window.supabase.auth.getSession(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Session check timeout")), 3000)),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Session check timeout")), 3000)
+          ),
         ]);
 
         if (hasBootstrappedThisLoad || signedInBootstrapStarted) {
@@ -912,7 +888,6 @@
     return initPromise;
   }
 
-  // Suppress noisy AbortError unhandled rejections
   window.addEventListener("unhandledrejection", (event) => {
     const r = event.reason;
     if (isAbortError(r)) {
@@ -921,7 +896,6 @@
     }
   });
 
-  // Diagnostic helpers (non-destructive)
   window.testAuthSystem = async function () {
     console.log("🔍 Testing auth system...");
 
@@ -950,11 +924,9 @@
     }
   };
 
-  // Export to window (legacy callers)
   window.setupLoginDOM = setupLoginDOM;
   window.initLoginSystem = initLoginSystem;
 
-  // Optional autostart flag
   const autostart = !!window.__CH_IE_AUTH_AUTOBOOT__;
 
   const boot = async () => {
