@@ -443,7 +443,7 @@ window.CommandDashboard = (() => {
         // Opportunities (table may not exist — handle gracefully)
         window.supabase
           .from('opportunities')
-          .select('id, title, type, description, status, organization_id')
+          .select('id, title, opportunity_type, summary, description, status, organization_id')
           .then(res => res)
           .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
       ]);
@@ -1727,13 +1727,15 @@ window.CommandDashboard = (() => {
       // Close the form first, then await the DB insert so we can get the real ID
       _closeAddForm();
 
-      // FIXED: use 'type' (canonical column), not 'opportunity_type'
+      // opportunity_type is the canonical DB column name (not 'type')
       const typeMap = { 'full-time': 'job', 'part-time': 'job', 'contract': 'contract', 'internship': 'internship', 'volunteer': 'volunteer' };
       const commitmentMap = { 'full-time': 'full-time', 'part-time': 'part-time' };
       const oppData = {
         title: name,
-        type: typeMap[opType] || 'volunteer',
+        opportunity_type: typeMap[opType] || 'volunteer',
         commitment: commitmentMap[opType] || null,
+        // summary holds the brief one-liner; description can be enriched via edit
+        summary: desc || '',
         description: desc || name,
         status: 'open',
         is_public: true,
@@ -1788,7 +1790,7 @@ window.CommandDashboard = (() => {
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div class="udc-resource-info">
           <span class="udc-resource-name">${_escapeHtml(opp.title)}</span>
-          ${opp.type ? `<span class="udc-resource-meta">${_escapeHtml(opp.type)}</span>` : ''}
+          ${opp.opportunity_type ? `<span class="udc-resource-meta">${_escapeHtml(opp.opportunity_type)}</span>` : ''}
         </div>
         <span style="font-size:0.6rem;color:#00c88c;flex-shrink:0;">✓ Posted</span>
       </div>

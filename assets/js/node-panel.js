@@ -899,9 +899,9 @@ window.editOpportunityFromPanel = async function(oppId) {
     const compMax = (compNums && compNums[1]) ? (parseFloat(compNums[1]) || null) : null;
 
     const updates = {
-      // FIELD FIX: use canonical 'type' column, not 'opportunity_type'
+      // opportunity_type is the canonical DB column name
       title: document.getElementById('edit-opp-title').value.trim(),
-      type: document.getElementById('edit-opp-type').value,
+      opportunity_type: document.getElementById('edit-opp-type').value,
       description: document.getElementById('edit-opp-description').value.trim(),
       skills: skillsArray.length ? skillsArray : null,
       experience_level: document.getElementById('edit-opp-experience').value || null,
