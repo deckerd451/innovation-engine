@@ -443,7 +443,7 @@ window.CommandDashboard = (() => {
         // Opportunities (table may not exist — handle gracefully)
         window.supabase
           .from('opportunities')
-          .select('id, title, description, status, organization_id')
+          .select('id, title, type, description, status, organization_id')
           .then(res => res)
           .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
       ]);
@@ -1696,7 +1696,7 @@ window.CommandDashboard = (() => {
   }
 
   /** Handle the submit action for the add form */
-  function _handleAddSubmit(resourceType) {
+  async function _handleAddSubmit(resourceType) {
     const nameEl = $id('udc-add-name');
     const descEl = $id('udc-add-desc');
     const typeEl = $id('udc-add-type');
@@ -1724,12 +1724,15 @@ window.CommandDashboard = (() => {
         _showAddConfirmation('project', name);
       }
     } else if (resourceType === 'opportunities') {
-      // Map form type values to schema opportunity type + commitment
+      // Close the form first, then await the DB insert so we can get the real ID
+      _closeAddForm();
+
+      // FIXED: use 'type' (canonical column), not 'opportunity_type'
       const typeMap = { 'full-time': 'job', 'part-time': 'job', 'contract': 'contract', 'internship': 'internship', 'volunteer': 'volunteer' };
       const commitmentMap = { 'full-time': 'full-time', 'part-time': 'part-time' };
       const oppData = {
         title: name,
-        opportunity_type: typeMap[opType] || 'volunteer',
+        type: typeMap[opType] || 'volunteer',
         commitment: commitmentMap[opType] || null,
         description: desc || name,
         status: 'open',
@@ -1737,17 +1740,26 @@ window.CommandDashboard = (() => {
         posted_by: _userId,
         organization_id: null,
       };
+
       if (window.supabase && _userId) {
-        window.supabase.from('opportunities').insert(oppData).then(({ error }) => {
-          if (error) {
-            console.error('[CommandDashboard] Failed to post opportunity:', error);
-          } else {
-            _loadEnrichedData();
-          }
-        });
+        const { data: newOpp, error } = await window.supabase
+          .from('opportunities')
+          .insert(oppData)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('[CommandDashboard] Failed to post opportunity:', error);
+        } else if (newOpp) {
+          // TASK 3 FIX (Option A): immediately patch local state — no full reload needed
+          if (!_enrichedData.opportunities) _enrichedData.opportunities = [];
+          _enrichedData.opportunities.unshift(newOpp);
+          _renderResources(_currentTier);
+          // UX TASK 6: show success state with "Add Details" / "Done" actions
+          _showOppSuccessConfirmation(newOpp);
+        }
       }
-      const meta = opType ? `${opType}${desc ? ' · ' + desc.slice(0, 30) : ''}` : undefined;
-      _showAddConfirmation(resourceType, name, meta);
+      return; // skip the final _closeAddForm() — already closed above
     } else {
       // Stub confirmation for orgs and themes
       const meta = desc.slice(0, 40) || undefined;
@@ -1755,6 +1767,72 @@ window.CommandDashboard = (() => {
     }
 
     _closeAddForm();
+  }
+
+  /**
+   * Show a success item in the resource list after an opportunity is posted.
+   * Includes "Add Details" (opens edit modal) and "Done" (dismisses) CTAs.
+   * UX TASK 6 implementation.
+   */
+  function _showOppSuccessConfirmation(opp) {
+    const list = $id('udc-resource-list');
+    if (!list) return;
+
+    const empty = list.querySelector('.udc-resource-empty');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = 'udc-resource-item';
+    item.style.cssText = 'border-color:rgba(0,200,140,0.4);background:rgba(0,200,140,0.06);flex-direction:column;align-items:stretch;gap:0.4rem;';
+    item.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="udc-resource-info">
+          <span class="udc-resource-name">${_escapeHtml(opp.title)}</span>
+          ${opp.type ? `<span class="udc-resource-meta">${_escapeHtml(opp.type)}</span>` : ''}
+        </div>
+        <span style="font-size:0.6rem;color:#00c88c;flex-shrink:0;">✓ Posted</span>
+      </div>
+      <div style="display:flex;gap:0.4rem;">
+        <button id="udc-opp-details-${_escapeHtml(opp.id)}" style="flex:1;font-size:0.68rem;padding:0.25rem 0.5rem;border-radius:5px;border:1px solid rgba(0,224,255,0.3);background:rgba(0,224,255,0.1);color:var(--cd-accent,#00e0ff);cursor:pointer;font-weight:600;">
+          <i class="fas fa-sliders-h"></i> Add Details
+        </button>
+        <button id="udc-opp-done-${_escapeHtml(opp.id)}" style="font-size:0.68rem;padding:0.25rem 0.5rem;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#aaa;cursor:pointer;">
+          Done
+        </button>
+      </div>
+    `;
+
+    const label = list.querySelector('.udc-resource-section-label');
+    if (label && label.nextSibling) {
+      list.insertBefore(item, label.nextSibling);
+    } else {
+      list.prepend(item);
+    }
+
+    $id(`udc-opp-details-${opp.id}`)?.addEventListener('click', () => {
+      item.remove();
+      if (typeof window.editOpportunityFromPanel === 'function') {
+        window.editOpportunityFromPanel(opp.id);
+      }
+    });
+
+    const doneBtn = $id(`udc-opp-done-${opp.id}`);
+    if (doneBtn) {
+      doneBtn.addEventListener('click', () => {
+        item.style.transition = 'opacity 0.3s';
+        item.style.opacity = '0';
+        setTimeout(() => item.remove(), 320);
+      });
+    }
+
+    // Auto-dismiss after 8 s if no action taken
+    setTimeout(() => {
+      if (item.parentNode) {
+        item.style.transition = 'opacity 0.4s';
+        item.style.opacity = '0';
+        setTimeout(() => item.remove(), 450);
+      }
+    }, 8000);
   }
 
   /** Flash a newly-added item at the top of the resource list */
@@ -1836,6 +1914,22 @@ window.CommandDashboard = (() => {
     /** Refresh Supabase-enriched data (projects, orgs, connections) and re-render */
     async refreshEnrichedData() {
       await _loadEnrichedData();
+    },
+    /**
+     * TASK 3 FIX (Option A): Patch a single opportunity in local state and
+     * re-render the resource list immediately — no full DB reload needed.
+     * Called by node-panel.js after a successful edit so the title (and other
+     * fields) reflect the saved value right away.
+     */
+    patchOpportunity(updatedOpp) {
+      if (!updatedOpp || !_enrichedData.opportunities) return;
+      const idx = _enrichedData.opportunities.findIndex(o => o.id === updatedOpp.id);
+      if (idx !== -1) {
+        _enrichedData.opportunities[idx] = { ..._enrichedData.opportunities[idx], ...updatedOpp };
+      } else {
+        _enrichedData.opportunities.unshift(updatedOpp);
+      }
+      _renderResources(_currentTier);
     },
   };
 

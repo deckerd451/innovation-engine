@@ -757,6 +757,9 @@ window.editOpportunityFromPanel = async function(oppId) {
       <h2 style="color: ${typeColor}; margin-bottom: 1.5rem;"><i class="fas fa-edit"></i> Edit Opportunity</h2>
       <form id="edit-opp-form">
 
+        <!-- ── BASICS ─────────────────────────────────────── -->
+        <div style="margin-bottom: 0.6rem; padding: 0.25rem 0.6rem; background: rgba(255,255,255,0.04); border-radius: 5px; font-size: 0.7rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.08em;">Basics</div>
+
         <div style="margin-bottom: 1.25rem;">
           <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Title *</label>
           <input id="edit-opp-title" type="text" value="${escapeHtml(opp.title || '')}" required
@@ -779,6 +782,9 @@ window.editOpportunityFromPanel = async function(oppId) {
           <textarea id="edit-opp-description" rows="4" required
             style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit; resize: vertical;">${escapeHtml(opp.description || '')}</textarea>
         </div>
+
+        <!-- ── REQUIREMENTS ───────────────────────────────── -->
+        <div style="margin-bottom: 0.6rem; margin-top: 1.5rem; padding: 0.25rem 0.6rem; background: rgba(255,255,255,0.04); border-radius: 5px; font-size: 0.7rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.08em;">Requirements</div>
 
         <div style="margin-bottom: 1.25rem;">
           <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Skills (comma-separated)</label>
@@ -808,23 +814,8 @@ window.editOpportunityFromPanel = async function(oppId) {
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
-          <div>
-            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Compensation</label>
-            <select id="edit-opp-compensation" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
-              <option value="" ${!opp.compensation_type ? 'selected' : ''}>Not specified</option>
-              <option value="paid" ${opp.compensation_type === 'paid' ? 'selected' : ''}>Paid</option>
-              <option value="unpaid" ${opp.compensation_type === 'unpaid' ? 'selected' : ''}>Unpaid</option>
-              <option value="stipend" ${opp.compensation_type === 'stipend' ? 'selected' : ''}>Stipend</option>
-              <option value="equity" ${opp.compensation_type === 'equity' ? 'selected' : ''}>Equity</option>
-            </select>
-          </div>
-          <div>
-            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Compensation Range</label>
-            <input id="edit-opp-comp-range" type="text" value="${escapeHtml(opp.compensation_min != null ? String(opp.compensation_min) + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '-' + opp.compensation_max : '') : '')}" placeholder="e.g., 50000-70000"
-              style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-        </div>
+        <!-- ── LOGISTICS ──────────────────────────────────── -->
+        <div style="margin-bottom: 0.6rem; margin-top: 1.5rem; padding: 0.25rem 0.6rem; background: rgba(255,255,255,0.04); border-radius: 5px; font-size: 0.7rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.08em;">Logistics</div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
           <div>
@@ -857,7 +848,28 @@ window.editOpportunityFromPanel = async function(oppId) {
           </div>
         </div>
 
-        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+        <!-- ── COMPENSATION ───────────────────────────────── -->
+        <div style="margin-bottom: 0.6rem; margin-top: 1.5rem; padding: 0.25rem 0.6rem; background: rgba(255,255,255,0.04); border-radius: 5px; font-size: 0.7rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.08em;">Compensation</div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Type</label>
+            <select id="edit-opp-compensation" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+              <option value="" ${!opp.compensation_type ? 'selected' : ''}>Not specified</option>
+              <option value="paid" ${opp.compensation_type === 'paid' ? 'selected' : ''}>Paid</option>
+              <option value="unpaid" ${opp.compensation_type === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+              <option value="stipend" ${opp.compensation_type === 'stipend' ? 'selected' : ''}>Stipend</option>
+              <option value="equity" ${opp.compensation_type === 'equity' ? 'selected' : ''}>Equity</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Range</label>
+            <input id="edit-opp-comp-range" type="text" value="${escapeHtml(opp.compensation_min != null ? String(opp.compensation_min) + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '-' + opp.compensation_max : '') : '')}" placeholder="e.g., 50000-70000"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
           <button type="submit"
             style="flex: 1; background: linear-gradient(135deg, ${typeColor}, ${typeColor}cc); border: none; padding: 1rem; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
             <i class="fas fa-save"></i> Save Changes
@@ -887,24 +899,30 @@ window.editOpportunityFromPanel = async function(oppId) {
     const compMax = (compNums && compNums[1]) ? (parseFloat(compNums[1]) || null) : null;
 
     const updates = {
+      // FIELD FIX: use canonical 'type' column, not 'opportunity_type'
       title: document.getElementById('edit-opp-title').value.trim(),
-      opportunity_type: document.getElementById('edit-opp-type').value,
+      type: document.getElementById('edit-opp-type').value,
       description: document.getElementById('edit-opp-description').value.trim(),
       skills: skillsArray.length ? skillsArray : null,
+      experience_level: document.getElementById('edit-opp-experience').value || null,
       commitment: document.getElementById('edit-opp-commitment').value || null,
       compensation_type: document.getElementById('edit-opp-compensation').value || null,
       compensation_min: compMin,
       compensation_max: compMax,
       location: document.getElementById('edit-opp-location').value.trim() || null,
       application_deadline: deadlineInput || null,
+      remote_ok: document.getElementById('edit-opp-remote').checked,
       status: document.getElementById('edit-opp-status').value,
       updated_at: new Date().toISOString(),
     };
 
-    const { error: updateError } = await supabase
+    // TASK 2 FIX: use .select().single() to get the canonical updated row back
+    const { data: updatedOpp, error: updateError } = await supabase
       .from('opportunities')
       .update(updates)
-      .eq('id', oppId);
+      .eq('id', oppId)
+      .select()
+      .single();
 
     if (updateError) {
       console.error('Error updating opportunity:', updateError);
@@ -914,6 +932,17 @@ window.editOpportunityFromPanel = async function(oppId) {
 
     modal.remove();
     showToastNotification('Opportunity updated successfully!', 'success');
+
+    // TASK 3 FIX (Option A): patch CommandDashboard list state immediately so
+    // the title (and other fields) reflect the saved value without a full reload.
+    if (updatedOpp) {
+      if (window.CommandDashboard?.patchOpportunity) {
+        window.CommandDashboard.patchOpportunity(updatedOpp);
+      } else if (window.CommandDashboard?.refreshEnrichedData) {
+        window.CommandDashboard.refreshEnrichedData();
+      }
+    }
+
     if (currentNodeData) await loadNodeDetails(currentNodeData);
   });
 };
