@@ -673,9 +673,8 @@ async function renderOpportunityPanel(nodeData) {
 
       <!-- Meta -->
       <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; justify-content: center;">
-        ${opp.experience_level ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-layer-group"></i> ${escapeHtml(opp.experience_level)}</span>` : ''}
         ${opp.commitment ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-clock"></i> ${escapeHtml(opp.commitment)}</span>` : ''}
-        ${opp.remote_ok ? `<span style="background: rgba(16,185,129,0.15); color: #10b981; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-wifi"></i> Remote OK</span>` : ''}
+        ${opp.location_type ? `<span style="background: rgba(16,185,129,0.15); color: #10b981; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-wifi"></i> ${escapeHtml(opp.location_type)}</span>` : ''}
         ${opp.location ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(opp.location)}</span>` : ''}
         ${opp.compensation_type ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-dollar-sign"></i> ${escapeHtml(opp.compensation_type)}${opp.compensation_min != null ? ': ' + opp.compensation_min + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '–' + opp.compensation_max : '') : ''}</span>` : ''}
         ${deadline ? `<span style="background: rgba(239,68,68,0.15); color: #ef4444; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-calendar"></i> Due ${escapeHtml(deadline)}</span>` : ''}
@@ -792,26 +791,15 @@ window.editOpportunityFromPanel = async function(oppId) {
             style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
-          <div>
-            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Experience Level</label>
-            <select id="edit-opp-experience" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
-              <option value="" ${!opp.experience_level ? 'selected' : ''}>Any</option>
-              <option value="entry" ${opp.experience_level === 'entry' ? 'selected' : ''}>Entry</option>
-              <option value="mid" ${opp.experience_level === 'mid' ? 'selected' : ''}>Mid</option>
-              <option value="senior" ${opp.experience_level === 'senior' ? 'selected' : ''}>Senior</option>
-            </select>
-          </div>
-          <div>
-            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Commitment</label>
-            <select id="edit-opp-commitment" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
-              <option value="" ${!opp.commitment ? 'selected' : ''}>Not specified</option>
-              <option value="full-time" ${opp.commitment === 'full-time' ? 'selected' : ''}>Full-time</option>
-              <option value="part-time" ${opp.commitment === 'part-time' ? 'selected' : ''}>Part-time</option>
-              <option value="flexible" ${opp.commitment === 'flexible' ? 'selected' : ''}>Flexible</option>
-              <option value="one-time" ${opp.commitment === 'one-time' ? 'selected' : ''}>One-time</option>
-            </select>
-          </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Commitment</label>
+          <select id="edit-opp-commitment" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+            <option value="" ${!opp.commitment ? 'selected' : ''}>Not specified</option>
+            <option value="full-time" ${opp.commitment === 'full-time' ? 'selected' : ''}>Full-time</option>
+            <option value="part-time" ${opp.commitment === 'part-time' ? 'selected' : ''}>Part-time</option>
+            <option value="flexible" ${opp.commitment === 'flexible' ? 'selected' : ''}>Flexible</option>
+            <option value="one-time" ${opp.commitment === 'one-time' ? 'selected' : ''}>One-time</option>
+          </select>
         </div>
 
         <!-- ── LOGISTICS ──────────────────────────────────── -->
@@ -839,12 +827,14 @@ window.editOpportunityFromPanel = async function(oppId) {
               <option value="closed" ${opp.status === 'closed' ? 'selected' : ''}>Closed</option>
             </select>
           </div>
-          <div style="display: flex; align-items: flex-end; padding-bottom: 0.1rem;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #aaa; font-weight: bold;">
-              <input id="edit-opp-remote" type="checkbox" ${opp.remote_ok ? 'checked' : ''}
-                style="width: 18px; height: 18px; cursor: pointer;">
-              Remote OK
-            </label>
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Location Type</label>
+            <select id="edit-opp-location-type" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+              <option value="" ${!opp.location_type ? 'selected' : ''}>Not specified</option>
+              <option value="remote" ${opp.location_type === 'remote' ? 'selected' : ''}>Remote</option>
+              <option value="hybrid" ${opp.location_type === 'hybrid' ? 'selected' : ''}>Hybrid</option>
+              <option value="in-person" ${opp.location_type === 'in-person' ? 'selected' : ''}>In-person</option>
+            </select>
           </div>
         </div>
 
@@ -899,19 +889,18 @@ window.editOpportunityFromPanel = async function(oppId) {
     const compMax = (compNums && compNums[1]) ? (parseFloat(compNums[1]) || null) : null;
 
     const updates = {
-      // opportunity_type is the canonical DB column name
+      // Only write columns that actually exist in the DB schema
       title: document.getElementById('edit-opp-title').value.trim(),
       opportunity_type: document.getElementById('edit-opp-type').value,
       description: document.getElementById('edit-opp-description').value.trim(),
       skills: skillsArray.length ? skillsArray : null,
-      experience_level: document.getElementById('edit-opp-experience').value || null,
       commitment: document.getElementById('edit-opp-commitment').value || null,
       compensation_type: document.getElementById('edit-opp-compensation').value || null,
       compensation_min: compMin,
       compensation_max: compMax,
       location: document.getElementById('edit-opp-location').value.trim() || null,
+      location_type: document.getElementById('edit-opp-location-type').value || null,
       application_deadline: deadlineInput || null,
-      remote_ok: document.getElementById('edit-opp-remote').checked,
       status: document.getElementById('edit-opp-status').value,
       updated_at: new Date().toISOString(),
     };
