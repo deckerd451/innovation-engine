@@ -148,10 +148,6 @@ function validateOpportunityData(data) {
     errors.push("Invalid opportunity type");
   }
 
-  if (data.experience_level && !["entry", "mid", "senior", "any"].includes(data.experience_level)) {
-    errors.push("Invalid experience level");
-  }
-
   if (data.commitment && !["full-time", "part-time", "flexible", "one-time"].includes(data.commitment)) {
     errors.push("Invalid commitment type");
   }
@@ -403,16 +399,12 @@ export async function getOpportunities(filters = {}) {
       query = query.eq("opportunity_type", filters.opportunity_type || filters.type);
     }
 
-    if (filters.experience_level) {
-      query = query.eq("experience_level", filters.experience_level);
-    }
-
     if (filters.commitment) {
       query = query.eq("commitment", filters.commitment);
     }
 
-    if (filters.remote_ok !== undefined) {
-      query = query.eq("remote_ok", filters.remote_ok);
+    if (filters.location_type) {
+      query = query.eq("location_type", filters.location_type);
     }
 
     if (filters.compensation_type) {
