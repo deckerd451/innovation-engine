@@ -158,20 +158,19 @@
     if (cat === 'all' || cat === 'organizations') {
       fetches.orgs = window.supabase
         .from('organizations')
-        .select('id, name, description, website, status, industry, location, size')
+        .select('*')
         .limit(300);
     }
     if (cat === 'all' || cat === 'opportunities') {
-      // Correct columns: type (not opportunity_type), no summary column
       fetches.opps = window.supabase
         .from('opportunities')
-        .select('id, title, description, type, location, commitment, experience_level, required_skills, status')
+        .select('*')
         .limit(300);
     }
     if (cat === 'all' || cat === 'projects') {
       fetches.projects = window.supabase
         .from('projects')
-        .select('id, title, description, status, skills')
+        .select('*')
         .limit(300);
     }
 
@@ -193,7 +192,9 @@
 
     // ── Organizations ────────────────────────────────────────────────
     (resolved.orgs || []).forEach(o => {
-      if (hits(o.name, o.description, o.industry, o.location, o.size)) {
+      // Search all string/array values in the row
+      const allFields = Object.values(o);
+      if (hits(...allFields)) {
         results.push({
           type: 'organizations',
           id: `org-${o.id}`,
@@ -207,18 +208,17 @@
     });
 
     // ── Opportunities ────────────────────────────────────────────────
-    // Searchable: title, description, type, location, commitment,
-    //             experience_level, required_skills
     (resolved.opps || []).forEach(o => {
-      if (hits(o.title, o.description, o.type, o.location,
-               o.commitment, o.experience_level, o.required_skills)) {
+      // Search all string/array values in the row
+      const allFields = Object.values(o);
+      if (hits(...allFields)) {
         results.push({
           type: 'opportunities',
           id: `opp-${o.id}`,
           dbId: o.id,
-          name: o.title || 'Untitled',
+          name: o.title || o.name || 'Untitled',
           meta: o.description || 'No description',
-          oppType: o.type || null,
+          oppType: o.type || o.opportunity_type || null,
           status: o.status || null,
         });
       }
@@ -226,12 +226,14 @@
 
     // ── Projects ─────────────────────────────────────────────────────
     (resolved.projects || []).forEach(p => {
-      if (hits(p.title, p.description, p.skills)) {
+      // Search all string/array values in the row
+      const allFields = Object.values(p);
+      if (hits(...allFields)) {
         results.push({
           type: 'projects',
           id: `proj-${p.id}`,
           dbId: p.id,
-          name: p.title || 'Untitled',
+          name: p.title || p.name || 'Untitled',
           meta: p.description || 'No description',
           status: p.status || null,
         });
