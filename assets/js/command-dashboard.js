@@ -1584,15 +1584,13 @@ window.CommandDashboard = (() => {
     });
   }
 
-  /** Wire report button → open the START daily digest / network report */
+  /** Wire report button → open the Network Report tool */
   function _wireReportBtn() {
     const btn = $id('cd-report-btn');
     if (!btn) return;
     btn.addEventListener('click', () => {
-      if (typeof window.openStartModal === 'function') {
-        window.openStartModal();
-      } else if (typeof window.StartDailyDigest?.show === 'function') {
-        window.StartDailyDigest.show();
+      if (typeof window.openNetworkReport === 'function') {
+        window.openNetworkReport();
       }
     });
   }
