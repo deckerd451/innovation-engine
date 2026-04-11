@@ -115,6 +115,31 @@
       </div>`;
   }
 
+  /** Build case variants for an array-contains search (TEXT[] is case-sensitive). */
+  function _skillVariants(terms) {
+    const variants = new Set();
+    terms.forEach(t => {
+      variants.add(t);
+      variants.add(t.toLowerCase());
+      variants.add(t.toUpperCase());
+      variants.add(t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+    });
+    return Array.from(variants);
+  }
+
+  /** Push a mapped person object onto the results array. */
+  function _mapPerson(p) {
+    return {
+      type: 'people',
+      id: `person-${p.id}`,
+      dbId: p.id,
+      name: p.name || 'Unknown',
+      meta: p.bio || (Array.isArray(p.skills) ? p.skills.join(', ') : p.skills) || 'No bio',
+      email: p.email || null,
+      extra: Array.isArray(p.skills) ? p.skills.slice(0, 4).join(', ') : (p.skills || null),
+    };
+  }
+
   async function _doSearch() {
     if (!window.supabase) {
       _renderResults([]);
@@ -127,21 +152,27 @@
 
     try {
       if (cat === 'all' || cat === 'people') {
-        const filter = _buildOrFilter(terms, ['name', 'bio']);
-        const { data } = await window.supabase
-          .from('community')
-          .select('id, name, bio, skills, email')
-          .or(filter)
-          .limit(cat === 'people' ? 20 : 6);
-        (data || []).forEach(p => results.push({
-          type: 'people',
-          id: `person-${p.id}`,
-          dbId: p.id,
-          name: p.name || 'Unknown',
-          meta: p.bio || (Array.isArray(p.skills) ? p.skills.join(', ') : p.skills) || 'No bio',
-          email: p.email || null,
-          extra: Array.isArray(p.skills) ? p.skills.slice(0, 4).join(', ') : (p.skills || null),
-        }));
+        // Query 1: text columns (name, bio) — ilike works fine on text
+        const textFilter = _buildOrFilter(terms, ['name', 'bio']);
+        const [{ data: textData }, { data: skillData }] = await Promise.all([
+          window.supabase
+            .from('community')
+            .select('id, name, bio, skills, email')
+            .or(textFilter)
+            .limit(cat === 'people' ? 20 : 8),
+          // Query 2: skills TEXT[] — use overlaps (&&) with case variants
+          window.supabase
+            .from('community')
+            .select('id, name, bio, skills, email')
+            .overlaps('skills', _skillVariants(terms))
+            .limit(cat === 'people' ? 20 : 8),
+        ]);
+
+        // Merge and deduplicate
+        const seen = new Set();
+        [...(textData || []), ...(skillData || [])].forEach(p => {
+          if (!seen.has(p.id)) { seen.add(p.id); results.push(_mapPerson(p)); }
+        });
       }
 
       if (cat === 'all' || cat === 'organizations') {
@@ -163,21 +194,36 @@
       }
 
       if (cat === 'all' || cat === 'opportunities') {
-        const filter = _buildOrFilter(terms, ['title', 'summary', 'description']);
-        const { data } = await window.supabase
-          .from('opportunities')
-          .select('id, title, opportunity_type, summary, description, status, organization_id')
-          .or(filter)
-          .limit(cat === 'opportunities' ? 20 : 6);
-        (data || []).forEach(o => results.push({
-          type: 'opportunities',
-          id: `opp-${o.id}`,
-          dbId: o.id,
-          name: o.title || 'Untitled',
-          meta: o.summary || o.description || 'No description',
-          oppType: o.opportunity_type || null,
-          status: o.status || null,
-        }));
+        // Text columns search
+        const textFilter = _buildOrFilter(terms, ['title', 'summary', 'description']);
+        const [{ data: textData }, { data: skillData }] = await Promise.all([
+          window.supabase
+            .from('opportunities')
+            .select('id, title, opportunity_type, summary, description, status, organization_id')
+            .or(textFilter)
+            .limit(cat === 'opportunities' ? 20 : 6),
+          // required_skills is also TEXT[] — search with overlaps
+          window.supabase
+            .from('opportunities')
+            .select('id, title, opportunity_type, summary, description, status, organization_id')
+            .overlaps('required_skills', _skillVariants(terms))
+            .limit(cat === 'opportunities' ? 20 : 6),
+        ]);
+
+        const seen = new Set();
+        [...(textData || []), ...(skillData || [])].forEach(o => {
+          if (seen.has(o.id)) return;
+          seen.add(o.id);
+          results.push({
+            type: 'opportunities',
+            id: `opp-${o.id}`,
+            dbId: o.id,
+            name: o.title || 'Untitled',
+            meta: o.summary || o.description || 'No description',
+            oppType: o.opportunity_type || null,
+            status: o.status || null,
+          });
+        });
       }
     } catch (err) {
       console.warn('[NetworkReport] Search error:', err);
