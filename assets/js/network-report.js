@@ -77,14 +77,32 @@
 
   // ── Search ───────────────────────────────────────────────────────
   function _onSearchInput(e) {
-    _searchQuery = e.target.value.trim();
+    _searchQuery = e.target.value;
     clearTimeout(_searchTimer);
-    if (_searchQuery.length < 2) {
+    const terms = _parseTerms(_searchQuery);
+    if (terms.length === 0) {
       _renderResults([]);
       return;
     }
     _showSearchLoading();
     _searchTimer = setTimeout(_doSearch, 350);
+  }
+
+  /** Split input on commas; drop blanks and single-char tokens. */
+  function _parseTerms(raw) {
+    return raw.split(',')
+      .map(t => t.trim())
+      .filter(t => t.length >= 2);
+  }
+
+  /** Build a Supabase .or() string for multiple terms across multiple columns. */
+  function _buildOrFilter(terms, columns) {
+    const parts = [];
+    terms.forEach(t => {
+      const safe = t.replace(/[%_]/g, '\\$&'); // escape wildcards
+      columns.forEach(col => parts.push(`${col}.ilike.%${safe}%`));
+    });
+    return parts.join(',');
   }
 
   function _showSearchLoading() {
@@ -102,16 +120,18 @@
       _renderResults([]);
       return;
     }
-    const q = _searchQuery;
+    const terms = _parseTerms(_searchQuery);
+    if (terms.length === 0) { _renderResults([]); return; }
     const cat = _category;
     const results = [];
 
     try {
       if (cat === 'all' || cat === 'people') {
+        const filter = _buildOrFilter(terms, ['name', 'bio']);
         const { data } = await window.supabase
           .from('community')
           .select('id, name, bio, skills, email')
-          .or(`name.ilike.%${q}%,bio.ilike.%${q}%`)
+          .or(filter)
           .limit(cat === 'people' ? 20 : 6);
         (data || []).forEach(p => results.push({
           type: 'people',
@@ -125,10 +145,11 @@
       }
 
       if (cat === 'all' || cat === 'organizations') {
+        const filter = _buildOrFilter(terms, ['name', 'description']);
         const { data } = await window.supabase
           .from('organizations')
           .select('id, name, description, website, status')
-          .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+          .or(filter)
           .limit(cat === 'organizations' ? 20 : 6);
         (data || []).forEach(o => results.push({
           type: 'organizations',
@@ -142,10 +163,11 @@
       }
 
       if (cat === 'all' || cat === 'opportunities') {
+        const filter = _buildOrFilter(terms, ['title', 'summary', 'description']);
         const { data } = await window.supabase
           .from('opportunities')
           .select('id, title, opportunity_type, summary, description, status, organization_id')
-          .or(`title.ilike.%${q}%,summary.ilike.%${q}%,description.ilike.%${q}%`)
+          .or(filter)
           .limit(cat === 'opportunities' ? 20 : 6);
         (data || []).forEach(o => results.push({
           type: 'opportunities',
@@ -170,12 +192,13 @@
     const list = $('#nr-results-list');
     if (!list) return;
 
-    if (results.length === 0 && _searchQuery.length >= 2) {
-      list.innerHTML = `<div class="nr-empty"><i class="fas fa-search"></i><span>No results found</span></div>`;
+    const terms = _parseTerms(_searchQuery);
+    if (results.length === 0 && terms.length > 0) {
+      list.innerHTML = `<div class="nr-empty"><i class="fas fa-search"></i><span>No results for <em>${terms.map(_escHtml).join(', ')}</em></span></div>`;
       return;
     }
     if (results.length === 0) {
-      list.innerHTML = `<div class="nr-empty"><i class="fas fa-search"></i><span>Type to search…</span></div>`;
+      list.innerHTML = `<div class="nr-empty"><i class="fas fa-search"></i><span>Type to search, or use commas for multiple terms</span></div>`;
       return;
     }
 
