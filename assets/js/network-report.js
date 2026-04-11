@@ -7,13 +7,14 @@
 (function () {
   'use strict';
 
-  const CATEGORIES = ['all', 'people', 'organizations', 'opportunities'];
+  const CATEGORIES = ['all', 'people', 'organizations', 'opportunities', 'projects'];
 
   const CATEGORY_META = {
     all:           { label: 'All',           icon: 'fa-th-large',    color: '#00e0ff' },
     people:        { label: 'People',        icon: 'fa-users',       color: '#ffd700' },
     organizations: { label: 'Organizations', icon: 'fa-building',    color: '#ff6b6b' },
     opportunities: { label: 'Opportunities', icon: 'fa-bolt',        color: '#00ff88' },
+    projects:      { label: 'Projects',      icon: 'fa-lightbulb',   color: '#aa88ff' },
   };
 
   // ── State ──────────────────────────────────────────────────────
@@ -128,117 +129,114 @@
     };
   }
 
+  /** Normalise any TEXT / TEXT[] column to a plain lowercase string for matching. */
+  function _toText(val) {
+    if (Array.isArray(val)) return val.join(' ').toLowerCase();
+    return (typeof val === 'string' ? val : '').toLowerCase();
+  }
+
   async function _doSearch() {
-    if (!window.supabase) {
-      _renderResults([]);
-      return;
-    }
+    if (!window.supabase) { _renderResults([]); return; }
     const terms = _parseTerms(_searchQuery);
     if (terms.length === 0) { _renderResults([]); return; }
     const lowerTerms = terms.map(t => t.toLowerCase());
     const cat = _category;
+
+    /** Returns true if any term appears anywhere in the combined haystack. */
+    const hits = (...fields) =>
+      lowerTerms.some(t => fields.some(f => _toText(f).includes(t)));
+
+    // Fire all needed fetches in parallel
+    const fetches = {};
+
+    if (cat === 'all' || cat === 'people') {
+      fetches.people = window.supabase
+        .from('community')
+        .select('id, name, bio, skills, email')
+        .limit(300);
+    }
+    if (cat === 'all' || cat === 'organizations') {
+      fetches.orgs = window.supabase
+        .from('organizations')
+        .select('id, name, description, website, status, industry, location, size')
+        .limit(300);
+    }
+    if (cat === 'all' || cat === 'opportunities') {
+      // Correct columns: type (not opportunity_type), no summary column
+      fetches.opps = window.supabase
+        .from('opportunities')
+        .select('id, title, description, type, location, commitment, experience_level, required_skills, status')
+        .limit(300);
+    }
+    if (cat === 'all' || cat === 'projects') {
+      fetches.projects = window.supabase
+        .from('projects')
+        .select('id, title, description, status, skills')
+        .limit(300);
+    }
+
+    const resolved = {};
+    await Promise.all(
+      Object.entries(fetches).map(async ([key, query]) => {
+        const { data, error } = await query;
+        if (error) console.warn(`[NR] ${key} fetch error:`, error.message);
+        resolved[key] = data || [];
+      })
+    );
+
     const results = [];
 
-    try {
-      // ── People ────────────────────────────────────────────────────
-      // skills column type is ambiguous (TEXT vs TEXT[]) across migrations.
-      // Fetch all members and filter client-side to handle every storage format.
-      if (cat === 'all' || cat === 'people') {
-        const { data, error } = await window.supabase
-          .from('community')
-          .select('id, name, bio, skills, email')
-          .limit(300);
+    // ── People ──────────────────────────────────────────────────────
+    (resolved.people || []).forEach(p => {
+      if (hits(p.name, p.bio, p.skills)) results.push(_mapPerson(p));
+    });
 
-        if (error) {
-          console.warn('[NR] people query error:', error.message);
-        } else {
-          (data || []).forEach(p => {
-            const skillsStr = Array.isArray(p.skills)
-              ? p.skills.join(' ')
-              : (typeof p.skills === 'string' ? p.skills : '');
-            const haystack = [p.name || '', p.bio || '', skillsStr]
-              .join(' ')
-              .toLowerCase();
-            if (lowerTerms.some(t => haystack.includes(t))) {
-              results.push(_mapPerson(p));
-            }
-          });
-        }
-      }
-
-      // ── Organizations ─────────────────────────────────────────────
-      if (cat === 'all' || cat === 'organizations') {
-        const filter = _buildOrFilter(terms, ['name', 'description']);
-        const { data, error } = await window.supabase
-          .from('organizations')
-          .select('id, name, description, website, status')
-          .or(filter)
-          .limit(cat === 'organizations' ? 20 : 6);
-        if (error) {
-          console.warn('[NR] orgs query error:', error.message);
-        } else {
-          (data || []).forEach(o => results.push({
-            type: 'organizations',
-            id: `org-${o.id}`,
-            dbId: o.id,
-            name: o.name || 'Unknown',
-            meta: o.description || 'No description',
-            website: o.website || null,
-            status: o.status || null,
-          }));
-        }
-      }
-
-      // ── Opportunities ─────────────────────────────────────────────
-      // Same ambiguity risk for required_skills — fetch and filter client-side.
-      if (cat === 'all' || cat === 'opportunities') {
-        const textFilter = _buildOrFilter(terms, ['title', 'summary', 'description']);
-        const [{ data: textData, error: textErr }, { data: allData, error: allErr }] =
-          await Promise.all([
-            window.supabase
-              .from('opportunities')
-              .select('id, title, opportunity_type, summary, description, status, required_skills')
-              .or(textFilter)
-              .limit(cat === 'opportunities' ? 20 : 6),
-            // Fetch all opps to client-side filter on required_skills
-            window.supabase
-              .from('opportunities')
-              .select('id, title, opportunity_type, summary, description, status, required_skills')
-              .limit(300),
-          ]);
-
-        if (textErr)  console.warn('[NR] opps text query error:', textErr.message);
-        if (allErr)   console.warn('[NR] opps all query error:',  allErr.message);
-
-        const seen = new Set();
-        const addOpp = o => {
-          if (seen.has(o.id)) return;
-          seen.add(o.id);
-          results.push({
-            type: 'opportunities',
-            id: `opp-${o.id}`,
-            dbId: o.id,
-            name: o.title || 'Untitled',
-            meta: o.summary || o.description || 'No description',
-            oppType: o.opportunity_type || null,
-            status: o.status || null,
-          });
-        };
-
-        (textData || []).forEach(addOpp);
-
-        // Client-side skill filter on required_skills
-        (allData || []).forEach(o => {
-          const skillsStr = Array.isArray(o.required_skills)
-            ? o.required_skills.join(' ')
-            : (typeof o.required_skills === 'string' ? o.required_skills : '');
-          const haystack = skillsStr.toLowerCase();
-          if (lowerTerms.some(t => haystack.includes(t))) addOpp(o);
+    // ── Organizations ────────────────────────────────────────────────
+    (resolved.orgs || []).forEach(o => {
+      if (hits(o.name, o.description, o.industry, o.location, o.size)) {
+        results.push({
+          type: 'organizations',
+          id: `org-${o.id}`,
+          dbId: o.id,
+          name: o.name || 'Unknown',
+          meta: o.description || o.location || 'No description',
+          website: o.website || null,
+          status: o.status || null,
         });
       }
-    } catch (err) {
-      console.warn('[NR] search error:', err);
-    }
+    });
+
+    // ── Opportunities ────────────────────────────────────────────────
+    // Searchable: title, description, type, location, commitment,
+    //             experience_level, required_skills
+    (resolved.opps || []).forEach(o => {
+      if (hits(o.title, o.description, o.type, o.location,
+               o.commitment, o.experience_level, o.required_skills)) {
+        results.push({
+          type: 'opportunities',
+          id: `opp-${o.id}`,
+          dbId: o.id,
+          name: o.title || 'Untitled',
+          meta: o.description || 'No description',
+          oppType: o.type || null,
+          status: o.status || null,
+        });
+      }
+    });
+
+    // ── Projects ─────────────────────────────────────────────────────
+    (resolved.projects || []).forEach(p => {
+      if (hits(p.title, p.description, p.skills)) {
+        results.push({
+          type: 'projects',
+          id: `proj-${p.id}`,
+          dbId: p.id,
+          name: p.title || 'Untitled',
+          meta: p.description || 'No description',
+          status: p.status || null,
+        });
+      }
+    });
 
     _results = results;
     _renderResults(results);
@@ -266,7 +264,7 @@
       results.forEach(r => {
         (grouped[r.type] = grouped[r.type] || []).push(r);
       });
-      ['people', 'organizations', 'opportunities'].forEach(type => {
+      ['people', 'organizations', 'opportunities', 'projects'].forEach(type => {
         if (!grouped[type] || grouped[type].length === 0) return;
         const m = CATEGORY_META[type];
         html += `<div class="nr-group-label"><i class="fas ${m.icon}" style="color:${m.color};margin-right:0.4em;"></i>${m.label}</div>`;
@@ -369,7 +367,7 @@
     _reportItems.forEach(r => { (grouped[r.type] = grouped[r.type] || []).push(r); });
 
     let html = '';
-    ['people', 'organizations', 'opportunities'].forEach(type => {
+    ['people', 'organizations', 'opportunities', 'projects'].forEach(type => {
       if (!grouped[type] || grouped[type].length === 0) return;
       const m = CATEGORY_META[type];
       html += `<div class="nr-group-label"><i class="fas ${m.icon}" style="color:${m.color};margin-right:0.4em;"></i>${m.label} <span style="opacity:0.5;">(${grouped[type].length})</span></div>`;
@@ -423,6 +421,7 @@
       { type: 'people',        label: 'PEOPLE TO CONTACT',         icon: '👥' },
       { type: 'organizations', label: 'ORGANIZATIONS TO FOLLOW UP', icon: '🏢' },
       { type: 'opportunities', label: 'OPPORTUNITIES TO PURSUE',    icon: '⚡' },
+      { type: 'projects',      label: 'PROJECTS TO EXPLORE',        icon: '💡' },
     ];
 
     sections.forEach(({ type, label, icon }) => {
