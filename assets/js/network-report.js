@@ -40,7 +40,10 @@
       const raw = localStorage.getItem(_STORAGE_KEY);
       if (!raw) return;
       const { items, counter } = JSON.parse(raw);
-      if (Array.isArray(items)) { _reportItems = items; _reportCounter = counter || items.length; }
+      if (Array.isArray(items)) {
+        _reportItems   = items;
+        _reportCounter = Math.max(counter || 0, ...items.map(i => i.uid || 0), 0);
+      }
     } catch (_) {}
   }
 
