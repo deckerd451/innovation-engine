@@ -366,22 +366,110 @@ export async function openConnectionDiscovery() {
     }
 
     .suggestion-reasons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
       margin-bottom: 1rem;
     }
 
-    .reason-item {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.85rem;
-      margin-bottom: 0.25rem;
-      display: flex;
+    .reason-chip {
+      display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.3rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 10px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      background: rgba(0, 255, 136, 0.07);
+      border: 1px solid rgba(0, 255, 136, 0.22);
+      color: rgba(0, 255, 136, 0.9);
     }
 
-    .reason-item i {
+    .reason-chip i {
       color: #00ff88;
-      font-size: 0.75rem;
+      font-size: 0.68rem;
     }
+
+    /* Score breakdown popover */
+    .ep {
+      position: fixed;
+      z-index: 10005;
+      width: 224px;
+      background: linear-gradient(135deg, rgba(16,20,48,0.98), rgba(10,14,39,0.98));
+      border: 1px solid rgba(0,224,255,0.25);
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 10px 32px rgba(0,0,0,0.65);
+      animation: nhcIn 0.12s ease;
+    }
+
+    .ep-score {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #ffd700;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .ep-breakdown { display: flex; flex-direction: column; gap: 6px; }
+
+    .ep-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ep-label {
+      font-size: 0.68rem;
+      color: rgba(255,255,255,0.45);
+      width: 108px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ep-bar {
+      flex: 1;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .ep-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00e0ff, #0076ff);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .ep-pct {
+      font-size: 0.68rem;
+      color: rgba(255,255,255,0.45);
+      width: 26px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .ep-reasons {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .ep-reason {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.55);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .ep-reason i { color: #00ff88; font-size: 0.65rem; }
 
     .suggestion-skills {
       display: flex;
