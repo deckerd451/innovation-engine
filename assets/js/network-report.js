@@ -18,6 +18,8 @@
   };
 
   // ── State ──────────────────────────────────────────────────────
+  const _STORAGE_KEY = 'ie_nr_list_v1';
+
   let _isOpen        = false;
   let _category      = 'all';
   let _searchQuery   = '';
@@ -25,6 +27,22 @@
   let _results       = [];
   let _reportItems   = []; // curated list
   let _reportCounter = 0;  // unique ids for report items
+
+  // ── localStorage persistence ────────────────────────────────────
+  function _saveList() {
+    try {
+      localStorage.setItem(_STORAGE_KEY, JSON.stringify({ items: _reportItems, counter: _reportCounter }));
+    } catch (_) {}
+  }
+
+  function _loadList() {
+    try {
+      const raw = localStorage.getItem(_STORAGE_KEY);
+      if (!raw) return;
+      const { items, counter } = JSON.parse(raw);
+      if (Array.isArray(items)) { _reportItems = items; _reportCounter = counter || items.length; }
+    } catch (_) {}
+  }
 
   // ── DOM helpers ─────────────────────────────────────────────────
   const $  = (sel, ctx) => (ctx || document).querySelector(sel);
@@ -362,6 +380,7 @@
       extra: item.extra || null,
       addedAt: new Date().toISOString(),
     });
+    _saveList();
     _renderReportList();
     // Refresh search results to show the checkmark
     _renderResults(_results);
@@ -370,6 +389,7 @@
 
   function _removeFromReport(uid) {
     _reportItems = _reportItems.filter(r => r.uid !== uid);
+    _saveList();
     _renderReportList();
     _renderResults(_results);
     _updateCountBadge();
@@ -506,6 +526,7 @@
   function _setup() {
     const modal = $('#nr-modal');
     if (!modal) return;
+    _loadList();
 
     // Close button
     const closeBtn = $('#nr-close-btn');
