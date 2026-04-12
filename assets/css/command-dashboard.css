@@ -1952,6 +1952,78 @@
   border-radius: 4px;
 }
 
+/* Suggestion chips in the search empty state */
+.nr-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  justify-content: center;
+}
+
+.nr-suggestions-label {
+  font-size: 0.72rem;
+  color: rgba(200, 210, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.nr-suggestion-chip {
+  padding: 0.25rem 0.65rem;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(0, 224, 255, 0.07);
+  border: 1px solid rgba(0, 224, 255, 0.2);
+  color: rgba(0, 224, 255, 0.75);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.nr-suggestion-chip:hover {
+  background: rgba(0, 224, 255, 0.16);
+  border-color: rgba(0, 224, 255, 0.45);
+  color: #00e0ff;
+}
+
+/* Step hints in the report empty state */
+.nr-report-steps {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: left;
+  counter-reset: steps;
+}
+
+.nr-report-steps li {
+  counter-increment: steps;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: rgba(200, 210, 255, 0.3);
+}
+
+.nr-report-steps li::before {
+  content: counter(steps);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0, 224, 255, 0.1);
+  border: 1px solid rgba(0, 224, 255, 0.2);
+  color: rgba(0, 224, 255, 0.5);
+  font-size: 0.65rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 /* Responsive: stack columns on narrow screens */
 @media (max-width: 640px) {
   #nr-modal .modal-content {

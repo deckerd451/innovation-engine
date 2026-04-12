@@ -18,6 +18,8 @@
   };
 
   // ── State ──────────────────────────────────────────────────────
+  const _STORAGE_KEY = 'ie_nr_list_v1';
+
   let _isOpen        = false;
   let _category      = 'all';
   let _searchQuery   = '';
@@ -25,6 +27,22 @@
   let _results       = [];
   let _reportItems   = []; // curated list
   let _reportCounter = 0;  // unique ids for report items
+
+  // ── localStorage persistence ────────────────────────────────────
+  function _saveList() {
+    try {
+      localStorage.setItem(_STORAGE_KEY, JSON.stringify({ items: _reportItems, counter: _reportCounter }));
+    } catch (_) {}
+  }
+
+  function _loadList() {
+    try {
+      const raw = localStorage.getItem(_STORAGE_KEY);
+      if (!raw) return;
+      const { items, counter } = JSON.parse(raw);
+      if (Array.isArray(items)) { _reportItems = items; _reportCounter = counter || items.length; }
+    } catch (_) {}
+  }
 
   // ── DOM helpers ─────────────────────────────────────────────────
   const $  = (sel, ctx) => (ctx || document).querySelector(sel);
@@ -255,7 +273,34 @@
       return;
     }
     if (results.length === 0) {
-      list.innerHTML = `<div class="nr-empty"><i class="fas fa-search"></i><span>Type to search, or use commas for multiple terms</span></div>`;
+      const HINTS = {
+        all:           ['AI', 'startup', 'design', 'mobile', 'climate'],
+        people:        ['developer', 'designer', 'founder', 'product'],
+        organizations: ['startup', 'nonprofit', 'tech', 'creative'],
+        opportunities: ['internship', 'contract', 'grant', 'volunteer'],
+        projects:      ['app', 'research', 'hardware', 'SaaS'],
+      };
+      const chips = (HINTS[_category] || HINTS.all)
+        .map(h => `<button class="nr-suggestion-chip" data-term="${_escHtml(h)}">${_escHtml(h)}</button>`)
+        .join('');
+      list.innerHTML = `
+        <div class="nr-empty">
+          <i class="fas fa-search"></i>
+          <span>Type to search, or use commas for multiple terms</span>
+          <div class="nr-suggestions">
+            <span class="nr-suggestions-label">Try:</span>
+            ${chips}
+          </div>
+        </div>`;
+      list.querySelectorAll('.nr-suggestion-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const input = $('#nr-search-input');
+          if (input) { input.value = chip.dataset.term; input.focus(); }
+          _searchQuery = chip.dataset.term;
+          _showSearchLoading();
+          _doSearch();
+        });
+      });
       return;
     }
 
@@ -335,6 +380,7 @@
       extra: item.extra || null,
       addedAt: new Date().toISOString(),
     });
+    _saveList();
     _renderReportList();
     // Refresh search results to show the checkmark
     _renderResults(_results);
@@ -343,6 +389,7 @@
 
   function _removeFromReport(uid) {
     _reportItems = _reportItems.filter(r => r.uid !== uid);
+    _saveList();
     _renderReportList();
     _renderResults(_results);
     _updateCountBadge();
@@ -359,7 +406,12 @@
       list.innerHTML = `
         <div class="nr-report-empty">
           <i class="fas fa-list-ul"></i>
-          <span>Search and add items to build your list</span>
+          <span>Build your list</span>
+          <ol class="nr-report-steps">
+            <li>Search for people, orgs, or opps</li>
+            <li>Click <i class="fas fa-plus"></i> to add them</li>
+            <li>Download when ready</li>
+          </ol>
         </div>`;
       return;
     }
@@ -474,6 +526,7 @@
   function _setup() {
     const modal = $('#nr-modal');
     if (!modal) return;
+    _loadList();
 
     // Close button
     const closeBtn = $('#nr-close-btn');
