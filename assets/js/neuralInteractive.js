@@ -1,7 +1,7 @@
 // neuralInteractive.js
 import { supabaseClient as supabase } from './supabaseClient.js';
 import { fetchConnections } from './loadConnections.js';
-import { getGraphAvatarUrl } from './avatar-utils.js';
+import { getGraphAvatarUrl, getCardAvatarUrl } from './avatar-utils.js';
 
 window.supabase = supabase; // handy for console
 
@@ -22,7 +22,7 @@ let neurons = [];
 let connections = [];
 let selectedNeuron = null;
 
-let canvas, ctx, tooltip, user, userId;
+let canvas, ctx, user, userId;
 let animationId = null, lastFrame = 0;
 const FRAME_INTERVAL = 1000/30;
 
@@ -498,6 +498,133 @@ window.selectJourneyMode = selectJourneyMode;
 window.journeyAction = journeyAction;
 window.exitJourneyGlobal = exitJourney;
 
+// ───── NODE HOVER CARD ─────────────────────────────────────────────────────
+let _hoverCard = null;
+let _hideCardTimer = null;
+
+function _clearHideTimer() {
+  if (_hideCardTimer) { clearTimeout(_hideCardTimer); _hideCardTimer = null; }
+}
+
+function _removeHoverCard() {
+  _clearHideTimer();
+  const el = document.getElementById('node-hover-card');
+  if (el) el.remove();
+  _hoverCard = null;
+}
+
+function _positionCard(card, mx, my) {
+  const pad = 14;
+  const cw  = card.offsetWidth  || 244;
+  const ch  = card.offsetHeight || 190;
+  let left  = mx + pad;
+  let top   = my - Math.round(ch / 2);
+  if (left + cw > window.innerWidth  - pad) left = mx - cw - pad;
+  if (top        < pad)                      top  = pad;
+  if (top + ch   > window.innerHeight - pad) top  = window.innerHeight - ch - pad;
+  card.style.left = `${left}px`;
+  card.style.top  = `${top}px`;
+}
+
+function _getMutualCount(targetNeuron) {
+  const userNeuron = getCurrentUserNeuron();
+  if (!userNeuron || !targetNeuron) return 0;
+  const userNeighborIds = new Set(
+    connections
+      .filter(c => c.from === userNeuron || c.to === userNeuron)
+      .map(c => (c.from === userNeuron ? c.to : c.from)?.meta?.id)
+      .filter(Boolean)
+  );
+  return connections
+    .filter(c => c.from === targetNeuron || c.to === targetNeuron)
+    .map(c => (c.from === targetNeuron ? c.to : c.from)?.meta?.id)
+    .filter(id => id && userNeighborIds.has(id)).length;
+}
+
+function _isConnected(targetNeuron) {
+  const userNeuron = getCurrentUserNeuron();
+  if (!userNeuron || !targetNeuron) return false;
+  return connections.some(c =>
+    (c.from === userNeuron && c.to === targetNeuron) ||
+    (c.from === targetNeuron && c.to === userNeuron)
+  );
+}
+
+function showNodeHoverCard(neuron, mx, my) {
+  _clearHideTimer();
+  _removeHoverCard();
+
+  const meta      = neuron.meta;
+  const isMe      = meta.user_id === userId;
+  const linked    = _isConnected(neuron);
+  const mutual    = _getMutualCount(neuron);
+  const skills    = (meta.skills || []).slice(0, 4);
+  const avatarUrl = getCardAvatarUrl(meta);
+  const initials  = (meta.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  const dotColors = { online: '#4caf50', busy: '#ff9800', away: '#ffeb3b', offline: '#757575' };
+  const dotColor  = dotColors[meta.availability] || '#757575';
+
+  const card = document.createElement('div');
+  card.id    = 'node-hover-card';
+  card.className = 'nhc';
+  card.innerHTML = `
+    <div class="nhc-header">
+      <div class="nhc-avatar-wrap">
+        ${avatarUrl
+          ? `<img src="${avatarUrl}" class="nhc-avatar" alt=""
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+          : ''}
+        <div class="nhc-initials"${avatarUrl ? ' style="display:none"' : ''}>${initials}</div>
+      </div>
+      <div class="nhc-identity">
+        <div class="nhc-name">${meta.name || 'Unknown'}</div>
+        ${skills[0] ? `<div class="nhc-role">${skills[0]}</div>` : ''}
+        <div class="nhc-status">
+          <span class="nhc-dot" style="background:${dotColor}"></span>
+          <span>${meta.availability || 'offline'}</span>
+        </div>
+      </div>
+    </div>
+    ${skills.length > 1 ? `<div class="nhc-skills">${skills.slice(1).map(s => `<span class="nhc-tag">${s}</span>`).join('')}</div>` : ''}
+    ${mutual > 0 ? `<div class="nhc-mutual">${mutual} mutual connection${mutual !== 1 ? 's' : ''}</div>` : ''}
+    <div class="nhc-actions">
+      ${isMe
+        ? '<span class="nhc-badge nhc-badge--you">You</span>'
+        : linked
+          ? '<span class="nhc-badge nhc-badge--linked">Connected</span>'
+          : `<button class="nhc-btn nhc-btn--connect" data-action="connect">Connect</button>`}
+      ${!isMe ? `<button class="nhc-btn nhc-btn--view" data-action="view">View Profile</button>` : ''}
+    </div>
+  `;
+
+  document.body.appendChild(card);
+  _positionCard(card, mx, my);
+
+  card.querySelector('[data-action="connect"]')?.addEventListener('click', async () => {
+    const userNeuron = getCurrentUserNeuron();
+    if (!userNeuron) return;
+    try {
+      await supabase.from('connections').insert({ from_id: userNeuron.meta.id, to_id: meta.id });
+      connections.push({ from: userNeuron, to: neuron });
+      drawNetwork();
+      const btn = card.querySelector('[data-action="connect"]');
+      if (btn) btn.outerHTML = '<span class="nhc-badge nhc-badge--linked">Connected</span>';
+    } catch (err) { console.error('Connect error:', err); }
+  });
+
+  card.querySelector('[data-action="view"]')?.addEventListener('click', () => {
+    _removeHoverCard();
+    if (window.openNodePanel) window.openNodePanel(meta);
+  });
+
+  card.addEventListener('mouseenter', _clearHideTimer);
+  card.addEventListener('mouseleave', () => { _hideCardTimer = setTimeout(_removeHoverCard, 150); });
+
+  _hoverCard = card;
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 // ───── AUTH & DATA LOADING ─────────────────────────────────────────────────
 async function loadOrCreatePersonalNeurons() {
   const { data, error } = await supabase.from('community').select('*');
@@ -761,22 +888,30 @@ window.addEventListener('DOMContentLoaded', async()=>{
     applyMobileUserFirstFocus({ center: true });
   });
 
-  // Hover tooltip (desktop only)
+  // Hover card (desktop only)
   if (!MOBILE_MODE) {
-    canvas.addEventListener('mousemove',e=>{
-      const {left,top}=canvas.getBoundingClientRect();
-      const x=e.clientX-left, y=e.clientY-top;
-      const hit=neurons.find(n=>Math.hypot(n.x-x,n.y-y)<n.radius);
-      if(hit){
-        tooltip.style.display='block';
-        tooltip.style.left=`${e.clientX+12}px`;
-        tooltip.style.top =`${e.clientY+12}px`;
-        tooltip.textContent=
-          `${hit.meta.name}\nSkills: ${(hit.meta.skills||[]).join(', ')}\n`+
-          `Endorsements: ${hit.meta.endorsements ?? 0}\nStatus: ${hit.meta.availability ?? ''}`;
-      } else tooltip.style.display='none';
+    let _lastHit = null;
+    canvas.addEventListener('mousemove', e => {
+      const { left, top } = canvas.getBoundingClientRect();
+      const x = e.clientX - left, y = e.clientY - top;
+      const hit = neurons.find(n => Math.hypot(n.x - x, n.y - y) < n.radius);
+      canvas.style.cursor = hit ? 'pointer' : '';
+      if (hit !== _lastHit) {
+        _lastHit = hit;
+        if (hit) {
+          _clearHideTimer();
+          showNodeHoverCard(hit, e.clientX, e.clientY);
+        } else {
+          _hideCardTimer = setTimeout(_removeHoverCard, 150);
+        }
+      } else if (hit && _hoverCard) {
+        _positionCard(_hoverCard, e.clientX, e.clientY);
+      }
     });
-    canvas.addEventListener('mouseleave', ()=>tooltip.style.display='none');
+    canvas.addEventListener('mouseleave', () => {
+      _lastHit = null;
+      _hideCardTimer = setTimeout(_removeHoverCard, 150);
+    });
   }
 
   // Drag owned nodes to save x/y
