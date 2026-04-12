@@ -697,6 +697,182 @@ a:focus-visible {
   padding: 1.5rem 2rem;
 }
 
+/* ── Node Hover Card ──────────────────────────────────────────────────────── */
+.nhc {
+  position: fixed;
+  z-index: 10003;
+  width: 244px;
+  background: linear-gradient(135deg, rgba(16,20,48,0.97), rgba(10,14,39,0.97));
+  border: 1px solid rgba(0,224,255,0.28);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.65), 0 0 14px rgba(0,224,255,0.07);
+  backdrop-filter: blur(14px);
+  animation: nhcIn 0.14s ease;
+  pointer-events: auto;
+  user-select: none;
+}
+
+@keyframes nhcIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.nhc-header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.nhc-avatar-wrap {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(0,224,255,0.35);
+  background: rgba(0,224,255,0.08);
+}
+
+.nhc-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.nhc-initials {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #00e0ff;
+}
+
+.nhc-identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.nhc-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.nhc-role {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nhc-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  text-transform: capitalize;
+}
+
+.nhc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.nhc-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.nhc-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(0,224,255,0.09);
+  color: rgba(0,224,255,0.85);
+  border: 1px solid rgba(0,224,255,0.18);
+  white-space: nowrap;
+}
+
+.nhc-mutual {
+  font-size: 11px;
+  color: rgba(255,255,255,0.38);
+  margin-bottom: 10px;
+}
+
+.nhc-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.nhc-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.nhc-btn:hover { opacity: 0.82; transform: translateY(-1px); }
+.nhc-btn:active { transform: translateY(0); }
+
+.nhc-btn--connect {
+  background: linear-gradient(135deg, #00e0ff, #0076ff);
+  color: #fff;
+}
+
+.nhc-btn--view {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.15) !important;
+}
+
+.nhc-badge {
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nhc-badge--linked {
+  background: rgba(76,175,80,0.14);
+  color: #66bb6a;
+  border: 1px solid rgba(76,175,80,0.28);
+}
+
+.nhc-badge--you {
+  background: rgba(0,224,255,0.12);
+  color: #00e0ff;
+  border: 1px solid rgba(0,224,255,0.25);
+}
+
+@media (max-width: 768px) {
+  .nhc { display: none; }
+}
+
 .shortcut-item {
   display: flex;
   align-items: center;
