@@ -278,7 +278,7 @@ function renderThemesGrid(themes, mode = 'all') {
     '<h3 style="color: #ffd700; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fas fa-star"></i> Recommended For You</h3>' :
     mode === 'filtered' ?
     '<h3 style="color: #00e0ff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fas fa-filter"></i> Filtered Results</h3>' :
-    '<h3 style="color: #00e0ff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fas fa-compass"></i> All Active Themes</h3>';
+    '<h3 style="color: #00e0ff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fas fa-compass"></i> All Active Skills</h3>';
 
   return `
     ${title}
@@ -518,7 +518,7 @@ function showRecommendations() {
 
 async function handleJoinTheme(themeId) {
   if (!currentUser) {
-    showSynapseNotification('Please log in to join themes', 'info');
+    showSynapseNotification('Please log in to join skills', 'info');
     return;
   }
 
@@ -563,7 +563,7 @@ async function handleThemeClick(themeId) {
       await handleJoinTheme(theme.id);
     }
   } else {
-    showSynapseNotification('Please log in to join themes', 'info');
+    showSynapseNotification('Please log in to join skills', 'info');
   }
 }
 

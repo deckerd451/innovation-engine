@@ -298,7 +298,7 @@ class EnhancedStartUI {
           gap: 1rem;
         ">
           ${this.renderStatCard('People', summary.people, 'users', '#00e0ff')}
-          ${this.renderStatCard('Themes', summary.themes_interested, 'bullseye', '#ffaa00')}
+          ${this.renderStatCard('Skills', summary.themes_interested, 'bullseye', '#ffaa00')}
           ${this.renderStatCard('Organizations', summary.organizations_followed, 'building', '#a855f7')}
           ${this.renderStatCard('Connections', summary.connections_accepted, 'link', '#00ff88')}
         </div>
@@ -597,7 +597,7 @@ class EnhancedStartUI {
           
           // If no themes, show helpful message
           if (themeCount === 0) {
-            this.showToast('No active themes yet. Themes will appear here when created by admins or community leaders.', 'info');
+            this.showToast('No active skills yet. Skills will appear here when created by admins or community leaders.', 'info');
             return;
           }
           
@@ -627,7 +627,7 @@ class EnhancedStartUI {
             } else if (window.filterByNodeType) {
               window.filterByNodeType('theme');
             } else {
-              this.showToast('Please click the "Themes" button to view active themes', 'info');
+              this.showToast('Please click the "Skills" button to view active skills', 'info');
             }
           }
         }

@@ -649,7 +649,7 @@ function createSynapseLegend() {
         </div>
         <div id="legend-themes" data-filter="themes" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25);">
           <div style="width: 20px; height: 20px; border-radius: 50%; background: transparent; border: 3px solid #ffa500; flex-shrink: 0;"></div>
-          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Themes</span>
+          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Skills</span>
           <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
         </div>
         <div id="legend-organizations" data-filter="organizations" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.25);">

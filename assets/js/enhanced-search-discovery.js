@@ -37,7 +37,7 @@ const SEARCH_CATEGORIES = {
   },
   THEMES: { 
     id: 'themes', 
-    name: 'Themes', 
+    name: 'Skills', 
     icon: 'fas fa-bullseye',
     description: 'Explore theme circles and focused discussions'
   },

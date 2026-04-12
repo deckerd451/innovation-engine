@@ -120,7 +120,7 @@ function showSuggestions(results) {
   }
   
   if (results.themes?.length > 0) {
-    html += '<div class="suggestion-group"><div class="suggestion-header">Themes</div>';
+    html += '<div class="suggestion-group"><div class="suggestion-header">Skills</div>';
     results.themes.forEach(theme => {
       html += `
         <div class="suggestion-item" onclick="selectTheme('${theme.id}')">

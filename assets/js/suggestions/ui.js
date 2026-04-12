@@ -373,14 +373,14 @@ export class DailySuggestionsUI {
     if (window.filterByNodeType && typeof window.filterByNodeType === 'function') {
       try {
         window.filterByNodeType('theme');
-        this.showToast('Showing themes', 'info');
+        this.showToast('Showing skills', 'info');
       } catch (err) {
         console.warn('Failed to filter by theme:', err);
-        this.showToast('Themes view - check the network visualization', 'info');
+        this.showToast('Skills view - check the network visualization', 'info');
       }
     } else {
       // Fallback: just show a message
-      this.showToast('Explore themes in the network visualization', 'info');
+      this.showToast('Explore skills in the network visualization', 'info');
     }
   }
 

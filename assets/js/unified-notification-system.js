@@ -975,7 +975,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     // Active themes
     if (opps.active_themes?.count > 0) {
       html += createNotificationSection(
-        'Explore Themes',
+        'Explore Skills',
         'palette',
         '#ffaa00',
         [{
