@@ -436,7 +436,7 @@
 
         <div
           id="search-suggestions"
-          style="display:none; position:absolute; left:1rem; right:1rem; background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px; max-height:min(400px, 60vh); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1000; box-shadow:0 8px 32px rgba(0,224,255,0.3);"
+          style="display:none; position:absolute; left:0; right:0; bottom:calc(100% + 6px); top:auto; background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px; max-height:min(360px, 55vh); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1000; box-shadow:0 -8px 32px rgba(0,224,255,0.2);"
         ></div>
       </div>
     </div>
@@ -1135,6 +1135,60 @@
       } else {
         tryLockPortrait();
       }
+    })();
+  </script>
+
+  <script>
+    /* ── Search drag handle ── */
+    (function () {
+      const handle    = document.getElementById('search-drag-handle');
+      const container = document.getElementById('centered-search-container');
+      if (!handle || !container) return;
+
+      let dragging = false, startX, startY, startLeft, startTop;
+
+      function beginDrag(clientX, clientY) {
+        dragging = true;
+        handle.style.cursor = 'grabbing';
+        const rect = container.getBoundingClientRect();
+        startX    = clientX;
+        startY    = clientY;
+        startLeft = rect.left;
+        startTop  = rect.top;
+        /* Switch to fixed + top/left so we can drag freely */
+        container.style.position  = 'fixed';
+        container.style.bottom    = 'auto';
+        container.style.transform = 'none';
+        container.style.left      = startLeft + 'px';
+        container.style.top       = startTop  + 'px';
+      }
+
+      function moveDrag(clientX, clientY) {
+        if (!dragging) return;
+        container.style.left = (startLeft + clientX - startX) + 'px';
+        container.style.top  = (startTop  + clientY - startY) + 'px';
+      }
+
+      function endDrag() {
+        dragging = false;
+        handle.style.cursor = 'grab';
+      }
+
+      handle.addEventListener('mousedown',  e => { e.preventDefault(); beginDrag(e.clientX, e.clientY); });
+      document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+      document.addEventListener('mouseup',   endDrag);
+
+      handle.addEventListener('touchstart', e => {
+        e.preventDefault();
+        const t = e.touches[0];
+        beginDrag(t.clientX, t.clientY);
+      }, { passive: false });
+      document.addEventListener('touchmove', e => {
+        if (!dragging) return;
+        const t = e.touches[0];
+        moveDrag(t.clientX, t.clientY);
+      }, { passive: true });
+      document.addEventListener('touchend', endDrag);
     })();
   </script>
 
