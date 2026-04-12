@@ -502,6 +502,13 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* Nudge search container up while suggestions are visible so the list
+   doesn't overlap other UI elements near the bottom edge */
+#centered-search-container.showing-suggestions {
+  bottom: 120px;
+  transition: bottom 0.2s ease;
+}
+
 /* Tooltips */
 .tooltip {
   position: fixed;
