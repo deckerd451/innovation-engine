@@ -655,8 +655,8 @@ window.CommandDashboard = (() => {
       projects = _enrichedData.activeProjectIds ? _enrichedData.activeProjectIds.size : 0;
     }
 
-    // Themes still come from graph (theme nodes remain)
-    const themes = nodes.filter(n => n.type === 'theme' || n.type === 'themeCircle').length;
+    // Orgs: from Supabase
+    const orgs = _enrichedData.myOrgIds ? _enrichedData.myOrgIds.size : 0;
 
     // Opportunities: from Supabase (no longer in graph)
     const opps = _enrichedData.opportunities ? _enrichedData.opportunities.length : 0;
@@ -668,7 +668,7 @@ window.CommandDashboard = (() => {
 
     setVal('cd-stat-connections',   connections);
     setVal('cd-stat-projects',      projects);
-    setVal('cd-stat-themes',        themes);
+    setVal('cd-stat-orgs',          orgs);
     setVal('cd-stat-opportunities', opps);
   }
 
