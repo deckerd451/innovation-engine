@@ -34,7 +34,7 @@ window.CommandDashboard = (() => {
       resourcesLabel: {
         people:        'Your People',
         projects:      'Your Projects',
-        themes:        'Your Themes',
+        themes:        'Your Skills',
         organizations: 'Your Organizations',
         opportunities: 'Your Opportunities',
       },
@@ -47,7 +47,7 @@ window.CommandDashboard = (() => {
       resourcesLabel: {
         people:        'Extended Network',
         projects:      'Adjacent Projects',
-        themes:        'Strategic Themes',
+        themes:        'Strategic Skills',
         organizations: 'Nearby Organizations',
         opportunities: 'Nearby Opportunities',
       },
@@ -60,7 +60,7 @@ window.CommandDashboard = (() => {
       resourcesLabel: {
         people:        'All People',
         projects:      'All Projects',
-        themes:        'All Themes',
+        themes:        'All Skills',
         organizations: 'All Organizations',
         opportunities: 'All Opportunities',
       },
@@ -1400,9 +1400,9 @@ window.CommandDashboard = (() => {
       },
       themes: {
         icon: 'fa-lightbulb',
-        msg: 'No themes in view',
-        hint: 'Themes group projects by focus area',
-        cta: 'Explore Themes',
+        msg: 'No skills in view',
+        hint: 'Skills connect you to relevant projects and people',
+        cta: 'Explore Skills',
         action: () => window.GraphController?.highlightNodes?.('theme'),
       },
       organizations: {

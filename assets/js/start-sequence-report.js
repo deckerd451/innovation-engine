@@ -294,8 +294,8 @@ class StartSequenceFormatter {
         priority: 'medium',
         icon: 'bullseye',
         color: '#ffaa00',
-        message: `${opportunities.active_themes.count} active themes to explore`,
-        action: 'Browse Themes',
+        message: `${opportunities.active_themes.count} active skills to explore`,
+        action: 'Browse Skills',
         handler: 'openThemes',
         data: { themeCount: opportunities.active_themes.count }
       });
@@ -356,9 +356,9 @@ class StartSequenceFormatter {
           priority: 'high',
           icon: 'compass',
           color: '#ffaa00',
-          message: 'Explore themes and interests',
+          message: 'Explore skills and interests',
           detail: 'Join communities around topics you care about',
-          action: 'Browse Themes',
+          action: 'Browse Skills',
           handler: 'openThemes',
           data: { themeCount: 0 }
         });

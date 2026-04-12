@@ -299,12 +299,12 @@ class StartOnboarding {
             <i class="fas fa-bullseye" style="color: #ffaa00;"></i>
           </div>
           <h3 style="color: #ffaa00; margin: 0 0 1rem 0;">
-            ${themeCount > 0 ? `${themeCount} Active Themes` : 'Themes Coming Soon'}
+            ${themeCount > 0 ? `${themeCount} Active Skills` : 'Skills Coming Soon'}
           </h3>
           <p style="color: rgba(255,255,255,0.7); margin-bottom: 2rem;">
             ${themeCount > 0
-              ? 'Browse and follow themes to stay updated on projects, discussions, and opportunities.'
-              : 'Themes will be created by community leaders. Check back soon to join conversations!'}
+              ? 'Browse and follow skills to stay updated on projects, discussions, and opportunities.'
+              : 'Skills will be created by community leaders. Check back soon to join conversations!'}
           </p>
 
           ${themeCount > 0 ? `

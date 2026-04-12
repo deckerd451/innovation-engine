@@ -10,7 +10,7 @@ class ContextualTooltips {
   constructor() {
     this.tooltips = {
       'btn-start': {
-        text: 'Get personalized daily recommendations for themes, projects, and people to connect with',
+        text: 'Get personalized daily recommendations for skills, projects, and people to connect with',
         position: 'top',
         delay: 3000,
         condition: () => !localStorage.getItem('has_seen_start_flow')
@@ -31,7 +31,7 @@ class ContextualTooltips {
       },
       
       'global-search': {
-        text: 'Search for people, skills, projects, or themes across the entire network',
+        text: 'Search for people, skills, projects, or organizations across the entire network',
         position: 'bottom',
         delay: 15000,
         condition: () => this.isNewUser() && !this.hasUsedSearch()

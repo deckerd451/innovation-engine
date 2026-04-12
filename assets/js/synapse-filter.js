@@ -57,7 +57,7 @@ const FILTER_VISUALS = Object.freeze({
   [FILTER_MODES.ALL]:       { glowColor: null,      strokeColor: null,      edgeColor: null,                        label: 'All' },
   [FILTER_MODES.CONNECTED]: { glowColor: '#00e0ff', strokeColor: '#00e0ff', edgeColor: 'rgba(0, 224, 255, 0.55)',   label: 'Connected' },
   [FILTER_MODES.PROJECTS]:  { glowColor: '#00ff88', strokeColor: '#00ff88', edgeColor: 'rgba(0, 255, 136, 0.50)',   label: 'Projects' },
-  [FILTER_MODES.THEMES]:    { glowColor: '#a855f7', strokeColor: '#a855f7', edgeColor: 'rgba(168, 85, 247, 0.45)',  label: 'Themes' },
+  [FILTER_MODES.THEMES]:    { glowColor: '#a855f7', strokeColor: '#a855f7', edgeColor: 'rgba(168, 85, 247, 0.45)',  label: 'Skills' },
   [FILTER_MODES.OPPS]:      { glowColor: '#ffaa00', strokeColor: '#ffaa00', edgeColor: 'rgba(255, 170, 0, 0.50)',   label: 'Opps' },
 });
 
