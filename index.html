@@ -1009,8 +1009,8 @@
       });
 
       wireKeyClick("btn-network-dashboard-mobile", () => {
-        if (window.UnifiedNotifications?.showPanel) {
-          window.UnifiedNotifications.showPanel();
+        if (typeof window.openNetworkReport === 'function') {
+          window.openNetworkReport();
         }
       });
 
