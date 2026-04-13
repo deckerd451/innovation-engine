@@ -678,19 +678,20 @@
   .messages-container {
     grid-template-columns: 1fr;
   }
-  
-  .conversations-sidebar {
+
+  /* Scope to messaging.js modal only — do NOT affect #messaging-interface */
+  #messages-container .conversations-sidebar {
     display: none;
   }
-  
-  .conversations-sidebar.mobile-show {
+
+  #messages-container .conversations-sidebar.mobile-show {
     display: flex;
   }
-  
-  .chat-panel.mobile-hide {
+
+  #messages-container .chat-panel.mobile-hide {
     display: none;
   }
-  
+
   .message-content {
     max-width: 85%;
   }
@@ -1159,14 +1160,22 @@
     -webkit-backdrop-filter: none !important;
   }
 
-  /* Sidebar: full width, remove fixed 350px */
+  /* Sidebar: full-width single panel.
+     height: 100% is required on iOS Safari — when a flex item's height
+     comes from align-items:stretch on the parent (rather than an explicit
+     value), nested children with flex:1 compute to 0.  Giving the sidebar
+     an explicit height breaks that cycle so #conversations-list can expand. */
   #messaging-interface .conversations-sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
     border-right: none !important;
     border-bottom: 1px solid rgba(0, 224, 255, 0.15) !important;
-    flex-shrink: 0 !important;
   }
 
   /* Chat area: hidden by default (WhatsApp list-first pattern) */
