@@ -187,6 +187,19 @@
         >0</span>
       </div>
 
+      <!-- Network Dashboard shortcut — opens the Command Dashboard split view on mobile -->
+      <div
+        id="btn-network-dashboard-mobile"
+        role="button"
+        tabindex="0"
+        class="mobile-notif-btn"
+        style="cursor:pointer; padding:0.6rem; background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3); border-radius:50%; width:42px; height:42px; align-items:center; justify-content:center; transition:all 0.2s;"
+        title="Network Dashboard"
+        aria-label="Open network dashboard"
+      >
+        <i class="fas fa-gauge-high" style="color:#a855f7; font-size:1.1rem;"></i>
+      </div>
+
       <div
         id="btn-logout-mobile"
         role="button"
@@ -990,6 +1003,12 @@
       });
 
       wireKeyClick("btn-actions-mobile", () => {
+        if (window.UnifiedNotifications?.showPanel) {
+          window.UnifiedNotifications.showPanel();
+        }
+      });
+
+      wireKeyClick("btn-network-dashboard-mobile", () => {
         if (window.UnifiedNotifications?.showPanel) {
           window.UnifiedNotifications.showPanel();
         }
