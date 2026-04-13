@@ -200,10 +200,28 @@
       pointer-events: auto !important;
     }
 
-    #centered-search-container #search-container {
+    /* When search-container is inside #search-row (flex), let it grow to fill space */
+    #centered-search-container #search-row #search-container {
+      flex: 1 !important;
+      width: auto !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+    }
+
+    /* When there is no search-row wrapper, keep full-width behavior */
+    #centered-search-container > #search-container {
       width: 100% !important;
       max-width: 100% !important;
       box-sizing: border-box !important;
+    }
+
+    /* search-row: flex container for input + cancel button */
+    #centered-search-container #search-row {
+      width: 100% !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.5rem !important;
     }
 
     /* Hide drag handle on mobile — search is fixed at bottom */
