@@ -948,6 +948,28 @@ window.CommandDashboard = (() => {
         break;
       }
 
+      case 'focus-projects': {
+        // Highlight the user's own projects in the graph and switch to Projects tab
+        const myProjectIds = _enrichedData.myProjectIds;
+        if (myProjectIds && myProjectIds.size > 0) {
+          const ids = nodes
+            .filter(n => n.type === 'project' && myProjectIds.has(n.id))
+            .map(n => n.id);
+          if (ids.length > 0) {
+            window.GraphController.highlightNodes(ids);
+            setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+          }
+        }
+        _switchResourceTab('projects');
+        break;
+      }
+
+      case 'focus-orgs': {
+        // Orgs are not graph nodes — open the Organizations resource tab directly
+        _switchResourceTab('organizations');
+        break;
+      }
+
       default:
         window.GraphController.resetToTierDefault();
     }
