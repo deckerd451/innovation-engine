@@ -405,9 +405,12 @@
     >
       <div id="category-action-bar" style="display:none; width:100%; justify-content:flex-end;"></div>
 
+      <!-- Search row: input + mobile cancel button -->
+      <div id="search-row" style="display:flex; align-items:center; width:100%; gap:0.5rem;">
+
       <div
         id="search-container"
-        style="position:relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); border-radius:12px; border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);"
+        style="position:relative; flex:1; min-width:0; background:rgba(10,14,39,0.6); border-radius:12px; border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);"
       >
         <div
           id="search-drag-handle"
@@ -439,6 +442,15 @@
           style="display:none; position:absolute; left:0; right:0; bottom:calc(100% + 6px); top:auto; background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px; max-height:min(360px, 55vh); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1000; box-shadow:0 -8px 32px rgba(0,224,255,0.2);"
         ></div>
       </div>
+
+      <!-- Cancel button — mobile only, shown when search is active -->
+      <button
+        id="search-cancel-btn"
+        aria-label="Cancel search"
+        style="display:none; flex-shrink:0; padding:0.6rem 0.75rem; background:transparent; border:none; color:rgba(0,224,255,0.85); font-size:0.95rem; font-weight:600; cursor:pointer; white-space:nowrap; touch-action:manipulation;"
+      >Cancel</button>
+
+      </div><!-- /search-row -->
     </div>
   </div>
 
@@ -1099,8 +1111,9 @@
 
   <script>
     (function () {
-      const searchInput = document.getElementById("global-search");
+      const searchInput  = document.getElementById("global-search");
       const searchContainer = document.getElementById("centered-search-container");
+      const cancelBtn    = document.getElementById("search-cancel-btn");
       if (!searchInput || !searchContainer) return;
 
       function lockHorizontalOnly(lock) {
@@ -1108,9 +1121,36 @@
         document.body.style.overflowX = lock ? "hidden" : "";
       }
 
+      function showCancel() {
+        if (cancelBtn && window.innerWidth <= 768) cancelBtn.style.display = "block";
+      }
+
+      function hideCancel() {
+        if (cancelBtn) cancelBtn.style.display = "none";
+      }
+
+      function dismissSearch() {
+        searchInput.value = "";
+        searchInput.blur();
+        hideCancel();
+        if (typeof window.hideSuggestions === "function") window.hideSuggestions();
+        // dashboardPane's hideSuggestions is scoped; also clear the box directly
+        const box = document.getElementById("search-suggestions");
+        if (box) { box.style.display = "none"; box.innerHTML = ""; }
+        searchContainer.classList.remove("keyboard-open", "showing-suggestions");
+      }
+
+      if (cancelBtn) {
+        cancelBtn.addEventListener("mousedown", (e) => e.preventDefault()); // keep focus on input briefly
+        cancelBtn.addEventListener("click", dismissSearch);
+      }
+
       searchInput.addEventListener("focus", () => {
         lockHorizontalOnly(true);
-        if (window.innerWidth <= 768) searchContainer.classList.add("keyboard-open");
+        if (window.innerWidth <= 768) {
+          searchContainer.classList.add("keyboard-open");
+          showCancel();
+        }
       });
 
       searchInput.addEventListener("blur", () => {
