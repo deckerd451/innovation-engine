@@ -1137,7 +1137,7 @@
         // dashboardPane's hideSuggestions is scoped; also clear the box directly
         const box = document.getElementById("search-suggestions");
         if (box) { box.style.display = "none"; box.innerHTML = ""; }
-        searchContainer.classList.remove("keyboard-open", "showing-suggestions");
+        searchContainer.classList.remove("showing-suggestions");
       }
 
       if (cancelBtn) {
@@ -1145,17 +1145,28 @@
         cancelBtn.addEventListener("click", dismissSearch);
       }
 
+      // Prevent iOS Safari auto-zoom on input focus
+      const _viewportMeta = document.querySelector('meta[name=viewport]');
+      const _viewportDefault = _viewportMeta ? _viewportMeta.content : null;
+
       searchInput.addEventListener("focus", () => {
         lockHorizontalOnly(true);
+        // Lock viewport scale to prevent iOS Safari from zooming on input focus
+        if (_viewportMeta) {
+          _viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover';
+        }
         if (window.innerWidth <= 768) {
-          searchContainer.classList.add("keyboard-open");
           showCancel();
+          // Note: body.keyboard-open is managed by mobile-enhancements.js via visualViewport API
         }
       });
 
       searchInput.addEventListener("blur", () => {
         lockHorizontalOnly(false);
-        searchContainer.classList.remove("keyboard-open");
+        // Restore viewport so user can still pinch-zoom elsewhere
+        if (_viewportMeta && _viewportDefault) {
+          _viewportMeta.content = _viewportDefault;
+        }
       });
     })();
   </script>
