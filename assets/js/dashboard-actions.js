@@ -298,7 +298,7 @@ window.isAdminUser = isAdminUser;
 // -----------------------------
 // Theme circle creation (MVP)
 // -----------------------------
-async function createThemeCirclePromptFlow() {
+async function createSkillCirclePromptFlow() {
   const supabase = window.supabase;
   if (!supabase) {
     
@@ -2246,7 +2246,7 @@ function wireAdminThemeCardEvents() {
   document.querySelectorAll('.btn-edit-theme').forEach(btn => {
     btn.addEventListener('click', async () => {
       const themeId = btn.dataset.themeId;
-      await handleAdminEditTheme(themeId);
+      await handleAdminEditSkill(themeId);
     });
   });
 
@@ -2356,7 +2356,7 @@ _toast(error.message || 'Failed to create theme');
   }
 }
 
-async function handleAdminEditTheme(themeId) {
+async function handleAdminEditSkill(themeId) {
   const supabase = window.supabase;
   if (!supabase) return;
 
@@ -2590,7 +2590,7 @@ async function handleAdminManageProjects(themeId) {
 
     if (action === 'assign' && num > 0 && num <= availableProjects.length) {
       const project = availableProjects[num - 1];
-      await assignProjectToThemeByIds(project.id, themeId, project.title);
+      await assignProjectToSkillByIds(project.id, themeId, project.title);
     } else if (action === 'remove' && num > 0 && num <= assignedProjects.length) {
       const project = assignedProjects[num - 1];
       await unassignProjectFromTheme(project.id, project.title);
@@ -2608,7 +2608,7 @@ _toast('Failed to load projects');
 
 // Theme assignment function - Command/flow version (3 args: projectId, themeId, projectTitle)
 // Called by command parser and internal flows
-async function assignProjectToThemeByIds(projectId, themeId, projectTitle) {
+async function assignProjectToSkillByIds(projectId, themeId, projectTitle) {
   const supabase = window.supabase;
   if (!supabase) return;
 
@@ -2856,7 +2856,7 @@ _toast("Theme created successfully!");
   }
 }
 
-window.deleteTheme = async function(themeId) {
+window.deleteSkill = async function(themeId) {
   console.log('🗑️ Delete theme called with ID:', themeId);
   
   if (!confirm("Are you sure you want to delete this theme?")) {
@@ -2909,16 +2909,16 @@ _toast("Failed to delete theme: " + (error.message || 'Unknown error'));
 };
 
 // Test function for debugging
-window.testDeleteTheme = function(themeId) {
+window.testDeleteSkill = function(themeId) {
   console.log('🧪 Testing deleteTheme function...');
-  console.log('  Function available:', typeof window.deleteTheme);
+  console.log('  Function available:', typeof window.deleteSkill);
   console.log('  Supabase available:', typeof window.supabase);
   console.log('  Theme ID:', themeId);
   
   if (themeId) {
-    window.deleteTheme(themeId);
+    window.deleteSkill(themeId);
   } else {
-    console.log('  Usage: window.testDeleteTheme(themeId)');
+    console.log('  Usage: window.testDeleteSkill(themeId)');
   }
 };
 
@@ -4010,7 +4010,7 @@ _toast(`❌ ERROR\n\nFailed to remove project from theme:\n${error.message || 'U
 
 // Make functions globally available
 window.assignProjectToTheme = assignProjectToTheme;  // UI version (1 arg)
-window.assignProjectToThemeByIds = assignProjectToThemeByIds;  // Command version (3 args)
+window.assignProjectToSkillByIds = assignProjectToSkillByIds;  // Command version (3 args)
 window.removeProjectFromTheme = removeProjectFromTheme;
 
   // Close the initialization guard block

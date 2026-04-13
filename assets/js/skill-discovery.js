@@ -1,6 +1,6 @@
 /**
- * Theme Circles Discovery Interface
- * Help users find and join theme circles that match their interests
+ * Skill Circles Discovery Interface
+ * Help users find and join skill circles that match their interests
  */
 
 // showSynapseNotification is provided globally by notification-utils.js
@@ -25,7 +25,7 @@ async function markInterested(sb, { themeId, communityId, days = 7 }) {
 
 let supabase = null;
 let currentUser = null;
-let allThemes = [];
+let allSkills = [];
 let allTags = new Set();
 let userParticipations = [];
 
@@ -33,10 +33,10 @@ let userParticipations = [];
 // INITIALIZATION
 // ============================================================================
 
-export async function initThemeDiscovery() {
+export async function initSkillDiscovery() {
   supabase = window.supabase;
   if (!supabase) {
-    console.warn("⚠️ Supabase not available for theme discovery");
+    console.warn("⚠️ Supabase not available for skill discovery");
     return;
   }
 
@@ -47,17 +47,17 @@ export async function initThemeDiscovery() {
   });
 
   // Make functions available globally
-  window.openThemeDiscoveryModal = openThemeDiscoveryModal;
-  window.closeThemeDiscoveryModal = closeThemeDiscoveryModal;
+  window.openSkillDiscoveryModal = openSkillDiscoveryModal;
+  window.closeSkillDiscoveryModal = closeSkillDiscoveryModal;
 
-  console.log("✅ Theme discovery initialized");
+  console.log("✅ Skill discovery initialized");
 }
 
 // ============================================================================
 // DATA LOADING
 // ============================================================================
 
-async function loadActiveThemes() {
+async function loadActiveSkills() {
   if (!supabase) return;
 
   try {
@@ -70,17 +70,17 @@ async function loadActiveThemes() {
 
     if (error) throw error;
 
-    allThemes = data || [];
+    allSkills = data || [];
 
     // Extract all unique tags
     allTags.clear();
-    allThemes.forEach(theme => {
-      (theme.tags || []).forEach(tag => allTags.add(tag));
+    allSkills.forEach(skill => {
+      (skill.tags || []).forEach(tag => allTags.add(tag));
     });
 
   } catch (error) {
-    console.error('Failed to load themes:', error);
-    showSynapseNotification('Failed to load themes', 'error');
+    console.error('Failed to load skills:', error);
+    showSynapseNotification('Failed to load skills', 'error');
   }
 }
 
@@ -102,12 +102,12 @@ async function loadUserParticipations() {
   }
 }
 
-function isUserParticipating(themeId) {
-  return userParticipations.some(p => p.theme_id === themeId);
+function isUserParticipating(skillId) {
+  return userParticipations.some(p => p.theme_id === skillId);
 }
 
-function getUserEngagement(themeId) {
-  const participation = userParticipations.find(p => p.theme_id === themeId);
+function getUserEngagement(skillId) {
+  const participation = userParticipations.find(p => p.theme_id === skillId);
   return participation?.engagement_level || null;
 }
 
@@ -115,7 +115,7 @@ function getUserEngagement(themeId) {
 // RECOMMENDATIONS
 // ============================================================================
 
-function getRecommendedThemes() {
+function getRecommendedSkills() {
   if (!currentUser) return [];
 
   // Handle skills - could be array, string, or null
@@ -134,34 +134,34 @@ function getRecommendedThemes() {
     userInterests = currentUser.interests.split(',').map(i => i.toLowerCase().trim()).filter(Boolean);
   }
 
-  return allThemes
-    .map(theme => {
+  return allSkills
+    .map(skill => {
       let score = 0;
-      const themeTags = (theme.tags || []).map(t => t.toLowerCase().trim());
+      const skillTags = (skill.tags || []).map(t => t.toLowerCase().trim());
 
       // Match skills
-      const skillMatches = userSkills.filter(skill =>
-        themeTags.some(tag =>
-          tag.includes(skill) || skill.includes(tag)
+      const skillMatches = userSkills.filter(s =>
+        skillTags.some(tag =>
+          tag.includes(s) || s.includes(tag)
         )
       );
       score += skillMatches.length * 3;
 
       // Match interests
       const interestMatches = userInterests.filter(interest =>
-        themeTags.some(tag =>
+        skillTags.some(tag =>
           tag.includes(interest) || interest.includes(tag)
         )
       );
       score += interestMatches.length * 2;
 
-      // Boost for new/emerging themes
-      if (theme.activity_score < 5) score += 1;
+      // Boost for new/emerging skills
+      if (skill.activity_score < 5) score += 1;
 
       // Penalize if already participating
-      if (isUserParticipating(theme.id)) score = 0;
+      if (isUserParticipating(skill.id)) score = 0;
 
-      return { theme, score, matches: [...skillMatches, ...interestMatches] };
+      return { skill, score, matches: [...skillMatches, ...interestMatches] };
     })
     .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score)
@@ -172,27 +172,27 @@ function getRecommendedThemes() {
 // MODAL UI
 // ============================================================================
 
-export async function openThemeDiscoveryModal() {
+export async function openSkillDiscoveryModal() {
   // Remove existing modal if present
-  closeThemeDiscoveryModal();
+  closeSkillDiscoveryModal();
 
   // Load data
-  await loadActiveThemes();
+  await loadActiveSkills();
   if (currentUser) await loadUserParticipations();
 
   // Create modal
   const modal = document.createElement('div');
-  modal.id = 'theme-discovery-modal';
+  modal.id = 'skill-discovery-modal';
   modal.className = 'modal active';
   modal.innerHTML = `
     <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
-      <button class="modal-close" onclick="window.closeThemeDiscoveryModal()">
+      <button class="modal-close" onclick="window.closeSkillDiscoveryModal()">
         <i class="fas fa-times"></i>
       </button>
 
       <div class="modal-header">
         <h2 style="color: #00e0ff; margin: 0 0 0.5rem 0;">
-          <i class="fas fa-compass"></i> Discover Theme Circles
+          <i class="fas fa-compass"></i> Discover Skill Circles
         </h2>
         <p style="color: rgba(255,255,255,0.7); margin: 0; font-size: 0.9rem;">
           Find and join conversations that matter to you
@@ -205,8 +205,8 @@ export async function openThemeDiscoveryModal() {
           <div style="flex: 1; position: relative;">
             <input
               type="text"
-              id="theme-search-input"
-              placeholder="Search themes..."
+              id="skill-search-input"
+              placeholder="Search skills..."
               style="width: 100%; padding: 0.75rem 0.75rem 0.75rem 2.5rem; background: rgba(0,0,0,0.3);
                      border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: #fff; font-size: 1rem;"
             />
@@ -227,9 +227,9 @@ export async function openThemeDiscoveryModal() {
         </div>
       </div>
 
-      <!-- Themes Grid -->
-      <div id="themes-grid-container">
-        ${renderThemesGrid(allThemes, 'all')}
+      <!-- Skills Grid -->
+      <div id="skills-grid-container">
+        ${renderSkillsGrid(allSkills, 'all')}
       </div>
     </div>
   `;
@@ -239,8 +239,8 @@ export async function openThemeDiscoveryModal() {
   wireDiscoveryEvents();
 }
 
-export function closeThemeDiscoveryModal() {
-  const modal = document.getElementById('theme-discovery-modal');
+export function closeSkillDiscoveryModal() {
+  const modal = document.getElementById('skill-discovery-modal');
   if (modal) modal.remove();
 }
 
@@ -263,12 +263,12 @@ function renderTagFilters() {
   `).join('');
 }
 
-function renderThemesGrid(themes, mode = 'all') {
-  if (!themes || themes.length === 0) {
+function renderSkillsGrid(skills, mode = 'all') {
+  if (!skills || skills.length === 0) {
     return `
       <div style="text-align: center; padding: 4rem 2rem; color: rgba(255,255,255,0.5);">
         <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-        <p style="font-size: 1.1rem;">No themes found</p>
+        <p style="font-size: 1.1rem;">No skills found</p>
         <p style="font-size: 0.9rem; opacity: 0.7;">Try adjusting your search or filters</p>
       </div>
     `;
@@ -282,26 +282,26 @@ function renderThemesGrid(themes, mode = 'all') {
 
   return `
     ${title}
-    <div class="themes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem;">
-      ${themes.map(item => {
-        const theme = item.theme || item;
+    <div class="skills-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem;">
+      ${skills.map(item => {
+        const skill = item.skill || item;
         const matches = item.matches || [];
-        return renderDiscoveryThemeCard(theme, matches);
+        return renderDiscoverySkillCard(skill, matches);
       }).join('')}
     </div>
   `;
 }
 
-function renderDiscoveryThemeCard(theme, matches = []) {
+function renderDiscoverySkillCard(skill, matches = []) {
   const now = Date.now();
-  const expires = new Date(theme.expires_at).getTime();
+  const expires = new Date(skill.expires_at).getTime();
   const remaining = expires - now;
   const daysRemaining = Math.floor(remaining / (1000 * 60 * 60 * 24));
-  const isParticipating = isUserParticipating(theme.id);
-  const engagement = getUserEngagement(theme.id);
+  const isParticipating = isUserParticipating(skill.id);
+  const engagement = getUserEngagement(skill.id);
 
   return `
-    <div class="discovery-theme-card" data-theme-id="${theme.id}" style="
+    <div class="discovery-skill-card" data-skill-id="${skill.id}" style="
       background: ${isParticipating ? 'rgba(0,255,136,0.05)' : 'rgba(0,224,255,0.05)'};
       border: 1px solid ${isParticipating ? 'rgba(0,255,136,0.3)' : 'rgba(0,224,255,0.3)'};
       border-radius: 12px;
@@ -320,11 +320,11 @@ function renderDiscoveryThemeCard(theme, matches = []) {
 
       <div style="margin-bottom: 0.75rem;">
         <h4 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.1rem; padding-right: ${isParticipating ? '5rem' : '0'};">
-          ${escapeHtml(theme.title)}
+          ${escapeHtml(skill.title)}
         </h4>
-        ${theme.description ? `
+        ${skill.description ? `
           <p style="color: rgba(255,255,255,0.7); margin: 0; font-size: 0.85rem; line-height: 1.4;">
-            ${escapeHtml(theme.description).substring(0, 120)}${theme.description.length > 120 ? '...' : ''}
+            ${escapeHtml(skill.description).substring(0, 120)}${skill.description.length > 120 ? '...' : ''}
           </p>
         ` : ''}
       </div>
@@ -341,16 +341,16 @@ function renderDiscoveryThemeCard(theme, matches = []) {
         </div>
       ` : ''}
 
-      ${theme.tags && theme.tags.length > 0 ? `
+      ${skill.tags && skill.tags.length > 0 ? `
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
-          ${theme.tags.slice(0, 4).map(tag => `
+          ${skill.tags.slice(0, 4).map(tag => `
             <span style="padding: 0.25rem 0.5rem; background: rgba(0,224,255,0.1);
                          border: 1px solid rgba(0,224,255,0.3); border-radius: 4px;
                          font-size: 0.7rem; color: rgba(0,224,255,0.8);">
               ${escapeHtml(tag)}
             </span>
           `).join('')}
-          ${theme.tags.length > 4 ? `<span style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">+${theme.tags.length - 4}</span>` : ''}
+          ${skill.tags.length > 4 ? `<span style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">+${skill.tags.length - 4}</span>` : ''}
         </div>
       ` : ''}
 
@@ -358,13 +358,13 @@ function renderDiscoveryThemeCard(theme, matches = []) {
         <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">
           <i class="fas fa-clock"></i> ${daysRemaining} days left
           <span style="margin-left: 0.75rem;">
-            <i class="fas fa-users"></i> ${theme.activity_score || 0}
+            <i class="fas fa-users"></i> ${skill.activity_score || 0}
           </span>
         </div>
         ${!isParticipating ? `
           <button
-            class="btn-join-theme"
-            data-theme-id="${theme.id}"
+            class="btn-join-skill"
+            data-skill-id="${skill.id}"
             style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #00e0ff, #00a8cc);
                    border: none; border-radius: 6px; color: #000; cursor: pointer;
                    font-weight: 700; font-size: 0.85rem;"
@@ -388,11 +388,11 @@ function renderDiscoveryThemeCard(theme, matches = []) {
 // ============================================================================
 
 function wireDiscoveryEvents() {
-  const modal = document.getElementById('theme-discovery-modal');
+  const modal = document.getElementById('skill-discovery-modal');
   if (!modal) return;
 
   // Search
-  const searchInput = modal.querySelector('#theme-search-input');
+  const searchInput = modal.querySelector('#skill-search-input');
   if (searchInput) {
     searchInput.addEventListener('input', handleSearch);
   }
@@ -411,16 +411,16 @@ function wireDiscoveryEvents() {
       return;
     }
 
-    const joinBtn = e.target.closest('.btn-join-theme');
+    const joinBtn = e.target.closest('.btn-join-skill');
     if (joinBtn) {
       e.stopPropagation();
-      handleJoinTheme(joinBtn.dataset.themeId);
+      handleJoinSkill(joinBtn.dataset.skillId);
       return;
     }
 
-    const themeCard = e.target.closest('.discovery-theme-card');
-    if (themeCard && !e.target.closest('button')) {
-      handleThemeClick(themeCard.dataset.themeId);
+    const skillCard = e.target.closest('.discovery-skill-card');
+    if (skillCard && !e.target.closest('button')) {
+      handleSkillClick(skillCard.dataset.skillId);
     }
   });
 }
@@ -429,26 +429,26 @@ function handleSearch(e) {
   const query = e.target.value.toLowerCase().trim();
 
   if (!query) {
-    // Show all themes
-    const container = document.getElementById('themes-grid-container');
+    // Show all skills
+    const container = document.getElementById('skills-grid-container');
     if (container) {
-      container.innerHTML = renderThemesGrid(allThemes, 'all');
+      container.innerHTML = renderSkillsGrid(allSkills, 'all');
     }
     return;
   }
 
-  const filtered = allThemes.filter(theme => {
-    const titleMatch = theme.title.toLowerCase().includes(query);
-    const descMatch = (theme.description || '').toLowerCase().includes(query);
-    const tagMatch = (theme.tags || []).some(tag =>
+  const filtered = allSkills.filter(skill => {
+    const titleMatch = skill.title.toLowerCase().includes(query);
+    const descMatch = (skill.description || '').toLowerCase().includes(query);
+    const tagMatch = (skill.tags || []).some(tag =>
       tag.toLowerCase().includes(query)
     );
     return titleMatch || descMatch || tagMatch;
   });
 
-  const container = document.getElementById('themes-grid-container');
+  const container = document.getElementById('skills-grid-container');
   if (container) {
-    container.innerHTML = renderThemesGrid(filtered, 'filtered');
+    container.innerHTML = renderSkillsGrid(filtered, 'filtered');
   }
 }
 
@@ -477,23 +477,23 @@ function handleTagFilter(button) {
 
   if (activeFilters.length === 0) {
     // Show all
-    const container = document.getElementById('themes-grid-container');
+    const container = document.getElementById('skills-grid-container');
     if (container) {
-      container.innerHTML = renderThemesGrid(allThemes, 'all');
+      container.innerHTML = renderSkillsGrid(allSkills, 'all');
     }
     return;
   }
 
   // Filter by tags
-  const filtered = allThemes.filter(theme =>
+  const filtered = allSkills.filter(skill =>
     activeFilters.some(filter =>
-      (theme.tags || []).includes(filter)
+      (skill.tags || []).includes(filter)
     )
   );
 
-  const container = document.getElementById('themes-grid-container');
+  const container = document.getElementById('skills-grid-container');
   if (container) {
-    container.innerHTML = renderThemesGrid(filtered, 'filtered');
+    container.innerHTML = renderSkillsGrid(filtered, 'filtered');
   }
 }
 
@@ -503,20 +503,20 @@ function showRecommendations() {
     return;
   }
 
-  const recommendations = getRecommendedThemes();
+  const recommendations = getRecommendedSkills();
 
   if (recommendations.length === 0) {
     showSynapseNotification('No recommendations right now. Update your profile skills!', 'info');
     return;
   }
 
-  const container = document.getElementById('themes-grid-container');
+  const container = document.getElementById('skills-grid-container');
   if (container) {
-    container.innerHTML = renderThemesGrid(recommendations, 'recommended');
+    container.innerHTML = renderSkillsGrid(recommendations, 'recommended');
   }
 }
 
-async function handleJoinTheme(themeId) {
+async function handleJoinSkill(skillId) {
   if (!currentUser) {
     showSynapseNotification('Please log in to join skills', 'info');
     return;
@@ -524,43 +524,43 @@ async function handleJoinTheme(themeId) {
 
   try {
     await markInterested(supabase, {
-      themeId,
+      themeId: skillId,
       communityId: currentUser.id,
       days: 7
     });
 
-    showSynapseNotification('Joined theme! ✨', 'success');
+    showSynapseNotification('Joined skill! ✨', 'success');
 
     // Reload data
     await loadUserParticipations();
 
     // Re-render current view
-    const container = document.getElementById('themes-grid-container');
+    const container = document.getElementById('skills-grid-container');
     if (container) {
-      container.innerHTML = renderThemesGrid(allThemes, 'all');
+      container.innerHTML = renderSkillsGrid(allSkills, 'all');
     }
 
   } catch (error) {
-    console.error('Failed to join theme:', error);
-    showSynapseNotification(error.message || 'Failed to join theme', 'error');
+    console.error('Failed to join skill:', error);
+    showSynapseNotification(error.message || 'Failed to join skill', 'error');
   }
 }
 
-async function handleThemeClick(themeId) {
-  // Open theme details — simplified (legacy overlay card removed with synapse)
-  const theme = allThemes.find(t => t.id === themeId);
-  if (!theme) return;
+async function handleSkillClick(skillId) {
+  // Open skill details — simplified (legacy overlay card removed with synapse)
+  const skill = allSkills.find(t => t.id === skillId);
+  if (!skill) return;
 
-  const isParticipating = isUserParticipating(theme.id);
+  const isParticipating = isUserParticipating(skill.id);
   if (isParticipating) {
-    showSynapseNotification('You are already a member of this theme', 'info');
+    showSynapseNotification('You are already a member of this skill', 'info');
     return;
   }
 
   if (currentUser) {
-    const confirmed = confirm(`Join "${theme.title}"?`);
+    const confirmed = confirm(`Join "${skill.title}"?`);
     if (confirmed) {
-      await handleJoinTheme(theme.id);
+      await handleJoinSkill(skill.id);
     }
   } else {
     showSynapseNotification('Please log in to join skills', 'info');
@@ -582,7 +582,7 @@ function escapeHtml(text) {
 // ============================================================================
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initThemeDiscovery);
+  document.addEventListener('DOMContentLoaded', initSkillDiscovery);
 } else {
-  initThemeDiscovery();
+  initSkillDiscovery();
 }
