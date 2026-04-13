@@ -172,7 +172,7 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
         window.synapseApi.focusNode = (nodeId, opts) => {
           if (nodeId) unifiedNetworkApi.focusNode(nodeId, opts);
         };
-        window.synapseApi.focusTheme = (themeId) => {
+        window.synapseApi.focusSkill = (skillId) => {
           if (themeId) unifiedNetworkApi.focusNode(themeId);
         };
         window.synapseApi.showActivity = () => {

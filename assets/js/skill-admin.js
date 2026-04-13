@@ -1,6 +1,6 @@
 /**
- * Theme Circles Admin Interface
- * Full CRUD operations for managing theme circles
+ * Skill Circles Admin Interface
+ * Full CRUD operations for managing skill circles
  */
 
 // showSynapseNotification is provided globally by notification-utils.js
@@ -8,13 +8,13 @@ const showSynapseNotification = (...args) => window.showSynapseNotification?.(..
 
 let supabase = null;
 let currentUserProfile = null;
-let themesData = [];
+let skillsData = [];
 
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
-export async function initThemeAdmin() {
+export async function initSkillAdmin() {
   supabase = window.supabase;
   if (!supabase) {
     console.warn("⚠️ Supabase not available for theme admin");
@@ -27,10 +27,10 @@ export async function initThemeAdmin() {
   });
 
   // Make functions available globally
-  window.openThemeAdminModal = openThemeAdminModal;
-  window.closeThemeAdminModal = closeThemeAdminModal;
+  window.openSkillAdminModal = openSkillAdminModal;
+  window.closeSkillAdminModal = closeSkillAdminModal;
 
-  console.log("✅ Theme admin initialized");
+  console.log("✅ Skill admin initialized");
 }
 
 // ============================================================================
@@ -98,38 +98,38 @@ function isAdmin() {
 // MODAL UI
 // ============================================================================
 
-export async function openThemeAdminModal() {
+export async function openSkillAdminModal() {
   if (!isAdmin()) {
     alert("Admin access required");
     return;
   }
 
   // Remove existing modal if present
-  closeThemeAdminModal();
+  closeSkillAdminModal();
 
   // Load themes data
-  await loadAllThemes();
+  await loadAllSkills();
 
   // Create modal
   const modal = document.createElement('div');
-  modal.id = 'theme-admin-modal';
+  modal.id = 'skill-admin-modal';
   modal.className = 'modal active';
   modal.innerHTML = `
     <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-      <button class="modal-close" onclick="window.closeThemeAdminModal()">
+      <button class="modal-close" onclick="window.closeSkillAdminModal()">
         <i class="fas fa-times"></i>
       </button>
 
       <div class="modal-header">
         <h2 style="color: #00e0ff; margin: 0 0 0.5rem 0;">
-          <i class="fas fa-bullseye"></i> Theme Circles Admin
+          <i class="fas fa-bullseye"></i> Skill Circles Admin
         </h2>
         <p style="color: rgba(255,255,255,0.7); margin: 0; font-size: 0.9rem;">
-          Create and manage theme circles for your community
+          Create and manage skill circles for your community
         </p>
       </div>
 
-      <div class="theme-admin-tabs" style="margin: 1.5rem 0;">
+      <div class="skill-admin-tabs" style="margin: 1.5rem 0;">
         <button class="tab-btn active" data-tab="create">
           <i class="fas fa-plus-circle"></i> Create New
         </button>
@@ -138,12 +138,12 @@ export async function openThemeAdminModal() {
         </button>
       </div>
 
-      <div id="theme-tab-create" class="theme-tab-content active">
+      <div id="skill-tab-create" class="skill-tab-content active">
         ${renderCreateForm()}
       </div>
 
-      <div id="theme-tab-manage" class="theme-tab-content" style="display: none;">
-        ${renderThemesList()}
+      <div id="skill-tab-manage" class="skill-tab-content" style="display: none;">
+        ${renderSkillsList()}
       </div>
     </div>
   `;
@@ -152,14 +152,14 @@ export async function openThemeAdminModal() {
   wireModalEvents();
 }
 
-export function closeThemeAdminModal() {
-  const modal = document.getElementById('theme-admin-modal');
+export function closeSkillAdminModal() {
+  const modal = document.getElementById('skill-admin-modal');
   if (modal) modal.remove();
 }
 
 function renderCreateForm() {
   return `
-    <form id="theme-create-form" style="display: grid; gap: 1.25rem;">
+    <form id="skill-create-form" style="display: grid; gap: 1.25rem;">
       <div class="form-group">
         <label for="theme-title" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
           Theme Title *
@@ -256,7 +256,7 @@ function renderCreateForm() {
       <div class="form-actions" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
         <button
           type="button"
-          onclick="window.closeThemeAdminModal()"
+          onclick="window.closeSkillAdminModal()"
           style="padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
                  border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600;"
         >
@@ -267,36 +267,36 @@ function renderCreateForm() {
           style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00e0ff, #00a8cc); border: none;
                  border-radius: 8px; color: #000; cursor: pointer; font-weight: 700;"
         >
-          <i class="fas fa-plus-circle"></i> Create Theme Circle
+          <i class="fas fa-plus-circle"></i> Create Skill Circle
         </button>
       </div>
     </form>
   `;
 }
 
-function renderThemesList() {
-  if (!themesData || themesData.length === 0) {
+function renderSkillsList() {
+  if (!skillsData || skillsData.length === 0) {
     return `
       <div style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.6);">
         <i class="fas fa-bullseye" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-        <p>No theme circles yet. Create your first one!</p>
+        <p>No skill circles yet. Create your first one!</p>
       </div>
     `;
   }
 
   const now = new Date();
-  const activeThemes = themesData.filter(t => new Date(t.expires_at) > now && t.status === 'active');
-  const expiredThemes = themesData.filter(t => new Date(t.expires_at) <= now || t.status !== 'active');
+  const activeThemes = skillsData.filter(t => new Date(t.expires_at) > now && t.status === 'active');
+  const expiredThemes = skillsData.filter(t => new Date(t.expires_at) <= now || t.status !== 'active');
 
   return `
     <div class="themes-list">
       ${activeThemes.length > 0 ? `
         <div class="themes-section" style="margin-bottom: 2rem;">
           <h3 style="color: #00ff88; font-size: 1.1rem; margin-bottom: 1rem;">
-            <i class="fas fa-check-circle"></i> Active Themes (${activeThemes.length})
+            <i class="fas fa-check-circle"></i> Active Skills (${activeThemes.length})
           </h3>
-          <div class="themes-grid" style="display: grid; gap: 1rem;">
-            ${activeThemes.map(theme => renderThemeCard(theme)).join('')}
+          <div class="skills-grid" style="display: grid; gap: 1rem;">
+            ${activeThemes.map(theme => renderSkillCard(theme)).join('')}
           </div>
         </div>
       ` : ''}
@@ -306,8 +306,8 @@ function renderThemesList() {
           <h3 style="color: rgba(255,255,255,0.5); font-size: 1.1rem; margin-bottom: 1rem;">
             <i class="fas fa-archive"></i> Expired/Inactive (${expiredThemes.length})
           </h3>
-          <div class="themes-grid" style="display: grid; gap: 1rem;">
-            ${expiredThemes.map(theme => renderThemeCard(theme, true)).join('')}
+          <div class="skills-grid" style="display: grid; gap: 1rem;">
+            ${expiredThemes.map(theme => renderSkillCard(theme, true)).join('')}
           </div>
         </div>
       ` : ''}
@@ -315,7 +315,7 @@ function renderThemesList() {
   `;
 }
 
-function renderThemeCard(theme, isExpired = false) {
+function renderSkillCard(theme, isExpired = false) {
   const now = Date.now();
   const expires = new Date(theme.expires_at).getTime();
   const remaining = expires - now;
@@ -326,7 +326,7 @@ function renderThemeCard(theme, isExpired = false) {
                    hoursRemaining > 0 ? `${hoursRemaining} hours left` : 'Expired';
 
   return `
-    <div class="theme-card" data-theme-id="${theme.id}" style="
+    <div class="skill-card" data-skill-id="${theme.id}" style="
       background: ${isExpired ? 'rgba(0,0,0,0.2)' : 'rgba(0,224,255,0.05)'};
       border: 1px solid ${isExpired ? 'rgba(255,255,255,0.1)' : 'rgba(0,224,255,0.3)'};
       border-radius: 12px;
@@ -387,7 +387,7 @@ function renderThemeCard(theme, isExpired = false) {
           </span>
           <button
             class="btn-manage-projects"
-            data-theme-id="${theme.id}"
+            data-skill-id="${theme.id}"
             style="
               padding: 0.35rem 0.75rem;
               background: rgba(0,224,255,0.1);
@@ -415,8 +415,8 @@ function renderThemeCard(theme, isExpired = false) {
 
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
         <button
-          class="btn-edit-theme"
-          data-theme-id="${theme.id}"
+          class="btn-edit-skill"
+          data-skill-id="${theme.id}"
           style="
             flex: 1;
             padding: 0.5rem 1rem;
@@ -432,8 +432,8 @@ function renderThemeCard(theme, isExpired = false) {
         </button>
         ${!isExpired ? `
           <button
-            class="btn-extend-theme"
-            data-theme-id="${theme.id}"
+            class="btn-extend-skill"
+            data-skill-id="${theme.id}"
             style="
               flex: 1;
               padding: 0.5rem 1rem;
@@ -450,7 +450,7 @@ function renderThemeCard(theme, isExpired = false) {
         ` : ''}
         <button
           class="btn-${isExpired ? 'delete' : 'archive'}-theme"
-          data-theme-id="${theme.id}"
+          data-skill-id="${theme.id}"
           style="
             padding: 0.5rem 1rem;
             background: rgba(255,107,107,0.1);
@@ -473,7 +473,7 @@ function renderThemeCard(theme, isExpired = false) {
 // ============================================================================
 
 function wireModalEvents() {
-  const modal = document.getElementById('theme-admin-modal');
+  const modal = document.getElementById('skill-admin-modal');
   if (!modal) return;
 
   // Tab switching
@@ -485,43 +485,43 @@ function wireModalEvents() {
   });
 
   // Form submission
-  const form = modal.querySelector('#theme-create-form');
+  const form = modal.querySelector('#skill-create-form');
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      await handleCreateTheme(form);
+      await handleCreateSkill(form);
     });
   }
 
   // Theme management buttons (delegated)
   modal.addEventListener('click', async (e) => {
-    const editBtn = e.target.closest('.btn-edit-theme');
-    const extendBtn = e.target.closest('.btn-extend-theme');
-    const archiveBtn = e.target.closest('.btn-archive-theme');
-    const deleteBtn = e.target.closest('.btn-delete-theme');
+    const editBtn = e.target.closest('.btn-edit-skill');
+    const extendBtn = e.target.closest('.btn-extend-skill');
+    const archiveBtn = e.target.closest('.btn-archive-skill');
+    const deleteBtn = e.target.closest('.btn-delete-skill');
     const manageProjectsBtn = e.target.closest('.btn-manage-projects');
 
     if (editBtn) {
-      const themeId = editBtn.dataset.themeId;
-      await handleEditTheme(themeId);
+      const skillId = editBtn.dataset.skillId;
+      await handleEditSkill(skillId);
     } else if (extendBtn) {
-      const themeId = extendBtn.dataset.themeId;
-      await handleExtendTheme(themeId);
+      const skillId = extendBtn.dataset.skillId;
+      await handleExtendSkill(skillId);
     } else if (archiveBtn) {
-      const themeId = archiveBtn.dataset.themeId;
-      await handleArchiveTheme(themeId);
+      const skillId = archiveBtn.dataset.skillId;
+      await handleArchiveSkill(skillId);
     } else if (deleteBtn) {
-      const themeId = deleteBtn.dataset.themeId;
-      await handleDeleteTheme(themeId);
+      const skillId = deleteBtn.dataset.skillId;
+      await handleDeleteSkill(skillId);
     } else if (manageProjectsBtn) {
-      const themeId = manageProjectsBtn.dataset.themeId;
-      await handleManageProjects(themeId);
+      const skillId = manageProjectsBtn.dataset.skillId;
+      await handleManageProjects(skillId);
     }
   });
 }
 
 function switchTab(tabName) {
-  const modal = document.getElementById('theme-admin-modal');
+  const modal = document.getElementById('skill-admin-modal');
   if (!modal) return;
 
   // Update tab buttons
@@ -534,7 +534,7 @@ function switchTab(tabName) {
   });
 
   // Update tab content
-  modal.querySelectorAll('.theme-tab-content').forEach(content => {
+  modal.querySelectorAll('.skill-tab-content').forEach(content => {
     if (content.id === `theme-tab-${tabName}`) {
       content.style.display = 'block';
       content.classList.add('active');
@@ -549,7 +549,7 @@ function switchTab(tabName) {
 // CRUD OPERATIONS
 // ============================================================================
 
-async function loadAllThemes() {
+async function loadAllSkills() {
   if (!supabase) return;
 
   try {
@@ -560,10 +560,10 @@ async function loadAllThemes() {
 
     if (error) throw error;
 
-    themesData = data || [];
+    skillsData = data || [];
 
     // Load project counts for each theme
-    for (const theme of themesData) {
+    for (const theme of skillsData) {
       const { data: projects, error: projError } = await supabase
         .from('projects')
         .select('id, title, status')
@@ -578,12 +578,12 @@ async function loadAllThemes() {
     }
 
   } catch (error) {
-    console.error('Failed to load themes:', error);
-    showSynapseNotification('Failed to load themes', 'error');
+    console.error('Failed to load skills:', error);
+    showSynapseNotification('Failed to load skills', 'error');
   }
 }
 
-async function handleCreateTheme(form) {
+async function handleCreateSkill(form) {
   if (!supabase) return;
 
   const formData = new FormData(form);
@@ -621,13 +621,13 @@ async function handleCreateTheme(form) {
 
     if (error) throw error;
 
-    showSynapseNotification('Theme circle created! ✨', 'success');
+    showSynapseNotification('Skill circle created! ✨', 'success');
 
     // Reload themes and switch to manage tab
-    await loadAllThemes();
-    const manageTab = document.getElementById('theme-tab-manage');
+    await loadAllSkills();
+    const manageTab = document.getElementById('skill-tab-manage');
     if (manageTab) {
-      manageTab.innerHTML = renderThemesList();
+      manageTab.innerHTML = renderSkillsList();
     }
     switchTab('manage');
 
@@ -635,13 +635,13 @@ async function handleCreateTheme(form) {
     form.reset();
 
   } catch (error) {
-    console.error('Failed to create theme:', error);
-    showSynapseNotification(error.message || 'Failed to create theme', 'error');
+    console.error('Failed to create skill:', error);
+    showSynapseNotification(error.message || 'Failed to create skill', 'error');
   }
 }
 
-async function handleEditTheme(themeId) {
-  const theme = themesData.find(t => t.id === themeId);
+async function handleEditSkill(skillId) {
+  const theme = skillsData.find(t => t.id === skillId);
   if (!theme) return;
 
   const title = prompt('Theme title:', theme.title);
@@ -656,27 +656,27 @@ async function handleEditTheme(themeId) {
     const { error } = await supabase
       .from('theme_circles')
       .update({ title, description: description || null, tags })
-      .eq('id', themeId);
+      .eq('id', skillId);
 
     if (error) throw error;
 
-    showSynapseNotification('Theme updated!', 'success');
+    showSynapseNotification('Skill updated!', 'success');
 
-    await loadAllThemes();
-    const manageTab = document.getElementById('theme-tab-manage');
+    await loadAllSkills();
+    const manageTab = document.getElementById('skill-tab-manage');
     if (manageTab) {
-      manageTab.innerHTML = renderThemesList();
+      manageTab.innerHTML = renderSkillsList();
     }
     wireModalEvents();
 
   } catch (error) {
-    console.error('Failed to update theme:', error);
-    showSynapseNotification(error.message || 'Failed to update theme', 'error');
+    console.error('Failed to update skill:', error);
+    showSynapseNotification(error.message || 'Failed to update skill', 'error');
   }
 }
 
-async function handleExtendTheme(themeId) {
-  const theme = themesData.find(t => t.id === themeId);
+async function handleExtendSkill(skillId) {
+  const theme = skillsData.find(t => t.id === skillId);
   if (!theme) return;
 
   const daysRaw = prompt('Extend by how many days?', '7');
@@ -689,52 +689,52 @@ async function handleExtendTheme(themeId) {
     const { error } = await supabase
       .from('theme_circles')
       .update({ expires_at: newExpiresAt })
-      .eq('id', themeId);
+      .eq('id', skillId);
 
     if (error) throw error;
 
     showSynapseNotification(`Extended by ${days} days! ⏰`, 'success');
 
-    await loadAllThemes();
-    const manageTab = document.getElementById('theme-tab-manage');
+    await loadAllSkills();
+    const manageTab = document.getElementById('skill-tab-manage');
     if (manageTab) {
-      manageTab.innerHTML = renderThemesList();
+      manageTab.innerHTML = renderSkillsList();
     }
     wireModalEvents();
 
   } catch (error) {
-    console.error('Failed to extend theme:', error);
-    showSynapseNotification(error.message || 'Failed to extend theme', 'error');
+    console.error('Failed to extend skill:', error);
+    showSynapseNotification(error.message || 'Failed to extend skill', 'error');
   }
 }
 
-async function handleArchiveTheme(themeId) {
+async function handleArchiveSkill(skillId) {
   if (!confirm('Archive this theme? It will no longer appear in the network.')) return;
 
   try {
     const { error } = await supabase
       .from('theme_circles')
       .update({ status: 'archived' })
-      .eq('id', themeId);
+      .eq('id', skillId);
 
     if (error) throw error;
 
-    showSynapseNotification('Theme archived', 'success');
+    showSynapseNotification('Skill archived', 'success');
 
-    await loadAllThemes();
-    const manageTab = document.getElementById('theme-tab-manage');
+    await loadAllSkills();
+    const manageTab = document.getElementById('skill-tab-manage');
     if (manageTab) {
-      manageTab.innerHTML = renderThemesList();
+      manageTab.innerHTML = renderSkillsList();
     }
     wireModalEvents();
 
   } catch (error) {
-    console.error('Failed to archive theme:', error);
-    showSynapseNotification(error.message || 'Failed to archive theme', 'error');
+    console.error('Failed to archive skill:', error);
+    showSynapseNotification(error.message || 'Failed to archive skill', 'error');
   }
 }
 
-async function handleDeleteTheme(themeId) {
+async function handleDeleteSkill(skillId) {
   if (!confirm('Permanently delete this theme? This cannot be undone.')) return;
 
   try {
@@ -742,33 +742,33 @@ async function handleDeleteTheme(themeId) {
     await supabase
       .from('theme_participants')
       .delete()
-      .eq('theme_id', themeId);
+      .eq('theme_id', skillId);
 
     // Delete theme
     const { error } = await supabase
       .from('theme_circles')
       .delete()
-      .eq('id', themeId);
+      .eq('id', skillId);
 
     if (error) throw error;
 
-    showSynapseNotification('Theme deleted', 'success');
+    showSynapseNotification('Skill deleted', 'success');
 
-    await loadAllThemes();
-    const manageTab = document.getElementById('theme-tab-manage');
+    await loadAllSkills();
+    const manageTab = document.getElementById('skill-tab-manage');
     if (manageTab) {
-      manageTab.innerHTML = renderThemesList();
+      manageTab.innerHTML = renderSkillsList();
     }
     wireModalEvents();
 
   } catch (error) {
-    console.error('Failed to delete theme:', error);
-    showSynapseNotification(error.message || 'Failed to delete theme', 'error');
+    console.error('Failed to delete skill:', error);
+    showSynapseNotification(error.message || 'Failed to delete skill', 'error');
   }
 }
 
-async function handleManageProjects(themeId) {
-  const theme = themesData.find(t => t.id === themeId);
+async function handleManageProjects(skillId) {
+  const theme = skillsData.find(t => t.id === skillId);
   if (!theme) return;
 
   try {
@@ -782,8 +782,8 @@ async function handleManageProjects(themeId) {
     if (error) throw error;
 
     // Separate assigned and unassigned projects
-    const assignedProjects = allProjects.filter(p => p.theme_id === themeId);
-    const availableProjects = allProjects.filter(p => !p.theme_id || p.theme_id !== themeId);
+    const assignedProjects = allProjects.filter(p => p.theme_id === skillId);
+    const availableProjects = allProjects.filter(p => !p.theme_id || p.theme_id !== skillId);
 
     // Build project list text
     let message = `Managing projects for: ${theme.title}\n\n`;
@@ -823,10 +823,10 @@ async function handleManageProjects(themeId) {
 
     if (action === 'assign' && num > 0 && num <= availableProjects.length) {
       const project = availableProjects[num - 1];
-      await assignProjectToTheme(project.id, themeId, project.title);
+      await assignProjectToSkill(project.id, skillId, project.title);
     } else if (action === 'remove' && num > 0 && num <= assignedProjects.length) {
       const project = assignedProjects[num - 1];
-      await unassignProjectFromTheme(project.id, project.title);
+      await unassignProjectFromSkill(project.id, project.title);
     } else {
       alert('Invalid command. Please use "assign <number>" or "remove <number>"');
     }
@@ -837,11 +837,11 @@ async function handleManageProjects(themeId) {
   }
 }
 
-async function assignProjectToTheme(projectId, themeId, projectTitle) {
+async function assignProjectToSkill(projectId, skillId, projectTitle) {
   try {
     const { error } = await supabase
       .from('projects')
-      .update({ theme_id: themeId })
+      .update({ theme_id: skillId })
       .eq('id', projectId);
 
     if (error) throw error;
@@ -849,10 +849,10 @@ async function assignProjectToTheme(projectId, themeId, projectTitle) {
     showSynapseNotification(`✓ Assigned: ${projectTitle}`, 'success');
 
     // Reload and refresh UI
-    await loadAllThemes();
-    const manageTab = document.getElementById('theme-tab-manage');
+    await loadAllSkills();
+    const manageTab = document.getElementById('skill-tab-manage');
     if (manageTab) {
-      manageTab.innerHTML = renderThemesList();
+      manageTab.innerHTML = renderSkillsList();
     }
     wireModalEvents();
 
@@ -862,7 +862,7 @@ async function assignProjectToTheme(projectId, themeId, projectTitle) {
   }
 }
 
-async function unassignProjectFromTheme(projectId, projectTitle) {
+async function unassignProjectFromSkill(projectId, projectTitle) {
   try {
     const { error } = await supabase
       .from('projects')
@@ -874,10 +874,10 @@ async function unassignProjectFromTheme(projectId, projectTitle) {
     showSynapseNotification(`✓ Removed: ${projectTitle}`, 'success');
 
     // Reload and refresh UI
-    await loadAllThemes();
-    const manageTab = document.getElementById('theme-tab-manage');
+    await loadAllSkills();
+    const manageTab = document.getElementById('skill-tab-manage');
     if (manageTab) {
-      manageTab.innerHTML = renderThemesList();
+      manageTab.innerHTML = renderSkillsList();
     }
     wireModalEvents();
 
@@ -903,7 +903,7 @@ function escapeHtml(text) {
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initThemeAdmin);
+  document.addEventListener('DOMContentLoaded', initSkillAdmin);
 } else {
-  initThemeAdmin();
+  initSkillAdmin();
 }

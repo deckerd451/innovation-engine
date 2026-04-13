@@ -378,7 +378,7 @@ async function loadNodeDetails(nodeData) {
   try {
     // Check if this is a theme lens view
     if (nodeData.isThemeLens) {
-      await renderThemeLensPanel(nodeData);
+      await renderSkillLensPanel(nodeData);
       return;
     }
 
@@ -405,8 +405,8 @@ async function loadNodeDetails(nodeData) {
 }
 
 // Render theme lens panel (shows projects within theme)
-async function renderThemeLensPanel(themeData) {
-  const { name, description, tags, expires_at, relatedProjects, onClearFocus } = themeData;
+async function renderSkillLensPanel(skillData) {
+  const { name, description, tags, expires_at, relatedProjects, onClearFocus } = skillData;
 
   // Get current user info
   let currentUserCommunityId = null;
@@ -414,7 +414,7 @@ async function renderThemeLensPanel(themeData) {
   let isParticipant = false;
   
   // Remove 'theme:' prefix from theme ID
-  const cleanThemeId = themeData.id ? themeData.id.replace(/^theme:/, '') : null;
+  const cleanThemeId = skillData.id ? skillData.id.replace(/^theme:/, '') : null;
   
   try {
     const user = await window.bootstrapSession.getAuthUser();
@@ -428,7 +428,7 @@ async function renderThemeLensPanel(themeData) {
       currentUserCommunityId = currentUserProfile?.id;
 
       // Check if user created this theme
-      isCreator = themeData.created_by === currentUserCommunityId;
+      isCreator = skillData.created_by === currentUserCommunityId;
       
       // Check if user is a participant
       if (cleanThemeId && currentUserCommunityId) {
@@ -494,7 +494,7 @@ async function renderThemeLensPanel(themeData) {
       ${currentUserCommunityId ? `
         <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
           ${!isParticipant && !isCreator ? `
-            <button onclick="joinTheme('${themeData.id}', '${escapeHtml(name)}')"
+            <button onclick="joinTheme('${skillData.id}', '${escapeHtml(name)}')"
               onmouseover="this.style.background='linear-gradient(135deg, rgba(0,224,255,0.3), rgba(0,224,255,0.2))'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)';"
               onmouseout="this.style.background='linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1))'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
               style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1)); border: 1px solid rgba(0,224,255,0.4); 
@@ -503,7 +503,7 @@ async function renderThemeLensPanel(themeData) {
             </button>
           ` : ''}
           ${isCreator ? `
-            <button onclick="deleteTheme('${themeData.id}', '${escapeHtml(name)}')"
+            <button onclick="deleteTheme('${skillData.id}', '${escapeHtml(name)}')"
               onmouseover="this.style.background='rgba(255,68,68,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,68,68,0.3)';"
               onmouseout="this.style.background='rgba(255,68,68,0.15)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
               style="flex: 1; padding: 0.75rem; background: rgba(255,68,68,0.15); border: 1px solid rgba(255,68,68,0.4); 
@@ -512,7 +512,7 @@ async function renderThemeLensPanel(themeData) {
             </button>
           ` : ''}
           ${isParticipant && !isCreator ? `
-            <button onclick="leaveTheme('${themeData.id}', '${escapeHtml(name)}')"
+            <button onclick="leaveTheme('${skillData.id}', '${escapeHtml(name)}')"
               onmouseover="this.style.background='rgba(255,170,0,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,170,0,0.3)';"
               onmouseout="this.style.background='rgba(255,170,0,0.15)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
               style="flex: 1; padding: 0.75rem; background: rgba(255,170,0,0.15); border: 1px solid rgba(255,170,0,0.4); 
@@ -543,7 +543,7 @@ async function renderThemeLensPanel(themeData) {
       `}
 
       <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">
-        <button onclick="createProjectInTheme('${themeData.id}', '${escapeHtml(name)}')"
+        <button onclick="createProjectInSkill('${skillData.id}', '${escapeHtml(name)}')"
           style="width: 100%; padding: 0.875rem; background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1)); border: 1px solid rgba(0,224,255,0.4); border-radius: 8px; color: #00e0ff; cursor: pointer; font-weight: 700; font-size: 1rem;">
           <i class="fas fa-plus-circle"></i> Create Project in ${escapeHtml(name)}
         </button>
@@ -3527,7 +3527,7 @@ function parseCommaList(text) {
 }
 
 // Function to create a project in a specific theme
-window.createProjectInTheme = async function createProjectInTheme(themeId, themeName) {
+window.createProjectInSkill = async function createProjectInSkill(themeId, themeName) {
   console.log("🎯 Creating project in theme:", { themeId, themeName });
   
   try {
@@ -3573,7 +3573,7 @@ window.createProjectInTheme = async function createProjectInTheme(themeId, theme
 }
 
 // Join theme function
-window.joinTheme = async function(themeId, themeName) {
+window.joinSkill = async function(themeId, themeName) {
   try {
     const user = await window.bootstrapSession.getAuthUser();
     if (!user) {
@@ -3680,7 +3680,7 @@ window.joinTheme = async function(themeId, themeName) {
 };
 
 // Leave theme function
-window.leaveTheme = async function(themeId, themeName) {
+window.leaveSkill = async function(themeId, themeName) {
   if (!confirm(`Are you sure you want to leave "${themeName}"?\n\nYou can rejoin later if you change your mind.`)) {
     return;
   }
@@ -3744,7 +3744,7 @@ window.leaveTheme = async function(themeId, themeName) {
 };
 
 // Delete theme function
-window.deleteTheme = async function(themeId, themeName) {
+window.deleteSkill = async function(themeId, themeName) {
   if (!confirm(`⚠️ Are you sure you want to DELETE "${themeName}"?\n\nThis will:\n• Remove the theme permanently\n• Remove all participants\n• Unlink all projects from this theme\n\nThis action CANNOT be undone!`)) {
     return;
   }

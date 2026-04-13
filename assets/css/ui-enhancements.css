@@ -972,7 +972,7 @@ a:focus-visible {
 /* Card Transitions */
 .connection-card,
 .project-card,
-.theme-card {
+.skill-card {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
