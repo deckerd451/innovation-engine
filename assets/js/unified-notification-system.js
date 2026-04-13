@@ -641,12 +641,12 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     header.innerHTML = `
       <div>
         <h3 style="margin: 0 0 0.25rem 0; color: #00e0ff; font-size: 1.3rem;">
-          <i class="fas fa-bell"></i> Network Reflection
+          <i class="fas fa-bell"></i> Notifications
         </h3>
         <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
           ${unifiedData.totalUnread > 0
             ? unifiedData.totalUnread + ' ' + (unifiedData.totalUnread === 1 ? 'item' : 'items') + ' need your attention'
-            : 'Your focus, signals &amp; updates'}
+            : 'Messages, updates &amp; alerts'}
         </p>
       </div>
       <button id="close-unified-panel" style="
