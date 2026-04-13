@@ -1449,29 +1449,35 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     
     // Check if mobile
     const isMobile = window.innerWidth <= 768;
-    
-    const html = suggestions.map((item, index) => {
-      const imageHtml = item.image 
-        ? `<img loading="lazy" src="${escapeHtml(item.image)}" 
-             style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid ${item.color}; flex-shrink:0;"
+
+    // Limit results shown on mobile to keep the list compact
+    const displaySuggestions = isMobile ? suggestions.slice(0, 4) : suggestions;
+
+    const avatarSize = isMobile ? '32px' : '40px';
+    const itemPadding = isMobile ? '0.45rem 0.75rem' : '0.75rem 1rem';
+    const titleSize = isMobile ? '0.85rem' : '0.95rem';
+    const subtitleSize = isMobile ? '0.78rem' : '0.85rem';
+
+    const html = displaySuggestions.map((item, index) => {
+      const imageHtml = item.image
+        ? `<img loading="lazy" src="${escapeHtml(item.image)}"
+             style="width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover; border:2px solid ${item.color}; flex-shrink:0;"
              onerror="this.style.display='none'">`
-        : `<div style="width:40px; height:40px; border-radius:50%; background:${item.color}20; 
+        : `<div style="width:${avatarSize}; height:${avatarSize}; border-radius:50%; background:${item.color}20;
              border:2px solid ${item.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-             <i class="fas ${item.icon}" style="color:${item.color}; font-size:1.2rem;"></i>
+             <i class="fas ${item.icon}" style="color:${item.color}; font-size:${isMobile ? '0.9rem' : '1.2rem'};"></i>
            </div>`;
-      
+
       return `
         <div class="search-suggestion-item" data-index="${index}"
-          style="padding:0.75rem 1rem; cursor:pointer; transition:all 0.2s; 
-          border-bottom:1px solid rgba(0,224,255,0.1); display:flex; align-items:center; gap:1rem;
-          ${isMobile ? 'min-height:60px;' : ''}">
+          style="padding:${itemPadding}; cursor:pointer; transition:background 0.15s;
+          border-bottom:1px solid rgba(0,224,255,0.1); display:flex; align-items:center; gap:${isMobile ? '0.6rem' : '1rem'};">
           ${imageHtml}
           <div style="flex:1; min-width:0;">
-            <div style="color:${item.color}; font-weight:600; font-size:0.95rem; margin-bottom:0.25rem;">
-              <i class="fas ${item.icon}" style="font-size:0.85rem; margin-right:0.5rem;"></i>
+            <div style="color:${item.color}; font-weight:600; font-size:${titleSize}; margin-bottom:0.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
               ${highlightMatch(escapeHtml(item.title), query)}
             </div>
-            <div style="color:#aaa; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <div style="color:#aaa; font-size:${subtitleSize}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               ${escapeHtml(item.subtitle)}
             </div>
           </div>

@@ -323,15 +323,9 @@
       top: auto !important;
       bottom: calc(100% + 0.5rem) !important;
 
-      /* Safe max height */
-      max-height: calc(
-        var(--mobile-vh)
-        - var(--hud-top)
-        - var(--hud-bottom)
-        - var(--safe-top)
-        - var(--safe-bottom)
-        - 80px
-      ) !important;
+      /* Hard cap: keyboard takes ~45% of viewport on most phones.
+         Leave the search bar (~50px) + a small gap. 40vh is safe. */
+      max-height: min(240px, 40vh) !important;
 
       /* Z-index should be above HUD but below modal */
       z-index: calc(var(--z-hud) + 10) !important;
