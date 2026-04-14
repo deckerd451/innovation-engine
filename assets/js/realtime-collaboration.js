@@ -465,7 +465,9 @@ export async function openMessagingInterface(conversationId = null) {
 
           <div id="conversations-list" style="
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             padding: 1rem;
           ">
             <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
@@ -490,9 +492,11 @@ export async function openMessagingInterface(conversationId = null) {
           <div style="flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 0;">
           <div id="messages-area" style="
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
             padding: 1rem;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             overscroll-behavior: contain;
@@ -806,9 +810,17 @@ export async function openMessagingInterface(conversationId = null) {
         }
 
         /* Default panel: show sidebar, hide chat.
-           Give the hidden chat-area explicit zero-width so Safari's
-           display:none flex-item layout bug can't leave a residual gap. */
+           display:flex + height:100% are required on iOS Safari: when a flex
+           item's height comes from align-items:stretch (implicit), nested
+           children with flex:1 (like #conversations-list) compute to height 0.
+           An explicit height breaks that cycle.  flex:1 1 auto lets the sidebar
+           fill the remaining row space without the fixed 350px inline width. */
         #messaging-interface .conversations-sidebar {
+          display: flex !important;
+          flex-direction: column !important;
+          flex: 1 1 auto !important;
+          height: 100% !important;
+          min-height: 0 !important;
           width: 100% !important;
           min-width: 0 !important;
           border-right: none !important;
@@ -1398,8 +1410,9 @@ async function loadConversationMessages(conversationId) {
     msgOffsets.set(conversationId, MSG_PAGE);
     hasMoreMsgs.set(conversationId, totalCount > MSG_PAGE);
 
-    messagesArea.style.alignItems = '';
-    messagesArea.style.justifyContent = '';
+    messagesArea.style.alignItems = 'flex-start';
+    messagesArea.style.justifyContent = 'flex-start';
+    messagesArea.style.flexDirection = 'column';
 
     let innerHtml = '<div class="rt-msg-inner" style="display: flex; flex-direction: column; width: 100%; padding: 1rem;">';
 
