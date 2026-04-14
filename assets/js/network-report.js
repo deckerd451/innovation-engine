@@ -398,6 +398,17 @@
     _updateCountBadge();
   }
 
+  function _clearReport() {
+    if (_reportItems.length === 0) return;
+    if (!confirm(`Remove all ${_reportItems.length} item${_reportItems.length === 1 ? '' : 's'} and start over?`)) return;
+    _reportItems   = [];
+    _reportCounter = 0;
+    _saveList();
+    _renderReportList();
+    _renderResults(_results);
+    _updateCountBadge();
+  }
+
   function _renderReportList() {
     const list = $('#nr-report-list');
     const countEl = $('#nr-report-count');
@@ -559,6 +570,10 @@
         _renderResults([]);
       });
     }
+
+    // Clear button
+    const clearBtn2 = $('#nr-clear-btn');
+    if (clearBtn2) clearBtn2.addEventListener('click', _clearReport);
 
     // Download button
     const dlBtn = $('#nr-download-btn');

@@ -674,9 +674,14 @@
               <div style="font-size:0.6rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(200,210,255,0.55);">
                 Your List &nbsp;<span id="nr-report-count" style="background:rgba(0,224,255,0.18); color:#00e0ff; border-radius:10px; padding:0.1em 0.45em;">0</span>
               </div>
-              <button id="nr-download-btn" title="Download report" style="display:flex; align-items:center; gap:0.4rem; padding:0.35rem 0.75rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:6px; color:#00e0ff; cursor:pointer; font-size:0.7rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; transition:all 0.2s;" onmouseenter="this.style.background='rgba(0,224,255,0.2)'" onmouseleave="this.style.background='rgba(0,224,255,0.1)'">
-                <i class="fas fa-download"></i> Download
-              </button>
+              <div style="display:flex; gap:0.4rem;">
+                <button id="nr-clear-btn" title="Clear all items" style="display:flex; align-items:center; gap:0.4rem; padding:0.35rem 0.75rem; background:rgba(255,80,80,0.1); border:1px solid rgba(255,80,80,0.3); border-radius:6px; color:#ff6b6b; cursor:pointer; font-size:0.7rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; transition:all 0.2s;" onmouseenter="this.style.background='rgba(255,80,80,0.2)'" onmouseleave="this.style.background='rgba(255,80,80,0.1)'">
+                  <i class="fas fa-trash"></i> Clear
+                </button>
+                <button id="nr-download-btn" title="Download report" style="display:flex; align-items:center; gap:0.4rem; padding:0.35rem 0.75rem; background:rgba(0,224,255,0.1); border:1px solid rgba(0,224,255,0.3); border-radius:6px; color:#00e0ff; cursor:pointer; font-size:0.7rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; transition:all 0.2s;" onmouseenter="this.style.background='rgba(0,224,255,0.2)'" onmouseleave="this.style.background='rgba(0,224,255,0.1)'">
+                  <i class="fas fa-download"></i> Download
+                </button>
+              </div>
             </div>
           </div>
 
@@ -931,7 +936,7 @@
 
   <script src="assets/js/graph-controller.js" defer></script>
   <script src="assets/js/command-dashboard.js?v=fix-project-persist-20260414" defer></script>
-  <script src="assets/js/network-report.js?v=fix-report-20260414" defer></script>
+  <script src="assets/js/network-report.js?v=clear-report-20260414" defer></script>
 
   <script>
     window.closeStartModal = function () {
