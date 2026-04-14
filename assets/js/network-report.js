@@ -144,7 +144,7 @@
       id: `person-${p.id}`,
       dbId: p.id,
       name: p.name || 'Unknown',
-      meta: p.bio || (Array.isArray(p.skills) ? p.skills.join(', ') : p.skills) || 'No bio',
+      meta: p.bio || null,
       email: p.email || null,
       extra: Array.isArray(p.skills) ? p.skills.slice(0, 4).join(', ') : (p.skills || null),
     };
