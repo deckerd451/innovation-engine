@@ -1147,7 +1147,17 @@ try {
 
         // Mobile boundary clamping — keep nodes within visible viewport
         // so avatars don't escape off-screen edges on small displays.
-        if (window.innerWidth < 768) {
+        //
+        // Skip clamping while the virtual keyboard is open.  When the keyboard
+        // appears the SVG container shrinks to fit the reduced visual viewport,
+        // so getBoundingClientRect().height returns a smaller value.  Without
+        // this guard, nodes near the bottom would be clamped to the new (smaller)
+        // h boundary every frame — visibly dragging them upward while the user
+        // types in the search bar.  mobile-enhancements.js sets the
+        // 'keyboard-open' class on <body> via the visualViewport API (with a
+        // window.resize fallback), so the check is reliable across browsers.
+        const keyboardOpen = document.body.classList.contains('keyboard-open');
+        if (window.innerWidth < 768 && !keyboardOpen) {
           const svgRect = this._svg?.getBoundingClientRect();
           const w = svgRect ? svgRect.width : window.innerWidth;
           const h = svgRect ? svgRect.height : window.innerHeight;
