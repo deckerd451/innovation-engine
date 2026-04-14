@@ -1735,14 +1735,45 @@ window.CommandDashboard = (() => {
     const opType = typeEl ? typeEl.value : '';
 
     if (resourceType === 'projects') {
-      // Delegate to the existing project creation modal if available
-      if (typeof window.showEnhancedProjectCreation === 'function') {
-        window.showEnhancedProjectCreation();
-      } else if (typeof window.showCreateProjectForm === 'function') {
-        window.showCreateProjectForm();
-      } else {
-        _showAddConfirmation('project', name);
+      // Insert directly to Supabase and patch local state immediately so the
+      // new project persists and appears in the list without a page reload.
+      _closeAddForm();
+
+      if (window.supabase && _userId) {
+        const projectData = {
+          title: name,
+          description: desc || '',
+          creator_id: _userId,
+          status: 'active',
+        };
+
+        const { data: newProject, error } = await window.supabase
+          .from('projects')
+          .insert(projectData)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('[CommandDashboard] Failed to create project:', error);
+        } else if (newProject) {
+          // Add creator as a project member (best effort)
+          window.supabase.from('project_members').insert({
+            project_id: newProject.id,
+            user_id: _userId,
+            role: 'creator',
+          }).catch(() => {});
+
+          // Patch local state immediately — no full reload needed
+          if (!_enrichedData.projects) _enrichedData.projects = [];
+          _enrichedData.projects.unshift(newProject);
+          if (!_enrichedData.activeProjectIds) _enrichedData.activeProjectIds = new Set();
+          _enrichedData.activeProjectIds.add(newProject.id);
+          if (!_enrichedData.myProjectIds) _enrichedData.myProjectIds = new Set();
+          _enrichedData.myProjectIds.add(newProject.id);
+          _renderResources(_currentTier);
+        }
       }
+      return; // skip the final _closeAddForm() — already closed above
     } else if (resourceType === 'opportunities') {
       // Close the form first, then await the DB insert so we can get the real ID
       _closeAddForm();
