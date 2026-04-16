@@ -38,16 +38,19 @@
   const CONFIG = {
     // Realtime presence channel
     CHANNEL_NAME: 'presence:global',
-    
+
     // Database persistence (LOW FREQUENCY)
     LAST_SEEN_UPDATE_INTERVAL: 30 * 60 * 1000, // 30 minutes
-    
+
     // Mobile fallback polling
     POLLING_INTERVAL: 60 * 1000, // 60 seconds
     POLLING_TIMEOUT: 15 * 1000, // 15 seconds to wait for realtime
-    
+
     // Online threshold for fallback mode
     ONLINE_THRESHOLD: 5 * 60 * 1000, // 5 minutes
+
+    // Circuit breaker: stop retrying after this many consecutive failures
+    MAX_RECONNECT_ATTEMPTS: 5,
   };
 
   // ============================================================================
@@ -64,6 +67,10 @@
   // Debounce guard: prevents duplicate track() calls when the channel
   // reconnects and handleVisibilityChange fire in the same tick.
   let _pendingTrackTimer = null;
+
+  // Circuit breaker: counts consecutive failures; blocks reconnect when open.
+  let _reconnectAttempts = 0;
+  let _circuitOpen = false;
   
   // Online users from Realtime Presence
   const onlineUsers = new Map(); // profileId -> presence state
@@ -161,6 +168,7 @@
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           isRealtimeConnected = true;
+          _reconnectAttempts = 0; // successful connect resets the breaker
           _log.debug('✅ [Presence] Realtime connected — mode: Realtime (ephemeral), profile:', profileId);
 
           // Debounce: cancel any pending track() from handleVisibilityChange
@@ -182,7 +190,23 @@
           }
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           isRealtimeConnected = false;
-          console.warn('⚠️ [Presence] Realtime connection failed');
+          _reconnectAttempts++;
+
+          if (_reconnectAttempts >= CONFIG.MAX_RECONNECT_ATTEMPTS) {
+            _circuitOpen = true;
+            _log.warn(
+              `[Presence] Circuit open — ${CONFIG.MAX_RECONNECT_ATTEMPTS} consecutive failures, ` +
+              'stopping reconnect. Will retry when tab regains focus.'
+            );
+            // Unsubscribe to stop Supabase's internal retry loop
+            try { presenceChannel?.unsubscribe(); } catch (_) {}
+            presenceChannel = null;
+          } else {
+            _log.warn(
+              `⚠️ [Presence] Realtime connection failed ` +
+              `(attempt ${_reconnectAttempts}/${CONFIG.MAX_RECONNECT_ATTEMPTS})`
+            );
+          }
           // Mobile fallback will activate automatically
         }
       });
@@ -392,6 +416,17 @@
       // Update last_seen when tab becomes hidden
       updateLastSeen();
     } else {
+      // If the circuit tripped, user returning to the tab is the retry signal.
+      if (_circuitOpen) {
+        _log.info('[Presence] Tab visible — resetting circuit breaker, attempting reconnect');
+        _circuitOpen = false;
+        _reconnectAttempts = 0;
+        if (supabase && communityProfileId) {
+          createPresenceChannel(supabase, { communityUser: { id: communityProfileId } });
+        }
+        return;
+      }
+
       // Re-track presence when tab becomes visible.
       // Debounce with a short delay: if the Supabase channel is in the middle
       // of reconnecting it will fire its own SUBSCRIBED callback (which also
@@ -495,6 +530,7 @@
    * @returns {string} 'realtime' or 'polling'
    */
   function getMode() {
+    if (_circuitOpen) return 'circuit-open';
     return isRealtimeConnected ? 'realtime' : 'polling';
   }
 
@@ -506,6 +542,9 @@
     return {
       mode: getMode(),
       isRealtimeConnected,
+      circuitOpen: _circuitOpen,
+      reconnectAttempts: _reconnectAttempts,
+      maxReconnectAttempts: CONFIG.MAX_RECONNECT_ATTEMPTS,
       onlineCount: getOnlineCount(),
       onlineUsers: getOnlineUsers(),
       lastSeenCacheSize: lastSeenCache.size,
@@ -566,6 +605,10 @@
       presenceChannel = null;
       isRealtimeConnected = false;
     }
+
+    // Reset circuit breaker so a fresh initialize() starts clean
+    _reconnectAttempts = 0;
+    _circuitOpen = false;
 
     // Update last_seen one final time
     updateLastSeen();
