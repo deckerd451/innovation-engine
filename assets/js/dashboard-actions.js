@@ -1306,479 +1306,499 @@ function openAdminPanel() {
 function loadAdminTabContent(tabName) {
   const content = document.getElementById('admin-tab-content');
   if (!content) return;
+  switch (tabName) {
+    case 'manage':        _adminTabManage(content);        break;
+    case 'themes':        _adminTabThemes(content);        break;
+    case 'projects':      _adminTabProjects(content);      break;
+    case 'organizations': _adminTabOrganizations(content); break;
+    case 'system':        _adminTabSystem(content);        break;
+    case 'analytics':     _adminTabAnalytics(content);     break;
+    default: console.warn('[AdminPanel] Unknown tab:', tabName);
+  }
+}
 
-  if (tabName === 'manage') {
-    // Load the new People Management panel
-    content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #00e0ff;"><i class="fas fa-spinner fa-spin"></i> Loading People Management...</div>';
-    
-    // Wait for module to be available
-    const checkModule = setInterval(() => {
-      if (typeof window.AdminPeoplePanel !== 'undefined' && typeof window.AdminPeoplePanel.renderPeoplePanel === 'function') {
-        clearInterval(checkModule);
-        window.AdminPeoplePanel.renderPeoplePanel(content);
-      }
-    }, 100);
-    
-    // Timeout after 5 seconds
-    setTimeout(() => {
+function _adminTabManage(content) {
+  content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #00e0ff;"><i class="fas fa-spinner fa-spin"></i> Loading People Management...</div>';
+  
+  // Wait for module to be available
+  const checkModule = setInterval(() => {
+    if (typeof window.AdminPeoplePanel !== 'undefined' && typeof window.AdminPeoplePanel.renderPeoplePanel === 'function') {
       clearInterval(checkModule);
-      if (!window.AdminPeoplePanel) {
-        content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load People Management panel. Please refresh the page.</div>';
-      }
-    }, 5000);
-  } else if (tabName === 'themes') {
-    content.innerHTML = `
-      <div style="max-height: 70vh; overflow-y: auto;">
-        <!-- Theme Management Section -->
-        <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem;">
-          <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 0.5rem;">
-            <i class="fas fa-bullseye"></i> Theme Circles Management
-          </h3>
-          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
-            Create and manage theme circles for your community
-          </p>
-          
-          <!-- Theme Admin Tabs -->
-          <div class="theme-admin-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid rgba(0,224,255,0.2);">
-            <button class="theme-tab-btn active" data-theme-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-              <i class="fas fa-plus-circle"></i> Create New
-            </button>
-            <button class="theme-tab-btn" data-theme-tab="manage" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-              <i class="fas fa-list"></i> Manage Existing
-            </button>
-          </div>
-          
-          <!-- Create Tab Content -->
-          <div id="theme-create-content" class="theme-tab-content">
-            <form id="admin-theme-create-form" style="display: grid; gap: 1.25rem;">
+      window.AdminPeoplePanel.renderPeoplePanel(content);
+    }
+  }, 100);
+  
+  // Timeout after 5 seconds
+  setTimeout(() => {
+    clearInterval(checkModule);
+    if (!window.AdminPeoplePanel) {
+      content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load People Management panel. Please refresh the page.</div>';
+    }
+  }, 5000);
+} else if (tabName === 'themes') {
+}
+
+function _adminTabThemes(content) {
+    <div style="max-height: 70vh; overflow-y: auto;">
+      <!-- Theme Management Section -->
+      <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem;">
+        <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 0.5rem;">
+          <i class="fas fa-bullseye"></i> Theme Circles Management
+        </h3>
+        <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          Create and manage theme circles for your community
+        </p>
+        
+        <!-- Theme Admin Tabs -->
+        <div class="theme-admin-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid rgba(0,224,255,0.2);">
+          <button class="theme-tab-btn active" data-theme-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+            <i class="fas fa-plus-circle"></i> Create New
+          </button>
+          <button class="theme-tab-btn" data-theme-tab="manage" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+            <i class="fas fa-list"></i> Manage Existing
+          </button>
+        </div>
+        
+        <!-- Create Tab Content -->
+        <div id="theme-create-content" class="theme-tab-content">
+          <form id="admin-theme-create-form" style="display: grid; gap: 1.25rem;">
+            <div class="form-group">
+              <label for="admin-theme-title" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Theme Title *
+              </label>
+              <input
+                type="text"
+                id="admin-theme-title"
+                name="title"
+                placeholder="e.g., AI in Healthcare"
+                required
+                style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
+                       border-radius: 8px; color: #fff; font-size: 1rem;"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="admin-theme-description" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Description
+              </label>
+              <textarea
+                id="admin-theme-description"
+                name="description"
+                placeholder="What is this theme about?"
+                rows="4"
+                style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
+                       border-radius: 8px; color: #fff; font-size: 1rem; resize: vertical;"
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="admin-theme-tags" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Tags (comma-separated)
+              </label>
+              <input
+                type="text"
+                id="admin-theme-tags"
+                name="tags"
+                placeholder="ai, healthcare, innovation"
+                style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
+                       border-radius: 8px; color: #fff; font-size: 1rem;"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="admin-theme-duration" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Duration (days) *
+              </label>
+              <input
+                type="number"
+                id="admin-theme-duration"
+                name="duration"
+                min="1"
+                max="90"
+                value="7"
+                required
+                style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
+                       border-radius: 8px; color: #fff; font-size: 1rem;"
+              />
+              <small style="color: rgba(255,255,255,0.6); display: block; margin-top: 0.25rem;">
+                How long should this theme remain active? (1-90 days)
+              </small>
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div class="form-group">
-                <label for="admin-theme-title" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                  Theme Title *
+                <label for="admin-theme-cta-text" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                  CTA Button Text
                 </label>
                 <input
                   type="text"
-                  id="admin-theme-title"
-                  name="title"
-                  placeholder="e.g., AI in Healthcare"
-                  required
+                  id="admin-theme-cta-text"
+                  name="cta_text"
+                  placeholder="e.g., Join Slack"
                   style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
                          border-radius: 8px; color: #fff; font-size: 1rem;"
                 />
               </div>
 
               <div class="form-group">
-                <label for="admin-theme-description" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                  Description
-                </label>
-                <textarea
-                  id="admin-theme-description"
-                  name="description"
-                  placeholder="What is this theme about?"
-                  rows="4"
-                  style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
-                         border-radius: 8px; color: #fff; font-size: 1rem; resize: vertical;"
-                ></textarea>
-              </div>
-
-              <div class="form-group">
-                <label for="admin-theme-tags" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                  Tags (comma-separated)
+                <label for="admin-theme-cta-link" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                  CTA Button Link
                 </label>
                 <input
-                  type="text"
-                  id="admin-theme-tags"
-                  name="tags"
-                  placeholder="ai, healthcare, innovation"
+                  type="url"
+                  id="admin-theme-cta-link"
+                  name="cta_link"
+                  placeholder="https://slack.com/invite..."
                   style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
                          border-radius: 8px; color: #fff; font-size: 1rem;"
                 />
               </div>
-
-              <div class="form-group">
-                <label for="admin-theme-duration" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                  Duration (days) *
-                </label>
-                <input
-                  type="number"
-                  id="admin-theme-duration"
-                  name="duration"
-                  min="1"
-                  max="90"
-                  value="7"
-                  required
-                  style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
-                         border-radius: 8px; color: #fff; font-size: 1rem;"
-                />
-                <small style="color: rgba(255,255,255,0.6); display: block; margin-top: 0.25rem;">
-                  How long should this theme remain active? (1-90 days)
-                </small>
-              </div>
-
-              <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                  <label for="admin-theme-cta-text" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                    CTA Button Text
-                  </label>
-                  <input
-                    type="text"
-                    id="admin-theme-cta-text"
-                    name="cta_text"
-                    placeholder="e.g., Join Slack"
-                    style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
-                           border-radius: 8px; color: #fff; font-size: 1rem;"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label for="admin-theme-cta-link" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                    CTA Button Link
-                  </label>
-                  <input
-                    type="url"
-                    id="admin-theme-cta-link"
-                    name="cta_link"
-                    placeholder="https://slack.com/invite..."
-                    style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
-                           border-radius: 8px; color: #fff; font-size: 1rem;"
-                  />
-                </div>
-              </div>
-
-              <div class="form-actions" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
-                <button
-                  type="button"
-                  onclick="document.getElementById('admin-theme-create-form').reset()"
-                  style="padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
-                         border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600;"
-                >
-                  Clear Form
-                </button>
-                <button
-                  type="submit"
-                  style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00e0ff, #00a8cc); border: none;
-                         border-radius: 8px; color: #000; cursor: pointer; font-weight: 700;"
-                >
-                  <i class="fas fa-plus-circle"></i> Create Theme Circle
-                </button>
-              </div>
-            </form>
-          </div>
-          
-          <!-- Manage Tab Content -->
-          <div id="theme-manage-content" class="theme-tab-content" style="display: none;">
-            <div id="admin-themes-list" style="color: rgba(255,255,255,0.7);">
-              Loading themes...
             </div>
-          </div>
+
+            <div class="form-actions" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+              <button
+                type="button"
+                onclick="document.getElementById('admin-theme-create-form').reset()"
+                style="padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+                       border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600;"
+              >
+                Clear Form
+              </button>
+              <button
+                type="submit"
+                style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00e0ff, #00a8cc); border: none;
+                       border-radius: 8px; color: #000; cursor: pointer; font-weight: 700;"
+              >
+                <i class="fas fa-plus-circle"></i> Create Theme Circle
+              </button>
+            </div>
+          </form>
         </div>
-      </div>
-    `;
-    
-    // Wire up theme tab switching
-    const themeTabBtns = content.querySelectorAll('.theme-tab-btn');
-    themeTabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Update button states
-        themeTabBtns.forEach(b => {
-          b.classList.remove('active');
-          b.style.borderBottom = '3px solid transparent';
-          b.style.color = 'rgba(255,255,255,0.6)';
-        });
-        btn.classList.add('active');
-        btn.style.borderBottom = '3px solid #00e0ff';
-        btn.style.color = '#00e0ff';
         
-        // Show/hide content
-        const tab = btn.dataset.themeTab;
-        content.querySelector('#theme-create-content').style.display = tab === 'create' ? 'block' : 'none';
-        content.querySelector('#theme-manage-content').style.display = tab === 'manage' ? 'block' : 'none';
-        
-        // Load themes list when switching to manage tab
-        if (tab === 'manage') {
-          loadAdminThemesList();
-        }
-      });
-    });
-    
-    // Wire up create form submission
-    const createForm = content.querySelector('#admin-theme-create-form');
-    if (createForm) {
-      createForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try {
-          await handleAdminCreateTheme(createForm);
-        } catch (err) {
-          console.error("❌ Admin theme creation failed:", err);
-        }
-      });
-    }
-    
-    // Load themes list initially (for manage tab)
-    loadAdminThemesList();
-  } else if (tabName === 'projects') {
-    content.innerHTML = `
-      <div style="margin-bottom: 2rem;">
-        <button onclick="if(typeof openProjectsModal === 'function') openProjectsModal();" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
-          <i class="fas fa-plus"></i> Create New Project
-        </button>
-      </div>
-      <div id="admin-projects-list" style="color: rgba(255,255,255,0.7);">
-        Loading projects...
-      </div>
-    `;
-    loadProjectsList();
-  } else if (tabName === 'organizations') {
-    content.innerHTML = `
-      <div style="margin-bottom: 2rem;">
-        <button onclick="if(typeof showOrganizationsPanel === 'function') { document.getElementById('admin-panel')?.remove(); showOrganizationsPanel(); }" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
-          <i class="fas fa-plus"></i> Create New Organization
-        </button>
-      </div>
-      <div id="admin-orgs-list" style="color: rgba(255,255,255,0.7);">
-        Loading organizations...
-      </div>
-    `;
-    loadOrganizationsList();
-  } else if (tabName === 'system') {
-    // Check both debug flags - if either is set, show as enabled
-    const isDebug = localStorage.getItem('unified-network-debug') === 'true' ||
-                    localStorage.getItem('DEBUG') === '1';
-
-    content.innerHTML = `
-      <div style="max-height: 60vh; overflow-y: auto;">
-        <!-- Unified Network Discovery Section -->
-        <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-          <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 1rem;">
-            <i class="fas fa-network-wired"></i> Unified Network Discovery
-          </h3>
-
-          <div style="padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 1.5rem;">
-            <div style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">Status:</div>
-            <div style="font-size: 1.1rem; font-weight: 600; color: #44ff44;">
-              ✅ Always Enabled
-            </div>
-          </div>
-
-          <div style="margin-bottom: 1.5rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.95rem;">
-              <input type="checkbox" id="unified-network-debug-toggle-admin" ${isDebug ? 'checked' : ''}
-                style="margin-right: 12px; cursor: pointer; width: 18px; height: 18px;">
-              <span>Debug Mode (verbose console logging)</span>
-            </label>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <button id="unified-network-reload-admin" style="
-              padding: 0.875rem 1.25rem;
-              background: linear-gradient(135deg, #00e0ff, #0080ff);
-              border: none;
-              border-radius: 8px;
-              color: white;
-              font-weight: 600;
-              cursor: pointer;
-              font-size: 0.95rem;
-              transition: all 0.2s;
-            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-              <i class="fas fa-sync-alt"></i> Apply & Reload
-            </button>
-
-            <button id="unified-network-test-admin" style="
-              padding: 0.875rem 1.25rem;
-              background: rgba(68, 136, 255, 0.2);
-              border: 1px solid rgba(68, 136, 255, 0.5);
-              border-radius: 8px;
-              color: #4488ff;
-              font-weight: 600;
-              cursor: pointer;
-              font-size: 0.95rem;
-              transition: all 0.2s;
-            " onmouseover="this.style.background='rgba(68, 136, 255, 0.3)'" onmouseout="this.style.background='rgba(68, 136, 255, 0.2)'">
-              <i class="fas fa-vial"></i> Run Tests
-            </button>
-          </div>
-        </div>
-
-        <!-- Quiet Mode Settings -->
-        <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px;">
-          <h3 style="color: #a855f7; margin: 0 0 1rem 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
-            <i class="fas fa-volume-mute"></i> Quiet Mode
-          </h3>
-          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; line-height: 1.6;">
-            Enable quiet mode to reduce visual noise and focus on key connections. This mode simplifies the network view and highlights relevant nodes.
-          </p>
-
-          <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.75rem; background: rgba(168,85,247,0.1); border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(168,85,247,0.15)'" onmouseout="this.style.background='rgba(168,85,247,0.1)'">
-            <input type="checkbox" id="quiet-mode-toggle-admin" style="width: 20px; height: 20px; cursor: pointer;">
-            <span style="color: #fff; font-weight: 600;">Enable Quiet Mode</span>
-          </label>
-
-          <div style="margin-top: 1rem; padding: 1rem; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px;">
-            <div style="color: #a855f7; font-size: 0.85rem; line-height: 1.5;">
-              <i class="fas fa-info-circle"></i> <strong>Note:</strong> Quiet mode will reload the page to apply changes. Your network will be simplified to show only the most relevant connections.
-            </div>
+        <!-- Manage Tab Content -->
+        <div id="theme-manage-content" class="theme-tab-content" style="display: none;">
+          <div id="admin-themes-list" style="color: rgba(255,255,255,0.7);">
+            Loading themes...
           </div>
         </div>
       </div>
-    `;
-
-    // Wire up event listeners
-    const debugToggle = document.getElementById('unified-network-debug-toggle-admin');
-    const reloadBtn = document.getElementById('unified-network-reload-admin');
-    const testBtn = document.getElementById('unified-network-test-admin');
-    const quietModeToggle = document.getElementById('quiet-mode-toggle-admin');
-    
-    // Check current quiet mode state
-    if (quietModeToggle) {
-      const isQuietMode = localStorage.getItem('quiet-mode-enabled') === 'true';
-      quietModeToggle.checked = isQuietMode;
+    </div>
+  `;
+  
+  // Wire up theme tab switching
+  const themeTabBtns = content.querySelectorAll('.theme-tab-btn');
+  themeTabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Update button states
+      themeTabBtns.forEach(b => {
+        b.classList.remove('active');
+        b.style.borderBottom = '3px solid transparent';
+        b.style.color = 'rgba(255,255,255,0.6)';
+      });
+      btn.classList.add('active');
+      btn.style.borderBottom = '3px solid #00e0ff';
+      btn.style.color = '#00e0ff';
       
-      quietModeToggle.addEventListener('change', () => {
-        if (quietModeToggle.checked) {
-          localStorage.setItem('quiet-mode-enabled', 'true');
-          if (confirm('Enable Quiet Mode? This will reload the page to apply changes.')) {
-            window.location.reload();
-          } else {
-            quietModeToggle.checked = false;
-            localStorage.removeItem('quiet-mode-enabled');
-          }
-        } else {
-          localStorage.removeItem('quiet-mode-enabled');
-          if (confirm('Disable Quiet Mode? This will reload the page to apply changes.')) {
-            window.location.reload();
-          } else {
-            quietModeToggle.checked = true;
-            localStorage.setItem('quiet-mode-enabled', 'true');
-          }
-        }
-      });
-    }
-    
-    debugToggle.addEventListener('change', () => {
-      if (debugToggle.checked) {
-        // Enable both unified network debug AND general debug mode
-        localStorage.setItem('unified-network-debug', 'true');
-        localStorage.setItem('DEBUG', '1');
-        console.log('🐛 Debug mode enabled - verbose console logging activated');
-        console.log('   Reload the page to see full debug output');
-      } else {
-        // Disable both debug modes
-        localStorage.removeItem('unified-network-debug');
-        localStorage.removeItem('DEBUG');
-        console.log('🐛 Debug mode disabled - console logging minimized');
-        console.log('   Reload the page to apply changes');
+      // Show/hide content
+      const tab = btn.dataset.themeTab;
+      content.querySelector('#theme-create-content').style.display = tab === 'create' ? 'block' : 'none';
+      content.querySelector('#theme-manage-content').style.display = tab === 'manage' ? 'block' : 'none';
+      
+      // Load themes list when switching to manage tab
+      if (tab === 'manage') {
+        loadAdminThemesList();
       }
     });
-    
-    reloadBtn.addEventListener('click', () => {
-      window.location.reload();
-    });
-    
-    testBtn.addEventListener('click', async () => {
-      testBtn.disabled = true;
-      testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Tests...';
-      
+  });
+  
+  // Wire up create form submission
+  const createForm = content.querySelector('#admin-theme-create-form');
+  if (createForm) {
+    createForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
       try {
-        if (window.unifiedNetworkIntegration?.isActive()) {
-          console.log('🧪 Running unified network tests...');
-          
-          // Check system health
-          if (window.unifiedNetworkErrorIntegration) {
-            const isHealthy = window.unifiedNetworkErrorIntegration.isHealthy();
-            const stats = window.unifiedNetworkErrorIntegration.getStats();
-            
-            console.log('🏥 System Health:', { healthy: isHealthy, stats });
-            
-            if (isHealthy) {
-              
-_toast('✅ System is healthy! All tests passed.');
-            } else {
-              
-_toast(`⚠️ System has ${stats.total} logged errors. Check console for details.`);
-            }
-          } else {
-            
-_toast('✅ Unified network is active and running!');
-          }
-        } else {
-          
-_toast('ℹ️ Unified network is not currently active. Enable it and reload to test.');
-        }
-        
-        testBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
-        setTimeout(() => {
-          testBtn.innerHTML = '<i class="fas fa-vial"></i> Run Tests';
-          testBtn.disabled = false;
-        }, 2000);
-      } catch (error) {
-        console.error('❌ Test failed:', error);
-        testBtn.innerHTML = '<i class="fas fa-times"></i> Test Failed';
-        testBtn.disabled = false;
+        await handleAdminCreateTheme(createForm);
+      } catch (err) {
+        console.error("❌ Admin theme creation failed:", err);
       }
     });
-  } else if (tabName === 'analytics') {
-    // Analytics tab - show embedded analytics dashboard
-    content.innerHTML = `
-      <div style="max-height: 70vh; overflow-y: auto;">
-        <div style="background: rgba(255,107,107,0.05); border: 2px solid rgba(255,107,107,0.3); border-radius: 12px; padding: 1.5rem;">
-          <h3 style="color: #ff6b6b; font-size: 1.25rem; margin-bottom: 0.5rem;">
-            <i class="fas fa-chart-line"></i> Ecosystem Analytics
-          </h3>
-          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
-            View comprehensive analytics about your community, connections, and network health.
-          </p>
-          
-          <button id="open-analytics-dashboard-btn" style="
-            padding: 1rem 2rem;
-            background: linear-gradient(135deg, #ff6b6b, #ff8c8c);
+  }
+  
+  // Load themes list initially (for manage tab)
+  loadAdminThemesList();
+} else if (tabName === 'projects') {
+}
+
+function _adminTabProjects(content) {
+    <div style="margin-bottom: 2rem;">
+      <button onclick="if(typeof openProjectsModal === 'function') openProjectsModal();" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
+        <i class="fas fa-plus"></i> Create New Project
+      </button>
+    </div>
+    <div id="admin-projects-list" style="color: rgba(255,255,255,0.7);">
+      Loading projects...
+    </div>
+  `;
+  loadProjectsList();
+} else if (tabName === 'organizations') {
+}
+
+function _adminTabOrganizations(content) {
+    <div style="margin-bottom: 2rem;">
+      <button onclick="if(typeof showOrganizationsPanel === 'function') { document.getElementById('admin-panel')?.remove(); showOrganizationsPanel(); }" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
+        <i class="fas fa-plus"></i> Create New Organization
+      </button>
+    </div>
+    <div id="admin-orgs-list" style="color: rgba(255,255,255,0.7);">
+      Loading organizations...
+    </div>
+  `;
+  loadOrganizationsList();
+} else if (tabName === 'system') {
+}
+
+function _adminTabSystem(content) {
+  const isDebug = localStorage.getItem('unified-network-debug') === 'true' ||
+                  localStorage.getItem('DEBUG') === '1';
+
+  content.innerHTML = `
+    <div style="max-height: 60vh; overflow-y: auto;">
+      <!-- Unified Network Discovery Section -->
+      <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+        <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 1rem;">
+          <i class="fas fa-network-wired"></i> Unified Network Discovery
+        </h3>
+
+        <div style="padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 1.5rem;">
+          <div style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">Status:</div>
+          <div style="font-size: 1.1rem; font-weight: 600; color: #44ff44;">
+            ✅ Always Enabled
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.95rem;">
+            <input type="checkbox" id="unified-network-debug-toggle-admin" ${isDebug ? 'checked' : ''}
+              style="margin-right: 12px; cursor: pointer; width: 18px; height: 18px;">
+            <span>Debug Mode (verbose console logging)</span>
+          </label>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <button id="unified-network-reload-admin" style="
+            padding: 0.875rem 1.25rem;
+            background: linear-gradient(135deg, #00e0ff, #0080ff);
             border: none;
             border-radius: 8px;
             color: white;
             font-weight: 600;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.95rem;
             transition: all 0.2s;
-            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
-          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255, 107, 107, 0.6)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 12px rgba(255, 107, 107, 0.4)'">
-            <i class="fas fa-chart-bar"></i> Open Analytics Dashboard
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+            <i class="fas fa-sync-alt"></i> Apply & Reload
           </button>
-          
-          <div style="margin-top: 2rem; padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px;">
-            <div style="color: #00e0ff; font-size: 0.85rem; line-height: 1.5;">
-              <i class="fas fa-info-circle"></i> <strong>Analytics includes:</strong>
-              <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8;">
-                <li>Total members, connections, and projects</li>
-                <li>Network density and health metrics</li>
-                <li>Key connectors and isolated nodes</li>
-                <li>Top skills in the community</li>
-                <li>Suggested introductions to strengthen the network</li>
-                <li>Growth metrics (last 30 days)</li>
-              </ul>
-            </div>
+
+          <button id="unified-network-test-admin" style="
+            padding: 0.875rem 1.25rem;
+            background: rgba(68, 136, 255, 0.2);
+            border: 1px solid rgba(68, 136, 255, 0.5);
+            border-radius: 8px;
+            color: #4488ff;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+          " onmouseover="this.style.background='rgba(68, 136, 255, 0.3)'" onmouseout="this.style.background='rgba(68, 136, 255, 0.2)'">
+            <i class="fas fa-vial"></i> Run Tests
+          </button>
+        </div>
+      </div>
+
+      <!-- Quiet Mode Settings -->
+      <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px;">
+        <h3 style="color: #a855f7; margin: 0 0 1rem 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-volume-mute"></i> Quiet Mode
+        </h3>
+        <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; line-height: 1.6;">
+          Enable quiet mode to reduce visual noise and focus on key connections. This mode simplifies the network view and highlights relevant nodes.
+        </p>
+
+        <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.75rem; background: rgba(168,85,247,0.1); border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(168,85,247,0.15)'" onmouseout="this.style.background='rgba(168,85,247,0.1)'">
+          <input type="checkbox" id="quiet-mode-toggle-admin" style="width: 20px; height: 20px; cursor: pointer;">
+          <span style="color: #fff; font-weight: 600;">Enable Quiet Mode</span>
+        </label>
+
+        <div style="margin-top: 1rem; padding: 1rem; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px;">
+          <div style="color: #a855f7; font-size: 0.85rem; line-height: 1.5;">
+            <i class="fas fa-info-circle"></i> <strong>Note:</strong> Quiet mode will reload the page to apply changes. Your network will be simplified to show only the most relevant connections.
           </div>
         </div>
       </div>
-    `;
+    </div>
+  `;
+
+  // Wire up event listeners
+  const debugToggle = document.getElementById('unified-network-debug-toggle-admin');
+  const reloadBtn = document.getElementById('unified-network-reload-admin');
+  const testBtn = document.getElementById('unified-network-test-admin');
+  const quietModeToggle = document.getElementById('quiet-mode-toggle-admin');
+  
+  // Check current quiet mode state
+  if (quietModeToggle) {
+    const isQuietMode = localStorage.getItem('quiet-mode-enabled') === 'true';
+    quietModeToggle.checked = isQuietMode;
     
-    // Wire up the analytics button
-    const analyticsBtn = document.getElementById('open-analytics-dashboard-btn');
-    if (analyticsBtn) {
-      analyticsBtn.addEventListener('click', () => {
-        // Close admin panel
-        const adminPanel = document.getElementById('admin-panel');
-        if (adminPanel) adminPanel.remove();
-        
-        // Open analytics modal
-        if (typeof window.openAnalyticsModal === 'function') {
-          window.openAnalyticsModal();
+    quietModeToggle.addEventListener('change', () => {
+      if (quietModeToggle.checked) {
+        localStorage.setItem('quiet-mode-enabled', 'true');
+        if (confirm('Enable Quiet Mode? This will reload the page to apply changes.')) {
+          window.location.reload();
         } else {
-          console.error('❌ Analytics modal not available');
-          
-_toast('Analytics dashboard is not available. Please refresh the page and try again.');
+          quietModeToggle.checked = false;
+          localStorage.removeItem('quiet-mode-enabled');
         }
-      });
+      } else {
+        localStorage.removeItem('quiet-mode-enabled');
+        if (confirm('Disable Quiet Mode? This will reload the page to apply changes.')) {
+          window.location.reload();
+        } else {
+          quietModeToggle.checked = true;
+          localStorage.setItem('quiet-mode-enabled', 'true');
+        }
+      }
+    });
+  }
+  
+  debugToggle.addEventListener('change', () => {
+    if (debugToggle.checked) {
+      // Enable both unified network debug AND general debug mode
+      localStorage.setItem('unified-network-debug', 'true');
+      localStorage.setItem('DEBUG', '1');
+      console.log('🐛 Debug mode enabled - verbose console logging activated');
+      console.log('   Reload the page to see full debug output');
+    } else {
+      // Disable both debug modes
+      localStorage.removeItem('unified-network-debug');
+      localStorage.removeItem('DEBUG');
+      console.log('🐛 Debug mode disabled - console logging minimized');
+      console.log('   Reload the page to apply changes');
     }
+  });
+  
+  reloadBtn.addEventListener('click', () => {
+    window.location.reload();
+  });
+  
+  testBtn.addEventListener('click', async () => {
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Tests...';
+    
+    try {
+      if (window.unifiedNetworkIntegration?.isActive()) {
+        console.log('🧪 Running unified network tests...');
+        
+        // Check system health
+        if (window.unifiedNetworkErrorIntegration) {
+          const isHealthy = window.unifiedNetworkErrorIntegration.isHealthy();
+          const stats = window.unifiedNetworkErrorIntegration.getStats();
+          
+          console.log('🏥 System Health:', { healthy: isHealthy, stats });
+          
+          if (isHealthy) {
+            
+_toast('✅ System is healthy! All tests passed.');
+          } else {
+            
+_toast(`⚠️ System has ${stats.total} logged errors. Check console for details.`);
+          }
+        } else {
+          
+_toast('✅ Unified network is active and running!');
+        }
+      } else {
+        
+_toast('ℹ️ Unified network is not currently active. Enable it and reload to test.');
+      }
+      
+      testBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
+      setTimeout(() => {
+        testBtn.innerHTML = '<i class="fas fa-vial"></i> Run Tests';
+        testBtn.disabled = false;
+      }, 2000);
+    } catch (error) {
+      console.error('❌ Test failed:', error);
+      testBtn.innerHTML = '<i class="fas fa-times"></i> Test Failed';
+      testBtn.disabled = false;
+    }
+  });
+} else if (tabName === 'analytics') {
+}
+
+function _adminTabAnalytics(content) {
+  content.innerHTML = `
+    <div style="max-height: 70vh; overflow-y: auto;">
+      <div style="background: rgba(255,107,107,0.05); border: 2px solid rgba(255,107,107,0.3); border-radius: 12px; padding: 1.5rem;">
+        <h3 style="color: #ff6b6b; font-size: 1.25rem; margin-bottom: 0.5rem;">
+          <i class="fas fa-chart-line"></i> Ecosystem Analytics
+        </h3>
+        <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          View comprehensive analytics about your community, connections, and network health.
+        </p>
+        
+        <button id="open-analytics-dashboard-btn" style="
+          padding: 1rem 2rem;
+          background: linear-gradient(135deg, #ff6b6b, #ff8c8c);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          font-size: 1rem;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255, 107, 107, 0.6)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 12px rgba(255, 107, 107, 0.4)'">
+          <i class="fas fa-chart-bar"></i> Open Analytics Dashboard
+        </button>
+        
+        <div style="margin-top: 2rem; padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px;">
+          <div style="color: #00e0ff; font-size: 0.85rem; line-height: 1.5;">
+            <i class="fas fa-info-circle"></i> <strong>Analytics includes:</strong>
+            <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8;">
+              <li>Total members, connections, and projects</li>
+              <li>Network density and health metrics</li>
+              <li>Key connectors and isolated nodes</li>
+              <li>Top skills in the community</li>
+              <li>Suggested introductions to strengthen the network</li>
+              <li>Growth metrics (last 30 days)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Wire up the analytics button
+  const analyticsBtn = document.getElementById('open-analytics-dashboard-btn');
+  if (analyticsBtn) {
+    analyticsBtn.addEventListener('click', () => {
+      // Close admin panel
+      const adminPanel = document.getElementById('admin-panel');
+      if (adminPanel) adminPanel.remove();
+      
+      // Open analytics modal
+      if (typeof window.openAnalyticsModal === 'function') {
+        window.openAnalyticsModal();
+      } else {
+        console.error('❌ Analytics modal not available');
+        
+_toast('Analytics dashboard is not available. Please refresh the page and try again.');
+      }
+    });
   }
 }
+}
+
 
 // Admin function to add a person to the community
 async function adminAddPerson() {
@@ -3295,626 +3315,6 @@ _toast('Failed to update organization: ' + (err.message || 'Unknown error'));
     }
   });
 };
-
-// -----------------------------
-// Organizations Panel
-// -----------------------------
-function showOrganizationsPanel() {
-  // Remove existing panel if present
-  let panel = document.getElementById('organizations-panel');
-  if (panel) {
-    panel.remove();
-    return;
-  }
-
-  panel = document.createElement('div');
-  panel.id = 'organizations-panel';
-  panel.style.cssText = `
-    position: fixed;
-    inset: 20px;
-    background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
-    border: 2px solid rgba(168,85,247,0.5);
-    border-radius: 16px;
-    padding: 2rem;
-    box-shadow: 0 25px 70px rgba(0,0,0,0.7);
-    z-index: 10003;
-    backdrop-filter: blur(20px);
-    overflow-y: auto;
-  `;
-
-  panel.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 2px solid rgba(168,85,247,0.3); padding-bottom: 1rem;">
-      <h2 style="color: #a855f7; margin: 0; font-size: 1.75rem;">
-        <i class="fas fa-building"></i> Organizations
-      </h2>
-      <button onclick="document.getElementById('organizations-panel').remove()"
-        style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
-        color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem;">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-
-    <!-- Tabs -->
-    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <button class="orgs-tab active-orgs-tab" data-tab="browse" style="padding: 0.75rem 1.5rem; background: rgba(168,85,247,0.1); border: none; border-bottom: 3px solid #a855f7; color: #a855f7; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-search"></i> Browse Orgs
-      </button>
-      <button class="orgs-tab" data-tab="my-orgs" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-user-tag"></i> My Orgs
-      </button>
-      <button class="orgs-tab" data-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-plus"></i> Create Org
-      </button>
-    </div>
-
-    <!-- Tab Content -->
-    <div id="orgs-tab-content" style="padding: 1rem 0;">
-      <!-- Content will be loaded dynamically -->
-    </div>
-  `;
-
-  document.body.appendChild(panel);
-
-  // Wire up tabs
-  panel.querySelectorAll('.orgs-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      panel.querySelectorAll('.orgs-tab').forEach(t => {
-        t.style.background = 'transparent';
-        t.style.borderBottomColor = 'transparent';
-        t.style.color = 'rgba(255,255,255,0.6)';
-        t.classList.remove('active-orgs-tab');
-      });
-      tab.style.background = 'rgba(168,85,247,0.1)';
-      tab.style.borderBottomColor = '#a855f7';
-      tab.style.color = '#a855f7';
-      tab.classList.add('active-orgs-tab');
-
-      const tabName = tab.dataset.tab;
-      loadOrgsTabContent(tabName);
-    });
-  });
-
-  // Load initial tab
-  loadOrgsTabContent('browse');
-}
-
-async function loadOrgsTabContent(tabName) {
-  const content = document.getElementById('orgs-tab-content');
-  if (!content) return;
-
-  const supabase = window.supabase;
-  if (!supabase) {
-    content.innerHTML = '<p style="color: #ff6b6b;">Database connection not available</p>';
-    return;
-  }
-
-  if (tabName === 'browse') {
-    content.innerHTML = `
-      <div style="text-align: center; padding: 2rem;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #a855f7;"></i>
-        <p style="color: rgba(255,255,255,0.7); margin-top: 1rem;">Loading organizations...</p>
-      </div>
-    `;
-
-    try {
-      const { data: organizations, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-
-      if (!organizations || organizations.length === 0) {
-        content.innerHTML = `
-          <div style="text-align: center; padding: 3rem;">
-            <i class="fas fa-building" style="font-size: 3rem; color: rgba(168,85,247,0.3); margin-bottom: 1rem;"></i>
-            <p style="color: rgba(255,255,255,0.5);">No organizations yet</p>
-            <p style="color: rgba(255,255,255,0.3); font-size: 0.9rem;">Be the first to create one!</p>
-          </div>
-        `;
-        return;
-      }
-
-      let html = '<div style="display: grid; gap: 1rem;">';
-      for (const org of organizations) {
-        html += `
-          <div style="background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 12px; padding: 1.25rem;">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div style="width: 50px; height: 50px; border-radius: 10px; background: rgba(168,85,247,0.2); border: 2px solid rgba(168,85,247,0.4); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
-                ${org.logo_url ? `<img src="${org.logo_url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">` : '<i class="fas fa-building" style="color: #a855f7;"></i>'}
-              </div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="color: #fff; font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;">${escapeHtml(org.name)}</div>
-                <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  ${org.industry ? `<span style="color: #a855f7;"><i class="fas fa-tag"></i> ${escapeHtml(Array.isArray(org.industry) ? org.industry.join(', ') : org.industry)}</span>` : ''}
-                  ${org.location ? `<span style="margin-left: 1rem;"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(org.location)}</span>` : ''}
-                </div>
-                ${org.description ? `<div style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-top: 0.5rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${escapeHtml(org.description)}</div>` : ''}
-              </div>
-              <button onclick="joinOrganization('${org.id}')" style="background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; padding: 0.5rem 1rem; color: white; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                <i class="fas fa-plus"></i> Join
-              </button>
-            </div>
-          </div>
-        `;
-      }
-      html += '</div>';
-      content.innerHTML = html;
-
-    } catch (error) {
-      console.error('Error loading organizations:', error);
-      content.innerHTML = '<p style="color: #ff6b6b;">Error loading organizations</p>';
-    }
-
-  } else if (tabName === 'my-orgs') {
-    content.innerHTML = `
-      <div style="text-align: center; padding: 2rem;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #a855f7;"></i>
-        <p style="color: rgba(255,255,255,0.7); margin-top: 1rem;">Loading your organizations...</p>
-      </div>
-    `;
-
-    try {
-      // Get current user
-      const currentUser = window.currentUserProfile;
-      if (!currentUser) {
-        content.innerHTML = '<p style="color: #ff6b6b;">Please log in to see your organizations</p>';
-        return;
-      }
-
-      // Get user's organization memberships
-      const { data: memberships, error: membershipsError } = await supabase
-        .from('organization_members')
-        .select('organization_id, role')
-        .eq('community_id', currentUser.id);
-
-      if (membershipsError) {
-        // Handle table not exists error
-        if (membershipsError.code === '42P01' || membershipsError.message?.includes('does not exist') ||
-            membershipsError.code === 'PGRST116' || String(membershipsError.code) === '500') {
-          content.innerHTML = `
-            <div style="text-align: center; padding: 3rem;">
-              <i class="fas fa-tools" style="font-size: 3rem; color: rgba(168,85,247,0.3); margin-bottom: 1rem;"></i>
-              <p style="color: rgba(255,255,255,0.5);">Organization membership is being set up</p>
-              <p style="color: rgba(255,255,255,0.3); font-size: 0.9rem;">Please check back later or contact an administrator.</p>
-            </div>
-          `;
-          return;
-        }
-        throw membershipsError;
-      }
-
-      if (!memberships || memberships.length === 0) {
-        content.innerHTML = `
-          <div style="text-align: center; padding: 3rem;">
-            <i class="fas fa-user-tag" style="font-size: 3rem; color: rgba(168,85,247,0.3); margin-bottom: 1rem;"></i>
-            <p style="color: rgba(255,255,255,0.5);">You haven't joined any organizations yet</p>
-            <p style="color: rgba(255,255,255,0.3); font-size: 0.9rem;">Browse organizations to find ones to join!</p>
-          </div>
-        `;
-        return;
-      }
-
-      // Get organization details
-      const orgIds = memberships.map(m => m.organization_id);
-      const { data: organizations, error: orgsError } = await supabase
-        .from('organizations')
-        .select('*')
-        .in('id', orgIds);
-
-      if (orgsError) throw orgsError;
-
-      let html = '<div style="display: grid; gap: 1rem;">';
-      for (const org of organizations) {
-        const membership = memberships.find(m => m.organization_id === org.id);
-        html += `
-          <div style="background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px; padding: 1.25rem;">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div style="width: 50px; height: 50px; border-radius: 10px; background: rgba(168,85,247,0.2); border: 2px solid rgba(168,85,247,0.4); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
-                ${org.logo_url ? `<img src="${org.logo_url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">` : '<i class="fas fa-building" style="color: #a855f7;"></i>'}
-              </div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="color: #fff; font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;">${escapeHtml(org.name)}</div>
-                <div style="color: #a855f7; font-size: 0.85rem;">
-                  <i class="fas fa-user-shield"></i> ${escapeHtml(membership?.role || 'member')}
-                </div>
-              </div>
-              <button onclick="leaveOrganization('${org.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 8px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                <i class="fas fa-sign-out-alt"></i> Leave
-              </button>
-            </div>
-          </div>
-        `;
-      }
-      html += '</div>';
-      content.innerHTML = html;
-
-    } catch (error) {
-      console.error('Error loading user organizations:', error);
-      content.innerHTML = '<p style="color: #ff6b6b;">Error loading your organizations</p>';
-    }
-
-  } else if (tabName === 'create') {
-    content.innerHTML = `
-      <div style="max-width: 500px; margin: 0 auto;">
-        <h3 style="color: #a855f7; margin-bottom: 1.5rem;"><i class="fas fa-plus-circle"></i> Create New Organization</h3>
-        <form id="create-org-form">
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Organization Name *</label>
-            <input type="text" id="org-name" required
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Description</label>
-            <textarea id="org-description" rows="3"
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit; resize: vertical;"></textarea>
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Industry</label>
-            <input type="text" id="org-industry" placeholder="e.g., Technology, Healthcare, Education"
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Location</label>
-            <input type="text" id="org-location" placeholder="e.g., Charleston, SC"
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Website</label>
-            <input type="url" id="org-website" placeholder="https://..."
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-
-          <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
-            <button type="submit" style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer;">
-              <i class="fas fa-plus"></i> Create Organization
-            </button>
-          </div>
-        </form>
-      </div>
-    `;
-
-    // Wire up form submission
-    document.getElementById('create-org-form')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      debugger; // ← PATH B: remove after confirming which handler fires
-      console.warn('[dashboard-actions] PATH B create-org-form fired — this is the STALE handler, not organization-manager.js');
-      await createOrganization();
-    });
-  }
-}
-
-// STALE PATH — does not use OrganizationManager, does not set created_by.
-// If you see [dashboard-actions PATH B] in the console, this is your bug source.
-// Fix: replace the body with a delegation to window.OrganizationManager.createOrganization()
-// See the TODO comment at the end of this function.
-async function createOrganization() {
-  console.group('[dashboard-actions] createOrganization() — STALE PATH B');
-  console.log('window.supabase:', !!window.supabase);
-  console.log('window.currentUserProfile:', window.currentUserProfile);
-
-  const supabase = window.supabase;
-  if (!supabase) {
-    console.error('[dashboard-actions] BLOCKED — supabase not on window');
-    console.groupEnd();
-    _toast('Database connection not available');
-    return;
-  }
-
-  const currentUser = window.currentUserProfile;
-  if (!currentUser) {
-    console.error('[dashboard-actions] BLOCKED — window.currentUserProfile is null');
-    console.groupEnd();
-    _toast('Please log in to create an organization');
-    return;
-  }
-
-  console.log('currentUser.id (used as community_id):', currentUser.id);
-
-  const name = document.getElementById('org-name')?.value?.trim();
-  const description = document.getElementById('org-description')?.value?.trim();
-  const industryRaw = document.getElementById('org-industry')?.value?.trim();
-  const industry = parseTextArray(industryRaw);
-  const location = document.getElementById('org-location')?.value?.trim();
-  const website = document.getElementById('org-website')?.value?.trim();
-
-  if (!name) {
-    console.error('[dashboard-actions] BLOCKED — name is empty');
-    console.groupEnd();
-    _toast('Organization name is required');
-    return;
-  }
-
-  // Generate a unique slug
-  let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-  // Check if slug exists and make unique if needed
-  const { data: existing } = await supabase
-    .from('organizations')
-    .select('slug')
-    .eq('slug', slug)
-    .maybeSingle();
-
-  if (existing) {
-    slug = `${slug}-${Date.now().toString(36)}`;
-  }
-
-  const insertPayload = {
-    name,
-    slug,
-    description: description || null,
-    industry: industry && industry.length ? industry : null,
-    location: location || null,
-    website: website || null,
-    // NOTE: created_by is intentionally omitted here — the DB trigger will set it.
-    // To fix this properly, delegate to window.OrganizationManager.createOrganization().
-  };
-  console.log('[dashboard-actions] INSERT payload:', insertPayload);
-
-  try {
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .insert([insertPayload])
-      .select()
-      .single();
-
-    if (orgError) {
-      console.error('[dashboard-actions] INSERT error:', orgError);
-      throw orgError;
-    }
-
-    console.log('[dashboard-actions] INSERT succeeded:', org.id, '| created_by:', org.created_by);
-
-    // Add creator as owner
-    const memberPayload = { organization_id: org.id, community_id: currentUser.id, role: 'owner' };
-    console.log('[dashboard-actions] organization_members INSERT payload:', memberPayload);
-    const { error: memberError } = await supabase
-      .from('organization_members')
-      .insert([memberPayload]);
-
-    if (memberError) {
-      console.error('[dashboard-actions] organization_members INSERT FAILED — org will not appear in my-orgs tab:', memberError);
-    } else {
-      console.log('[dashboard-actions] organization_members INSERT succeeded');
-    }
-
-    console.groupEnd();
-    _toast('Organization created successfully!' +
-      (await checkOrgMembersTableExists(supabase) ? '' : '\n\nNote: Membership features are being set up.'));
-
-    // Refresh the organizations list
-    loadOrgsTabContent('browse');
-
-    // Refresh synapse view
-    if (typeof window.refreshSynapseConnections === 'function') {
-      window.refreshSynapseConnections();
-    }
-
-  } catch (error) {
-    console.error('[dashboard-actions] createOrganization THREW:', error);
-    console.groupEnd();
-    _toast('Failed to create organization: ' + (error.message || 'Unknown error'));
-  }
-}
-
-async function joinOrganization(orgId) {
-  const supabase = window.supabase;
-  if (!supabase) {
-    
-_toast('Database connection not available');
-    return;
-  }
-
-  const currentUser = window.currentUserProfile;
-  if (!currentUser) {
-    
-_toast('Please log in to join an organization');
-    return;
-  }
-
-  try {
-    // Check if already a member
-    const { data: existing, error: checkError } = await supabase
-      .from('organization_members')
-      .select('id')
-      .eq('organization_id', orgId)
-      .eq('community_id', currentUser.id)
-      .maybeSingle();
-
-    // Handle case where table might not exist (500 error or PGRST116)
-    if (checkError) {
-      console.error('Error checking membership:', checkError);
-      if (checkError.code === '42P01' || checkError.message?.includes('does not exist') ||
-          checkError.code === 'PGRST116' || checkError.message?.includes('relation') ||
-          String(checkError.code) === '500') {
-        
-_toast('Organization membership feature is being set up. Please try again later or contact an administrator.');
-        return;
-      }
-      // For other errors, continue to try joining
-    }
-
-    if (existing) {
-      
-_toast('You are already a member of this organization');
-      return;
-    }
-
-    // Add membership
-    const { error } = await supabase
-      .from('organization_members')
-      .insert([{
-        organization_id: orgId,
-        community_id: currentUser.id,
-        role: 'member'
-      }]);
-
-    if (error) {
-      // Handle specific error codes
-      if (error.code === '42P01' || error.message?.includes('does not exist') ||
-          error.code === 'PGRST116' || String(error.code) === '500') {
-        
-_toast('Organization membership feature is being set up. Please try again later or contact an administrator.');
-        return;
-      }
-      throw error;
-    }
-
-    
-_toast('You have joined the organization!');
-
-    // Refresh the list
-    loadOrgsTabContent('browse');
-
-    // Refresh synapse view
-    if (typeof window.refreshSynapseConnections === 'function') {
-      window.refreshSynapseConnections();
-    }
-
-  } catch (error) {
-    console.error('Error joining organization:', error);
-    
-_toast('Failed to join organization: ' + (error.message || 'Unknown error'));
-  }
-}
-
-async function leaveOrganization(orgId) {
-  if (!confirm('Are you sure you want to leave this organization?')) {
-    return;
-  }
-
-  const supabase = window.supabase;
-  if (!supabase) {
-    
-_toast('Database connection not available');
-    return;
-  }
-
-  const currentUser = window.currentUserProfile;
-  if (!currentUser) {
-    
-_toast('Please log in');
-    return;
-  }
-
-  try {
-    const { error } = await supabase
-      .from('organization_members')
-      .delete()
-      .eq('organization_id', orgId)
-      .eq('community_id', currentUser.id);
-
-    if (error) {
-      // Handle table not exists error
-      if (error.code === '42P01' || error.message?.includes('does not exist') ||
-          error.code === 'PGRST116' || String(error.code) === '500') {
-        
-_toast('Organization membership feature is being set up. Please try again later.');
-        return;
-      }
-      throw error;
-    }
-
-    
-_toast('You have left the organization');
-
-    // Refresh the list
-    loadOrgsTabContent('my-orgs');
-
-    // Refresh synapse view
-    if (typeof window.refreshSynapseConnections === 'function') {
-      window.refreshSynapseConnections();
-    }
-
-  } catch (error) {
-    console.error('Error leaving organization:', error);
-    
-_toast('Failed to leave organization: ' + (error.message || 'Unknown error'));
-  }
-}
-
-// HTML escape helper
-function parseTextArray(raw) {
-  // Converts comma-separated text or JSON array string into a clean text[]
-  if (!raw) return null;
-
-  // Already an array
-  if (Array.isArray(raw)) {
-    const cleaned = raw.map(v => String(v).trim()).filter(Boolean);
-    return cleaned.length ? Array.from(new Set(cleaned)) : null;
-  }
-
-  const s = String(raw).trim();
-  if (!s) return null;
-
-  // JSON array input: ["Tech","Health"]
-  if (s.startsWith('[') && s.endsWith(']')) {
-    try {
-      const arr = JSON.parse(s);
-      if (Array.isArray(arr)) {
-        const cleaned = arr.map(v => String(v).trim()).filter(Boolean);
-        return cleaned.length ? Array.from(new Set(cleaned)) : null;
-      }
-    } catch (_) {
-      // fall through to comma-split
-    }
-  }
-
-  // Comma/semicolon separated: Tech, Health; Education
-  const parts = s.split(/[;,]/g).map(v => v.trim()).filter(Boolean);
-  return parts.length ? Array.from(new Set(parts)) : null;
-}
-
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Helper to check if organization_members table exists
-async function checkOrgMembersTableExists(supabase) {
-  try {
-    const { error } = await supabase
-      .from('organization_members')
-      .select('id')
-      .limit(1);
-    return !error;
-  } catch {
-    return false;
-  }
-}
-
-// Make organization functions globally available
-window.showOrganizationsPanel = showOrganizationsPanel;
-window.joinOrganization = joinOrganization;
-window.leaveOrganization = leaveOrganization;
-
-// Simple notification helper if not already defined
-if (typeof window.showNotification !== 'function') {
-  window.showNotification = function(message, type = 'info') {
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    // Use toast notification if available
-    if (typeof window.showToastNotification === 'function') {
-      window.showToastNotification(message, type);
-    } else {
-      // Fallback to alert for important messages
-      if (type === 'error') {
-        
-_toast(message);
-      }
-    }
-  };
-}
 
 // Theme assignment function - UI version (1 arg: projectId)
 // Called by inline HTML onclick="assignProjectToTheme(projectId)"
