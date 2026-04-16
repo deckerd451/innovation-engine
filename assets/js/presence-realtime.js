@@ -553,9 +553,18 @@
       _pendingTrackTimer = null;
     }
 
-    // Untrack presence
-    if (presenceChannel && isRealtimeConnected) {
-      presenceChannel.untrack();
+    // Untrack and unsubscribe from presence channel to close the WebSocket
+    if (presenceChannel) {
+      if (isRealtimeConnected) {
+        presenceChannel.untrack();
+      }
+      try {
+        presenceChannel.unsubscribe();
+      } catch (e) {
+        _log.warn('⚠️ [Presence] Error unsubscribing channel:', e);
+      }
+      presenceChannel = null;
+      isRealtimeConnected = false;
     }
 
     // Update last_seen one final time

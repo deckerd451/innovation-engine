@@ -331,25 +331,29 @@ _toast("Admin only");
     origin_type: "admin"
   };
 
-  const { error } = await supabase.from("theme_circles").insert([payload]);
-  if (error) {
-    console.error("theme_circles insert failed:", error);
-    
-_toast(error.message || "Failed to create theme circle");
-    return;
-  }
+  try {
+    const { error } = await supabase.from("theme_circles").insert([payload]);
+    if (error) {
+      console.error("theme_circles insert failed:", error);
+      _toast(error.message || "Failed to create theme circle");
+      return;
+    }
 
-  // Close panel (nice UX)
-  document.getElementById("view-controls-panel")?.remove();
+    // Close panel (nice UX)
+    document.getElementById("view-controls-panel")?.remove();
 
-  // Refresh Synapse
-  await refreshSynapseThemesSafely();
+    // Refresh Synapse
+    await refreshSynapseThemesSafely();
 
-  // Optional toast if you have one
-  if (typeof window.showNotification === "function") {
-    window.showNotification(`Theme created: ${title}`, "success");
-  } else {
-    console.log("✅ Theme created:", title);
+    // Optional toast if you have one
+    if (typeof window.showNotification === "function") {
+      window.showNotification(`Theme created: ${title}`, "success");
+    } else {
+      console.log("✅ Theme created:", title);
+    }
+  } catch (err) {
+    console.error("❌ createSkillCirclePromptFlow failed:", err);
+    _toast("Failed to create theme circle. Please try again.");
   }
 }
 
@@ -1501,7 +1505,11 @@ function loadAdminTabContent(tabName) {
     if (createForm) {
       createForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        await handleAdminCreateTheme(createForm);
+        try {
+          await handleAdminCreateTheme(createForm);
+        } catch (err) {
+          console.error("❌ Admin theme creation failed:", err);
+        }
       });
     }
     
