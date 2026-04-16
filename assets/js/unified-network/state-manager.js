@@ -31,6 +31,7 @@ export class StateManager {
 
     this._eventHandlers = new Map();
     this._lastTransitionTime = Date.now();
+    this._discoveryEntryTime = null;
   }
 
   /**
@@ -167,9 +168,20 @@ export class StateManager {
       return false;
     }
 
-    // User interaction resets to My Network
+    // User interaction resets to My Network immediately (user-initiated exit)
     const timeSinceInteraction = Date.now() - this._state.lastInteractionTime.getTime();
     const recentInteraction = timeSinceInteraction < 3000; // 3 seconds
+
+    if (recentInteraction) {
+      console.log('🏠 My Network transition conditions met:', { recentInteraction });
+      return true;
+    }
+
+    // Passive exit: require minimum dwell time in Discovery to prevent immediate bounce-back
+    const dwellTime = this._discoveryEntryTime ? Date.now() - this._discoveryEntryTime : 0;
+    if (dwellTime < DISCOVERY_LIMITS.minDwellTime) {
+      return false;
+    }
 
     // All guided nodes faded
     const allGuidedNodesFaded = this._state.guidedNodes.every(nodeId => {
@@ -180,13 +192,13 @@ export class StateManager {
     // No presence energy
     const noPresenceEnergy = nodes.every(n => n.presenceEnergy === 0);
 
-    const shouldTransition = recentInteraction || (allGuidedNodesFaded && noPresenceEnergy);
+    const shouldTransition = allGuidedNodesFaded && noPresenceEnergy;
 
     if (shouldTransition) {
       console.log('🏠 My Network transition conditions met:', {
-        recentInteraction,
         allGuidedNodesFaded,
-        noPresenceEnergy
+        noPresenceEnergy,
+        dwellTime
       });
     }
 
@@ -213,6 +225,7 @@ export class StateManager {
     setTimeout(() => {
       this._state.mode = SystemMode.Discovery;
       this._lastTransitionTime = Date.now();
+      this._discoveryEntryTime = Date.now();
       this.emit('mode-changed', { mode: SystemMode.Discovery });
 
       // ✅ Log focus preservation
@@ -240,9 +253,10 @@ export class StateManager {
     this._state.mode = SystemMode.Transitioning;
     this.emit('mode-changing', { from: SystemMode.Discovery, to: SystemMode.MyNetwork });
 
-    // Clear guided nodes
+    // Clear guided nodes and discovery tracking
     this._state.guidedNodes = [];
     this._state.presenceAmplifiedNode = null;
+    this._discoveryEntryTime = null;
 
     // Simulate transition delay
     setTimeout(() => {
