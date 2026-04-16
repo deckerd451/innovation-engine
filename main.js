@@ -23,13 +23,63 @@ log.moduleLoad("main.js");
 log.info("🚀 CharlestonHacks Innovation Engine starting...");
 
 // ================================================================
+// GLOBAL NAMESPACE
+// All boot flags live under window.__IE to avoid polluting the root
+// namespace with 12+ separate globals.
+//
+// window.__IE.register(name, value) — safe way for any module to
+// export a function/object to window. Warns in the console when a
+// name is already taken so collisions surface immediately.
+// ================================================================
+window.__IE = window.__IE || {};
+
+// Boot flags — set to true when the system has started; reset to
+// false on recoverable failures to allow a retry on next event.
+const _f = window.__IE.flags = window.__IE.flags || {
+  errorHandlers:          false,
+  mainInitDone:           false,
+  profileHandlerAttached: false,
+  lastProfileEvent:       null,   // most recent profile-loaded event (for replay)
+  unifiedInit:            false,
+  synapseBridgeInit:      false,
+  presenceInit:           false,
+  presenceUiInit:         false,
+  bleInit:                false,
+  realtimeStarted:        false,
+  adminLoaded:            false,
+  desktopDashInit:        false,
+};
+
+/**
+ * Register a value on window by name.
+ * Emits a console warning if the name is already occupied so accidental
+ * collisions are caught early. Pass { override: true } to silence it.
+ *
+ * @param {string} name        - Property name on window (e.g. 'openProfileModal')
+ * @param {*}      value       - The value / function to expose
+ * @param {object} [opts]
+ * @param {boolean} [opts.override=false] - Suppress collision warning
+ * @returns {*} The registered value (for chaining)
+ */
+window.__IE.register = function register(name, value, { override = false } = {}) {
+  if (!override && name in window && window[name] !== undefined) {
+    log.warn(
+      `[IE] window.${name} already exists (${typeof window[name]}) — ` +
+      `possible collision. Pass { override: true } to suppress this warning.`
+    );
+  }
+  window[name] = value;
+  return value;
+};
+
+// ================================================================
 // GLOBAL ERROR HANDLING
 // Catches uncaught errors and unhandled promise rejections app-wide.
 // Shows a user-visible toast so failures are never silent.
 // ================================================================
 (function installGlobalErrorHandlers() {
-  if (window.__IE_ERROR_HANDLERS_INSTALLED__) return;
-  window.__IE_ERROR_HANDLERS_INSTALLED__ = true;
+  if (_f.errorHandlers) return;
+  _f.errorHandlers = true;
 
   function showErrorToast(message) {
     // Defer until body is available
@@ -75,7 +125,6 @@ log.info("🚀 CharlestonHacks Innovation Engine starting...");
     if (reason?.message?.includes('NetworkError')) return;
     if (reason?.message?.includes('Load failed')) return;
 
-    const msg = reason?.message || String(reason) || 'Unknown error';
     log.error('Unhandled promise rejection:', reason);
     showErrorToast('Something went wrong. Please refresh if the issue persists.');
   });
@@ -89,21 +138,6 @@ log.info("🚀 CharlestonHacks Innovation Engine starting...");
     return false; // Preserve default browser error handling
   };
 })();
-
-// ------------------------------
-// Global guards (per-system)
-// ------------------------------
-window.__IE_MAIN_INIT_DONE__ = window.__IE_MAIN_INIT_DONE__ || false;
-window.__IE_PROFILE_HANDLER_ATTACHED__ = window.__IE_PROFILE_HANDLER_ATTACHED__ || false;
-
-window.__IE_UNIFIED_INIT__ = window.__IE_UNIFIED_INIT__ || false;
-window.__IE_SYNAPSE_BRIDGE_INIT__ = window.__IE_SYNAPSE_BRIDGE_INIT__ || false;
-window.__IE_PRESENCE_INIT__ = window.__IE_PRESENCE_INIT__ || false;
-window.__IE_PRESENCE_UI_INIT__ = window.__IE_PRESENCE_UI_INIT__ || false;
-window.__IE_BLE_INIT__ = window.__IE_BLE_INIT__ || false;
-window.__IE_REALTIME_STARTED__ = window.__IE_REALTIME_STARTED__ || false;
-window.__IE_ADMIN_LOADED__ = window.__IE_ADMIN_LOADED__ || false;
-window.__IE_DESKTOP_DASHBOARD_INIT__ = window.__IE_DESKTOP_DASHBOARD_INIT__ || false;
 
 // ------------------------------
 // Helper: wait for required globals (best-effort, short timeout)
@@ -144,20 +178,20 @@ async function onProfileLoaded(e) {
 
   // Avoid work until main init has run at least once
   // (prevents firing during partial loads before DOM is ready)
-  if (!window.__IE_MAIN_INIT_DONE__) {
+  if (!_f.mainInitDone) {
     // Cache the most recent event so we can replay once main is ready
-    window.__IE_LAST_PROFILE_EVENT__ = e;
+    _f.lastProfileEvent = e;
     return;
   }
 
   // Cache for any late subscribers (and for debugging)
-  window.__IE_LAST_PROFILE_EVENT__ = e;
+  _f.lastProfileEvent = e;
 
   // ------------------------------
   // Unified Network Discovery init (single-flight)
   // ------------------------------
-  if (!window.__IE_UNIFIED_INIT__ && user && window.unifiedNetworkIntegration) {
-    window.__IE_UNIFIED_INIT__ = true;
+  if (!_f.unifiedInit && user && window.unifiedNetworkIntegration) {
+    _f.unifiedInit = true;
     log.debug("🧠 Initializing Unified Network Discovery...");
 
     try {
@@ -170,7 +204,7 @@ async function onProfileLoaded(e) {
       }
     } catch (error) {
       // Allow retry if init failed
-      window.__IE_UNIFIED_INIT__ = false;
+      _f.unifiedInit = false;
       log.error("❌ Unified Network initialization failed:", error);
     }
   }
@@ -178,15 +212,15 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Presence tracking init (single-flight)
   // ------------------------------
-  if (!window.__IE_PRESENCE_INIT__ && profile?.id && window.PresenceRealtime && window.supabase) {
-    window.__IE_PRESENCE_INIT__ = true;
+  if (!_f.presenceInit && profile?.id && window.PresenceRealtime && window.supabase) {
+    _f.presenceInit = true;
     log.debug("👋 Initializing presence tracking (Realtime)...");
 
     try {
       await window.PresenceRealtime.initialize(window.supabase, profile.id);
       log.info("✅ Presence tracking active (Realtime + low-frequency DB)");
     } catch (error) {
-      window.__IE_PRESENCE_INIT__ = false;
+      _f.presenceInit = false;
       log.error("❌ Presence tracking initialization failed:", error);
     }
   }
@@ -194,15 +228,15 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Presence UI init (single-flight)
   // ------------------------------
-  if (!window.__IE_PRESENCE_UI_INIT__ && window.PresenceUI && window.supabase) {
-    window.__IE_PRESENCE_UI_INIT__ = true;
+  if (!_f.presenceUiInit && window.PresenceUI && window.supabase) {
+    _f.presenceUiInit = true;
     log.debug("👁️ Initializing presence UI...");
 
     try {
       await window.PresenceUI.init(window.supabase, profile?.id);
       log.info("✅ Presence UI active");
     } catch (error) {
-      window.__IE_PRESENCE_UI_INIT__ = false;
+      _f.presenceUiInit = false;
       log.error("❌ Presence UI initialization failed:", error);
     }
   }
@@ -210,8 +244,8 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // BLE Passive Networking init (single-flight)
   // ------------------------------
-  if (!window.__IE_BLE_INIT__ && profile?.id && window.BLEPassiveNetworking && window.supabase) {
-    window.__IE_BLE_INIT__ = true;
+  if (!_f.bleInit && profile?.id && window.BLEPassiveNetworking && window.supabase) {
+    _f.bleInit = true;
     log.debug("📡 Initializing BLE Passive Networking...");
 
     try {
@@ -222,7 +256,7 @@ async function onProfileLoaded(e) {
         log.info("ℹ️ BLE Passive Networking not available (browser not supported)");
       }
     } catch (error) {
-      window.__IE_BLE_INIT__ = false;
+      _f.bleInit = false;
       log.error("❌ BLE Passive Networking initialization failed:", error);
     }
   }
@@ -230,8 +264,8 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Delayed realtime startup (single-flight)
   // ------------------------------
-  if (!window.__IE_REALTIME_STARTED__ && window.realtimeManager && window.bootstrapSession) {
-    window.__IE_REALTIME_STARTED__ = true;
+  if (!_f.realtimeStarted && window.realtimeManager && window.bootstrapSession) {
+    _f.realtimeStarted = true;
     log.debug("⏱️ Scheduling delayed realtime startup...");
 
     const startRealtime = async () => {
@@ -242,11 +276,11 @@ async function onProfileLoaded(e) {
           log.info("✅ Realtime subscriptions started");
         } else {
           // If context missing, allow retry later
-          window.__IE_REALTIME_STARTED__ = false;
+          _f.realtimeStarted = false;
           log.warn("⚠️ No bootstrap session context — realtime not started yet");
         }
       } catch (error) {
-        window.__IE_REALTIME_STARTED__ = false;
+        _f.realtimeStarted = false;
         log.error("❌ Realtime startup failed:", error);
       }
     };
@@ -263,8 +297,8 @@ async function onProfileLoaded(e) {
   // Desktop: left sidebar + GraphController tier control.
   // Mobile:  data pre-loaded; shown inside split-view when bell is tapped.
   // ------------------------------
-  if (!window.__IE_DESKTOP_DASHBOARD_INIT__ && profile?.id && user?.id) {
-    window.__IE_DESKTOP_DASHBOARD_INIT__ = true;
+  if (!_f.desktopDashInit && profile?.id && user?.id) {
+    _f.desktopDashInit = true;
     const _isDesktop = window.matchMedia('(min-width: 1024px)').matches;
 
     if (_isDesktop) {
@@ -288,7 +322,7 @@ async function onProfileLoaded(e) {
         authUserId: user.id,    // auth.users.id — used for generateDailyBrief()
         profile,                // full profile for identity layer rendering
       }).catch(err => {
-        window.__IE_DESKTOP_DASHBOARD_INIT__ = false;
+        _f.desktopDashInit = false;
         log.error("❌ CommandDashboard initialization failed:", err);
       });
       log.info("✅ CommandDashboard initialized (" + (_isDesktop ? "desktop" : "mobile") + ")");
@@ -300,8 +334,8 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Admin controls script load (single-flight, only after auth)
   // ------------------------------
-  if (!window.__IE_ADMIN_LOADED__ && user) {
-    window.__IE_ADMIN_LOADED__ = true;
+  if (!_f.adminLoaded && user) {
+    _f.adminLoaded = true;
 
     try {
       log.debug("🎛️ Loading admin controls (deferred)...");
@@ -310,20 +344,20 @@ async function onProfileLoaded(e) {
       script.async = true;
       script.onload = () => log.debug("✅ Admin controls loaded");
       script.onerror = () => {
-        window.__IE_ADMIN_LOADED__ = false;
+        _f.adminLoaded = false;
         log.warn("⚠️ Admin controls failed to load");
       };
       document.body.appendChild(script);
     } catch (e2) {
-      window.__IE_ADMIN_LOADED__ = false;
+      _f.adminLoaded = false;
       log.warn("⚠️ Admin controls injection failed:", e2);
     }
   }
 }
 
 // Attach the profile-loaded handler once, immediately
-if (!window.__IE_PROFILE_HANDLER_ATTACHED__) {
-  window.__IE_PROFILE_HANDLER_ATTACHED__ = true;
+if (!_f.profileHandlerAttached) {
+  _f.profileHandlerAttached = true;
   window.addEventListener("profile-loaded", onProfileLoaded);
 }
 
@@ -332,12 +366,11 @@ if (!window.__IE_PROFILE_HANDLER_ATTACHED__) {
 // ================================================================
 document.addEventListener("DOMContentLoaded", async () => {
   // One-time init guard - prevents double-binding and ghost listeners
-  if (window.__IE_MAIN_INIT_DONE__) {
-    // If log.once exists (real logger), use it; otherwise no-op
+  if (_f.mainInitDone) {
     (log.once ? log.once("main-already-init", "⚠️ Main already initialized, skipping...") : log.warn("⚠️ Main already initialized, skipping..."));
     return;
   }
-  window.__IE_MAIN_INIT_DONE__ = true;
+  _f.mainInitDone = true;
 
   log.debug("🎨 DOM ready, initializing systems...");
 
@@ -359,9 +392,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // If profile-loaded fired before DOMContentLoaded, replay the cached event once
-  if (window.__IE_LAST_PROFILE_EVENT__) {
+  if (_f.lastProfileEvent) {
     try {
-      await onProfileLoaded(window.__IE_LAST_PROFILE_EVENT__);
+      await onProfileLoaded(_f.lastProfileEvent);
     } catch (e) {
       log.error("❌ Replaying cached profile-loaded event failed:", e);
     }
