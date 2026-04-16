@@ -109,6 +109,7 @@ window.CommandDashboard = (() => {
   let _addFormOpen = false;     // inline add-resource form visibility
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
+  let _tierResetTimer = null;   // dedups rapid graph-highlight → reset timer calls
   // New state for unified dashboard UX
   let _profile = null;          // community profile for identity layer
   let _unreadMessages = 0;      // unread messages from notification system
@@ -846,7 +847,8 @@ window.CommandDashboard = (() => {
           ? new Set([userId, ...acceptedPeers])
           : new Set([userId, ...directIds]);
         window.GraphController.highlightNodes([...ids]);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -865,7 +867,8 @@ window.CommandDashboard = (() => {
           return n && n.type === 'person';
         });
         window.GraphController.highlightNodes(weakPeopleIds);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -884,7 +887,8 @@ window.CommandDashboard = (() => {
           return n && n.type === 'person';
         });
         window.GraphController.highlightNodes(extendedPeopleIds);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -901,7 +905,8 @@ window.CommandDashboard = (() => {
         });
         window.GraphController.highlightNodes(bridgeIds);
         _switchResourceTab('people');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -918,7 +923,8 @@ window.CommandDashboard = (() => {
           .map(n => n.id);
         window.GraphController.highlightNodes(adjProjectIds);
         _switchResourceTab('projects');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -929,7 +935,8 @@ window.CommandDashboard = (() => {
           .map(n => n.id);
         window.GraphController.highlightNodes(allPeopleIds);
         _switchResourceTab('people');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -944,7 +951,8 @@ window.CommandDashboard = (() => {
           .map(n => n.id);
         window.GraphController.highlightNodes(allProjectIds);
         _switchResourceTab('projects');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -957,7 +965,8 @@ window.CommandDashboard = (() => {
             .map(n => n.id);
           if (ids.length > 0) {
             window.GraphController.highlightNodes(ids);
-            setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+            clearTimeout(_tierResetTimer);
+            _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
           }
         }
         _switchResourceTab('projects');

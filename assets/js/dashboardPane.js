@@ -188,6 +188,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     // Listen for logout event
     window.addEventListener("user-logged-out", () => {
       console.log("👋 Dashboard received logout event");
+      // Stop periodic counter refresh so the interval doesn't outlive the session
+      if (state.refreshTimer) {
+        clearInterval(state.refreshTimer);
+        state.refreshTimer = null;
+      }
       state.authUser = null;
       state.communityProfile = null;
       state.synapseInitialized = false;
@@ -198,6 +203,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     // Cleanup on page unload
     window.addEventListener("beforeunload", () => {
+      if (state.refreshTimer) {
+        clearInterval(state.refreshTimer);
+        state.refreshTimer = null;
+      }
       if (window.MessagingModule?.cleanup) window.MessagingModule.cleanup();
       else cleanupMessageChannel();
     });
