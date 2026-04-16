@@ -155,7 +155,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (e?.detail?.profile) {
         state.authUser = e.detail.user;
         state.communityProfile = e.detail.profile;
-        await onAppReady();
+        try {
+          await onAppReady();
+        } catch (err) {
+          console.error("❌ onAppReady() failed after profile-loaded:", err);
+        }
       }
     });
 
@@ -164,13 +168,18 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       console.log("🆕 Dashboard received profile-new event:", e.detail);
       if (e?.detail?.user) {
         state.authUser = e.detail.user;
-        // Create community profile for new user
-        await ensureCommunityProfile();
-        // After profile is created, initialize dashboard
-        if (state.communityProfile?.id) {
-          await onAppReady();
-        } else {
-          console.error("❌ Failed to create community profile for new user");
+        try {
+          // Create community profile for new user
+          await ensureCommunityProfile();
+          // After profile is created, initialize dashboard
+          if (state.communityProfile?.id) {
+            await onAppReady();
+          } else {
+            console.error("❌ Failed to create community profile for new user");
+            showLogin();
+          }
+        } catch (err) {
+          console.error("❌ profile-new handler failed:", err);
           showLogin();
         }
       }
@@ -365,7 +374,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       // Fallback: legacy system
       wireMessagingUI();
-      await loadConversationsForModal();
+      try {
+        await loadConversationsForModal();
+      } catch (err) {
+        console.error("❌ Failed to load conversations:", err);
+      }
     };
 
     window.closeMessagesModal = () => {
@@ -381,7 +394,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     window.openProjectsModal = async () => {
       openModal("projects-modal");
-      await loadProjects();
+      try {
+        await loadProjects();
+      } catch (err) {
+        console.error("❌ Failed to load projects:", err);
+      }
     };
     window.closeProjectsModal = () => {
       closeModal("projects-modal");
@@ -390,28 +407,44 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     window.openEndorsementsModal = async () => {
       openModal("endorsements-modal");
-      await showEndorsementsTab("received");
+      try {
+        await showEndorsementsTab("received");
+      } catch (err) {
+        console.error("❌ Failed to load endorsements:", err);
+      }
     };
     window.closeEndorsementsModal = () => closeModal("endorsements-modal");
 
     // IMPORTANT: openQuickConnectModal is overridden later by Illuminated Pathways
     window.openQuickConnectModal = async () => {
       openModal("quick-connect-modal");
-      await loadSuggestedConnections();
+      try {
+        await loadSuggestedConnections();
+      } catch (err) {
+        console.error("❌ Failed to load suggested connections:", err);
+      }
     };
     window.closeQuickConnectModal = () => closeModal("quick-connect-modal");
 
     // Notification Center Modal
     window.openNotificationCenter = async () => {
       openModal("notification-center-modal");
-      await loadNotifications("all");
+      try {
+        await loadNotifications("all");
+      } catch (err) {
+        console.error("❌ Failed to load notifications:", err);
+      }
     };
     window.closeNotificationCenter = () => closeModal("notification-center-modal");
 
     // Network Stats Modal
     window.openNetworkStatsModal = async () => {
       openModal("network-stats-modal");
-      await loadNetworkStats();
+      try {
+        await loadNetworkStats();
+      } catch (err) {
+        console.error("❌ Failed to load network stats:", err);
+      }
     };
     window.closeNetworkStatsModal = () => closeModal("network-stats-modal");
 
@@ -1848,10 +1881,19 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       : `background:linear-gradient(135deg,#a855f7,#8b3fd9); border:none; color:white;`;
     const buttonText = isFollowing ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-plus"></i> Follow';
     
+    // Validate org.website to block javascript: and data: URIs
+    const safeWebsiteUrl = (() => {
+      if (!org.website) return null;
+      try {
+        const u = new URL(org.website);
+        return (u.protocol === 'https:' || u.protocol === 'http:') ? escapeHtml(org.website) : null;
+      } catch (_) { return null; }
+    })();
+
     return `<div class="result-card" style="padding:1.25rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; margin-bottom:0.75rem; transition:all 0.2s;">
       <div style="display:flex; align-items:start; gap:1rem;">
-        ${org.logo_url 
-          ? `<img loading="lazy" src="${org.logo_url}" alt="${escapeHtml(org.name)}" style="width:56px; height:56px; border-radius:8px; object-fit:cover; background:rgba(168,85,247,0.1);" onerror="this.outerHTML='<div style=\\'width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;\\'><i class=\\'fas fa-building\\' style=\\'color:#a855f7;\\'></i></div>'">` 
+        ${org.logo_url
+          ? `<img loading="lazy" src="${escapeHtml(org.logo_url)}" alt="${escapeHtml(org.name)}" style="width:56px; height:56px; border-radius:8px; object-fit:cover; background:rgba(168,85,247,0.1);" onerror="this.outerHTML='<div style=\\'width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;\\'><i class=\\'fas fa-building\\' style=\\'color:#a855f7;\\'></i></div>'">`
           : `<div style="width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;">
               <i class="fas fa-building" style="color:#a855f7;"></i>
             </div>`
@@ -1864,13 +1906,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           <div style="color:#aaa; font-size:0.85rem; line-height:1.4; margin-bottom:0.5rem;">${escapeHtml(org.description || "No description available").slice(0, 120)}${(org.description || "").length > 120 ? "..." : ""}</div>
           ${metaText ? `<div style="color:#a855f7; font-size:0.75rem; margin-bottom:0.75rem;"><i class="fas fa-info-circle"></i> ${escapeHtml(metaText)}</div>` : ''}
           <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-            <button id="${followButtonId}" 
-              onclick="toggleOrganizationFollow('${org.id}', '${followButtonId}')" 
+            <button id="${followButtonId}"
+              onclick="toggleOrganizationFollow('${org.id}', '${followButtonId}')"
               style="${buttonStyle} padding:0.5rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.85rem; transition:all 0.2s; display:flex; align-items:center; gap:0.4rem;">
               ${buttonText}
             </button>
             ${org.follower_count > 0 ? `<span style="color:#888; font-size:0.75rem;"><i class="fas fa-users"></i> ${org.follower_count} follower${org.follower_count !== 1 ? 's' : ''}</span>` : ''}
-            ${org.website ? `<a href="${org.website}" target="_blank" rel="noopener noreferrer" style="color:#a855f7; font-size:0.75rem; text-decoration:none;" onclick="event.stopPropagation();"><i class="fas fa-external-link-alt"></i> Website</a>` : ''}
+            ${safeWebsiteUrl ? `<a href="${safeWebsiteUrl}" target="_blank" rel="noopener noreferrer" style="color:#a855f7; font-size:0.75rem; text-decoration:none;" onclick="event.stopPropagation();"><i class="fas fa-external-link-alt"></i> Website</a>` : ''}
           </div>
         </div>
       </div>

@@ -358,14 +358,31 @@
   // ============================================================================
 
   /**
+   * Race a promise against a timeout.
+   * @param {Promise} promise
+   * @param {number} ms - Timeout in milliseconds
+   * @param {string} label - Label for timeout error message
+   */
+  function withTimeout(promise, ms, label) {
+    const timeout = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${ms}ms`)),
+        ms
+      )
+    );
+    return Promise.race([promise, timeout]);
+  }
+
+  /**
    * Get complete session context
    * @returns {Promise<object>} { authUser, communityUser }
    */
   async function getSessionContext() {
-    const [authUser, communityUser] = await Promise.all([
-      getAuthUser(),
-      getCommunityUser()
-    ]);
+    const [authUser, communityUser] = await withTimeout(
+      Promise.all([getAuthUser(), getCommunityUser()]),
+      10000,
+      'getSessionContext'
+    );
 
     return {
       authUser,

@@ -22,6 +22,74 @@ const log =
 log.moduleLoad("main.js");
 log.info("🚀 CharlestonHacks Innovation Engine starting...");
 
+// ================================================================
+// GLOBAL ERROR HANDLING
+// Catches uncaught errors and unhandled promise rejections app-wide.
+// Shows a user-visible toast so failures are never silent.
+// ================================================================
+(function installGlobalErrorHandlers() {
+  if (window.__IE_ERROR_HANDLERS_INSTALLED__) return;
+  window.__IE_ERROR_HANDLERS_INSTALLED__ = true;
+
+  function showErrorToast(message) {
+    // Defer until body is available
+    const attach = () => {
+      let container = document.getElementById('__ie-error-toast');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = '__ie-error-toast';
+        container.setAttribute('role', 'alert');
+        container.setAttribute('aria-live', 'assertive');
+        container.style.cssText = [
+          'position:fixed', 'bottom:1.25rem', 'left:50%',
+          'transform:translateX(-50%)',
+          'background:#1a1010', 'border:1px solid #ff4444',
+          'color:#ff9999', 'padding:0.75rem 1.5rem',
+          'border-radius:8px', 'font-size:0.85rem',
+          'z-index:2147483647', 'max-width:90vw',
+          'text-align:center', 'box-shadow:0 4px 20px rgba(0,0,0,0.7)',
+          'pointer-events:none',
+        ].join(';');
+        document.body.appendChild(container);
+      }
+      container.textContent = message;
+      container.style.display = 'block';
+      clearTimeout(container.__hideTimer);
+      container.__hideTimer = setTimeout(() => {
+        container.style.display = 'none';
+      }, 6000);
+    };
+
+    if (document.body) {
+      attach();
+    } else {
+      document.addEventListener('DOMContentLoaded', attach, { once: true });
+    }
+  }
+
+  // Unhandled promise rejections (async functions without try-catch)
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    // Suppress known non-fatal errors
+    if (reason?.name === 'AbortError') return;
+    if (reason?.message?.includes('NetworkError')) return;
+    if (reason?.message?.includes('Load failed')) return;
+
+    const msg = reason?.message || String(reason) || 'Unknown error';
+    log.error('Unhandled promise rejection:', reason);
+    showErrorToast('Something went wrong. Please refresh if the issue persists.');
+  });
+
+  // Uncaught synchronous errors
+  window.onerror = (message, source, lineno, colno, error) => {
+    // Skip opaque cross-origin errors (browser hides details for security)
+    if (message === 'Script error.' && !source) return false;
+    log.error('Uncaught error:', message, { source, lineno, colno, error });
+    showErrorToast('Something went wrong. Please refresh if the issue persists.');
+    return false; // Preserve default browser error handling
+  };
+})();
+
 // ------------------------------
 // Global guards (per-system)
 // ------------------------------
