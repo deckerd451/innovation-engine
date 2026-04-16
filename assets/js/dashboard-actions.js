@@ -62,12 +62,12 @@ document.getElementById('btn-projects')?.addEventListener('click', () => {
   }
 });
 
-// Wire up Themes button
-document.getElementById('btn-themes')?.addEventListener('click', () => {
-  if (typeof window.openThemeDiscoveryModal === 'function') {
-    window.openThemeDiscoveryModal();
+// Wire up Skills button
+document.getElementById('btn-skills')?.addEventListener('click', () => {
+  if (typeof window.openSkillDiscoveryModal === 'function') {
+    window.openSkillDiscoveryModal();
   } else {
-    console.warn('Theme discovery not available');
+    console.warn('Skill discovery not available');
   }
 });
 
@@ -417,7 +417,7 @@ function toggleViewControls() {
           style="width: 100%; padding: 0.75rem; background: rgba(255,215,0,0.10);
           border: 1px solid rgba(255,215,0,0.35); border-radius: 8px; color: #ffd700;
           cursor: pointer; font-weight: 700; text-align: left;">
-          <i class="fas fa-bullseye"></i> Manage Theme Circles
+          <i class="fas fa-bullseye"></i> Manage Skill Circles
         </button>
       </div>
     </div>
@@ -472,7 +472,7 @@ function toggleViewControls() {
     if (typeof window.openThemeAdminModal === 'function') {
       window.openThemeAdminModal();
     } else {
-      console.warn('Theme admin modal not available');
+      console.warn('Skill admin modal not available');
     }
   });
 
@@ -651,7 +651,7 @@ function createSynapseLegend() {
           <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Projects</span>
           <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
         </div>
-        <div id="legend-themes" data-filter="themes" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25);">
+        <div id="legend-skills" data-filter="skills" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25);">
           <div style="width: 20px; height: 20px; border-radius: 50%; background: transparent; border: 3px solid #ffa500; flex-shrink: 0;"></div>
           <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Skills</span>
           <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
@@ -1021,7 +1021,7 @@ _toast('Admin panel not available');
   const filterState = {
     people: false,
     projects: false,
-    themes: false,
+    skills: false,
     organizations: false,
     connections: false
   };
@@ -1097,7 +1097,7 @@ _toast('Admin panel not available');
   window.updateAllButtonStates = updateAllButtonStates;
 
   // Add click handlers for legend filter items
-  ['people', 'projects', 'themes', 'organizations', 'connections'].forEach(filterType => {
+  ['people', 'projects', 'skills', 'organizations', 'connections'].forEach(filterType => {
     const element = document.getElementById(`legend-${filterType}`);
     if (!element) return;
 
@@ -1128,10 +1128,10 @@ function applyVisualizationFilters(filterState) {
     }
   });
 
-  // Filter theme nodes
+  // Filter skill nodes
   const themeNodes = document.querySelectorAll('.theme-container');
   themeNodes.forEach(node => {
-    node.style.display = filterState.themes ? 'block' : 'none';
+    node.style.display = filterState.skills ? 'block' : 'none';
   });
 
   // Filter project overlays
@@ -1149,7 +1149,7 @@ function applyVisualizationFilters(filterState) {
   console.log('✅ Filters applied:', {
     people: Array.from(allNodes).filter(n => n.__data__?.type === 'person').length,
     organizations: Array.from(allNodes).filter(n => n.__data__?.type === 'organization').length,
-    themes: themeNodes.length,
+    skills: themeNodes.length,
     projects: projectNodes.length,
     connections: connectionLines.length
   });
@@ -1229,8 +1229,8 @@ function openAdminPanel() {
           <button class="admin-tab active-admin-tab" data-tab="manage" style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,224,255,0.1); border: none; border-radius: 6px; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
             <i class="fas fa-users-cog"></i> Manage Community
           </button>
-          <button class="admin-tab" data-tab="themes" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
-            <i class="fas fa-bullseye"></i> Manage Themes
+          <button class="admin-tab" data-tab="skills" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+            <i class="fas fa-bullseye"></i> Manage Skills
           </button>
           <button class="admin-tab" data-tab="projects" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
             <i class="fas fa-rocket"></i> Manage Projects
@@ -1308,7 +1308,7 @@ function loadAdminTabContent(tabName) {
   if (!content) return;
   switch (tabName) {
     case 'manage':        _adminTabManage(content);        break;
-    case 'themes':        _adminTabThemes(content);        break;
+    case 'skills':        _adminTabSkills(content);        break;
     case 'projects':      _adminTabProjects(content);      break;
     case 'organizations': _adminTabOrganizations(content); break;
     case 'system':        _adminTabSystem(content);        break;
@@ -1335,40 +1335,40 @@ function _adminTabManage(content) {
       content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load People Management panel. Please refresh the page.</div>';
     }
   }, 5000);
-} else if (tabName === 'themes') {
+} else if (tabName === 'skills') {
 }
 
-function _adminTabThemes(content) {
+function _adminTabSkills(content) {
     <div style="max-height: 70vh; overflow-y: auto;">
       <!-- Theme Management Section -->
       <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem;">
         <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 0.5rem;">
-          <i class="fas fa-bullseye"></i> Theme Circles Management
+          <i class="fas fa-bullseye"></i> Skill Circles Management
         </h3>
         <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
-          Create and manage theme circles for your community
+          Create and manage skill circles for your community
         </p>
         
         <!-- Theme Admin Tabs -->
-        <div class="theme-admin-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid rgba(0,224,255,0.2);">
-          <button class="theme-tab-btn active" data-theme-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <div class="skill-admin-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid rgba(0,224,255,0.2);">
+          <button class="skill-tab-btn active" data-skill-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
             <i class="fas fa-plus-circle"></i> Create New
           </button>
-          <button class="theme-tab-btn" data-theme-tab="manage" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+          <button class="skill-tab-btn" data-skill-tab="manage" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
             <i class="fas fa-list"></i> Manage Existing
           </button>
         </div>
         
         <!-- Create Tab Content -->
-        <div id="theme-create-content" class="theme-tab-content">
-          <form id="admin-theme-create-form" style="display: grid; gap: 1.25rem;">
+        <div id="skill-create-content" class="skill-tab-content">
+          <form id="admin-skill-create-form" style="display: grid; gap: 1.25rem;">
             <div class="form-group">
-              <label for="admin-theme-title" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                Theme Title *
+              <label for="admin-skill-title" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Skill Title *
               </label>
               <input
                 type="text"
-                id="admin-theme-title"
+                id="admin-skill-title"
                 name="title"
                 placeholder="e.g., AI in Healthcare"
                 required
@@ -1378,13 +1378,13 @@ function _adminTabThemes(content) {
             </div>
 
             <div class="form-group">
-              <label for="admin-theme-description" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+              <label for="admin-skill-description" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
                 Description
               </label>
               <textarea
-                id="admin-theme-description"
+                id="admin-skill-description"
                 name="description"
-                placeholder="What is this theme about?"
+                placeholder="What is this skill about?"
                 rows="4"
                 style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
                        border-radius: 8px; color: #fff; font-size: 1rem; resize: vertical;"
@@ -1392,12 +1392,12 @@ function _adminTabThemes(content) {
             </div>
 
             <div class="form-group">
-              <label for="admin-theme-tags" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+              <label for="admin-skill-tags" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
                 Tags (comma-separated)
               </label>
               <input
                 type="text"
-                id="admin-theme-tags"
+                id="admin-skill-tags"
                 name="tags"
                 placeholder="ai, healthcare, innovation"
                 style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
@@ -1406,12 +1406,12 @@ function _adminTabThemes(content) {
             </div>
 
             <div class="form-group">
-              <label for="admin-theme-duration" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+              <label for="admin-skill-duration" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
                 Duration (days) *
               </label>
               <input
                 type="number"
-                id="admin-theme-duration"
+                id="admin-skill-duration"
                 name="duration"
                 min="1"
                 max="90"
@@ -1421,18 +1421,18 @@ function _adminTabThemes(content) {
                        border-radius: 8px; color: #fff; font-size: 1rem;"
               />
               <small style="color: rgba(255,255,255,0.6); display: block; margin-top: 0.25rem;">
-                How long should this theme remain active? (1-90 days)
+                How long should this skill remain active? (1-90 days)
               </small>
             </div>
 
             <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div class="form-group">
-                <label for="admin-theme-cta-text" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                <label for="admin-skill-cta-text" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
                   CTA Button Text
                 </label>
                 <input
                   type="text"
-                  id="admin-theme-cta-text"
+                  id="admin-skill-cta-text"
                   name="cta_text"
                   placeholder="e.g., Join Slack"
                   style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
@@ -1441,12 +1441,12 @@ function _adminTabThemes(content) {
               </div>
 
               <div class="form-group">
-                <label for="admin-theme-cta-link" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                <label for="admin-skill-cta-link" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
                   CTA Button Link
                 </label>
                 <input
                   type="url"
-                  id="admin-theme-cta-link"
+                  id="admin-skill-cta-link"
                   name="cta_link"
                   placeholder="https://slack.com/invite..."
                   style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
@@ -1458,7 +1458,7 @@ function _adminTabThemes(content) {
             <div class="form-actions" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
               <button
                 type="button"
-                onclick="document.getElementById('admin-theme-create-form').reset()"
+                onclick="document.getElementById('admin-skill-create-form').reset()"
                 style="padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
                        border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600;"
               >
@@ -1469,24 +1469,24 @@ function _adminTabThemes(content) {
                 style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00e0ff, #00a8cc); border: none;
                        border-radius: 8px; color: #000; cursor: pointer; font-weight: 700;"
               >
-                <i class="fas fa-plus-circle"></i> Create Theme Circle
+                <i class="fas fa-plus-circle"></i> Create Skill Circle
               </button>
             </div>
           </form>
         </div>
         
         <!-- Manage Tab Content -->
-        <div id="theme-manage-content" class="theme-tab-content" style="display: none;">
-          <div id="admin-themes-list" style="color: rgba(255,255,255,0.7);">
-            Loading themes...
+        <div id="skill-manage-content" class="skill-tab-content" style="display: none;">
+          <div id="admin-skills-list" style="color: rgba(255,255,255,0.7);">
+            Loading skills...
           </div>
         </div>
       </div>
     </div>
   `;
   
-  // Wire up theme tab switching
-  const themeTabBtns = content.querySelectorAll('.theme-tab-btn');
+  // Wire up skill tab switching
+  const themeTabBtns = content.querySelectorAll('.skill-tab-btn');
   themeTabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       // Update button states
@@ -1500,32 +1500,32 @@ function _adminTabThemes(content) {
       btn.style.color = '#00e0ff';
       
       // Show/hide content
-      const tab = btn.dataset.themeTab;
-      content.querySelector('#theme-create-content').style.display = tab === 'create' ? 'block' : 'none';
-      content.querySelector('#theme-manage-content').style.display = tab === 'manage' ? 'block' : 'none';
-      
-      // Load themes list when switching to manage tab
+      const tab = btn.dataset.skillTab;
+      content.querySelector('#skill-create-content').style.display = tab === 'create' ? 'block' : 'none';
+      content.querySelector('#skill-manage-content').style.display = tab === 'manage' ? 'block' : 'none';
+
+      // Load skills list when switching to manage tab
       if (tab === 'manage') {
-        loadAdminThemesList();
+        loadAdminSkillsList();
       }
     });
   });
-  
+
   // Wire up create form submission
-  const createForm = content.querySelector('#admin-theme-create-form');
+  const createForm = content.querySelector('#admin-skill-create-form');
   if (createForm) {
     createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
         await handleAdminCreateTheme(createForm);
       } catch (err) {
-        console.error("❌ Admin theme creation failed:", err);
+        console.error("❌ Admin skill creation failed:", err);
       }
     });
   }
-  
-  // Load themes list initially (for manage tab)
-  loadAdminThemesList();
+
+  // Load skills list initially (for manage tab)
+  loadAdminSkillsList();
 } else if (tabName === 'projects') {
 }
 
@@ -2024,8 +2024,8 @@ _toast(`Error updating member status:\n\n${error.message}\n\nPlease check the co
 // THEME MANAGEMENT FUNCTIONS
 // ============================================================================
 
-async function loadAdminThemesList() {
-  const listEl = document.getElementById('admin-themes-list');
+async function loadAdminSkillsList() {
+  const listEl = document.getElementById('admin-skills-list');
   if (!listEl) return;
 
   try {
@@ -2046,7 +2046,7 @@ async function loadAdminThemesList() {
       listEl.innerHTML = `
         <div style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.6);">
           <i class="fas fa-bullseye" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-          <p>No theme circles yet. Create your first one!</p>
+          <p>No skill circles yet. Create your first one!</p>
         </div>
       `;
       return;
@@ -2367,7 +2367,7 @@ _toast('Theme circle created successfully!');
     form.reset();
 
     // Switch to manage tab and reload
-    const manageTabBtn = document.querySelector('.theme-tab-btn[data-theme-tab="manage"]');
+    const manageTabBtn = document.querySelector('.skill-tab-btn[data-skill-tab="manage"]');
     if (manageTabBtn) {
       manageTabBtn.click();
     }
@@ -2419,7 +2419,7 @@ async function handleAdminEditSkill(themeId) {
 _toast('Theme updated successfully!');
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2465,7 +2465,7 @@ async function handleAdminExtendTheme(themeId) {
 _toast(`Theme extended by ${days} days!`);
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2499,7 +2499,7 @@ async function handleAdminArchiveTheme(themeId) {
 _toast('Theme archived successfully!');
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2540,7 +2540,7 @@ async function handleAdminDeleteTheme(themeId) {
 _toast('Theme deleted successfully!');
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2655,7 +2655,7 @@ async function assignProjectToSkillByIds(projectId, themeId, projectTitle) {
 _toast(`Project assigned: ${projectTitle}`);
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2687,7 +2687,7 @@ async function unassignProjectFromTheme(projectId, projectTitle) {
 _toast(`Project removed: ${projectTitle}`);
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2702,7 +2702,7 @@ _toast('Failed to unassign project');
 
 // Keep old function name for backward compatibility
 async function loadThemesList() {
-  await loadAdminThemesList();
+  await loadAdminSkillsList();
 }
 
 // ============================================================================
