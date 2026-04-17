@@ -28,6 +28,8 @@ let _userId = null;
 const _extra = {
   acceptedPeerIds: null,
   projectCollaboratorIds: null,
+  orgMemberIds: null,
+  _sharedOrgNames: null,
   oppRelevantIds: null,
   oppSkills: null,
 };
@@ -41,6 +43,7 @@ const _filterCounts = {
   connected: 0,
   projects: 0,
   themes: 0,
+  orgs: 0,
   opps: 0,
 };
 
@@ -49,6 +52,7 @@ const FILTER_HEADERS = {
   [FILTER_MODES.CONNECTED]: 'Your Network',
   [FILTER_MODES.PROJECTS]:  'Collaborators',
   [FILTER_MODES.THEMES]:    'Shared Interests',
+  [FILTER_MODES.ORGS]:      'Org Members',
   [FILTER_MODES.OPPS]:      'Opportunities',
 };
 
@@ -309,6 +313,13 @@ function _buildNodeContext(mode, nodes, activeNodeIds) {
         break;
       }
 
+      case FILTER_MODES.ORGS: {
+        const names = _extra._sharedOrgNames?.get(n.id);
+        reason = 'Shared organization';
+        if (names && names.length > 0) detail = names.slice(0, 3).join(', ');
+        break;
+      }
+
       case FILTER_MODES.OPPS:
         if (_extra.oppRelevantIds?.has(n.id)) {
           reason = 'Linked to opportunity';
@@ -402,7 +413,7 @@ async function _loadEnrichmentData(userId) {
   if (!supabase || !userId) return;
 
   try {
-    const [connRes, projMembersRes, myProjRes, oppsRes] = await Promise.all([
+    const [connRes, projMembersRes, myProjRes, myOrgsRes, oppsRes] = await Promise.all([
       // Accepted connections
       supabase
         .from('connections')
@@ -418,6 +429,11 @@ async function _loadEnrichmentData(userId) {
         .from('project_members')
         .select('project_id')
         .eq('user_id', userId),
+      // Current user's org memberships
+      supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('community_id', userId),
       // Opportunities
       supabase
         .from('opportunities')
@@ -469,6 +485,39 @@ async function _loadEnrichmentData(userId) {
       _extra._sharedProjectNames = sharedProjectNames;
     }
 
+    // Org co-members: all people who share an org with the current user
+    if (myOrgsRes.data && myOrgsRes.data.length > 0) {
+      const myOrgIds = myOrgsRes.data.map(r => r.organization_id);
+      const [coMembersRes, orgNamesRes] = await Promise.all([
+        supabase
+          .from('organization_members')
+          .select('community_id, organization_id')
+          .in('organization_id', myOrgIds),
+        supabase
+          .from('organizations')
+          .select('id, name')
+          .in('id', myOrgIds),
+      ]);
+
+      const orgNameMap = new Map((orgNamesRes.data || []).map(o => [o.id, o.name]));
+      const orgMembers = new Set();
+      const sharedOrgNames = new Map();
+
+      (coMembersRes.data || []).forEach(om => {
+        if (om.community_id === userId) return;
+        orgMembers.add(om.community_id);
+        const name = orgNameMap.get(om.organization_id);
+        if (name) {
+          if (!sharedOrgNames.has(om.community_id)) sharedOrgNames.set(om.community_id, []);
+          const arr = sharedOrgNames.get(om.community_id);
+          if (!arr.includes(name)) arr.push(name);
+        }
+      });
+
+      _extra.orgMemberIds = orgMembers;
+      _extra._sharedOrgNames = sharedOrgNames;
+    }
+
     // Opportunity-relevant IDs and skills
     if (oppsRes.data) {
       const oppSkills = new Set();
@@ -496,6 +545,7 @@ async function _loadEnrichmentData(userId) {
     // Update filter counts for chip badges
     _filterCounts.connected = _extra.acceptedPeerIds?.size || 0;
     _filterCounts.projects = _extra.projectCollaboratorIds?.size || 0;
+    _filterCounts.orgs = _extra.orgMemberIds?.size || 0;
     _filterCounts.opps = _extra.oppRelevantIds?.size || 0;
 
     // Themes count requires graph nodes — compute from current graph data
