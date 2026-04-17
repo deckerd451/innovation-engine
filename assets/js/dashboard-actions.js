@@ -1335,10 +1335,10 @@ function _adminTabManage(content) {
       content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load People Management panel. Please refresh the page.</div>';
     }
   }, 5000);
-} else if (tabName === 'skills') {
 }
 
 function _adminTabSkills(content) {
+  content.innerHTML = `
     <div style="max-height: 70vh; overflow-y: auto;">
       <!-- Theme Management Section -->
       <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem;">
@@ -1526,10 +1526,10 @@ function _adminTabSkills(content) {
 
   // Load skills list initially (for manage tab)
   loadAdminSkillsList();
-} else if (tabName === 'projects') {
 }
 
 function _adminTabProjects(content) {
+  content.innerHTML = `
     <div style="margin-bottom: 2rem;">
       <button onclick="if(typeof openProjectsModal === 'function') openProjectsModal();" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
         <i class="fas fa-plus"></i> Create New Project
@@ -1540,10 +1540,10 @@ function _adminTabProjects(content) {
     </div>
   `;
   loadProjectsList();
-} else if (tabName === 'organizations') {
 }
 
 function _adminTabOrganizations(content) {
+  content.innerHTML = `
     <div style="margin-bottom: 2rem;">
       <button onclick="if(typeof showOrganizationsPanel === 'function') { document.getElementById('admin-panel')?.remove(); showOrganizationsPanel(); }" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
         <i class="fas fa-plus"></i> Create New Organization
@@ -1554,7 +1554,6 @@ function _adminTabOrganizations(content) {
     </div>
   `;
   loadOrganizationsList();
-} else if (tabName === 'system') {
 }
 
 function _adminTabSystem(content) {
@@ -1732,7 +1731,6 @@ _toast('ℹ️ Unified network is not currently active. Enable it and reload to 
       testBtn.disabled = false;
     }
   });
-} else if (tabName === 'analytics') {
 }
 
 function _adminTabAnalytics(content) {
@@ -3421,11 +3419,7 @@ window.assignProjectToTheme = assignProjectToTheme;  // UI version (1 arg)
 window.assignProjectToSkillByIds = assignProjectToSkillByIds;  // Command version (3 args)
 window.removeProjectFromTheme = removeProjectFromTheme;
 
-  // Close the initialization guard block
-  console.log("✅ Dashboard Actions ready");
-}
-
-// Dashboard Actions initialization complete (outside guard for debugging)
+// Dashboard Actions initialization complete
 // Connection status checker
 window.checkSupabaseStatus = async function() {
   const statusDiv = document.createElement('div');
