@@ -234,6 +234,23 @@ try {
     simulation: this._simulation,
   };
 
+  // Register the canonical network-refresh function so all callers that do
+  // window.refreshSynapseConnections() / window.reloadAllData() /
+  // window.refreshSynapse() actually trigger a real reload + re-render.
+  // Previously none of these were defined, so every post-create refresh
+  // silently no-oped and new orgs/connections never appeared without a reload.
+  const _doNetworkRefresh = async () => {
+    console.log('🔄 [network] refreshSynapseConnections: reloading graph data…');
+    await this._graphDataStore.refresh();
+    if (this._simulation) {
+      this._simulation.alpha(0.3).restart();
+    }
+    console.log('✅ [network] graph data reloaded and simulation restarted');
+  };
+  window.refreshSynapseConnections = _doNetworkRefresh;
+  window.reloadAllData             = _doNetworkRefresh;
+  window.refreshSynapse            = _doNetworkRefresh;
+
   // Enhanced debug hook for tier system
   window.__UNIFIED_NETWORK_DEBUG = {
     api: this,
