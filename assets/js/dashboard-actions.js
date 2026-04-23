@@ -1194,11 +1194,11 @@ function openAdminPanel() {
   panel.id = 'admin-panel';
   panel.style.cssText = `
     position: fixed;
-    inset: 20px;
+    inset: 10px;
     background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
     border: 2px solid rgba(255,215,0,0.5);
     border-radius: 16px;
-    padding: 2rem;
+    padding: clamp(0.75rem, 3vw, 2rem);
     box-shadow: 0 25px 70px rgba(0,0,0,0.7);
     z-index: 10003;
     backdrop-filter: blur(20px);
@@ -1206,52 +1206,52 @@ function openAdminPanel() {
   `;
 
   panel.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 2px solid rgba(255,215,0,0.3); padding-bottom: 1rem;">
-      <h2 style="color: #ffd700; margin: 0; font-size: 1.75rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 2px solid rgba(255,215,0,0.3); padding-bottom: 0.75rem;">
+      <h2 style="color: #ffd700; margin: 0; font-size: clamp(1.2rem, 4vw, 1.75rem);">
         <i class="fas fa-crown"></i> Admin Panel
       </h2>
       <button onclick="document.getElementById('admin-panel').remove()"
         style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
-        color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem;">
+        color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem; flex-shrink: 0;">
         <i class="fas fa-times"></i>
       </button>
     </div>
 
     <!-- Tabs -->
-    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center;">
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center; flex-wrap: wrap; padding-bottom: 0.5rem;">
       <!-- Resource Management Dropdown -->
       <div style="position: relative;">
-        <button id="resource-mgmt-dropdown-btn" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px 8px 0 0; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;">
-          <i class="fas fa-tasks"></i> Resource Management
-          <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
+        <button id="resource-mgmt-dropdown-btn" style="padding: 0.55rem 0.85rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px 8px 0 0; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem; font-size: clamp(0.78rem, 2.5vw, 0.95rem); white-space: nowrap;">
+          <i class="fas fa-tasks"></i> <span class="tab-label-long">Resource Management</span><span class="tab-label-short" style="display:none;">Resources</span>
+          <i class="fas fa-chevron-down" style="font-size: 0.75rem;"></i>
         </button>
-        <div id="resource-mgmt-dropdown" style="display: none; position: absolute; top: 100%; left: 0; min-width: 220px; background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98)); border: 2px solid rgba(0,224,255,0.4); border-radius: 0 8px 8px 8px; padding: 0.5rem; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
-          <button class="admin-tab active-admin-tab" data-tab="manage" style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,224,255,0.1); border: none; border-radius: 6px; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+        <div id="resource-mgmt-dropdown" style="display: none; position: absolute; top: 100%; left: 0; min-width: 200px; max-width: calc(100vw - 30px); background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98)); border: 2px solid rgba(0,224,255,0.4); border-radius: 0 8px 8px 8px; padding: 0.5rem; z-index: 10010; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
+          <button class="admin-tab active-admin-tab" data-tab="manage" style="width: 100%; padding: 0.65rem 0.9rem; background: rgba(0,224,255,0.1); border: none; border-radius: 6px; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
             <i class="fas fa-users-cog"></i> Manage Community
           </button>
-          <button class="admin-tab" data-tab="skills" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+          <button class="admin-tab" data-tab="skills" style="width: 100%; padding: 0.65rem 0.9rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
             <i class="fas fa-bullseye"></i> Manage Skills
           </button>
-          <button class="admin-tab" data-tab="projects" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+          <button class="admin-tab" data-tab="projects" style="width: 100%; padding: 0.65rem 0.9rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
             <i class="fas fa-rocket"></i> Manage Projects
           </button>
-          <button class="admin-tab" data-tab="organizations" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left;">
+          <button class="admin-tab" data-tab="organizations" style="width: 100%; padding: 0.65rem 0.9rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left;">
             <i class="fas fa-building"></i> Manage Orgs
           </button>
         </div>
       </div>
-      
-      <button class="admin-tab" data-tab="system" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+
+      <button class="admin-tab" data-tab="system" style="padding: 0.55rem 0.85rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: clamp(0.78rem, 2.5vw, 0.95rem); white-space: nowrap;">
         <i class="fas fa-cog"></i> System Settings
       </button>
-      
-      <button class="admin-tab" data-tab="analytics" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+
+      <button class="admin-tab" data-tab="analytics" style="padding: 0.55rem 0.85rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: clamp(0.78rem, 2.5vw, 0.95rem); white-space: nowrap;">
         <i class="fas fa-chart-line"></i> Analytics
       </button>
     </div>
 
     <!-- Tab Content -->
-    <div id="admin-tab-content" style="padding: 1rem 0;">
+    <div id="admin-tab-content" style="padding: 0.5rem 0;">
       <!-- Content will be loaded dynamically -->
     </div>
   `;
@@ -1583,7 +1583,7 @@ function _adminTabSystem(content) {
           </label>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
           <button id="unified-network-reload-admin" style="
             padding: 0.875rem 1.25rem;
             background: linear-gradient(135deg, #00e0ff, #0080ff);
