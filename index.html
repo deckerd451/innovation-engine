@@ -200,6 +200,19 @@
         <i class="fas fa-gauge-high" style="color:#a855f7; font-size:1.1rem;"></i>
       </div>
 
+      <!-- Admin crown — shown by JS for admin users only -->
+      <div
+        id="btn-admin-top"
+        role="button"
+        tabindex="0"
+        style="cursor:pointer; padding:0.6rem; background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; transition:all 0.2s; touch-action:manipulation; flex-shrink:0;"
+        title="Admin Panel"
+        aria-label="Open admin panel"
+        onclick="if(typeof openAdminPanel === 'function') openAdminPanel();"
+      >
+        <i class="fas fa-crown" style="color:#ffa500; font-size:1.1rem;"></i>
+      </div>
+
       <div
         id="btn-logout-mobile"
         role="button"

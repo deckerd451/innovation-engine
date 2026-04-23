@@ -702,6 +702,10 @@ body.profile-modal-open .side-panel {
   .mobile-notif-btn,
   #btn-logout-mobile {
     display: flex !important;
+    touch-action: manipulation !important;
+  }
+  #btn-admin-top {
+    touch-action: manipulation !important;
   }
   /* Hide actions button on mobile when it has no count (managed by JS) */
   #btn-actions-mobile[data-empty="true"] {
