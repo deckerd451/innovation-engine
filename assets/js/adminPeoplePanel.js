@@ -58,18 +58,18 @@ export function renderPeoplePanel(container) {
   if (!container) return;
 
   container.innerHTML = `
-    <div id="people-panel" style="max-height: 70vh; overflow: hidden; display: flex; flex-direction: column;">
+    <div id="people-panel" style="max-height: calc(100vh - 160px); overflow: hidden; display: flex; flex-direction: column;">
       <!-- Claim Stats Banner -->
-      <div id="claim-stats-banner" style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(0,224,255,0.08); border: 1px solid rgba(0,224,255,0.3); border-radius: 10px; text-align: center;">
+      <div id="claim-stats-banner" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 80px; padding: 0.75rem; background: rgba(0,224,255,0.08); border: 1px solid rgba(0,224,255,0.3); border-radius: 10px; text-align: center;">
           <div id="stat-total" style="font-size: 1.75rem; font-weight: 700; color: #00e0ff;">—</div>
           <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Total Users</div>
         </div>
-        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); border-radius: 10px; text-align: center;">
+        <div style="flex: 1; min-width: 80px; padding: 0.75rem; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); border-radius: 10px; text-align: center;">
           <div id="stat-claimed" style="font-size: 1.75rem; font-weight: 700; color: #a855f7;">—</div>
           <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Claimed</div>
         </div>
-        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.3); border-radius: 10px; text-align: center;">
+        <div style="flex: 1; min-width: 80px; padding: 0.75rem; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.3); border-radius: 10px; text-align: center;">
           <div id="stat-unclaimed" style="font-size: 1.75rem; font-weight: 700; color: #ffaa00;">—</div>
           <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Unclaimed</div>
         </div>
@@ -84,7 +84,7 @@ export function renderPeoplePanel(container) {
             type="text" 
             id="people-search-input" 
             placeholder="Search by name or email..." 
-            style="flex: 1; min-width: 250px; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 0.95rem;"
+            style="flex: 1; min-width: 0; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; font-size: 0.95rem;"
           />
           
           <!-- Primary CTA -->
@@ -184,8 +184,8 @@ export function renderPeoplePanel(container) {
     </div>
     
     <!-- Bulk Action Bar (hidden by default) -->
-    <div id="bulk-action-bar" style="display: none; position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, rgba(0,224,255,0.95), rgba(0,128,255,0.95)); padding: 1rem 2rem; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); z-index: 10004; backdrop-filter: blur(10px);">
-      <div style="display: flex; gap: 1rem; align-items: center;">
+    <div id="bulk-action-bar" style="display: none; position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, rgba(0,224,255,0.95), rgba(0,128,255,0.95)); padding: 0.75rem 1rem; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); z-index: 10004; backdrop-filter: blur(10px); max-width: calc(100vw - 2rem); width: max-content;">
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: center;">
         <span id="bulk-count" style="color: white; font-weight: 600; font-size: 1rem;">0 selected</span>
         <button id="bulk-set-role-btn" style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">
           <i class="fas fa-user-tag"></i> Set Role
