@@ -64,6 +64,7 @@ body {
   color: var(--text-primary);
   font-family: 'Orbitron', sans-serif;
   overflow-x: hidden;
+  overflow-y: auto;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -736,6 +737,367 @@ button:focus { outline: 2px solid var(--cyan); outline-offset: 4px; }
   white-space: nowrap;
   border-width: 0;
 }
+
+/* ============================
+   BELOW-THE-FOLD CONTENT
+============================ */
+.homepage-content {
+  position: relative;
+  z-index: 10;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+/* Scroll indicator */
+.scroll-indicator {
+  text-align: center;
+  padding: 2rem 0 1rem;
+  animation: bobDown 2s ease-in-out infinite;
+}
+
+.scroll-indicator span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.scroll-indicator i {
+  font-size: 1.4rem;
+  color: var(--cyan);
+  filter: drop-shadow(0 0 6px var(--cyan-glow));
+}
+
+@keyframes bobDown {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(8px); }
+}
+
+/* Section shared styles */
+.content-section {
+  margin-bottom: 3rem;
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+}
+
+.content-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.content-section h2 {
+  font-size: 1.6rem;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, var(--gold), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+}
+
+.content-section .section-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.05em;
+}
+
+/* Divider */
+.section-divider {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--cyan));
+  border: none;
+  border-radius: 2px;
+  margin: 0 0 2rem;
+}
+
+/* ============================
+   UPCOMING EVENTS STRIP
+============================ */
+.events-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.event-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 224, 255, 0.15);
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.event-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--cyan), var(--gold));
+  border-radius: 2px 0 0 2px;
+}
+
+.event-card:hover {
+  border-color: var(--cyan);
+  background: rgba(0, 224, 255, 0.05);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0, 224, 255, 0.12);
+}
+
+.event-date {
+  font-size: 0.75rem;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.4rem;
+}
+
+.event-card h3 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.event-card h3 a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.event-card h3 a:hover {
+  color: var(--cyan);
+}
+
+.event-location {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.event-desc {
+  font-size: 0.85rem;
+  color: #777;
+  line-height: 1.5;
+}
+
+.events-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+
+/* ============================
+   COMMUNITY PULSE
+============================ */
+.pulse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.pulse-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(201, 163, 94, 0.2);
+  border-radius: var(--border-radius);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.pulse-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(201, 163, 94, 0.15);
+}
+
+.pulse-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.6rem;
+  display: block;
+}
+
+.pulse-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pulse-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Animated counter */
+.pulse-value[data-target] {
+  transition: none;
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+  color: transparent !important;
+}
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================
+   GET INVOLVED CTA
+============================ */
+.cta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.2rem;
+}
+
+.cta-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  text-align: center;
+  transition: var(--transition-smooth);
+  text-decoration: none;
+  display: block;
+}
+
+.cta-card:hover {
+  border-color: var(--cyan);
+  background: rgba(0, 224, 255, 0.04);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 35px rgba(0, 224, 255, 0.1);
+}
+
+.cta-card:hover .cta-icon {
+  transform: scale(1.15);
+}
+
+.cta-icon {
+  font-size: 2.2rem;
+  margin-bottom: 0.8rem;
+  display: block;
+  transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.cta-card h3 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.cta-card p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ============================
+   HOMEPAGE FOOTER
+============================ */
+.homepage-footer {
+  text-align: center;
+  padding: 2rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 1rem;
+}
+
+.homepage-footer p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+
+.homepage-footer a {
+  color: var(--cyan);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.homepage-footer a:hover {
+  color: var(--gold);
+}
+
+/* ============================
+   RESPONSIVE — BELOW FOLD
+============================ */
+@media (max-width: 768px) {
+  .homepage-content {
+    padding: 0 1rem 3rem;
+  }
+
+  .content-section h2 {
+    font-size: 1.3rem;
+  }
+
+  .pulse-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pulse-value {
+    font-size: 1.6rem;
+  }
+
+  .events-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scroll-indicator {
+    padding: 1rem 0 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pulse-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .pulse-card {
+    padding: 1rem 0.75rem;
+  }
+
+  .pulse-icon {
+    font-size: 1.4rem;
+  }
+
+  .pulse-value {
+    font-size: 1.4rem;
+  }
+}
   </style>
 </head>
 
@@ -945,6 +1307,102 @@ button:focus { outline: 2px solid var(--cyan); outline-offset: 4px; }
       </a>
     </section>
   </main>
+
+  <!-- Below-the-Fold Content -->
+  <div class="scroll-indicator" aria-hidden="true">
+    <span>Explore More</span>
+    <i class="fas fa-chevron-down"></i>
+  </div>
+
+  <section class="homepage-content" aria-label="Homepage content">
+
+    <!-- Upcoming Events -->
+    <div class="content-section" id="events-section">
+      <h2><i class="fas fa-calendar-star" style="margin-right:0.5rem;"></i>Upcoming Events</h2>
+      <p class="section-subtitle">What's happening in Charleston's tech scene</p>
+      <hr class="section-divider">
+      <div class="events-strip" id="homepage-events">
+        <!-- Skeleton placeholders -->
+        <div class="event-card skeleton" aria-hidden="true">
+          <div class="event-date">&nbsp;</div>
+          <h3>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h3>
+          <p class="event-location">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+          <p class="event-desc">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+        </div>
+        <div class="event-card skeleton" aria-hidden="true">
+          <div class="event-date">&nbsp;</div>
+          <h3>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h3>
+          <p class="event-location">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+          <p class="event-desc">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+        </div>
+        <div class="event-card skeleton" aria-hidden="true">
+          <div class="event-date">&nbsp;</div>
+          <h3>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h3>
+          <p class="event-location">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+          <p class="event-desc">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Community Pulse -->
+    <div class="content-section" id="pulse-section">
+      <h2><i class="fas fa-signal" style="margin-right:0.5rem;"></i>Community Pulse</h2>
+      <p class="section-subtitle">The CharlestonHacks network at a glance</p>
+      <hr class="section-divider">
+      <div class="pulse-grid">
+        <div class="pulse-card">
+          <span class="pulse-icon">👥</span>
+          <div class="pulse-value" data-target="150" id="pulse-members">0</div>
+          <div class="pulse-label">Members</div>
+        </div>
+        <div class="pulse-card">
+          <span class="pulse-icon">🚀</span>
+          <div class="pulse-value" data-target="24" id="pulse-projects">0</div>
+          <div class="pulse-label">Active Projects</div>
+        </div>
+        <div class="pulse-card">
+          <span class="pulse-icon">🤝</span>
+          <div class="pulse-value" data-target="380" id="pulse-connections">0</div>
+          <div class="pulse-label">Connections Made</div>
+        </div>
+        <div class="pulse-card">
+          <span class="pulse-icon">📅</span>
+          <div class="pulse-value" data-target="12" id="pulse-events">0</div>
+          <div class="pulse-label">Events This Year</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Get Involved CTA -->
+    <div class="content-section" id="cta-section">
+      <h2><i class="fas fa-rocket" style="margin-right:0.5rem;"></i>Get Involved</h2>
+      <p class="section-subtitle">Jump in — there's a place for everyone</p>
+      <hr class="section-divider">
+      <div class="cta-grid">
+        <a href="dashboard.html" class="cta-card">
+          <span class="cta-icon">🌐</span>
+          <h3>Join the Network</h3>
+          <p>Create your profile, showcase your skills, and connect with Charleston's tech community.</p>
+        </a>
+        <a href="subscribe.html" class="cta-card">
+          <span class="cta-icon">📬</span>
+          <h3>Stay in the Loop</h3>
+          <p>Get weekly updates on events, projects, and opportunities delivered to your inbox.</p>
+        </a>
+        <a href="https://github.com/sponsors/deckerd451" target="_blank" rel="noopener noreferrer" class="cta-card">
+          <span class="cta-icon">💛</span>
+          <h3>Support the Mission</h3>
+          <p>Help us keep building tools that make invisible networks visible. Every bit counts.</p>
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="homepage-footer">
+      <p>© 2026 <a href="https://charlestonhacks.com">CharlestonHacks</a> · Making Invisible Networks Visible</p>
+    </footer>
+
+  </section>
 
   <!-- Events Modal -->
   <div id="events-overlay" role="dialog" aria-modal="true" aria-labelledby="events-title">
@@ -1385,6 +1843,187 @@ button:focus { outline: 2px solid var(--cyan); outline-offset: 4px; }
         if (e.target === eventsOverlay) eventsOverlay.classList.remove("active");
       });
     });
+  </script>
+
+  <!-- Below-the-Fold: Scroll Animations + Live Data -->
+  <script>
+    (function () {
+      // ── Intersection Observer for scroll-triggered reveals ──
+      const sections = document.querySelectorAll('.content-section');
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+        );
+        sections.forEach((s) => observer.observe(s));
+      } else {
+        // Fallback: show everything immediately
+        sections.forEach((s) => s.classList.add('visible'));
+      }
+
+      // ── Animated counter ──
+      function animateCounters() {
+        document.querySelectorAll('.pulse-value[data-target]').forEach((el) => {
+          const target = parseInt(el.dataset.target, 10);
+          if (!target || el.dataset.counted) return;
+          el.dataset.counted = 'true';
+
+          const duration = 1600;
+          const start = performance.now();
+
+          function tick(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            // Ease-out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(eased * target).toLocaleString();
+            if (progress < 1) requestAnimationFrame(tick);
+          }
+
+          requestAnimationFrame(tick);
+        });
+      }
+
+      // Trigger counters when pulse section is visible
+      const pulseSection = document.getElementById('pulse-section');
+      if (pulseSection && 'IntersectionObserver' in window) {
+        const counterObserver = new IntersectionObserver(
+          (entries) => {
+            if (entries[0].isIntersecting) {
+              animateCounters();
+              counterObserver.disconnect();
+            }
+          },
+          { threshold: 0.3 }
+        );
+        counterObserver.observe(pulseSection);
+      }
+
+      // ── Load events into the homepage strip ──
+      const FEED_URL = 'https://charlestonhacks-events-worker.deckerdb26354.workers.dev';
+      const FALLBACK_URL = '/assets/data/events.json';
+
+      function safeText(s) {
+        return String(s ?? '').replace(/[<>&"]/g, (c) =>
+          ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])
+        );
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return 'Upcoming';
+        try {
+          const d = new Date(dateStr);
+          if (isNaN(d.getTime())) return 'Upcoming';
+          return d.toLocaleDateString(undefined, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          });
+        } catch {
+          return 'Upcoming';
+        }
+      }
+
+      async function loadHomepageEvents() {
+        const container = document.getElementById('homepage-events');
+        if (!container) return;
+
+        let events = [];
+
+        try {
+          const res = await fetch(FEED_URL);
+          if (!res.ok) throw new Error('Worker returned ' + res.status);
+          const data = await res.json();
+          events = data?.events || data || [];
+        } catch {
+          try {
+            const res = await fetch(FALLBACK_URL);
+            const data = await res.json();
+            events = data?.events || [];
+          } catch {
+            events = [];
+          }
+        }
+
+        if (!Array.isArray(events) || events.length === 0) {
+          container.innerHTML =
+            '<p class="events-empty"><i class="fas fa-calendar-xmark" style="margin-right:0.4rem;"></i>No upcoming events right now. Check back soon!</p>';
+          return;
+        }
+
+        // Show up to 3 events
+        const html = events.slice(0, 3).map((ev) => {
+          const title = safeText(ev.title || 'Event');
+          const link = safeText(ev.link || '#');
+          const location = safeText(ev.location || '');
+          const desc = safeText((ev.description || '').substring(0, 120));
+          const date = safeText(formatDate(ev.startDate));
+
+          return `
+            <div class="event-card">
+              <div class="event-date">${date}</div>
+              <h3><a href="${link}" target="_blank" rel="noopener noreferrer">${title}</a></h3>
+              ${location ? '<p class="event-location">📍 ' + location + '</p>' : ''}
+              ${desc ? '<p class="event-desc">' + desc + (ev.description && ev.description.length > 120 ? '…' : '') + '</p>' : ''}
+            </div>
+          `;
+        }).join('');
+
+        container.innerHTML = html;
+      }
+
+      // ── Load community stats from Supabase (public, no auth) ──
+      async function loadPublicStats() {
+        // Try to get real counts from Supabase if available
+        try {
+          if (window.supabase || window.__CH_SESSION__) {
+            // Wait a moment for supabase to be ready
+            await new Promise((r) => setTimeout(r, 1200));
+            const sb = window.supabase;
+            if (!sb) return;
+
+            const [profilesRes, projectsRes, connectionsRes] = await Promise.allSettled([
+              sb.from('profiles').select('id', { count: 'exact', head: true }),
+              sb.from('projects').select('id', { count: 'exact', head: true }),
+              sb.from('connections').select('id', { count: 'exact', head: true }).eq('status', 'accepted'),
+            ]);
+
+            if (profilesRes.status === 'fulfilled' && profilesRes.value.count != null) {
+              const el = document.getElementById('pulse-members');
+              if (el) { el.dataset.target = profilesRes.value.count; el.dataset.counted = ''; }
+            }
+            if (projectsRes.status === 'fulfilled' && projectsRes.value.count != null) {
+              const el = document.getElementById('pulse-projects');
+              if (el) { el.dataset.target = projectsRes.value.count; el.dataset.counted = ''; }
+            }
+            if (connectionsRes.status === 'fulfilled' && connectionsRes.value.count != null) {
+              const el = document.getElementById('pulse-connections');
+              if (el) { el.dataset.target = connectionsRes.value.count; el.dataset.counted = ''; }
+            }
+
+            // Re-trigger counters if section is already visible
+            if (pulseSection && pulseSection.classList.contains('visible')) {
+              animateCounters();
+            }
+          }
+        } catch (e) {
+          console.warn('Public stats unavailable, using defaults:', e);
+        }
+      }
+
+      // Kick off data loading
+      window.addEventListener('DOMContentLoaded', () => {
+        loadHomepageEvents();
+        loadPublicStats();
+      });
+    })();
   </script>
 </body>
 </html>
