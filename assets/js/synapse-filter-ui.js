@@ -457,7 +457,7 @@ async function _loadEnrichmentData(userId) {
         .from('interaction_edges')
         .select('from_user_id, to_user_id, type, status, meta')
         .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
-        .in('status', ['suggested', 'confirmed', 'accepted'])
+        .in('status', ['suggested', 'confirmed', 'accepted', 'promoted'])
         .then(r => r)
         .catch(() => ({ data: null })),
     ]);
