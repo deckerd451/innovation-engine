@@ -1835,6 +1835,13 @@
   margin-top: 0.15rem;
 }
 
+.nr-badge-nearify {
+  background: rgba(244, 63, 94, 0.12);
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.35);
+  margin-left: 0.3rem;
+}
+
 /* Add-to-report button */
 .nr-add-btn {
   flex-shrink: 0;
