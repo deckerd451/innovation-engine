@@ -13,6 +13,7 @@ const FILTER_MODES = Object.freeze({
   THEMES:     'themes',
   ORGS:       'orgs',
   OPPS:       'opps',
+  EVENTS:     'events',
 });
 
 let _currentMode = FILTER_MODES.ALL;
@@ -61,6 +62,7 @@ const FILTER_VISUALS = Object.freeze({
   [FILTER_MODES.THEMES]:    { glowColor: '#a855f7', strokeColor: '#a855f7', edgeColor: 'rgba(168, 85, 247, 0.45)',  label: 'Skills' },
   [FILTER_MODES.ORGS]:      { glowColor: '#fb923c', strokeColor: '#fb923c', edgeColor: 'rgba(251, 146, 60, 0.50)',  label: 'Orgs' },
   [FILTER_MODES.OPPS]:      { glowColor: '#ffaa00', strokeColor: '#ffaa00', edgeColor: 'rgba(255, 170, 0, 0.50)',   label: 'Opps' },
+  [FILTER_MODES.EVENTS]:    { glowColor: '#f43f5e', strokeColor: '#f43f5e', edgeColor: 'rgba(244, 63, 94, 0.50)',   label: 'Events' },
 });
 
 export { FILTER_VISUALS };
@@ -122,6 +124,9 @@ export function computeFilteredNodeState(mode, graphData, currentUserId, extra =
       break;
     case FILTER_MODES.OPPS:
       activeNodeIds = _computeOpps(nodes, edges, currentUserId, extra);
+      break;
+    case FILTER_MODES.EVENTS:
+      activeNodeIds = _computeEvents(nodes, edges, currentUserId, extra);
       break;
     default:
       activeNodeIds = allNodeIds;
@@ -253,6 +258,24 @@ function _computeOpps(nodes, edges, userId, extra) {
     });
   }
 
+  return active;
+}
+
+/** Events: people the current user interacted with at a Nearify event */
+function _computeEvents(nodes, edges, userId, extra) {
+  const active = new Set();
+
+  if (extra.eventPeerIds && extra.eventPeerIds.size > 0) {
+    extra.eventPeerIds.forEach(id => active.add(id));
+  } else {
+    // Fallback: nearify-type edges already loaded in the graph
+    edges.forEach(e => {
+      if (e.type !== 'nearify') return;
+      const { s, t } = _edgeEndpoints(e);
+      if (s === userId) active.add(t);
+      if (t === userId) active.add(s);
+    });
+  }
   return active;
 }
 

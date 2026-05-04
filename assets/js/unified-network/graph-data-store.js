@@ -342,7 +342,7 @@ export class GraphDataStore {
     }
 
     const edges = [];
-    const stats = { connections: 0, projects: 0, orgs: 0 };
+    const stats = { connections: 0, projects: 0, orgs: 0, nearify: 0 };
     let skippedMissingNode = 0;
 
     // 1) Connection edges (accepted + pending)
@@ -463,6 +463,45 @@ export class GraphDataStore {
       }
     } catch (err) {
       console.warn("[STORE] organization_members edge load failed", err);
+    }
+
+    // 4) Nearify interaction edges (suggested/confirmed only — promoted ones are already connections)
+    try {
+      console.log('📊 [STORE] Loading nearify interaction edges...');
+      const { data: nearifyEdges, error: neError } = await this._supabase
+        .from('interaction_edges')
+        .select('id, from_user_id, to_user_id, type, status, confidence, meta')
+        .or(`from_user_id.eq.${this._userId},to_user_id.eq.${this._userId}`)
+        .in('status', ['suggested', 'confirmed']);
+
+      if (neError) {
+        console.warn('[STORE] interaction_edges load failed:', neError);
+      } else if (nearifyEdges) {
+        nearifyEdges.forEach(ie => {
+          if (!this._nodes.has(ie.from_user_id) || !this._nodes.has(ie.to_user_id)) return;
+          // Skip if an edge already exists between this pair (e.g. from connections)
+          const alreadyLinked = edges.some(e => {
+            const s = edgeId(e.source); const t = edgeId(e.target);
+            return (s === ie.from_user_id && t === ie.to_user_id) ||
+                   (s === ie.to_user_id && t === ie.from_user_id);
+          });
+          if (!alreadyLinked) {
+            edges.push({
+              type: 'nearify',
+              source: ie.from_user_id,
+              target: ie.to_user_id,
+              status: ie.status,
+              strength: ie.status === 'confirmed' ? 0.4 : 0.2,
+              confidence: ie.confidence,
+              meta: ie.meta || {},
+            });
+            stats.nearify++;
+          }
+        });
+        console.log(`📊 [STORE] Created ${stats.nearify} nearify interaction edges`);
+      }
+    } catch (err) {
+      console.warn('[STORE] interaction_edges load failed', err);
     }
 
     // Debug: Show edges before and after node filtering

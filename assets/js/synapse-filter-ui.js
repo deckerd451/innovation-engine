@@ -45,6 +45,7 @@ const _filterCounts = {
   themes: 0,
   orgs: 0,
   opps: 0,
+  events: 0,
 };
 
 // Header labels per filter
@@ -54,6 +55,7 @@ const FILTER_HEADERS = {
   [FILTER_MODES.THEMES]:    'Shared Interests',
   [FILTER_MODES.ORGS]:      'Org Members',
   [FILTER_MODES.OPPS]:      'Opportunities',
+  [FILTER_MODES.EVENTS]:    'Event Connections',
 };
 
 // ----------------------------------------------------------------
@@ -327,6 +329,16 @@ function _buildNodeContext(mode, nodes, activeNodeIds) {
           reason = 'Opportunity-relevant skills';
         }
         break;
+
+      case FILTER_MODES.EVENTS: {
+        const evMeta = _extra._eventMeta?.get(n.id);
+        if (evMeta?.signalType === 'qr_confirmed') {
+          reason = 'Met at event (QR)';
+        } else {
+          reason = 'Nearby at event';
+        }
+        break;
+      }
     }
 
     if (reason) _nodeContext.set(n.id, { reason, detail });
@@ -413,7 +425,7 @@ async function _loadEnrichmentData(userId) {
   if (!supabase || !userId) return;
 
   try {
-    const [connRes, projMembersRes, myProjRes, myOrgsRes, oppsRes] = await Promise.all([
+    const [connRes, projMembersRes, myProjRes, myOrgsRes, oppsRes, nearifyRes] = await Promise.all([
       // Accepted connections
       supabase
         .from('connections')
@@ -438,6 +450,14 @@ async function _loadEnrichmentData(userId) {
       supabase
         .from('opportunities')
         .select('id, organization_id, skills')
+        .then(r => r)
+        .catch(() => ({ data: null })),
+      // Nearify interaction edges (any non-ignored/blocked)
+      supabase
+        .from('interaction_edges')
+        .select('from_user_id, to_user_id, type, status, meta')
+        .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
+        .not('status', 'in', '("ignored","blocked")')
         .then(r => r)
         .catch(() => ({ data: null })),
     ]);
@@ -542,11 +562,31 @@ async function _loadEnrichmentData(userId) {
       }
     }
 
+    // Nearify event peer IDs
+    if (nearifyRes.data) {
+      const eventPeers = new Set();
+      const eventMeta = new Map();
+      nearifyRes.data.forEach(ie => {
+        const peerId = ie.from_user_id === userId ? ie.to_user_id : ie.from_user_id;
+        eventPeers.add(peerId);
+        if (!eventMeta.has(peerId)) {
+          eventMeta.set(peerId, {
+            signalType: ie.meta?.signal_type || ie.type || 'proximity',
+            eventId: ie.meta?.event_id || null,
+            status: ie.status,
+          });
+        }
+      });
+      _extra.eventPeerIds = eventPeers;
+      _extra._eventMeta = eventMeta;
+    }
+
     // Update filter counts for chip badges
     _filterCounts.connected = _extra.acceptedPeerIds?.size || 0;
     _filterCounts.projects = _extra.projectCollaboratorIds?.size || 0;
     _filterCounts.orgs = _extra.orgMemberIds?.size || 0;
     _filterCounts.opps = _extra.oppRelevantIds?.size || 0;
+    _filterCounts.events = _extra.eventPeerIds?.size || 0;
 
     // Themes count requires graph nodes — compute from current graph data
     const store = window.graphDataStore;
