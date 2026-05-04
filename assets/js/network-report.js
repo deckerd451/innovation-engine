@@ -28,6 +28,10 @@
   let _reportItems   = []; // curated list
   let _reportCounter = 0;  // unique ids for report items
 
+  // Nearify intelligence: community_id → { signalType, eventName, status }
+  let _eventPeerMap    = new Map();
+  let _eventPeersReady = false;
+
   // ── localStorage persistence ────────────────────────────────────
   function _saveList() {
     try {
@@ -50,6 +54,48 @@
   // ── DOM helpers ─────────────────────────────────────────────────
   const $  = (sel, ctx) => (ctx || document).querySelector(sel);
   const $$ = (sel, ctx) => Array.from((ctx || document).querySelectorAll(sel));
+
+  // ── Nearify intelligence ─────────────────────────────────────────
+  async function _loadEventPeers() {
+    if (_eventPeersReady || !window.supabase) return;
+
+    try {
+      const { data: { user } } = await window.supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: row } = await window.supabase
+        .from('community')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      if (!row) return;
+
+      const { data: edges } = await window.supabase
+        .from('interaction_edges')
+        .select('from_user_id, to_user_id, status, meta')
+        .or(`from_user_id.eq.${row.id},to_user_id.eq.${row.id}`)
+        .not('status', 'in', '("ignored","blocked")');
+
+      (edges || []).forEach(e => {
+        const peerId = e.from_user_id === row.id ? e.to_user_id : e.from_user_id;
+        if (!_eventPeerMap.has(peerId)) {
+          _eventPeerMap.set(peerId, {
+            signalType: e.meta?.signal_type || 'proximity',
+            eventName:  e.meta?.event_name  || null,
+            status:     e.status,
+          });
+        }
+      });
+
+      _eventPeersReady = true;
+
+      // Re-render live results if a search is already showing
+      if (_results.length > 0) _renderResults(_results);
+
+    } catch (err) {
+      console.warn('[NR] Nearify peer load failed:', err.message);
+    }
+  }
 
   // ── Open / close ────────────────────────────────────────────────
   function open() {
@@ -147,6 +193,7 @@
       meta: p.bio || null,
       email: p.email || null,
       extra: Array.isArray(p.skills) ? p.skills.slice(0, 4).join(', ') : (p.skills || null),
+      nearifyMeta: _eventPeerMap.get(p.id) || null,
     };
   }
 
@@ -348,6 +395,14 @@
     if (item.type === 'organizations' && item.status) {
       badge = `<span class="nr-badge" style="background:rgba(255,107,107,0.12);color:#ff6b6b;border-color:rgba(255,107,107,0.3);">${item.status}</span>`;
     }
+    if (item.type === 'people' && item.nearifyMeta) {
+      const nm = item.nearifyMeta;
+      const isQR = nm.signalType === 'qr_confirmed';
+      const icon = isQR ? 'fa-qrcode' : 'fa-bluetooth-b';
+      const label = isQR ? 'Met at event' : 'Nearby at event';
+      const tip = nm.eventName ? _escHtml(nm.eventName) : 'Nearify event';
+      badge += `<span class="nr-badge nr-badge-nearify" title="${tip}"><i class="fas ${icon}"></i> ${label}</span>`;
+    }
 
     return `
       <div class="nr-result-item">
@@ -381,6 +436,7 @@
       oppType: item.oppType || null,
       status: item.status || null,
       extra: item.extra || null,
+      nearifyMeta: item.nearifyMeta || null,
       addedAt: new Date().toISOString(),
     });
     _saveList();
@@ -506,6 +562,12 @@
         if (item.oppType) text += `     Type:    ${item.oppType}\n`;
         if (item.status)  text += `     Status:  ${item.status}\n`;
         if (item.extra)   text += `     Skills:  ${item.extra}\n`;
+        if (item.nearifyMeta) {
+          const nm = item.nearifyMeta;
+          const how = nm.signalType === 'qr_confirmed' ? 'QR scan' : 'BLE proximity';
+          const where = nm.eventName ? ` at ${nm.eventName}` : ' at a Nearify event';
+          text += `     Nearify: Met via ${how}${where}\n`;
+        }
         if (item.meta && item.meta !== item.email && item.meta !== item.website) {
           const desc = item.meta.length > 120 ? item.meta.slice(0, 120) + '…' : item.meta;
           text += `     Notes:   ${desc}\n`;
@@ -541,6 +603,7 @@
     const modal = $('#nr-modal');
     if (!modal) return;
     _loadList();
+    _loadEventPeers(); // pre-fetch so badges are ready by first search
 
     // Close button
     const closeBtn = $('#nr-close-btn');
