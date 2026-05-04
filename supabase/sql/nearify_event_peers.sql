@@ -63,7 +63,7 @@ BEGIN
       COALESCE(e.occurred_at::text, e.interacted_at::text) AS occurred_at,
       c.name        AS peer_name,
       c.image_url   AS peer_avatar,
-      c.headline    AS peer_headline
+      c.bio         AS peer_headline
     FROM my_edges e
     LEFT JOIN community c ON c.id = e.peer_id
   ),
