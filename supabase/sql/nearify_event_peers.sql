@@ -58,7 +58,7 @@ BEGIN
       e.confidence,
       e.interacted_at,
       e.event_id,
-      COALESCE(e.event_name, 'Unknown Event') AS event_name,
+      COALESCE(e.event_name, 'Nearify Event') AS event_name,
       COALESCE(e.signal_type, 'proximity')    AS signal_type,
       COALESCE(e.occurred_at::text, e.interacted_at::text) AS occurred_at,
       c.name        AS peer_name,

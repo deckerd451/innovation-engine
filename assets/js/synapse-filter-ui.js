@@ -452,12 +452,12 @@ async function _loadEnrichmentData(userId) {
         .select('id, organization_id, skills')
         .then(r => r)
         .catch(() => ({ data: null })),
-      // Nearify interaction edges (any non-ignored/blocked)
+      // Nearify event peers — use positive filter (NOT IN syntax is fragile in Supabase JS v2)
       supabase
         .from('interaction_edges')
         .select('from_user_id, to_user_id, type, status, meta')
         .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
-        .not('status', 'in', '("ignored","blocked")')
+        .in('status', ['suggested', 'confirmed', 'accepted'])
         .then(r => r)
         .catch(() => ({ data: null })),
     ]);
