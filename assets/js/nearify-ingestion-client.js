@@ -68,6 +68,7 @@ function sleep(ms) {
  */
 export async function sendInteraction({
   eventId,
+  eventName = null,
   fromAuthUserId = null,
   toAuthUserId = null,
   fromCommunityId = null,
@@ -107,6 +108,7 @@ export async function sendInteraction({
     source_version: '1.0.0',
     signal_type: signalType,
     qr_confirmed: signalType === 'qr_confirmed',
+    ...(eventName ? { event_name: eventName } : {}),
   };
 
   const payload = {
@@ -181,6 +183,7 @@ export async function sendInteraction({
  */
 export async function sendQRConfirmedConnection({
   eventId,
+  eventName = null,
   fromCommunityId = null,
   toCommunityId = null,
   fromAuthUserId = null,
@@ -193,6 +196,7 @@ export async function sendQRConfirmedConnection({
 
   return sendInteraction({
     eventId,
+    eventName,
     fromCommunityId,
     toCommunityId,
     fromAuthUserId,
@@ -219,6 +223,7 @@ export async function sendQRConfirmedConnection({
  */
 export async function sendBLEProximity({
   eventId,
+  eventName = null,
   fromCommunityId = null,
   toCommunityId = null,
   fromNearifyId = null,
@@ -229,6 +234,7 @@ export async function sendBLEProximity({
 } = {}) {
   return sendInteraction({
     eventId,
+    eventName,
     fromCommunityId,
     toCommunityId,
     fromNearifyId,
@@ -242,6 +248,7 @@ export async function sendBLEProximity({
 // Expose globally for non-module callers (Nearify iOS WebView, etc.)
 // fromNearifyId / toNearifyId are the primary identity params when
 // Nearify user IDs differ from Innovation Engine community IDs.
+// eventName is stored in meta so "People you met" panel can display it.
 if (typeof window !== 'undefined') {
   window.NearifyIngestion = {
     sendInteraction,

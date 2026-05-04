@@ -454,6 +454,7 @@
             </div>
             ${_renderNearifyCard()}
           </div>
+          ${window.NearifyEventsPanel?.render?.() || ''}
         </div>
 
         <div class="ch-profile-actions">
@@ -504,6 +505,10 @@
       const card = content.querySelector('.ch-nearify-card');
       if (card) card.outerHTML = _renderNearifyCard();
     });
+
+    // Load "People you met" events panel
+    window.NearifyEventsPanel?.ensureStyles?.();
+    window.NearifyEventsPanel?.init?.(content);
 
     openModal(modal);
   };
