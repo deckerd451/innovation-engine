@@ -45,7 +45,10 @@ export function renderNearifyEventsPanel() {
 
 export async function initNearifyEventsPanel(container) {
   const supabase = window.supabase;
-  const panel = (container || document).getElementById('nearify-events-panel');
+  const root = container || document;
+  const panel = root.querySelector
+    ? root.querySelector('#nearify-events-panel')
+    : document.getElementById('nearify-events-panel');
   if (!panel) return;
 
   const body = panel.querySelector('#nearify-events-body');
