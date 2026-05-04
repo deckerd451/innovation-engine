@@ -72,6 +72,8 @@ export async function sendInteraction({
   toAuthUserId = null,
   fromCommunityId = null,
   toCommunityId = null,
+  fromNearifyId = null,
+  toNearifyId = null,
   signalType = 'proximity',
   confidence = 50,
   occurredAt = null,
@@ -82,13 +84,13 @@ export async function sendInteraction({
     return { success: false, error: 'eventId is required' };
   }
 
-  if (!fromCommunityId && !fromAuthUserId) {
-    console.error(LOG_PREFIX, 'Must provide fromCommunityId or fromAuthUserId');
+  if (!fromCommunityId && !fromAuthUserId && !fromNearifyId) {
+    console.error(LOG_PREFIX, 'Must provide fromCommunityId, fromAuthUserId, or fromNearifyId');
     return { success: false, error: 'from_user identity required' };
   }
 
-  if (!toCommunityId && !toAuthUserId) {
-    console.error(LOG_PREFIX, 'Must provide toCommunityId or toAuthUserId');
+  if (!toCommunityId && !toAuthUserId && !toNearifyId) {
+    console.error(LOG_PREFIX, 'Must provide toCommunityId, toAuthUserId, or toNearifyId');
     return { success: false, error: 'to_user identity required' };
   }
 
@@ -113,6 +115,8 @@ export async function sendInteraction({
     p_to_auth_user_id: toAuthUserId || null,
     p_from_community_id: fromCommunityId || null,
     p_to_community_id: toCommunityId || null,
+    p_from_nearify_id: fromNearifyId || null,
+    p_to_nearify_id: toNearifyId || null,
     p_signal_type: signalType,
     p_confidence: confidence,
     p_occurred_at: occurredAt || new Date().toISOString(),
@@ -181,6 +185,8 @@ export async function sendQRConfirmedConnection({
   toCommunityId = null,
   fromAuthUserId = null,
   toAuthUserId = null,
+  fromNearifyId = null,
+  toNearifyId = null,
   meta = {},
 } = {}) {
   console.log(LOG_PREFIX, '🔗 Sending QR-confirmed connection…');
@@ -191,6 +197,8 @@ export async function sendQRConfirmedConnection({
     toCommunityId,
     fromAuthUserId,
     toAuthUserId,
+    fromNearifyId,
+    toNearifyId,
     signalType: 'qr_confirmed',
     confidence: 100,
     meta: { ...meta, qr_confirmed: true },
@@ -213,6 +221,8 @@ export async function sendBLEProximity({
   eventId,
   fromCommunityId = null,
   toCommunityId = null,
+  fromNearifyId = null,
+  toNearifyId = null,
   overlapSeconds = 0,
   confidence = 30,
   meta = {},
@@ -221,6 +231,8 @@ export async function sendBLEProximity({
     eventId,
     fromCommunityId,
     toCommunityId,
+    fromNearifyId,
+    toNearifyId,
     signalType: 'ble_proximity',
     confidence,
     meta: { ...meta, overlap_seconds: overlapSeconds },
@@ -228,6 +240,8 @@ export async function sendBLEProximity({
 }
 
 // Expose globally for non-module callers (Nearify iOS WebView, etc.)
+// fromNearifyId / toNearifyId are the primary identity params when
+// Nearify user IDs differ from Innovation Engine community IDs.
 if (typeof window !== 'undefined') {
   window.NearifyIngestion = {
     sendInteraction,

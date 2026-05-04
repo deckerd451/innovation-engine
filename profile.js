@@ -268,6 +268,23 @@
       }
       .ch-profile-editor-actions .btn{flex:1;min-width:200px;}
 
+      .ch-nearify-card{border-color:rgba(244,63,94,.3)!important;}
+      .ch-nearify-card .ch-profile-card-label{color:#f43f5e!important;}
+      .ch-nearify-status{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+      .ch-nearify-dot{width:8px;height:8px;border-radius:999px;flex:0 0 auto;}
+      .ch-nearify-dot.linked{background:#00ff88;box-shadow:0 0 0 3px rgba(0,255,136,.15);}
+      .ch-nearify-dot.unlinked{background:#888;}
+      .ch-nearify-id{color:#aaa;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;}
+      .ch-nearify-actions{display:flex;gap:.5rem;margin-top:.6rem;flex-wrap:wrap;}
+      .btn.ch-btn-nearify-connect{
+        background:linear-gradient(135deg,#f43f5e,#e11d48);border:none;padding:.55rem .9rem;border-radius:8px;
+        color:white;font-weight:800;cursor:pointer;font-size:.88rem;
+      }
+      .btn.ch-btn-nearify-unlink{
+        background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);padding:.55rem .9rem;
+        border-radius:8px;color:#aaa;font-weight:700;cursor:pointer;font-size:.88rem;
+      }
+
       .ch-toast{
         position:fixed;top:100px;right:20px;background:linear-gradient(135deg,#00ff88,#00cc70);color:white;
         padding:1rem 1.5rem;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.3);
@@ -352,6 +369,41 @@
   }
 
   // ================================================================
+  // Nearify card (synchronous, reads cached status)
+  // ================================================================
+  function _renderNearifyCard() {
+    const cached = window.NearifyLink?.getCachedStatus?.() || { linked: false };
+    if (cached.linked) {
+      const id = cached.nearifyUserId || '';
+      const short = id.length > 18 ? id.slice(0, 8) + '…' + id.slice(-6) : id;
+      return `
+        <div class="ch-profile-card ch-nearify-card">
+          <div class="ch-profile-card-label">Nearify</div>
+          <div class="ch-nearify-status">
+            <span class="ch-nearify-dot linked" title="Connected"></span>
+            <span class="ch-nearify-id" title="${escapeHtml(id)}">${escapeHtml(short)}</span>
+          </div>
+          <div class="ch-nearify-actions">
+            <button class="btn ch-btn-nearify-unlink" id="btn-nearify-unlink">Disconnect</button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="ch-profile-card ch-nearify-card">
+        <div class="ch-profile-card-label">Nearify</div>
+        <div class="ch-nearify-status">
+          <span class="ch-nearify-dot unlinked"></span>
+          <span style="color:#aaa;font-size:.88rem">Not connected</span>
+        </div>
+        <div class="ch-nearify-actions">
+          <button class="btn ch-btn-nearify-connect" id="btn-nearify-connect">
+            <i class="fas fa-map-marker-alt"></i> Connect Nearify
+          </button>
+        </div>
+      </div>`;
+  }
+
+  // ================================================================
   // Profile view
   // ================================================================
   function renderProfileView(profile, user) {
@@ -400,6 +452,7 @@
               <div class="ch-profile-card-label">Interests</div>
               <div class="ch-profile-card-value">${escapeHtml(interests || "—")}</div>
             </div>
+            ${_renderNearifyCard()}
           </div>
         </div>
 
@@ -425,6 +478,32 @@
 
     $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
     $("logout-btn")?.addEventListener("click", () => window.handleLogout?.(), { once: true });
+
+    // Nearify linking buttons
+    $("btn-nearify-connect")?.addEventListener("click", () => {
+      window.NearifyLink?.initiateLinkFlow?.();
+    }, { once: true });
+
+    $("btn-nearify-unlink")?.addEventListener("click", async () => {
+      const btn = $("btn-nearify-unlink");
+      if (btn) { btn.disabled = true; btn.textContent = 'Disconnecting…'; }
+      const result = await window.NearifyLink?.unlinkAccount?.();
+      if (result?.success) {
+        // Re-render profile view to reflect unlinked state
+        content.innerHTML = renderProfileView(state.profile, state.user);
+        $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
+        $("logout-btn")?.addEventListener("click", () => window.handleLogout?.(), { once: true });
+        $("btn-nearify-connect")?.addEventListener("click", () => window.NearifyLink?.initiateLinkFlow?.(), { once: true });
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = 'Disconnect'; }
+      }
+    }, { once: true });
+
+    // Refresh Nearify status from Supabase in the background
+    window.NearifyLink?.getLinkedStatus?.().then(() => {
+      const card = content.querySelector('.ch-nearify-card');
+      if (card) card.outerHTML = _renderNearifyCard();
+    });
 
     openModal(modal);
   };
