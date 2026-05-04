@@ -173,8 +173,24 @@ function _wireConnectButtons(panel, supabase) {
         const { data, error } = await supabase.rpc('promote_edge_to_connection', { p_edge_id: edgeId });
         const result = typeof data === 'string' ? JSON.parse(data) : data;
 
-        if (error || !result?.success) {
-          console.warn(LOG, 'Promote failed:', error?.message || result?.error);
+        if (error) {
+          console.warn(LOG, 'Promote RPC error:', error.message || error.details || JSON.stringify(error));
+          btn.disabled = false;
+          btn.textContent = 'Connect';
+          return;
+        }
+
+        // data null with no error = function missing or returned void
+        if (!result) {
+          console.warn(LOG, 'Promote returned no data — ensure promote_edge_to_connection() is deployed in Supabase');
+          btn.disabled = false;
+          btn.textContent = 'Connect';
+          return;
+        }
+
+        // already_promoted counts as success
+        if (!result.success && !result.already_promoted) {
+          console.warn(LOG, 'Promote failed:', result.error || 'unknown reason');
           btn.disabled = false;
           btn.textContent = 'Connect';
           return;

@@ -50,6 +50,18 @@ BEGIN
     WHERE (ie.from_user_id = v_community_id OR ie.to_user_id = v_community_id)
       AND ie.status NOT IN ('ignored', 'blocked')
   ),
+  -- One row per (event_group, peer) — keep best edge (QR > BLE, then highest confidence)
+  best_edges AS (
+    SELECT DISTINCT ON (COALESCE(event_id, 'unknown'), peer_id)
+      edge_id, peer_id, status, confidence, interacted_at,
+      event_id, event_name, signal_type, occurred_at
+    FROM my_edges
+    ORDER BY
+      COALESCE(event_id, 'unknown'),
+      peer_id,
+      CASE WHEN signal_type = 'qr_confirmed' THEN 0 ELSE 1 END,
+      confidence DESC NULLS LAST
+  ),
   peer_profiles AS (
     SELECT
       e.edge_id,
@@ -64,7 +76,7 @@ BEGIN
       c.name        AS peer_name,
       c.image_url   AS peer_avatar,
       c.bio         AS peer_headline
-    FROM my_edges e
+    FROM best_edges e
     LEFT JOIN community c ON c.id = e.peer_id
   ),
   grouped AS (
