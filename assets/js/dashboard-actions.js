@@ -296,6 +296,49 @@ function isAdminUser() {
 window.isAdminUser = isAdminUser;
 
 // -----------------------------
+// Innovation Engine access gating
+// -----------------------------
+function applyInnovationAccessControls() {
+  const isAdmin = isAdminUser() === true;
+  const canUseAdvancedInnovationTools = isAdmin === true;
+
+  // Single, explicit source used by UI modules.
+  window.canUseAdvancedInnovationTools = canUseAdvancedInnovationTools;
+
+  const body = document.body;
+  if (!body) return;
+
+  body.classList.toggle('ie-limited-user', !canUseAdvancedInnovationTools);
+
+  // Admins keep existing experience exactly as-is.
+  if (canUseAdvancedInnovationTools) return;
+
+  // Non-admin: search remains available; advanced graph/command surfaces hidden.
+  const hideIds = [
+    'command-dashboard',
+    'cd-panel-tab',
+    'synapse-main-view',
+    'btn-network-dashboard-mobile',
+    'synapse-filter-bar',
+    'synapse-filter-header'
+  ];
+
+  hideIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = 'none';
+    el.setAttribute('aria-hidden', 'true');
+  });
+}
+
+document.addEventListener('profile-loaded', applyInnovationAccessControls);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', applyInnovationAccessControls, { once: true });
+} else {
+  applyInnovationAccessControls();
+}
+
+// -----------------------------
 // Theme circle creation (MVP)
 // -----------------------------
 async function createSkillCirclePromptFlow() {
