@@ -19,6 +19,7 @@ class StartOnboarding {
    */
   async render(data) {
     this.userData = data;
+    this.onboardingRequired = this.isOnboardingRequired(data?.profile);
     const step = data.profile?.onboarding_step || 0;
     this.currentStep = step;
 
@@ -254,18 +255,20 @@ class StartOnboarding {
           ` : ''}
         </div>
 
-        <div style="text-align: center; margin-top: 1.5rem;">
-          <button onclick="window.StartOnboarding.skip()" style="
-            background: transparent;
-            border: none;
-            color: rgba(255,255,255,0.5);
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
-            cursor: pointer;
-          ">
-            Skip for now
-          </button>
-        </div>
+        ${this.onboardingRequired ? '' : `
+          <div style="text-align: center; margin-top: 1.5rem;">
+            <button onclick="window.StartOnboarding.skip()" style="
+              background: transparent;
+              border: none;
+              color: rgba(255,255,255,0.5);
+              padding: 0.5rem 1rem;
+              font-size: 0.9rem;
+              cursor: pointer;
+            ">
+              Skip for now
+            </button>
+          </div>
+        `}
       </div>
     `;
   }
@@ -678,6 +681,7 @@ class StartOnboarding {
   }
 
   async skip() {
+    if (this.onboardingRequired) return;
     this.currentStep = 4; // Jump to end
     await this.completeOnboarding();
   }
@@ -688,6 +692,23 @@ class StartOnboarding {
       try {
         const { data: { user } } = await window.supabase.auth.getUser();
         if (user) {
+          const fallbackProfileName = (this.userData?.profile?.name || user.user_metadata?.full_name || user.email || '').trim();
+          const fallbackBio = (this.userData?.profile?.bio || 'Excited to connect and collaborate.').trim();
+          const fallbackSkills = Array.isArray(this.userData?.profile?.skills) && this.userData.profile.skills.length > 0
+            ? this.userData.profile.skills
+            : ['Collaboration'];
+
+          await window.supabase
+            .from('community_users')
+            .update({
+              name: fallbackProfileName,
+              bio: fallbackBio,
+              skills: fallbackSkills,
+              profile_completed: true,
+              onboarding_completed: true
+            })
+            .eq('auth_user_id', user.id);
+
           await window.supabase.rpc('complete_onboarding', {
             auth_user_id: user.id
           });
@@ -700,6 +721,10 @@ class StartOnboarding {
     // Show completion
     this.currentStep = 4;
     await window.EnhancedStartUI.open();
+  }
+
+  isOnboardingRequired(profile = {}) {
+    return profile?.profile_completed !== true || profile?.onboarding_completed !== true;
   }
 
   editProfile() {
