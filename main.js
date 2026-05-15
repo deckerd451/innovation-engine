@@ -183,6 +183,8 @@ function initializeSearchOnlyMode() {
   }
 }
 
+
+window.initializeSearchOnlyMode = initializeSearchOnlyMode;
 // ------------------------------
 // Profile-loaded orchestration (attach EARLY so we don't miss events)
 // ------------------------------
