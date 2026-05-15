@@ -167,6 +167,22 @@ function waitForGlobals() {
   });
 }
 
+
+function initializeSearchOnlyMode() {
+  log.info('[InnovationAccess] Non-admin mode: skipping Synapse/D3 initialization');
+  if (typeof window.applyInnovationAccessControls === 'function') {
+    try { window.applyInnovationAccessControls(); } catch (err) {
+      log.warn('⚠️ Failed to apply limited-access controls:', err);
+    }
+  }
+
+  const synapseView = document.getElementById('synapse-main-view');
+  if (synapseView) {
+    synapseView.style.display = 'none';
+    synapseView.setAttribute('aria-hidden', 'true');
+  }
+}
+
 // ------------------------------
 // Profile-loaded orchestration (attach EARLY so we don't miss events)
 // ------------------------------
@@ -186,6 +202,12 @@ async function onProfileLoaded(e) {
 
   // Cache for any late subscribers (and for debugging)
   _f.lastProfileEvent = e;
+
+  const canUseAdvancedInnovationTools = window.canUseAdvancedInnovationTools === true;
+  if (!canUseAdvancedInnovationTools) {
+    initializeSearchOnlyMode();
+    return;
+  }
 
   // ------------------------------
   // Unified Network Discovery init (single-flight)

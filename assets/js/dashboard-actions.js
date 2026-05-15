@@ -353,6 +353,8 @@ function applyInnovationAccessControls() {
   });
 }
 
+window.applyInnovationAccessControls = applyInnovationAccessControls;
+
 document.addEventListener('profile-loaded', applyInnovationAccessControls);
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', applyInnovationAccessControls, { once: true });
