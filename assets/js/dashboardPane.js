@@ -792,6 +792,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // NOTE: dispatchProfileLoadedIfNeeded removed - auth.js handles all profile event dispatching
 
+  function isSearchOnlyMode() {
+    return window?.adminAccessState?.isAdmin !== true && window?.canUseAdvancedInnovationTools !== true;
+  }
+
   async function onAppReady() {
     console.log("🚀 Dashboard onAppReady called with:", {
       hasAuthUser: !!state.authUser,
@@ -815,6 +819,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     renderHeaderIdentity();
 
     // Network visualization is handled by unified-network-integration.js
+
+    if (isSearchOnlyMode()) {
+      console.log('🔎 Search-only mode: skipping dashboard counter initialization');
+      return;
+    }
 
     // Start loading dashboard counters
     await refreshCounters();
