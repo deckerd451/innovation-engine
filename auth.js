@@ -211,6 +211,7 @@
     document.body.style.overflow = "hidden";
     setHint("Continue with GitHub or Google to get started.");
     clearAuthError();
+    log("[AuthRoute] login-required");
     log("🔒 Showing login UI");
 
     markAuthReadyOnce();
