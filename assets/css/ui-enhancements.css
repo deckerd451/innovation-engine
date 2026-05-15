@@ -142,8 +142,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10001;
+  z-index: 210001;
   animation: fadeIn 0.3s ease;
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
 }
 
 @keyframes fadeIn {
@@ -160,6 +163,29 @@
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 224, 255, 0.2);
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+body.discovery-mode .onboarding-modal,
+body.discovery-mode #onboarding-modal {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  transform: none !important;
+  overflow: visible !important;
+}
+
+body.discovery-mode .onboarding-content,
+body.discovery-mode #onboarding-modal .onboarding-content {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  transform: none !important;
 }
 
 .onboarding-header {

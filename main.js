@@ -179,12 +179,11 @@ function renderDiscoveryModeLayout() {
     style.textContent = `
       body.discovery-mode .onboarding-modal,
       body.discovery-mode #onboarding-modal,
-      body.discovery-mode #profile-completion-modal,
-      body.discovery-mode #profile-modal,
-      body.discovery-mode .modal.active {
+      body.discovery-mode #profile-completion-modal {
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
+        pointer-events: auto !important;
       }
     `;
     document.head.appendChild(style);
