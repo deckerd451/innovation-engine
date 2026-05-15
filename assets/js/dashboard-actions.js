@@ -156,7 +156,6 @@ function applyAdminUIOnce(reason = "") {
 // returns false then and the call is a guaranteed no-op. Removing it
 // eliminates a redundant execution path and prevents the edge case where
 // a cached localStorage identity shows admin UI before auth is confirmed.
-document.addEventListener('profile-loaded', () => applyAdminUIOnce('profile-loaded'), { once: true });
 
 // Backward compatibility: expose as ensureAdminButtonVisible
 window.ensureAdminButtonVisible = applyAdminUIOnce;
@@ -205,92 +204,93 @@ document.getElementById('btn-view-controls')?.addEventListener('click', () => {
 // Bottom bar toggle functionality has been removed per user request
 
 // -----------------------------
-// Admin detection (enhanced)
+// Admin detection (trusted resolver)
 // -----------------------------
-function isAdminUser() {
-  // Helper to log admin grant only once per page load
-  function logAdminGrantedOnce(...args) {
-    if (window.__ADMIN_GRANTED_LOGGED__) return;
-    window.__ADMIN_GRANTED_LOGGED__ = true;
-    console.log(...args);
-  }
+const ADMIN_EMAIL_ALLOWLIST = [
+  'dmhamilton1@live.com',
+  'hojaaya@gmail.com',
+  'deckerdb26354@gmail.com',
+  'vramshesh@gmail.com',
+  'bradleydaltonoates@gmail.com',
+  'jody_stoehr@hotmail.com',
+  'dave.a.ingram@gmail.com',
+  'will@gdna.io'
+];
 
-  // Known admin emails (add more as needed)
-  const adminEmails = [
-    'dmhamilton1@live.com',
-    'hojaaya@gmail.com',
-    'deckerdb26354@gmail.com',
-    'vramshesh@gmail.com',
-    'bradleydaltonoates@gmail.com',
-    'jody_stoehr@hotmail.com',
-    'dave.a.ingram@gmail.com',
-    'will@gdna.io'
-  ];
+function isLocalhostHost(hostname = window.location.hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+}
 
-  // Try to get current user email from Supabase auth
-  try {
-    // Check session storage for auth data (synchronous)
-    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase.auth'));
-    for (const key of authKeys) {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const parsed = JSON.parse(data);
-        const email = parsed?.currentSession?.user?.email || parsed?.user?.email;
-        if (email && adminEmails.includes(email.toLowerCase())) {
-          logAdminGrantedOnce('✅ Admin access granted for:', email);
-          return true;
-        }
-      }
-    }
-  } catch (e) {
-    // Ignore parsing errors
-  }
+function normalizeRoleValue(roleValue) {
+  return typeof roleValue === 'string' ? roleValue.trim().toLowerCase() : null;
+}
 
-  // Try common places your app might store role
-  const role =
-    window?.appState?.communityProfile?.role ||
-    window?.appState?.profile?.role ||
-    window?.currentUserProfile?.role ||
-    window?.communityProfile?.role ||
-    window?.userRole;
-
-  if (typeof role === "string") {
-    const r = role.toLowerCase();
-    if (r === "admin" || r === "superadmin" || r === "owner") {
-      logAdminGrantedOnce('✅ Admin access granted via role:', r);
-      return true;
-    }
-  }
-
-  // If you have a boolean somewhere
-  if (window?.appState?.isAdmin === true) {
-    logAdminGrantedOnce('✅ Admin access granted via appState.isAdmin');
-    return true;
-  }
-
-  // For development: check storage safely (avoid costly JSON.stringify)
-  const storageCheck = 
-    document.cookie.toLowerCase().includes('dmhamilton1@live.com') ||
-    Object.keys(localStorage).some(k => {
-      try {
-        const val = localStorage.getItem(k) || '';
-        return val.toLowerCase().includes('dmhamilton1@live.com');
-      } catch (e) {
-        return false;
-      }
-    });
-
-  if (storageCheck) {
-    logAdminGrantedOnce('✅ Admin access granted via storage check');
-    return true;
-  }
-
-  // Only log admin check failures in debug mode
-  if (window.__DEBUG_ADMIN_CHECKS__) {
-    console.log('ℹ️ Admin check: no admin credentials found');
-  }
+function profileHasAdminRole(profile) {
+  if (!profile || typeof profile !== 'object') return false;
+  const role = normalizeRoleValue(profile.role);
+  if (role && ['admin', 'superadmin', 'owner'].includes(role)) return true;
+  if (profile.is_admin === true || profile.admin === true) return true;
   return false;
 }
+
+async function resolveAdminAccess(user, profile) {
+  const email = String(user?.email || profile?.email || '').trim().toLowerCase();
+  const appProfile = window?.appState?.communityProfile || window?.appState?.profile || window?.currentUserProfile || window?.communityProfile;
+  const roleSources = [profile, appProfile].filter(Boolean);
+
+  for (const sourceProfile of roleSources) {
+    if (profileHasAdminRole(sourceProfile)) {
+      const result = { email, source: 'profile-role', isAdmin: true };
+      console.log('[AdminAccess] resolved', result);
+      return result;
+    }
+  }
+
+  if (email && ADMIN_EMAIL_ALLOWLIST.includes(email)) {
+    const result = { email, source: 'allowlist', isAdmin: true };
+    console.log('[AdminAccess] resolved', result);
+    return result;
+  }
+
+  if (isLocalhostHost()) {
+    const overrideEnabled =
+      localStorage.getItem('isAdminOverride') === 'true' ||
+      sessionStorage.getItem('isAdminOverride') === 'true' ||
+      window.isAdminOverride === true;
+
+    if (overrideEnabled) {
+      const result = { email, source: 'localhost-dev-override', isAdmin: true };
+      console.log('[AdminAccess] resolved', result);
+      return result;
+    }
+  }
+
+  const result = { email, source: 'none', isAdmin: false };
+  console.log('[AdminAccess] resolved', result);
+  return result;
+}
+
+function isAdminUser() {
+  return window.adminAccessState?.isAdmin === true;
+}
+
+async function refreshAdminAccess(user, profile) {
+  const resolved = await resolveAdminAccess(user, profile);
+  window.adminAccessState = resolved;
+  window.canUseAdvancedInnovationTools = resolved.isAdmin === true;
+  return resolved;
+}
+
+window.resolveAdminAccess = resolveAdminAccess;
+window.refreshAdminAccess = refreshAdminAccess;
+
+window.addEventListener('profile-loaded', async (event) => {
+  const profile = event?.detail?.profile || window?.appState?.profile || window?.appState?.communityProfile;
+  const user = event?.detail?.user || window.currentUser || null;
+  await refreshAdminAccess(user, profile);
+  applyAdminUIOnce('profile-loaded');
+  applyInnovationAccessControls();
+});
 
 // Expose globally for use by other modules (e.g., synapse)
 window.isAdminUser = isAdminUser;

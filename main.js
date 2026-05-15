@@ -297,7 +297,12 @@ async function onProfileLoaded(e) {
   // Desktop: left sidebar + GraphController tier control.
   // Mobile:  data pre-loaded; shown inside split-view when bell is tapped.
   // ------------------------------
-  if (!_f.desktopDashInit && profile?.id && user?.id) {
+  const canUseAdvancedTools = window.canUseAdvancedInnovationTools === true;
+  if (!canUseAdvancedTools) {
+    log.info('🚪 Limited-access mode: skipping GraphController, CommandDashboard, and admin script');
+  }
+
+  if (canUseAdvancedTools && !_f.desktopDashInit && profile?.id && user?.id) {
     _f.desktopDashInit = true;
     const _isDesktop = window.matchMedia('(min-width: 1024px)').matches;
 
@@ -334,7 +339,7 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Admin controls script load (single-flight, only after auth)
   // ------------------------------
-  if (!_f.adminLoaded && user) {
+  if (canUseAdvancedTools && !_f.adminLoaded && user) {
     _f.adminLoaded = true;
 
     try {
