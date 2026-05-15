@@ -5,6 +5,31 @@
 
 console.log("%c🔗 Search Integration Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
 
+async function requireCompletedProfileForDiscovery() {
+  if (!window.supabase) return true;
+  try {
+    const { data: { user } } = await window.supabase.auth.getUser();
+    if (!user) return true;
+
+    const { data: profile } = await window.supabase
+      .from('community_users')
+      .select('profile_completed, onboarding_completed, role')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    const isAdmin = (profile?.role || '').toLowerCase() === 'admin';
+    const onboardingRequired = profile?.profile_completed !== true || profile?.onboarding_completed !== true;
+    if (!isAdmin && onboardingRequired) {
+      document.body.classList.add('onboarding-required');
+      await window.EnhancedStartUI?.open?.();
+      return false;
+    }
+  } catch (error) {
+    console.warn('⚠️ Could not validate onboarding status for search access:', error?.message || error);
+  }
+  return true;
+}
+
 // Initialize search integration
 export function initSearchIntegration() {
   // Add search button to dashboard
@@ -36,7 +61,10 @@ function setupGlobalSearchShortcut() {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault();
       if (typeof window.openEnhancedSearch === 'function') {
-        window.openEnhancedSearch();
+        requireCompletedProfileForDiscovery().then((allowed) => {
+          if (allowed) window.openEnhancedSearch();
+        });
+        return;
       }
     }
 
@@ -60,8 +88,10 @@ function enhanceExistingSearchElements() {
     input.addEventListener('focus', () => {
       if (typeof window.openEnhancedSearch === 'function') {
         const currentValue = input.value;
-        window.openEnhancedSearch(currentValue);
-        input.blur(); // Remove focus from original input
+        requireCompletedProfileForDiscovery().then((allowed) => {
+          if (allowed) window.openEnhancedSearch(currentValue);
+          input.blur(); // Remove focus from original input
+        });
       }
     });
   });
@@ -78,7 +108,9 @@ function enhanceExistingSearchElements() {
         const nearbyInput = button.parentElement?.querySelector('input') || 
                            document.querySelector('#people-search, #teamSkillsInput, #nameInput');
         const searchTerm = nearbyInput?.value || '';
-        window.openEnhancedSearch(searchTerm);
+        requireCompletedProfileForDiscovery().then((allowed) => {
+          if (allowed) window.openEnhancedSearch(searchTerm);
+        });
       } else if (originalHandler) {
         originalHandler.call(button, e);
       }

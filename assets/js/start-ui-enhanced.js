@@ -19,6 +19,7 @@ class EnhancedStartUI {
   constructor() {
     this.isOpen = false;
     this.currentData = null;
+    this.onboardingRequired = false;
   }
 
   /**
@@ -41,6 +42,8 @@ class EnhancedStartUI {
       // Fetch fresh data
       const data = await window.getStartSequenceData(true);
       this.currentData = data;
+      this.onboardingRequired = this.isOnboardingRequired(data?.profile);
+      this.applyOnboardingRequiredState();
 
       // Render the enhanced UI
       await this.render(data);
@@ -172,7 +175,7 @@ class EnhancedStartUI {
     if (!container) return;
 
     // Check if user is new (needs onboarding) or existing (gets daily digest)
-    const isNewUser = data.is_new_user || !data.profile?.onboarding_completed;
+    const isNewUser = data.is_new_user || this.isOnboardingRequired(data.profile);
 
     let contentHTML = '';
 
@@ -1133,6 +1136,10 @@ class EnhancedStartUI {
    * Close the modal
    */
   close() {
+    if (this.onboardingRequired) {
+      return;
+    }
+
     const modal = document.getElementById('start-modal');
     const backdrop = document.getElementById('start-modal-backdrop');
 
@@ -1160,6 +1167,10 @@ class EnhancedStartUI {
     // ESC key to close
     const escapeHandler = (e) => {
       if (e.key === 'Escape' && this.isOpen) {
+        if (this.onboardingRequired) {
+          e.preventDefault();
+          return;
+        }
         this.close();
       }
     };
@@ -1182,12 +1193,30 @@ class EnhancedStartUI {
 
       this.backdropClickHandler = (e) => {
         if (e.target === backdrop) {
+          if (this.onboardingRequired) {
+            e.preventDefault();
+            return;
+          }
           this.close();
         }
       };
 
       backdrop.addEventListener('click', this.backdropClickHandler);
     }
+  }
+
+  isOnboardingRequired(profile = {}) {
+    return profile?.profile_completed !== true || profile?.onboarding_completed !== true;
+  }
+
+  applyOnboardingRequiredState() {
+    const closeBtn = document.querySelector('#start-modal .mentor-panel-close');
+    if (closeBtn) {
+      closeBtn.style.display = this.onboardingRequired ? 'none' : 'flex';
+      closeBtn.disabled = this.onboardingRequired;
+    }
+
+    document.body.classList.toggle('onboarding-required', this.onboardingRequired);
   }
 }
 
