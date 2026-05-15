@@ -852,9 +852,7 @@
 
   <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>
   <script src="assets/js/project-relationship.js?v=1" defer></script>
-  <script type="module" src="assets/js/node-panel.js?v=opp-schema-fix-20260329a"></script>
-  <script src="assets/js/node-panel-fixes.js?v=fc09b39b-17701461543" defer></script>
-  <script src="assets/js/dashboard-actions.js?v=fc09b39b-1770146154f916933b2da" defer></script>
+    <script src="assets/js/dashboard-actions.js?v=fc09b39b-1770146154f916933b2da" defer></script>
   <script src="assets/js/dashboard-organizations.js?v=1" defer></script>
 
   <!-- Admin People (DEFERRED UNTIL AUTH) -->
@@ -884,47 +882,95 @@
   (function() {
     'use strict';
 
-    const AUTH_MODULES = [
-      // Feature modules (type=module)
-      { src: 'assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da', module: true },
-      { src: 'assets/js/graph-legend.js?v=fc09b39b-1770146154f916933b2da', module: true },
-      { src: 'assets/js/admin-analytics.js?v=fc09b39b-1770146154f916933b2da', module: true },
-      { src: 'assets/js/skill-admin.js?v=fc09b39b-1770146154f916933b2da', module: true },
-      { src: 'assets/js/skill-discovery.js?v=fc09b39b-1770146154f916933b2da', module: true },
-      { src: 'assets/js/daily-engagement.js?v=fc09b39b-1770146154f916933b2da', module: true },
-      { src: 'assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da', module: true },
-      // Admin People
-      { src: 'assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543', module: true },
-      // Opportunity Engine
-      { src: 'assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304', module: false },
-      // Unified Network Discovery
-      { src: 'assets/js/unified-network-integration.js?v=panel-debug-20260320b', module: true },
-      // Realtime Collaboration (use latest version from remote)
+    const COMMON_AUTH_MODULES = [
+      // Common authenticated modules only (safe for all users)
       { src: 'assets/js/realtime-collaboration.js?v=presence-fix-20260329a', module: true },
-      // Suggestions
       { src: 'assets/js/suggestions/index-v2.js', module: true },
-      { src: 'assets/js/suggestions/start-integration.js?v=1', module: true },
       { src: 'assets/js/suggestions/navigation.js?v=1', module: true },
-      // Enhanced project creation
-      { src: 'assets/js/enhanced-project-creation.js?v=1', module: true },
+    ];
+
+    const ADVANCED_AUTH_MODULES = [
+      { src: 'assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Network Filters' },
+      { src: 'assets/js/graph-legend.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Graph Legend' },
+      { src: 'assets/js/admin-analytics.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Admin Analytics' },
+      { src: 'assets/js/skill-admin.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Skill Admin' },
+      { src: 'assets/js/skill-discovery.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Skill Discovery' },
+      { src: 'assets/js/daily-engagement.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Daily Engagement' },
+      { src: 'assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Connection Requests' },
+      { src: 'assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543', module: true, name: 'Admin People Panel' },
+      { src: 'assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304', module: false, name: 'Opportunity Engine' },
+      { src: 'assets/js/unified-network-integration.js?v=panel-debug-20260320b', module: true, name: 'Unified Network Integration' },
+      { src: 'assets/js/suggestions/start-integration.js?v=1', module: true, name: 'START Synapse Integration' },
+      { src: 'assets/js/enhanced-project-creation.js?v=1', module: true, name: 'Enhanced Project Creation' },
+      { src: 'assets/js/node-panel.js?v=opp-schema-fix-20260329a', module: true, name: 'Node Panel' },
+      { src: 'assets/js/node-panel-fixes.js?v=fc09b39b-17701461543', module: false, name: 'Node Panel Fixes' },
+      { src: 'assets/js/graph-controller.js', module: false, name: 'GraphController' },
+      { src: 'assets/js/command-dashboard.js?v=fix-project-persist-20260414', module: false, name: 'CommandDashboard' },
+      { src: 'assets/js/network-report.js?v=clear-report-20260414', module: false, name: 'Network Report' },
     ];
 
     let loaded = false;
 
-    function loadAuthModules() {
-      if (loaded) return;
-      loaded = true;
-      console.log('📦 Loading ' + AUTH_MODULES.length + ' post-auth modules...');
-      AUTH_MODULES.forEach(function(m) {
-        var s = document.createElement('script');
-        s.src = m.src;
-        if (m.module) s.type = 'module';
-        else s.async = true;
-        document.body.appendChild(s);
-      });
+    function appendScript(m) {
+      var s = document.createElement('script');
+      s.src = m.src;
+      if (m.module) s.type = 'module';
+      else s.async = true;
+      document.body.appendChild(s);
     }
 
-    // Use boot-gate if available, otherwise fall back to events
+    async function resolveMode(user) {
+      const profile = window?.appState?.profile || window?.appState?.communityProfile || window?.currentUserProfile || null;
+      let resolved = null;
+
+      if (typeof window.refreshAdminAccess === 'function') {
+        resolved = await window.refreshAdminAccess(user || window.currentUser || null, profile);
+      } else if (typeof window.resolveAdminAccess === 'function') {
+        resolved = await window.resolveAdminAccess(user || window.currentUser || null, profile);
+        window.adminAccessState = resolved;
+        window.canUseAdvancedInnovationTools = resolved?.isAdmin === true;
+      } else {
+        resolved = {
+          email: String(user?.email || profile?.email || '').trim().toLowerCase(),
+          isAdmin: window.canUseAdvancedInnovationTools === true,
+          source: 'window-flag-fallback'
+        };
+      }
+
+      const mode = resolved?.isAdmin === true ? 'admin-full' : 'search-only';
+      console.info('[InnovationAccess] mode resolved', {
+        email: resolved?.email || '',
+        isAdmin: resolved?.isAdmin === true,
+        mode,
+        source: resolved?.source || 'unknown'
+      });
+
+      return { resolved, mode };
+    }
+
+    async function loadAuthModules(evt) {
+      if (loaded) return;
+      loaded = true;
+
+      const user = evt?.detail?.user || window.currentUser || null;
+      const { mode } = await resolveMode(user);
+
+      console.log('📦 Loading ' + COMMON_AUTH_MODULES.length + ' common post-auth modules...');
+      COMMON_AUTH_MODULES.forEach(appendScript);
+
+      if (mode === 'admin-full') {
+        console.log('📦 Loading ' + ADVANCED_AUTH_MODULES.length + ' advanced post-auth modules...');
+        ADVANCED_AUTH_MODULES.forEach(appendScript);
+      } else {
+        console.info('[InnovationAccess] skipped advanced modules:', ADVANCED_AUTH_MODULES.map((m) => m.name));
+        if (typeof window.initializeSearchOnlyMode === 'function') {
+          try { window.initializeSearchOnlyMode(); } catch (err) {
+            console.warn('⚠️ Failed to initialize search-only mode early:', err);
+          }
+        }
+      }
+    }
+
     if (window.bootGate) {
       window.bootGate.on('AUTH_READY', loadAuthModules);
     } else {
@@ -956,9 +1002,6 @@
 
   <!-- Daily Suggestions Engine (DEFERRED UNTIL AUTH) -->
 
-  <script src="assets/js/graph-controller.js" defer></script>
-  <script src="assets/js/command-dashboard.js?v=fix-project-persist-20260414" defer></script>
-  <script src="assets/js/network-report.js?v=clear-report-20260414" defer></script>
 
   <script>
     window.closeStartModal = function () {
