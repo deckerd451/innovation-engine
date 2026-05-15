@@ -168,6 +168,15 @@ function waitForGlobals() {
 }
 
 
+
+function renderDiscoveryModeLayout() {
+  console.info('[DiscoveryMode] runtime loaded');
+  document.body.classList.add('discovery-mode');
+  log.info('[DiscoveryMode] discovery-mode class applied');
+}
+
+window.renderDiscoveryModeLayout = renderDiscoveryModeLayout;
+
 function initializeSearchOnlyMode() {
   log.info('[InnovationAccess] Non-admin mode: skipping Synapse/D3 initialization');
   if (typeof window.applyInnovationAccessControls === 'function') {
@@ -175,6 +184,8 @@ function initializeSearchOnlyMode() {
       log.warn('⚠️ Failed to apply limited-access controls:', err);
     }
   }
+
+  renderDiscoveryModeLayout();
 
   const synapseView = document.getElementById('synapse-main-view');
   if (synapseView) {
