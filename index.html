@@ -809,7 +809,6 @@
   <script src="assets/js/micro-interactions.js?v=1"></script>
   <script src="assets/js/mobile-enhancements.js?v=1"></script>
 
-  <script type="module" src="assets/js/animation-lifecycle.js?v=1"></script>
 
   <script src="assets/js/toast.js?v=1" defer></script>
   <script src="assets/js/notification-utils.js?v=1" defer></script>
@@ -843,7 +842,6 @@
 
   <script src="assets/js/skill-strategy-toggle.js?v=fc09b39b-1770146154f916933b2da" defer></script>
   <script src="assets/js/comprehensive-fixes.js?v=fc09b39b-17701461543" defer></script>
-  <script src="assets/js/critical-ux-fixes.js?v=fc09b39b-17701461543" defer></script>
 
   <script src="assets/js/settings-modal.js?v=1" defer></script>
   <script src="assets/js/mobile-nav.js?v=2" defer></script>
@@ -861,14 +859,9 @@
 
   <!-- Unified Network Discovery Integration (DEFERRED UNTIL AUTH) -->
 
-  <script src="assets/js/presence-realtime.js?v=presence-fix-20260329b" defer></script>
-  <script src="assets/js/presence-ui.js?v=presence-fix-20260329b" defer></script>
 
-  <script src="assets/js/ble-passive-networking.js?v=20260305-1" defer></script>
-  <script src="assets/js/ble-ui.js?v=20260305-2" defer></script>
 
   <script src="assets/js/eventPresenceWeb.js?v=20260307-1" defer></script>
-  <script src="assets/js/eventModeGravity.js?v=20260305-1" defer></script>
   <script type="module" src="assets/js/quiet-mode-auto-disable.js?v=1"></script>
 
   <script type="module" src="main.js?v=fc09b39b-1770146154f916933b2da"></script>
@@ -884,12 +877,19 @@
 
     const COMMON_AUTH_MODULES = [
       // Common authenticated modules only (safe for all users)
-      { src: 'assets/js/realtime-collaboration.js?v=presence-fix-20260329a', module: true },
       { src: 'assets/js/suggestions/index-v2.js', module: true },
       { src: 'assets/js/suggestions/navigation.js?v=1', module: true },
     ];
 
     const ADVANCED_AUTH_MODULES = [
+      { src: 'assets/js/animation-lifecycle.js?v=1', module: true, name: 'Animation Lifecycle' },
+      { src: 'assets/js/critical-ux-fixes.js?v=fc09b39b-17701461543', module: false, name: 'Critical UX Fixes' },
+      { src: 'assets/js/presence-realtime.js?v=presence-fix-20260329b', module: false, name: 'Presence Realtime' },
+      { src: 'assets/js/presence-ui.js?v=presence-fix-20260329b', module: false, name: 'Presence UI' },
+      { src: 'assets/js/realtime-collaboration.js?v=presence-fix-20260329a', module: true, name: 'Realtime Collaboration' },
+      { src: 'assets/js/ble-passive-networking.js?v=20260305-1', module: false, name: 'BLE Passive Networking' },
+      { src: 'assets/js/ble-ui.js?v=20260305-2', module: false, name: 'BLE UI' },
+      { src: 'assets/js/eventModeGravity.js?v=20260305-1', module: false, name: 'Event Mode Gravity' },
       { src: 'assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Network Filters' },
       { src: 'assets/js/graph-legend.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Graph Legend' },
       { src: 'assets/js/admin-analytics.js?v=fc09b39b-1770146154f916933b2da', module: true, name: 'Admin Analytics' },
