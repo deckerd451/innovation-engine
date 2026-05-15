@@ -172,6 +172,24 @@ function waitForGlobals() {
 function renderDiscoveryModeLayout() {
   console.info('[DiscoveryMode] runtime loaded');
   document.body.classList.add('discovery-mode');
+
+  if (!document.getElementById('discovery-onboarding-visibility-guard')) {
+    const style = document.createElement('style');
+    style.id = 'discovery-onboarding-visibility-guard';
+    style.textContent = `
+      body.discovery-mode .onboarding-modal,
+      body.discovery-mode #onboarding-modal,
+      body.discovery-mode #profile-completion-modal,
+      body.discovery-mode #profile-modal,
+      body.discovery-mode .modal.active {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   log.info('[DiscoveryMode] discovery-mode class applied');
 }
 
@@ -196,6 +214,41 @@ function initializeSearchOnlyMode() {
 
 
 window.initializeSearchOnlyMode = initializeSearchOnlyMode;
+
+function isProfileComplete(profile) {
+  if (!profile) return false;
+
+  const requiredTextFields = ["name", "bio"];
+  const hasRequiredText = requiredTextFields.every((field) => {
+    const value = profile[field];
+    return typeof value === "string" && value.trim().length > 0;
+  });
+
+  const hasSkills = Array.isArray(profile.skills) && profile.skills.length > 0;
+
+  return (
+    profile.onboarding_completed === true &&
+    profile.profile_completed === true &&
+    hasRequiredText &&
+    hasSkills
+  );
+}
+
+function showOnboardingGate(profile) {
+  if (typeof window.showOnboarding === "function") {
+    window.showOnboarding(profile);
+    return true;
+  }
+
+  if (typeof window.StartOnboarding?.start === "function") {
+    window.StartOnboarding.start({ profile });
+    return true;
+  }
+
+  log.warn("[AuthRoute] onboarding UI unavailable");
+  return false;
+}
+
 // ------------------------------
 // Profile-loaded orchestration (attach EARLY so we don't miss events)
 // ------------------------------
@@ -216,11 +269,30 @@ async function onProfileLoaded(e) {
   // Cache for any late subscribers (and for debugging)
   _f.lastProfileEvent = e;
 
+  if (!user?.id) {
+    log.info('[AuthRoute] login-required');
+    return;
+  }
+
+  if (!profile?.id) {
+    log.info('[AuthRoute] profile-create-required');
+    return;
+  }
+
+  if (!isProfileComplete(profile)) {
+    log.info('[AuthRoute] onboarding-required');
+    showOnboardingGate(profile);
+    return;
+  }
+
   const canUseAdvancedInnovationTools = window.canUseAdvancedInnovationTools === true;
   if (!canUseAdvancedInnovationTools) {
+    log.info('[AuthRoute] discovery-mode');
     initializeSearchOnlyMode();
     return;
   }
+
+  log.info('[AuthRoute] admin-full');
 
   // ------------------------------
   // Unified Network Discovery init (single-flight)
