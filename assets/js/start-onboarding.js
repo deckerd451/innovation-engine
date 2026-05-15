@@ -724,6 +724,15 @@ class StartOnboarding {
   }
 
   isOnboardingRequired(profile = {}) {
+    if (profile?._needsOnboarding === true) return true;
+    if (profile?._legacyComplete === true) return false;
+    if (profile?._profileSource === 'newly-created') return true;
+
+    const hasName = typeof (profile?.display_name || profile?.name) === 'string'
+      && (profile?.display_name || profile?.name).trim().length > 0;
+    const hasEmail = typeof profile?.email === 'string' && profile.email.trim().length > 0;
+
+    if (!hasName || !hasEmail) return true;
     return profile?.profile_completed !== true || profile?.onboarding_completed !== true;
   }
 
