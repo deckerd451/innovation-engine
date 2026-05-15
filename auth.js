@@ -605,6 +605,40 @@
     return canonical;
   }
 
+  async function resolveExistingCommunityProfile(user) {
+    const uid = user?.id;
+    const emailNorm = user?.email ? user.email.toLowerCase().trim() : null;
+    if (!uid) return null;
+
+    try {
+      const { data: byUid, error: byUidError } = await window.supabase
+        .from("community")
+        .select("*")
+        .eq("user_id", uid)
+        .limit(1);
+      if (!byUidError && Array.isArray(byUid) && byUid.length > 0) {
+        log("✅ [PROFILE-LINK] resolved-existing:", byUid[0].id);
+        return byUid[0];
+      }
+    } catch (_) {}
+
+    if (!emailNorm) return null;
+    try {
+      const { data: byEmail, error: byEmailError } = await window.supabase
+        .from("community")
+        .select("*")
+        .ilike("email", emailNorm)
+        .order("created_at", { ascending: true, nullsLast: true })
+        .limit(1);
+      if (!byEmailError && Array.isArray(byEmail) && byEmail.length > 0) {
+        log("✅ [PROFILE-LINK] reused-community-profile:", byEmail[0].id);
+        return byEmail[0];
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
   async function loadUserProfileOnce(user) {
     if (!window.supabase || !user?.id) return null;
     if (profileLoadPromise) return profileLoadPromise;
@@ -638,12 +672,18 @@
 
           if (insertError) {
             err("❌ [PROFILE-LINK] Failed to create new profile:", insertError);
-            setTimeout(() => emitProfileNew(user), 10);
-            return null;
+            warn("⚠️ [PROFILE-LINK] nonfatal-create-failed-falling-back");
+            const fallback = await resolveExistingCommunityProfile(user);
+            if (fallback) {
+              profile = fallback;
+            } else {
+              setTimeout(() => emitProfileNew(user), 10);
+              return null;
+            }
+          } else {
+            profile = insertedProfile;
+            log("✅ [PROFILE-LINK] created-new:", profile.id);
           }
-
-          profile = insertedProfile;
-          log("✅ [PROFILE-LINK] Successfully created new profile:", profile.id);
         }
 
         const needsOnboarding =

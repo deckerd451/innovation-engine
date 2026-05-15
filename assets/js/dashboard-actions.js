@@ -320,7 +320,13 @@ function applyInnovationAccessControls() {
     'synapse-main-view',
     'btn-network-dashboard-mobile',
     'synapse-filter-bar',
-    'synapse-filter-header'
+    'synapse-filter-header',
+    'network-command-panel',
+    'admin-panel',
+    'btn-admin-top',
+    'cd-admin-btn',
+    'view-controls-panel',
+    'btn-view-controls'
   ];
 
   hideIds.forEach((id) => {
@@ -328,6 +334,22 @@ function applyInnovationAccessControls() {
     if (!el) return;
     el.style.display = 'none';
     el.setAttribute('aria-hidden', 'true');
+  });
+
+  const hideSelectors = [
+    '[data-admin-only="true"]',
+    '.admin-only',
+    '.synapse-only',
+    '.network-command-surface',
+    '.advanced-command-surface',
+    '#synapse-view',
+    '#network-command'
+  ];
+  hideSelectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      el.style.display = 'none';
+      el.setAttribute('aria-hidden', 'true');
+    });
   });
 }
 
