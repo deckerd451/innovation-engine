@@ -648,6 +648,7 @@
       showProfileLoading(user);
       try {
         let profile = await fetchUserProfile(user);
+        let profileSource = "existing";
 
         if (!profile) {
           log(
@@ -655,6 +656,7 @@
             user.id
           );
 
+          profileSource = "newly-created";
           const newProfile = {
             user_id: user.id,
             email: user.email,
@@ -687,18 +689,49 @@
           }
         }
 
-        const needsOnboarding =
-          !profile.onboarding_completed ||
-          !profile.profile_completed ||
-          !profile.name;
+        const identityName = (profile?.display_name || profile?.name || "").trim();
+        const identityEmail = (profile?.email || user?.email || "").trim();
+        const hasRequiredIdentity = Boolean(identityName) && Boolean(identityEmail);
+        const requiredAccountFieldsMissing = !hasRequiredIdentity;
+        const isLegacyComplete = profileSource !== "newly-created" && hasRequiredIdentity;
+        const needsOnboarding = profileSource === "newly-created" || requiredAccountFieldsMissing;
 
         if (needsOnboarding) {
           log("⚠️ [PROFILE-LINK] onboarding-forced: Profile", profile.id, "requires onboarding");
-          log("   - onboarding_completed:", profile.onboarding_completed);
-          log("   - profile_completed:", profile.profile_completed);
-          log("   - name:", !!profile.name);
+          log("   - profileSource:", profileSource);
+          log("   - hasIdentityName:", Boolean(identityName));
+          log("   - hasIdentityEmail:", Boolean(identityEmail));
+          log("   - requiredAccountFieldsMissing:", requiredAccountFieldsMissing);
           profile._needsOnboarding = true;
+        } else if (isLegacyComplete) {
+          log("[AuthRoute] legacy-profile-complete");
+
+          const shouldRepairFlags =
+            profile.onboarding_completed !== true || profile.profile_completed !== true;
+          if (shouldRepairFlags) {
+            setTimeout(async () => {
+              try {
+                const { error: repairError } = await window.supabase
+                  .from("community")
+                  .update({
+                    onboarding_completed: true,
+                    profile_completed: true,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", profile.id);
+                if (repairError) throw repairError;
+                log("[PROFILE-LINK] repaired-completion-flags");
+              } catch (repairErr) {
+                warn("⚠️ [PROFILE-LINK] failed-repair-completion-flags:", repairErr);
+              }
+            }, 0);
+          }
         }
+
+        profile._profileSource = profileSource;
+        profile._hasRequiredIdentity = hasRequiredIdentity;
+        profile._legacyComplete = isLegacyComplete;
+        profile._requiredAccountFieldsMissing = requiredAccountFieldsMissing;
 
         log("📋 [PROFILE-LINK] Profile resolution complete:", profile.id);
         window.currentUserProfile = profile;

@@ -217,20 +217,18 @@ window.initializeSearchOnlyMode = initializeSearchOnlyMode;
 function isProfileComplete(profile) {
   if (!profile) return false;
 
-  const requiredTextFields = ["name", "bio"];
-  const hasRequiredText = requiredTextFields.every((field) => {
-    const value = profile[field];
-    return typeof value === "string" && value.trim().length > 0;
-  });
+  if (profile._needsOnboarding === true) return false;
+  if (profile._legacyComplete === true) return true;
 
-  const hasSkills = Array.isArray(profile.skills) && profile.skills.length > 0;
+  const hasName = typeof (profile.display_name || profile.name) === "string"
+    && (profile.display_name || profile.name).trim().length > 0;
+  const hasEmail = typeof profile.email === "string" && profile.email.trim().length > 0;
+  const hasRequiredIdentity = hasName && hasEmail;
 
-  return (
-    profile.onboarding_completed === true &&
-    profile.profile_completed === true &&
-    hasRequiredText &&
-    hasSkills
-  );
+  if (!hasRequiredIdentity) return false;
+  if (profile._profileSource === "newly-created") return false;
+
+  return profile.onboarding_completed === true && profile.profile_completed === true;
 }
 
 function showOnboardingGate(profile) {
