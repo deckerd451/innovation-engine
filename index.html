@@ -937,7 +937,7 @@
         };
       }
 
-      const mode = resolved?.isAdmin === true ? 'admin-full' : 'search-only';
+      const mode = resolved?.isAdmin === true ? 'admin-full' : 'discovery-mode';
       console.info('[InnovationAccess] mode resolved', {
         email: resolved?.email || '',
         isAdmin: resolved?.isAdmin === true,
@@ -959,9 +959,11 @@
       COMMON_AUTH_MODULES.forEach(appendScript);
 
       if (mode === 'admin-full') {
+        console.info('[InnovationAccess] admin-full');
         console.log('📦 Loading ' + ADVANCED_AUTH_MODULES.length + ' advanced post-auth modules...');
         ADVANCED_AUTH_MODULES.forEach(appendScript);
       } else {
+        console.info('[InnovationAccess] discovery-mode');
         console.info('[InnovationAccess] skipped advanced modules:', ADVANCED_AUTH_MODULES.map((m) => m.name));
         if (typeof window.initializeSearchOnlyMode === 'function') {
           try { window.initializeSearchOnlyMode(); } catch (err) {
