@@ -281,8 +281,15 @@ function renderDiscoveryModeLayout() {
 
 window.renderDiscoveryModeLayout = renderDiscoveryModeLayout;
 
+function resetInnovationAccessBodyState() {
+  document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('onboarding-required');
+}
+
 function initializeSearchOnlyMode() {
   log.info('[InnovationAccess] Non-admin mode: skipping Synapse/D3 initialization');
+  document.body.classList.remove('onboarding-required');
+  document.body.classList.remove('discovery-mode');
   if (typeof window.applyInnovationAccessControls === 'function') {
     try { window.applyInnovationAccessControls(); } catch (err) {
       log.warn('⚠️ Failed to apply limited-access controls:', err);
@@ -373,15 +380,20 @@ async function onProfileLoaded(e) {
 
   const canUseAdvancedInnovationTools = window.canUseAdvancedInnovationTools === true;
   if (!canUseAdvancedInnovationTools) {
-    log.info('[AuthRoute] discovery-mode');
+    log.info('[InnovationAccess] discovery-mode');
     initializeSearchOnlyMode();
     return;
   }
 
-  document.body.classList.remove('onboarding-required');
+  resetInnovationAccessBodyState();
   ensurePersistentAuthUtility();
+  const synapseView = document.getElementById('synapse-main-view');
+  if (synapseView) {
+    synapseView.style.removeProperty('display');
+    synapseView.removeAttribute('aria-hidden');
+  }
 
-  log.info('[AuthRoute] admin-full');
+  log.info('[InnovationAccess] admin-full');
 
   // ------------------------------
   // Unified Network Discovery init (single-flight)
