@@ -316,6 +316,51 @@ canvas#neural-bg {
   transform: translateX(-50%);
 }
 
+/* Discovery-mode landing layout (non-admin only) */
+body.discovery-mode #main-content {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+body.discovery-mode #synapse-main-view,
+body.discovery-mode .dashboard-shell,
+body.discovery-mode .dashboard-sidebar,
+body.discovery-mode .left-sidebar,
+body.discovery-mode .network-shell,
+body.discovery-mode .command-sidebar {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+}
+
+body.discovery-mode #centered-search-container {
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  width: min(700px, 92vw) !important;
+  max-width: min(700px, 92vw) !important;
+  margin: 0 auto !important;
+  z-index: 100 !important;
+}
+
+body.discovery-mode #search-suggestions {
+  top: calc(100% + 6px) !important;
+  bottom: auto !important;
+  box-shadow: 0 8px 28px rgba(0, 224, 255, 0.18) !important;
+}
+
+body.discovery-mode #search-drag-handle {
+  display: none !important;
+}
+
 /* Hide search container when ANY modal is open */
 .modal.active ~ * #centered-search-container,
 .modal.active ~ #centered-search-container {
@@ -576,6 +621,15 @@ canvas#neural-bg {
     right: 10px !important;
     transform: none !important;
     box-sizing: border-box !important;
+  }
+
+  body.discovery-mode #main-content {
+    padding: 0.75rem;
+  }
+
+  body.discovery-mode #centered-search-container {
+    width: min(700px, 96vw) !important;
+    max-width: min(700px, 96vw) !important;
   }
 
   #centered-search-container > div:first-child {
