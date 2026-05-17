@@ -775,7 +775,7 @@ body.profile-modal-open .side-panel {
   --utility-bar-top-offset: calc(env(safe-area-inset-top, 0px) + 10px);
 }
 
-body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.utility-icons {
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons {
   position: fixed !important;
   top: var(--utility-bar-top-offset) !important;
   right: 10px !important;
@@ -798,14 +798,18 @@ body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.u
 body.admin-mode #mobile-notif-container.utility-icons {
   max-width: min(520px, calc(100vw - var(--cd-width, 340px) - 24px)) !important;
 }
+body.admin-mode #mobile-notif-container.utility-icons {
+  display: none !important;
+  pointer-events: none !important;
+}
 
-body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.utility-icons .mobile-notif-btn,
-body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons .mobile-notif-btn,
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
   display: flex !important;
   pointer-events: auto !important;
 }
 
-body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
   margin-left: auto !important;
 }
 

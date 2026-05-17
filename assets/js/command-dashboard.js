@@ -160,6 +160,7 @@ window.CommandDashboard = (() => {
     _wireAvatarClick();
     _wireAdminBtn();
     _wireBellBtn();
+    _wireThemeBtn();
     _wireLogoutBtn();
     _wireReportBtn();
 
@@ -1607,6 +1608,18 @@ window.CommandDashboard = (() => {
   }
 
   /** Wire logout button in command dashboard */
+  function _wireThemeBtn() {
+    const btn = $id('cd-theme-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (window.SettingsModal && typeof window.SettingsModal.open === 'function') {
+        window.SettingsModal.open();
+      } else if (typeof window.toggleThemeStrategy === 'function') {
+        window.toggleThemeStrategy();
+      }
+    });
+  }
+
   function _wireLogoutBtn() {
     const btn = $id('cd-logout-btn');
     if (!btn) return;
