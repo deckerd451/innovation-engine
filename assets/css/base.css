@@ -768,34 +768,44 @@ body.profile-modal-open .side-panel {
 }
 
 /* ============================================================
-   DISCOVERY MODE TOP UTILITY BAR (non-admin, all viewports)
-   Keep utility icons visible at all sizes without affecting admin UI.
+   SHARED TOP UTILITY BAR (discovery non-admin + admin, all viewports)
+   Keeps utility icons persistent, clickable, and out of graph/sidebar paths.
    ============================================================ */
-body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons {
+:root {
+  --utility-bar-top-offset: calc(env(safe-area-inset-top, 0px) + 10px);
+}
+
+body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.utility-icons {
   position: fixed !important;
-  top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
-  left: 10px !important;
+  top: var(--utility-bar-top-offset) !important;
   right: 10px !important;
+  left: auto !important;
   bottom: auto !important;
   z-index: 1200 !important;
   display: flex !important;
   align-items: center !important;
-  justify-content: space-between !important;
+  justify-content: flex-end !important;
   flex-wrap: wrap !important;
   gap: 8px !important;
-  padding: 6px 8px !important;
+  padding: 6px 8px 6px 10px !important;
+  max-width: min(520px, calc(100vw - 20px)) !important;
   pointer-events: auto !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
 
-body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons .mobile-notif-btn,
-body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+/* Admin mode: keep away from command dashboard/sidebar on narrow desktops. */
+body.admin-mode #mobile-notif-container.utility-icons {
+  max-width: min(520px, calc(100vw - var(--cd-width, 340px) - 24px)) !important;
+}
+
+body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.utility-icons .mobile-notif-btn,
+body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
   display: flex !important;
   pointer-events: auto !important;
 }
 
-body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+body:is(.discovery-mode:not(.admin-mode), .admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
   margin-left: auto !important;
 }
 
