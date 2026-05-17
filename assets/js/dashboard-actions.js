@@ -309,9 +309,21 @@ function applyInnovationAccessControls() {
   if (!body) return;
 
   body.classList.toggle('ie-limited-user', !canUseAdvancedInnovationTools);
+  body.setAttribute('data-admin-user', canUseAdvancedInnovationTools ? 'true' : 'false');
 
   // Admins keep existing experience exactly as-is.
   if (canUseAdvancedInnovationTools) return;
+
+  // Defense-in-depth: force-hide network command surfaces for non-admin users
+  // even if later scripts attempt to toggle them back on.
+  const commandDashboard = document.getElementById('command-dashboard');
+  if (commandDashboard) {
+    commandDashboard.hidden = true;
+    commandDashboard.style.display = 'none';
+    commandDashboard.style.visibility = 'hidden';
+    commandDashboard.style.pointerEvents = 'none';
+    commandDashboard.setAttribute('aria-hidden', 'true');
+  }
 
   // Non-admin: search remains available; advanced graph/command surfaces hidden.
   const hideIds = [
