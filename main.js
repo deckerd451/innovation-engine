@@ -244,6 +244,8 @@ function ensurePersistentAuthUtility() {
 function renderDiscoveryModeLayout() {
   console.info('[DiscoveryMode] runtime loaded');
   document.body.classList.add('discovery-mode');
+  document.body.classList.add('search-only-mode');
+  document.body.classList.remove('admin-mode');
   document.body.classList.remove('dashboard-shell-loading');
   ensurePersistentAuthUtility();
 
@@ -283,6 +285,7 @@ window.renderDiscoveryModeLayout = renderDiscoveryModeLayout;
 
 function resetInnovationAccessBodyState() {
   document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('search-only-mode');
   document.body.classList.remove('onboarding-required');
 }
 
@@ -290,6 +293,7 @@ function initializeSearchOnlyMode() {
   log.info('[InnovationAccess] Non-admin mode: skipping Synapse/D3 initialization');
   document.body.classList.remove('onboarding-required');
   document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('admin-mode');
   if (typeof window.applyInnovationAccessControls === 'function') {
     try { window.applyInnovationAccessControls(); } catch (err) {
       log.warn('⚠️ Failed to apply limited-access controls:', err);
@@ -386,6 +390,11 @@ async function onProfileLoaded(e) {
   }
 
   resetInnovationAccessBodyState();
+  document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('search-only-mode');
+  document.body.classList.remove('onboarding-required');
+  log.info('[AdminMode] cleared discovery classes');
+  document.body.classList.add('admin-mode');
   ensurePersistentAuthUtility();
   const synapseView = document.getElementById('synapse-main-view');
   if (synapseView) {
@@ -394,6 +403,28 @@ async function onProfileLoaded(e) {
   }
 
   log.info('[InnovationAccess] admin-full');
+  const adminRestoreTargets = [
+    '.dashboard-shell',
+    '.dashboard-sidebar',
+    '.left-sidebar',
+    '.network-shell',
+    '.command-sidebar',
+    '#network-report-modal',
+    '#network-status-panel',
+    '#cd-explore',
+  ];
+  adminRestoreTargets.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      el.style.removeProperty('display');
+      el.style.removeProperty('visibility');
+      el.style.removeProperty('opacity');
+      el.style.removeProperty('pointer-events');
+      el.style.removeProperty('filter');
+      el.style.removeProperty('backdrop-filter');
+    });
+  });
+  log.info('[AdminMode] sidebar restored');
+
 
   // ------------------------------
   // Unified Network Discovery init (single-flight)

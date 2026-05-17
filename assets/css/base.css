@@ -317,7 +317,7 @@ canvas#neural-bg {
 }
 
 /* Discovery-mode landing layout (non-admin only) */
-body.discovery-mode #main-content {
+body.discovery-mode:not(.admin-mode) #main-content {
   display: flex !important;
   align-items: center;
   justify-content: center;
@@ -326,19 +326,19 @@ body.discovery-mode #main-content {
   box-sizing: border-box;
 }
 
-body.discovery-mode #synapse-main-view,
-body.discovery-mode .dashboard-shell,
-body.discovery-mode .dashboard-sidebar,
-body.discovery-mode .left-sidebar,
-body.discovery-mode .network-shell,
-body.discovery-mode .command-sidebar {
+body.discovery-mode:not(.admin-mode) #synapse-main-view,
+body.discovery-mode:not(.admin-mode) .dashboard-shell,
+body.discovery-mode:not(.admin-mode) .dashboard-sidebar,
+body.discovery-mode:not(.admin-mode) .left-sidebar,
+body.discovery-mode:not(.admin-mode) .network-shell,
+body.discovery-mode:not(.admin-mode) .command-sidebar {
   display: none !important;
   width: 0 !important;
   min-width: 0 !important;
   max-width: 0 !important;
 }
 
-body.discovery-mode #centered-search-container {
+body.discovery-mode:not(.admin-mode) #centered-search-container {
   position: relative !important;
   top: auto !important;
   bottom: auto !important;
@@ -351,13 +351,13 @@ body.discovery-mode #centered-search-container {
   z-index: 100 !important;
 }
 
-body.discovery-mode #search-suggestions {
+body.discovery-mode:not(.admin-mode) #search-suggestions {
   top: calc(100% + 6px) !important;
   bottom: auto !important;
   box-shadow: 0 8px 28px rgba(0, 224, 255, 0.18) !important;
 }
 
-body.discovery-mode #search-drag-handle {
+body.discovery-mode:not(.admin-mode) #search-drag-handle {
   display: none !important;
 }
 
@@ -623,11 +623,11 @@ body.discovery-mode #search-drag-handle {
     box-sizing: border-box !important;
   }
 
-  body.discovery-mode #main-content {
+  body.discovery-mode:not(.admin-mode) #main-content {
     padding: 0.75rem;
   }
 
-  body.discovery-mode #centered-search-container {
+  body.discovery-mode:not(.admin-mode) #centered-search-container {
     width: min(700px, 96vw) !important;
     max-width: min(700px, 96vw) !important;
   }
@@ -880,4 +880,21 @@ body.profile-modal-open .side-panel {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+}
+
+
+/* Admin-mode hard restore guard in case discovery/search-only mode leaked. */
+body.admin-mode .dashboard-shell,
+body.admin-mode .dashboard-sidebar,
+body.admin-mode .left-sidebar,
+body.admin-mode .network-shell,
+body.admin-mode .command-sidebar,
+body.admin-mode #network-report-modal,
+body.admin-mode #network-status-panel,
+body.admin-mode #cd-explore {
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  backdrop-filter: none !important;
 }
