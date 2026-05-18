@@ -22,8 +22,6 @@ window.addEventListener('profile-loaded', async (e) => {
   // ENFORCE ONBOARDING if profile is incomplete
   // ============================================================
   if (profile._needsOnboarding) {
-  // Check if profile needs onboarding
-  if (profile._needsOnboarding) {
     if (typeof window.showOnboarding === 'function') {
       window.showOnboarding(profile);
       return;
@@ -827,7 +825,7 @@ function getTimeAgo(date) {
   for (const [unit, secondsInUnit] of Object.entries(intervals)) {
     const interval = Math.floor(seconds / secondsInUnit);
     if (interval >= 1) {
-      return `${interval} ${unit}${interval > 1 ? 's' : ''} : ago`;
+      return `${interval} ${unit}${interval > 1 ? 's' : ''} ago`;
     }
   }
   
