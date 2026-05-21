@@ -6,7 +6,7 @@ const tooltips = {
   'btn-refresh-network': 'Update network visualization',
   'btn-profile': 'View and edit your profile',
   'btn-logout': 'Sign out of your account',
-  'search-input': 'Search people, projects, and themes',
+  'search-input': 'Search people, projects, and skills',
   'notification-bell': 'View notifications',
   'admin-crown': 'Admin dashboard'
 };

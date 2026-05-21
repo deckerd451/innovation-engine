@@ -110,6 +110,7 @@ export class NodeRenderer {
     updateViewport();
 
     console.log('✅ NodeRenderer initialized');
+    this._warnedInvalidCoordinates = false;
   }
 
   /**
@@ -129,10 +130,11 @@ export class NodeRenderer {
     let glowColor = '#ffffff';
     let scale = VISUAL_CONSTANTS.scaleMin;
 
-    // Current user's node gets hero treatment
+    // Current user's node gets hero treatment — slightly larger than peers but
+    // not so large it overlaps neighbours; 1.25x is clearly distinct without dominating.
     const isCurrentUser = node.isCurrentUser === true;
     if (isCurrentUser) {
-      scale = 1.6;
+      scale = 1.25;
       glowIntensity = 0.45;
       glowColor = '#00e0ff';
     }
@@ -379,6 +381,20 @@ export class NodeRenderer {
       const visualState = this.getVisualState(d, state);
       
       // Use SVG transform attribute instead of CSS transform for cross-browser reliability
+      const hasValidCoords = Number.isFinite(d.x) && Number.isFinite(d.y);
+      const hasValidScale = Number.isFinite(visualState.scale);
+      if (!hasValidCoords || !hasValidScale) {
+        if (!this._warnedInvalidCoordinates && window.__DEBUG__) {
+          this._warnedInvalidCoordinates = true;
+          console.warn('[NodeRenderer] Skipping node transform due to invalid coordinates/scale', {
+            id: d.id,
+            x: d.x,
+            y: d.y,
+            scale: visualState.scale
+          });
+        }
+        return;
+      }
       element.setAttribute('transform', `translate(${d.x}, ${d.y}) scale(${visualState.scale})`);
 
       // --- Synapse Filter integration ---
@@ -485,8 +501,12 @@ export class NodeRenderer {
     if (nodeElement.empty()) return;
 
     // Update transform
-    nodeElement.style('transform', `scale(${visualState.scale})`);
-    nodeElement.style('opacity', visualState.opacity);
+    if (Number.isFinite(visualState.scale)) {
+      nodeElement.style('transform', `scale(${visualState.scale})`);
+    }
+    if (Number.isFinite(visualState.opacity)) {
+      nodeElement.style('opacity', visualState.opacity);
+    }
 
     // Update circle
     nodeElement.select('.node-circle')

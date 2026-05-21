@@ -476,9 +476,7 @@ export function renderSmartSuggestionCard(suggestion) {
       ${topReasons.length > 0 ? `
         <div class="suggestion-reasons">
           ${topReasons.map(reason => `
-            <div class="reason-item">
-              <i class="fas fa-check-circle"></i> ${reason}
-            </div>
+            <span class="reason-chip"><i class="fas fa-check-circle"></i>${reason}</span>
           `).join('')}
         </div>
       ` : ''}
@@ -530,16 +528,71 @@ window.sendSmartConnectionRequest = async function(userId, userName) {
   }
 };
 
-// Show connection explanation
+// Show connection explanation as an inline popover
 window.showConnectionExplanation = function(userId) {
-  // Find the suggestion in current data
   const suggestions = window.cachedSuggestions || [];
   const suggestion = suggestions.find(s => s.id === userId);
-  
-  if (suggestion) {
-    const explanation = explainConnectionSuggestion(suggestion);
-    alert(explanation); // Could be replaced with a nice modal
+  if (!suggestion) return;
+
+  // Remove any existing popover
+  document.getElementById('explain-popover')?.remove();
+
+  const score     = Math.round((suggestion.score || 0) * 100);
+  const breakdown = suggestion.scoreBreakdown || {};
+  const reasons   = suggestion.reasons || [];
+
+  const LABELS = {
+    skillSimilarity:     'Skill Compatibility',
+    mutualConnections:   'Mutual Connections',
+    projectCompatibility:'Project Synergy',
+    activityPatterns:    'Activity Match',
+    profileCompleteness: 'Profile Quality',
+  };
+
+  const bars = Object.entries(breakdown)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, val]) => {
+      const pct = Math.round(val * 100);
+      return `
+        <div class="ep-row">
+          <span class="ep-label">${LABELS[key] || key}</span>
+          <div class="ep-bar"><div class="ep-fill" style="width:${pct}%"></div></div>
+          <span class="ep-pct">${pct}%</span>
+        </div>`;
+    }).join('');
+
+  const pop = document.createElement('div');
+  pop.id = 'explain-popover';
+  pop.className = 'ep';
+  pop.innerHTML = `
+    <div class="ep-score">${score}% match</div>
+    <div class="ep-breakdown">${bars}</div>
+    ${reasons.length > 0 ? `
+      <div class="ep-reasons">
+        ${reasons.slice(0, 3).map(r =>
+          `<div class="ep-reason"><i class="fas fa-check-circle"></i>${r}</div>`
+        ).join('')}
+      </div>` : ''}
+  `;
+  document.body.appendChild(pop);
+
+  // Position below the clicked button
+  const btn = document.querySelector(`.smart-suggestion-card[data-user-id="${userId}"] .btn-explain`);
+  if (btn) {
+    const r  = btn.getBoundingClientRect();
+    const pw = pop.offsetWidth || 224;
+    pop.style.left = `${Math.min(r.left, window.innerWidth - pw - 10)}px`;
+    pop.style.top  = `${r.bottom + 8}px`;
   }
+
+  // Dismiss on outside click
+  const dismiss = (e) => {
+    if (!pop.contains(e.target) && e.target !== btn) {
+      pop.remove();
+      document.removeEventListener('click', dismiss);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', dismiss), 10);
 };
 
 // Initialize on DOM ready

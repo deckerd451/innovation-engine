@@ -152,18 +152,42 @@ function optimizeTouchTargets() {
 }
 
 function handleKeyboardResize() {
-  const originalHeight = window.innerHeight;
-  
-  window.addEventListener('resize', () => {
-    const currentHeight = window.innerHeight;
-    const diff = originalHeight - currentHeight;
-    
-    if (diff > 150) {
+  // Use visualViewport API (iOS 13+ / Android) for accurate keyboard detection.
+  // Falls back to window resize diff for older browsers.
+  const root = document.documentElement;
+
+  function onViewportChange() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    // The gap between the layout viewport and the visual viewport is the keyboard height.
+    const keyboardHeight = Math.max(0, window.innerHeight - vv.height);
+
+    root.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
+
+    if (keyboardHeight > 60) {
       document.body.classList.add('keyboard-open');
     } else {
       document.body.classList.remove('keyboard-open');
     }
-  });
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onViewportChange);
+    window.visualViewport.addEventListener('scroll', onViewportChange);
+  } else {
+    // Fallback: compare against initial window height
+    const originalHeight = window.innerHeight;
+    window.addEventListener('resize', () => {
+      const diff = originalHeight - window.innerHeight;
+      root.style.setProperty('--keyboard-height', `${Math.max(0, diff)}px`);
+      if (diff > 150) {
+        document.body.classList.add('keyboard-open');
+      } else {
+        document.body.classList.remove('keyboard-open');
+      }
+    });
+  }
 }
 
 if (typeof window !== 'undefined') {

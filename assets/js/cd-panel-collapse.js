@@ -1,8 +1,8 @@
 // ================================================================
 // COMMAND DASHBOARD — Collapsible & Resizable Panel
 // ================================================================
-// Collapse toggle: pill tab on the right edge, open at every login.
-//   State: sessionStorage (resets when browser/tab closes).
+// Collapse toggle: pill tab on the right edge.
+//   State: localStorage (persists across sessions).
 //
 // Resize handle: drag the right edge to widen/narrow the panel.
 //   - Updates --cd-width on :root; all dependents (graph, search, tab) follow.
@@ -30,7 +30,7 @@
     }
   }, { passive: true });
 
-  const STORAGE_KEY   = 'cdPanelCollapsed';
+  const STORAGE_KEY   = 'nearify.adminSidebarCollapsed';
   const STORAGE_KEY_W = 'cdPanelWidth';
   const DEFAULT_W     = 420;
   const MIN_W         = 300;
@@ -51,13 +51,13 @@
 
     if (collapsed) {
       document.body.classList.add('panel-collapsed');
-      sessionStorage.setItem(STORAGE_KEY, 'true');
+      localStorage.setItem(STORAGE_KEY, 'true');
       if (icon) icon.className = 'fas fa-chevron-right';
       if (tab)  tab.title = 'Expand panel';
       if (tab)  tab.setAttribute('aria-label', 'Expand navigation panel');
     } else {
       document.body.classList.remove('panel-collapsed');
-      sessionStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(STORAGE_KEY, 'false');
       if (icon) icon.className = 'fas fa-chevron-left';
       if (tab)  tab.title = 'Collapse panel';
       if (tab)  tab.setAttribute('aria-label', 'Collapse navigation panel');
@@ -131,14 +131,13 @@
     const btn = document.getElementById('cd-panel-tab');
     if (!btn) return;
 
-    window.addEventListener('profile-loaded', () => {
-      sessionStorage.removeItem(STORAGE_KEY);
-      setCollapsed(false);
-    }, { once: true });
-
     if (isDesktop()) {
-      const storedCollapsed = sessionStorage.getItem(STORAGE_KEY) === 'true';
-      setCollapsed(storedCollapsed);
+      const persisted = localStorage.getItem(STORAGE_KEY);
+      if (persisted === 'true' || persisted === 'false') {
+        setCollapsed(persisted === 'true');
+      } else {
+        setCollapsed(window.innerWidth < 1280);
+      }
     }
 
     btn.addEventListener('click', () => {

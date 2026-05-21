@@ -186,6 +186,11 @@ const DailyEngagement = (function () {
   }
 
   async function awardXP(amount, reason) {
+    // If init is still in flight, wait for it before giving up
+    if (!state.userStats && initPromise) {
+      try { await initPromise; } catch (_) {}
+    }
+
     if (!state.userStats) {
       console.warn("⚠️ Cannot award XP: user stats not loaded");
       return { didLevelUp: false, newLevel: state.level, totalXP: state.xp };

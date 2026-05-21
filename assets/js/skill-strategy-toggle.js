@@ -1,34 +1,34 @@
-// assets/js/theme-strategy-toggle.js
-// Toggle between old SVG circles, new theme cards, and sidebar strategies
+// assets/js/skill-strategy-toggle.js
+// Toggle between old SVG circles, new skill cards, and sidebar strategies
 
-console.log("🎯 Theme Strategy Toggle loaded");
+console.log("🎯 Skill Strategy Toggle loaded");
 
 let currentStrategy = 'circles'; // Start with synapse/circles strategy ('circles', 'cards', 'sidebar')
 let isToggling = false;
 
 // Add toggle button to the page
-function addThemeStrategyToggle() {
+function addSkillStrategyToggle() {
   // Use the bottom bar button instead of creating a floating button
   const button = document.getElementById('btn-view-toggle');
   if (!button) {
     // Button doesn't exist - this is expected if bottom bar is not present
     // Don't log a warning as this is a normal state
-    console.debug('Theme strategy toggle: btn-view-toggle not found (bottom bar may not be present)');
+    console.debug('Skill strategy toggle: btn-view-toggle not found (bottom bar may not be present)');
     return;
   }
 
   // Prevent double-binding
-  if (button.dataset.themeToggleBound === 'true') {
-    console.debug('Theme strategy toggle already bound');
+  if (button.dataset.skillToggleBound === 'true') {
+    console.debug('Skill strategy toggle already bound');
     return;
   }
-  button.dataset.themeToggleBound = 'true';
+  button.dataset.skillToggleBound = 'true';
 
   // Update button content to reflect current strategy
   updateButtonText(button);
 
   // Add click listener
-  button.addEventListener('click', toggleThemeStrategy);
+  button.addEventListener('click', toggleSkillStrategy);
 
   // Add hover effects
   button.addEventListener('mouseenter', () => {
@@ -43,7 +43,7 @@ function addThemeStrategyToggle() {
     button.style.boxShadow = 'none';
   });
   
-  console.log('✅ Theme strategy toggle bound to button');
+  console.log('✅ Skill strategy toggle bound to button');
 }
 
 function updateButtonText(button) {
@@ -58,7 +58,7 @@ function updateButtonText(button) {
   }
 }
 
-async function toggleThemeStrategy() {
+async function toggleSkillStrategy() {
   if (isToggling) return;
 
   isToggling = true;
@@ -69,7 +69,7 @@ async function toggleThemeStrategy() {
     // The unified network is now the only visualization.
     showNotification('Unified Network is the active view', 'info');
   } catch (error) {
-    console.error('❌ Failed to switch theme strategy:', error);
+    console.error('❌ Failed to switch skill strategy:', error);
     showNotification('Failed to switch strategy: ' + error.message, 'error');
   } finally {
     isToggling = false;
@@ -187,12 +187,12 @@ document.head.appendChild(style);
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', addThemeStrategyToggle);
+  document.addEventListener('DOMContentLoaded', addSkillStrategyToggle);
 } else {
-  addThemeStrategyToggle();
+  addSkillStrategyToggle();
 }
 
 // Export for manual use
-window.toggleThemeStrategy = toggleThemeStrategy;
-window.addThemeStrategyToggle = addThemeStrategyToggle;
+window.toggleSkillStrategy = toggleSkillStrategy;
+window.addSkillStrategyToggle = addSkillStrategyToggle;
 window.currentStrategy = currentStrategy;

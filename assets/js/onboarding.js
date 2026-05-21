@@ -13,7 +13,23 @@ function showOnboarding(profile) {
   
   const modal = createOnboardingModal();
   document.body.appendChild(modal);
+  console.info('[OnboardingUI] mounted');
   showOnboardingStep(0);
+  requestAnimationFrame(() => {
+    const onboardingModal = document.getElementById('onboarding-modal');
+    if (!onboardingModal) return;
+    const styles = window.getComputedStyle(onboardingModal);
+    const rect = onboardingModal.getBoundingClientRect();
+    const isVisible =
+      styles.display !== 'none' &&
+      styles.visibility !== 'hidden' &&
+      parseFloat(styles.opacity || '1') > 0 &&
+      rect.width > 0 &&
+      rect.height > 0;
+    if (isVisible) {
+      console.info('[OnboardingUI] visible');
+    }
+  });
 }
 
 function createOnboardingModal() {
