@@ -299,7 +299,61 @@ function initializeSearchOnlyMode() {
       log.warn('⚠️ Failed to apply limited-access controls:', err);
     }
   }
+  renderDiscoveryModeLayout();
+}
 
+function renderDiscoveryModeLayout() {
+  const body = document.body;
+  const mainContent = document.getElementById('main-content');
+  const searchShell = document.getElementById('centered-search-container');
+  const searchInput = document.getElementById('global-search');
+
+  if (!body || !mainContent || !searchShell || !searchInput) return;
+  if (body.dataset.discoveryModeInitialized === 'true') return;
+
+  body.dataset.discoveryModeInitialized = 'true';
+  body.classList.add('ie-discovery-mode');
+
+  // Remove admin/dashboard shell surfaces entirely for non-admin users.
+  const hideSelectors = [
+    '#command-dashboard',
+    '#mobile-notif-container',
+    '#synapse-main-view',
+    '#btn-network-dashboard-mobile',
+    '#btn-admin-top',
+    '#cd-admin-btn',
+    '#network-command-panel',
+    '#view-controls-panel',
+    '#nr-modal',
+  ];
+  hideSelectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      el.style.display = 'none';
+      el.setAttribute('aria-hidden', 'true');
+    });
+  });
+
+  // Build a dedicated discovery/search layout, rather than a stripped admin shell.
+  mainContent.style.display = 'flex';
+  mainContent.style.flexDirection = 'column';
+  mainContent.style.alignItems = 'center';
+  mainContent.style.justifyContent = 'center';
+  mainContent.style.padding = 'min(6vh, 3rem) 1rem';
+  mainContent.style.gap = '1rem';
+
+  let discoveryHero = document.getElementById('discovery-mode-hero');
+  if (!discoveryHero) {
+    discoveryHero = document.createElement('section');
+    discoveryHero.id = 'discovery-mode-hero';
+    discoveryHero.innerHTML = `
+      <div style="font-size:0.75rem; letter-spacing:0.12em; text-transform:uppercase; color:rgba(0,224,255,0.8); margin-bottom:0.5rem;">Nearify Discovery</div>
+      <h1 style="margin:0; color:#eaf6ff; font-size:clamp(1.4rem, 3.2vw, 2.3rem); font-weight:700;">Discover people, projects, and opportunities</h1>
+      <p style="margin:0.75rem 0 0; color:rgba(223,233,255,0.72); max-width:50ch; line-height:1.45;">
+        Search your network in one focused view. No dashboard clutter — just discovery.
+      </p>
+    `;
+    discoveryHero.style.cssText = 'width:min(840px, 100%); text-align:center; padding:1.25rem 1rem;';
+    mainContent.insertBefore(discoveryHero, searchShell);
   renderDiscoveryModeLayout();
 
   const synapseView = document.getElementById('synapse-main-view');
@@ -307,6 +361,26 @@ function initializeSearchOnlyMode() {
     synapseView.style.display = 'none';
     synapseView.setAttribute('aria-hidden', 'true');
   }
+
+  searchShell.style.position = 'relative';
+  searchShell.style.bottom = 'auto';
+  searchShell.style.width = 'min(840px, 100%)';
+  searchShell.style.maxWidth = 'min(840px, 100%)';
+  searchShell.style.gap = '0.5rem';
+
+  const searchContainer = document.getElementById('search-container');
+  if (searchContainer) {
+    searchContainer.style.background = 'rgba(8, 13, 31, 0.88)';
+    searchContainer.style.border = '1px solid rgba(0,224,255,0.32)';
+    searchContainer.style.borderRadius = '16px';
+    searchContainer.style.boxShadow = '0 24px 80px rgba(0,0,0,0.45), 0 10px 30px rgba(0,224,255,0.18)';
+    searchContainer.style.backdropFilter = 'blur(14px)';
+  }
+
+  const dragHandle = document.getElementById('search-drag-handle');
+  if (dragHandle) dragHandle.style.display = 'none';
+
+  searchInput.placeholder = 'Search people, projects, skills, and opportunities…';
 }
 
 
