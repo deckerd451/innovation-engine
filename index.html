@@ -185,17 +185,6 @@
           style="display:none; position:absolute; top:0; right:0; transform:translate(35%,-35%); background:#ff3b30; color:#fff; font-size:11px; font-weight:700; min-width:18px; height:18px; padding:0 5px; border-radius:999px; align-items:center; justify-content:center; line-height:1; box-sizing:border-box; white-space:nowrap;"
         >0</span>
       </div>
-
-      <div
-        id="btn-logout-mobile"
-        role="button"
-        tabindex="0"
-        style="cursor:pointer; padding:0.6rem; background:rgba(255,107,107,0.1); border:1px solid rgba(255,107,107,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; transition:all 0.2s;"
-        title="Logout"
-        aria-label="Logout"
-      >
-        <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.1rem;"></i>
-      </div>
     </div>
 
     <aside id="command-dashboard" aria-label="Network Command Dashboard">
@@ -906,12 +895,8 @@
 
       wireKeyClick("btn-actions-mobile", () => {
         if (window.UnifiedNotifications?.showPanel) {
-          window.UnifiedNotifications.showPanel();
+          window.UnifiedNotifications.showPanel('actions');
         }
-      });
-
-      wireKeyClick("btn-logout-mobile", () => {
-        if (window.doLogout) window.doLogout();
       });
     })();
   </script>
