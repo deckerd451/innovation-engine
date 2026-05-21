@@ -22,9 +22,9 @@ export class InteractionHandler {
     this._touchStartTime = 0;
     this._touchStartPos = { x: 0, y: 0 };
 
-    // Small tap tolerances
+    // Tap tolerances — 20px move budget is more forgiving on mobile
     this._tapMaxDurationMs = 300;
-    this._tapMaxMovePx = 10;
+    this._tapMaxMovePx = 20;
   }
 
   /**

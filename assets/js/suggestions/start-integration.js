@@ -472,6 +472,11 @@ window.showSuggestionWhy = function(cardElement) {
 
 // Wait for authentication AND Synapse readiness before initializing START
 async function initializeWhenReady() {
+  if (window.canUseAdvancedInnovationTools === false) {
+    console.info('[InnovationAccess] Non-admin mode: skipping START/Synapse enhancement listeners');
+    return;
+  }
+
   console.log('🔗 [START] Waiting for authentication and Synapse...');
   
   // Check if boot gate is available

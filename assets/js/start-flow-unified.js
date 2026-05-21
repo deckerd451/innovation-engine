@@ -32,7 +32,7 @@ class StartFlowManager {
     
     this.steps = [
       { id: 'notifications', title: 'Notifications', icon: 'fa-bell', color: '#00e0ff' },
-      { id: 'themes', title: 'Suggested Themes', icon: 'fa-palette', color: '#ffaa00' },
+      { id: 'themes', title: 'Suggested Skills', icon: 'fa-palette', color: '#ffaa00' },
       { id: 'organizations', title: 'Organizations', icon: 'fa-building', color: '#ff6b6b' },
       { id: 'projects', title: 'Projects', icon: 'fa-lightbulb', color: '#00ff88' },
       { id: 'people', title: 'People to Connect', icon: 'fa-users', color: '#ffd700' },
@@ -851,7 +851,7 @@ class StartFlowManager {
           </h3>
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
             ${this.renderReportStat('Notifications', report.notifications, 'fa-bell', '#00e0ff')}
-            ${this.renderReportStat('Themes', report.themes, 'fa-palette', '#ffaa00')}
+            ${this.renderReportStat('Skills', report.themes, 'fa-palette', '#ffaa00')}
             ${this.renderReportStat('Organizations', report.organizations, 'fa-building', '#ff6b6b')}
             ${this.renderReportStat('Projects', report.projects, 'fa-lightbulb', '#00ff88')}
             ${this.renderReportStat('People', report.people, 'fa-users', '#ffd700')}

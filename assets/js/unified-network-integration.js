@@ -172,7 +172,7 @@ export async function initUnifiedNetwork(_userIdIgnored, containerId = 'synapse-
         window.synapseApi.focusNode = (nodeId, opts) => {
           if (nodeId) unifiedNetworkApi.focusNode(nodeId, opts);
         };
-        window.synapseApi.focusTheme = (themeId) => {
+        window.synapseApi.focusSkill = (skillId) => {
           if (themeId) unifiedNetworkApi.focusNode(themeId);
         };
         window.synapseApi.showActivity = () => {
@@ -848,14 +848,25 @@ const _profileAlreadyResolved =
   window.communityUser?.id ||
   window.bootstrapSession?.communityUser?.id;
 
+function canBootstrapUnifiedNetwork() {
+  if (window.canUseAdvancedInnovationTools === false) {
+    logger.info(INTEGRATION_NS, '[InnovationAccess] Non-admin mode: skipping Synapse/D3 initialization');
+    return false;
+  }
+  return true;
+}
+
 if (_profileAlreadyResolved) {
   // Profile is already available — init immediately on next microtask so the
   // rest of the module-level code finishes first.
-  logger.info(INTEGRATION_NS, 'Profile already resolved on load — bootstrapping immediately');
-  Promise.resolve().then(() => initUnifiedNetwork(null, 'synapse-svg').catch(() => {}));
+  if (canBootstrapUnifiedNetwork()) {
+    logger.info(INTEGRATION_NS, 'Profile already resolved on load — bootstrapping immediately');
+    Promise.resolve().then(() => initUnifiedNetwork(null, 'synapse-svg').catch(() => {}));
+  }
 } else {
   // Normal path: wait for the profile event.
   window.addEventListener('profile-loaded', () => {
+    if (!canBootstrapUnifiedNetwork()) return;
     initUnifiedNetwork(null, 'synapse-svg').catch(() => {});
   }, { once: true });
 }

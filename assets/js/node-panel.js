@@ -63,11 +63,11 @@ function createPanelElement() {
     @media (max-width: 768px) and (orientation: portrait) {
       #node-side-panel {
         width: 100vw !important;
-        height: 55vh !important;
-        height: 55dvh !important;
+        height: 65vh !important;
+        height: 65dvh !important;
         top: auto !important;
-        bottom: -55vh !important;
-        bottom: -55dvh !important;
+        bottom: -65vh !important;
+        bottom: -65dvh !important;
         right: 0 !important;
         border-left: none !important;
         border-top: 2px solid rgba(0, 224, 255, 0.5) !important;
@@ -75,14 +75,27 @@ function createPanelElement() {
         transition: bottom 0.3s ease-out !important;
       }
 
+      /* Drag handle indicator */
+      #node-side-panel::before {
+        content: '';
+        display: flex;
+        width: 40px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 2px;
+        margin: 10px auto 0;
+        flex-shrink: 0;
+        align-self: center;
+      }
+
       #node-side-panel.open {
         bottom: 0 !important;
       }
 
-      /* Graph occupies top 45dvh when the bottom sheet is open */
+      /* Graph occupies top 35dvh when the bottom sheet is open */
       body.node-panel-open #synapse-main-view {
-        bottom: 55vh !important;
-        bottom: 55dvh !important;
+        bottom: 65vh !important;
+        bottom: 65dvh !important;
         transition: bottom 0.3s ease-out !important;
       }
 
@@ -95,7 +108,25 @@ function createPanelElement() {
         padding: 0.75rem 1rem !important;
       }
 
-      /* Make buttons stack on mobile */
+      /* Action bar: safe-area bottom padding + reliable touch targets */
+      #node-side-panel .node-panel-actions {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem) !important;
+      }
+
+      /* Stack action button grids into single column on mobile */
+      #node-side-panel .node-panel-actions [style*="display: grid"] {
+        grid-template-columns: 1fr !important;
+        gap: 0.5rem !important;
+      }
+
+      /* Ensure every action button is a generous touch target */
+      #node-side-panel .node-panel-actions button {
+        min-height: 48px !important;
+        touch-action: manipulation !important;
+        -webkit-tap-highlight-color: rgba(0, 224, 255, 0.15) !important;
+      }
+
+      /* Make buttons inside flex containers full-width */
       #node-side-panel .action-buttons,
       #node-side-panel [style*="display: flex"][style*="gap"] {
         flex-direction: column !important;
@@ -347,7 +378,7 @@ async function loadNodeDetails(nodeData) {
   try {
     // Check if this is a theme lens view
     if (nodeData.isThemeLens) {
-      await renderThemeLensPanel(nodeData);
+      await renderSkillLensPanel(nodeData);
       return;
     }
 
@@ -374,8 +405,8 @@ async function loadNodeDetails(nodeData) {
 }
 
 // Render theme lens panel (shows projects within theme)
-async function renderThemeLensPanel(themeData) {
-  const { name, description, tags, expires_at, relatedProjects, onClearFocus } = themeData;
+async function renderSkillLensPanel(skillData) {
+  const { name, description, tags, expires_at, relatedProjects, onClearFocus } = skillData;
 
   // Get current user info
   let currentUserCommunityId = null;
@@ -383,7 +414,7 @@ async function renderThemeLensPanel(themeData) {
   let isParticipant = false;
   
   // Remove 'theme:' prefix from theme ID
-  const cleanThemeId = themeData.id ? themeData.id.replace(/^theme:/, '') : null;
+  const cleanThemeId = skillData.id ? skillData.id.replace(/^theme:/, '') : null;
   
   try {
     const user = await window.bootstrapSession.getAuthUser();
@@ -397,7 +428,7 @@ async function renderThemeLensPanel(themeData) {
       currentUserCommunityId = currentUserProfile?.id;
 
       // Check if user created this theme
-      isCreator = themeData.created_by === currentUserCommunityId;
+      isCreator = skillData.created_by === currentUserCommunityId;
       
       // Check if user is a participant
       if (cleanThemeId && currentUserCommunityId) {
@@ -463,7 +494,7 @@ async function renderThemeLensPanel(themeData) {
       ${currentUserCommunityId ? `
         <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
           ${!isParticipant && !isCreator ? `
-            <button onclick="joinTheme('${themeData.id}', '${escapeHtml(name)}')"
+            <button onclick="joinTheme('${skillData.id}', '${escapeHtml(name)}')"
               onmouseover="this.style.background='linear-gradient(135deg, rgba(0,224,255,0.3), rgba(0,224,255,0.2))'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)';"
               onmouseout="this.style.background='linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1))'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
               style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1)); border: 1px solid rgba(0,224,255,0.4); 
@@ -472,7 +503,7 @@ async function renderThemeLensPanel(themeData) {
             </button>
           ` : ''}
           ${isCreator ? `
-            <button onclick="deleteTheme('${themeData.id}', '${escapeHtml(name)}')"
+            <button onclick="deleteTheme('${skillData.id}', '${escapeHtml(name)}')"
               onmouseover="this.style.background='rgba(255,68,68,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,68,68,0.3)';"
               onmouseout="this.style.background='rgba(255,68,68,0.15)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
               style="flex: 1; padding: 0.75rem; background: rgba(255,68,68,0.15); border: 1px solid rgba(255,68,68,0.4); 
@@ -481,7 +512,7 @@ async function renderThemeLensPanel(themeData) {
             </button>
           ` : ''}
           ${isParticipant && !isCreator ? `
-            <button onclick="leaveTheme('${themeData.id}', '${escapeHtml(name)}')"
+            <button onclick="leaveTheme('${skillData.id}', '${escapeHtml(name)}')"
               onmouseover="this.style.background='rgba(255,170,0,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,170,0,0.3)';"
               onmouseout="this.style.background='rgba(255,170,0,0.15)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
               style="flex: 1; padding: 0.75rem; background: rgba(255,170,0,0.15); border: 1px solid rgba(255,170,0,0.4); 
@@ -512,7 +543,7 @@ async function renderThemeLensPanel(themeData) {
       `}
 
       <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">
-        <button onclick="createProjectInTheme('${themeData.id}', '${escapeHtml(name)}')"
+        <button onclick="createProjectInSkill('${skillData.id}', '${escapeHtml(name)}')"
           style="width: 100%; padding: 0.875rem; background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1)); border: 1px solid rgba(0,224,255,0.4); border-radius: 8px; color: #00e0ff; cursor: pointer; font-weight: 700; font-size: 1rem;">
           <i class="fas fa-plus-circle"></i> Create Project in ${escapeHtml(name)}
         </button>
@@ -642,9 +673,8 @@ async function renderOpportunityPanel(nodeData) {
 
       <!-- Meta -->
       <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; justify-content: center;">
-        ${opp.experience_level ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-layer-group"></i> ${escapeHtml(opp.experience_level)}</span>` : ''}
         ${opp.commitment ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-clock"></i> ${escapeHtml(opp.commitment)}</span>` : ''}
-        ${opp.remote_ok ? `<span style="background: rgba(16,185,129,0.15); color: #10b981; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-wifi"></i> Remote OK</span>` : ''}
+        ${opp.location_type ? `<span style="background: rgba(16,185,129,0.15); color: #10b981; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-wifi"></i> ${escapeHtml(opp.location_type)}</span>` : ''}
         ${opp.location ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(opp.location)}</span>` : ''}
         ${opp.compensation_type ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-dollar-sign"></i> ${escapeHtml(opp.compensation_type)}${opp.compensation_min != null ? ': ' + opp.compensation_min + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '–' + opp.compensation_max : '') : ''}</span>` : ''}
         ${deadline ? `<span style="background: rgba(239,68,68,0.15); color: #ef4444; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-calendar"></i> Due ${escapeHtml(deadline)}</span>` : ''}
@@ -726,6 +756,9 @@ window.editOpportunityFromPanel = async function(oppId) {
       <h2 style="color: ${typeColor}; margin-bottom: 1.5rem;"><i class="fas fa-edit"></i> Edit Opportunity</h2>
       <form id="edit-opp-form">
 
+        <!-- ── BASICS ─────────────────────────────────────── -->
+        <div style="margin-bottom: 0.6rem; padding: 0.25rem 0.6rem; background: rgba(255,255,255,0.04); border-radius: 5px; font-size: 0.7rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.08em;">Basics</div>
+
         <div style="margin-bottom: 1.25rem;">
           <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Title *</label>
           <input id="edit-opp-title" type="text" value="${escapeHtml(opp.title || '')}" required
@@ -749,51 +782,28 @@ window.editOpportunityFromPanel = async function(oppId) {
             style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit; resize: vertical;">${escapeHtml(opp.description || '')}</textarea>
         </div>
 
+        <!-- ── REQUIREMENTS ───────────────────────────────── -->
+        <div style="margin-bottom: 0.6rem; margin-top: 1.5rem; padding: 0.25rem 0.6rem; background: rgba(255,255,255,0.04); border-radius: 5px; font-size: 0.7rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.08em;">Requirements</div>
+
         <div style="margin-bottom: 1.25rem;">
           <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Skills (comma-separated)</label>
           <input id="edit-opp-skills" type="text" value="${escapeHtml(skillsVal)}" placeholder="e.g., JavaScript, Design, Marketing"
             style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
-          <div>
-            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Experience Level</label>
-            <select id="edit-opp-experience" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
-              <option value="" ${!opp.experience_level ? 'selected' : ''}>Any</option>
-              <option value="entry" ${opp.experience_level === 'entry' ? 'selected' : ''}>Entry</option>
-              <option value="mid" ${opp.experience_level === 'mid' ? 'selected' : ''}>Mid</option>
-              <option value="senior" ${opp.experience_level === 'senior' ? 'selected' : ''}>Senior</option>
-            </select>
-          </div>
-          <div>
-            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Commitment</label>
-            <select id="edit-opp-commitment" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
-              <option value="" ${!opp.commitment ? 'selected' : ''}>Not specified</option>
-              <option value="full-time" ${opp.commitment === 'full-time' ? 'selected' : ''}>Full-time</option>
-              <option value="part-time" ${opp.commitment === 'part-time' ? 'selected' : ''}>Part-time</option>
-              <option value="flexible" ${opp.commitment === 'flexible' ? 'selected' : ''}>Flexible</option>
-              <option value="one-time" ${opp.commitment === 'one-time' ? 'selected' : ''}>One-time</option>
-            </select>
-          </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Commitment</label>
+          <select id="edit-opp-commitment" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+            <option value="" ${!opp.commitment ? 'selected' : ''}>Not specified</option>
+            <option value="full-time" ${opp.commitment === 'full-time' ? 'selected' : ''}>Full-time</option>
+            <option value="part-time" ${opp.commitment === 'part-time' ? 'selected' : ''}>Part-time</option>
+            <option value="flexible" ${opp.commitment === 'flexible' ? 'selected' : ''}>Flexible</option>
+            <option value="one-time" ${opp.commitment === 'one-time' ? 'selected' : ''}>One-time</option>
+          </select>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
-          <div>
-            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Compensation</label>
-            <select id="edit-opp-compensation" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
-              <option value="" ${!opp.compensation_type ? 'selected' : ''}>Not specified</option>
-              <option value="paid" ${opp.compensation_type === 'paid' ? 'selected' : ''}>Paid</option>
-              <option value="unpaid" ${opp.compensation_type === 'unpaid' ? 'selected' : ''}>Unpaid</option>
-              <option value="stipend" ${opp.compensation_type === 'stipend' ? 'selected' : ''}>Stipend</option>
-              <option value="equity" ${opp.compensation_type === 'equity' ? 'selected' : ''}>Equity</option>
-            </select>
-          </div>
-          <div>
-            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Compensation Range</label>
-            <input id="edit-opp-comp-range" type="text" value="${escapeHtml(opp.compensation_min != null ? String(opp.compensation_min) + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '-' + opp.compensation_max : '') : '')}" placeholder="e.g., 50000-70000"
-              style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-        </div>
+        <!-- ── LOGISTICS ──────────────────────────────────── -->
+        <div style="margin-bottom: 0.6rem; margin-top: 1.5rem; padding: 0.25rem 0.6rem; background: rgba(255,255,255,0.04); border-radius: 5px; font-size: 0.7rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.08em;">Logistics</div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
           <div>
@@ -817,16 +827,39 @@ window.editOpportunityFromPanel = async function(oppId) {
               <option value="closed" ${opp.status === 'closed' ? 'selected' : ''}>Closed</option>
             </select>
           </div>
-          <div style="display: flex; align-items: flex-end; padding-bottom: 0.1rem;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #aaa; font-weight: bold;">
-              <input id="edit-opp-remote" type="checkbox" ${opp.remote_ok ? 'checked' : ''}
-                style="width: 18px; height: 18px; cursor: pointer;">
-              Remote OK
-            </label>
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Location Type</label>
+            <select id="edit-opp-location-type" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+              <option value="" ${!opp.location_type ? 'selected' : ''}>Not specified</option>
+              <option value="remote" ${opp.location_type === 'remote' ? 'selected' : ''}>Remote</option>
+              <option value="hybrid" ${opp.location_type === 'hybrid' ? 'selected' : ''}>Hybrid</option>
+              <option value="in-person" ${opp.location_type === 'in-person' ? 'selected' : ''}>In-person</option>
+            </select>
           </div>
         </div>
 
-        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+        <!-- ── COMPENSATION ───────────────────────────────── -->
+        <div style="margin-bottom: 0.6rem; margin-top: 1.5rem; padding: 0.25rem 0.6rem; background: rgba(255,255,255,0.04); border-radius: 5px; font-size: 0.7rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.08em;">Compensation</div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Type</label>
+            <select id="edit-opp-compensation" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+              <option value="" ${!opp.compensation_type ? 'selected' : ''}>Not specified</option>
+              <option value="paid" ${opp.compensation_type === 'paid' ? 'selected' : ''}>Paid</option>
+              <option value="unpaid" ${opp.compensation_type === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+              <option value="stipend" ${opp.compensation_type === 'stipend' ? 'selected' : ''}>Stipend</option>
+              <option value="equity" ${opp.compensation_type === 'equity' ? 'selected' : ''}>Equity</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; color: #aaa; margin-bottom: 0.4rem; font-weight: bold;">Range</label>
+            <input id="edit-opp-comp-range" type="text" value="${escapeHtml(opp.compensation_min != null ? String(opp.compensation_min) + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '-' + opp.compensation_max : '') : '')}" placeholder="e.g., 50000-70000"
+              style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid ${typeColor}44; border-radius: 8px; color: white; font-family: inherit;">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
           <button type="submit"
             style="flex: 1; background: linear-gradient(135deg, ${typeColor}, ${typeColor}cc); border: none; padding: 1rem; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem;">
             <i class="fas fa-save"></i> Save Changes
@@ -856,6 +889,7 @@ window.editOpportunityFromPanel = async function(oppId) {
     const compMax = (compNums && compNums[1]) ? (parseFloat(compNums[1]) || null) : null;
 
     const updates = {
+      // Only write columns that actually exist in the DB schema
       title: document.getElementById('edit-opp-title').value.trim(),
       opportunity_type: document.getElementById('edit-opp-type').value,
       description: document.getElementById('edit-opp-description').value.trim(),
@@ -865,15 +899,19 @@ window.editOpportunityFromPanel = async function(oppId) {
       compensation_min: compMin,
       compensation_max: compMax,
       location: document.getElementById('edit-opp-location').value.trim() || null,
+      location_type: document.getElementById('edit-opp-location-type').value || null,
       application_deadline: deadlineInput || null,
       status: document.getElementById('edit-opp-status').value,
       updated_at: new Date().toISOString(),
     };
 
-    const { error: updateError } = await supabase
+    // TASK 2 FIX: use .select().single() to get the canonical updated row back
+    const { data: updatedOpp, error: updateError } = await supabase
       .from('opportunities')
       .update(updates)
-      .eq('id', oppId);
+      .eq('id', oppId)
+      .select()
+      .single();
 
     if (updateError) {
       console.error('Error updating opportunity:', updateError);
@@ -883,6 +921,17 @@ window.editOpportunityFromPanel = async function(oppId) {
 
     modal.remove();
     showToastNotification('Opportunity updated successfully!', 'success');
+
+    // TASK 3 FIX (Option A): patch CommandDashboard list state immediately so
+    // the title (and other fields) reflect the saved value without a full reload.
+    if (updatedOpp) {
+      if (window.CommandDashboard?.patchOpportunity) {
+        window.CommandDashboard.patchOpportunity(updatedOpp);
+      } else if (window.CommandDashboard?.refreshEnrichedData) {
+        window.CommandDashboard.refreshEnrichedData();
+      }
+    }
+
     if (currentNodeData) await loadNodeDetails(currentNodeData);
   });
 };
@@ -3478,7 +3527,7 @@ function parseCommaList(text) {
 }
 
 // Function to create a project in a specific theme
-window.createProjectInTheme = async function createProjectInTheme(themeId, themeName) {
+window.createProjectInSkill = async function createProjectInSkill(themeId, themeName) {
   console.log("🎯 Creating project in theme:", { themeId, themeName });
   
   try {
@@ -3524,7 +3573,7 @@ window.createProjectInTheme = async function createProjectInTheme(themeId, theme
 }
 
 // Join theme function
-window.joinTheme = async function(themeId, themeName) {
+window.joinSkill = async function(themeId, themeName) {
   try {
     const user = await window.bootstrapSession.getAuthUser();
     if (!user) {
@@ -3631,7 +3680,7 @@ window.joinTheme = async function(themeId, themeName) {
 };
 
 // Leave theme function
-window.leaveTheme = async function(themeId, themeName) {
+window.leaveSkill = async function(themeId, themeName) {
   if (!confirm(`Are you sure you want to leave "${themeName}"?\n\nYou can rejoin later if you change your mind.`)) {
     return;
   }
@@ -3695,7 +3744,7 @@ window.leaveTheme = async function(themeId, themeName) {
 };
 
 // Delete theme function
-window.deleteTheme = async function(themeId, themeName) {
+window.deleteSkill = async function(themeId, themeName) {
   if (!confirm(`⚠️ Are you sure you want to DELETE "${themeName}"?\n\nThis will:\n• Remove the theme permanently\n• Remove all participants\n• Unlink all projects from this theme\n\nThis action CANNOT be undone!`)) {
     return;
   }

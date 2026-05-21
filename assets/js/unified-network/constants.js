@@ -55,7 +55,8 @@ export const PRESENCE_THRESHOLDS = {
 export const DISCOVERY_LIMITS = {
   maxGuidedNodes: 3,
   maxPresenceAmplified: 1,
-  minTransitionInterval: 120000 // 2 minutes
+  minTransitionInterval: 120000, // 2 minutes between entry attempts
+  minDwellTime: 10000            // 10 seconds minimum in Discovery before passive exit
 };
 
 /**

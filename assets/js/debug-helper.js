@@ -22,7 +22,7 @@ if (DEBUG) {
       supabase: !!window.supabase,
       modules: {
         onboarding: typeof window.showOnboarding === 'function',
-        search: typeof window.selectPerson === 'function',
+        search: !!document.getElementById('global-search'),
         tooltips: document.querySelectorAll('[data-tooltip]').length,
         shortcuts: typeof window.enableDebug === 'function'
       }

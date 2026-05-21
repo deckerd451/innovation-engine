@@ -155,7 +155,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (e?.detail?.profile) {
         state.authUser = e.detail.user;
         state.communityProfile = e.detail.profile;
-        await onAppReady();
+        try {
+          await onAppReady();
+        } catch (err) {
+          console.error("❌ onAppReady() failed after profile-loaded:", err);
+        }
       }
     });
 
@@ -164,13 +168,18 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       console.log("🆕 Dashboard received profile-new event:", e.detail);
       if (e?.detail?.user) {
         state.authUser = e.detail.user;
-        // Create community profile for new user
-        await ensureCommunityProfile();
-        // After profile is created, initialize dashboard
-        if (state.communityProfile?.id) {
-          await onAppReady();
-        } else {
-          console.error("❌ Failed to create community profile for new user");
+        try {
+          // Create community profile for new user
+          await ensureCommunityProfile();
+          // After profile is created, initialize dashboard
+          if (state.communityProfile?.id) {
+            await onAppReady();
+          } else {
+            console.error("❌ Failed to create community profile for new user");
+            showLogin();
+          }
+        } catch (err) {
+          console.error("❌ profile-new handler failed:", err);
           showLogin();
         }
       }
@@ -179,6 +188,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     // Listen for logout event
     window.addEventListener("user-logged-out", () => {
       console.log("👋 Dashboard received logout event");
+      // Stop periodic counter refresh so the interval doesn't outlive the session
+      if (state.refreshTimer) {
+        clearInterval(state.refreshTimer);
+        state.refreshTimer = null;
+      }
       state.authUser = null;
       state.communityProfile = null;
       state.synapseInitialized = false;
@@ -189,6 +203,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     // Cleanup on page unload
     window.addEventListener("beforeunload", () => {
+      if (state.refreshTimer) {
+        clearInterval(state.refreshTimer);
+        state.refreshTimer = null;
+      }
       if (window.MessagingModule?.cleanup) window.MessagingModule.cleanup();
       else cleanupMessageChannel();
     });
@@ -365,7 +383,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       // Fallback: legacy system
       wireMessagingUI();
-      await loadConversationsForModal();
+      try {
+        await loadConversationsForModal();
+      } catch (err) {
+        console.error("❌ Failed to load conversations:", err);
+      }
     };
 
     window.closeMessagesModal = () => {
@@ -381,7 +403,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     window.openProjectsModal = async () => {
       openModal("projects-modal");
-      await loadProjects();
+      try {
+        await loadProjects();
+      } catch (err) {
+        console.error("❌ Failed to load projects:", err);
+      }
     };
     window.closeProjectsModal = () => {
       closeModal("projects-modal");
@@ -390,28 +416,44 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     window.openEndorsementsModal = async () => {
       openModal("endorsements-modal");
-      await showEndorsementsTab("received");
+      try {
+        await showEndorsementsTab("received");
+      } catch (err) {
+        console.error("❌ Failed to load endorsements:", err);
+      }
     };
     window.closeEndorsementsModal = () => closeModal("endorsements-modal");
 
     // IMPORTANT: openQuickConnectModal is overridden later by Illuminated Pathways
     window.openQuickConnectModal = async () => {
       openModal("quick-connect-modal");
-      await loadSuggestedConnections();
+      try {
+        await loadSuggestedConnections();
+      } catch (err) {
+        console.error("❌ Failed to load suggested connections:", err);
+      }
     };
     window.closeQuickConnectModal = () => closeModal("quick-connect-modal");
 
     // Notification Center Modal
     window.openNotificationCenter = async () => {
       openModal("notification-center-modal");
-      await loadNotifications("all");
+      try {
+        await loadNotifications("all");
+      } catch (err) {
+        console.error("❌ Failed to load notifications:", err);
+      }
     };
     window.closeNotificationCenter = () => closeModal("notification-center-modal");
 
     // Network Stats Modal
     window.openNetworkStatsModal = async () => {
       openModal("network-stats-modal");
-      await loadNetworkStats();
+      try {
+        await loadNetworkStats();
+      } catch (err) {
+        console.error("❌ Failed to load network stats:", err);
+      }
     };
     window.closeNetworkStatsModal = () => closeModal("network-stats-modal");
 
@@ -750,6 +792,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // NOTE: dispatchProfileLoadedIfNeeded removed - auth.js handles all profile event dispatching
 
+  function isSearchOnlyMode() {
+    return window?.adminAccessState?.isAdmin !== true && window?.canUseAdvancedInnovationTools !== true;
+  }
+
   async function onAppReady() {
     console.log("🚀 Dashboard onAppReady called with:", {
       hasAuthUser: !!state.authUser,
@@ -773,6 +819,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     renderHeaderIdentity();
 
     // Network visualization is handled by unified-network-integration.js
+
+    if (isSearchOnlyMode()) {
+      console.log('🔎 Search-only mode: skipping dashboard counter initialization');
+      return;
+    }
 
     // Start loading dashboard counters
     await refreshCounters();
@@ -1285,7 +1336,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (searchTimeout) clearTimeout(searchTimeout);
       
       // Hide suggestions if query is too short
-      if (query.length < 2) {
+      if (query.length < 1) {
         hideSuggestions();
         return;
       }
@@ -1293,7 +1344,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       // Debounce the search
       searchTimeout = setTimeout(() => {
         fetchSuggestions(query);
-      }, 300);
+      }, 200);
     });
     
     // Handle keyboard navigation
@@ -1430,11 +1481,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       // Limit total suggestions
       suggestions = suggestions.slice(0, 8);
       
-      if (suggestions.length > 0) {
-        renderSuggestions(suggestions, query);
-      } else {
-        hideSuggestions();
-      }
+      renderSuggestions(suggestions, query);
     } catch (error) {
       console.error("Error fetching suggestions:", error);
       hideSuggestions();
@@ -1449,29 +1496,35 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     
     // Check if mobile
     const isMobile = window.innerWidth <= 768;
-    
-    const html = suggestions.map((item, index) => {
-      const imageHtml = item.image 
-        ? `<img loading="lazy" src="${escapeHtml(item.image)}" 
-             style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid ${item.color}; flex-shrink:0;"
+
+    // Limit results shown on mobile to keep the list compact
+    const displaySuggestions = isMobile ? suggestions.slice(0, 4) : suggestions;
+
+    const avatarSize = isMobile ? '32px' : '40px';
+    const itemPadding = isMobile ? '0.45rem 0.75rem' : '0.75rem 1rem';
+    const titleSize = isMobile ? '0.85rem' : '0.95rem';
+    const subtitleSize = isMobile ? '0.78rem' : '0.85rem';
+
+    const html = displaySuggestions.map((item, index) => {
+      const imageHtml = item.image
+        ? `<img loading="lazy" src="${escapeHtml(item.image)}"
+             style="width:${avatarSize}; height:${avatarSize}; border-radius:50%; object-fit:cover; border:2px solid ${item.color}; flex-shrink:0;"
              onerror="this.style.display='none'">`
-        : `<div style="width:40px; height:40px; border-radius:50%; background:${item.color}20; 
+        : `<div style="width:${avatarSize}; height:${avatarSize}; border-radius:50%; background:${item.color}20;
              border:2px solid ${item.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-             <i class="fas ${item.icon}" style="color:${item.color}; font-size:1.2rem;"></i>
+             <i class="fas ${item.icon}" style="color:${item.color}; font-size:${isMobile ? '0.9rem' : '1.2rem'};"></i>
            </div>`;
-      
+
       return `
         <div class="search-suggestion-item" data-index="${index}"
-          style="padding:0.75rem 1rem; cursor:pointer; transition:all 0.2s; 
-          border-bottom:1px solid rgba(0,224,255,0.1); display:flex; align-items:center; gap:1rem;
-          ${isMobile ? 'min-height:60px;' : ''}">
+          style="padding:${itemPadding}; cursor:pointer; transition:background 0.15s;
+          border-bottom:1px solid rgba(0,224,255,0.1); display:flex; align-items:center; gap:${isMobile ? '0.6rem' : '1rem'};">
           ${imageHtml}
           <div style="flex:1; min-width:0;">
-            <div style="color:${item.color}; font-weight:600; font-size:0.95rem; margin-bottom:0.25rem;">
-              <i class="fas ${item.icon}" style="font-size:0.85rem; margin-right:0.5rem;"></i>
+            <div style="color:${item.color}; font-weight:600; font-size:${titleSize}; margin-bottom:0.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
               ${highlightMatch(escapeHtml(item.title), query)}
             </div>
-            <div style="color:#aaa; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <div style="color:#aaa; font-size:${subtitleSize}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               ${escapeHtml(item.subtitle)}
             </div>
           </div>
@@ -1479,6 +1532,16 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         </div>
       `;
     }).join("");
+
+    if (!displaySuggestions.length) {
+      suggestionsBox.innerHTML = `
+        <div style="padding:0.85rem 1rem; color:rgba(220,230,255,0.75); font-size:0.9rem; text-align:center;">
+          No suggestions yet
+        </div>
+      `;
+      suggestionsBox.style.display = "block";
+      return;
+    }
     
     suggestionsBox.innerHTML = html + `
       <div style="padding:0.75rem 1rem; text-align:center; border-top:1px solid rgba(0,224,255,0.2);">
@@ -1842,10 +1905,19 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       : `background:linear-gradient(135deg,#a855f7,#8b3fd9); border:none; color:white;`;
     const buttonText = isFollowing ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-plus"></i> Follow';
     
+    // Validate org.website to block javascript: and data: URIs
+    const safeWebsiteUrl = (() => {
+      if (!org.website) return null;
+      try {
+        const u = new URL(org.website);
+        return (u.protocol === 'https:' || u.protocol === 'http:') ? escapeHtml(org.website) : null;
+      } catch (_) { return null; }
+    })();
+
     return `<div class="result-card" style="padding:1.25rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; margin-bottom:0.75rem; transition:all 0.2s;">
       <div style="display:flex; align-items:start; gap:1rem;">
-        ${org.logo_url 
-          ? `<img loading="lazy" src="${org.logo_url}" alt="${escapeHtml(org.name)}" style="width:56px; height:56px; border-radius:8px; object-fit:cover; background:rgba(168,85,247,0.1);" onerror="this.outerHTML='<div style=\\'width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;\\'><i class=\\'fas fa-building\\' style=\\'color:#a855f7;\\'></i></div>'">` 
+        ${org.logo_url
+          ? `<img loading="lazy" src="${escapeHtml(org.logo_url)}" alt="${escapeHtml(org.name)}" style="width:56px; height:56px; border-radius:8px; object-fit:cover; background:rgba(168,85,247,0.1);" onerror="this.outerHTML='<div style=\\'width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;\\'><i class=\\'fas fa-building\\' style=\\'color:#a855f7;\\'></i></div>'">`
           : `<div style="width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;">
               <i class="fas fa-building" style="color:#a855f7;"></i>
             </div>`
@@ -1858,13 +1930,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           <div style="color:#aaa; font-size:0.85rem; line-height:1.4; margin-bottom:0.5rem;">${escapeHtml(org.description || "No description available").slice(0, 120)}${(org.description || "").length > 120 ? "..." : ""}</div>
           ${metaText ? `<div style="color:#a855f7; font-size:0.75rem; margin-bottom:0.75rem;"><i class="fas fa-info-circle"></i> ${escapeHtml(metaText)}</div>` : ''}
           <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-            <button id="${followButtonId}" 
-              onclick="toggleOrganizationFollow('${org.id}', '${followButtonId}')" 
+            <button id="${followButtonId}"
+              onclick="toggleOrganizationFollow('${org.id}', '${followButtonId}')"
               style="${buttonStyle} padding:0.5rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.85rem; transition:all 0.2s; display:flex; align-items:center; gap:0.4rem;">
               ${buttonText}
             </button>
             ${org.follower_count > 0 ? `<span style="color:#888; font-size:0.75rem;"><i class="fas fa-users"></i> ${org.follower_count} follower${org.follower_count !== 1 ? 's' : ''}</span>` : ''}
-            ${org.website ? `<a href="${org.website}" target="_blank" rel="noopener noreferrer" style="color:#a855f7; font-size:0.75rem; text-decoration:none;" onclick="event.stopPropagation();"><i class="fas fa-external-link-alt"></i> Website</a>` : ''}
+            ${safeWebsiteUrl ? `<a href="${safeWebsiteUrl}" target="_blank" rel="noopener noreferrer" style="color:#a855f7; font-size:0.75rem; text-decoration:none;" onclick="event.stopPropagation();"><i class="fas fa-external-link-alt"></i> Website</a>` : ''}
           </div>
         </div>
       </div>

@@ -1,13 +1,15 @@
 /**
  * Mobile Safe Area + HUD Layout Contract
  * ========================================
- * Fixes overlap issues on mobile (iOS notch, Android nav bars) when Unified Network is enabled.
+ * Fixes overlap issues on mobile (iOS notch, Android nav bars).
+ * Core safe-area and z-index variables apply unconditionally.
+ * HUD layout fixes apply to all mobile users; some features also
+ * activate only when Unified Network is enabled (data-unified-network="on").
  *
  * Goals:
  * 1. Reserve space for safe-area-inset (notch, status bar, navigation bar)
  * 2. Define consistent HUD heights for top and bottom overlays
  * 3. Establish z-index layering to prevent UI elements from blocking each other
- * 4. Scope all fixes to mobile viewport + unified network enabled
  */
 
 /* ============================================================================
@@ -81,56 +83,81 @@
 
 
 /* ============================================================================
-   3. MOBILE-ONLY + UNIFIED NETWORK SCOPING
-   ============================================================================
-
-   Apply fixes only when:
-   - Viewport is mobile (max-width: 768px)
-   - Unified network is enabled (body has data-unified-network="on")
-*/
+   3. MOBILE-ONLY SAFE AREA — applies unconditionally on all mobile users
+   ============================================================================ */
 
 @media (max-width: 768px) {
 
+  /* ========================================================================
+     4. TOP REGION - HUD with Safe Area (all users)
+     ======================================================================== */
+
+  /* Top-left admin button: position below safe area */
+  #btn-admin-top-left {
+    position: fixed !important;
+    top: calc(var(--safe-top) + 8px) !important;
+    left: calc(var(--safe-left) + 8px) !important;
+    z-index: var(--z-hud) !important;
+  }
+
+  /* Top-right controls */
+  #btn-admin-top-right,
+  .top-right-controls {
+    position: fixed !important;
+    top: calc(var(--safe-top) + 8px) !important;
+    right: calc(var(--safe-right) + 8px) !important;
+    z-index: var(--z-hud) !important;
+  }
+
+  /* Notification buttons: floating frosted-glass pill at top-right.
+     Filter bar is hidden on mobile, so these float standalone over the graph. */
+  #mobile-notif-container {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
+    right: 10px !important;
+    left: auto !important;
+    bottom: auto !important;
+    height: auto !important;
+    z-index: 201 !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+    /* Frosted glass pill */
+    background: rgba(6, 9, 22, 0.82) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border-radius: 22px !important;
+    border: 1px solid rgba(0, 224, 255, 0.18) !important;
+  }
+
+  /* Notification buttons — comfortably tappable inside the pill.
+     Do NOT set display here — JS toggles display:none / display:flex. */
+  #mobile-notif-container .mobile-notif-btn,
+  #btn-logout-mobile {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+
+  #mobile-notif-container i {
+    font-size: 0.95rem !important;
+  }
+
+  /* Badge dots */
+  #mobile-notif-container .mobile-notif-badge {
+    font-size: 9px !important;
+    min-width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* ========================================================================
+     5. UNIFIED NETWORK — additional layout fixes when feature is active
+     ======================================================================== */
+
   /* Apply when unified network is ON */
   body[data-unified-network="on"] {
-
-    /* ========================================================================
-       4. TOP REGION - HUD with Safe Area
-       ======================================================================== */
-
-    /* Target the top-left HUD container (user profile + admin) */
-    body > div[style*="position:absolute"][style*="top:20px"][style*="left:20px"] {
-      top: calc(var(--safe-top) + 20px) !important;
-      left: calc(var(--safe-left) + 20px) !important;
-    }
-
-    /* Target the top-right HUD container (action buttons) */
-    body > div[style*="position:absolute"][style*="top:20px"][style*="right:20px"] {
-      top: calc(var(--safe-top) + 20px) !important;
-      right: calc(var(--safe-right) + 20px) !important;
-    }
-
-    /* Top-left admin button: position below safe area */
-    #btn-admin-top-left {
-      position: fixed !important;
-      top: calc(var(--safe-top) + 8px) !important;
-      left: calc(var(--safe-left) + 8px) !important;
-      z-index: var(--z-hud) !important;
-    }
-
-    /* User profile combined button */
-    #user-profile-combined {
-      /* Inherits position from parent container */
-    }
-
-    /* Top-right controls (if any exist) */
-    #btn-admin-top-right,
-    .top-right-controls {
-      position: fixed !important;
-      top: calc(var(--safe-top) + 8px) !important;
-      right: calc(var(--safe-right) + 8px) !important;
-      z-index: var(--z-hud) !important;
-    }
 
 
     /* ========================================================================
@@ -155,10 +182,16 @@
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
-      gap: 0.75rem !important;
+      gap: 0.5rem !important;
+
+      /* Frosted glass docked bar — gives the bottom a clear visual anchor */
+      background: rgba(6, 9, 22, 0.82) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border-top: 1px solid rgba(0, 224, 255, 0.13) !important;
 
       /* Safe area padding at bottom + sides */
-      padding: 0 16px calc(var(--safe-bottom) + 12px) 16px !important;
+      padding: 10px 14px calc(var(--safe-bottom) + 10px) 14px !important;
 
       /* Z-index from HUD scale */
       z-index: var(--z-hud) !important;
@@ -167,10 +200,28 @@
       pointer-events: auto !important;
     }
 
-    #centered-search-container #search-container {
+    /* When search-container is inside #search-row (flex), let it grow to fill space */
+    #centered-search-container #search-row #search-container {
+      flex: 1 !important;
+      width: auto !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+    }
+
+    /* When there is no search-row wrapper, keep full-width behavior */
+    #centered-search-container > #search-container {
       width: 100% !important;
       max-width: 100% !important;
       box-sizing: border-box !important;
+    }
+
+    /* search-row: flex container for input + cancel button */
+    #centered-search-container #search-row {
+      width: 100% !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.5rem !important;
     }
 
     /* Hide drag handle on mobile — search is fixed at bottom */
@@ -290,15 +341,9 @@
       top: auto !important;
       bottom: calc(100% + 0.5rem) !important;
 
-      /* Safe max height */
-      max-height: calc(
-        var(--mobile-vh)
-        - var(--hud-top)
-        - var(--hud-bottom)
-        - var(--safe-top)
-        - var(--safe-bottom)
-        - 80px
-      ) !important;
+      /* Hard cap: keyboard takes ~45% of viewport on most phones.
+         Leave the search bar (~50px) + a small gap. 40vh is safe. */
+      max-height: min(240px, 40vh) !important;
 
       /* Z-index should be above HUD but below modal */
       z-index: calc(var(--z-hud) + 10) !important;
@@ -393,7 +438,41 @@
 
 
 /* ============================================================================
-   12. LANDSCAPE MODE (Mobile devices in landscape)
+   12. KEYBOARD-OPEN STATE (soft keyboard visible on mobile)
+   ============================================================================
+   When the iOS/Android soft keyboard opens, --keyboard-height is set by JS
+   (visualViewport API) and body gains .keyboard-open.
+   Shrink the graph canvas so it doesn't get crushed behind the keyboard,
+   and lift the search bar so it stays visible just above the keyboard.
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  :root {
+    --keyboard-height: 0px;
+  }
+
+  body.keyboard-open #synapse-main-view {
+    /* Pull the bottom of the graph up by the keyboard height */
+    bottom: var(--keyboard-height) !important;
+    transition: bottom 0.25s ease;
+  }
+
+  body.keyboard-open #centered-search-container {
+    /* Lift the search bar above the keyboard */
+    bottom: var(--keyboard-height) !important;
+    transition: bottom 0.25s ease;
+  }
+
+  /* When keyboard is closed, animate back smoothly */
+  #synapse-main-view,
+  #centered-search-container {
+    transition: bottom 0.25s ease;
+  }
+}
+
+
+/* ============================================================================
+   13. LANDSCAPE MODE (Mobile devices in landscape)
    ============================================================================ */
 
 @media (max-width: 768px) and (orientation: landscape) {

@@ -89,18 +89,20 @@ export class MobileTierController {
    * @returns {boolean}
    */
   _checkShouldEnable() {
-    // Feature flag check
-    const tierFlagEnabled = localStorage.getItem('ie_unified_mobile_tiers') === 'true';
-    if (!tierFlagEnabled) {
-      return false;
-    }
-
     // Mobile detection
     const isMobileWidth = window.matchMedia('(max-width: 768px)').matches;
     const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
     const isMobile = isMobileWidth && isCoarsePointer;
 
-    return isMobile;
+    // Auto-enable the feature flag on mobile so T0 (12-node Personal Hub)
+    // is the default experience without requiring a manual localStorage opt-in.
+    // Users can still override by setting ie_unified_mobile_tiers = "false".
+    if (isMobile && localStorage.getItem('ie_unified_mobile_tiers') === null) {
+      localStorage.setItem('ie_unified_mobile_tiers', 'true');
+    }
+
+    const tierFlagEnabled = localStorage.getItem('ie_unified_mobile_tiers') === 'true';
+    return isMobile && tierFlagEnabled;
   }
 
   /**

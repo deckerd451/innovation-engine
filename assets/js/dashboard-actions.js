@@ -62,12 +62,12 @@ document.getElementById('btn-projects')?.addEventListener('click', () => {
   }
 });
 
-// Wire up Themes button
-document.getElementById('btn-themes')?.addEventListener('click', () => {
-  if (typeof window.openThemeDiscoveryModal === 'function') {
-    window.openThemeDiscoveryModal();
+// Wire up Skills button
+document.getElementById('btn-skills')?.addEventListener('click', () => {
+  if (typeof window.openSkillDiscoveryModal === 'function') {
+    window.openSkillDiscoveryModal();
   } else {
-    console.warn('Theme discovery not available');
+    console.warn('Skill discovery not available');
   }
 });
 
@@ -156,7 +156,6 @@ function applyAdminUIOnce(reason = "") {
 // returns false then and the call is a guaranteed no-op. Removing it
 // eliminates a redundant execution path and prevents the edge case where
 // a cached localStorage identity shows admin UI before auth is confirmed.
-document.addEventListener('profile-loaded', () => applyAdminUIOnce('profile-loaded'), { once: true });
 
 // Backward compatibility: expose as ensureAdminButtonVisible
 window.ensureAdminButtonVisible = applyAdminUIOnce;
@@ -205,100 +204,180 @@ document.getElementById('btn-view-controls')?.addEventListener('click', () => {
 // Bottom bar toggle functionality has been removed per user request
 
 // -----------------------------
-// Admin detection (enhanced)
+// Admin detection (trusted resolver)
 // -----------------------------
-function isAdminUser() {
-  // Helper to log admin grant only once per page load
-  function logAdminGrantedOnce(...args) {
-    if (window.__ADMIN_GRANTED_LOGGED__) return;
-    window.__ADMIN_GRANTED_LOGGED__ = true;
-    console.log(...args);
-  }
+const ADMIN_EMAIL_ALLOWLIST = [
+  'dmhamilton1@live.com',
+  'hojaaya@gmail.com',
+  'deckerdb26354@gmail.com',
+  'vramshesh@gmail.com',
+  'bradleydaltonoates@gmail.com',
+  'jody_stoehr@hotmail.com',
+  'dave.a.ingram@gmail.com',
+  'will@gdna.io'
+];
 
-  // Known admin emails (add more as needed)
-  const adminEmails = [
-    'dmhamilton1@live.com',
-    'hojaaya@gmail.com',
-    'deckerdb26354@gmail.com',
-    'vramshesh@gmail.com',
-    'bradleydaltonoates@gmail.com',
-    'jody_stoehr@hotmail.com',
-    'dave.a.ingram@gmail.com',
-    'will@gdna.io'
-  ];
+function isLocalhostHost(hostname = window.location.hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+}
 
-  // Try to get current user email from Supabase auth
-  try {
-    // Check session storage for auth data (synchronous)
-    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase.auth'));
-    for (const key of authKeys) {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const parsed = JSON.parse(data);
-        const email = parsed?.currentSession?.user?.email || parsed?.user?.email;
-        if (email && adminEmails.includes(email.toLowerCase())) {
-          logAdminGrantedOnce('✅ Admin access granted for:', email);
-          return true;
-        }
-      }
-    }
-  } catch (e) {
-    // Ignore parsing errors
-  }
+function normalizeRoleValue(roleValue) {
+  return typeof roleValue === 'string' ? roleValue.trim().toLowerCase() : null;
+}
 
-  // Try common places your app might store role
-  const role =
-    window?.appState?.communityProfile?.role ||
-    window?.appState?.profile?.role ||
-    window?.currentUserProfile?.role ||
-    window?.communityProfile?.role ||
-    window?.userRole;
-
-  if (typeof role === "string") {
-    const r = role.toLowerCase();
-    if (r === "admin" || r === "superadmin" || r === "owner") {
-      logAdminGrantedOnce('✅ Admin access granted via role:', r);
-      return true;
-    }
-  }
-
-  // If you have a boolean somewhere
-  if (window?.appState?.isAdmin === true) {
-    logAdminGrantedOnce('✅ Admin access granted via appState.isAdmin');
-    return true;
-  }
-
-  // For development: check storage safely (avoid costly JSON.stringify)
-  const storageCheck = 
-    document.cookie.toLowerCase().includes('dmhamilton1@live.com') ||
-    Object.keys(localStorage).some(k => {
-      try {
-        const val = localStorage.getItem(k) || '';
-        return val.toLowerCase().includes('dmhamilton1@live.com');
-      } catch (e) {
-        return false;
-      }
-    });
-
-  if (storageCheck) {
-    logAdminGrantedOnce('✅ Admin access granted via storage check');
-    return true;
-  }
-
-  // Only log admin check failures in debug mode
-  if (window.__DEBUG_ADMIN_CHECKS__) {
-    console.log('ℹ️ Admin check: no admin credentials found');
-  }
+function profileHasAdminRole(profile) {
+  if (!profile || typeof profile !== 'object') return false;
+  const role = normalizeRoleValue(profile.role);
+  if (role && ['admin', 'superadmin', 'owner'].includes(role)) return true;
+  if (profile.is_admin === true || profile.admin === true) return true;
   return false;
 }
+
+async function resolveAdminAccess(user, profile) {
+  const email = String(user?.email || profile?.email || '').trim().toLowerCase();
+  const appProfile = window?.appState?.communityProfile || window?.appState?.profile || window?.currentUserProfile || window?.communityProfile;
+  const roleSources = [profile, appProfile].filter(Boolean);
+
+  for (const sourceProfile of roleSources) {
+    if (profileHasAdminRole(sourceProfile)) {
+      const result = { email, source: 'profile-role', isAdmin: true };
+      console.log('[AdminAccess] resolved', result);
+      return result;
+    }
+  }
+
+  if (email && ADMIN_EMAIL_ALLOWLIST.includes(email)) {
+    const result = { email, source: 'allowlist', isAdmin: true };
+    console.log('[AdminAccess] resolved', result);
+    return result;
+  }
+
+  if (isLocalhostHost()) {
+    const overrideEnabled =
+      localStorage.getItem('isAdminOverride') === 'true' ||
+      sessionStorage.getItem('isAdminOverride') === 'true' ||
+      window.isAdminOverride === true;
+
+    if (overrideEnabled) {
+      const result = { email, source: 'localhost-dev-override', isAdmin: true };
+      console.log('[AdminAccess] resolved', result);
+      return result;
+    }
+  }
+
+  const result = { email, source: 'none', isAdmin: false };
+  console.log('[AdminAccess] resolved', result);
+  return result;
+}
+
+function isAdminUser() {
+  return window.adminAccessState?.isAdmin === true;
+}
+
+async function refreshAdminAccess(user, profile) {
+  const resolved = await resolveAdminAccess(user, profile);
+  window.adminAccessState = resolved;
+  window.canUseAdvancedInnovationTools = resolved.isAdmin === true;
+  return resolved;
+}
+
+window.resolveAdminAccess = resolveAdminAccess;
+window.refreshAdminAccess = refreshAdminAccess;
+
+window.addEventListener('profile-loaded', async (event) => {
+  const profile = event?.detail?.profile || window?.appState?.profile || window?.appState?.communityProfile;
+  const user = event?.detail?.user || window.currentUser || null;
+  await refreshAdminAccess(user, profile);
+  applyAdminUIOnce('profile-loaded');
+  applyInnovationAccessControls();
+});
 
 // Expose globally for use by other modules (e.g., synapse)
 window.isAdminUser = isAdminUser;
 
 // -----------------------------
+// Innovation Engine access gating
+// -----------------------------
+function applyInnovationAccessControls() {
+  const isAdmin = isAdminUser() === true;
+  const canUseAdvancedInnovationTools = isAdmin === true;
+
+  // Single, explicit source used by UI modules.
+  window.canUseAdvancedInnovationTools = canUseAdvancedInnovationTools;
+
+  const body = document.body;
+  if (!body) return;
+
+  body.classList.toggle('ie-limited-user', !canUseAdvancedInnovationTools);
+  body.setAttribute('data-admin-user', canUseAdvancedInnovationTools ? 'true' : 'false');
+
+  // Admins keep existing experience exactly as-is.
+  if (canUseAdvancedInnovationTools) return;
+
+  // Defense-in-depth: force-hide network command surfaces for non-admin users
+  // even if later scripts attempt to toggle them back on.
+  const commandDashboard = document.getElementById('command-dashboard');
+  if (commandDashboard) {
+    commandDashboard.hidden = true;
+    commandDashboard.style.display = 'none';
+    commandDashboard.style.visibility = 'hidden';
+    commandDashboard.style.pointerEvents = 'none';
+    commandDashboard.setAttribute('aria-hidden', 'true');
+  }
+
+  // Non-admin: search remains available; advanced graph/command surfaces hidden.
+  const hideIds = [
+    'command-dashboard',
+    'cd-panel-tab',
+    'synapse-main-view',
+    'btn-network-dashboard-mobile',
+    'synapse-filter-bar',
+    'synapse-filter-header',
+    'network-command-panel',
+    'admin-panel',
+    'btn-admin-top',
+    'cd-admin-btn',
+    'view-controls-panel',
+    'btn-view-controls'
+  ];
+
+  hideIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = 'none';
+    el.setAttribute('aria-hidden', 'true');
+  });
+
+  const hideSelectors = [
+    '[data-admin-only="true"]',
+    '.admin-only',
+    '.synapse-only',
+    '.network-command-surface',
+    '.advanced-command-surface',
+    '#synapse-view',
+    '#network-command'
+  ];
+  hideSelectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      el.style.display = 'none';
+      el.setAttribute('aria-hidden', 'true');
+    });
+  });
+}
+
+window.applyInnovationAccessControls = applyInnovationAccessControls;
+
+document.addEventListener('profile-loaded', applyInnovationAccessControls);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', applyInnovationAccessControls, { once: true });
+} else {
+  applyInnovationAccessControls();
+}
+
+// -----------------------------
 // Theme circle creation (MVP)
 // -----------------------------
-async function createThemeCirclePromptFlow() {
+async function createSkillCirclePromptFlow() {
   const supabase = window.supabase;
   if (!supabase) {
     
@@ -331,25 +410,29 @@ _toast("Admin only");
     origin_type: "admin"
   };
 
-  const { error } = await supabase.from("theme_circles").insert([payload]);
-  if (error) {
-    console.error("theme_circles insert failed:", error);
-    
-_toast(error.message || "Failed to create theme circle");
-    return;
-  }
+  try {
+    const { error } = await supabase.from("theme_circles").insert([payload]);
+    if (error) {
+      console.error("theme_circles insert failed:", error);
+      _toast(error.message || "Failed to create theme circle");
+      return;
+    }
 
-  // Close panel (nice UX)
-  document.getElementById("view-controls-panel")?.remove();
+    // Close panel (nice UX)
+    document.getElementById("view-controls-panel")?.remove();
 
-  // Refresh Synapse
-  await refreshSynapseThemesSafely();
+    // Refresh Synapse
+    await refreshSynapseThemesSafely();
 
-  // Optional toast if you have one
-  if (typeof window.showNotification === "function") {
-    window.showNotification(`Theme created: ${title}`, "success");
-  } else {
-    console.log("✅ Theme created:", title);
+    // Optional toast if you have one
+    if (typeof window.showNotification === "function") {
+      window.showNotification(`Theme created: ${title}`, "success");
+    } else {
+      console.log("✅ Theme created:", title);
+    }
+  } catch (err) {
+    console.error("❌ createSkillCirclePromptFlow failed:", err);
+    _toast("Failed to create theme circle. Please try again.");
   }
 }
 
@@ -413,7 +496,7 @@ function toggleViewControls() {
           style="width: 100%; padding: 0.75rem; background: rgba(255,215,0,0.10);
           border: 1px solid rgba(255,215,0,0.35); border-radius: 8px; color: #ffd700;
           cursor: pointer; font-weight: 700; text-align: left;">
-          <i class="fas fa-bullseye"></i> Manage Theme Circles
+          <i class="fas fa-bullseye"></i> Manage Skill Circles
         </button>
       </div>
     </div>
@@ -468,7 +551,7 @@ function toggleViewControls() {
     if (typeof window.openThemeAdminModal === 'function') {
       window.openThemeAdminModal();
     } else {
-      console.warn('Theme admin modal not available');
+      console.warn('Skill admin modal not available');
     }
   });
 
@@ -647,9 +730,9 @@ function createSynapseLegend() {
           <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Projects</span>
           <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
         </div>
-        <div id="legend-themes" data-filter="themes" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25);">
+        <div id="legend-skills" data-filter="skills" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25);">
           <div style="width: 20px; height: 20px; border-radius: 50%; background: transparent; border: 3px solid #ffa500; flex-shrink: 0;"></div>
-          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Themes</span>
+          <span style="color: #fff; font-size: 0.85rem; font-weight: 600; flex: 1;">Skills</span>
           <i class="fas fa-check" style="color: #00ff88; font-size: 0.85rem;"></i>
         </div>
         <div id="legend-organizations" data-filter="organizations" style="display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.25);">
@@ -1017,7 +1100,7 @@ _toast('Admin panel not available');
   const filterState = {
     people: false,
     projects: false,
-    themes: false,
+    skills: false,
     organizations: false,
     connections: false
   };
@@ -1093,7 +1176,7 @@ _toast('Admin panel not available');
   window.updateAllButtonStates = updateAllButtonStates;
 
   // Add click handlers for legend filter items
-  ['people', 'projects', 'themes', 'organizations', 'connections'].forEach(filterType => {
+  ['people', 'projects', 'skills', 'organizations', 'connections'].forEach(filterType => {
     const element = document.getElementById(`legend-${filterType}`);
     if (!element) return;
 
@@ -1124,10 +1207,10 @@ function applyVisualizationFilters(filterState) {
     }
   });
 
-  // Filter theme nodes
+  // Filter skill nodes
   const themeNodes = document.querySelectorAll('.theme-container');
   themeNodes.forEach(node => {
-    node.style.display = filterState.themes ? 'block' : 'none';
+    node.style.display = filterState.skills ? 'block' : 'none';
   });
 
   // Filter project overlays
@@ -1145,7 +1228,7 @@ function applyVisualizationFilters(filterState) {
   console.log('✅ Filters applied:', {
     people: Array.from(allNodes).filter(n => n.__data__?.type === 'person').length,
     organizations: Array.from(allNodes).filter(n => n.__data__?.type === 'organization').length,
-    themes: themeNodes.length,
+    skills: themeNodes.length,
     projects: projectNodes.length,
     connections: connectionLines.length
   });
@@ -1190,11 +1273,11 @@ function openAdminPanel() {
   panel.id = 'admin-panel';
   panel.style.cssText = `
     position: fixed;
-    inset: 20px;
+    inset: 10px;
     background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
     border: 2px solid rgba(255,215,0,0.5);
     border-radius: 16px;
-    padding: 2rem;
+    padding: clamp(0.75rem, 3vw, 2rem);
     box-shadow: 0 25px 70px rgba(0,0,0,0.7);
     z-index: 10003;
     backdrop-filter: blur(20px);
@@ -1202,52 +1285,52 @@ function openAdminPanel() {
   `;
 
   panel.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 2px solid rgba(255,215,0,0.3); padding-bottom: 1rem;">
-      <h2 style="color: #ffd700; margin: 0; font-size: 1.75rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 2px solid rgba(255,215,0,0.3); padding-bottom: 0.75rem;">
+      <h2 style="color: #ffd700; margin: 0; font-size: clamp(1.2rem, 4vw, 1.75rem);">
         <i class="fas fa-crown"></i> Admin Panel
       </h2>
       <button onclick="document.getElementById('admin-panel').remove()"
         style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
-        color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem;">
+        color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem; flex-shrink: 0;">
         <i class="fas fa-times"></i>
       </button>
     </div>
 
     <!-- Tabs -->
-    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center;">
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center; flex-wrap: wrap; padding-bottom: 0.5rem;">
       <!-- Resource Management Dropdown -->
       <div style="position: relative;">
-        <button id="resource-mgmt-dropdown-btn" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px 8px 0 0; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;">
-          <i class="fas fa-tasks"></i> Resource Management
-          <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
+        <button id="resource-mgmt-dropdown-btn" style="padding: 0.55rem 0.85rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px 8px 0 0; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem; font-size: clamp(0.78rem, 2.5vw, 0.95rem); white-space: nowrap;">
+          <i class="fas fa-tasks"></i> <span class="tab-label-long">Resource Management</span><span class="tab-label-short" style="display:none;">Resources</span>
+          <i class="fas fa-chevron-down" style="font-size: 0.75rem;"></i>
         </button>
-        <div id="resource-mgmt-dropdown" style="display: none; position: absolute; top: 100%; left: 0; min-width: 220px; background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98)); border: 2px solid rgba(0,224,255,0.4); border-radius: 0 8px 8px 8px; padding: 0.5rem; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
-          <button class="admin-tab active-admin-tab" data-tab="manage" style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,224,255,0.1); border: none; border-radius: 6px; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+        <div id="resource-mgmt-dropdown" style="display: none; position: absolute; top: 100%; left: 0; min-width: 200px; max-width: calc(100vw - 30px); background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98)); border: 2px solid rgba(0,224,255,0.4); border-radius: 0 8px 8px 8px; padding: 0.5rem; z-index: 10010; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
+          <button class="admin-tab active-admin-tab" data-tab="manage" style="width: 100%; padding: 0.65rem 0.9rem; background: rgba(0,224,255,0.1); border: none; border-radius: 6px; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
             <i class="fas fa-users-cog"></i> Manage Community
           </button>
-          <button class="admin-tab" data-tab="themes" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
-            <i class="fas fa-bullseye"></i> Manage Themes
+          <button class="admin-tab" data-tab="skills" style="width: 100%; padding: 0.65rem 0.9rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+            <i class="fas fa-bullseye"></i> Manage Skills
           </button>
-          <button class="admin-tab" data-tab="projects" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
+          <button class="admin-tab" data-tab="projects" style="width: 100%; padding: 0.65rem 0.9rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
             <i class="fas fa-rocket"></i> Manage Projects
           </button>
-          <button class="admin-tab" data-tab="organizations" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left;">
+          <button class="admin-tab" data-tab="organizations" style="width: 100%; padding: 0.65rem 0.9rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left;">
             <i class="fas fa-building"></i> Manage Orgs
           </button>
         </div>
       </div>
-      
-      <button class="admin-tab" data-tab="system" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+
+      <button class="admin-tab" data-tab="system" style="padding: 0.55rem 0.85rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: clamp(0.78rem, 2.5vw, 0.95rem); white-space: nowrap;">
         <i class="fas fa-cog"></i> System Settings
       </button>
-      
-      <button class="admin-tab" data-tab="analytics" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+
+      <button class="admin-tab" data-tab="analytics" style="padding: 0.55rem 0.85rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: clamp(0.78rem, 2.5vw, 0.95rem); white-space: nowrap;">
         <i class="fas fa-chart-line"></i> Analytics
       </button>
     </div>
 
     <!-- Tab Content -->
-    <div id="admin-tab-content" style="padding: 1rem 0;">
+    <div id="admin-tab-content" style="padding: 0.5rem 0;">
       <!-- Content will be loaded dynamically -->
     </div>
   `;
@@ -1302,475 +1385,497 @@ function openAdminPanel() {
 function loadAdminTabContent(tabName) {
   const content = document.getElementById('admin-tab-content');
   if (!content) return;
+  switch (tabName) {
+    case 'manage':        _adminTabManage(content);        break;
+    case 'skills':        _adminTabSkills(content);        break;
+    case 'projects':      _adminTabProjects(content);      break;
+    case 'organizations': _adminTabOrganizations(content); break;
+    case 'system':        _adminTabSystem(content);        break;
+    case 'analytics':     _adminTabAnalytics(content);     break;
+    default: console.warn('[AdminPanel] Unknown tab:', tabName);
+  }
+}
 
-  if (tabName === 'manage') {
-    // Load the new People Management panel
-    content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #00e0ff;"><i class="fas fa-spinner fa-spin"></i> Loading People Management...</div>';
-    
-    // Wait for module to be available
-    const checkModule = setInterval(() => {
-      if (typeof window.AdminPeoplePanel !== 'undefined' && typeof window.AdminPeoplePanel.renderPeoplePanel === 'function') {
-        clearInterval(checkModule);
-        window.AdminPeoplePanel.renderPeoplePanel(content);
-      }
-    }, 100);
-    
-    // Timeout after 5 seconds
-    setTimeout(() => {
+function _adminTabManage(content) {
+  content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #00e0ff;"><i class="fas fa-spinner fa-spin"></i> Loading People Management...</div>';
+  
+  // Wait for module to be available
+  const checkModule = setInterval(() => {
+    if (typeof window.AdminPeoplePanel !== 'undefined' && typeof window.AdminPeoplePanel.renderPeoplePanel === 'function') {
       clearInterval(checkModule);
-      if (!window.AdminPeoplePanel) {
-        content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load People Management panel. Please refresh the page.</div>';
-      }
-    }, 5000);
-  } else if (tabName === 'themes') {
-    content.innerHTML = `
-      <div style="max-height: 70vh; overflow-y: auto;">
-        <!-- Theme Management Section -->
-        <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem;">
-          <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 0.5rem;">
-            <i class="fas fa-bullseye"></i> Theme Circles Management
-          </h3>
-          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
-            Create and manage theme circles for your community
-          </p>
-          
-          <!-- Theme Admin Tabs -->
-          <div class="theme-admin-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid rgba(0,224,255,0.2);">
-            <button class="theme-tab-btn active" data-theme-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-              <i class="fas fa-plus-circle"></i> Create New
-            </button>
-            <button class="theme-tab-btn" data-theme-tab="manage" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-              <i class="fas fa-list"></i> Manage Existing
-            </button>
-          </div>
-          
-          <!-- Create Tab Content -->
-          <div id="theme-create-content" class="theme-tab-content">
-            <form id="admin-theme-create-form" style="display: grid; gap: 1.25rem;">
+      window.AdminPeoplePanel.renderPeoplePanel(content);
+    }
+  }, 100);
+  
+  // Timeout after 5 seconds
+  setTimeout(() => {
+    clearInterval(checkModule);
+    if (!window.AdminPeoplePanel) {
+      content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load People Management panel. Please refresh the page.</div>';
+    }
+  }, 5000);
+}
+
+function _adminTabSkills(content) {
+  content.innerHTML = `
+    <div style="max-height: 70vh; overflow-y: auto;">
+      <!-- Theme Management Section -->
+      <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem;">
+        <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 0.5rem;">
+          <i class="fas fa-bullseye"></i> Skill Circles Management
+        </h3>
+        <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          Create and manage skill circles for your community
+        </p>
+        
+        <!-- Theme Admin Tabs -->
+        <div class="skill-admin-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid rgba(0,224,255,0.2);">
+          <button class="skill-tab-btn active" data-skill-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid #00e0ff; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+            <i class="fas fa-plus-circle"></i> Create New
+          </button>
+          <button class="skill-tab-btn" data-skill-tab="manage" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+            <i class="fas fa-list"></i> Manage Existing
+          </button>
+        </div>
+        
+        <!-- Create Tab Content -->
+        <div id="skill-create-content" class="skill-tab-content">
+          <form id="admin-skill-create-form" style="display: grid; gap: 1.25rem;">
+            <div class="form-group">
+              <label for="admin-skill-title" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Skill Title *
+              </label>
+              <input
+                type="text"
+                id="admin-skill-title"
+                name="title"
+                placeholder="e.g., AI in Healthcare"
+                required
+                style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
+                       border-radius: 8px; color: #fff; font-size: 1rem;"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="admin-skill-description" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Description
+              </label>
+              <textarea
+                id="admin-skill-description"
+                name="description"
+                placeholder="What is this skill about?"
+                rows="4"
+                style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
+                       border-radius: 8px; color: #fff; font-size: 1rem; resize: vertical;"
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="admin-skill-tags" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Tags (comma-separated)
+              </label>
+              <input
+                type="text"
+                id="admin-skill-tags"
+                name="tags"
+                placeholder="ai, healthcare, innovation"
+                style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
+                       border-radius: 8px; color: #fff; font-size: 1rem;"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="admin-skill-duration" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                Duration (days) *
+              </label>
+              <input
+                type="number"
+                id="admin-skill-duration"
+                name="duration"
+                min="1"
+                max="90"
+                value="7"
+                required
+                style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
+                       border-radius: 8px; color: #fff; font-size: 1rem;"
+              />
+              <small style="color: rgba(255,255,255,0.6); display: block; margin-top: 0.25rem;">
+                How long should this skill remain active? (1-90 days)
+              </small>
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div class="form-group">
-                <label for="admin-theme-title" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                  Theme Title *
+                <label for="admin-skill-cta-text" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                  CTA Button Text
                 </label>
                 <input
                   type="text"
-                  id="admin-theme-title"
-                  name="title"
-                  placeholder="e.g., AI in Healthcare"
-                  required
+                  id="admin-skill-cta-text"
+                  name="cta_text"
+                  placeholder="e.g., Join Slack"
                   style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
                          border-radius: 8px; color: #fff; font-size: 1rem;"
                 />
               </div>
 
               <div class="form-group">
-                <label for="admin-theme-description" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                  Description
-                </label>
-                <textarea
-                  id="admin-theme-description"
-                  name="description"
-                  placeholder="What is this theme about?"
-                  rows="4"
-                  style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
-                         border-radius: 8px; color: #fff; font-size: 1rem; resize: vertical;"
-                ></textarea>
-              </div>
-
-              <div class="form-group">
-                <label for="admin-theme-tags" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                  Tags (comma-separated)
+                <label for="admin-skill-cta-link" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                  CTA Button Link
                 </label>
                 <input
-                  type="text"
-                  id="admin-theme-tags"
-                  name="tags"
-                  placeholder="ai, healthcare, innovation"
+                  type="url"
+                  id="admin-skill-cta-link"
+                  name="cta_link"
+                  placeholder="https://slack.com/invite..."
                   style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
                          border-radius: 8px; color: #fff; font-size: 1rem;"
                 />
               </div>
-
-              <div class="form-group">
-                <label for="admin-theme-duration" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                  Duration (days) *
-                </label>
-                <input
-                  type="number"
-                  id="admin-theme-duration"
-                  name="duration"
-                  min="1"
-                  max="90"
-                  value="7"
-                  required
-                  style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
-                         border-radius: 8px; color: #fff; font-size: 1rem;"
-                />
-                <small style="color: rgba(255,255,255,0.6); display: block; margin-top: 0.25rem;">
-                  How long should this theme remain active? (1-90 days)
-                </small>
-              </div>
-
-              <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                  <label for="admin-theme-cta-text" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                    CTA Button Text
-                  </label>
-                  <input
-                    type="text"
-                    id="admin-theme-cta-text"
-                    name="cta_text"
-                    placeholder="e.g., Join Slack"
-                    style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
-                           border-radius: 8px; color: #fff; font-size: 1rem;"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label for="admin-theme-cta-link" style="color: #00e0ff; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                    CTA Button Link
-                  </label>
-                  <input
-                    type="url"
-                    id="admin-theme-cta-link"
-                    name="cta_link"
-                    placeholder="https://slack.com/invite..."
-                    style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3);
-                           border-radius: 8px; color: #fff; font-size: 1rem;"
-                  />
-                </div>
-              </div>
-
-              <div class="form-actions" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
-                <button
-                  type="button"
-                  onclick="document.getElementById('admin-theme-create-form').reset()"
-                  style="padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
-                         border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600;"
-                >
-                  Clear Form
-                </button>
-                <button
-                  type="submit"
-                  style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00e0ff, #00a8cc); border: none;
-                         border-radius: 8px; color: #000; cursor: pointer; font-weight: 700;"
-                >
-                  <i class="fas fa-plus-circle"></i> Create Theme Circle
-                </button>
-              </div>
-            </form>
-          </div>
-          
-          <!-- Manage Tab Content -->
-          <div id="theme-manage-content" class="theme-tab-content" style="display: none;">
-            <div id="admin-themes-list" style="color: rgba(255,255,255,0.7);">
-              Loading themes...
             </div>
-          </div>
+
+            <div class="form-actions" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+              <button
+                type="button"
+                onclick="document.getElementById('admin-skill-create-form').reset()"
+                style="padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+                       border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600;"
+              >
+                Clear Form
+              </button>
+              <button
+                type="submit"
+                style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00e0ff, #00a8cc); border: none;
+                       border-radius: 8px; color: #000; cursor: pointer; font-weight: 700;"
+              >
+                <i class="fas fa-plus-circle"></i> Create Skill Circle
+              </button>
+            </div>
+          </form>
         </div>
-      </div>
-    `;
-    
-    // Wire up theme tab switching
-    const themeTabBtns = content.querySelectorAll('.theme-tab-btn');
-    themeTabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Update button states
-        themeTabBtns.forEach(b => {
-          b.classList.remove('active');
-          b.style.borderBottom = '3px solid transparent';
-          b.style.color = 'rgba(255,255,255,0.6)';
-        });
-        btn.classList.add('active');
-        btn.style.borderBottom = '3px solid #00e0ff';
-        btn.style.color = '#00e0ff';
         
-        // Show/hide content
-        const tab = btn.dataset.themeTab;
-        content.querySelector('#theme-create-content').style.display = tab === 'create' ? 'block' : 'none';
-        content.querySelector('#theme-manage-content').style.display = tab === 'manage' ? 'block' : 'none';
-        
-        // Load themes list when switching to manage tab
-        if (tab === 'manage') {
-          loadAdminThemesList();
-        }
-      });
-    });
-    
-    // Wire up create form submission
-    const createForm = content.querySelector('#admin-theme-create-form');
-    if (createForm) {
-      createForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await handleAdminCreateTheme(createForm);
-      });
-    }
-    
-    // Load themes list initially (for manage tab)
-    loadAdminThemesList();
-  } else if (tabName === 'projects') {
-    content.innerHTML = `
-      <div style="margin-bottom: 2rem;">
-        <button onclick="if(typeof openProjectsModal === 'function') openProjectsModal();" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
-          <i class="fas fa-plus"></i> Create New Project
-        </button>
-      </div>
-      <div id="admin-projects-list" style="color: rgba(255,255,255,0.7);">
-        Loading projects...
-      </div>
-    `;
-    loadProjectsList();
-  } else if (tabName === 'organizations') {
-    content.innerHTML = `
-      <div style="margin-bottom: 2rem;">
-        <button onclick="if(typeof showOrganizationsPanel === 'function') { document.getElementById('admin-panel')?.remove(); showOrganizationsPanel(); }" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
-          <i class="fas fa-plus"></i> Create New Organization
-        </button>
-      </div>
-      <div id="admin-orgs-list" style="color: rgba(255,255,255,0.7);">
-        Loading organizations...
-      </div>
-    `;
-    loadOrganizationsList();
-  } else if (tabName === 'system') {
-    // Check both debug flags - if either is set, show as enabled
-    const isDebug = localStorage.getItem('unified-network-debug') === 'true' ||
-                    localStorage.getItem('DEBUG') === '1';
-
-    content.innerHTML = `
-      <div style="max-height: 60vh; overflow-y: auto;">
-        <!-- Unified Network Discovery Section -->
-        <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-          <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 1rem;">
-            <i class="fas fa-network-wired"></i> Unified Network Discovery
-          </h3>
-
-          <div style="padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 1.5rem;">
-            <div style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">Status:</div>
-            <div style="font-size: 1.1rem; font-weight: 600; color: #44ff44;">
-              ✅ Always Enabled
-            </div>
-          </div>
-
-          <div style="margin-bottom: 1.5rem;">
-            <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.95rem;">
-              <input type="checkbox" id="unified-network-debug-toggle-admin" ${isDebug ? 'checked' : ''}
-                style="margin-right: 12px; cursor: pointer; width: 18px; height: 18px;">
-              <span>Debug Mode (verbose console logging)</span>
-            </label>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <button id="unified-network-reload-admin" style="
-              padding: 0.875rem 1.25rem;
-              background: linear-gradient(135deg, #00e0ff, #0080ff);
-              border: none;
-              border-radius: 8px;
-              color: white;
-              font-weight: 600;
-              cursor: pointer;
-              font-size: 0.95rem;
-              transition: all 0.2s;
-            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-              <i class="fas fa-sync-alt"></i> Apply & Reload
-            </button>
-
-            <button id="unified-network-test-admin" style="
-              padding: 0.875rem 1.25rem;
-              background: rgba(68, 136, 255, 0.2);
-              border: 1px solid rgba(68, 136, 255, 0.5);
-              border-radius: 8px;
-              color: #4488ff;
-              font-weight: 600;
-              cursor: pointer;
-              font-size: 0.95rem;
-              transition: all 0.2s;
-            " onmouseover="this.style.background='rgba(68, 136, 255, 0.3)'" onmouseout="this.style.background='rgba(68, 136, 255, 0.2)'">
-              <i class="fas fa-vial"></i> Run Tests
-            </button>
-          </div>
-        </div>
-
-        <!-- Quiet Mode Settings -->
-        <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px;">
-          <h3 style="color: #a855f7; margin: 0 0 1rem 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
-            <i class="fas fa-volume-mute"></i> Quiet Mode
-          </h3>
-          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; line-height: 1.6;">
-            Enable quiet mode to reduce visual noise and focus on key connections. This mode simplifies the network view and highlights relevant nodes.
-          </p>
-
-          <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.75rem; background: rgba(168,85,247,0.1); border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(168,85,247,0.15)'" onmouseout="this.style.background='rgba(168,85,247,0.1)'">
-            <input type="checkbox" id="quiet-mode-toggle-admin" style="width: 20px; height: 20px; cursor: pointer;">
-            <span style="color: #fff; font-weight: 600;">Enable Quiet Mode</span>
-          </label>
-
-          <div style="margin-top: 1rem; padding: 1rem; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px;">
-            <div style="color: #a855f7; font-size: 0.85rem; line-height: 1.5;">
-              <i class="fas fa-info-circle"></i> <strong>Note:</strong> Quiet mode will reload the page to apply changes. Your network will be simplified to show only the most relevant connections.
-            </div>
+        <!-- Manage Tab Content -->
+        <div id="skill-manage-content" class="skill-tab-content" style="display: none;">
+          <div id="admin-skills-list" style="color: rgba(255,255,255,0.7);">
+            Loading skills...
           </div>
         </div>
       </div>
-    `;
-
-    // Wire up event listeners
-    const debugToggle = document.getElementById('unified-network-debug-toggle-admin');
-    const reloadBtn = document.getElementById('unified-network-reload-admin');
-    const testBtn = document.getElementById('unified-network-test-admin');
-    const quietModeToggle = document.getElementById('quiet-mode-toggle-admin');
-    
-    // Check current quiet mode state
-    if (quietModeToggle) {
-      const isQuietMode = localStorage.getItem('quiet-mode-enabled') === 'true';
-      quietModeToggle.checked = isQuietMode;
+    </div>
+  `;
+  
+  // Wire up skill tab switching
+  const themeTabBtns = content.querySelectorAll('.skill-tab-btn');
+  themeTabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Update button states
+      themeTabBtns.forEach(b => {
+        b.classList.remove('active');
+        b.style.borderBottom = '3px solid transparent';
+        b.style.color = 'rgba(255,255,255,0.6)';
+      });
+      btn.classList.add('active');
+      btn.style.borderBottom = '3px solid #00e0ff';
+      btn.style.color = '#00e0ff';
       
-      quietModeToggle.addEventListener('change', () => {
-        if (quietModeToggle.checked) {
-          localStorage.setItem('quiet-mode-enabled', 'true');
-          if (confirm('Enable Quiet Mode? This will reload the page to apply changes.')) {
-            window.location.reload();
-          } else {
-            quietModeToggle.checked = false;
-            localStorage.removeItem('quiet-mode-enabled');
-          }
-        } else {
-          localStorage.removeItem('quiet-mode-enabled');
-          if (confirm('Disable Quiet Mode? This will reload the page to apply changes.')) {
-            window.location.reload();
-          } else {
-            quietModeToggle.checked = true;
-            localStorage.setItem('quiet-mode-enabled', 'true');
-          }
-        }
-      });
-    }
-    
-    debugToggle.addEventListener('change', () => {
-      if (debugToggle.checked) {
-        // Enable both unified network debug AND general debug mode
-        localStorage.setItem('unified-network-debug', 'true');
-        localStorage.setItem('DEBUG', '1');
-        console.log('🐛 Debug mode enabled - verbose console logging activated');
-        console.log('   Reload the page to see full debug output');
-      } else {
-        // Disable both debug modes
-        localStorage.removeItem('unified-network-debug');
-        localStorage.removeItem('DEBUG');
-        console.log('🐛 Debug mode disabled - console logging minimized');
-        console.log('   Reload the page to apply changes');
+      // Show/hide content
+      const tab = btn.dataset.skillTab;
+      content.querySelector('#skill-create-content').style.display = tab === 'create' ? 'block' : 'none';
+      content.querySelector('#skill-manage-content').style.display = tab === 'manage' ? 'block' : 'none';
+
+      // Load skills list when switching to manage tab
+      if (tab === 'manage') {
+        loadAdminSkillsList();
       }
     });
-    
-    reloadBtn.addEventListener('click', () => {
-      window.location.reload();
-    });
-    
-    testBtn.addEventListener('click', async () => {
-      testBtn.disabled = true;
-      testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Tests...';
-      
+  });
+
+  // Wire up create form submission
+  const createForm = content.querySelector('#admin-skill-create-form');
+  if (createForm) {
+    createForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
       try {
-        if (window.unifiedNetworkIntegration?.isActive()) {
-          console.log('🧪 Running unified network tests...');
-          
-          // Check system health
-          if (window.unifiedNetworkErrorIntegration) {
-            const isHealthy = window.unifiedNetworkErrorIntegration.isHealthy();
-            const stats = window.unifiedNetworkErrorIntegration.getStats();
-            
-            console.log('🏥 System Health:', { healthy: isHealthy, stats });
-            
-            if (isHealthy) {
-              
-_toast('✅ System is healthy! All tests passed.');
-            } else {
-              
-_toast(`⚠️ System has ${stats.total} logged errors. Check console for details.`);
-            }
-          } else {
-            
-_toast('✅ Unified network is active and running!');
-          }
-        } else {
-          
-_toast('ℹ️ Unified network is not currently active. Enable it and reload to test.');
-        }
-        
-        testBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
-        setTimeout(() => {
-          testBtn.innerHTML = '<i class="fas fa-vial"></i> Run Tests';
-          testBtn.disabled = false;
-        }, 2000);
-      } catch (error) {
-        console.error('❌ Test failed:', error);
-        testBtn.innerHTML = '<i class="fas fa-times"></i> Test Failed';
-        testBtn.disabled = false;
+        await handleAdminCreateTheme(createForm);
+      } catch (err) {
+        console.error("❌ Admin skill creation failed:", err);
       }
     });
-  } else if (tabName === 'analytics') {
-    // Analytics tab - show embedded analytics dashboard
-    content.innerHTML = `
-      <div style="max-height: 70vh; overflow-y: auto;">
-        <div style="background: rgba(255,107,107,0.05); border: 2px solid rgba(255,107,107,0.3); border-radius: 12px; padding: 1.5rem;">
-          <h3 style="color: #ff6b6b; font-size: 1.25rem; margin-bottom: 0.5rem;">
-            <i class="fas fa-chart-line"></i> Ecosystem Analytics
-          </h3>
-          <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
-            View comprehensive analytics about your community, connections, and network health.
-          </p>
-          
-          <button id="open-analytics-dashboard-btn" style="
-            padding: 1rem 2rem;
-            background: linear-gradient(135deg, #ff6b6b, #ff8c8c);
+  }
+
+  // Load skills list initially (for manage tab)
+  loadAdminSkillsList();
+}
+
+function _adminTabProjects(content) {
+  content.innerHTML = `
+    <div style="margin-bottom: 2rem;">
+      <button onclick="if(typeof openProjectsModal === 'function') openProjectsModal();" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
+        <i class="fas fa-plus"></i> Create New Project
+      </button>
+    </div>
+    <div id="admin-projects-list" style="color: rgba(255,255,255,0.7);">
+      Loading projects...
+    </div>
+  `;
+  loadProjectsList();
+}
+
+function _adminTabOrganizations(content) {
+  content.innerHTML = `
+    <div style="margin-bottom: 2rem;">
+      <button onclick="if(typeof showOrganizationsPanel === 'function') { document.getElementById('admin-panel')?.remove(); showOrganizationsPanel(); }" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">
+        <i class="fas fa-plus"></i> Create New Organization
+      </button>
+    </div>
+    <div id="admin-orgs-list" style="color: rgba(255,255,255,0.7);">
+      Loading organizations...
+    </div>
+  `;
+  loadOrganizationsList();
+}
+
+function _adminTabSystem(content) {
+  const isDebug = localStorage.getItem('unified-network-debug') === 'true' ||
+                  localStorage.getItem('DEBUG') === '1';
+
+  content.innerHTML = `
+    <div style="max-height: 60vh; overflow-y: auto;">
+      <!-- Unified Network Discovery Section -->
+      <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+        <h3 style="color: #00e0ff; font-size: 1.25rem; margin-bottom: 1rem;">
+          <i class="fas fa-network-wired"></i> Unified Network Discovery
+        </h3>
+
+        <div style="padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 1.5rem;">
+          <div style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">Status:</div>
+          <div style="font-size: 1.1rem; font-weight: 600; color: #44ff44;">
+            ✅ Always Enabled
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: flex; align-items: center; color: #fff; cursor: pointer; font-size: 0.95rem;">
+            <input type="checkbox" id="unified-network-debug-toggle-admin" ${isDebug ? 'checked' : ''}
+              style="margin-right: 12px; cursor: pointer; width: 18px; height: 18px;">
+            <span>Debug Mode (verbose console logging)</span>
+          </label>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
+          <button id="unified-network-reload-admin" style="
+            padding: 0.875rem 1.25rem;
+            background: linear-gradient(135deg, #00e0ff, #0080ff);
             border: none;
             border-radius: 8px;
             color: white;
             font-weight: 600;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.95rem;
             transition: all 0.2s;
-            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
-          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255, 107, 107, 0.6)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 12px rgba(255, 107, 107, 0.4)'">
-            <i class="fas fa-chart-bar"></i> Open Analytics Dashboard
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.4)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+            <i class="fas fa-sync-alt"></i> Apply & Reload
           </button>
-          
-          <div style="margin-top: 2rem; padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px;">
-            <div style="color: #00e0ff; font-size: 0.85rem; line-height: 1.5;">
-              <i class="fas fa-info-circle"></i> <strong>Analytics includes:</strong>
-              <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8;">
-                <li>Total members, connections, and projects</li>
-                <li>Network density and health metrics</li>
-                <li>Key connectors and isolated nodes</li>
-                <li>Top skills in the community</li>
-                <li>Suggested introductions to strengthen the network</li>
-                <li>Growth metrics (last 30 days)</li>
-              </ul>
-            </div>
+
+          <button id="unified-network-test-admin" style="
+            padding: 0.875rem 1.25rem;
+            background: rgba(68, 136, 255, 0.2);
+            border: 1px solid rgba(68, 136, 255, 0.5);
+            border-radius: 8px;
+            color: #4488ff;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+          " onmouseover="this.style.background='rgba(68, 136, 255, 0.3)'" onmouseout="this.style.background='rgba(68, 136, 255, 0.2)'">
+            <i class="fas fa-vial"></i> Run Tests
+          </button>
+        </div>
+      </div>
+
+      <!-- Quiet Mode Settings -->
+      <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px;">
+        <h3 style="color: #a855f7; margin: 0 0 1rem 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-volume-mute"></i> Quiet Mode
+        </h3>
+        <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; line-height: 1.6;">
+          Enable quiet mode to reduce visual noise and focus on key connections. This mode simplifies the network view and highlights relevant nodes.
+        </p>
+
+        <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.75rem; background: rgba(168,85,247,0.1); border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(168,85,247,0.15)'" onmouseout="this.style.background='rgba(168,85,247,0.1)'">
+          <input type="checkbox" id="quiet-mode-toggle-admin" style="width: 20px; height: 20px; cursor: pointer;">
+          <span style="color: #fff; font-weight: 600;">Enable Quiet Mode</span>
+        </label>
+
+        <div style="margin-top: 1rem; padding: 1rem; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px;">
+          <div style="color: #a855f7; font-size: 0.85rem; line-height: 1.5;">
+            <i class="fas fa-info-circle"></i> <strong>Note:</strong> Quiet mode will reload the page to apply changes. Your network will be simplified to show only the most relevant connections.
           </div>
         </div>
       </div>
-    `;
+    </div>
+  `;
+
+  // Wire up event listeners
+  const debugToggle = document.getElementById('unified-network-debug-toggle-admin');
+  const reloadBtn = document.getElementById('unified-network-reload-admin');
+  const testBtn = document.getElementById('unified-network-test-admin');
+  const quietModeToggle = document.getElementById('quiet-mode-toggle-admin');
+  
+  // Check current quiet mode state
+  if (quietModeToggle) {
+    const isQuietMode = localStorage.getItem('quiet-mode-enabled') === 'true';
+    quietModeToggle.checked = isQuietMode;
     
-    // Wire up the analytics button
-    const analyticsBtn = document.getElementById('open-analytics-dashboard-btn');
-    if (analyticsBtn) {
-      analyticsBtn.addEventListener('click', () => {
-        // Close admin panel
-        const adminPanel = document.getElementById('admin-panel');
-        if (adminPanel) adminPanel.remove();
-        
-        // Open analytics modal
-        if (typeof window.openAnalyticsModal === 'function') {
-          window.openAnalyticsModal();
+    quietModeToggle.addEventListener('change', () => {
+      if (quietModeToggle.checked) {
+        localStorage.setItem('quiet-mode-enabled', 'true');
+        if (confirm('Enable Quiet Mode? This will reload the page to apply changes.')) {
+          window.location.reload();
         } else {
-          console.error('❌ Analytics modal not available');
-          
-_toast('Analytics dashboard is not available. Please refresh the page and try again.');
+          quietModeToggle.checked = false;
+          localStorage.removeItem('quiet-mode-enabled');
         }
-      });
+      } else {
+        localStorage.removeItem('quiet-mode-enabled');
+        if (confirm('Disable Quiet Mode? This will reload the page to apply changes.')) {
+          window.location.reload();
+        } else {
+          quietModeToggle.checked = true;
+          localStorage.setItem('quiet-mode-enabled', 'true');
+        }
+      }
+    });
+  }
+  
+  debugToggle.addEventListener('change', () => {
+    if (debugToggle.checked) {
+      // Enable both unified network debug AND general debug mode
+      localStorage.setItem('unified-network-debug', 'true');
+      localStorage.setItem('DEBUG', '1');
+      console.log('🐛 Debug mode enabled - verbose console logging activated');
+      console.log('   Reload the page to see full debug output');
+    } else {
+      // Disable both debug modes
+      localStorage.removeItem('unified-network-debug');
+      localStorage.removeItem('DEBUG');
+      console.log('🐛 Debug mode disabled - console logging minimized');
+      console.log('   Reload the page to apply changes');
     }
+  });
+  
+  reloadBtn.addEventListener('click', () => {
+    window.location.reload();
+  });
+  
+  testBtn.addEventListener('click', async () => {
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Tests...';
+    
+    try {
+      if (window.unifiedNetworkIntegration?.isActive()) {
+        console.log('🧪 Running unified network tests...');
+        
+        // Check system health
+        if (window.unifiedNetworkErrorIntegration) {
+          const isHealthy = window.unifiedNetworkErrorIntegration.isHealthy();
+          const stats = window.unifiedNetworkErrorIntegration.getStats();
+          
+          console.log('🏥 System Health:', { healthy: isHealthy, stats });
+          
+          if (isHealthy) {
+            
+_toast('✅ System is healthy! All tests passed.');
+          } else {
+            
+_toast(`⚠️ System has ${stats.total} logged errors. Check console for details.`);
+          }
+        } else {
+          
+_toast('✅ Unified network is active and running!');
+        }
+      } else {
+        
+_toast('ℹ️ Unified network is not currently active. Enable it and reload to test.');
+      }
+      
+      testBtn.innerHTML = '<i class="fas fa-check"></i> Tests Complete';
+      setTimeout(() => {
+        testBtn.innerHTML = '<i class="fas fa-vial"></i> Run Tests';
+        testBtn.disabled = false;
+      }, 2000);
+    } catch (error) {
+      console.error('❌ Test failed:', error);
+      testBtn.innerHTML = '<i class="fas fa-times"></i> Test Failed';
+      testBtn.disabled = false;
+    }
+  });
+}
+
+function _adminTabAnalytics(content) {
+  content.innerHTML = `
+    <div style="max-height: 70vh; overflow-y: auto;">
+      <div style="background: rgba(255,107,107,0.05); border: 2px solid rgba(255,107,107,0.3); border-radius: 12px; padding: 1.5rem;">
+        <h3 style="color: #ff6b6b; font-size: 1.25rem; margin-bottom: 0.5rem;">
+          <i class="fas fa-chart-line"></i> Ecosystem Analytics
+        </h3>
+        <p style="color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          View comprehensive analytics about your community, connections, and network health.
+        </p>
+        
+        <button id="open-analytics-dashboard-btn" style="
+          padding: 1rem 2rem;
+          background: linear-gradient(135deg, #ff6b6b, #ff8c8c);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          font-size: 1rem;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255, 107, 107, 0.6)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 12px rgba(255, 107, 107, 0.4)'">
+          <i class="fas fa-chart-bar"></i> Open Analytics Dashboard
+        </button>
+        
+        <div style="margin-top: 2rem; padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px;">
+          <div style="color: #00e0ff; font-size: 0.85rem; line-height: 1.5;">
+            <i class="fas fa-info-circle"></i> <strong>Analytics includes:</strong>
+            <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8;">
+              <li>Total members, connections, and projects</li>
+              <li>Network density and health metrics</li>
+              <li>Key connectors and isolated nodes</li>
+              <li>Top skills in the community</li>
+              <li>Suggested introductions to strengthen the network</li>
+              <li>Growth metrics (last 30 days)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Wire up the analytics button
+  const analyticsBtn = document.getElementById('open-analytics-dashboard-btn');
+  if (analyticsBtn) {
+    analyticsBtn.addEventListener('click', () => {
+      // Close admin panel
+      const adminPanel = document.getElementById('admin-panel');
+      if (adminPanel) adminPanel.remove();
+      
+      // Open analytics modal
+      if (typeof window.openAnalyticsModal === 'function') {
+        window.openAnalyticsModal();
+      } else {
+        console.error('❌ Analytics modal not available');
+        
+_toast('Analytics dashboard is not available. Please refresh the page and try again.');
+      }
+    });
   }
 }
+}
+
 
 // Admin function to add a person to the community
 async function adminAddPerson() {
@@ -1996,8 +2101,8 @@ _toast(`Error updating member status:\n\n${error.message}\n\nPlease check the co
 // THEME MANAGEMENT FUNCTIONS
 // ============================================================================
 
-async function loadAdminThemesList() {
-  const listEl = document.getElementById('admin-themes-list');
+async function loadAdminSkillsList() {
+  const listEl = document.getElementById('admin-skills-list');
   if (!listEl) return;
 
   try {
@@ -2018,7 +2123,7 @@ async function loadAdminThemesList() {
       listEl.innerHTML = `
         <div style="text-align: center; padding: 3rem; color: rgba(255,255,255,0.6);">
           <i class="fas fa-bullseye" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-          <p>No theme circles yet. Create your first one!</p>
+          <p>No skill circles yet. Create your first one!</p>
         </div>
       `;
       return;
@@ -2246,7 +2351,7 @@ function wireAdminThemeCardEvents() {
   document.querySelectorAll('.btn-edit-theme').forEach(btn => {
     btn.addEventListener('click', async () => {
       const themeId = btn.dataset.themeId;
-      await handleAdminEditTheme(themeId);
+      await handleAdminEditSkill(themeId);
     });
   });
 
@@ -2339,7 +2444,7 @@ _toast('Theme circle created successfully!');
     form.reset();
 
     // Switch to manage tab and reload
-    const manageTabBtn = document.querySelector('.theme-tab-btn[data-theme-tab="manage"]');
+    const manageTabBtn = document.querySelector('.skill-tab-btn[data-skill-tab="manage"]');
     if (manageTabBtn) {
       manageTabBtn.click();
     }
@@ -2356,7 +2461,7 @@ _toast(error.message || 'Failed to create theme');
   }
 }
 
-async function handleAdminEditTheme(themeId) {
+async function handleAdminEditSkill(themeId) {
   const supabase = window.supabase;
   if (!supabase) return;
 
@@ -2391,7 +2496,7 @@ async function handleAdminEditTheme(themeId) {
 _toast('Theme updated successfully!');
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2437,7 +2542,7 @@ async function handleAdminExtendTheme(themeId) {
 _toast(`Theme extended by ${days} days!`);
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2471,7 +2576,7 @@ async function handleAdminArchiveTheme(themeId) {
 _toast('Theme archived successfully!');
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2512,7 +2617,7 @@ async function handleAdminDeleteTheme(themeId) {
 _toast('Theme deleted successfully!');
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2590,7 +2695,7 @@ async function handleAdminManageProjects(themeId) {
 
     if (action === 'assign' && num > 0 && num <= availableProjects.length) {
       const project = availableProjects[num - 1];
-      await assignProjectToThemeByIds(project.id, themeId, project.title);
+      await assignProjectToSkillByIds(project.id, themeId, project.title);
     } else if (action === 'remove' && num > 0 && num <= assignedProjects.length) {
       const project = assignedProjects[num - 1];
       await unassignProjectFromTheme(project.id, project.title);
@@ -2608,7 +2713,7 @@ _toast('Failed to load projects');
 
 // Theme assignment function - Command/flow version (3 args: projectId, themeId, projectTitle)
 // Called by command parser and internal flows
-async function assignProjectToThemeByIds(projectId, themeId, projectTitle) {
+async function assignProjectToSkillByIds(projectId, themeId, projectTitle) {
   const supabase = window.supabase;
   if (!supabase) return;
 
@@ -2627,7 +2732,7 @@ async function assignProjectToThemeByIds(projectId, themeId, projectTitle) {
 _toast(`Project assigned: ${projectTitle}`);
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2659,7 +2764,7 @@ async function unassignProjectFromTheme(projectId, projectTitle) {
 _toast(`Project removed: ${projectTitle}`);
     }
 
-    await loadAdminThemesList();
+    await loadAdminSkillsList();
 
     if (typeof window.refreshThemeCircles === 'function') {
       await window.refreshThemeCircles();
@@ -2674,7 +2779,7 @@ _toast('Failed to unassign project');
 
 // Keep old function name for backward compatibility
 async function loadThemesList() {
-  await loadAdminThemesList();
+  await loadAdminSkillsList();
 }
 
 // ============================================================================
@@ -2856,7 +2961,7 @@ _toast("Theme created successfully!");
   }
 }
 
-window.deleteTheme = async function(themeId) {
+window.deleteSkill = async function(themeId) {
   console.log('🗑️ Delete theme called with ID:', themeId);
   
   if (!confirm("Are you sure you want to delete this theme?")) {
@@ -2909,16 +3014,16 @@ _toast("Failed to delete theme: " + (error.message || 'Unknown error'));
 };
 
 // Test function for debugging
-window.testDeleteTheme = function(themeId) {
+window.testDeleteSkill = function(themeId) {
   console.log('🧪 Testing deleteTheme function...');
-  console.log('  Function available:', typeof window.deleteTheme);
+  console.log('  Function available:', typeof window.deleteSkill);
   console.log('  Supabase available:', typeof window.supabase);
   console.log('  Theme ID:', themeId);
   
   if (themeId) {
-    window.deleteTheme(themeId);
+    window.deleteSkill(themeId);
   } else {
-    console.log('  Usage: window.testDeleteTheme(themeId)');
+    console.log('  Usage: window.testDeleteSkill(themeId)');
   }
 };
 
@@ -3288,626 +3393,6 @@ _toast('Failed to update organization: ' + (err.message || 'Unknown error'));
   });
 };
 
-// -----------------------------
-// Organizations Panel
-// -----------------------------
-function showOrganizationsPanel() {
-  // Remove existing panel if present
-  let panel = document.getElementById('organizations-panel');
-  if (panel) {
-    panel.remove();
-    return;
-  }
-
-  panel = document.createElement('div');
-  panel.id = 'organizations-panel';
-  panel.style.cssText = `
-    position: fixed;
-    inset: 20px;
-    background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
-    border: 2px solid rgba(168,85,247,0.5);
-    border-radius: 16px;
-    padding: 2rem;
-    box-shadow: 0 25px 70px rgba(0,0,0,0.7);
-    z-index: 10003;
-    backdrop-filter: blur(20px);
-    overflow-y: auto;
-  `;
-
-  panel.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 2px solid rgba(168,85,247,0.3); padding-bottom: 1rem;">
-      <h2 style="color: #a855f7; margin: 0; font-size: 1.75rem;">
-        <i class="fas fa-building"></i> Organizations
-      </h2>
-      <button onclick="document.getElementById('organizations-panel').remove()"
-        style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
-        color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem;">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-
-    <!-- Tabs -->
-    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <button class="orgs-tab active-orgs-tab" data-tab="browse" style="padding: 0.75rem 1.5rem; background: rgba(168,85,247,0.1); border: none; border-bottom: 3px solid #a855f7; color: #a855f7; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-search"></i> Browse Orgs
-      </button>
-      <button class="orgs-tab" data-tab="my-orgs" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-user-tag"></i> My Orgs
-      </button>
-      <button class="orgs-tab" data-tab="create" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-plus"></i> Create Org
-      </button>
-    </div>
-
-    <!-- Tab Content -->
-    <div id="orgs-tab-content" style="padding: 1rem 0;">
-      <!-- Content will be loaded dynamically -->
-    </div>
-  `;
-
-  document.body.appendChild(panel);
-
-  // Wire up tabs
-  panel.querySelectorAll('.orgs-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      panel.querySelectorAll('.orgs-tab').forEach(t => {
-        t.style.background = 'transparent';
-        t.style.borderBottomColor = 'transparent';
-        t.style.color = 'rgba(255,255,255,0.6)';
-        t.classList.remove('active-orgs-tab');
-      });
-      tab.style.background = 'rgba(168,85,247,0.1)';
-      tab.style.borderBottomColor = '#a855f7';
-      tab.style.color = '#a855f7';
-      tab.classList.add('active-orgs-tab');
-
-      const tabName = tab.dataset.tab;
-      loadOrgsTabContent(tabName);
-    });
-  });
-
-  // Load initial tab
-  loadOrgsTabContent('browse');
-}
-
-async function loadOrgsTabContent(tabName) {
-  const content = document.getElementById('orgs-tab-content');
-  if (!content) return;
-
-  const supabase = window.supabase;
-  if (!supabase) {
-    content.innerHTML = '<p style="color: #ff6b6b;">Database connection not available</p>';
-    return;
-  }
-
-  if (tabName === 'browse') {
-    content.innerHTML = `
-      <div style="text-align: center; padding: 2rem;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #a855f7;"></i>
-        <p style="color: rgba(255,255,255,0.7); margin-top: 1rem;">Loading organizations...</p>
-      </div>
-    `;
-
-    try {
-      const { data: organizations, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-
-      if (!organizations || organizations.length === 0) {
-        content.innerHTML = `
-          <div style="text-align: center; padding: 3rem;">
-            <i class="fas fa-building" style="font-size: 3rem; color: rgba(168,85,247,0.3); margin-bottom: 1rem;"></i>
-            <p style="color: rgba(255,255,255,0.5);">No organizations yet</p>
-            <p style="color: rgba(255,255,255,0.3); font-size: 0.9rem;">Be the first to create one!</p>
-          </div>
-        `;
-        return;
-      }
-
-      let html = '<div style="display: grid; gap: 1rem;">';
-      for (const org of organizations) {
-        html += `
-          <div style="background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 12px; padding: 1.25rem;">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div style="width: 50px; height: 50px; border-radius: 10px; background: rgba(168,85,247,0.2); border: 2px solid rgba(168,85,247,0.4); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
-                ${org.logo_url ? `<img src="${org.logo_url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">` : '<i class="fas fa-building" style="color: #a855f7;"></i>'}
-              </div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="color: #fff; font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;">${escapeHtml(org.name)}</div>
-                <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  ${org.industry ? `<span style="color: #a855f7;"><i class="fas fa-tag"></i> ${escapeHtml(Array.isArray(org.industry) ? org.industry.join(', ') : org.industry)}</span>` : ''}
-                  ${org.location ? `<span style="margin-left: 1rem;"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(org.location)}</span>` : ''}
-                </div>
-                ${org.description ? `<div style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-top: 0.5rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${escapeHtml(org.description)}</div>` : ''}
-              </div>
-              <button onclick="joinOrganization('${org.id}')" style="background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; padding: 0.5rem 1rem; color: white; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                <i class="fas fa-plus"></i> Join
-              </button>
-            </div>
-          </div>
-        `;
-      }
-      html += '</div>';
-      content.innerHTML = html;
-
-    } catch (error) {
-      console.error('Error loading organizations:', error);
-      content.innerHTML = '<p style="color: #ff6b6b;">Error loading organizations</p>';
-    }
-
-  } else if (tabName === 'my-orgs') {
-    content.innerHTML = `
-      <div style="text-align: center; padding: 2rem;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #a855f7;"></i>
-        <p style="color: rgba(255,255,255,0.7); margin-top: 1rem;">Loading your organizations...</p>
-      </div>
-    `;
-
-    try {
-      // Get current user
-      const currentUser = window.currentUserProfile;
-      if (!currentUser) {
-        content.innerHTML = '<p style="color: #ff6b6b;">Please log in to see your organizations</p>';
-        return;
-      }
-
-      // Get user's organization memberships
-      const { data: memberships, error: membershipsError } = await supabase
-        .from('organization_members')
-        .select('organization_id, role')
-        .eq('community_id', currentUser.id);
-
-      if (membershipsError) {
-        // Handle table not exists error
-        if (membershipsError.code === '42P01' || membershipsError.message?.includes('does not exist') ||
-            membershipsError.code === 'PGRST116' || String(membershipsError.code) === '500') {
-          content.innerHTML = `
-            <div style="text-align: center; padding: 3rem;">
-              <i class="fas fa-tools" style="font-size: 3rem; color: rgba(168,85,247,0.3); margin-bottom: 1rem;"></i>
-              <p style="color: rgba(255,255,255,0.5);">Organization membership is being set up</p>
-              <p style="color: rgba(255,255,255,0.3); font-size: 0.9rem;">Please check back later or contact an administrator.</p>
-            </div>
-          `;
-          return;
-        }
-        throw membershipsError;
-      }
-
-      if (!memberships || memberships.length === 0) {
-        content.innerHTML = `
-          <div style="text-align: center; padding: 3rem;">
-            <i class="fas fa-user-tag" style="font-size: 3rem; color: rgba(168,85,247,0.3); margin-bottom: 1rem;"></i>
-            <p style="color: rgba(255,255,255,0.5);">You haven't joined any organizations yet</p>
-            <p style="color: rgba(255,255,255,0.3); font-size: 0.9rem;">Browse organizations to find ones to join!</p>
-          </div>
-        `;
-        return;
-      }
-
-      // Get organization details
-      const orgIds = memberships.map(m => m.organization_id);
-      const { data: organizations, error: orgsError } = await supabase
-        .from('organizations')
-        .select('*')
-        .in('id', orgIds);
-
-      if (orgsError) throw orgsError;
-
-      let html = '<div style="display: grid; gap: 1rem;">';
-      for (const org of organizations) {
-        const membership = memberships.find(m => m.organization_id === org.id);
-        html += `
-          <div style="background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px; padding: 1.25rem;">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div style="width: 50px; height: 50px; border-radius: 10px; background: rgba(168,85,247,0.2); border: 2px solid rgba(168,85,247,0.4); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
-                ${org.logo_url ? `<img src="${org.logo_url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">` : '<i class="fas fa-building" style="color: #a855f7;"></i>'}
-              </div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="color: #fff; font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;">${escapeHtml(org.name)}</div>
-                <div style="color: #a855f7; font-size: 0.85rem;">
-                  <i class="fas fa-user-shield"></i> ${escapeHtml(membership?.role || 'member')}
-                </div>
-              </div>
-              <button onclick="leaveOrganization('${org.id}')" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 8px; padding: 0.5rem 1rem; color: #ff6b6b; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                <i class="fas fa-sign-out-alt"></i> Leave
-              </button>
-            </div>
-          </div>
-        `;
-      }
-      html += '</div>';
-      content.innerHTML = html;
-
-    } catch (error) {
-      console.error('Error loading user organizations:', error);
-      content.innerHTML = '<p style="color: #ff6b6b;">Error loading your organizations</p>';
-    }
-
-  } else if (tabName === 'create') {
-    content.innerHTML = `
-      <div style="max-width: 500px; margin: 0 auto;">
-        <h3 style="color: #a855f7; margin-bottom: 1.5rem;"><i class="fas fa-plus-circle"></i> Create New Organization</h3>
-        <form id="create-org-form">
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Organization Name *</label>
-            <input type="text" id="org-name" required
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Description</label>
-            <textarea id="org-description" rows="3"
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit; resize: vertical;"></textarea>
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Industry</label>
-            <input type="text" id="org-industry" placeholder="e.g., Technology, Healthcare, Education"
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Location</label>
-            <input type="text" id="org-location" placeholder="e.g., Charleston, SC"
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #aaa; margin-bottom: 0.5rem;">Website</label>
-            <input type="url" id="org-website" placeholder="https://..."
-              style="width: 100%; padding: 0.75rem; background: rgba(168,85,247,0.05);
-              border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; color: white; font-family: inherit;">
-          </div>
-
-          <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
-            <button type="submit" style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, #a855f7, #8b5cf6); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer;">
-              <i class="fas fa-plus"></i> Create Organization
-            </button>
-          </div>
-        </form>
-      </div>
-    `;
-
-    // Wire up form submission
-    document.getElementById('create-org-form')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      debugger; // ← PATH B: remove after confirming which handler fires
-      console.warn('[dashboard-actions] PATH B create-org-form fired — this is the STALE handler, not organization-manager.js');
-      await createOrganization();
-    });
-  }
-}
-
-// STALE PATH — does not use OrganizationManager, does not set created_by.
-// If you see [dashboard-actions PATH B] in the console, this is your bug source.
-// Fix: replace the body with a delegation to window.OrganizationManager.createOrganization()
-// See the TODO comment at the end of this function.
-async function createOrganization() {
-  console.group('[dashboard-actions] createOrganization() — STALE PATH B');
-  console.log('window.supabase:', !!window.supabase);
-  console.log('window.currentUserProfile:', window.currentUserProfile);
-
-  const supabase = window.supabase;
-  if (!supabase) {
-    console.error('[dashboard-actions] BLOCKED — supabase not on window');
-    console.groupEnd();
-    _toast('Database connection not available');
-    return;
-  }
-
-  const currentUser = window.currentUserProfile;
-  if (!currentUser) {
-    console.error('[dashboard-actions] BLOCKED — window.currentUserProfile is null');
-    console.groupEnd();
-    _toast('Please log in to create an organization');
-    return;
-  }
-
-  console.log('currentUser.id (used as community_id):', currentUser.id);
-
-  const name = document.getElementById('org-name')?.value?.trim();
-  const description = document.getElementById('org-description')?.value?.trim();
-  const industryRaw = document.getElementById('org-industry')?.value?.trim();
-  const industry = parseTextArray(industryRaw);
-  const location = document.getElementById('org-location')?.value?.trim();
-  const website = document.getElementById('org-website')?.value?.trim();
-
-  if (!name) {
-    console.error('[dashboard-actions] BLOCKED — name is empty');
-    console.groupEnd();
-    _toast('Organization name is required');
-    return;
-  }
-
-  // Generate a unique slug
-  let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-  // Check if slug exists and make unique if needed
-  const { data: existing } = await supabase
-    .from('organizations')
-    .select('slug')
-    .eq('slug', slug)
-    .maybeSingle();
-
-  if (existing) {
-    slug = `${slug}-${Date.now().toString(36)}`;
-  }
-
-  const insertPayload = {
-    name,
-    slug,
-    description: description || null,
-    industry: industry && industry.length ? industry : null,
-    location: location || null,
-    website: website || null,
-    // NOTE: created_by is intentionally omitted here — the DB trigger will set it.
-    // To fix this properly, delegate to window.OrganizationManager.createOrganization().
-  };
-  console.log('[dashboard-actions] INSERT payload:', insertPayload);
-
-  try {
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .insert([insertPayload])
-      .select()
-      .single();
-
-    if (orgError) {
-      console.error('[dashboard-actions] INSERT error:', orgError);
-      throw orgError;
-    }
-
-    console.log('[dashboard-actions] INSERT succeeded:', org.id, '| created_by:', org.created_by);
-
-    // Add creator as owner
-    const memberPayload = { organization_id: org.id, community_id: currentUser.id, role: 'owner' };
-    console.log('[dashboard-actions] organization_members INSERT payload:', memberPayload);
-    const { error: memberError } = await supabase
-      .from('organization_members')
-      .insert([memberPayload]);
-
-    if (memberError) {
-      console.error('[dashboard-actions] organization_members INSERT FAILED — org will not appear in my-orgs tab:', memberError);
-    } else {
-      console.log('[dashboard-actions] organization_members INSERT succeeded');
-    }
-
-    console.groupEnd();
-    _toast('Organization created successfully!' +
-      (await checkOrgMembersTableExists(supabase) ? '' : '\n\nNote: Membership features are being set up.'));
-
-    // Refresh the organizations list
-    loadOrgsTabContent('browse');
-
-    // Refresh synapse view
-    if (typeof window.refreshSynapseConnections === 'function') {
-      window.refreshSynapseConnections();
-    }
-
-  } catch (error) {
-    console.error('[dashboard-actions] createOrganization THREW:', error);
-    console.groupEnd();
-    _toast('Failed to create organization: ' + (error.message || 'Unknown error'));
-  }
-}
-
-async function joinOrganization(orgId) {
-  const supabase = window.supabase;
-  if (!supabase) {
-    
-_toast('Database connection not available');
-    return;
-  }
-
-  const currentUser = window.currentUserProfile;
-  if (!currentUser) {
-    
-_toast('Please log in to join an organization');
-    return;
-  }
-
-  try {
-    // Check if already a member
-    const { data: existing, error: checkError } = await supabase
-      .from('organization_members')
-      .select('id')
-      .eq('organization_id', orgId)
-      .eq('community_id', currentUser.id)
-      .maybeSingle();
-
-    // Handle case where table might not exist (500 error or PGRST116)
-    if (checkError) {
-      console.error('Error checking membership:', checkError);
-      if (checkError.code === '42P01' || checkError.message?.includes('does not exist') ||
-          checkError.code === 'PGRST116' || checkError.message?.includes('relation') ||
-          String(checkError.code) === '500') {
-        
-_toast('Organization membership feature is being set up. Please try again later or contact an administrator.');
-        return;
-      }
-      // For other errors, continue to try joining
-    }
-
-    if (existing) {
-      
-_toast('You are already a member of this organization');
-      return;
-    }
-
-    // Add membership
-    const { error } = await supabase
-      .from('organization_members')
-      .insert([{
-        organization_id: orgId,
-        community_id: currentUser.id,
-        role: 'member'
-      }]);
-
-    if (error) {
-      // Handle specific error codes
-      if (error.code === '42P01' || error.message?.includes('does not exist') ||
-          error.code === 'PGRST116' || String(error.code) === '500') {
-        
-_toast('Organization membership feature is being set up. Please try again later or contact an administrator.');
-        return;
-      }
-      throw error;
-    }
-
-    
-_toast('You have joined the organization!');
-
-    // Refresh the list
-    loadOrgsTabContent('browse');
-
-    // Refresh synapse view
-    if (typeof window.refreshSynapseConnections === 'function') {
-      window.refreshSynapseConnections();
-    }
-
-  } catch (error) {
-    console.error('Error joining organization:', error);
-    
-_toast('Failed to join organization: ' + (error.message || 'Unknown error'));
-  }
-}
-
-async function leaveOrganization(orgId) {
-  if (!confirm('Are you sure you want to leave this organization?')) {
-    return;
-  }
-
-  const supabase = window.supabase;
-  if (!supabase) {
-    
-_toast('Database connection not available');
-    return;
-  }
-
-  const currentUser = window.currentUserProfile;
-  if (!currentUser) {
-    
-_toast('Please log in');
-    return;
-  }
-
-  try {
-    const { error } = await supabase
-      .from('organization_members')
-      .delete()
-      .eq('organization_id', orgId)
-      .eq('community_id', currentUser.id);
-
-    if (error) {
-      // Handle table not exists error
-      if (error.code === '42P01' || error.message?.includes('does not exist') ||
-          error.code === 'PGRST116' || String(error.code) === '500') {
-        
-_toast('Organization membership feature is being set up. Please try again later.');
-        return;
-      }
-      throw error;
-    }
-
-    
-_toast('You have left the organization');
-
-    // Refresh the list
-    loadOrgsTabContent('my-orgs');
-
-    // Refresh synapse view
-    if (typeof window.refreshSynapseConnections === 'function') {
-      window.refreshSynapseConnections();
-    }
-
-  } catch (error) {
-    console.error('Error leaving organization:', error);
-    
-_toast('Failed to leave organization: ' + (error.message || 'Unknown error'));
-  }
-}
-
-// HTML escape helper
-function parseTextArray(raw) {
-  // Converts comma-separated text or JSON array string into a clean text[]
-  if (!raw) return null;
-
-  // Already an array
-  if (Array.isArray(raw)) {
-    const cleaned = raw.map(v => String(v).trim()).filter(Boolean);
-    return cleaned.length ? Array.from(new Set(cleaned)) : null;
-  }
-
-  const s = String(raw).trim();
-  if (!s) return null;
-
-  // JSON array input: ["Tech","Health"]
-  if (s.startsWith('[') && s.endsWith(']')) {
-    try {
-      const arr = JSON.parse(s);
-      if (Array.isArray(arr)) {
-        const cleaned = arr.map(v => String(v).trim()).filter(Boolean);
-        return cleaned.length ? Array.from(new Set(cleaned)) : null;
-      }
-    } catch (_) {
-      // fall through to comma-split
-    }
-  }
-
-  // Comma/semicolon separated: Tech, Health; Education
-  const parts = s.split(/[;,]/g).map(v => v.trim()).filter(Boolean);
-  return parts.length ? Array.from(new Set(parts)) : null;
-}
-
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Helper to check if organization_members table exists
-async function checkOrgMembersTableExists(supabase) {
-  try {
-    const { error } = await supabase
-      .from('organization_members')
-      .select('id')
-      .limit(1);
-    return !error;
-  } catch {
-    return false;
-  }
-}
-
-// Make organization functions globally available
-window.showOrganizationsPanel = showOrganizationsPanel;
-window.joinOrganization = joinOrganization;
-window.leaveOrganization = leaveOrganization;
-
-// Simple notification helper if not already defined
-if (typeof window.showNotification !== 'function') {
-  window.showNotification = function(message, type = 'info') {
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    // Use toast notification if available
-    if (typeof window.showToastNotification === 'function') {
-      window.showToastNotification(message, type);
-    } else {
-      // Fallback to alert for important messages
-      if (type === 'error') {
-        
-_toast(message);
-      }
-    }
-  };
-}
-
 // Theme assignment function - UI version (1 arg: projectId)
 // Called by inline HTML onclick="assignProjectToTheme(projectId)"
 // Reads themeId from DOM select element
@@ -4010,14 +3495,10 @@ _toast(`❌ ERROR\n\nFailed to remove project from theme:\n${error.message || 'U
 
 // Make functions globally available
 window.assignProjectToTheme = assignProjectToTheme;  // UI version (1 arg)
-window.assignProjectToThemeByIds = assignProjectToThemeByIds;  // Command version (3 args)
+window.assignProjectToSkillByIds = assignProjectToSkillByIds;  // Command version (3 args)
 window.removeProjectFromTheme = removeProjectFromTheme;
 
-  // Close the initialization guard block
-  console.log("✅ Dashboard Actions ready");
-}
-
-// Dashboard Actions initialization complete (outside guard for debugging)
+// Dashboard Actions initialization complete
 // Connection status checker
 window.checkSupabaseStatus = async function() {
   const statusDiv = document.createElement('div');

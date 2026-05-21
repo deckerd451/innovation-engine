@@ -60,6 +60,64 @@ export class UnifiedNetworkAPI {
     // D3 simulation reference
     this._simulation = null;
     this._svg = null;
+    // Prevents saving positions multiple times per settle cycle
+    this._positionsSaved = false;
+  }
+
+  // ─── Position Persistence ─────────────────────────────────────────────────
+
+  /** localStorage key scoped to the current user so different accounts don't share positions */
+  _positionCacheKey() {
+    return `synapse_node_positions_${this._userId}`;
+  }
+
+  /**
+   * Persist current node x/y to localStorage.
+   * Called once when the simulation cools to near-zero alpha.
+   */
+  _saveNodePositions(nodes) {
+    if (!this._userId) return;
+    const positions = {};
+    for (const node of nodes) {
+      if (node.x != null && node.y != null) {
+        positions[node.id] = { x: Math.round(node.x), y: Math.round(node.y) };
+      }
+    }
+    try {
+      localStorage.setItem(this._positionCacheKey(), JSON.stringify(positions));
+      console.log(`📌 Saved positions for ${Object.keys(positions).length} nodes`);
+    } catch (e) {
+      // localStorage full or unavailable — not fatal
+    }
+  }
+
+  /**
+   * Apply previously saved x/y back onto the node array before the simulation starts.
+   * @returns {boolean} true if at least one position was restored
+   */
+  _restoreNodePositions(nodes) {
+    if (!this._userId) return false;
+    try {
+      const raw = localStorage.getItem(this._positionCacheKey());
+      if (!raw) return false;
+      const positions = JSON.parse(raw);
+      let restored = 0;
+      for (const node of nodes) {
+        const saved = positions[node.id];
+        if (saved) {
+          node.x = saved.x;
+          node.y = saved.y;
+          restored++;
+        }
+      }
+      if (restored > 0) {
+        console.log(`📌 Restored positions for ${restored}/${nodes.length} nodes`);
+        return true;
+      }
+    } catch (e) {
+      // corrupt cache — ignore, will be overwritten on next settle
+    }
+    return false;
   }
 
   /**
@@ -175,6 +233,23 @@ try {
     mobileTierController: this._mobileTierController,
     simulation: this._simulation,
   };
+
+  // Register the canonical network-refresh function so all callers that do
+  // window.refreshSynapseConnections() / window.reloadAllData() /
+  // window.refreshSynapse() actually trigger a real reload + re-render.
+  // Previously none of these were defined, so every post-create refresh
+  // silently no-oped and new orgs/connections never appeared without a reload.
+  const _doNetworkRefresh = async () => {
+    console.log('🔄 [network] refreshSynapseConnections: reloading graph data…');
+    await this._graphDataStore.refresh();
+    if (this._simulation) {
+      this._simulation.alpha(0.3).restart();
+    }
+    console.log('✅ [network] graph data reloaded and simulation restarted');
+  };
+  window.refreshSynapseConnections = _doNetworkRefresh;
+  window.reloadAllData             = _doNetworkRefresh;
+  window.refreshSynapse            = _doNetworkRefresh;
 
   // Enhanced debug hook for tier system
   window.__UNIFIED_NETWORK_DEBUG = {
@@ -996,21 +1071,48 @@ try {
     const cx = svgRect ? svgRect.width / 2 : window.innerWidth / 2;
     const cy = svgRect ? svgRect.height / 2 : window.innerHeight / 2;
 
-    // Scatter nodes around center so the simulation spreads them naturally
-    // (D3 forceCenter adjusts center-of-mass but doesn't move nodes if they're all at 0,0)
-    for (const node of nodes) {
-      if (node.x === 0 && node.y === 0) {
-        node.x = cx + (Math.random() - 0.5) * 400;
-        node.y = cy + (Math.random() - 0.5) * 400;
+    // Restore saved positions from the previous session.
+    // If positions are restored the simulation only needs a tiny warm-up alpha
+    // to resolve any new/moved nodes; existing nodes barely shift.
+    const hadSavedPositions = this._restoreNodePositions(nodes);
+
+    if (!hadSavedPositions) {
+      // First load (or cache cleared) — scatter so the simulation can spread them.
+      // On mobile, use a tighter scatter so nodes start inside the viewport.
+      const initialScatter = window.innerWidth < 768 ? 180 : 400;
+      for (const node of nodes) {
+        if (node.x === 0 && node.y === 0) {
+          node.x = cx + (Math.random() - 0.5) * initialScatter;
+          node.y = cy + (Math.random() - 0.5) * initialScatter;
+        }
       }
     }
 
-    // Create new simulation
+    // On mobile, pin the center-of-mass slightly above vertical center
+    // so the ego node feels anchored and the graph doesn't drift off-screen.
+    const isMobile = window.innerWidth < 768;
+    const targetCy = isMobile ? cy * 0.88 : cy;
+
+    // Create new simulation.
+    // When positions were restored, start with a very low alpha so nodes
+    // stay near where they were rather than running a full layout pass.
+    const startAlpha = hadSavedPositions ? 0.08 : 1;
+
     const simulation = window.d3.forceSimulation(nodes)
       .force('link', window.d3.forceLink(edges).id(d => d.id).distance(100))
       .force('charge', window.d3.forceManyBody().strength(-50))
-      .force('center', window.d3.forceCenter(cx, cy))
-      .force('collision', window.d3.forceCollide().radius(30));
+      .force('center', window.d3.forceCenter(cx, targetCy))
+      .force('collision', window.d3.forceCollide().radius(30))
+      .alpha(startAlpha);
+
+    // On mobile, add explicit X/Y attraction forces so nodes don't drift to edges.
+    // These supplement forceCenter (which only pulls the center-of-mass, not
+    // individual nodes) with per-node restoring forces toward the screen center.
+    if (isMobile) {
+      simulation
+        .force('x', window.d3.forceX(cx).strength(0.07))
+        .force('y', window.d3.forceY(targetCy).strength(0.07));
+    }
 
     window.synapseSimulation = simulation;
     return simulation;
@@ -1059,6 +1161,37 @@ try {
       // Update simulation
       if (this._simulation) {
         this._simulation.tick();
+
+        // Mobile boundary clamping — keep nodes within visible viewport
+        // so avatars don't escape off-screen edges on small displays.
+        //
+        // Skip clamping while the virtual keyboard is open.  When the keyboard
+        // appears the SVG container shrinks to fit the reduced visual viewport,
+        // so getBoundingClientRect().height returns a smaller value.  Without
+        // this guard, nodes near the bottom would be clamped to the new (smaller)
+        // h boundary every frame — visibly dragging them upward while the user
+        // types in the search bar.  mobile-enhancements.js sets the
+        // 'keyboard-open' class on <body> via the visualViewport API (with a
+        // window.resize fallback), so the check is reliable across browsers.
+        const keyboardOpen = document.body.classList.contains('keyboard-open');
+        if (window.innerWidth < 768 && !keyboardOpen) {
+          const svgRect = this._svg?.getBoundingClientRect();
+          const w = svgRect ? svgRect.width : window.innerWidth;
+          const h = svgRect ? svgRect.height : window.innerHeight;
+          const padding = 32; // minimum margin from edge
+          for (const node of nodes) {
+            if (node.x !== undefined) node.x = Math.max(padding, Math.min(w - padding, node.x));
+            if (node.y !== undefined) node.y = Math.max(padding, Math.min(h - padding, node.y));
+          }
+        }
+
+        // Persist positions once the simulation has cooled to near-zero.
+        // This captures the settled layout so the next page-load can skip
+        // the full layout pass and nodes appear in the same positions.
+        if (!this._positionsSaved && this._simulation.alpha() < 0.05) {
+          this._positionsSaved = true;
+          this._saveNodePositions(nodes);
+        }
       }
 
       // Calculate average velocity
@@ -1169,17 +1302,20 @@ try {
     this._actionResolver.on('graph-updated', (data) => {
       console.log('🔄 Graph updated after action', data);
       this.emit('graph-updated', data);
-      
-      // Trigger position recalculation
+
+      // Use a low alpha so new/removed nodes settle without displacing
+      // existing nodes far from their saved positions.
       if (this._simulation) {
-        this._simulation.alpha(0.3).restart();
+        this._positionsSaved = false; // allow re-save after new layout
+        this._simulation.alpha(0.1).restart();
       }
     });
 
     // Recalculate positions
     this._actionResolver.on('recalculate-positions', () => {
       if (this._simulation) {
-        this._simulation.alpha(0.5).restart();
+        this._positionsSaved = false;
+        this._simulation.alpha(0.1).restart();
       }
     });
   }
@@ -1256,44 +1392,28 @@ try {
     this._temporalPresenceManager.on('temporal-boost-applied', ({ nodeId, boost, expiresAt, reason }) => {
       console.log(`⏰ Temporal boost applied: ${nodeId} (+${boost}) - ${reason}`);
       this.emit('temporal-boost-applied', { nodeId, boost, expiresAt, reason });
-      
-      // Trigger physics update
-      if (this._simulation) {
-        this._simulation.alpha(0.3).restart();
-      }
+      // Boost changes visual appearance only — no physics restart needed.
     });
 
     // Temporal boost removed
     this._temporalPresenceManager.on('temporal-boost-removed', ({ nodeId, reason }) => {
       console.log(`⏰ Temporal boost removed: ${nodeId} - ${reason}`);
       this.emit('temporal-boost-removed', { nodeId, reason });
-      
-      // Trigger physics update
-      if (this._simulation) {
-        this._simulation.alpha(0.3).restart();
-      }
+      // Visual-only change — no physics restart needed.
     });
 
     // Collaborative boost applied
     this._temporalPresenceManager.on('collaborative-boost-applied', ({ nodeId, boost, reason, metadata }) => {
       console.log(`🤝 Collaborative boost applied: ${nodeId} (+${boost}) - ${reason}`);
       this.emit('collaborative-boost-applied', { nodeId, boost, reason, metadata });
-      
-      // Trigger physics update
-      if (this._simulation) {
-        this._simulation.alpha(0.3).restart();
-      }
+      // Visual-only change — no physics restart needed.
     });
 
     // Collaborative boost removed
     this._temporalPresenceManager.on('collaborative-boost-removed', ({ nodeId, reason }) => {
       console.log(`🤝 Collaborative boost removed: ${nodeId} - ${reason}`);
       this.emit('collaborative-boost-removed', { nodeId, reason });
-      
-      // Trigger physics update
-      if (this._simulation) {
-        this._simulation.alpha(0.3).restart();
-      }
+      // Visual-only change — no physics restart needed.
     });
   }
 

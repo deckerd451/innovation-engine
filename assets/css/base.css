@@ -63,7 +63,9 @@ html,
 body {
   margin: 0 !important;
   padding: 0 !important;
-  width: 100vw !important;
+  /* 100% instead of 100vw: avoids phantom horizontal scroll on Android
+     browsers where 100vw includes the scrollbar width (~15px). */
+  width: 100% !important;
   height: 100vh !important;
   height: calc(var(--vh, 1vh) * 100) !important;
   overflow: hidden !important;
@@ -139,22 +141,8 @@ canvas#neural-bg {
 /* -----------------------------
    Buttons
    ----------------------------- */
-.action-btn {
-  background: #ffcf33;
-  color: #000;
-  border: none;
-  padding: 10px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: 0.2s ease;
-}
-
-.action-btn:hover {
-  background: #ffd95c;
-}
-
-/* Hover effects for action buttons (IE overrides) */
+/* .action-btn base definition lives in engine.css — only interaction
+   states are defined here to avoid padding/font-size conflicts. */
 .action-btn:hover {
   transform: translateY(-5px) scale(1.1);
   filter: brightness(1.3);
@@ -328,6 +316,51 @@ canvas#neural-bg {
   transform: translateX(-50%);
 }
 
+/* Discovery-mode landing layout (non-admin only) */
+body.discovery-mode:not(.admin-mode) #main-content {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+body.discovery-mode:not(.admin-mode) #synapse-main-view,
+body.discovery-mode:not(.admin-mode) .dashboard-shell,
+body.discovery-mode:not(.admin-mode) .dashboard-sidebar,
+body.discovery-mode:not(.admin-mode) .left-sidebar,
+body.discovery-mode:not(.admin-mode) .network-shell,
+body.discovery-mode:not(.admin-mode) .command-sidebar {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+}
+
+body.discovery-mode:not(.admin-mode) #centered-search-container {
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  width: min(700px, 92vw) !important;
+  max-width: min(700px, 92vw) !important;
+  margin: 0 auto !important;
+  z-index: 100 !important;
+}
+
+body.discovery-mode:not(.admin-mode) #search-suggestions {
+  top: calc(100% + 6px) !important;
+  bottom: auto !important;
+  box-shadow: 0 8px 28px rgba(0, 224, 255, 0.18) !important;
+}
+
+body.discovery-mode:not(.admin-mode) #search-drag-handle {
+  display: none !important;
+}
+
 /* Hide search container when ANY modal is open */
 .modal.active ~ * #centered-search-container,
 .modal.active ~ #centered-search-container {
@@ -344,7 +377,7 @@ canvas#neural-bg {
 .project-details-panel,
 .project-info-content {
   overflow-y: auto !important;
-  max-height: calc(100vh - 200px) !important;
+  max-height: calc(var(--mobile-vh, 100vh) - var(--hud-top, 60px) - var(--hud-bottom, 140px)) !important;
 }
 
 /* Ensure project members list is scrollable */
@@ -590,6 +623,15 @@ canvas#neural-bg {
     box-sizing: border-box !important;
   }
 
+  body.discovery-mode:not(.admin-mode) #main-content {
+    padding: 0.75rem;
+  }
+
+  body.discovery-mode:not(.admin-mode) #centered-search-container {
+    width: min(700px, 96vw) !important;
+    max-width: min(700px, 96vw) !important;
+  }
+
   #centered-search-container > div:first-child {
     flex-wrap: wrap !important;
     gap: 0.35rem !important;
@@ -712,11 +754,74 @@ body.profile-modal-open .side-panel {
 @media (max-width: 1023px) {
   .mobile-notif-btn {
     display: flex !important;
+    touch-action: manipulation !important;
+  }
+  #btn-admin-top {
+    touch-action: manipulation !important;
   }
   /* Hide actions button on mobile when it has no count (managed by JS) */
   #btn-actions-mobile[data-empty="true"] {
     display: none !important;
   }
+}
+
+/* ============================================================
+   SHARED TOP UTILITY BAR (discovery non-admin + admin, all viewports)
+   Keeps utility icons persistent, clickable, and out of graph/sidebar paths.
+   ============================================================ */
+:root {
+  --utility-bar-top-offset: calc(env(safe-area-inset-top, 0px) + 10px);
+}
+
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons {
+  position: fixed !important;
+  top: var(--utility-bar-top-offset) !important;
+  right: 10px !important;
+  left: auto !important;
+  bottom: auto !important;
+  z-index: 1200 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  padding: 6px 8px 6px 10px !important;
+  max-width: min(520px, calc(100vw - 20px)) !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Admin mode: keep away from command dashboard/sidebar on narrow desktops. */
+body.admin-mode #mobile-notif-container.utility-icons {
+  max-width: min(520px, calc(100vw - var(--cd-width, 340px) - 24px)) !important;
+}
+body.admin-mode #mobile-notif-container.utility-icons {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons .mobile-notif-btn,
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+  display: flex !important;
+  pointer-events: auto !important;
+}
+
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+  margin-left: auto !important;
+}
+
+/* Onboarding: keep sign out visible and suppress nonessential icons if overlap risk exists. */
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+  display: flex !important;
+}
+
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-messages-mobile,
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-notif-mobile,
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-actions-mobile,
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-network-dashboard-mobile,
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-admin-top {
+  display: none !important;
 }
 
 /* ============================================================
@@ -832,4 +937,21 @@ body.profile-modal-open .side-panel {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+}
+
+
+/* Admin-mode hard restore guard in case discovery/search-only mode leaked. */
+body.admin-mode .dashboard-shell,
+body.admin-mode .dashboard-sidebar,
+body.admin-mode .left-sidebar,
+body.admin-mode .network-shell,
+body.admin-mode .command-sidebar,
+body.admin-mode #network-report-modal,
+body.admin-mode #network-status-panel,
+body.admin-mode #cd-explore {
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  backdrop-filter: none !important;
 }

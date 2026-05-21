@@ -22,20 +22,122 @@ const log =
 log.moduleLoad("main.js");
 log.info("🚀 CharlestonHacks Innovation Engine starting...");
 
-// ------------------------------
-// Global guards (per-system)
-// ------------------------------
-window.__IE_MAIN_INIT_DONE__ = window.__IE_MAIN_INIT_DONE__ || false;
-window.__IE_PROFILE_HANDLER_ATTACHED__ = window.__IE_PROFILE_HANDLER_ATTACHED__ || false;
+// ================================================================
+// GLOBAL NAMESPACE
+// All boot flags live under window.__IE to avoid polluting the root
+// namespace with 12+ separate globals.
+//
+// window.__IE.register(name, value) — safe way for any module to
+// export a function/object to window. Warns in the console when a
+// name is already taken so collisions surface immediately.
+// ================================================================
+window.__IE = window.__IE || {};
 
-window.__IE_UNIFIED_INIT__ = window.__IE_UNIFIED_INIT__ || false;
-window.__IE_SYNAPSE_BRIDGE_INIT__ = window.__IE_SYNAPSE_BRIDGE_INIT__ || false;
-window.__IE_PRESENCE_INIT__ = window.__IE_PRESENCE_INIT__ || false;
-window.__IE_PRESENCE_UI_INIT__ = window.__IE_PRESENCE_UI_INIT__ || false;
-window.__IE_BLE_INIT__ = window.__IE_BLE_INIT__ || false;
-window.__IE_REALTIME_STARTED__ = window.__IE_REALTIME_STARTED__ || false;
-window.__IE_ADMIN_LOADED__ = window.__IE_ADMIN_LOADED__ || false;
-window.__IE_DESKTOP_DASHBOARD_INIT__ = window.__IE_DESKTOP_DASHBOARD_INIT__ || false;
+// Boot flags — set to true when the system has started; reset to
+// false on recoverable failures to allow a retry on next event.
+const _f = window.__IE.flags = window.__IE.flags || {
+  errorHandlers:          false,
+  mainInitDone:           false,
+  profileHandlerAttached: false,
+  lastProfileEvent:       null,   // most recent profile-loaded event (for replay)
+  unifiedInit:            false,
+  synapseBridgeInit:      false,
+  presenceInit:           false,
+  presenceUiInit:         false,
+  bleInit:                false,
+  realtimeStarted:        false,
+  adminLoaded:            false,
+  desktopDashInit:        false,
+};
+
+/**
+ * Register a value on window by name.
+ * Emits a console warning if the name is already occupied so accidental
+ * collisions are caught early. Pass { override: true } to silence it.
+ *
+ * @param {string} name        - Property name on window (e.g. 'openProfileModal')
+ * @param {*}      value       - The value / function to expose
+ * @param {object} [opts]
+ * @param {boolean} [opts.override=false] - Suppress collision warning
+ * @returns {*} The registered value (for chaining)
+ */
+window.__IE.register = function register(name, value, { override = false } = {}) {
+  if (!override && name in window && window[name] !== undefined) {
+    log.warn(
+      `[IE] window.${name} already exists (${typeof window[name]}) — ` +
+      `possible collision. Pass { override: true } to suppress this warning.`
+    );
+  }
+  window[name] = value;
+  return value;
+};
+
+// ================================================================
+// GLOBAL ERROR HANDLING
+// Catches uncaught errors and unhandled promise rejections app-wide.
+// Shows a user-visible toast so failures are never silent.
+// ================================================================
+(function installGlobalErrorHandlers() {
+  if (_f.errorHandlers) return;
+  _f.errorHandlers = true;
+
+  function showErrorToast(message) {
+    // Defer until body is available
+    const attach = () => {
+      let container = document.getElementById('__ie-error-toast');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = '__ie-error-toast';
+        container.setAttribute('role', 'alert');
+        container.setAttribute('aria-live', 'assertive');
+        container.style.cssText = [
+          'position:fixed', 'bottom:1.25rem', 'left:50%',
+          'transform:translateX(-50%)',
+          'background:#1a1010', 'border:1px solid #ff4444',
+          'color:#ff9999', 'padding:0.75rem 1.5rem',
+          'border-radius:8px', 'font-size:0.85rem',
+          'z-index:2147483647', 'max-width:90vw',
+          'text-align:center', 'box-shadow:0 4px 20px rgba(0,0,0,0.7)',
+          'pointer-events:none',
+        ].join(';');
+        document.body.appendChild(container);
+      }
+      container.textContent = message;
+      container.style.display = 'block';
+      clearTimeout(container.__hideTimer);
+      container.__hideTimer = setTimeout(() => {
+        container.style.display = 'none';
+      }, 6000);
+    };
+
+    if (document.body) {
+      attach();
+    } else {
+      document.addEventListener('DOMContentLoaded', attach, { once: true });
+    }
+  }
+
+  // Unhandled promise rejections (async functions without try-catch)
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    // Suppress known non-fatal errors
+    if (reason?.name === 'AbortError') return;
+    if (reason?.message?.includes('NetworkError')) return;
+    if (reason?.message?.includes('Load failed')) return;
+
+    log.error('Unhandled promise rejection:', reason);
+    showErrorToast('Something went wrong. Please refresh if the issue persists.');
+  });
+
+  // Uncaught synchronous errors
+  window.onerror = (message, source, lineno, colno, error) => {
+    // Skip opaque cross-origin errors (browser hides details for security)
+    if (message === 'Script error.' && !source) return false;
+    log.error('Uncaught error:', message, { source, lineno, colno, error });
+    showErrorToast('Something went wrong. Please refresh if the issue persists.');
+    return false; // Preserve default browser error handling
+  };
+})();
 
 // ------------------------------
 // Helper: wait for required globals (best-effort, short timeout)
@@ -65,6 +167,183 @@ function waitForGlobals() {
   });
 }
 
+
+
+
+function isDebugModeEnabled() {
+  try {
+    if (window.__IE?.debugAuthRecovery === true) return true;
+    if (localStorage.getItem('ie_debug_mode') === 'true') return true;
+    if (sessionStorage.getItem('ie_debug_mode') === 'true') return true;
+  } catch (_) {}
+  return /[?&](debug|ie_debug)=1/.test(window.location.search);
+}
+
+function clearAuthCaches() {
+  const authLike = /supabase|sb-|auth|token|session|onboarding_/i;
+  const clearStore = (store) => {
+    if (!store) return;
+    const toDelete = [];
+    for (let i = 0; i < store.length; i += 1) {
+      const key = store.key(i);
+      if (key && authLike.test(key)) toDelete.push(key);
+    }
+    toDelete.forEach((k) => store.removeItem(k));
+  };
+
+  try { clearStore(localStorage); } catch (e) { log.warn('[AuthUtility] Failed localStorage clear', e); }
+  try { clearStore(sessionStorage); } catch (e) { log.warn('[AuthUtility] Failed sessionStorage clear', e); }
+}
+
+function ensurePersistentAuthUtility() {
+  if (!document.body) return;
+
+  let panel = document.getElementById('ie-persistent-auth-utility');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'ie-persistent-auth-utility';
+    panel.setAttribute('role', 'region');
+    panel.setAttribute('aria-label', 'Account controls');
+    panel.style.cssText = [
+      'position:fixed', 'top:12px', 'right:12px',
+      'z-index:2147483647', 'display:flex', 'gap:8px',
+      'align-items:center', 'pointer-events:auto'
+    ].join(';');
+
+    const logoutBtn = document.createElement('button');
+    logoutBtn.id = 'ie-persistent-logout-btn';
+    logoutBtn.type = 'button';
+    logoutBtn.textContent = 'Sign Out';
+    logoutBtn.setAttribute('aria-label', 'Sign out');
+    logoutBtn.style.cssText = 'padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:#0f172a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)';
+    logoutBtn.addEventListener('click', async () => {
+      if (typeof window.handleLogout === 'function') await window.handleLogout();
+      else window.location.href = '/index.html';
+    });
+
+    const resetBtn = document.createElement('button');
+    resetBtn.id = 'ie-persistent-reset-session-btn';
+    resetBtn.type = 'button';
+    resetBtn.textContent = 'Reset Session';
+    resetBtn.setAttribute('aria-label', 'Reset session and sign out');
+    resetBtn.style.cssText = 'padding:8px 12px;border-radius:999px;border:1px solid rgba(255,128,128,.7);background:#3b0a0a;color:#ffd6d6;font-size:12px;font-weight:600;cursor:pointer;display:none';
+    resetBtn.addEventListener('click', async () => {
+      clearAuthCaches();
+      if (typeof window.handleLogout === 'function') await window.handleLogout();
+      else window.location.href = '/index.html';
+    });
+
+    panel.append(logoutBtn, resetBtn);
+    document.body.appendChild(panel);
+  }
+
+  const resetBtn = document.getElementById('ie-persistent-reset-session-btn');
+  if (resetBtn) resetBtn.style.display = isDebugModeEnabled() ? 'inline-flex' : 'none';
+}
+
+function renderDiscoveryModeLayout() {
+  console.info('[DiscoveryMode] runtime loaded');
+  document.body.classList.add('discovery-mode');
+  document.body.classList.add('search-only-mode');
+  document.body.classList.remove('admin-mode');
+  document.body.classList.remove('dashboard-shell-loading');
+  ensurePersistentAuthUtility();
+
+  if (!document.getElementById('discovery-onboarding-visibility-guard')) {
+    const style = document.createElement('style');
+    style.id = 'discovery-onboarding-visibility-guard';
+    style.textContent = `
+      body.discovery-mode .onboarding-modal,
+      body.discovery-mode #onboarding-modal,
+      body.discovery-mode #profile-completion-modal {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+
+      body.discovery-mode #ie-persistent-auth-utility,
+      body.onboarding-required #ie-persistent-auth-utility {
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+      }
+
+      body.discovery-mode .dashboard-sidebar,
+      body.discovery-mode .sidebar-loading,
+      body.discovery-mode .left-rail-loading,
+      body.discovery-mode .dashboard-shell-placeholder {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  log.info('[DiscoveryMode] discovery-mode class applied');
+}
+
+window.renderDiscoveryModeLayout = renderDiscoveryModeLayout;
+
+function resetInnovationAccessBodyState() {
+  document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('search-only-mode');
+  document.body.classList.remove('onboarding-required');
+}
+
+function initializeSearchOnlyMode() {
+  log.info('[InnovationAccess] Non-admin mode: skipping Synapse/D3 initialization');
+  document.body.classList.remove('onboarding-required');
+  document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('admin-mode');
+  if (typeof window.applyInnovationAccessControls === 'function') {
+    try { window.applyInnovationAccessControls(); } catch (err) {
+      log.warn('⚠️ Failed to apply limited-access controls:', err);
+    }
+  }
+
+  renderDiscoveryModeLayout();
+
+  const synapseView = document.getElementById('synapse-main-view');
+  if (synapseView) {
+    synapseView.style.display = 'none';
+    synapseView.setAttribute('aria-hidden', 'true');
+  }
+}
+
+
+window.initializeSearchOnlyMode = initializeSearchOnlyMode;
+
+function isProfileComplete(profile) {
+  if (!profile) return false;
+
+  if (profile._needsOnboarding === true) return false;
+  if (profile._legacyComplete === true) return true;
+
+  const hasName = typeof (profile.display_name || profile.name) === "string"
+    && (profile.display_name || profile.name).trim().length > 0;
+  const hasEmail = typeof profile.email === "string" && profile.email.trim().length > 0;
+  const hasRequiredIdentity = hasName && hasEmail;
+
+  if (!hasRequiredIdentity) return false;
+  if (profile._profileSource === "newly-created") return false;
+
+  return profile.onboarding_completed === true && profile.profile_completed === true;
+}
+
+function showOnboardingGate(profile) {
+  if (typeof window.showOnboarding === "function") {
+    window.showOnboarding(profile);
+    return true;
+  }
+
+  if (typeof window.StartOnboarding?.start === "function") {
+    window.StartOnboarding.start({ profile });
+    return true;
+  }
+
+  log.warn("[AuthRoute] onboarding UI unavailable");
+  return false;
+}
+
 // ------------------------------
 // Profile-loaded orchestration (attach EARLY so we don't miss events)
 // ------------------------------
@@ -76,20 +355,82 @@ async function onProfileLoaded(e) {
 
   // Avoid work until main init has run at least once
   // (prevents firing during partial loads before DOM is ready)
-  if (!window.__IE_MAIN_INIT_DONE__) {
+  if (!_f.mainInitDone) {
     // Cache the most recent event so we can replay once main is ready
-    window.__IE_LAST_PROFILE_EVENT__ = e;
+    _f.lastProfileEvent = e;
     return;
   }
 
   // Cache for any late subscribers (and for debugging)
-  window.__IE_LAST_PROFILE_EVENT__ = e;
+  _f.lastProfileEvent = e;
+
+  if (!user?.id) {
+    log.info('[AuthRoute] login-required');
+    return;
+  }
+
+  if (!profile?.id) {
+    log.info('[AuthRoute] profile-create-required');
+    return;
+  }
+
+  if (!isProfileComplete(profile)) {
+    log.info('[AuthRoute] onboarding-required');
+    document.body.classList.add('onboarding-required');
+    ensurePersistentAuthUtility();
+    showOnboardingGate(profile);
+    return;
+  }
+
+  const canUseAdvancedInnovationTools = window.canUseAdvancedInnovationTools === true;
+  if (!canUseAdvancedInnovationTools) {
+    log.info('[InnovationAccess] discovery-mode');
+    initializeSearchOnlyMode();
+    return;
+  }
+
+  resetInnovationAccessBodyState();
+  document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('search-only-mode');
+  document.body.classList.remove('onboarding-required');
+  log.info('[AdminMode] cleared discovery classes');
+  document.body.classList.add('admin-mode');
+  ensurePersistentAuthUtility();
+  const synapseView = document.getElementById('synapse-main-view');
+  if (synapseView) {
+    synapseView.style.removeProperty('display');
+    synapseView.removeAttribute('aria-hidden');
+  }
+
+  log.info('[InnovationAccess] admin-full');
+  const adminRestoreTargets = [
+    '.dashboard-shell',
+    '.dashboard-sidebar',
+    '.left-sidebar',
+    '.network-shell',
+    '.command-sidebar',
+    '#network-report-modal',
+    '#network-status-panel',
+    '#cd-explore',
+  ];
+  adminRestoreTargets.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      el.style.removeProperty('display');
+      el.style.removeProperty('visibility');
+      el.style.removeProperty('opacity');
+      el.style.removeProperty('pointer-events');
+      el.style.removeProperty('filter');
+      el.style.removeProperty('backdrop-filter');
+    });
+  });
+  log.info('[AdminMode] sidebar restored');
+
 
   // ------------------------------
   // Unified Network Discovery init (single-flight)
   // ------------------------------
-  if (!window.__IE_UNIFIED_INIT__ && user && window.unifiedNetworkIntegration) {
-    window.__IE_UNIFIED_INIT__ = true;
+  if (!_f.unifiedInit && user && window.unifiedNetworkIntegration) {
+    _f.unifiedInit = true;
     log.debug("🧠 Initializing Unified Network Discovery...");
 
     try {
@@ -102,7 +443,7 @@ async function onProfileLoaded(e) {
       }
     } catch (error) {
       // Allow retry if init failed
-      window.__IE_UNIFIED_INIT__ = false;
+      _f.unifiedInit = false;
       log.error("❌ Unified Network initialization failed:", error);
     }
   }
@@ -110,15 +451,15 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Presence tracking init (single-flight)
   // ------------------------------
-  if (!window.__IE_PRESENCE_INIT__ && profile?.id && window.PresenceRealtime && window.supabase) {
-    window.__IE_PRESENCE_INIT__ = true;
+  if (!_f.presenceInit && profile?.id && window.PresenceRealtime && window.supabase) {
+    _f.presenceInit = true;
     log.debug("👋 Initializing presence tracking (Realtime)...");
 
     try {
       await window.PresenceRealtime.initialize(window.supabase, profile.id);
       log.info("✅ Presence tracking active (Realtime + low-frequency DB)");
     } catch (error) {
-      window.__IE_PRESENCE_INIT__ = false;
+      _f.presenceInit = false;
       log.error("❌ Presence tracking initialization failed:", error);
     }
   }
@@ -126,15 +467,15 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Presence UI init (single-flight)
   // ------------------------------
-  if (!window.__IE_PRESENCE_UI_INIT__ && window.PresenceUI && window.supabase) {
-    window.__IE_PRESENCE_UI_INIT__ = true;
+  if (!_f.presenceUiInit && window.PresenceUI && window.supabase) {
+    _f.presenceUiInit = true;
     log.debug("👁️ Initializing presence UI...");
 
     try {
       await window.PresenceUI.init(window.supabase, profile?.id);
       log.info("✅ Presence UI active");
     } catch (error) {
-      window.__IE_PRESENCE_UI_INIT__ = false;
+      _f.presenceUiInit = false;
       log.error("❌ Presence UI initialization failed:", error);
     }
   }
@@ -142,8 +483,8 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // BLE Passive Networking init (single-flight)
   // ------------------------------
-  if (!window.__IE_BLE_INIT__ && profile?.id && window.BLEPassiveNetworking && window.supabase) {
-    window.__IE_BLE_INIT__ = true;
+  if (!_f.bleInit && profile?.id && window.BLEPassiveNetworking && window.supabase) {
+    _f.bleInit = true;
     log.debug("📡 Initializing BLE Passive Networking...");
 
     try {
@@ -154,7 +495,7 @@ async function onProfileLoaded(e) {
         log.info("ℹ️ BLE Passive Networking not available (browser not supported)");
       }
     } catch (error) {
-      window.__IE_BLE_INIT__ = false;
+      _f.bleInit = false;
       log.error("❌ BLE Passive Networking initialization failed:", error);
     }
   }
@@ -162,8 +503,8 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Delayed realtime startup (single-flight)
   // ------------------------------
-  if (!window.__IE_REALTIME_STARTED__ && window.realtimeManager && window.bootstrapSession) {
-    window.__IE_REALTIME_STARTED__ = true;
+  if (!_f.realtimeStarted && window.realtimeManager && window.bootstrapSession) {
+    _f.realtimeStarted = true;
     log.debug("⏱️ Scheduling delayed realtime startup...");
 
     const startRealtime = async () => {
@@ -174,11 +515,11 @@ async function onProfileLoaded(e) {
           log.info("✅ Realtime subscriptions started");
         } else {
           // If context missing, allow retry later
-          window.__IE_REALTIME_STARTED__ = false;
+          _f.realtimeStarted = false;
           log.warn("⚠️ No bootstrap session context — realtime not started yet");
         }
       } catch (error) {
-        window.__IE_REALTIME_STARTED__ = false;
+        _f.realtimeStarted = false;
         log.error("❌ Realtime startup failed:", error);
       }
     };
@@ -195,8 +536,13 @@ async function onProfileLoaded(e) {
   // Desktop: left sidebar + GraphController tier control.
   // Mobile:  data pre-loaded; shown inside split-view when bell is tapped.
   // ------------------------------
-  if (!window.__IE_DESKTOP_DASHBOARD_INIT__ && profile?.id && user?.id) {
-    window.__IE_DESKTOP_DASHBOARD_INIT__ = true;
+  const canUseAdvancedTools = window.canUseAdvancedInnovationTools === true;
+  if (!canUseAdvancedTools) {
+    log.info('🚪 Limited-access mode: skipping GraphController, CommandDashboard, and admin script');
+  }
+
+  if (canUseAdvancedTools && !_f.desktopDashInit && profile?.id && user?.id) {
+    _f.desktopDashInit = true;
     const _isDesktop = window.matchMedia('(min-width: 1024px)').matches;
 
     if (_isDesktop) {
@@ -220,7 +566,7 @@ async function onProfileLoaded(e) {
         authUserId: user.id,    // auth.users.id — used for generateDailyBrief()
         profile,                // full profile for identity layer rendering
       }).catch(err => {
-        window.__IE_DESKTOP_DASHBOARD_INIT__ = false;
+        _f.desktopDashInit = false;
         log.error("❌ CommandDashboard initialization failed:", err);
       });
       log.info("✅ CommandDashboard initialized (" + (_isDesktop ? "desktop" : "mobile") + ")");
@@ -232,8 +578,8 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Admin controls script load (single-flight, only after auth)
   // ------------------------------
-  if (!window.__IE_ADMIN_LOADED__ && user) {
-    window.__IE_ADMIN_LOADED__ = true;
+  if (canUseAdvancedTools && !_f.adminLoaded && user) {
+    _f.adminLoaded = true;
 
     try {
       log.debug("🎛️ Loading admin controls (deferred)...");
@@ -242,20 +588,20 @@ async function onProfileLoaded(e) {
       script.async = true;
       script.onload = () => log.debug("✅ Admin controls loaded");
       script.onerror = () => {
-        window.__IE_ADMIN_LOADED__ = false;
+        _f.adminLoaded = false;
         log.warn("⚠️ Admin controls failed to load");
       };
       document.body.appendChild(script);
     } catch (e2) {
-      window.__IE_ADMIN_LOADED__ = false;
+      _f.adminLoaded = false;
       log.warn("⚠️ Admin controls injection failed:", e2);
     }
   }
 }
 
 // Attach the profile-loaded handler once, immediately
-if (!window.__IE_PROFILE_HANDLER_ATTACHED__) {
-  window.__IE_PROFILE_HANDLER_ATTACHED__ = true;
+if (!_f.profileHandlerAttached) {
+  _f.profileHandlerAttached = true;
   window.addEventListener("profile-loaded", onProfileLoaded);
 }
 
@@ -264,12 +610,11 @@ if (!window.__IE_PROFILE_HANDLER_ATTACHED__) {
 // ================================================================
 document.addEventListener("DOMContentLoaded", async () => {
   // One-time init guard - prevents double-binding and ghost listeners
-  if (window.__IE_MAIN_INIT_DONE__) {
-    // If log.once exists (real logger), use it; otherwise no-op
+  if (_f.mainInitDone) {
     (log.once ? log.once("main-already-init", "⚠️ Main already initialized, skipping...") : log.warn("⚠️ Main already initialized, skipping..."));
     return;
   }
-  window.__IE_MAIN_INIT_DONE__ = true;
+  _f.mainInitDone = true;
 
   log.debug("🎨 DOM ready, initializing systems...");
 
@@ -291,9 +636,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // If profile-loaded fired before DOMContentLoaded, replay the cached event once
-  if (window.__IE_LAST_PROFILE_EVENT__) {
+  if (_f.lastProfileEvent) {
     try {
-      await onProfileLoaded(window.__IE_LAST_PROFILE_EVENT__);
+      await onProfileLoaded(_f.lastProfileEvent);
     } catch (e) {
       log.error("❌ Replaying cached profile-loaded event failed:", e);
     }

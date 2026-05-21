@@ -34,7 +34,7 @@ window.CommandDashboard = (() => {
       resourcesLabel: {
         people:        'Your People',
         projects:      'Your Projects',
-        themes:        'Your Themes',
+        themes:        'Your Skills',
         organizations: 'Your Organizations',
         opportunities: 'Your Opportunities',
       },
@@ -47,7 +47,7 @@ window.CommandDashboard = (() => {
       resourcesLabel: {
         people:        'Extended Network',
         projects:      'Adjacent Projects',
-        themes:        'Strategic Themes',
+        themes:        'Strategic Skills',
         organizations: 'Nearby Organizations',
         opportunities: 'Nearby Opportunities',
       },
@@ -60,7 +60,7 @@ window.CommandDashboard = (() => {
       resourcesLabel: {
         people:        'All People',
         projects:      'All Projects',
-        themes:        'All Themes',
+        themes:        'All Skills',
         organizations: 'All Organizations',
         opportunities: 'All Opportunities',
       },
@@ -109,6 +109,7 @@ window.CommandDashboard = (() => {
   let _addFormOpen = false;     // inline add-resource form visibility
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
+  let _tierResetTimer = null;   // dedups rapid graph-highlight → reset timer calls
   // New state for unified dashboard UX
   let _profile = null;          // community profile for identity layer
   let _unreadMessages = 0;      // unread messages from notification system
@@ -159,6 +160,7 @@ window.CommandDashboard = (() => {
     _wireAvatarClick();
     _wireAdminBtn();
     _wireBellBtn();
+    _wireThemeBtn();
     _wireLogoutBtn();
     _wireReportBtn();
 
@@ -443,7 +445,7 @@ window.CommandDashboard = (() => {
         // Opportunities (table may not exist — handle gracefully)
         window.supabase
           .from('opportunities')
-          .select('id, title, description, status, organization_id')
+          .select('id, title, opportunity_type, summary, description, status, organization_id')
           .then(res => res)
           .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
       ]);
@@ -655,8 +657,8 @@ window.CommandDashboard = (() => {
       projects = _enrichedData.activeProjectIds ? _enrichedData.activeProjectIds.size : 0;
     }
 
-    // Themes still come from graph (theme nodes remain)
-    const themes = nodes.filter(n => n.type === 'theme' || n.type === 'themeCircle').length;
+    // Orgs: from Supabase
+    const orgs = _enrichedData.myOrgIds ? _enrichedData.myOrgIds.size : 0;
 
     // Opportunities: from Supabase (no longer in graph)
     const opps = _enrichedData.opportunities ? _enrichedData.opportunities.length : 0;
@@ -668,7 +670,7 @@ window.CommandDashboard = (() => {
 
     setVal('cd-stat-connections',   connections);
     setVal('cd-stat-projects',      projects);
-    setVal('cd-stat-themes',        themes);
+    setVal('cd-stat-orgs',          orgs);
     setVal('cd-stat-opportunities', opps);
   }
 
@@ -846,7 +848,8 @@ window.CommandDashboard = (() => {
           ? new Set([userId, ...acceptedPeers])
           : new Set([userId, ...directIds]);
         window.GraphController.highlightNodes([...ids]);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -865,7 +868,8 @@ window.CommandDashboard = (() => {
           return n && n.type === 'person';
         });
         window.GraphController.highlightNodes(weakPeopleIds);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -884,7 +888,8 @@ window.CommandDashboard = (() => {
           return n && n.type === 'person';
         });
         window.GraphController.highlightNodes(extendedPeopleIds);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -901,7 +906,8 @@ window.CommandDashboard = (() => {
         });
         window.GraphController.highlightNodes(bridgeIds);
         _switchResourceTab('people');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -918,7 +924,8 @@ window.CommandDashboard = (() => {
           .map(n => n.id);
         window.GraphController.highlightNodes(adjProjectIds);
         _switchResourceTab('projects');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -929,7 +936,8 @@ window.CommandDashboard = (() => {
           .map(n => n.id);
         window.GraphController.highlightNodes(allPeopleIds);
         _switchResourceTab('people');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
         break;
       }
 
@@ -944,7 +952,31 @@ window.CommandDashboard = (() => {
           .map(n => n.id);
         window.GraphController.highlightNodes(allProjectIds);
         _switchResourceTab('projects');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        clearTimeout(_tierResetTimer);
+        _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
+        break;
+      }
+
+      case 'focus-projects': {
+        // Highlight the user's own projects in the graph and switch to Projects tab
+        const myProjectIds = _enrichedData.myProjectIds;
+        if (myProjectIds && myProjectIds.size > 0) {
+          const ids = nodes
+            .filter(n => n.type === 'project' && myProjectIds.has(n.id))
+            .map(n => n.id);
+          if (ids.length > 0) {
+            window.GraphController.highlightNodes(ids);
+            clearTimeout(_tierResetTimer);
+            _tierResetTimer = setTimeout(() => { _tierResetTimer = null; window.GraphController.resetToTierDefault(); }, 3000);
+          }
+        }
+        _switchResourceTab('projects');
+        break;
+      }
+
+      case 'focus-orgs': {
+        // Orgs are not graph nodes — open the Organizations resource tab directly
+        _switchResourceTab('organizations');
         break;
       }
 
@@ -1400,9 +1432,9 @@ window.CommandDashboard = (() => {
       },
       themes: {
         icon: 'fa-lightbulb',
-        msg: 'No themes in view',
-        hint: 'Themes group projects by focus area',
-        cta: 'Explore Themes',
+        msg: 'No skills in view',
+        hint: 'Skills connect you to relevant projects and people',
+        cta: 'Explore Skills',
         action: () => window.GraphController?.highlightNodes?.('theme'),
       },
       organizations: {
@@ -1576,6 +1608,18 @@ window.CommandDashboard = (() => {
   }
 
   /** Wire logout button in command dashboard */
+  function _wireThemeBtn() {
+    const btn = $id('cd-theme-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (window.SettingsModal && typeof window.SettingsModal.open === 'function') {
+        window.SettingsModal.open();
+      } else if (typeof window.toggleThemeStrategy === 'function') {
+        window.toggleThemeStrategy();
+      }
+    });
+  }
+
   function _wireLogoutBtn() {
     const btn = $id('cd-logout-btn');
     if (!btn) return;
@@ -1584,15 +1628,13 @@ window.CommandDashboard = (() => {
     });
   }
 
-  /** Wire report button → open the START daily digest / network report */
+  /** Wire report button → open the Network Report tool */
   function _wireReportBtn() {
     const btn = $id('cd-report-btn');
     if (!btn) return;
     btn.addEventListener('click', () => {
-      if (typeof window.openStartModal === 'function') {
-        window.openStartModal();
-      } else if (typeof window.StartDailyDigest?.show === 'function') {
-        window.StartDailyDigest.show();
+      if (typeof window.openNetworkReport === 'function') {
+        window.openNetworkReport();
       }
     });
   }
@@ -1696,7 +1738,7 @@ window.CommandDashboard = (() => {
   }
 
   /** Handle the submit action for the add form */
-  function _handleAddSubmit(resourceType) {
+  async function _handleAddSubmit(resourceType) {
     const nameEl = $id('udc-add-name');
     const descEl = $id('udc-add-desc');
     const typeEl = $id('udc-add-type');
@@ -1715,39 +1757,84 @@ window.CommandDashboard = (() => {
     const opType = typeEl ? typeEl.value : '';
 
     if (resourceType === 'projects') {
-      // Delegate to the existing project creation modal if available
-      if (typeof window.showEnhancedProjectCreation === 'function') {
-        window.showEnhancedProjectCreation();
-      } else if (typeof window.showCreateProjectForm === 'function') {
-        window.showCreateProjectForm();
-      } else {
-        _showAddConfirmation('project', name);
+      // Insert directly to Supabase and patch local state immediately so the
+      // new project persists and appears in the list without a page reload.
+      _closeAddForm();
+
+      if (window.supabase && _userId) {
+        const projectData = {
+          title: name,
+          description: desc || '',
+          creator_id: _userId,
+          status: 'active',
+        };
+
+        const { data: newProject, error } = await window.supabase
+          .from('projects')
+          .insert(projectData)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('[CommandDashboard] Failed to create project:', error);
+        } else if (newProject) {
+          // Add creator as a project member (best effort)
+          window.supabase.from('project_members').insert({
+            project_id: newProject.id,
+            user_id: _userId,
+            role: 'creator',
+          }).catch(() => {});
+
+          // Patch local state immediately — no full reload needed
+          if (!_enrichedData.projects) _enrichedData.projects = [];
+          _enrichedData.projects.unshift(newProject);
+          if (!_enrichedData.activeProjectIds) _enrichedData.activeProjectIds = new Set();
+          _enrichedData.activeProjectIds.add(newProject.id);
+          if (!_enrichedData.myProjectIds) _enrichedData.myProjectIds = new Set();
+          _enrichedData.myProjectIds.add(newProject.id);
+          _renderResources(_currentTier);
+        }
       }
+      return; // skip the final _closeAddForm() — already closed above
     } else if (resourceType === 'opportunities') {
-      // Map form type values to schema opportunity type + commitment
+      // Close the form first, then await the DB insert so we can get the real ID
+      _closeAddForm();
+
+      // opportunity_type is the canonical DB column name (not 'type')
       const typeMap = { 'full-time': 'job', 'part-time': 'job', 'contract': 'contract', 'internship': 'internship', 'volunteer': 'volunteer' };
       const commitmentMap = { 'full-time': 'full-time', 'part-time': 'part-time' };
       const oppData = {
         title: name,
         opportunity_type: typeMap[opType] || 'volunteer',
         commitment: commitmentMap[opType] || null,
+        // summary holds the brief one-liner; description can be enriched via edit
+        summary: desc || '',
         description: desc || name,
         status: 'open',
         is_public: true,
         posted_by: _userId,
         organization_id: null,
       };
+
       if (window.supabase && _userId) {
-        window.supabase.from('opportunities').insert(oppData).then(({ error }) => {
-          if (error) {
-            console.error('[CommandDashboard] Failed to post opportunity:', error);
-          } else {
-            _loadEnrichedData();
-          }
-        });
+        const { data: newOpp, error } = await window.supabase
+          .from('opportunities')
+          .insert(oppData)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('[CommandDashboard] Failed to post opportunity:', error);
+        } else if (newOpp) {
+          // TASK 3 FIX (Option A): immediately patch local state — no full reload needed
+          if (!_enrichedData.opportunities) _enrichedData.opportunities = [];
+          _enrichedData.opportunities.unshift(newOpp);
+          _renderResources(_currentTier);
+          // UX TASK 6: show success state with "Add Details" / "Done" actions
+          _showOppSuccessConfirmation(newOpp);
+        }
       }
-      const meta = opType ? `${opType}${desc ? ' · ' + desc.slice(0, 30) : ''}` : undefined;
-      _showAddConfirmation(resourceType, name, meta);
+      return; // skip the final _closeAddForm() — already closed above
     } else {
       // Stub confirmation for orgs and themes
       const meta = desc.slice(0, 40) || undefined;
@@ -1755,6 +1842,72 @@ window.CommandDashboard = (() => {
     }
 
     _closeAddForm();
+  }
+
+  /**
+   * Show a success item in the resource list after an opportunity is posted.
+   * Includes "Add Details" (opens edit modal) and "Done" (dismisses) CTAs.
+   * UX TASK 6 implementation.
+   */
+  function _showOppSuccessConfirmation(opp) {
+    const list = $id('udc-resource-list');
+    if (!list) return;
+
+    const empty = list.querySelector('.udc-resource-empty');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = 'udc-resource-item';
+    item.style.cssText = 'border-color:rgba(0,200,140,0.4);background:rgba(0,200,140,0.06);flex-direction:column;align-items:stretch;gap:0.4rem;';
+    item.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="udc-resource-info">
+          <span class="udc-resource-name">${_escapeHtml(opp.title)}</span>
+          ${opp.opportunity_type ? `<span class="udc-resource-meta">${_escapeHtml(opp.opportunity_type)}</span>` : ''}
+        </div>
+        <span style="font-size:0.6rem;color:#00c88c;flex-shrink:0;">✓ Posted</span>
+      </div>
+      <div style="display:flex;gap:0.4rem;">
+        <button id="udc-opp-details-${_escapeHtml(opp.id)}" style="flex:1;font-size:0.68rem;padding:0.25rem 0.5rem;border-radius:5px;border:1px solid rgba(0,224,255,0.3);background:rgba(0,224,255,0.1);color:var(--cd-accent,#00e0ff);cursor:pointer;font-weight:600;">
+          <i class="fas fa-sliders-h"></i> Add Details
+        </button>
+        <button id="udc-opp-done-${_escapeHtml(opp.id)}" style="font-size:0.68rem;padding:0.25rem 0.5rem;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#aaa;cursor:pointer;">
+          Done
+        </button>
+      </div>
+    `;
+
+    const label = list.querySelector('.udc-resource-section-label');
+    if (label && label.nextSibling) {
+      list.insertBefore(item, label.nextSibling);
+    } else {
+      list.prepend(item);
+    }
+
+    $id(`udc-opp-details-${opp.id}`)?.addEventListener('click', () => {
+      item.remove();
+      if (typeof window.editOpportunityFromPanel === 'function') {
+        window.editOpportunityFromPanel(opp.id);
+      }
+    });
+
+    const doneBtn = $id(`udc-opp-done-${opp.id}`);
+    if (doneBtn) {
+      doneBtn.addEventListener('click', () => {
+        item.style.transition = 'opacity 0.3s';
+        item.style.opacity = '0';
+        setTimeout(() => item.remove(), 320);
+      });
+    }
+
+    // Auto-dismiss after 8 s if no action taken
+    setTimeout(() => {
+      if (item.parentNode) {
+        item.style.transition = 'opacity 0.4s';
+        item.style.opacity = '0';
+        setTimeout(() => item.remove(), 450);
+      }
+    }, 8000);
   }
 
   /** Flash a newly-added item at the top of the resource list */
@@ -1836,6 +1989,22 @@ window.CommandDashboard = (() => {
     /** Refresh Supabase-enriched data (projects, orgs, connections) and re-render */
     async refreshEnrichedData() {
       await _loadEnrichedData();
+    },
+    /**
+     * TASK 3 FIX (Option A): Patch a single opportunity in local state and
+     * re-render the resource list immediately — no full DB reload needed.
+     * Called by node-panel.js after a successful edit so the title (and other
+     * fields) reflect the saved value right away.
+     */
+    patchOpportunity(updatedOpp) {
+      if (!updatedOpp || !_enrichedData.opportunities) return;
+      const idx = _enrichedData.opportunities.findIndex(o => o.id === updatedOpp.id);
+      if (idx !== -1) {
+        _enrichedData.opportunities[idx] = { ..._enrichedData.opportunities[idx], ...updatedOpp };
+      } else {
+        _enrichedData.opportunities.unshift(updatedOpp);
+      }
+      _renderResources(_currentTier);
     },
   };
 

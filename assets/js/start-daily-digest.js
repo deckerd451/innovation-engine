@@ -772,7 +772,7 @@ class StartDailyDigest {
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:1rem;">
             ${this.renderStatCard('Connections',   counts.connections,   'users',    '#00e0ff', 'viewConnections')}
             ${this.renderStatCard('Projects',      counts.projects,      'rocket',   '#a855f7', 'viewProjects')}
-            ${this.renderStatCard('Themes',        counts.themes,        'bullseye', '#ffaa00', 'viewThemes')}
+            ${this.renderStatCard('Skills',         counts.themes,        'bullseye', '#ffaa00', 'viewThemes')}
             ${this.renderStatCard('Opportunities', counts.opportunities, 'briefcase','#00ff88', 'viewOpportunities')}
           </div>
         </div>

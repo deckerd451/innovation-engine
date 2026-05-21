@@ -224,6 +224,16 @@
    * @returns {Promise<boolean>} True if Synapse ready, false if timeout
    */
   async function waitForSynapse(timeoutMs = 15000) {
+    if (window.canUseAdvancedInnovationTools === false) {
+      console.log('🚪 [BOOT-GATE] Synapse bypass for limited-access user');
+      return true;
+    }
+
+    if (typeof window.isAdminUser === 'function' && window.isAdminUser() !== true) {
+      console.log('🚪 [BOOT-GATE] Synapse bypass for non-admin user');
+      return true;
+    }
+
     // Check if already ready via multiple signals
     if (window.appReady.synapse || 
         window.__SYNAPSE_READY__ === true ||
