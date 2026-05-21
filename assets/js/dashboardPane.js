@@ -169,6 +169,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         // After profile is created, initialize dashboard
         if (state.communityProfile?.id) {
           await onAppReady();
+          // Emit profile-loaded so main.js initializes the graph + command dashboard
+          window.dispatchEvent(new CustomEvent("profile-loaded", {
+            detail: { user: state.authUser, profile: state.communityProfile }
+          }));
         } else {
           console.error("❌ Failed to create community profile for new user");
           showLogin();

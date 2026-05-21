@@ -88,22 +88,40 @@ async function onProfileLoaded(e) {
   // ------------------------------
   // Unified Network Discovery init (single-flight)
   // ------------------------------
-  if (!window.__IE_UNIFIED_INIT__ && user && window.unifiedNetworkIntegration) {
-    window.__IE_UNIFIED_INIT__ = true;
-    log.debug("🧠 Initializing Unified Network Discovery...");
+  // The unified-network-integration module is loaded as a post-auth module and
+  // may not be available yet when profile-loaded fires. Wait briefly for it.
+  if (!window.__IE_UNIFIED_INIT__ && user) {
+    if (!window.unifiedNetworkIntegration) {
+      log.debug("⏳ Waiting for unified network module to load...");
+      await new Promise((resolve) => {
+        const start = Date.now();
+        const check = () => {
+          if (window.unifiedNetworkIntegration || Date.now() - start > 5000) return resolve();
+          setTimeout(check, 100);
+        };
+        check();
+      });
+    }
 
-    try {
-      const initialized = await window.unifiedNetworkIntegration.init(user.id, "synapse-svg");
+    if (window.unifiedNetworkIntegration) {
+      window.__IE_UNIFIED_INIT__ = true;
+      log.debug("🧠 Initializing Unified Network Discovery...");
 
-      if (initialized) {
-        log.info("✅ Unified Network Discovery active");
-      } else {
-        log.info("ℹ️ Using legacy synapse visualization");
+      try {
+        const initialized = await window.unifiedNetworkIntegration.init(user.id, "synapse-svg");
+
+        if (initialized) {
+          log.info("✅ Unified Network Discovery active");
+        } else {
+          log.info("ℹ️ Using legacy synapse visualization");
+        }
+      } catch (error) {
+        // Allow retry if init failed
+        window.__IE_UNIFIED_INIT__ = false;
+        log.error("❌ Unified Network initialization failed:", error);
       }
-    } catch (error) {
-      // Allow retry if init failed
-      window.__IE_UNIFIED_INIT__ = false;
-      log.error("❌ Unified Network initialization failed:", error);
+    } else {
+      log.warn("⚠️ Unified network module not available after 5s wait");
     }
   }
 
