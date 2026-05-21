@@ -1270,6 +1270,12 @@ async function renderPersonPanel(nodeData) {
   // Build panel HTML
   const initials = (profile.name || '?').split(' ').map(n => n[0]).join('').toUpperCase();
 
+  // Determine visibility tier
+  const isOwnProfile = profile.id === currentUserProfile?.id;
+  const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
+  const isConnected = connectionStatus === 'accepted';
+  const hasFullAccess = isOwnProfile || isAdmin || isConnected;
+
   // Pre-compute skills HTML to avoid nested IIFE inside template literal (browser parse risk)
   const profileSkillList = normalizeSkills(profile.skills);
   const skillsSectionHtml = profileSkillList.length === 0 ? '' : `
@@ -1312,8 +1318,8 @@ async function renderPersonPanel(nodeData) {
 
         <h2 style="color: #00e0ff; font-size: 1.75rem; margin-bottom: 0.5rem;">${profile.name}</h2>
 
-        <!-- Presence Status (initial values from community_with_last_seen; PresenceUI will keep them live) -->
-        ${(() => {
+        <!-- Presence Status — only for connected/admin/self -->
+        ${hasFullAccess ? (() => {
           const active = isCurrentlyActive(profile);
           const sc = active ? '#00ff88' : '#666';
           const st = active ? 'active' : 'offline';
@@ -1329,7 +1335,7 @@ async function renderPersonPanel(nodeData) {
         <div data-presence-lastseen-user-id="${profile.id}" style="color: ${lc}; font-size: 0.75rem; margin-bottom: 0.5rem;">
           ${ls}
         </div>`;
-        })()}
+        })() : ''}
 
         ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
 
@@ -1385,8 +1391,8 @@ async function renderPersonPanel(nodeData) {
         </div>
       </div>
 
-      <!-- Bio Section (Collapsible) -->
-      ${profile.bio ? `
+      <!-- Bio Section (Collapsible) — only for connected/admin/self -->
+      ${hasFullAccess && profile.bio ? `
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('bio')">
             <div class="panel-section-title">
@@ -1402,11 +1408,19 @@ async function renderPersonPanel(nodeData) {
         </div>
       ` : ''}
 
-      <!-- Skills Section (Collapsible) -->
+      <!-- Skills Section (Collapsible) — visible to all for discovery -->
       ${skillsSectionHtml}
 
-      <!-- Endorsements Section (Collapsible) -->
-      ${endorsements && endorsements.length > 0 ? `
+      <!-- Connect prompt for unconnected users -->
+      ${!hasFullAccess && !isOwnProfile ? `
+        <div style="padding: 1rem 1.5rem; margin: 0.5rem 0; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.15); border-radius: 10px; text-align: center;">
+          <i class="fas fa-lock" style="color: rgba(0,224,255,0.5); font-size: 1.2rem; margin-bottom: 0.5rem;"></i>
+          <p style="color: #aaa; font-size: 0.85rem; margin: 0;">Connect to see full profile, bio, and endorsements</p>
+        </div>
+      ` : ''}
+
+      <!-- Endorsements Section (Collapsible) — only for connected/admin/self -->
+      ${hasFullAccess && endorsements && endorsements.length > 0 ? `
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('endorsements')">
             <div class="panel-section-title">
@@ -1427,8 +1441,8 @@ async function renderPersonPanel(nodeData) {
         </div>
       ` : ''}
 
-      <!-- Mutual Connections Section (Collapsible) -->
-      ${mutualConnections.length > 0 ? `
+      <!-- Mutual Connections Section (Collapsible) — only for connected/admin/self -->
+      ${hasFullAccess && mutualConnections.length > 0 ? `
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('mutual')">
             <div class="panel-section-title">
@@ -1462,8 +1476,8 @@ async function renderPersonPanel(nodeData) {
         </div>
       ` : ''}
 
-      <!-- Shared Projects Section (Collapsible) -->
-      ${sharedProjects.length > 0 ? `
+      <!-- Shared Projects Section (Collapsible) — only for connected/admin/self -->
+      ${hasFullAccess && sharedProjects.length > 0 ? `
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('projects')">
             <div class="panel-section-title">
