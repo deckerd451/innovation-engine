@@ -744,17 +744,15 @@ body.profile-modal-open .side-panel {
 }
 
 /* ============================================================
-   MOBILE HEADER BUTTONS (messages + notifications + actions + logout)
+   MOBILE HEADER BUTTONS (messages + notifications + actions)
    Visible only on mobile (<1024px) where command dashboard is hidden.
    ============================================================ */
-.mobile-notif-btn,
-#btn-logout-mobile {
+.mobile-notif-btn {
   display: none; /* hidden by default */
 }
 
 @media (max-width: 1023px) {
-  .mobile-notif-btn,
-  #btn-logout-mobile {
+  .mobile-notif-btn {
     display: flex !important;
     touch-action: manipulation !important;
   }
