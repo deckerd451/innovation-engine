@@ -133,6 +133,7 @@
   >
     <div
       id="mobile-notif-container"
+      class="utility-icons"
       style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; align-items:center; gap:0.75rem;"
     >
       <!-- Split notification badges: Messages / Notifications / Actions -->
@@ -185,43 +186,6 @@
           class="mobile-notif-badge"
           style="display:none; position:absolute; top:0; right:0; transform:translate(35%,-35%); background:#ff3b30; color:#fff; font-size:11px; font-weight:700; min-width:18px; height:18px; padding:0 5px; border-radius:999px; align-items:center; justify-content:center; line-height:1; box-sizing:border-box; white-space:nowrap;"
         >0</span>
-      </div>
-
-      <!-- Network Dashboard shortcut — opens the Command Dashboard split view on mobile -->
-      <div
-        id="btn-network-dashboard-mobile"
-        role="button"
-        tabindex="0"
-        class="mobile-notif-btn"
-        style="cursor:pointer; padding:0.6rem; background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3); border-radius:50%; width:42px; height:42px; align-items:center; justify-content:center; transition:all 0.2s;"
-        title="Network Dashboard"
-        aria-label="Open network dashboard"
-      >
-        <i class="fas fa-gauge-high" style="color:#a855f7; font-size:1.1rem;"></i>
-      </div>
-
-      <!-- Admin crown — shown by JS for admin users only -->
-      <div
-        id="btn-admin-top"
-        role="button"
-        tabindex="0"
-        style="cursor:pointer; padding:0.6rem; background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; transition:all 0.2s; touch-action:manipulation; flex-shrink:0;"
-        title="Admin Panel"
-        aria-label="Open admin panel"
-        onclick="if(typeof openAdminPanel === 'function') openAdminPanel();"
-      >
-        <i class="fas fa-crown" style="color:#ffa500; font-size:1.1rem;"></i>
-      </div>
-
-      <div
-        id="btn-logout-mobile"
-        role="button"
-        tabindex="0"
-        style="cursor:pointer; padding:0.6rem; background:rgba(255,107,107,0.1); border:1px solid rgba(255,107,107,0.3); border-radius:50%; width:42px; height:42px; display:none; align-items:center; justify-content:center; transition:all 0.2s;"
-        title="Logout"
-        aria-label="Logout"
-      >
-        <i class="fas fa-sign-out-alt" style="color:#ff6b6b; font-size:1.1rem;"></i>
       </div>
     </div>
 
@@ -285,6 +249,15 @@
                   <i class="fas fa-bolt"></i>
                   <span class="cd-notif-badge" id="cd-actions-badge" style="display:none;">0</span>
                 </button>
+                <button
+                  class="cd-icon-btn cd-theme-btn"
+                  id="cd-theme-btn"
+                  title="Theme & settings"
+                  aria-label="Open theme and settings"
+                >
+                  <i class="fas fa-palette"></i>
+                </button>
+
 
                 <button
                   class="cd-icon-btn"
@@ -864,7 +837,7 @@
   <script src="assets/js/eventPresenceWeb.js?v=20260307-1" defer></script>
   <script type="module" src="assets/js/quiet-mode-auto-disable.js?v=1"></script>
 
-  <script type="module" src="main.js?v=fc09b39b-1770146154f916933b2da"></script>
+  <script type="module" src="main.js?v=discovery-layout-20260515a"></script>
 
   <!-- ================================================================ -->
   <!-- POST-AUTH MODULE LOADER                                          -->
@@ -937,7 +910,7 @@
         };
       }
 
-      const mode = resolved?.isAdmin === true ? 'admin-full' : 'search-only';
+      const mode = resolved?.isAdmin === true ? 'admin-full' : 'discovery-mode';
       console.info('[InnovationAccess] mode resolved', {
         email: resolved?.email || '',
         isAdmin: resolved?.isAdmin === true,
@@ -959,9 +932,11 @@
       COMMON_AUTH_MODULES.forEach(appendScript);
 
       if (mode === 'admin-full') {
+        console.info('[InnovationAccess] admin-full');
         console.log('📦 Loading ' + ADVANCED_AUTH_MODULES.length + ' advanced post-auth modules...');
         ADVANCED_AUTH_MODULES.forEach(appendScript);
       } else {
+        console.info('[InnovationAccess] discovery-mode');
         console.info('[InnovationAccess] skipped advanced modules:', ADVANCED_AUTH_MODULES.map((m) => m.name));
         if (typeof window.initializeSearchOnlyMode === 'function') {
           try { window.initializeSearchOnlyMode(); } catch (err) {
@@ -1074,7 +1049,7 @@
 
       wireKeyClick("btn-actions-mobile", () => {
         if (window.UnifiedNotifications?.showPanel) {
-          window.UnifiedNotifications.showPanel();
+          window.UnifiedNotifications.showPanel('actions');
         }
       });
 

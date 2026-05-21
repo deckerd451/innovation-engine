@@ -316,6 +316,51 @@ canvas#neural-bg {
   transform: translateX(-50%);
 }
 
+/* Discovery-mode landing layout (non-admin only) */
+body.discovery-mode:not(.admin-mode) #main-content {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+body.discovery-mode:not(.admin-mode) #synapse-main-view,
+body.discovery-mode:not(.admin-mode) .dashboard-shell,
+body.discovery-mode:not(.admin-mode) .dashboard-sidebar,
+body.discovery-mode:not(.admin-mode) .left-sidebar,
+body.discovery-mode:not(.admin-mode) .network-shell,
+body.discovery-mode:not(.admin-mode) .command-sidebar {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+}
+
+body.discovery-mode:not(.admin-mode) #centered-search-container {
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  width: min(700px, 92vw) !important;
+  max-width: min(700px, 92vw) !important;
+  margin: 0 auto !important;
+  z-index: 100 !important;
+}
+
+body.discovery-mode:not(.admin-mode) #search-suggestions {
+  top: calc(100% + 6px) !important;
+  bottom: auto !important;
+  box-shadow: 0 8px 28px rgba(0, 224, 255, 0.18) !important;
+}
+
+body.discovery-mode:not(.admin-mode) #search-drag-handle {
+  display: none !important;
+}
+
 /* Hide search container when ANY modal is open */
 .modal.active ~ * #centered-search-container,
 .modal.active ~ #centered-search-container {
@@ -578,6 +623,15 @@ canvas#neural-bg {
     box-sizing: border-box !important;
   }
 
+  body.discovery-mode:not(.admin-mode) #main-content {
+    padding: 0.75rem;
+  }
+
+  body.discovery-mode:not(.admin-mode) #centered-search-container {
+    width: min(700px, 96vw) !important;
+    max-width: min(700px, 96vw) !important;
+  }
+
   #centered-search-container > div:first-child {
     flex-wrap: wrap !important;
     gap: 0.35rem !important;
@@ -690,17 +744,15 @@ body.profile-modal-open .side-panel {
 }
 
 /* ============================================================
-   MOBILE HEADER BUTTONS (messages + notifications + actions + logout)
+   MOBILE HEADER BUTTONS (messages + notifications + actions)
    Visible only on mobile (<1024px) where command dashboard is hidden.
    ============================================================ */
-.mobile-notif-btn,
-#btn-logout-mobile {
+.mobile-notif-btn {
   display: none; /* hidden by default */
 }
 
 @media (max-width: 1023px) {
-  .mobile-notif-btn,
-  #btn-logout-mobile {
+  .mobile-notif-btn {
     display: flex !important;
     touch-action: manipulation !important;
   }
@@ -711,6 +763,65 @@ body.profile-modal-open .side-panel {
   #btn-actions-mobile[data-empty="true"] {
     display: none !important;
   }
+}
+
+/* ============================================================
+   SHARED TOP UTILITY BAR (discovery non-admin + admin, all viewports)
+   Keeps utility icons persistent, clickable, and out of graph/sidebar paths.
+   ============================================================ */
+:root {
+  --utility-bar-top-offset: calc(env(safe-area-inset-top, 0px) + 10px);
+}
+
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons {
+  position: fixed !important;
+  top: var(--utility-bar-top-offset) !important;
+  right: 10px !important;
+  left: auto !important;
+  bottom: auto !important;
+  z-index: 1200 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  padding: 6px 8px 6px 10px !important;
+  max-width: min(520px, calc(100vw - 20px)) !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Admin mode: keep away from command dashboard/sidebar on narrow desktops. */
+body.admin-mode #mobile-notif-container.utility-icons {
+  max-width: min(520px, calc(100vw - var(--cd-width, 340px) - 24px)) !important;
+}
+body.admin-mode #mobile-notif-container.utility-icons {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons .mobile-notif-btn,
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+  display: flex !important;
+  pointer-events: auto !important;
+}
+
+body.discovery-mode:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+  margin-left: auto !important;
+}
+
+/* Onboarding: keep sign out visible and suppress nonessential icons if overlap risk exists. */
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-logout-mobile {
+  display: flex !important;
+}
+
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-messages-mobile,
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-notif-mobile,
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-actions-mobile,
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-network-dashboard-mobile,
+body.discovery-mode.onboarding-required:not(.admin-mode) #mobile-notif-container.utility-icons #btn-admin-top {
+  display: none !important;
 }
 
 /* ============================================================
@@ -826,4 +937,21 @@ body.profile-modal-open .side-panel {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+}
+
+
+/* Admin-mode hard restore guard in case discovery/search-only mode leaked. */
+body.admin-mode .dashboard-shell,
+body.admin-mode .dashboard-sidebar,
+body.admin-mode .left-sidebar,
+body.admin-mode .network-shell,
+body.admin-mode .command-sidebar,
+body.admin-mode #network-report-modal,
+body.admin-mode #network-status-panel,
+body.admin-mode #cd-explore {
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  backdrop-filter: none !important;
 }

@@ -168,8 +168,132 @@ function waitForGlobals() {
 }
 
 
+
+
+function isDebugModeEnabled() {
+  try {
+    if (window.__IE?.debugAuthRecovery === true) return true;
+    if (localStorage.getItem('ie_debug_mode') === 'true') return true;
+    if (sessionStorage.getItem('ie_debug_mode') === 'true') return true;
+  } catch (_) {}
+  return /[?&](debug|ie_debug)=1/.test(window.location.search);
+}
+
+function clearAuthCaches() {
+  const authLike = /supabase|sb-|auth|token|session|onboarding_/i;
+  const clearStore = (store) => {
+    if (!store) return;
+    const toDelete = [];
+    for (let i = 0; i < store.length; i += 1) {
+      const key = store.key(i);
+      if (key && authLike.test(key)) toDelete.push(key);
+    }
+    toDelete.forEach((k) => store.removeItem(k));
+  };
+
+  try { clearStore(localStorage); } catch (e) { log.warn('[AuthUtility] Failed localStorage clear', e); }
+  try { clearStore(sessionStorage); } catch (e) { log.warn('[AuthUtility] Failed sessionStorage clear', e); }
+}
+
+function ensurePersistentAuthUtility() {
+  if (!document.body) return;
+
+  let panel = document.getElementById('ie-persistent-auth-utility');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'ie-persistent-auth-utility';
+    panel.setAttribute('role', 'region');
+    panel.setAttribute('aria-label', 'Account controls');
+    panel.style.cssText = [
+      'position:fixed', 'top:12px', 'right:12px',
+      'z-index:2147483647', 'display:flex', 'gap:8px',
+      'align-items:center', 'pointer-events:auto'
+    ].join(';');
+
+    const logoutBtn = document.createElement('button');
+    logoutBtn.id = 'ie-persistent-logout-btn';
+    logoutBtn.type = 'button';
+    logoutBtn.textContent = 'Sign Out';
+    logoutBtn.setAttribute('aria-label', 'Sign out');
+    logoutBtn.style.cssText = 'padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:#0f172a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)';
+    logoutBtn.addEventListener('click', async () => {
+      if (typeof window.handleLogout === 'function') await window.handleLogout();
+      else window.location.href = '/index.html';
+    });
+
+    const resetBtn = document.createElement('button');
+    resetBtn.id = 'ie-persistent-reset-session-btn';
+    resetBtn.type = 'button';
+    resetBtn.textContent = 'Reset Session';
+    resetBtn.setAttribute('aria-label', 'Reset session and sign out');
+    resetBtn.style.cssText = 'padding:8px 12px;border-radius:999px;border:1px solid rgba(255,128,128,.7);background:#3b0a0a;color:#ffd6d6;font-size:12px;font-weight:600;cursor:pointer;display:none';
+    resetBtn.addEventListener('click', async () => {
+      clearAuthCaches();
+      if (typeof window.handleLogout === 'function') await window.handleLogout();
+      else window.location.href = '/index.html';
+    });
+
+    panel.append(logoutBtn, resetBtn);
+    document.body.appendChild(panel);
+  }
+
+  const resetBtn = document.getElementById('ie-persistent-reset-session-btn');
+  if (resetBtn) resetBtn.style.display = isDebugModeEnabled() ? 'inline-flex' : 'none';
+}
+
+function renderDiscoveryModeLayout() {
+  console.info('[DiscoveryMode] runtime loaded');
+  document.body.classList.add('discovery-mode');
+  document.body.classList.add('search-only-mode');
+  document.body.classList.remove('admin-mode');
+  document.body.classList.remove('dashboard-shell-loading');
+  ensurePersistentAuthUtility();
+
+  if (!document.getElementById('discovery-onboarding-visibility-guard')) {
+    const style = document.createElement('style');
+    style.id = 'discovery-onboarding-visibility-guard';
+    style.textContent = `
+      body.discovery-mode .onboarding-modal,
+      body.discovery-mode #onboarding-modal,
+      body.discovery-mode #profile-completion-modal {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+
+      body.discovery-mode #ie-persistent-auth-utility,
+      body.onboarding-required #ie-persistent-auth-utility {
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+      }
+
+      body.discovery-mode .dashboard-sidebar,
+      body.discovery-mode .sidebar-loading,
+      body.discovery-mode .left-rail-loading,
+      body.discovery-mode .dashboard-shell-placeholder {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  log.info('[DiscoveryMode] discovery-mode class applied');
+}
+
+window.renderDiscoveryModeLayout = renderDiscoveryModeLayout;
+
+function resetInnovationAccessBodyState() {
+  document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('search-only-mode');
+  document.body.classList.remove('onboarding-required');
+}
+
 function initializeSearchOnlyMode() {
   log.info('[InnovationAccess] Non-admin mode: skipping Synapse/D3 initialization');
+  document.body.classList.remove('onboarding-required');
+  document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('admin-mode');
   if (typeof window.applyInnovationAccessControls === 'function') {
     try { window.applyInnovationAccessControls(); } catch (err) {
       log.warn('⚠️ Failed to apply limited-access controls:', err);
@@ -230,6 +354,12 @@ function renderDiscoveryModeLayout() {
     `;
     discoveryHero.style.cssText = 'width:min(840px, 100%); text-align:center; padding:1.25rem 1rem;';
     mainContent.insertBefore(discoveryHero, searchShell);
+  renderDiscoveryModeLayout();
+
+  const synapseView = document.getElementById('synapse-main-view');
+  if (synapseView) {
+    synapseView.style.display = 'none';
+    synapseView.setAttribute('aria-hidden', 'true');
   }
 
   searchShell.style.position = 'relative';
@@ -255,6 +385,39 @@ function renderDiscoveryModeLayout() {
 
 
 window.initializeSearchOnlyMode = initializeSearchOnlyMode;
+
+function isProfileComplete(profile) {
+  if (!profile) return false;
+
+  if (profile._needsOnboarding === true) return false;
+  if (profile._legacyComplete === true) return true;
+
+  const hasName = typeof (profile.display_name || profile.name) === "string"
+    && (profile.display_name || profile.name).trim().length > 0;
+  const hasEmail = typeof profile.email === "string" && profile.email.trim().length > 0;
+  const hasRequiredIdentity = hasName && hasEmail;
+
+  if (!hasRequiredIdentity) return false;
+  if (profile._profileSource === "newly-created") return false;
+
+  return profile.onboarding_completed === true && profile.profile_completed === true;
+}
+
+function showOnboardingGate(profile) {
+  if (typeof window.showOnboarding === "function") {
+    window.showOnboarding(profile);
+    return true;
+  }
+
+  if (typeof window.StartOnboarding?.start === "function") {
+    window.StartOnboarding.start({ profile });
+    return true;
+  }
+
+  log.warn("[AuthRoute] onboarding UI unavailable");
+  return false;
+}
+
 // ------------------------------
 // Profile-loaded orchestration (attach EARLY so we don't miss events)
 // ------------------------------
@@ -275,11 +438,67 @@ async function onProfileLoaded(e) {
   // Cache for any late subscribers (and for debugging)
   _f.lastProfileEvent = e;
 
+  if (!user?.id) {
+    log.info('[AuthRoute] login-required');
+    return;
+  }
+
+  if (!profile?.id) {
+    log.info('[AuthRoute] profile-create-required');
+    return;
+  }
+
+  if (!isProfileComplete(profile)) {
+    log.info('[AuthRoute] onboarding-required');
+    document.body.classList.add('onboarding-required');
+    ensurePersistentAuthUtility();
+    showOnboardingGate(profile);
+    return;
+  }
+
   const canUseAdvancedInnovationTools = window.canUseAdvancedInnovationTools === true;
   if (!canUseAdvancedInnovationTools) {
+    log.info('[InnovationAccess] discovery-mode');
     initializeSearchOnlyMode();
     return;
   }
+
+  resetInnovationAccessBodyState();
+  document.body.classList.remove('discovery-mode');
+  document.body.classList.remove('search-only-mode');
+  document.body.classList.remove('onboarding-required');
+  log.info('[AdminMode] cleared discovery classes');
+  document.body.classList.add('admin-mode');
+  ensurePersistentAuthUtility();
+  const synapseView = document.getElementById('synapse-main-view');
+  if (synapseView) {
+    synapseView.style.removeProperty('display');
+    synapseView.removeAttribute('aria-hidden');
+  }
+
+  log.info('[InnovationAccess] admin-full');
+  const adminRestoreTargets = [
+    '.dashboard-shell',
+    '.dashboard-sidebar',
+    '.left-sidebar',
+    '.network-shell',
+    '.command-sidebar',
+    '#network-report-modal',
+    '#network-status-panel',
+    '#cd-explore',
+  ];
+  adminRestoreTargets.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      el.style.removeProperty('display');
+      el.style.removeProperty('visibility');
+      el.style.removeProperty('opacity');
+      el.style.removeProperty('pointer-events');
+      el.style.removeProperty('filter');
+      el.style.removeProperty('backdrop-filter');
+    });
+  });
+  log.info('[AdminMode] sidebar restored');
+
 
   // ------------------------------
   // Unified Network Discovery init (single-flight)

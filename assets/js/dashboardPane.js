@@ -1336,7 +1336,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (searchTimeout) clearTimeout(searchTimeout);
       
       // Hide suggestions if query is too short
-      if (query.length < 2) {
+      if (query.length < 1) {
         hideSuggestions();
         return;
       }
@@ -1344,7 +1344,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       // Debounce the search
       searchTimeout = setTimeout(() => {
         fetchSuggestions(query);
-      }, 300);
+      }, 200);
     });
     
     // Handle keyboard navigation
@@ -1481,11 +1481,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       // Limit total suggestions
       suggestions = suggestions.slice(0, 8);
       
-      if (suggestions.length > 0) {
-        renderSuggestions(suggestions, query);
-      } else {
-        hideSuggestions();
-      }
+      renderSuggestions(suggestions, query);
     } catch (error) {
       console.error("Error fetching suggestions:", error);
       hideSuggestions();
@@ -1536,6 +1532,16 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         </div>
       `;
     }).join("");
+
+    if (!displaySuggestions.length) {
+      suggestionsBox.innerHTML = `
+        <div style="padding:0.85rem 1rem; color:rgba(220,230,255,0.75); font-size:0.9rem; text-align:center;">
+          No suggestions yet
+        </div>
+      `;
+      suggestionsBox.style.display = "block";
+      return;
+    }
     
     suggestionsBox.innerHTML = html + `
       <div style="padding:0.75rem 1rem; text-align:center; border-top:1px solid rgba(0,224,255,0.2);">
