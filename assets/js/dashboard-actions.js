@@ -227,9 +227,16 @@ function isAdminUser() {
     'will@gdna.io'
   ];
 
-  // Try to get current user email from Supabase auth
+  // PRIMARY CHECK: Match current user's email against admin allowlist
+  // Check currentUserProfile (set by auth.js after profile-loaded)
+  const profileEmail = window?.currentUserProfile?.email;
+  if (profileEmail && adminEmails.includes(profileEmail.toLowerCase())) {
+    logAdminGrantedOnce('✅ Admin access granted for:', profileEmail);
+    return true;
+  }
+
+  // FALLBACK: Check Supabase auth session in localStorage
   try {
-    // Check session storage for auth data (synchronous)
     const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase.auth'));
     for (const key of authKeys) {
       const data = localStorage.getItem(key);
@@ -244,45 +251,6 @@ function isAdminUser() {
     }
   } catch (e) {
     // Ignore parsing errors
-  }
-
-  // Try common places your app might store role
-  const role =
-    window?.appState?.communityProfile?.role ||
-    window?.appState?.profile?.role ||
-    window?.currentUserProfile?.role ||
-    window?.communityProfile?.role ||
-    window?.userRole;
-
-  if (typeof role === "string") {
-    const r = role.toLowerCase();
-    if (r === "admin" || r === "superadmin" || r === "owner") {
-      logAdminGrantedOnce('✅ Admin access granted via role:', r);
-      return true;
-    }
-  }
-
-  // If you have a boolean somewhere
-  if (window?.appState?.isAdmin === true) {
-    logAdminGrantedOnce('✅ Admin access granted via appState.isAdmin');
-    return true;
-  }
-
-  // For development: check storage safely (avoid costly JSON.stringify)
-  const storageCheck = 
-    document.cookie.toLowerCase().includes('dmhamilton1@live.com') ||
-    Object.keys(localStorage).some(k => {
-      try {
-        const val = localStorage.getItem(k) || '';
-        return val.toLowerCase().includes('dmhamilton1@live.com');
-      } catch (e) {
-        return false;
-      }
-    });
-
-  if (storageCheck) {
-    logAdminGrantedOnce('✅ Admin access granted via storage check');
-    return true;
   }
 
   // Only log admin check failures in debug mode
