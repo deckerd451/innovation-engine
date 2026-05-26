@@ -21,7 +21,6 @@ window.addEventListener('profile-loaded', async (e) => {
   // ============================================================
   // ENFORCE ONBOARDING if profile is incomplete
   // ============================================================
-  if (profile._needsOnboarding) {
   // Check if profile needs onboarding
   if (profile._needsOnboarding) {
     if (typeof window.showOnboarding === 'function') {
