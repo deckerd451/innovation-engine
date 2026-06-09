@@ -308,6 +308,34 @@
           </div>
         </div>
 
+        <!-- Today's Focus (messages alert + insights) -->
+        <div class="cd-focus" id="cd-focus">
+          <div id="cd-focus-messages"></div>
+        </div>
+
+        <!-- Network Insights (collapsible) -->
+        <div class="cd-insights" id="cd-insights">
+          <div class="cd-section-toggle-row">
+            <button id="cd-insights-toggle" aria-expanded="false" style="width:100%; display:flex; align-items:center; justify-content:space-between; background:none; border:none; padding:0.5rem 0.75rem; cursor:pointer; color:#aaa;">
+              <span style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">NETWORK INSIGHTS</span>
+              <i class="fas fa-chevron-down" style="font-size:0.6rem; transition:transform 0.25s;"></i>
+            </button>
+          </div>
+          <div class="cd-section-body" id="cd-insights-body" style="display:none;">
+            <div id="cd-insights-primary"></div>
+            <div id="cd-insights-secondary" style="display:none;"></div>
+          </div>
+        </div>
+
+        <!-- Deep Actions (collapsible, hidden on mobile) -->
+        <div class="cd-deep-actions">
+          <button class="cd-deep-toggle" id="cd-deep-toggle" aria-expanded="false">
+            <span style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#aaa;">ACTIONS</span>
+            <i class="fas fa-chevron-down" style="font-size:0.6rem; color:#aaa;"></i>
+          </button>
+          <div id="cd-deep-content" style="display:none;"></div>
+        </div>
+
         <div class="cd-explore" id="cd-explore">
           <div class="cd-section-toggle-row" style="pointer-events:none;">
             <span

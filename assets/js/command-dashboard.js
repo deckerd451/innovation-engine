@@ -948,6 +948,17 @@ window.CommandDashboard = (() => {
         break;
       }
 
+      case 'focus-projects': {
+        // Highlight projects the user is a member of
+        const myProjectIds = _enrichedData.myProjectIds;
+        if (myProjectIds && myProjectIds.size > 0) {
+          window.GraphController.highlightNodes([...myProjectIds]);
+        }
+        _switchResourceTab('projects');
+        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
+        break;
+      }
+
       default:
         window.GraphController.resetToTierDefault();
     }
