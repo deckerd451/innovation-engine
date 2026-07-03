@@ -1997,18 +1997,24 @@ window.withdrawConnectionFromPanel = async function(userId) {
 // the panel has a chance to re-render with buttons disabled.
 const connectionActionsInFlight = new Set();
 
-// Disables/labels the Accept/Decline buttons for this connectionId, so a
-// slow network round-trip can't be double-submitted and the UI gives
-// immediate feedback.
-function findConnectionButtons(connectionId) {
-  return document.querySelectorAll(`[onclick*="ConnectionFromPanel('${connectionId}')"]`);
+// Disables the Accept/Decline buttons for this connectionId, so a slow
+// network round-trip can't be double-submitted and the UI gives immediate
+// feedback. Both buttons are disabled (they act on the same row, so neither
+// should be clickable while one is in flight), but only the button for the
+// action actually being performed gets relabeled with the spinner text.
+function findConnectionButtons(connectionId, actionName) {
+  const all = document.querySelectorAll(`[onclick*="ConnectionFromPanel('${connectionId}')"]`);
+  if (!actionName) return all;
+  return Array.from(all).filter((btn) => btn.getAttribute('onclick')?.startsWith(actionName));
 }
 
-function setConnectionButtonsBusy(connectionId, label) {
+function setConnectionButtonsBusy(connectionId, actionName, label) {
   findConnectionButtons(connectionId).forEach((btn) => {
     btn.disabled = true;
     btn.style.opacity = '0.6';
     btn.style.cursor = 'not-allowed';
+  });
+  findConnectionButtons(connectionId, actionName).forEach((btn) => {
     btn.dataset.originalLabel = btn.dataset.originalLabel || btn.innerHTML;
     btn.innerHTML = label;
   });
@@ -2040,15 +2046,16 @@ window.acceptConnectionFromPanel = async function(connectionId) {
 
   if (connectionActionsInFlight.has(connectionId)) return; // already in flight
   connectionActionsInFlight.add(connectionId);
-  setConnectionButtonsBusy(connectionId, '<i class="fas fa-spinner fa-spin"></i> Accepting...');
-
-  console.log('[node-panel] acceptConnectionFromPanel: request', {
-    connectionId,
-    targetProfile: currentNodeData ? { id: currentNodeData.id, name: currentNodeData.name } : null,
-    currentUserId: currentUserProfile?.id,
-  });
 
   try {
+    setConnectionButtonsBusy(connectionId, 'accept', '<i class="fas fa-spinner fa-spin"></i> Accepting...');
+
+    console.log('[node-panel] acceptConnectionFromPanel: request', {
+      connectionId,
+      targetProfile: currentNodeData ? { id: currentNodeData.id, name: currentNodeData.name } : null,
+      currentUserId: currentUserProfile?.id,
+    });
+
     // Import the accept function from connections.js
     const { acceptConnectionRequest } = await import('./connections.js');
 
@@ -2058,10 +2065,12 @@ window.acceptConnectionFromPanel = async function(connectionId) {
     console.log('[node-panel] acceptConnectionFromPanel: response', result);
 
     if (result.success) {
-      showToastNotification(
-        result.noOp ? 'Connection was already accepted' : '✓ Connection accepted!',
-        'success'
-      );
+      const message = result.notFound
+        ? 'Request no longer exists — it may have been withdrawn.'
+        : result.noOp
+        ? 'Connection was already accepted'
+        : '✓ Connection accepted!';
+      showToastNotification(message, result.notFound ? 'info' : 'success');
 
       // Refresh dashboard connection counters/lists if available
       if (typeof window.CommandDashboard?.refreshEnrichedData === 'function') {
@@ -2122,15 +2131,16 @@ window.declineConnectionFromPanel = async function(connectionId) {
 
   if (connectionActionsInFlight.has(connectionId)) return; // already in flight
   connectionActionsInFlight.add(connectionId);
-  setConnectionButtonsBusy(connectionId, '<i class="fas fa-spinner fa-spin"></i> Declining...');
-
-  console.log('[node-panel] declineConnectionFromPanel: request', {
-    connectionId,
-    targetProfile: currentNodeData ? { id: currentNodeData.id, name: currentNodeData.name } : null,
-    currentUserId: currentUserProfile?.id,
-  });
 
   try {
+    setConnectionButtonsBusy(connectionId, 'decline', '<i class="fas fa-spinner fa-spin"></i> Declining...');
+
+    console.log('[node-panel] declineConnectionFromPanel: request', {
+      connectionId,
+      targetProfile: currentNodeData ? { id: currentNodeData.id, name: currentNodeData.name } : null,
+      currentUserId: currentUserProfile?.id,
+    });
+
     // Import the decline function from connections.js
     const { declineConnectionRequest } = await import('./connections.js');
 
