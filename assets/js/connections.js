@@ -567,13 +567,18 @@ export async function acceptConnectionRequest(connectionId) {
       readErr,
     });
 
+    // NOTE: this function deliberately does not call showToast() on any
+    // path below. Every current caller (node-panel.js, unified-notification-
+    // system.js, connectionRequests.js) already renders its own
+    // success/failure feedback from the returned result, using this
+    // module's showToast() too — both toasts render at the identical fixed
+    // bottom-right position, so firing both here and in the caller shows
+    // two overlapping "accepted" banners for a single click.
     if (readErr) {
-      showToast(readErr.message || "Failed to load request", "error");
       return { success: false, error: readErr };
     }
 
     if (!row?.id) {
-      showToast("Request not found — it may have been withdrawn.", "info");
       return { success: true, notFound: true };
     }
 
@@ -586,7 +591,6 @@ export async function acceptConnectionRequest(connectionId) {
     }
 
     if (status !== "pending") {
-      showToast(`Can't accept — request is ${status}`, "info");
       return { success: false, error: { message: `Connection is "${status}", not pending` }, connection: row };
     }
 
@@ -595,11 +599,9 @@ export async function acceptConnectionRequest(connectionId) {
 
     if (!res.ok) {
       console.error("[connections] acceptConnectionRequest update failed:", res.error);
-      showToast(res.error?.message || "Failed to accept", "error");
       return { success: false, error: res.error };
     }
 
-    showToast("Accepted!", "success");
     return { success: true, status: "accepted", connection: res.data };
   } finally {
     // Best-effort side effects. These must never turn an already-successful
@@ -638,19 +640,20 @@ export async function declineConnectionRequest(connectionId) {
       readErr,
     });
 
+    // NOTE: see the comment at the top of acceptConnectionRequest — this
+    // function also deliberately skips showToast() on every path so the
+    // caller's own success/failure banner doesn't get a second one stacked
+    // on top of it at the same fixed screen position.
     if (readErr) {
-      showToast(readErr.message || "Failed to load request", "error");
       return { success: false, error: readErr };
     }
 
     if (!row?.id) {
-      showToast("Request not found", "info");
       return { success: true, noOp: true };
     }
 
     const status = normStatus(row.status);
     if (status !== "pending") {
-      showToast("Nothing to decline (not pending)", "info");
       return { success: true, noOp: true };
     }
 
@@ -659,11 +662,9 @@ export async function declineConnectionRequest(connectionId) {
 
     if (!res.ok) {
       console.error("[connections] declineConnectionRequest update failed:", res.error);
-      showToast(res.error?.message || "Failed to decline request", "error");
       return { success: false, error: res.error };
     }
 
-    showToast("Request declined.", "info");
     // Best-effort — must not turn an already-successful decline into a
     // reported failure if this throws.
     try {
@@ -674,7 +675,6 @@ export async function declineConnectionRequest(connectionId) {
 
     return { success: true, status: "rejected", id: row.id };
   } catch (err) {
-    showToast("Failed to decline request", "error");
     return { success: false, error: err };
   }
 }
