@@ -1993,69 +1993,178 @@ window.withdrawConnectionFromPanel = async function(userId) {
   }
 };
 
-window.acceptConnectionFromPanel = async function(connectionId) {
-  try {
-    if (!currentUserProfile) {
-      alert('Please log in to accept connection requests');
-      return;
-    }
+// Prevents double-submit if the user double-clicks Accept/Decline before
+// the panel has a chance to re-render with buttons disabled.
+const connectionActionsInFlight = new Set();
 
+// Disables/labels the Accept/Decline buttons for this connectionId, so a
+// slow network round-trip can't be double-submitted and the UI gives
+// immediate feedback.
+function findConnectionButtons(connectionId) {
+  return document.querySelectorAll(`[onclick*="ConnectionFromPanel('${connectionId}')"]`);
+}
+
+function setConnectionButtonsBusy(connectionId, label) {
+  findConnectionButtons(connectionId).forEach((btn) => {
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+    btn.dataset.originalLabel = btn.dataset.originalLabel || btn.innerHTML;
+    btn.innerHTML = label;
+  });
+}
+
+function restoreConnectionButtons(connectionId) {
+  findConnectionButtons(connectionId).forEach((btn) => {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
+    if (btn.dataset.originalLabel) btn.innerHTML = btn.dataset.originalLabel;
+  });
+}
+
+window.acceptConnectionFromPanel = async function(connectionId) {
+  if (!currentUserProfile) {
+    alert('Please log in to accept connection requests');
+    return;
+  }
+
+  if (!connectionId || connectionId === 'null' || connectionId === 'undefined') {
+    console.error('acceptConnectionFromPanel: missing/invalid connectionId', {
+      connectionId,
+      currentNodeData,
+    });
+    alert('Failed to accept connection request: no pending request was found for this profile.');
+    return;
+  }
+
+  if (connectionActionsInFlight.has(connectionId)) return; // already in flight
+  connectionActionsInFlight.add(connectionId);
+  setConnectionButtonsBusy(connectionId, '<i class="fas fa-spinner fa-spin"></i> Accepting...');
+
+  console.log('[node-panel] acceptConnectionFromPanel: request', {
+    connectionId,
+    targetProfile: currentNodeData ? { id: currentNodeData.id, name: currentNodeData.name } : null,
+    currentUserId: currentUserProfile?.id,
+  });
+
+  try {
     // Import the accept function from connections.js
     const { acceptConnectionRequest } = await import('./connections.js');
-    
+
     // Accept the connection
     const result = await acceptConnectionRequest(connectionId);
-    
+
+    console.log('[node-panel] acceptConnectionFromPanel: response', result);
+
     if (result.success) {
-      showToastNotification('✓ Connection accepted!', 'success');
-      
-      // Reload panel to update connection status
+      showToastNotification(
+        result.noOp ? 'Connection was already accepted' : '✓ Connection accepted!',
+        'success'
+      );
+
+      // Refresh dashboard connection counters/lists if available
+      if (typeof window.CommandDashboard?.refreshEnrichedData === 'function') {
+        await window.CommandDashboard.refreshEnrichedData();
+      }
+      if (typeof window.refreshSynapseConnections === 'function') {
+        await window.refreshSynapseConnections();
+      }
+      if (typeof window.refreshNetworkView === 'function') {
+        await window.refreshNetworkView();
+      }
+
+      // Reload panel to update connection status (removes Accept/Decline)
       await loadNodeDetails(currentNodeData);
     } else {
-      throw new Error(result.error?.message || 'Failed to accept connection');
+      // Surface the full backend error, not just a generic message
+      const details = result.error
+        ? ` (${result.error.message || JSON.stringify(result.error)})`
+        : '';
+      console.error('[node-panel] acceptConnectionFromPanel failed:', result.error || result);
+      throw new Error('Failed to accept connection' + details);
     }
 
   } catch (error) {
     console.error('Error accepting connection:', error);
     alert('Failed to accept connection request: ' + error.message);
+    // Re-enable the buttons so the user can retry after a real failure
+    restoreConnectionButtons(connectionId);
+  } finally {
+    connectionActionsInFlight.delete(connectionId);
   }
 };
 
 window.declineConnectionFromPanel = async function(connectionId) {
+  if (!currentUserProfile) {
+    alert('Please log in to decline connection requests');
+    return;
+  }
+
+  if (!connectionId || connectionId === 'null' || connectionId === 'undefined') {
+    console.error('declineConnectionFromPanel: missing/invalid connectionId', {
+      connectionId,
+      currentNodeData,
+    });
+    alert('Failed to decline connection request: no pending request was found for this profile.');
+    return;
+  }
+
+  // Show confirmation dialog
+  const confirmed = confirm(
+    'Are you sure you want to decline this connection request?\n\n' +
+    'The person will not be notified, but they can send another request in the future.'
+  );
+
+  if (!confirmed) {
+    return; // User cancelled
+  }
+
+  if (connectionActionsInFlight.has(connectionId)) return; // already in flight
+  connectionActionsInFlight.add(connectionId);
+  setConnectionButtonsBusy(connectionId, '<i class="fas fa-spinner fa-spin"></i> Declining...');
+
+  console.log('[node-panel] declineConnectionFromPanel: request', {
+    connectionId,
+    targetProfile: currentNodeData ? { id: currentNodeData.id, name: currentNodeData.name } : null,
+    currentUserId: currentUserProfile?.id,
+  });
+
   try {
-    if (!currentUserProfile) {
-      alert('Please log in to decline connection requests');
-      return;
-    }
-
-    // Show confirmation dialog
-    const confirmed = confirm(
-      'Are you sure you want to decline this connection request?\n\n' +
-      'The person will not be notified, but they can send another request in the future.'
-    );
-
-    if (!confirmed) {
-      return; // User cancelled
-    }
-
     // Import the decline function from connections.js
     const { declineConnectionRequest } = await import('./connections.js');
-    
+
     // Decline the connection
     const result = await declineConnectionRequest(connectionId);
-    
+
+    console.log('[node-panel] declineConnectionFromPanel: response', result);
+
     if (result.success) {
       showToastNotification('Connection request declined', 'info');
-      
+
+      if (typeof window.CommandDashboard?.refreshEnrichedData === 'function') {
+        await window.CommandDashboard.refreshEnrichedData();
+      }
+      if (typeof window.refreshSynapseConnections === 'function') {
+        await window.refreshSynapseConnections();
+      }
+
       // Reload panel to update connection status
       await loadNodeDetails(currentNodeData);
     } else {
-      throw new Error(result.error?.message || 'Failed to decline connection');
+      const details = result.error
+        ? ` (${result.error.message || JSON.stringify(result.error)})`
+        : '';
+      console.error('[node-panel] declineConnectionFromPanel failed:', result.error || result);
+      throw new Error('Failed to decline connection' + details);
     }
 
   } catch (error) {
     console.error('Error declining connection:', error);
     alert('Failed to decline connection request: ' + error.message);
+    restoreConnectionButtons(connectionId);
+  } finally {
+    connectionActionsInFlight.delete(connectionId);
   }
 };
 
