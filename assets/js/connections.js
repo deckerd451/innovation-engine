@@ -91,6 +91,16 @@ function ensureCurrentUserCommunityId() {
   return currentUserCommunityId;
 }
 
+// Once resolved, currentUserCommunityId is cached above for the rest of the
+// session — clear it on logout so a second account signing in on the same
+// page doesn't inherit the previous account's cached id.
+if (typeof window !== "undefined") {
+  window.addEventListener("user-logged-out", () => {
+    currentUserCommunityId = null;
+    currentUserId = null;
+  });
+}
+
 // ========================
 // TYPE NORMALIZATION (DB CHECK CONSTRAINT SAFE)
 // connections.type allowed:
@@ -200,7 +210,7 @@ export async function refreshCurrentUser() {
 }
 
 export function getCurrentUserCommunityId() {
-  return currentUserCommunityId;
+  return ensureCurrentUserCommunityId();
 }
 
 // ========================
@@ -250,6 +260,11 @@ async function safeUpdateConnectionRow(connectionId, patch) {
   const db = ensureSupabase();
   if (!db) return { ok: false, error: { message: "Database connection not available" } };
 
+  // Every current caller has already confirmed status === "pending" before
+  // calling this, so guard the write itself against a concurrent change
+  // (e.g. the sender cancels between our read and this write) instead of
+  // trusting the earlier read alone.
+  //
   // `.select().maybeSingle()` so we can tell the difference between "the
   // update succeeded" and "RLS silently matched zero rows" — Postgrest
   // returns no `error` in the latter case, it just returns no data.
@@ -257,22 +272,31 @@ async function safeUpdateConnectionRow(connectionId, patch) {
     .from("connections")
     .update(patch)
     .eq("id", connectionId)
+    .eq("status", "pending")
     .select("id, from_user_id, to_user_id, status, type, created_at")
     .maybeSingle();
 
   if (error) return { ok: false, error };
 
-  if (!data) {
-    return {
-      ok: false,
-      error: {
-        message: "Update was blocked (permission denied, or the request no longer exists)",
-        code: "NO_ROWS_UPDATED",
-      },
-    };
+  if (data) return { ok: true, data };
+
+  // No error and no row back: this is ambiguous between (a) the update
+  // genuinely matched nothing (already handled elsewhere / RLS denied it),
+  // and (b) RLS grants UPDATE but not the SELECT needed to return the row,
+  // in which case the write may have actually succeeded. Disambiguate with
+  // a plain read instead of reporting a false failure.
+  const { data: recheck } = await readConnectionRow(connectionId);
+  if (recheck && normStatus(recheck.status) === normStatus(patch.status)) {
+    return { ok: true, data: recheck };
   }
 
-  return { ok: true, data };
+  return {
+    ok: false,
+    error: {
+      message: "Update was blocked (permission denied, or the request no longer exists)",
+      code: "NO_ROWS_UPDATED",
+    },
+  };
 }
 
 async function readConnectionRow(connectionId) {
@@ -533,62 +557,70 @@ export async function acceptConnectionRequest(connectionId) {
 
   ensureCurrentUserCommunityId();
 
-  const { data: row, error: readErr } = await readConnectionRow(connectionId);
+  try {
+    const { data: row, error: readErr } = await readConnectionRow(connectionId);
 
-  console.log("[connections] acceptConnectionRequest:", {
-    connectionId,
-    currentUserCommunityId,
-    row,
-    readErr,
-  });
+    console.log("[connections] acceptConnectionRequest:", {
+      connectionId,
+      currentUserCommunityId,
+      row,
+      readErr,
+    });
 
-  if (readErr) {
-    showToast(readErr.message || "Failed to load request", "error");
-    return { success: false, error: readErr };
+    if (readErr) {
+      showToast(readErr.message || "Failed to load request", "error");
+      return { success: false, error: readErr };
+    }
+
+    if (!row?.id) {
+      showToast("Request not found — it may have been withdrawn.", "info");
+      return { success: true, notFound: true };
+    }
+
+    const status = normStatus(row.status);
+
+    // Already accepted (duplicate click, stale panel, realtime race, etc.) —
+    // reconcile instead of throwing a hard failure.
+    if (status === "accepted") {
+      return { success: true, status: "accepted", noOp: true, connection: row };
+    }
+
+    if (status !== "pending") {
+      showToast(`Can't accept — request is ${status}`, "info");
+      return { success: false, error: { message: `Connection is "${status}", not pending` }, connection: row };
+    }
+
+    // Recipient-only update per your RLS
+    const res = await safeUpdateConnectionRow(connectionId, { status: "accepted" });
+
+    if (!res.ok) {
+      console.error("[connections] acceptConnectionRequest update failed:", res.error);
+      showToast(res.error?.message || "Failed to accept", "error");
+      return { success: false, error: res.error };
+    }
+
+    showToast("Accepted!", "success");
+    return { success: true, status: "accepted", connection: res.data };
+  } finally {
+    // Best-effort side effects. These must never turn an already-successful
+    // (or already-reconciled) accept into a reported failure, so they run
+    // outside the try/return path that determines the function's result.
+    try {
+      if (window.DailyEngagement) {
+        await window.DailyEngagement.awardXP(
+          window.DailyEngagement.XP_REWARDS.ACCEPT_CONNECTION,
+          "Accepted connection request"
+        );
+      }
+    } catch (e) {
+      console.warn("[connections] acceptConnectionRequest: XP award failed", e);
+    }
+    try {
+      if (window.refreshSynapseConnections) await window.refreshSynapseConnections();
+    } catch (e) {
+      console.warn("[connections] acceptConnectionRequest: refreshSynapseConnections failed", e);
+    }
   }
-
-  if (!row?.id) {
-    showToast("Request not found — it may have been withdrawn.", "info");
-    return { success: true, noOp: true };
-  }
-
-  const status = normStatus(row.status);
-
-  // Already accepted (duplicate click, stale panel, realtime race, etc.) —
-  // reconcile instead of throwing a hard failure.
-  if (status === "accepted") {
-    if (window.refreshSynapseConnections) await window.refreshSynapseConnections();
-    return { success: true, status: "accepted", noOp: true, connection: row };
-  }
-
-  if (status !== "pending") {
-    showToast(`Can't accept — request is ${status}`, "info");
-    return { success: false, error: { message: `Connection is "${status}", not pending` }, connection: row };
-  }
-
-  // Recipient-only update per your RLS
-  const res = await safeUpdateConnectionRow(connectionId, { status: "accepted" });
-
-  if (!res.ok) {
-    console.error("[connections] acceptConnectionRequest update failed:", res.error);
-    showToast(res.error?.message || "Failed to accept", "error");
-    return { success: false, error: res.error };
-  }
-
-  showToast("Accepted!", "success");
-
-  if (window.DailyEngagement) {
-    await window.DailyEngagement.awardXP(
-      window.DailyEngagement.XP_REWARDS.ACCEPT_CONNECTION,
-      "Accepted connection request"
-    );
-  }
-
-  if (window.refreshSynapseConnections) {
-    await window.refreshSynapseConnections();
-  }
-
-  return { success: true, status: "accepted", connection: res.data };
 }
 
 export async function declineConnectionRequest(connectionId) {
@@ -632,7 +664,13 @@ export async function declineConnectionRequest(connectionId) {
     }
 
     showToast("Request declined.", "info");
-    if (window.refreshSynapseConnections) await window.refreshSynapseConnections();
+    // Best-effort — must not turn an already-successful decline into a
+    // reported failure if this throws.
+    try {
+      if (window.refreshSynapseConnections) await window.refreshSynapseConnections();
+    } catch (e) {
+      console.warn("[connections] declineConnectionRequest: refreshSynapseConnections failed", e);
+    }
 
     return { success: true, status: "rejected", id: row.id };
   } catch (err) {
