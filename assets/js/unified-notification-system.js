@@ -279,7 +279,31 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       return;
     }
 
+    // Parse user/profile ID from link patterns like /anything?user=<id>
+    // (this is how connection_request / connection_accepted notifications
+    // link back to the other person's profile).
+    const userMatch = link.match(/[?&]user=([^&]+)/);
+    if (userMatch) {
+      const userId = userMatch[1];
+      console.log(`[Notifications] Opening profile in-app: ${userId}`);
+      if (typeof window.openNodePanel === 'function') {
+        window.openNodePanel({ id: userId, type: 'person' });
+        return;
+      }
+      // No node panel available (e.g. different page) — fall through to
+      // the safe-URL page navigation below instead of a hard failure.
+    }
+
     // Route by notification type when link doesn't contain parseable IDs
+    if (type === 'connection_request' || type === 'connection_accepted') {
+      console.log('[Notifications] Opening notification center for connection notification');
+      if (typeof window.openNotificationCenter === 'function') {
+        window.openNotificationCenter();
+        return;
+      }
+      // No notification center available — fall through to page navigation.
+    }
+
     if (type === 'project_invite' || type === 'project_accepted' || type === 'project_request') {
       console.log('[Notifications] Opening projects modal for project notification');
       if (typeof window.openProjectsModal === 'function') {
@@ -302,17 +326,29 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     }
 
     // Fallback: if the link is a full absolute URL on the same origin, navigate
-    // but rewrite root-domain GitHub Pages URLs to include the repo path.
+    // but rewrite root-relative paths to include the current base path (needed
+    // when the app is served from a GitHub Pages project subpath rather than
+    // the domain root).
     if (link) {
-      const basePath = window.location.pathname.replace(/\/[^/]*$/, '/');
-      let safeUrl = link;
-      // Relative paths like /dashboard.html → prepend base path
-      if (link.startsWith('/') && !link.startsWith(basePath)) {
-        safeUrl = basePath + link.replace(/^\//, '');
-      }
+      const safeUrl = _buildSafeUrl(link);
       console.log(`[Notifications] Navigating to: ${safeUrl}`);
       window.location.href = safeUrl;
     }
+  }
+
+  // Single source of truth for turning a root-relative notification link
+  // (e.g. "/index.html") into a URL that works whether the app is served
+  // from a domain root or a GitHub Pages project subpath (e.g.
+  // "/innovation-engine/"). Other callers (e.g. notification-bell.js)
+  // should prefer window.UnifiedNotifications.navigateNotification over
+  // constructing URLs themselves; this is exposed as a fallback for when
+  // only URL-building (not in-app routing) is needed.
+  function _buildSafeUrl(link) {
+    const basePath = window.location.pathname.replace(/\/[^/]*$/, '/');
+    if (link.startsWith('/') && !link.startsWith(basePath)) {
+      return basePath + link.replace(/^\//, '');
+    }
+    return link;
   }
 
   // ================================================================
@@ -1337,6 +1373,9 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     showPanel: showUnifiedNotificationPanel,
     // navigateNotification — smart in-app routing for notification links
     navigateNotification: _navigateNotification,
+    // buildSafeUrl — turn a root-relative link into a base-path-correct URL
+    // (fallback for callers that need a plain URL rather than in-app routing)
+    buildSafeUrl: _buildSafeUrl,
     // downloadReport — load data if needed then trigger the HTML export
     downloadReport: handleDownloadReport,
     // _restoreMobileDashboard — called by start-daily-digest._destroySplit

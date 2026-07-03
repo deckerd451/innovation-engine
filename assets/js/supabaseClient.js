@@ -78,11 +78,23 @@ export const supabaseClient = supabaseInstance;
 // ======================================================================
 // 2. OAUTH PROVIDERS
 // ======================================================================
+// NOTE: auth.js's oauthLogin() is the actual OAuth entry point used by the
+// app. These two exports are unused by the current UI, but are fixed here
+// too so no obsolete redirect target survives if something starts calling
+// them. Compute the redirect dynamically (like auth.js does) instead of
+// hardcoding the old deckerd451.github.io/innovation-engine/ project-pages
+// URL — the site is now served from a custom domain root (see CNAME) and
+// that hardcoded host+path 404s.
+function _oauthRedirectTo() {
+  const base = window.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '');
+  return window.location.origin + base + '/index.html';
+}
+
 export async function signInWithGitHub() {
   return await supabase.auth.signInWithOAuth({
     provider: "github",
     options: {
-      redirectTo: "https://deckerd451.github.io/innovation-engine/index.html",
+      redirectTo: _oauthRedirectTo(),
     },
   });
 }
@@ -91,7 +103,7 @@ export async function signInWithGoogle() {
   return await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: "https://deckerd451.github.io/innovation-engine/index.html",
+      redirectTo: _oauthRedirectTo(),
     },
   });
 }
