@@ -940,7 +940,7 @@ function generateSummary() {
   textParts.push('');
   textParts.push('═══════════════════════════════════════════════════════');
   textParts.push('         Thank you for using Charleston Hacks!');
-  textParts.push('         https://charlestonhacks.github.io');
+  textParts.push('         https://charlestonhacks.com');
   textParts.push('═══════════════════════════════════════════════════════');
 
   return {

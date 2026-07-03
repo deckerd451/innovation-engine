@@ -293,16 +293,18 @@
 
     if (notif.link) {
       item.addEventListener('click', () => {
-        // Use unified smart navigation to avoid broken root-domain URLs
+        // Use unified smart navigation (in-app routing) to avoid broken
+        // full-page URLs entirely.
         if (window.UnifiedNotifications?.navigateNotification) {
           window.UnifiedNotifications.navigateNotification(notif.link, notif.type, notif.id);
         } else {
-          // Fallback: rewrite root-relative paths to include base path
-          const basePath = window.location.pathname.replace(/\/[^/]*$/, '/');
-          let safeUrl = notif.link;
-          if (notif.link.startsWith('/') && !notif.link.startsWith(basePath)) {
-            safeUrl = basePath + notif.link.replace(/^\//, '');
-          }
+          // unified-notification-system.js hasn't loaded — fall back to a
+          // plain (but still base-path-correct) navigation.
+          const safeUrl = window.UnifiedNotifications?.buildSafeUrl
+            ? window.UnifiedNotifications.buildSafeUrl(notif.link)
+            : notif.link.startsWith('/')
+            ? window.location.pathname.replace(/\/[^/]*$/, '/') + notif.link.replace(/^\//, '')
+            : notif.link;
           console.log(`[Notifications] Navigating to: ${safeUrl}`);
           window.location.href = safeUrl;
         }
