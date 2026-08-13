@@ -1032,6 +1032,13 @@ window.CommandDashboard = (() => {
     if (secondary) secondary.style.display = 'none';
   }
 
+  // Brief items carry their node reference in primary_refs[0] (see
+  // daily-brief-engine.js), not as top-level nodeId/nodeType fields.
+  function _primaryRef(item) {
+    const ref = item?.primary_refs?.[0];
+    return { nodeId: ref?.nodeId || null, nodeType: ref?.nodeType || null };
+  }
+
   function _computeInsightPriority(brief) {
     const sections = brief?.sections || {};
 
@@ -1043,8 +1050,7 @@ window.CommandDashboard = (() => {
         type: 'opportunity',
         headline: top.headline || 'New opportunity in your network',
         subhead: top.subhead || '',
-        nodeId: top.nodeId || null,
-        nodeType: top.nodeType || null,
+        ..._primaryRef(top),
       };
     }
 
@@ -1056,8 +1062,7 @@ window.CommandDashboard = (() => {
         type: 'signal',
         headline: top.headline || 'Network movement detected',
         subhead: top.subhead || '',
-        nodeId: top.nodeId || null,
-        nodeType: top.nodeType || null,
+        ..._primaryRef(top),
       };
     }
 
@@ -1069,8 +1074,7 @@ window.CommandDashboard = (() => {
         type: 'explore',
         headline: top.headline || 'Your network has something for you',
         subhead: top.subhead || '',
-        nodeId: top.nodeId || null,
-        nodeType: top.nodeType || null,
+        ..._primaryRef(top),
       };
     }
 
@@ -1136,8 +1140,7 @@ window.CommandDashboard = (() => {
           return items.slice(1).map(item => ({
             text: item.headline || item.subhead || 'Network insight',
             cta: _ctaForSection(key),
-            nodeId: item.nodeId || null,
-            nodeType: item.nodeType || null,
+            ..._primaryRef(item),
           }));
         })
         .slice(0, 2);
@@ -1167,11 +1170,18 @@ window.CommandDashboard = (() => {
     _autoOpenFirstSection();
   }
 
+  // Node types with their own detail panel but no representation in the
+  // (people-only) graph — route these straight to the panel instead of
+  // GraphController.focusNode(), which silently ignores non-person ids.
+  const _PANEL_NODE_TYPES = { opportunity: 'opportunity', org: 'organization', organization: 'organization', project: 'project' };
+
   function _handleFocusCta(el) {
     const nodeId   = el.dataset.nodeId;
     const nodeType = el.dataset.nodeType;
     const action   = el.dataset.action;
-    if (nodeId && window.GraphController) {
+    if (nodeId && _PANEL_NODE_TYPES[nodeType] && typeof window.openNodePanel === 'function') {
+      window.openNodePanel({ id: nodeId, type: _PANEL_NODE_TYPES[nodeType] });
+    } else if (nodeId && window.GraphController) {
       window.GraphController.focusNode(nodeId);
     } else if (nodeType && window.GraphController?.highlightNodes) {
       window.GraphController.highlightNodes(nodeType);
