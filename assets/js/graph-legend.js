@@ -61,13 +61,6 @@ export function createGraphLegend() {
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 1rem;">
-        <div style="width: 20px; height: 20px; transform: rotate(45deg); background: rgba(255,107,107,0.3); border: 2px solid #ff6b6b;"></div>
-        <div>
-          <div style="color: white; font-weight: bold; font-size: 0.9rem;">Project</div>
-          <div style="color: #aaa; font-size: 0.75rem;">Collaborative project</div>
-        </div>
-      </div>
     </div>
 
     <!-- Node Size -->
@@ -117,13 +110,19 @@ export function createGraphLegend() {
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
-          <div style="width: 40px; height: 2px; background: #ff6b6b;"></div>
-          <div>
-            <div style="color: white; font-weight: bold; font-size: 0.9rem;">Project Member</div>
-            <div style="color: #aaa; font-size: 0.75rem;">Team membership</div>
-          </div>
-        </div>
+      </div>
+    </div>
+
+    <!-- Filter Chips -->
+    <div style="margin-bottom: 1.5rem;">
+      <h4 style="color: #00e0ff; font-size: 0.9rem; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">
+        Filter Chips
+      </h4>
+      <div style="color: #ddd; font-size: 0.85rem; line-height: 1.6;">
+        The chips at top-center highlight relevant people: <strong>Connected</strong> for accepted
+        connections, <strong>Opps</strong> for people linked to open opportunities or who share a
+        project with you. Click a highlighted person to see why — and open the linked opportunity
+        or project directly.
       </div>
     </div>
 
