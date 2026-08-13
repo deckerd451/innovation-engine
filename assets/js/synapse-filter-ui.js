@@ -39,17 +39,13 @@ let _nodeContext = new Map();
 // Pre-computed counts per filter (updated when enrichment data loads)
 const _filterCounts = {
   connected: 0,
-  projects: 0,
-  themes: 0,
   opps: 0,
 };
 
 // Header labels per filter
 const FILTER_HEADERS = {
   [FILTER_MODES.CONNECTED]: 'Your Network',
-  [FILTER_MODES.PROJECTS]:  'Collaborators',
-  [FILTER_MODES.THEMES]:    'Shared Interests',
-  [FILTER_MODES.OPPS]:      'Opportunities',
+  [FILTER_MODES.OPPS]:      'Opportunities & Collaborators',
 };
 
 // ----------------------------------------------------------------
@@ -283,57 +279,25 @@ function _buildNodeContext(mode, nodes, activeNodeIds) {
         reason = 'Accepted connection';
         break;
 
-      case FILTER_MODES.PROJECTS: {
-        // Find shared project names
+      case FILTER_MODES.OPPS: {
+        // Find shared project names first (project collaborators)
         const names = _extra._sharedProjectNames?.get(n.id);
         if (names && names.length > 0) {
           reason = 'Shared project';
           detail = names.slice(0, 3).join(', ');
-        } else {
+        } else if (_extra.projectCollaboratorIds?.has(n.id)) {
           reason = 'Project collaborator';
-        }
-        break;
-      }
-
-      case FILTER_MODES.THEMES: {
-        // Find overlapping skills
-        const mySkills = _extractNodeSkills(nodes.find(nd => nd.id === _userId));
-        const theirSkills = _extractNodeSkills(n);
-        const shared = [...theirSkills].filter(s => mySkills.has(s));
-        if (shared.length > 0) {
-          reason = 'Shared interests';
-          detail = shared.slice(0, 4).join(', ');
-        } else {
-          reason = 'Thematic match';
-        }
-        break;
-      }
-
-      case FILTER_MODES.OPPS:
-        if (_extra.oppRelevantIds?.has(n.id)) {
+        } else if (_extra.oppRelevantIds?.has(n.id)) {
           reason = 'Linked to opportunity';
         } else {
           reason = 'Opportunity-relevant skills';
         }
         break;
+      }
     }
 
     if (reason) _nodeContext.set(n.id, { reason, detail });
   });
-}
-
-function _extractNodeSkills(node) {
-  const skills = new Set();
-  if (!node) return skills;
-  const raw = node._raw || node;
-  [raw.skills, raw.interests, raw.themes].forEach(src => {
-    if (Array.isArray(src)) {
-      src.forEach(s => { if (typeof s === 'string' && s.trim()) skills.add(s.trim().toLowerCase()); });
-    } else if (typeof src === 'string' && src.trim()) {
-      src.split(',').forEach(s => { if (s.trim()) skills.add(s.trim().toLowerCase()); });
-    }
-  });
-  return skills;
 }
 
 /**
@@ -493,27 +457,14 @@ async function _loadEnrichmentData(userId) {
       }
     }
 
-    // Update filter counts for chip badges
+    // Update filter counts for chip badges. Opps now folds in project
+    // collaborators, so its count is the union of both sets.
     _filterCounts.connected = _extra.acceptedPeerIds?.size || 0;
-    _filterCounts.projects = _extra.projectCollaboratorIds?.size || 0;
-    _filterCounts.opps = _extra.oppRelevantIds?.size || 0;
-
-    // Themes count requires graph nodes — compute from current graph data
-    const store = window.graphDataStore;
-    if (store && typeof store.getAllNodes === 'function') {
-      const nodes = store.getAllNodes();
-      const me = nodes.find(n => n.id === userId);
-      const mySkills = _extractNodeSkills(me);
-      if (mySkills.size > 0) {
-        let themeCount = 0;
-        nodes.forEach(n => {
-          if (n.id === userId) return;
-          const theirs = _extractNodeSkills(n);
-          for (const s of theirs) { if (mySkills.has(s)) { themeCount++; break; } }
-        });
-        _filterCounts.themes = themeCount;
-      }
-    }
+    const oppsUnion = new Set([
+      ...(_extra.oppRelevantIds || []),
+      ...(_extra.projectCollaboratorIds || []),
+    ]);
+    _filterCounts.opps = oppsUnion.size;
 
     _updateAllChipCounts();
 

@@ -9,8 +9,6 @@
 const FILTER_MODES = Object.freeze({
   ALL:        'all',
   CONNECTED:  'connected',
-  PROJECTS:   'projects',
-  THEMES:     'themes',
   OPPS:       'opps',
 });
 
@@ -54,11 +52,9 @@ export { FILTER_MODES };
 // ----------------------------------------------------------------
 
 const FILTER_VISUALS = Object.freeze({
-  [FILTER_MODES.ALL]:       { glowColor: null,      strokeColor: null,      edgeColor: null,                        label: 'All' },
-  [FILTER_MODES.CONNECTED]: { glowColor: '#00e0ff', strokeColor: '#00e0ff', edgeColor: 'rgba(0, 224, 255, 0.55)',   label: 'Connected' },
-  [FILTER_MODES.PROJECTS]:  { glowColor: '#00ff88', strokeColor: '#00ff88', edgeColor: 'rgba(0, 255, 136, 0.50)',   label: 'Projects' },
-  [FILTER_MODES.THEMES]:    { glowColor: '#a855f7', strokeColor: '#a855f7', edgeColor: 'rgba(168, 85, 247, 0.45)',  label: 'Themes' },
-  [FILTER_MODES.OPPS]:      { glowColor: '#ffaa00', strokeColor: '#ffaa00', edgeColor: 'rgba(255, 170, 0, 0.50)',   label: 'Opps' },
+  [FILTER_MODES.ALL]:       { glowColor: null,      strokeColor: null,      edgeColor: null,                      label: 'All' },
+  [FILTER_MODES.CONNECTED]: { glowColor: '#00e0ff', strokeColor: '#00e0ff', edgeColor: 'rgba(0, 224, 255, 0.55)', label: 'Connected' },
+  [FILTER_MODES.OPPS]:      { glowColor: '#ffaa00', strokeColor: '#ffaa00', edgeColor: 'rgba(255, 170, 0, 0.50)', label: 'Opps' },
 });
 
 export { FILTER_VISUALS };
@@ -108,12 +104,6 @@ export function computeFilteredNodeState(mode, graphData, currentUserId, extra =
   switch (mode) {
     case FILTER_MODES.CONNECTED:
       activeNodeIds = _computeConnected(nodes, edges, currentUserId, extra);
-      break;
-    case FILTER_MODES.PROJECTS:
-      activeNodeIds = _computeProjects(nodes, edges, currentUserId, extra);
-      break;
-    case FILTER_MODES.THEMES:
-      activeNodeIds = _computeThemes(nodes, edges, currentUserId, extra);
       break;
     case FILTER_MODES.OPPS:
       activeNodeIds = _computeOpps(nodes, edges, currentUserId, extra);
@@ -167,48 +157,7 @@ function _computeConnected(nodes, edges, userId, extra) {
   return active;
 }
 
-/** Projects: people who share at least one project with current user */
-function _computeProjects(nodes, edges, userId, extra) {
-  const active = new Set();
-
-  if (extra.projectCollaboratorIds && extra.projectCollaboratorIds.size > 0) {
-    extra.projectCollaboratorIds.forEach(id => active.add(id));
-  } else {
-    // Fallback: project_membership edges (if they exist in graph)
-    edges.forEach(e => {
-      if (e.type !== 'project_membership') return;
-      const { s, t } = _edgeEndpoints(e);
-      if (s === userId) active.add(t);
-      if (t === userId) active.add(s);
-    });
-  }
-  return active;
-}
-
-/** Themes: people with overlapping skills/interests */
-function _computeThemes(nodes, edges, userId, extra) {
-  const active = new Set();
-  const currentNode = nodes.find(n => n.id === userId);
-  const mySkills = _extractSkills(currentNode);
-
-  if (mySkills.size === 0) return active;
-
-  nodes.forEach(n => {
-    if (n.id === userId) return;
-    const theirSkills = _extractSkills(n);
-    // Check overlap
-    for (const skill of theirSkills) {
-      if (mySkills.has(skill)) {
-        active.add(n.id);
-        break;
-      }
-    }
-  });
-
-  return active;
-}
-
-/** Opps: people/orgs linked to opportunities */
+/** Opps: people/orgs linked to opportunities, plus project collaborators */
 function _computeOpps(nodes, edges, userId, extra) {
   const active = new Set();
 
@@ -227,6 +176,19 @@ function _computeOpps(nodes, edges, userId, extra) {
           break;
         }
       }
+    });
+  }
+
+  // Project collaborators: people who share at least one project with current user
+  if (extra.projectCollaboratorIds && extra.projectCollaboratorIds.size > 0) {
+    extra.projectCollaboratorIds.forEach(id => active.add(id));
+  } else {
+    // Fallback: project_membership edges (if they exist in graph)
+    edges.forEach(e => {
+      if (e.type !== 'project_membership') return;
+      const { s, t } = _edgeEndpoints(e);
+      if (s === userId) active.add(t);
+      if (t === userId) active.add(s);
     });
   }
 
