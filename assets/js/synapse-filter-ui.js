@@ -30,6 +30,10 @@ const _extra = {
   projectCollaboratorIds: null,
   oppRelevantIds: null,
   oppSkills: null,
+  // Richer refs for the node-panel context banner (id + title, not just sets):
+  _sharedProjects: null,   // Map<userId, [{ id, title }]>
+  _orgOpportunities: null, // Map<communityId, [{ id, title }]>
+  _oppSkillMap: null,      // Map<skill, [{ id, title }]>
 };
 
 // Per-node explanation context (rebuilt on each filter application)
@@ -266,13 +270,12 @@ function _buildNodeContext(mode, nodes, activeNodeIds) {
   _nodeContext.clear();
   if (mode === FILTER_MODES.ALL) return;
 
-  const store = window.graphDataStore;
-
   nodes.forEach(n => {
     if (!activeNodeIds.has(n.id) || n.id === _userId) return;
 
     let reason = '';
     let detail = '';
+    let refs = null; // [{ id, type, label }] — clickable entities behind this reason
 
     switch (mode) {
       case FILTER_MODES.CONNECTED:
@@ -280,15 +283,20 @@ function _buildNodeContext(mode, nodes, activeNodeIds) {
         break;
 
       case FILTER_MODES.OPPS: {
-        // Find shared project names first (project collaborators)
-        const names = _extra._sharedProjectNames?.get(n.id);
-        if (names && names.length > 0) {
+        // Find shared project refs first (project collaborators)
+        const sharedProjects = _extra._sharedProjects?.get(n.id);
+        const oppRefs = _collectOpportunityRefs(n.id, n);
+
+        if (sharedProjects && sharedProjects.length > 0) {
           reason = 'Shared project';
-          detail = names.slice(0, 3).join(', ');
+          detail = sharedProjects.slice(0, 3).map(p => p.title).join(', ');
+          refs = sharedProjects.slice(0, 3).map(p => ({ id: p.id, type: 'project', label: p.title }));
+        } else if (oppRefs.length > 0) {
+          reason = 'Linked to opportunity';
+          detail = oppRefs.map(o => o.title).join(', ');
+          refs = oppRefs.map(o => ({ id: o.id, type: 'opportunity', label: o.title }));
         } else if (_extra.projectCollaboratorIds?.has(n.id)) {
           reason = 'Project collaborator';
-        } else if (_extra.oppRelevantIds?.has(n.id)) {
-          reason = 'Linked to opportunity';
         } else {
           reason = 'Opportunity-relevant skills';
         }
@@ -296,13 +304,43 @@ function _buildNodeContext(mode, nodes, activeNodeIds) {
       }
     }
 
-    if (reason) _nodeContext.set(n.id, { reason, detail });
+    if (reason) _nodeContext.set(n.id, { reason, detail, refs });
   });
+}
+
+/** Opportunities this node is linked to: via their org, or via skill overlap. */
+function _collectOpportunityRefs(nodeId, node) {
+  const seen = new Map();
+  (_extra._orgOpportunities?.get(nodeId) || []).forEach(o => seen.set(o.id, o));
+
+  if (_extra._oppSkillMap && _extra._oppSkillMap.size > 0) {
+    _extractNodeSkills(node).forEach(skill => {
+      (_extra._oppSkillMap.get(skill) || []).forEach(o => seen.set(o.id, o));
+    });
+  }
+
+  return [...seen.values()].slice(0, 3);
+}
+
+function _extractNodeSkills(node) {
+  const skills = new Set();
+  if (!node) return skills;
+  const raw = node._raw || node;
+  [raw.skills, raw.interests, raw.themes].forEach(src => {
+    if (Array.isArray(src)) {
+      src.forEach(s => { if (typeof s === 'string' && s.trim()) skills.add(s.trim().toLowerCase()); });
+    } else if (typeof src === 'string' && src.trim()) {
+      src.split(',').forEach(s => { if (s.trim()) skills.add(s.trim().toLowerCase()); });
+    }
+  });
+  return skills;
 }
 
 /**
  * Get filter context for a node (used by node panel).
- * Returns { reason, detail } or null if no filter active or node not in active set.
+ * Returns { reason, detail, refs } or null if no filter active or node not in active set.
+ * `refs` (when present) is a list of { id, type, label } for entities — opportunities,
+ * projects — the caller can open a detail panel for.
  */
 export function getNodeFilterContext(nodeId) {
   return _nodeContext.get(nodeId) || null;
@@ -385,7 +423,7 @@ async function _loadEnrichmentData(userId) {
       // Opportunities
       supabase
         .from('opportunities')
-        .select('id, organization_id, skills')
+        .select('id, organization_id, skills, title')
         .then(r => r)
         .catch(() => ({ data: null })),
     ]);
@@ -408,52 +446,79 @@ async function _loadEnrichmentData(userId) {
       });
       _extra.projectCollaboratorIds = collaborators;
 
-      // Build per-user shared project name map for node context
-      const sharedProjectNames = new Map();
+      // Build per-user shared project ref map (id + title) for node context
+      const sharedProjects = new Map();
       const myProjIdArr = [...myProjectIds];
       if (myProjIdArr.length > 0) {
         const { data: projData } = await supabase
           .from('projects')
           .select('id, title')
           .in('id', myProjIdArr);
-        const projNameMap = new Map((projData || []).map(p => [p.id, p.title || 'Untitled']));
+        const projMap = new Map((projData || []).map(p => [p.id, p.title || 'Untitled']));
 
         // For each collaborator, find which projects they share
         projMembersRes.data.forEach(pm => {
           if (pm.user_id !== userId && myProjectIds.has(pm.project_id)) {
-            const name = projNameMap.get(pm.project_id);
-            if (name) {
-              if (!sharedProjectNames.has(pm.user_id)) sharedProjectNames.set(pm.user_id, []);
-              const arr = sharedProjectNames.get(pm.user_id);
-              if (!arr.includes(name)) arr.push(name);
+            const title = projMap.get(pm.project_id);
+            if (title) {
+              if (!sharedProjects.has(pm.user_id)) sharedProjects.set(pm.user_id, []);
+              const arr = sharedProjects.get(pm.user_id);
+              if (!arr.find(p => p.id === pm.project_id)) arr.push({ id: pm.project_id, title });
             }
           }
         });
       }
-      _extra._sharedProjectNames = sharedProjectNames;
+      _extra._sharedProjects = sharedProjects;
     }
 
-    // Opportunity-relevant IDs and skills
+    // Opportunity-relevant IDs, skills, and per-node opportunity refs
     if (oppsRes.data) {
       const oppSkills = new Set();
+      const oppSkillMap = new Map(); // skill -> [{ id, title }]
+      const orgOppMap = new Map();   // organization_id -> [{ id, title }]
+
       oppsRes.data.forEach(opp => {
+        const title = opp.title || 'Untitled opportunity';
+        const ref = { id: opp.id, title };
+
         if (Array.isArray(opp.skills)) {
-          opp.skills.forEach(s => { if (s) oppSkills.add(String(s).trim().toLowerCase()); });
+          opp.skills.forEach(s => {
+            if (!s) return;
+            const key = String(s).trim().toLowerCase();
+            if (!key) return;
+            oppSkills.add(key);
+            if (!oppSkillMap.has(key)) oppSkillMap.set(key, []);
+            oppSkillMap.get(key).push(ref);
+          });
+        }
+
+        if (opp.organization_id) {
+          if (!orgOppMap.has(opp.organization_id)) orgOppMap.set(opp.organization_id, []);
+          orgOppMap.get(opp.organization_id).push(ref);
         }
       });
       _extra.oppSkills = oppSkills;
+      _extra._oppSkillMap = oppSkillMap;
 
-      // Org IDs posting opportunities
-      const orgIds = new Set(oppsRes.data.map(o => o.organization_id).filter(Boolean));
-      // Resolve org members
-      if (orgIds.size > 0) {
+      // Resolve org members so each person can be linked back to their org's opportunities
+      const orgIds = [...orgOppMap.keys()];
+      if (orgIds.length > 0) {
         const { data: orgMembers } = await supabase
           .from('organization_members')
-          .select('community_id')
-          .in('organization_id', [...orgIds]);
+          .select('community_id, organization_id')
+          .in('organization_id', orgIds);
         const relevant = new Set();
-        (orgMembers || []).forEach(om => relevant.add(om.community_id));
+        const nodeOpportunities = new Map(); // community_id -> [{ id, title }]
+        (orgMembers || []).forEach(om => {
+          relevant.add(om.community_id);
+          const opps = orgOppMap.get(om.organization_id);
+          if (!opps || !opps.length) return;
+          if (!nodeOpportunities.has(om.community_id)) nodeOpportunities.set(om.community_id, []);
+          const arr = nodeOpportunities.get(om.community_id);
+          opps.forEach(o => { if (!arr.find(x => x.id === o.id)) arr.push(o); });
+        });
         _extra.oppRelevantIds = relevant;
+        _extra._orgOpportunities = nodeOpportunities;
       }
     }
 

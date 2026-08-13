@@ -302,12 +302,40 @@ function _injectFilterContextBanner(node) {
       margin: 0 1rem 0.5rem; padding: 0.5rem 0.75rem;
       background: ${color}12; border: 1px solid ${color}40;
       border-radius: 8px; font-size: 0.8rem; color: ${color};
-      display: flex; align-items: center; gap: 0.5rem;
+      display: flex; flex-direction: column; gap: 0.4rem;
     `;
-    banner.innerHTML = `
+
+    const hasClickableRefs = Array.isArray(ctx.refs) && ctx.refs.length > 0;
+    const reasonLine = document.createElement('div');
+    reasonLine.style.cssText = 'display:flex; align-items:center; gap:0.5rem;';
+    reasonLine.innerHTML = `
       <i class="fas fa-filter" style="opacity:0.7"></i>
-      <span><strong>${ctx.reason}</strong>${ctx.detail ? ' — ' + ctx.detail : ''}</span>
+      <span><strong>${_escapeHtmlLocal(ctx.reason)}</strong>${!hasClickableRefs && ctx.detail ? ' — ' + _escapeHtmlLocal(ctx.detail) : ''}</span>
     `;
+    banner.appendChild(reasonLine);
+
+    if (hasClickableRefs) {
+      const refRow = document.createElement('div');
+      refRow.style.cssText = 'display:flex; flex-wrap:wrap; gap:0.4rem; padding-left:1.4rem;';
+      ctx.refs.forEach(ref => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.textContent = ref.label;
+        chip.style.cssText = `
+          background: ${color}1c; border: 1px solid ${color}55; color: ${color};
+          border-radius: 12px; padding: 0.15rem 0.6rem; font-size: 0.75rem;
+          cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        `;
+        chip.title = `Open ${ref.type}: ${ref.label}`;
+        chip.addEventListener('click', () => {
+          if (typeof window.openNodePanel === 'function') {
+            window.openNodePanel({ id: ref.id, type: ref.type });
+          }
+        });
+        refRow.appendChild(chip);
+      });
+      banner.appendChild(refRow);
+    }
 
     // Insert after the close button / before the profile header
     const header = body.querySelector('div[style*="text-align: center"]');
@@ -317,6 +345,12 @@ function _injectFilterContextBanner(node) {
       body.prepend(banner);
     }
   }, 400); // Wait for panel async render
+}
+
+function _escapeHtmlLocal(s) {
+  const d = document.createElement('span');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
 }
 
 /**
