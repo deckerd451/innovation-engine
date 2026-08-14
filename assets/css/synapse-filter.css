@@ -130,6 +130,17 @@
     gap: 4px;
     padding: 3px 6px;
     top: 8px;
+    /* Right-anchor instead of centering: on narrow portrait viewports the
+       centered bar's bounding box overlaps the top-right mobile
+       notification/action button cluster (position:absolute; right:20px;
+       ~150px wide; z-index:1000, a sibling stacking context that always
+       paints above #synapse-filter-bar's z-index:50, which is trapped
+       inside #synapse-main-view's z-index:1 context). Anchoring the bar's
+       right edge 180px in (170px cluster footprint + 10px clearance)
+       keeps its auto width/shape unchanged and clears the overlap. */
+    left: auto;
+    right: 180px;
+    transform: none;
   }
   .synapse-filter-chip {
     padding: 4px 8px;
