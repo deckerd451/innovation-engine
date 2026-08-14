@@ -1,5 +1,7 @@
 # Mobile Navigation Removal & Console Error Fix
 
+> **Verification note (added by audit, historical content below unchanged):** This document's claims could not be verified against the repository's Git history. Specifically, `assets/js/remove-mobile-nav.js`, `assets/js/fix-image-errors.js`, and commit `17ab995a` do not appear anywhere in this repository's history, on any local or remote branch. The verified Git history instead shows the mobile tab bar was added in commit `70703d39` ("feat: Mobile nav cleanup + BLE integration") and removed in commit `c63a0d68` ("Remove mobile tab bar, refresh icon, move logout to command dashboard"), which is the change actually reflected in the current codebase.
+
 ## Changes Made
 
 ### 1. Aggressive Mobile Navigation Removal
