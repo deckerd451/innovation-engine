@@ -75,14 +75,19 @@ function createPanelElement() {
         transition: bottom 0.3s ease-out !important;
       }
 
+      /* Anchor the open panel above the fixed mobile tab bar (same height
+         formula as #mobile-tab-bar in base.css) instead of the true viewport
+         edge, so the tab bar (z-index:10000) doesn't sit on top of and
+         obscure the panel's (z-index:2000) bottom content/action buttons. */
       #node-side-panel.open {
-        bottom: 0 !important;
+        bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
       }
 
-      /* Graph occupies top 45dvh when the bottom sheet is open */
+      /* Graph occupies top 45dvh when the bottom sheet is open — reserve the
+         same extra tab-bar height so there's no gap between graph and panel. */
       body.node-panel-open #synapse-main-view {
-        bottom: 55vh !important;
-        bottom: 55dvh !important;
+        bottom: calc(55vh + 60px + env(safe-area-inset-bottom, 0px)) !important;
+        bottom: calc(55dvh + 60px + env(safe-area-inset-bottom, 0px)) !important;
         transition: bottom 0.3s ease-out !important;
       }
 

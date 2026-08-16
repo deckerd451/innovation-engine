@@ -1331,17 +1331,13 @@
         height: 40px;
       }
 
-      /* Mobile: Stack header badges vertically */
-      #main-content > div:first-child {
-        top: 10px !important;
-        left: 10px !important;
-      }
-
-      #main-content > div:first-child img {
-        height: 40px !important;
-      }
-
-      #main-content > div:nth-child(2) {
+      /* Mobile: Stack header badges vertically.
+         Targeted by stable id (not :first-child/:nth-child(2)) — the mobile
+         notification/action cluster (#mobile-header-actions) is #main-content's
+         actual first div child, so positional selectors previously matched it
+         with the wrong (left-anchored) rule and stretched its hit-testing box
+         across nearly the full viewport. */
+      #mobile-header-actions {
         top: 10px !important;
         right: 10px !important;
         flex-direction: column !important;
