@@ -167,6 +167,23 @@ export function initRealtimeCollaboration() {
     setupRealtimeChannels();
   });
 
+  // realtime-collaboration.js is loaded as a POST-AUTH module (see index.html's
+  // AUTH_MODULES loader), only after auth.js's boot-gate has already confirmed
+  // auth. auth.js's own 'profile-loaded' event (see auth.js's loadUserProfileOnce())
+  // fires exactly once, ~10ms after the profile resolves — almost always before
+  // this file has even finished downloading, so the listener above typically
+  // attaches too late to ever see it, leaving currentUserProfile stuck at null
+  // for the rest of the session (silently breaking sendDirectMessage() and
+  // presence/message subscriptions, with no visible error). auth.js also stores
+  // the resolved profile synchronously on window.currentUserProfile before
+  // dispatching that event, so pick it up directly here for the already-loaded
+  // case instead of waiting on an event that has already come and gone.
+  if (!currentUserProfile && window.currentUserProfile) {
+    currentUserProfile = window.currentUserProfile;
+    authUserId = currentUserProfile.user_id || null;
+    setupRealtimeChannels();
+  }
+
   console.log('✅ Real-time collaboration ready');
 }
 
