@@ -285,6 +285,11 @@ try {
       this._setupZoomBehavior();
       console.log('🔍 Zoom/pan behavior ready');
 
+      // 8c. Recenter the simulation on device rotation (see method's own
+      // header comment for why this is needed).
+      this._setupOrientationRecovery();
+      console.log('🔄 Orientation recovery wired');
+
       // 9. Initialize Interaction Handler
       this._interactionHandler.initialize(
         this._svg,
@@ -428,6 +433,12 @@ try {
     if (!this._initialized) return;
 
     console.log('🔄 Destroying Unified Network Discovery System');
+
+    // Remove orientation-recovery listener
+    if (this._onOrientationChange) {
+      window.removeEventListener('orientationchange', this._onOrientationChange);
+      this._onOrientationChange = null;
+    }
 
     // Stop physics loop
     if (this._physicsLoop) {
@@ -1044,6 +1055,57 @@ try {
     // Store for external access
     this._zoomBehavior = zoom;
     this._zoomContainer = zoomContainer;
+  }
+
+  /**
+   * Re-center the force simulation after a device rotation.
+   *
+   * The simulation's forceCenter target is computed once, from the SVG's
+   * bounding rect at the moment _getOrCreateSimulation() first runs, and is
+   * never updated after that (see that method). A landscape<->portrait
+   * rotation changes the SVG's aspect ratio drastically without moving that
+   * target, so nodes that scattered/settled around the OLD center can end
+   * up outside the NEW, differently-shaped SVG bounds — invisible (SVG
+   * clips to its own box by default) and unreachable by tap. That matches
+   * the reported "nodes become fewer and/or unresponsive after rotating
+   * landscape back to portrait" symptom.
+   *
+   * Fix: point the existing center force at the post-rotation midpoint and
+   * reheat the simulation so the graph's own existing physics (charge/
+   * collision/link — unchanged) settles nodes back inside view, rather than
+   * introducing a separate fit-to-view/zoom system.
+   * @private
+   */
+  _setupOrientationRecovery() {
+    if (!this._svg) return;
+
+    this._onOrientationChange = () => {
+      // orientationchange fires before iOS Safari finishes reflowing
+      // layout — same delay NodeRenderer's own viewport update already
+      // uses (see node-renderer.js) to read correct post-rotation
+      // dimensions.
+      setTimeout(() => {
+        const rect = this._svg?.getBoundingClientRect();
+        if (!rect || rect.width < 2 || rect.height < 2) return;
+
+        const centerForce = this._simulation?.force?.('center');
+        if (centerForce && typeof centerForce.x === 'function') {
+          centerForce.x(rect.width / 2).y(rect.height / 2);
+        }
+
+        if (this._simulation) {
+          this._simulation.alpha(0.3).restart();
+        }
+
+        // The physics tick + render loop only run while AnimationLifecycle
+        // is ACTIVE (see physics-loop.js) — a pure rotation with no touch
+        // afterward would otherwise leave this reheated simulation
+        // un-rendered.
+        window.AnimationLifecycle?.recordInteraction?.();
+      }, 200);
+    };
+
+    window.addEventListener('orientationchange', this._onOrientationChange);
   }
 
   /**
