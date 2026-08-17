@@ -904,9 +904,11 @@
         });
       }
 
-      wireKeyClick("btn-messages-mobile", () => {
-        if (typeof window.openMessagingInterface === 'function') {
-          window.openMessagingInterface();
+      wireKeyClick("btn-messages-mobile", async () => {
+        if (typeof window.openMessagesModal === 'function') {
+          await window.openMessagesModal();
+        } else if (typeof window.openMessagingInterface === 'function') {
+          await window.openMessagingInterface();
         }
       });
 
