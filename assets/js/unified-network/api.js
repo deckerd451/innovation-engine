@@ -642,7 +642,8 @@ try {
     console.log('🔄 Resetting to My Network state');
 
     // ✅ Clear focus when resetting to My Network
-    this.clearFocus();
+    this.clearNodeHighlight();
+    this.clearFocus({ source: 'full-reset' });
 
     this.emit('reset-to-my-network');
   }
@@ -650,7 +651,7 @@ try {
   /**
    * Clear current focus
    */
-  clearFocus() {
+  clearFocus(options = {}) {
     this._ensureInitialized();
 
     const previousFocus = this._stateManager.getState().currentFocusedNodeId;
@@ -660,7 +661,10 @@ try {
 
     this._stateManager.setFocusedNode(null);
     this._nodeRenderer?.setFocusedNode?.(null);
-    this.emit('focus-cleared', { previousNodeId: previousFocus });
+    this.emit('focus-cleared', {
+      previousNodeId: previousFocus,
+      source: options.source || null,
+    });
   }
 
   /**
@@ -1223,7 +1227,7 @@ try {
 
     // Background tapped - clear focus
     this._interactionHandler.on('background-clicked', () => {
-      this.clearFocus();
+      this.clearFocus({ source: 'background' });
     });
 
     // Node dismissed

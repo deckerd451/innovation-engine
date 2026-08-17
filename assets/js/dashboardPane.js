@@ -1273,8 +1273,11 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     } else if (type === 'organizations') {
       await coordinator?.selectContext?.('organization', { id: entity.id, label });
     } else if (type === 'opportunities') {
-      coordinator?.selectEntity?.({ type: 'opportunity', id: entity.id, label });
-      window.openNodePanel?.({ id: entity.id, type: 'opportunity', name: label });
+      if (coordinator?.selectOpportunity) {
+        await coordinator.selectOpportunity({ id: entity.id, label });
+      } else {
+        window.openNodePanel?.({ id: entity.id, type: 'opportunity', name: label });
+      }
     }
 
     const searchInput = $('global-search');

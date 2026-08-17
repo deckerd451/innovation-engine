@@ -314,6 +314,10 @@ export async function openNodePanel(nodeData) {
 
   // Load full data
   await loadNodeDetails(nodeData);
+
+  if (nodeData.type === 'person') {
+    window.SynapseFilter?.renderNodeContextBanner?.(nodeData.user_id || nodeData.id);
+  }
   
   // Update presence for this user (if it's a person)
   if (nodeData.type === 'person' && window.PresenceUI) {
@@ -337,6 +341,14 @@ export function closeNodePanel() {
   // Restore graph to full dimensions after the CSS transition
   setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
   currentNodeData = null;
+}
+
+export function getOpenNodePanelEntity() {
+  if (!currentNodeData) return null;
+  return {
+    type: currentNodeData.type || null,
+    id: currentNodeData.user_id || currentNodeData.id || null,
+  };
 }
 
 // Load complete node details
@@ -1853,6 +1865,7 @@ async function getSharedProjects(userId) {
 // Action handlers (these will be attached to window)
 window.closeNodePanel = closeNodePanel;
 window.openNodePanel = openNodePanel;
+window.getOpenNodePanelEntity = getOpenNodePanelEntity;
 window.initNodePanel = initNodePanel;
 
 // Open project details by calling openNodePanel with proper project structure

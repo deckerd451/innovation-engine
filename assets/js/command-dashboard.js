@@ -872,7 +872,6 @@ window.CommandDashboard = (() => {
           ? new Set([userId, ...acceptedPeers])
           : new Set([userId, ...directIds]);
         window.GraphController.highlightNodes([...ids]);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
 
@@ -891,7 +890,6 @@ window.CommandDashboard = (() => {
           return n && n.type === 'person';
         });
         window.GraphController.highlightNodes(weakPeopleIds);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
 
@@ -910,7 +908,6 @@ window.CommandDashboard = (() => {
           return n && n.type === 'person';
         });
         window.GraphController.highlightNodes(extendedPeopleIds);
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
 
@@ -927,7 +924,6 @@ window.CommandDashboard = (() => {
         });
         window.GraphController.highlightNodes(bridgeIds);
         _switchResourceTab('people');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
 
@@ -944,7 +940,6 @@ window.CommandDashboard = (() => {
           .map(n => n.id);
         window.GraphController.highlightNodes(allPeopleIds);
         _switchResourceTab('people');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
 
@@ -1041,39 +1036,33 @@ window.CommandDashboard = (() => {
     const opps = sections['opportunities_for_you'] || [];
     if (opps.length > 0) {
       const top = opps[0];
-      return {
+      return _mapInsightItem(top, {
         type: 'opportunity',
         headline: top.headline || 'New opportunity in your network',
         subhead: top.subhead || '',
-        nodeId: top.nodeId || null,
-        nodeType: top.nodeType || null,
-      };
+      });
     }
 
     // Priority 2: coordination signal
     const signals = sections['signals_moving'] || [];
     if (signals.length > 0) {
       const top = signals[0];
-      return {
+      return _mapInsightItem(top, {
         type: 'signal',
         headline: top.headline || 'Network movement detected',
         subhead: top.subhead || '',
-        nodeId: top.nodeId || null,
-        nodeType: top.nodeType || null,
-      };
+      });
     }
 
     // Priority 3: network pattern / reconnect nudge
     const patterns = sections['your_pattern'] || [];
     if (patterns.length > 0) {
       const top = patterns[0];
-      return {
+      return _mapInsightItem(top, {
         type: 'explore',
         headline: top.headline || 'Your network has something for you',
         subhead: top.subhead || '',
-        nodeId: top.nodeId || null,
-        nodeType: top.nodeType || null,
-      };
+      });
     }
 
     // Default fallback
@@ -1081,19 +1070,44 @@ window.CommandDashboard = (() => {
       type: 'explore',
       headline: 'Explore your network',
       subhead: 'Discover connections and opportunities',
-      nodeId: null,
-      nodeType: null,
+      ref: null,
+      whyKey: null,
+      whyText: '',
+      isFallback: true,
     };
   }
 
-  function _isInsightActionable({ nodeId, nodeType, action } = {}) {
-    if (action) return true;
-    if (nodeId) {
-      return _getGraphData().nodes.some(node =>
-        String(node.id) === String(nodeId) && node.type === 'person'
-      );
-    }
-    return nodeType === 'person';
+  function _normalizeInsightRef(ref) {
+    const typeMap = {
+      person: 'person', project: 'project', theme: 'theme',
+      org: 'organization', organization: 'organization', opportunity: 'opportunity',
+    };
+    const type = typeMap[String(ref?.nodeType || '').toLowerCase()];
+    const id = ref?.nodeId;
+    return type && id ? { type, id: String(id), label: ref.label || null } : null;
+  }
+
+  function _insightWhyText(whyKey, fallback = '') {
+    const why = window.__explainability?.getWhy?.(whyKey);
+    return why?.factors?.find(Boolean) || fallback || '';
+  }
+
+  function _mapInsightItem(item, overrides = {}) {
+    const primaryRefs = Array.isArray(item?.primary_refs) ? item.primary_refs : [];
+    const ref = primaryRefs.map(_normalizeInsightRef).find(Boolean) || null;
+    const whyKey = item?.why_key || null;
+    return {
+      ...overrides,
+      ref,
+      primaryRefs,
+      whyKey,
+      whyText: _insightWhyText(whyKey, overrides.subhead || item?.subhead || ''),
+      isFallback: false,
+    };
+  }
+
+  function _isInsightActionable({ ref, action } = {}) {
+    return !!(ref || action);
   }
 
   async function _renderInsights(tier) {
@@ -1123,19 +1137,19 @@ window.CommandDashboard = (() => {
       explore:     { label: 'Today',          cta: 'Explore',         action: 'focus-direct' },
     };
     const meta = LABEL_MAP[insight.type] || LABEL_MAP.explore;
-    const primaryAction = {
-      nodeId: insight.nodeId,
-      nodeType: insight.nodeType,
-      action: meta.action,
-    };
+    const primaryAction = { ref: insight.ref, action: insight.isFallback ? meta.action : null };
+    primary.dataset.whyKey = insight.whyKey || '';
 
     primary.innerHTML = `
       <div class="cd-focus-primary-label">${meta.label}</div>
       <div class="cd-focus-primary-text">${_escapeHtml(insight.headline)}</div>
+      ${insight.whyText ? `<div class="cd-focus-primary-subtext">${_escapeHtml(insight.whyText)}</div>` : ''}
       ${_isInsightActionable(primaryAction) ? `<button class="cd-focus-cta"
-        data-node-id="${_escapeHtml(insight.nodeId || '')}"
-        data-node-type="${_escapeHtml(insight.nodeType || '')}"
-        data-action="${meta.action || ''}">${meta.cta}</button>` : ''}
+        data-ref-id="${_escapeHtml(insight.ref?.id || '')}"
+        data-ref-type="${_escapeHtml(insight.ref?.type || '')}"
+        data-ref-label="${_escapeHtml(insight.ref?.label || '')}"
+        data-why-key="${_escapeHtml(insight.whyKey || '')}"
+        data-action="${primaryAction.action || ''}">${meta.cta}</button>` : ''}
     `;
 
     const ctaBtn = primary.querySelector('.cd-focus-cta');
@@ -1150,11 +1164,9 @@ window.CommandDashboard = (() => {
       const secondaryItems = sectionKeys
         .flatMap(key => {
           const items = briefSections[key] || [];
-          return items.slice(1).map(item => ({
+          return items.slice(1).map(item => _mapInsightItem(item, {
             text: item.headline || item.subhead || 'Network insight',
             cta: _ctaForSection(key),
-            nodeId: item.nodeId || null,
-            nodeType: item.nodeType || null,
           }));
         })
         .slice(0, 2);
@@ -1163,9 +1175,11 @@ window.CommandDashboard = (() => {
         secondary.style.display = '';
         secondary.innerHTML = secondaryItems.map(item => `
           <div class="cd-focus-secondary-item"
-            data-node-id="${_escapeHtml(item.nodeId || '')}"
-            data-node-type="${_escapeHtml(item.nodeType || '')}">
-            <span>${_escapeHtml(item.text)}</span>
+            data-ref-id="${_escapeHtml(item.ref?.id || '')}"
+            data-ref-type="${_escapeHtml(item.ref?.type || '')}"
+            data-ref-label="${_escapeHtml(item.ref?.label || '')}"
+            data-why-key="${_escapeHtml(item.whyKey || '')}">
+            <span>${_escapeHtml(item.text)}${item.whyText ? `<small>${_escapeHtml(item.whyText)}</small>` : ''}</span>
             ${_isInsightActionable(item) ? `<button class="cd-focus-cta">${_escapeHtml(item.cta)}</button>` : ''}
           </div>
         `).join('');
@@ -1184,21 +1198,26 @@ window.CommandDashboard = (() => {
     _autoOpenFirstSection();
   }
 
-  function _handleFocusCta(el) {
-    const nodeId   = el.dataset.nodeId;
-    const nodeType = el.dataset.nodeType;
+  async function _handleFocusCta(el) {
+    const refId    = el.dataset.refId;
+    const refType  = el.dataset.refType;
+    const refLabel = el.dataset.refLabel || null;
     const action   = el.dataset.action;
-    if (nodeId && window.GraphController) {
-      window.GraphController.focusNode(nodeId);
-    } else if (nodeType === 'person' && window.GraphController?.highlightNodes) {
-      const personIds = _getGraphData().nodes.filter(n => n.type === 'person').map(n => n.id);
-      window.GraphController.highlightNodes(personIds);
+    const coordinator = window.ExplorerCoordinator;
+
+    if (refId && refType === 'person') {
+      _switchResourceTab('people');
+      const node = _getGraphData().nodes.find(n => String(n.id) === String(refId));
+      coordinator?.selectPerson?.({ id: refId, label: refLabel || node?.name, node });
+    } else if (refId && ['project', 'theme', 'organization'].includes(refType)) {
+      const modes = { project: 'projects', theme: 'themes', organization: 'organizations' };
+      _switchResourceTab(modes[refType]);
+      await coordinator?.selectContext?.(refType, { id: refId, label: refLabel || refId });
+    } else if (refId && refType === 'opportunity') {
+      _switchResourceTab('opportunities');
+      await coordinator?.selectOpportunity?.({ id: refId, label: refLabel });
     } else if (action) {
       _onStatClick(action);
-    } else if (window.UnifiedNotifications?.showPanel) {
-      window.UnifiedNotifications.showPanel();
-    } else if (window.GraphController) {
-      window.GraphController.resetToTierDefault();
     }
   }
 
@@ -1303,6 +1322,13 @@ window.CommandDashboard = (() => {
             if (window.SynapseContext) window.SynapseContext.setOrg(id, name);
             if (window.openNodePanel) window.openNodePanel({ id, type: 'organization' });
           }
+        } else if (_activeResourceTab === 'opportunities') {
+          const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || null;
+          if (window.ExplorerCoordinator?.selectOpportunity) {
+            window.ExplorerCoordinator.selectOpportunity({ id, label: name });
+          } else {
+            _openPanelForNode(id, 'opportunity');
+          }
         } else if (window.openNodePanel) {
           window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }
@@ -1341,6 +1367,13 @@ window.CommandDashboard = (() => {
           else {
             if (window.SynapseContext) window.SynapseContext.setOrg(id, name);
             if (window.openNodePanel) window.openNodePanel({ id, type: 'organization' });
+          }
+        } else if (_activeResourceTab === 'opportunities') {
+          const name = row.querySelector('.udc-resource-name')?.textContent || null;
+          if (window.ExplorerCoordinator?.selectOpportunity) {
+            window.ExplorerCoordinator.selectOpportunity({ id, label: name });
+          } else {
+            _openPanelForNode(id, 'opportunity');
           }
         } else if (window.openNodePanel) {
           window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
@@ -1498,8 +1531,8 @@ window.CommandDashboard = (() => {
         icon: 'fa-lightbulb',
         msg: 'No themes in view',
         hint: 'Themes group projects by focus area',
-        cta: 'Explore Themes',
-        action: () => window.GraphController?.highlightNodes?.('theme'),
+        cta: null,
+        action: null,
       },
       organizations: {
         icon: 'fa-building',

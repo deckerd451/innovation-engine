@@ -24,6 +24,8 @@ window.GraphController = (() => {
   let _currentTier = 3;
   let _userId = null;
   let _initialized = false;
+  let _highlightGeneration = 0;
+  let _highlightTimer = null;
 
   function _api() {
     return window.unifiedNetworkIntegration?.api || null;
@@ -71,14 +73,39 @@ window.GraphController = (() => {
     }
   }
 
-  function highlightNodes(ids) {
+  function clearHighlight() {
+    _highlightGeneration += 1;
+    if (_highlightTimer) {
+      clearTimeout(_highlightTimer);
+      _highlightTimer = null;
+    }
+    const api = _api();
+    if (api?.isInitialized?.()) api.clearNodeHighlight?.();
+  }
+
+  function highlightNodes(ids, { duration = 3000 } = {}) {
     if (!Array.isArray(ids)) {
       console.warn('[GraphController] highlightNodes requires an array of person IDs');
       return false;
     }
     const api = _api();
     if (!api || typeof api.highlightNodes !== 'function') return false;
-    return api.highlightNodes(ids);
+    const applied = api.highlightNodes(ids);
+    if (!applied) return false;
+
+    const generation = ++_highlightGeneration;
+    if (_highlightTimer) clearTimeout(_highlightTimer);
+    _highlightTimer = setTimeout(() => {
+      if (generation !== _highlightGeneration) return;
+      _highlightTimer = null;
+      api.clearNodeHighlight?.();
+    }, Math.max(1, duration));
+    return true;
+  }
+
+  function clearFocus(options = {}) {
+    const api = _api();
+    if (api?.isInitialized?.()) api.clearFocus?.(options);
   }
 
   function dimByTier(tierLevel) {
@@ -86,8 +113,7 @@ window.GraphController = (() => {
   }
 
   function resetToTierDefault() {
-    const api = _api();
-    if (api?.isInitialized?.()) api.clearNodeHighlight?.();
+    clearHighlight();
     setTier(_currentTier);
   }
 
@@ -131,6 +157,8 @@ window.GraphController = (() => {
     focusNode,
     focusNeighborhood,
     highlightNodes,
+    clearHighlight,
+    clearFocus,
     dimByTier,
     resetToTierDefault,
     getCurrentTier,

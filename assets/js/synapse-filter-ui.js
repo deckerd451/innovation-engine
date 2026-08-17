@@ -160,11 +160,15 @@ function _applyCurrentFilter() {
   // --- Context lens integration ---
   // If a context lens is active, narrow the highlighted set to context members.
   const ctx = getContext();
-  if (ctx.type && ctx.memberIds && ctx.memberIds.size > 0) {
+  if (ctx.type && ctx.memberIds instanceof Set) {
     const contextIds = ctx.memberIds;
     const allNodeIds = new Set(nodes.map(n => n.id));
 
-    if (mode !== FILTER_MODES.ALL) {
+    if (contextIds.size === 0) {
+      // A successfully resolved empty context is an honest empty graph result,
+      // not permission to fall back to the unfiltered network.
+      filtered.activeNodeIds = new Set();
+    } else if (mode !== FILTER_MODES.ALL) {
       // Intersect filter + context
       const intersected = new Set();
       filtered.activeNodeIds.forEach(id => {
@@ -205,7 +209,7 @@ function _applyCurrentFilter() {
   window.__synapseFilterState = filtered;
 
   // Build per-node explanation context
-  _buildNodeContext(filtered.mode === '__context' ? '__context' : mode, nodes, filtered.activeNodeIds);
+  _buildNodeContext(filtered.mode === '__context' ? '__context' : mode, nodes, filtered.activeNodeIds, ctx);
 
   // Update header
   if (ctx.type) {
@@ -263,7 +267,7 @@ function _updateAllChipCounts() {
 // Per-node explanation context
 // ----------------------------------------------------------------
 
-function _buildNodeContext(mode, nodes, activeNodeIds) {
+function _buildNodeContext(mode, nodes, activeNodeIds, ctx = {}) {
   _nodeContext.clear();
   if (mode === FILTER_MODES.ALL) return;
 
@@ -275,7 +279,15 @@ function _buildNodeContext(mode, nodes, activeNodeIds) {
     let reason = '';
     let detail = '';
 
-    switch (mode) {
+    if (ctx.type) {
+      const labels = {
+        project: 'Project member',
+        organization: 'Organization member',
+        theme: 'Matches theme',
+      };
+      reason = labels[ctx.type] || 'Matches active context';
+      detail = ctx.name || '';
+    } else switch (mode) {
       case FILTER_MODES.CONNECTED:
         reason = 'Accepted connection';
         break;
@@ -307,6 +319,35 @@ function _buildNodeContext(mode, nodes, activeNodeIds) {
  */
 export function getNodeFilterContext(nodeId) {
   return _nodeContext.get(nodeId) || null;
+}
+
+/** Render the existing filter/context reason for any person-panel entry path. */
+export function renderNodeContextBanner(nodeId) {
+  const panel = document.getElementById('node-panel');
+  const body = panel?.querySelector('.node-panel-body');
+  if (!body) return;
+
+  body.querySelector('.synapse-filter-context-banner')?.remove();
+  const ctx = getNodeFilterContext(nodeId);
+  if (!ctx) return;
+
+  const color = window.__synapseFilterState?.visuals?.glowColor || '#00e0ff';
+  const banner = document.createElement('div');
+  banner.className = 'synapse-filter-context-banner';
+  banner.style.cssText = `
+    margin: 0 1rem 0.5rem; padding: 0.5rem 0.75rem;
+    background: ${color}12; border: 1px solid ${color}40;
+    border-radius: 8px; font-size: 0.8rem; color: ${color};
+    display: flex; align-items: center; gap: 0.5rem;
+  `;
+  banner.innerHTML = `
+    <i class="fas fa-filter" style="opacity:0.7"></i>
+    <span><strong>${_escapeHtmlSimple(ctx.reason)}</strong>${ctx.detail ? ` — ${_escapeHtmlSimple(ctx.detail)}` : ''}</span>
+  `;
+
+  const header = body.querySelector('div[style*="text-align: center"]');
+  if (header) body.insertBefore(banner, header);
+  else body.prepend(banner);
 }
 
 // ----------------------------------------------------------------
@@ -485,4 +526,5 @@ window.SynapseFilter = {
   set: setSynapseFilter,
   modes: FILTER_MODES,
   getNodeContext: getNodeFilterContext,
+  renderNodeContextBanner,
 };

@@ -23,6 +23,7 @@ export class NodeRenderer {
     this._viewport = { width: window.innerWidth, height: window.innerHeight };
     this._cullingMargin = 100;
     this._highlightedNodeIds = null;
+    this._lastEdges = [];
 
     // Throttled logging state
     this._lastLogTime = 0;
@@ -210,6 +211,7 @@ export class NodeRenderer {
    */
   renderLinks(edges) {
     if (!this._linkGroup || !edges) return;
+    this._lastEdges = edges;
 
     // Filter out project_membership edges (projects no longer in graph)
     const graphEdges = edges.filter(d => d.type !== 'project_membership');
@@ -244,6 +246,8 @@ export class NodeRenderer {
     // Apply filter-aware opacity/stroke on every tick so filtered edge state persists.
     const filterState = window.__synapseFilterState;
     const hasFilter = filterState && filterState.mode !== 'all';
+    const hasHighlight = this._highlightedNodeIds?.size > 0;
+    const highlightedNodeIds = this._highlightedNodeIds;
 
     linkMerge
       .attr('x1', d => d.source?.x ?? 0)
@@ -251,14 +255,18 @@ export class NodeRenderer {
       .attr('x2', d => d.target?.x ?? 0)
       .attr('y2', d => d.target?.y ?? 0);
 
-    if (hasFilter) {
-      const edgeColor = filterState.visuals?.edgeColor || 'rgba(0, 224, 255, 0.55)';
+    if (hasFilter || hasHighlight) {
+      const edgeColor = filterState?.visuals?.edgeColor || 'rgba(0, 224, 255, 0.55)';
       linkMerge.each(function (d) {
         const s = d.source?.id ?? d.source;
         const t = d.target?.id ?? d.target;
         const key = `${s}-${t}`;
         const el = window.d3.select(this);
-        if (filterState.activeEdgeKeys.has(key)) {
+        const filterActive = !hasFilter || filterState.activeEdgeKeys.has(key);
+        const highlightActive = !hasHighlight || (
+          highlightedNodeIds.has(String(s)) && highlightedNodeIds.has(String(t))
+        );
+        if (filterActive && highlightActive) {
           el.style('opacity', 0.7)
             .style('stroke-width', '1.8px')
             .attr('stroke', edgeColor);
@@ -268,6 +276,13 @@ export class NodeRenderer {
             .attr('stroke', 'rgba(255,255,255,0.05)');
         }
       });
+    } else {
+      linkMerge
+        .style('opacity', null)
+        .style('stroke-width', null)
+        .attr('stroke', d => d.type === 'connection'
+          ? 'rgba(0, 224, 255, 0.25)'
+          : 'rgba(255, 255, 255, 0.1)');
     }
   }
 
@@ -405,6 +420,10 @@ export class NodeRenderer {
     const _fs = window.__synapseFilterState;
     const _hasFilter = _fs && _fs.mode !== 'all';
     const _filterVisuals = _hasFilter ? _fs.visuals : null;
+    const _hasHighlight = this._highlightedNodeIds?.size > 0;
+    const _isActive = d =>
+      (!_hasFilter || _fs.activeNodeIds.has(d.id)) &&
+      (!_hasHighlight || this._highlightedNodeIds.has(String(d.id)));
 
     nodeMerge.select('.node-circle')
       .attr('r', d => {
@@ -413,15 +432,17 @@ export class NodeRenderer {
       })
       .attr('fill', d => d.color || '#4488ff')
       .attr('stroke', d => {
+        if ((_hasFilter || _hasHighlight) && !_isActive(d)) return 'rgba(255,255,255,0.15)';
         if (d.isCurrentUser) return '#00e0ff';
         if (_hasFilter && _filterVisuals) {
-          return _fs.activeNodeIds.has(d.id) ? _filterVisuals.strokeColor : 'rgba(255,255,255,0.15)';
+          return _isActive(d) ? _filterVisuals.strokeColor : 'rgba(255,255,255,0.15)';
         }
         return d.isGuided ? '#00ffff' : '#ffffff';
       })
       .attr('stroke-width', d => {
+        if ((_hasFilter || _hasHighlight) && !_isActive(d)) return 1;
         if (d.isCurrentUser) return 3;
-        if (_hasFilter && _filterVisuals && _fs.activeNodeIds.has(d.id)) return 2.5;
+        if (_hasFilter && _filterVisuals && _isActive(d)) return 2.5;
         return d.isGuided ? 3 : 1;
       });
 
@@ -430,11 +451,11 @@ export class NodeRenderer {
       .attr('r', d => {
         const visualState = this.getVisualState(d, state);
         // Slightly larger halo for filter-active nodes
-        if (_hasFilter && _fs.activeNodeIds.has(d.id)) return visualState.radius * 1.5;
+        if (_hasFilter && _isActive(d)) return visualState.radius * 1.5;
         return visualState.radius * 1.2;
       })
       .attr('fill', d => {
-        if (_hasFilter && _filterVisuals && _fs.activeNodeIds.has(d.id)) {
+        if (_hasFilter && _filterVisuals && _isActive(d)) {
           return _filterVisuals.glowColor;
         }
         const visualState = this.getVisualState(d, state);
@@ -442,7 +463,7 @@ export class NodeRenderer {
       })
       .attr('opacity', d => {
         if (_hasFilter) {
-          return _fs.activeNodeIds.has(d.id) ? 0.55 : 0;
+          return _isActive(d) ? 0.55 : 0;
         }
         const visualState = this.getVisualState(d, state);
         return visualState.glowIntensity;
@@ -517,11 +538,13 @@ export class NodeRenderer {
   setHighlightedNodes(nodeIds) {
     this._highlightedNodeIds = new Set((nodeIds || []).map(String));
     this._applyHighlightOpacity();
+    this.renderLinks(this._lastEdges);
   }
 
   clearHighlightedNodes() {
     this._highlightedNodeIds = null;
     this._applyHighlightOpacity();
+    this.renderLinks(this._lastEdges);
   }
 
   _applyHighlightOpacity() {

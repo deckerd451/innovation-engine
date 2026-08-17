@@ -83,24 +83,49 @@ function selectPerson({ id, label, node = null } = {}, options = {}) {
   }
 }
 
-async function selectContext(type, { id, label } = {}, options = {}) {
-  if (!['project', 'theme', 'organization'].includes(type) || !id) return;
+async function selectOpportunity({ id, label } = {}, options = {}) {
+  if (!id) return false;
 
+  if (window.SynapseContext?.has?.()) window.SynapseContext.clear();
+  window.GraphController?.clearFocus?.({ source: 'opportunity-selection' });
+
+  _state.focusedPersonId = null;
+  _state.selectedEntity = _entity('opportunity', id, label);
+  _emit('opportunity-selected');
+
+  if (options.openPanel !== false && typeof window.openNodePanel === 'function') {
+    await window.openNodePanel({ id, type: 'opportunity', name: label });
+  }
+  return true;
+}
+
+async function selectContext(type, { id, label } = {}, options = {}) {
+  if (!['project', 'theme', 'organization'].includes(type) || !id) return false;
+
+  const previousEntity = { ..._state.selectedEntity };
   const entity = _entity(type, id, label);
   _state.selectedEntity = entity;
   _emit('context-selected');
 
-  if (type === 'theme') {
-    window.SynapseContext?.setTheme?.(label || id, id);
-  } else if (type === 'project') {
-    await window.SynapseContext?.setProject?.(id, label);
-  } else {
-    await window.SynapseContext?.setOrg?.(id, label);
+  try {
+    if (type === 'theme') {
+      window.SynapseContext?.setTheme?.(label || id, id);
+    } else if (type === 'project') {
+      await window.SynapseContext?.setProject?.(id, label);
+    } else {
+      await window.SynapseContext?.setOrg?.(id, label);
+    }
+  } catch (error) {
+    _state.selectedEntity = previousEntity;
+    _emit('context-selection-failed');
+    console.error(`[ExplorerCoordinator] ${type} context resolution failed:`, error);
+    return false;
   }
 
   if (options.openPanel !== false && type !== 'theme' && typeof window.openNodePanel === 'function') {
     window.openNodePanel({ id, type, name: label });
   }
+  return true;
 }
 
 // Called by SynapseContext for both set and clear operations.
@@ -161,6 +186,7 @@ window.ExplorerCoordinator = {
   setActiveMode,
   selectEntity,
   selectPerson,
+  selectOpportunity,
   selectContext,
   syncContext,
   syncFocusedPerson,
@@ -174,6 +200,7 @@ export {
   setActiveMode,
   selectEntity,
   selectPerson,
+  selectOpportunity,
   selectContext,
   syncContext,
   syncFocusedPerson,

@@ -45,12 +45,14 @@ export function clearContext() {
  */
 export async function setProjectContext(projectId, projectName) {
   const supabase = window.supabase;
-  if (!supabase || !projectId) return;
+  if (!supabase || !projectId) throw new Error('Project context is unavailable');
 
   const { data, error } = await supabase
     .from('project_members')
     .select('user_id')
     .eq('project_id', projectId);
+
+  if (error) throw new Error(error.message || 'Project member query failed');
 
   const memberIds = new Set((data || []).map(d => d.user_id).filter(Boolean));
 
@@ -69,12 +71,14 @@ export async function setProjectContext(projectId, projectName) {
  */
 export async function setOrgContext(orgId, orgName) {
   const supabase = window.supabase;
-  if (!supabase || !orgId) return;
+  if (!supabase || !orgId) throw new Error('Organization context is unavailable');
 
   const { data, error } = await supabase
     .from('organization_members')
     .select('community_id')
     .eq('organization_id', orgId);
+
+  if (error) throw new Error(error.message || 'Organization member query failed');
 
   const memberIds = new Set((data || []).map(d => d.community_id).filter(Boolean));
 
