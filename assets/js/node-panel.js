@@ -2231,7 +2231,7 @@ window.removeConnectionFromPanel = async function(connectionId) {
 
 window.openMessageForUser = async function(userId) {
   try {
-    console.log('📨 Opening message for user:', userId);
+    console.log('[MSG-NODE-ROUTE 20260816a] Opening maintained MessagingModule path for:', userId);
     closeNodePanel();
 
     // Use the maintained MessagingModule modal path. This is the same UI
