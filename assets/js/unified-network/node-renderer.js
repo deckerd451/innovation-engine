@@ -22,6 +22,7 @@ export class NodeRenderer {
     this._linkGroup = null;
     this._viewport = { width: window.innerWidth, height: window.innerHeight };
     this._cullingMargin = 100;
+    this._highlightedNodeIds = null;
 
     // Throttled logging state
     this._lastLogTime = 0;
@@ -387,8 +388,12 @@ export class NodeRenderer {
       // If a filter is active, override opacity based on the filter's active/dim sets.
       // This runs every tick so the filter persists across simulation updates.
       const filterState = window.__synapseFilterState;
-      if (filterState && filterState.mode !== 'all') {
-        const isActive = filterState.activeNodeIds.has(d.id);
+      const hasFilter = filterState && filterState.mode !== 'all';
+      const hasHighlight = this._highlightedNodeIds?.size > 0;
+      if (hasFilter || hasHighlight) {
+        const filterActive = !hasFilter || filterState.activeNodeIds.has(d.id);
+        const highlightActive = !hasHighlight || this._highlightedNodeIds.has(String(d.id));
+        const isActive = filterActive && highlightActive;
         element.style.opacity = isActive ? 1.0 : 0.08;
       } else {
         element.style.opacity = visualState.opacity;
@@ -506,6 +511,29 @@ export class NodeRenderer {
     if (!this._nodeGroup) return;
     this._nodeGroup.selectAll('.node')
       .classed('is-focused', d => !!nodeId && d.id === nodeId);
+  }
+
+  /** Apply a transient people-ID highlight, intersecting with active filters. */
+  setHighlightedNodes(nodeIds) {
+    this._highlightedNodeIds = new Set((nodeIds || []).map(String));
+    this._applyHighlightOpacity();
+  }
+
+  clearHighlightedNodes() {
+    this._highlightedNodeIds = null;
+    this._applyHighlightOpacity();
+  }
+
+  _applyHighlightOpacity() {
+    if (!this._nodeGroup) return;
+    const filterState = window.__synapseFilterState;
+    const hasFilter = filterState && filterState.mode !== 'all';
+    const hasHighlight = this._highlightedNodeIds?.size > 0;
+    this._nodeGroup.selectAll('.node').style('opacity', d => {
+      const filterActive = !hasFilter || filterState.activeNodeIds.has(d.id);
+      const highlightActive = !hasHighlight || this._highlightedNodeIds.has(String(d.id));
+      return filterActive && highlightActive ? 1 : (hasFilter || hasHighlight ? 0.08 : null);
+    });
   }
 
   /**

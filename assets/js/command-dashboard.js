@@ -152,7 +152,6 @@ window.CommandDashboard = (() => {
     _wireTierButtons();
     _wireResourceTabs();
     _wireAddButton();
-    _wireDeepActionsToggle();
     _wireInsightsToggle();
     _wireExploreToggle();
     _wireStatusPillClicks();
@@ -680,20 +679,22 @@ window.CommandDashboard = (() => {
       projects = _enrichedData.activeProjectIds ? _enrichedData.activeProjectIds.size : 0;
     }
 
-    // Themes still come from graph (theme nodes remain)
-    const themes = nodes.filter(n => n.type === 'theme' || n.type === 'themeCircle').length;
+    // Themes use the same authoritative collection as the Explore list.
+    // null means loading/unavailable; an empty loaded collection is a real zero.
+    const themes = Array.isArray(_enrichedData.themes) ? _enrichedData.themes.length : null;
 
     // Opportunities: from Supabase (no longer in graph)
     const opps = _enrichedData.opportunities ? _enrichedData.opportunities.length : 0;
 
-    const setVal = (id, val) => {
+    const setVal = (id, val, { showZero = false } = {}) => {
       const el = $id(id);
-      if (el) el.textContent = val > 0 ? val : '—';
+      if (!el) return;
+      el.textContent = val == null ? '—' : (val > 0 || showZero ? val : '—');
     };
 
     setVal('cd-stat-connections',   connections);
     setVal('cd-stat-projects',      projects);
-    setVal('cd-stat-themes',        themes);
+    setVal('cd-stat-themes',        themes, { showZero: true });
     setVal('cd-stat-opportunities', opps);
   }
 
@@ -931,19 +932,8 @@ window.CommandDashboard = (() => {
       }
 
       case 'focus-adj-projects': {
-        // Highlight projects adjacent to any of the user's direct connections
-        const adjProjectIds = nodes
-          .filter(n => {
-            if (n.type !== 'project') return false;
-            return links.some(l => {
-              const s = edgeSrc(l), t = edgeTgt(l);
-              return (s === n.id && directIds.has(t)) || (t === n.id && directIds.has(s));
-            });
-          })
-          .map(n => n.id);
-        window.GraphController.highlightNodes(adjProjectIds);
+        // Projects are sidebar/context entities, not graph nodes.
         _switchResourceTab('projects');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
 
@@ -959,28 +949,14 @@ window.CommandDashboard = (() => {
       }
 
       case 'show-all-projects': {
-        // Highlight active/open project nodes only (falls back to all projects)
-        const activeIds = _enrichedData.activeProjectIds;
-        const allProjectIds = nodes
-          .filter(n => {
-            if (n.type !== 'project') return false;
-            return !activeIds || activeIds.has(n.id);
-          })
-          .map(n => n.id);
-        window.GraphController.highlightNodes(allProjectIds);
+        // Projects are represented in Explore; keep the people-only graph intact.
         _switchResourceTab('projects');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
 
       case 'focus-projects': {
-        // Highlight projects the user is a member of
-        const myProjectIds = _enrichedData.myProjectIds;
-        if (myProjectIds && myProjectIds.size > 0) {
-          window.GraphController.highlightNodes([...myProjectIds]);
-        }
+        // Project status opens the authoritative project list.
         _switchResourceTab('projects');
-        setTimeout(() => window.GraphController.resetToTierDefault(), 3000);
         break;
       }
 
@@ -1110,6 +1086,16 @@ window.CommandDashboard = (() => {
     };
   }
 
+  function _isInsightActionable({ nodeId, nodeType, action } = {}) {
+    if (action) return true;
+    if (nodeId) {
+      return _getGraphData().nodes.some(node =>
+        String(node.id) === String(nodeId) && node.type === 'person'
+      );
+    }
+    return nodeType === 'person';
+  }
+
   async function _renderInsights(tier) {
     const primary   = $id('cd-insights-primary');
     const secondary = $id('cd-insights-secondary');
@@ -1137,14 +1123,19 @@ window.CommandDashboard = (() => {
       explore:     { label: 'Today',          cta: 'Explore',         action: 'focus-direct' },
     };
     const meta = LABEL_MAP[insight.type] || LABEL_MAP.explore;
+    const primaryAction = {
+      nodeId: insight.nodeId,
+      nodeType: insight.nodeType,
+      action: meta.action,
+    };
 
     primary.innerHTML = `
       <div class="cd-focus-primary-label">${meta.label}</div>
       <div class="cd-focus-primary-text">${_escapeHtml(insight.headline)}</div>
-      <button class="cd-focus-cta"
+      ${_isInsightActionable(primaryAction) ? `<button class="cd-focus-cta"
         data-node-id="${_escapeHtml(insight.nodeId || '')}"
         data-node-type="${_escapeHtml(insight.nodeType || '')}"
-        data-action="${meta.action || ''}">${meta.cta}</button>
+        data-action="${meta.action || ''}">${meta.cta}</button>` : ''}
     `;
 
     const ctaBtn = primary.querySelector('.cd-focus-cta');
@@ -1175,7 +1166,7 @@ window.CommandDashboard = (() => {
             data-node-id="${_escapeHtml(item.nodeId || '')}"
             data-node-type="${_escapeHtml(item.nodeType || '')}">
             <span>${_escapeHtml(item.text)}</span>
-            <button class="cd-focus-cta">${_escapeHtml(item.cta)}</button>
+            ${_isInsightActionable(item) ? `<button class="cd-focus-cta">${_escapeHtml(item.cta)}</button>` : ''}
           </div>
         `).join('');
         secondary.querySelectorAll('.cd-focus-secondary-item').forEach(row => {
@@ -1199,8 +1190,9 @@ window.CommandDashboard = (() => {
     const action   = el.dataset.action;
     if (nodeId && window.GraphController) {
       window.GraphController.focusNode(nodeId);
-    } else if (nodeType && window.GraphController?.highlightNodes) {
-      window.GraphController.highlightNodes(nodeType);
+    } else if (nodeType === 'person' && window.GraphController?.highlightNodes) {
+      const personIds = _getGraphData().nodes.filter(n => n.type === 'person').map(n => n.id);
+      window.GraphController.highlightNodes(personIds);
     } else if (action) {
       _onStatClick(action);
     } else if (window.UnifiedNotifications?.showPanel) {
@@ -1567,18 +1559,6 @@ window.CommandDashboard = (() => {
       } else {
         _openAddForm(_activeResourceTab);
       }
-    });
-  }
-
-  /** Wire the Deep Actions collapsible toggle */
-  function _wireDeepActionsToggle() {
-    const toggle  = $id('cd-deep-toggle');
-    const content = $id('cd-deep-content');
-    if (!toggle || !content) return;
-    toggle.addEventListener('click', () => {
-      const expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-      content.hidden = expanded;
     });
   }
 

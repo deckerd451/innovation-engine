@@ -72,8 +72,13 @@ window.GraphController = (() => {
   }
 
   function highlightNodes(ids) {
-    // No-op: unified network handles highlighting internally
-    console.log('[GraphController] highlightNodes delegated to unified network');
+    if (!Array.isArray(ids)) {
+      console.warn('[GraphController] highlightNodes requires an array of person IDs');
+      return false;
+    }
+    const api = _api();
+    if (!api || typeof api.highlightNodes !== 'function') return false;
+    return api.highlightNodes(ids);
   }
 
   function dimByTier(tierLevel) {
@@ -81,6 +86,8 @@ window.GraphController = (() => {
   }
 
   function resetToTierDefault() {
+    const api = _api();
+    if (api?.isInitialized?.()) api.clearNodeHighlight?.();
     setTier(_currentTier);
   }
 

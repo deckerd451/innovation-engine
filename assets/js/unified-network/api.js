@@ -585,6 +585,23 @@ try {
     this.emit('node-focused', { nodeId, options });
   }
 
+  /** Temporarily highlight a supplied set of person nodes without changing filters. */
+  highlightNodes(nodeIds) {
+    this._ensureInitialized();
+    const ids = new Set((nodeIds || []).map(String));
+    const personIds = this._graphDataStore.getAllNodes()
+      .filter(node => node.type === 'person' && ids.has(String(node.id)))
+      .map(node => node.id);
+    if (personIds.length === 0) return false;
+    this._nodeRenderer.setHighlightedNodes(personIds);
+    return true;
+  }
+
+  clearNodeHighlight() {
+    this._ensureInitialized();
+    this._nodeRenderer.clearHighlightedNodes();
+  }
+
   /**
    * Center on current user node
    */
