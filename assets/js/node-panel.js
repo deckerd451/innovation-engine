@@ -2719,6 +2719,7 @@ window.viewProjectDetails = async function(projectId) {
   const rel = window.ProjectRelationship
     ? window.ProjectRelationship.getProjectRelationshipState(project, communityUserId, userMembership)
     : { state: 'viewer', membership: null, isCreator: false, hasPendingRequest: false };
+  const canViewTasks = rel.isCreator || rel.state === 'member';
 
   // --- Build action buttons based on relationship state ---
   let actionsHTML = '';
@@ -2860,7 +2861,7 @@ window.viewProjectDetails = async function(projectId) {
       <!-- Tabs -->
       <div id="pd-tabs" role="tablist" aria-label="Project sections" style="display:flex; gap:0.4rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); flex-wrap:wrap;">
         <button type="button" class="pd-tab-btn" data-tab="overview" role="tab" aria-selected="true" style="background:none; border:none; border-bottom:2px solid #ff6b6b; color:#ff6b6b; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Overview</button>
-        <button type="button" class="pd-tab-btn" data-tab="tasks" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>
+        ${canViewTasks ? '<button type="button" class="pd-tab-btn" data-tab="tasks" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>' : ''}
         <button type="button" class="pd-tab-btn" data-tab="people" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">People</button>
         <button type="button" class="pd-tab-btn" data-tab="activity" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Activity</button>
       </div>
@@ -2888,8 +2889,7 @@ window.viewProjectDetails = async function(projectId) {
         ` : ''}
       </div>
 
-      <!-- Tasks tab -->
-      <div id="pd-tab-tasks" role="tabpanel" style="display:none;"></div>
+      ${canViewTasks ? '<!-- Tasks tab --><div id="pd-tab-tasks" role="tabpanel" style="display:none;"></div>' : ''}
 
       <!-- People tab -->
       <div id="pd-tab-people" role="tabpanel" style="display:none;">
@@ -2940,7 +2940,7 @@ window.viewProjectDetails = async function(projectId) {
       if (el) el.style.display = name === tabName ? 'block' : 'none';
     });
 
-    if (tabName === 'tasks' && !tasksMounted && window.ProjectTasks) {
+    if (canViewTasks && tabName === 'tasks' && !tasksMounted && window.ProjectTasks) {
       tasksMounted = true;
       const members = [];
       const seen = new Set();
@@ -2950,7 +2950,8 @@ window.viewProjectDetails = async function(projectId) {
       });
       window.ProjectTasks.mountTasksPanel(tabPanels.tasks, project, {
         currentUserProfile,
-        canManage: rel.isCreator,
+        canEdit: true,
+        canDelete: rel.isCreator,
         members,
         onCountChange: (count) => {
           const badge = overlay.querySelector('[data-tab="tasks"] .pt-count-badge');

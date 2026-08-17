@@ -429,7 +429,7 @@ window.CommandDashboard = (() => {
         // Projects the current user is a member of
         window.supabase
           .from('project_members')
-          .select('project_id')
+          .select('project_id, role')
           .eq('user_id', _userId),
         // All organizations
         window.supabase
@@ -501,14 +501,23 @@ window.CommandDashboard = (() => {
         // Efficient, single-query unfinished-task counts for the Projects
         // list badges. Never one query per project (avoids N+1).
         if (window.ProjectTasks && typeof window.ProjectTasks.fetchOpenCounts === 'function') {
-          window.ProjectTasks.fetchOpenCounts(projResult.data.map(p => p.id))
+          const acceptedMemberProjectIds = (myProjResult.data || [])
+            .filter(m => m.role !== 'pending')
+            .map(m => m.project_id);
+          const creatorProjectIds = projResult.data
+            .filter(p => p.creator_id === _userId)
+            .map(p => p.id);
+          const authorizedTaskProjectIds = [...new Set([...creatorProjectIds, ...acceptedMemberProjectIds])];
+          window.ProjectTasks.fetchOpenCounts(authorizedTaskProjectIds)
             .then(counts => { _enrichedData.openTaskCounts = counts; _renderResources(_currentTier); })
             .catch(() => { _enrichedData.openTaskCounts = new Map(); });
         }
       }
 
       if (myProjResult.data) {
-        _enrichedData.myProjectIds = new Set(myProjResult.data.map(p => p.project_id));
+        _enrichedData.myProjectIds = new Set(
+          myProjResult.data.filter(m => m.role !== 'pending').map(m => m.project_id)
+        );
       }
 
       if (orgResult.data) {

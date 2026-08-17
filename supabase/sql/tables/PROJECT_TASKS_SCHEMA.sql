@@ -13,7 +13,7 @@
 --   - UUID primary key via gen_random_uuid()
 --   - creator/owner references point at public.community(id), not auth.users(id)
 --   - RLS scoped through community.user_id = auth.uid()
---   - Only the project creator may mutate tasks (same bar as "edit project")
+--   - Project creators and accepted members may work with tasks
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.project_tasks (
@@ -79,37 +79,81 @@ CREATE TRIGGER trg_project_tasks_timestamps
 -- ----------------------------------------------------------------------------
 ALTER TABLE public.project_tasks ENABLE ROW LEVEL SECURITY;
 
--- Anyone who can see projects (all authenticated users, per the existing
--- "Users can view all projects" policy) can see that project's tasks.
+-- Project tasks are private to the creator and accepted project members.
+-- Existing membership semantics use role = 'pending' for unaccepted requests;
+-- every other project_members role is an accepted membership.
 DROP POLICY IF EXISTS "Users can view tasks for visible projects" ON public.project_tasks;
-CREATE POLICY "Users can view tasks for visible projects"
+DROP POLICY IF EXISTS "Project team can view tasks" ON public.project_tasks;
+CREATE POLICY "Project team can view tasks"
   ON public.project_tasks FOR SELECT
   TO authenticated
-  USING (true);
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.projects p
+      JOIN public.community c ON c.id = p.creator_id
+      WHERE p.id = project_tasks.project_id
+        AND c.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.project_members pm
+      JOIN public.community c ON c.id = pm.user_id
+      WHERE pm.project_id = project_tasks.project_id
+        AND pm.role IS DISTINCT FROM 'pending'
+        AND c.user_id = auth.uid()
+    )
+  );
 
--- Only the project creator may create/edit/delete tasks — the same bar the
--- existing "Users can update own projects" policy uses for project edits.
+-- Creators and accepted members may create and edit tasks.
 DROP POLICY IF EXISTS "Project creators can create tasks" ON public.project_tasks;
-CREATE POLICY "Project creators can create tasks"
+DROP POLICY IF EXISTS "Project team can create tasks" ON public.project_tasks;
+CREATE POLICY "Project team can create tasks"
   ON public.project_tasks FOR INSERT
   TO authenticated
   WITH CHECK (
-    project_id IN (
-      SELECT id FROM public.projects WHERE creator_id IN (
-        SELECT id FROM public.community WHERE user_id = auth.uid()
-      )
+    EXISTS (
+      SELECT 1 FROM public.projects p
+      JOIN public.community c ON c.id = p.creator_id
+      WHERE p.id = project_tasks.project_id AND c.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.project_members pm
+      JOIN public.community c ON c.id = pm.user_id
+      WHERE pm.project_id = project_tasks.project_id
+        AND pm.role IS DISTINCT FROM 'pending' AND c.user_id = auth.uid()
     )
   );
 
 DROP POLICY IF EXISTS "Project creators can update tasks" ON public.project_tasks;
-CREATE POLICY "Project creators can update tasks"
+DROP POLICY IF EXISTS "Project team can update tasks" ON public.project_tasks;
+CREATE POLICY "Project team can update tasks"
   ON public.project_tasks FOR UPDATE
   TO authenticated
   USING (
-    project_id IN (
-      SELECT id FROM public.projects WHERE creator_id IN (
-        SELECT id FROM public.community WHERE user_id = auth.uid()
-      )
+    EXISTS (
+      SELECT 1 FROM public.projects p
+      JOIN public.community c ON c.id = p.creator_id
+      WHERE p.id = project_tasks.project_id AND c.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.project_members pm
+      JOIN public.community c ON c.id = pm.user_id
+      WHERE pm.project_id = project_tasks.project_id
+        AND pm.role IS DISTINCT FROM 'pending' AND c.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.projects p
+      JOIN public.community c ON c.id = p.creator_id
+      WHERE p.id = project_tasks.project_id AND c.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.project_members pm
+      JOIN public.community c ON c.id = pm.user_id
+      WHERE pm.project_id = project_tasks.project_id
+        AND pm.role IS DISTINCT FROM 'pending' AND c.user_id = auth.uid()
     )
   );
 
@@ -118,10 +162,10 @@ CREATE POLICY "Project creators can delete tasks"
   ON public.project_tasks FOR DELETE
   TO authenticated
   USING (
-    project_id IN (
-      SELECT id FROM public.projects WHERE creator_id IN (
-        SELECT id FROM public.community WHERE user_id = auth.uid()
-      )
+    EXISTS (
+      SELECT 1 FROM public.projects p
+      JOIN public.community c ON c.id = p.creator_id
+      WHERE p.id = project_tasks.project_id AND c.user_id = auth.uid()
     )
   );
 
