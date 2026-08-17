@@ -707,6 +707,15 @@
       }
 
       function syncRotateOverlay() {
+        // html, body, and #main-content are fixed and all consume --vh.
+        // Rewriting it after iOS rotation forces WebKit to rebuild the shared
+        // layout and hit-test tree instead of retaining landscape geometry.
+        const viewportHeight = window.innerHeight;
+        if (Number.isFinite(viewportHeight) && viewportHeight > 0) {
+          document.documentElement.style.setProperty('--vh', `${viewportHeight * 0.01}px`);
+          document.getElementById('main-content')?.getBoundingClientRect();
+        }
+
         const show = isPhoneLandscape();
         overlay.style.display = show ? 'flex' : 'none';
         overlay.style.pointerEvents = show ? 'auto' : 'none';
