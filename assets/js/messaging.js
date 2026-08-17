@@ -282,14 +282,13 @@ const MessagingModule = (function () {
         }
       }, 100);
       
-      // Scroll again after keyboard animation completes
+      // Scroll messages again after keyboard animation completes. Do not call
+      // scrollIntoView() on the composer: in iOS Safari a fixed full-screen
+      // modal plus the animating visual viewport causes the whole page to pan
+      // and scale when the browser tries to reveal an element already in view.
       setTimeout(() => {
         if (messagesArea) {
           messagesArea.scrollTop = messagesArea.scrollHeight;
-        }
-        // Ensure input is in view
-        if (inputContainer) {
-          inputContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
       }, 400);
     });
@@ -459,7 +458,7 @@ const MessagingModule = (function () {
         .from("messages")
         .select("conversation_id")
         .in("conversation_id", convIds)
-        .neq("sender_id", state.currentUser.authId)
+        .neq("sender_id", state.currentUser.communityId)
         .eq("read", false);
 
       const unreadMap = {};
@@ -502,18 +501,18 @@ const MessagingModule = (function () {
     state.hasMoreMessages = (count || 0) > MSG_PAGE_SIZE;
     state.messageOffset = MSG_PAGE_SIZE;
 
-    // sender_id is auth.uid() (UUID from auth.users)
-    const senderAuthIds = [...new Set(msgs.map((m) => m.sender_id).filter(Boolean))];
+    // sender_id is community.id.
+    const senderCommunityIds = [...new Set(msgs.map((m) => m.sender_id).filter(Boolean))];
 
     let senderMap = {};
-    if (senderAuthIds.length > 0) {
+    if (senderCommunityIds.length > 0) {
       const { data: senders } = await window.supabase
         .from("community")
-        .select("id, user_id, name, image_url")
-        .in("user_id", senderAuthIds);
+        .select("id, name, image_url")
+        .in("id", senderCommunityIds);
 
       (senders || []).forEach((s) => {
-        senderMap[s.user_id] = { id: s.id, name: s.name, image_url: s.image_url };
+        senderMap[s.id] = { id: s.id, name: s.name, image_url: s.image_url };
       });
     }
 
@@ -549,15 +548,15 @@ const MessagingModule = (function () {
     state.messageOffset += MSG_PAGE_SIZE;
 
     // Lookup senders
-    const senderAuthIds = [...new Set(olderMsgs.map((m) => m.sender_id).filter(Boolean))];
+    const senderCommunityIds = [...new Set(olderMsgs.map((m) => m.sender_id).filter(Boolean))];
     let senderMap = {};
-    if (senderAuthIds.length > 0) {
+    if (senderCommunityIds.length > 0) {
       const { data: senders } = await window.supabase
         .from("community")
-        .select("id, user_id, name, image_url")
-        .in("user_id", senderAuthIds);
+        .select("id, name, image_url")
+        .in("id", senderCommunityIds);
       (senders || []).forEach((s) => {
-        senderMap[s.user_id] = { id: s.id, name: s.name, image_url: s.image_url };
+        senderMap[s.id] = { id: s.id, name: s.name, image_url: s.image_url };
       });
     }
 
@@ -581,7 +580,7 @@ const MessagingModule = (function () {
         .from("messages")
         .delete()
         .eq("id", messageId)
-        .eq("sender_id", state.currentUser.authId);
+        .eq("sender_id", state.currentUser.communityId);
 
       if (error) throw error;
 
@@ -722,12 +721,13 @@ const MessagingModule = (function () {
     try {
       const messageText = content.trim();
 
-      // sender_id is auth.uid() per schema (REFERENCES auth.users)
+      // The deployed messaging authorization model stores community.id in
+      // sender_id and RLS maps that profile back to auth.uid().
       const { error } = await window.supabase
         .from("messages")
         .insert({
           conversation_id: state.activeConversation.id,
-          sender_id: state.currentUser.authId,
+          sender_id: state.currentUser.communityId,
           content: messageText,
           read: false
         });
@@ -778,7 +778,7 @@ const MessagingModule = (function () {
       .from("messages")
       .update({ read: true })
       .eq("conversation_id", conversationId)
-      .neq("sender_id", state.currentUser.authId)
+      .neq("sender_id", state.currentUser.communityId)
       .eq("read", false);
 
     console.log(`[Messages] marked as read for conversation: ${conversationId}`);
@@ -861,11 +861,11 @@ const MessagingModule = (function () {
         const isActive = state.activeConversation && newMessage.conversation_id === state.activeConversation.id;
 
         if (isActive) {
-          // sender_id is auth.uid(); look up community profile by user_id
+          // sender_id is community.id.
           const { data: sender } = await window.supabase
             .from("community")
-            .select("id, user_id, name, image_url")
-            .eq("user_id", newMessage.sender_id)
+            .select("id, name, image_url")
+            .eq("id", newMessage.sender_id)
             .single()
             .catch(() => ({ data: null }));
 
@@ -880,10 +880,10 @@ const MessagingModule = (function () {
           if (area) area.scrollTop = area.scrollHeight;
 
           // Mark as read if it's not mine
-          if (newMessage.sender_id !== state.currentUser.authId) {
+          if (newMessage.sender_id !== state.currentUser.communityId) {
             await markMessagesAsRead(state.activeConversation.id);
           }
-        } else if (newMessage.sender_id !== state.currentUser.authId) {
+        } else if (newMessage.sender_id !== state.currentUser.communityId) {
           // Show incoming toast for messages in other conversations
           const conv = state.conversations.find((c) => c.id === newMessage.conversation_id);
           const senderName = conv?.otherUser?.name || "Someone";
@@ -1153,7 +1153,7 @@ const MessagingModule = (function () {
         html += `<div class="msg-date-separator"><span>${escapeHtml(dateLabel)}</span></div>`;
       }
 
-      const isSent = msg.sender_id === state.currentUser.authId;
+      const isSent = msg.sender_id === state.currentUser.communityId;
       const isUnread = !isSent && msg.read === false;
       const senderName = isSent ? "You" : (msg.sender?.name || "Unknown");
       const initials = senderName.substring(0, 2).toUpperCase();
