@@ -363,7 +363,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       window.__currentCommunityId = state.communityProfile?.id || null;
 
       if (window.MessagingModule?.init) {
-        window.MessagingModule.init();
+        // Callers such as the node-panel Message action must not select a
+        // conversation until identity, conversations, and the modal DOM exist.
+        await window.MessagingModule.init();
         return;
       }
 

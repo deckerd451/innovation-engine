@@ -2234,7 +2234,18 @@ window.openMessageForUser = async function(userId) {
     console.log('📨 Opening message for user:', userId);
     closeNodePanel();
 
-    // Use sendDirectMessage if available (creates/finds conversation + opens UI)
+    // Use the maintained MessagingModule modal path. This is the same UI
+    // opened by the mobile messaging control and avoids the separate realtime
+    // overlay, whose global IDs/selectors collide with the modal renderer.
+    if (window.MessagingModule?.startConversation &&
+        typeof window.openMessagesModal === 'function') {
+      await window.openMessagesModal();
+      const conversationId = await window.MessagingModule.startConversation(userId);
+      if (!conversationId) throw new Error('Unable to open conversation');
+      return;
+    }
+
+    // Compatibility fallback while post-auth messaging modules are loading.
     if (typeof window.sendDirectMessage === 'function') {
       await window.sendDirectMessage(userId, '');
       return;
