@@ -995,6 +995,7 @@ window.CommandDashboard = (() => {
    * Mirrors the click handler in _wireResourceTabs().
    */
   function _switchResourceTab(resourceType) {
+    window.ExplorerCoordinator?.setActiveMode?.(resourceType);
     if (resourceType === _activeResourceTab) return;
     _activeResourceTab = resourceType;
     $all('.udc-resource-tab').forEach(tab => {
@@ -1374,10 +1375,12 @@ window.CommandDashboard = (() => {
           projects: 'project',
           themes: 'theme',
           organizations: 'organization',
+          opportunities: 'opportunity',
         };
         const type = typeByTab[_activeResourceTab];
-        selected = !!type && state.contextLens?.type === type &&
-          String(state.contextLens.id || '') === rowId;
+        selected = type === 'opportunity'
+          ? state.selectedEntity.type === type && String(state.selectedEntity.id || '') === rowId
+          : !!type && state.contextLens?.type === type && String(state.contextLens.id || '') === rowId;
       }
 
       row.classList.toggle('is-selected', selected);
@@ -1914,6 +1917,7 @@ window.CommandDashboard = (() => {
   return {
     initialize,
     switchTier,
+    selectResourceTab: _switchResourceTab,
     getCurrentTier: () => _currentTier,
     /** Called by the notification system to update unread message count */
     setUnreadMessages(n) {

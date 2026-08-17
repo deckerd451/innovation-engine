@@ -659,21 +659,9 @@ function addPreferencesButton() {
 function setupSearchIntegration() {
   if (GUARDS.searchWired) return;
   GUARDS.searchWired = true;
-
-  window.addEventListener('search-result-selected', (event) => {
-    const nodeId = event?.detail?.nodeId;
-    if (!nodeId) return;
-
-    if (integrationState.usingUnifiedNetwork && integrationState.initialized) {
-      try {
-        unifiedNetworkApi.focusNode?.(nodeId, { duration: 750, smooth: true });
-      } catch (e) {
-        logger.error(INTEGRATION_NS, 'Failed to focus node from search', e);
-      }
-    }
-  });
-
-  logger.debug(INTEGRATION_NS, 'Search integration setup');
+  // Search selects through ExplorerCoordinator directly. Kept as an
+  // idempotent setup hook because initialization still calls this function.
+  logger.debug(INTEGRATION_NS, 'Coordinator-backed search integration ready');
 }
 
 /**

@@ -60,6 +60,14 @@ function setActiveMode(mode) {
   _emit('active-mode');
 }
 
+// Records entities which have detail/sidebar state but intentionally do not
+// participate in person focus or the project/theme/organization context lens.
+function selectEntity({ type, id, label } = {}) {
+  if (!type || !id) return;
+  _state.selectedEntity = _entity(type, id, label);
+  _emit('entity-selected');
+}
+
 function selectPerson({ id, label, node = null } = {}, options = {}) {
   if (!id) return;
   const personId = String(id);
@@ -151,6 +159,7 @@ window.ExplorerCoordinator = {
   getState,
   subscribe,
   setActiveMode,
+  selectEntity,
   selectPerson,
   selectContext,
   syncContext,
@@ -163,6 +172,7 @@ export {
   getState,
   subscribe,
   setActiveMode,
+  selectEntity,
   selectPerson,
   selectContext,
   syncContext,

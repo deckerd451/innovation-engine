@@ -1249,6 +1249,42 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     return placeholders[category] || placeholders.all;
   }
 
+  const SEARCH_TYPE_TO_MODE = {
+    people: 'people', projects: 'projects', themes: 'themes',
+    organizations: 'organizations', opportunities: 'opportunities',
+  };
+
+  async function selectSearchResult(result) {
+    if (!result?.data?.id) return;
+
+    const type = result.type;
+    const entity = result.data;
+    const label = result.title || entity.name || entity.title || null;
+    const mode = SEARCH_TYPE_TO_MODE[type];
+    if (mode) window.CommandDashboard?.selectResourceTab?.(mode);
+
+    const coordinator = window.ExplorerCoordinator;
+    if (type === 'people') {
+      coordinator?.selectPerson?.({ id: entity.id, label, node: { ...entity, type: 'person' } });
+    } else if (type === 'projects') {
+      await coordinator?.selectContext?.('project', { id: entity.id, label });
+    } else if (type === 'themes') {
+      await coordinator?.selectContext?.('theme', { id: entity.id, label });
+    } else if (type === 'organizations') {
+      await coordinator?.selectContext?.('organization', { id: entity.id, label });
+    } else if (type === 'opportunities') {
+      coordinator?.selectEntity?.({ type: 'opportunity', id: entity.id, label });
+      window.openNodePanel?.({ id: entity.id, type: 'opportunity', name: label });
+    }
+
+    const searchInput = $('global-search');
+    if (searchInput) searchInput.value = label || searchInput.value;
+    hideSuggestions();
+    closeModal('quick-connect-modal');
+  }
+
+  window.selectSearchResult = selectSearchResult;
+
   async function handleSearch() {
     const q = $("global-search")?.value?.trim();
     if (!q) return;
@@ -1356,12 +1392,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       
       // Fetch based on active category
       if (category === "all" || category === "people") {
-        const { data } = await state.supabase
+        const { data, error } = await state.supabase
           .from("community")
           .select("id, name, bio, skills, image_url")
           .or(`name.ilike.%${q}%,bio.ilike.%${q}%,skills.ilike.%${q}%`)
           .limit(5);
         
+        if (error) console.error('People suggestion search error:', error);
         if (data) {
           suggestions.push(...data.map(item => ({
             type: "people",
@@ -1376,12 +1413,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
       
       if (category === "all" || category === "organizations") {
-        const { data } = await state.supabase
+        const { data, error } = await state.supabase
           .from("organizations")
           .select("id, name, description, logo_url")
           .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
           .limit(5);
         
+        if (error) console.error('Organization suggestion search error:', error);
         if (data) {
           suggestions.push(...data.map(item => ({
             type: "organizations",
@@ -1396,18 +1434,19 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
       
       if (category === "all" || category === "projects") {
-        const { data } = await state.supabase
+        const { data, error } = await state.supabase
           .from("projects")
-          .select("id, name, description")
-          .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+          .select("id, title, description")
+          .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
           .limit(5);
         
+        if (error) console.error('Project suggestion search error:', error);
         if (data) {
           suggestions.push(...data.map(item => ({
             type: "projects",
             icon: "fa-lightbulb",
             color: "#00ff88",
-            title: item.name,
+            title: item.title,
             subtitle: item.description ? item.description.substring(0, 60) + "..." : "Project",
             data: item
           })));
@@ -1415,12 +1454,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
       
       if (category === "all" || category === "themes") {
-        const { data } = await state.supabase
+        const { data, error } = await state.supabase
           .from("theme_circles")
           .select("id, title, description")
           .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
           .limit(5);
         
+        if (error) console.error('Theme suggestion search error:', error);
         if (data) {
           suggestions.push(...data.map(item => ({
             type: "themes",
@@ -1431,6 +1471,21 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
             data: item
           })));
         }
+      }
+
+      if (category === "all" || category === "opportunities") {
+        const { data, error } = await state.supabase
+          .from("opportunities")
+          .select("id, title, description")
+          .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
+          .limit(5);
+        if (error) console.error('Opportunity suggestion search error:', error);
+        if (data) suggestions.push(...data.map(item => ({
+          type: 'opportunities', icon: 'fa-bolt', color: '#ff5ca8',
+          title: item.title,
+          subtitle: item.description ? item.description.substring(0, 60) + '...' : 'Opportunity',
+          data: item,
+        })));
       }
       
       // Limit total suggestions
@@ -1534,13 +1589,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   }
   
   function selectSuggestion(suggestion) {
-    const searchInput = $("global-search");
-    if (searchInput) {
-      searchInput.value = suggestion.title;
-    }
-    
-    hideSuggestions();
-    handleSearch();
+    selectSearchResult(suggestion);
   }
   
   function hideSuggestions() {
@@ -1575,7 +1624,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     try {
       const q = query.toLowerCase();
-      let people = null, organizations = null, projects = null, themes = null;
+      let people = null, organizations = null, projects = null, themes = null, opportunities = null;
 
       // Search based on category
       if (category === "all" || category === "people") {
@@ -1603,7 +1652,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         const { data, error } = await state.supabase
           .from("projects")
           .select("*")
-          .or(`name.ilike.%${q}%,description.ilike.%${q}%,skills_needed.ilike.%${q}%`)
+          .or(`title.ilike.%${q}%,description.ilike.%${q}%,skills_needed.ilike.%${q}%`)
           .limit(10);
         if (error) console.warn("Projects search error:", error);
         else {
@@ -1625,8 +1674,18 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         else themes = data;
       }
 
+      if (category === "all" || category === "opportunities") {
+        const { data, error } = await state.supabase
+          .from('opportunities')
+          .select('*')
+          .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
+          .limit(10);
+        if (error) console.warn('Opportunities search error:', error);
+        else opportunities = data;
+      }
+
       const filteredPeople = (people || []).filter((p) => p.id !== state.communityProfile?.id);
-      const totalResults = filteredPeople.length + (organizations?.length || 0) + (projects?.length || 0) + (themes?.length || 0);
+      const totalResults = filteredPeople.length + (organizations?.length || 0) + (projects?.length || 0) + (themes?.length || 0) + (opportunities?.length || 0);
 
       if (totalResults === 0) {
         list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
@@ -1644,7 +1703,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           <h3 style="color:#00e0ff; font-size:0.95rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
             <i class="fas fa-users"></i> People (${filteredPeople.length})
           </h3>
-          ${filteredPeople.map((p) => personCard(p)).join("")}
+          ${filteredPeople.map((p) => personCard(p, false, true)).join("")}
         </div>`;
       }
 
@@ -1807,7 +1866,29 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         }, 100);
       }
 
+
+      if (opportunities?.length) {
+        html += `<div style="margin-bottom:2rem;">
+          <h3 style="color:#ff5ca8; font-size:0.95rem; font-weight:700; margin-bottom:1rem;"><i class="fas fa-bolt"></i> Opportunities (${opportunities.length})</h3>
+          ${opportunities.map(opp => `<div class="result-card search-entity-result" data-search-type="opportunities" data-search-id="${escapeHtml(opp.id)}" style="padding:1rem; background:rgba(255,92,168,.08); border:1px solid rgba(255,92,168,.25); border-radius:10px; margin-bottom:.75rem; cursor:pointer;">
+            <div style="color:#fff;font-weight:600">${escapeHtml(opp.title || 'Untitled Opportunity')}</div>
+            <div style="color:#aaa;font-size:.85rem">${escapeHtml(opp.description || '').slice(0,120)}</div>
+          </div>`).join('')}
+        </div>`;
+      }
+
       list.innerHTML = html;
+      const resultLookup = new Map([
+        ...filteredPeople.map(data => [`people:${data.id}`, { type: 'people', title: data.name, data }]),
+        ...(organizations || []).map(data => [`organizations:${data.id}`, { type: 'organizations', title: data.name, data }]),
+        ...(projects || []).map(data => [`projects:${data.id}`, { type: 'projects', title: data.title, data }]),
+        ...(themes || []).map(data => [`themes:${data.id}`, { type: 'themes', title: data.title || data.name, data }]),
+        ...(opportunities || []).map(data => [`opportunities:${data.id}`, { type: 'opportunities', title: data.title, data }]),
+      ]);
+      list.querySelectorAll('.search-entity-result').forEach(row => row.addEventListener('click', event => {
+        if (event.target.closest('button, a')) return;
+        selectSearchResult(resultLookup.get(`${row.dataset.searchType}:${row.dataset.searchId}`));
+      }));
     } catch (e) {
       console.error("Search failed:", e);
       list.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
@@ -1848,7 +1929,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       : `background:linear-gradient(135deg,#a855f7,#8b3fd9); border:none; color:white;`;
     const buttonText = isFollowing ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-plus"></i> Follow';
     
-    return `<div class="result-card" style="padding:1.25rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; margin-bottom:0.75rem; transition:all 0.2s;">
+    return `<div class="result-card search-entity-result" data-search-type="organizations" data-search-id="${escapeHtml(org.id)}" style="padding:1.25rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;">
       <div style="display:flex; align-items:start; gap:1rem;">
         ${org.logo_url 
           ? `<img loading="lazy" src="${org.logo_url}" alt="${escapeHtml(org.name)}" style="width:56px; height:56px; border-radius:8px; object-fit:cover; background:rgba(168,85,247,0.1);" onerror="this.outerHTML='<div style=\\'width:56px; height:56px; background:rgba(168,85,247,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.75rem;\\'><i class=\\'fas fa-building\\' style=\\'color:#a855f7;\\'></i></div>'">` 
@@ -1858,7 +1939,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         }
         <div style="flex:1; min-width:0;">
           <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
-            <div style="color:#fff; font-weight:700; font-size:1.05rem; cursor:pointer;" onclick="openOrganizationProfile('${org.id}')">${escapeHtml(org.name)}</div>
+            <div style="color:#fff; font-weight:700; font-size:1.05rem;">${escapeHtml(org.name)}</div>
             ${org.verified ? '<i class="fas fa-check-circle" style="color:#00e0ff; font-size:0.9rem;" title="Verified Organization"></i>' : ''}
           </div>
           <div style="color:#aaa; font-size:0.85rem; line-height:1.4; margin-bottom:0.5rem;">${escapeHtml(org.description || "No description available").slice(0, 120)}${(org.description || "").length > 120 ? "..." : ""}</div>
@@ -2302,7 +2383,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       </div>`;
     }
     
-    return `<div class="result-card" style="padding:1rem; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25); border-radius:12px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="toggleProjectExpansion('${projectId}')">
+    return `<div class="result-card search-entity-result" data-search-type="projects" data-search-id="${escapeHtml(projectId)}" style="padding:1rem; background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.25); border-radius:12px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;">
       <div style="display:flex; align-items:center; gap:1rem;">
         <div style="width:48px; height:48px; background:rgba(0,255,136,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
           <i class="fas fa-lightbulb" style="color:#00ff88;"></i>
@@ -2524,7 +2605,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // Helper function to render theme cards
   function themeCard(theme) {
-    return `<div class="result-card" style="padding:1rem; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;" onclick="openThemeDetails('${theme.id}')">
+    return `<div class="result-card search-entity-result" data-search-type="themes" data-search-id="${escapeHtml(theme.id)}" style="padding:1rem; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;">
       <div style="display:flex; align-items:center; gap:1rem;">
         <div style="width:48px; height:48px; background:rgba(255,170,0,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
           <i class="fas fa-palette" style="color:#ffaa00;"></i>
@@ -2583,7 +2664,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     }
   }
 
-  function personCard(person, showScoreHint = false) {
+  function personCard(person, showScoreHint = false, searchSelectable = false) {
     const name = person?.name || "Unknown";
     const initials = name
       .split(" ")
@@ -2602,10 +2683,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     const personDataJson = JSON.stringify(person).replace(/"/g, '&quot;');
 
     return `
-      <div style="display:flex; align-items:center; gap:1rem; padding:1rem;
+      <div class="${searchSelectable ? 'search-entity-result' : ''}" ${searchSelectable ? `data-search-type="people" data-search-id="${escapeHtml(person.id)}"` : `onclick="openPersonProfileFromSearch(this, '${person.id}')"`} style="display:flex; align-items:center; gap:1rem; padding:1rem;
         background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2);
         border-radius:12px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;"
-        onclick="openPersonProfileFromSearch(this, '${person.id}')"
         onmouseenter="this.style.background='rgba(0,224,255,0.1)'; this.style.borderColor='rgba(0,224,255,0.4)'"
         onmouseleave="this.style.background='rgba(0,224,255,0.05)'; this.style.borderColor='rgba(0,224,255,0.2)'"
         data-person='${personDataJson}'>
