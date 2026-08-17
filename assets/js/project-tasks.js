@@ -294,7 +294,7 @@
     `;
   }
 
-  function taskRowHTML(task, canManage) {
+  function taskRowHTML(task, canEdit, canDelete) {
     const overdue = isOverdue(task);
     const safeUrl = task.related_url; // already sanitized at write time
     const metaChips = [
@@ -304,7 +304,7 @@
       task.status === 'done' && task.completed_at ? `<span class="pt-chip">Completed ${relativeTime(task.completed_at)}</span>` : '',
     ].filter(Boolean).join('');
 
-    const actionsHTML = canManage ? `
+    const actionsHTML = canEdit ? `
       <div class="pt-task-actions">
         <div class="pt-status-toggle" role="group" aria-label="Status for ${escapeHtml(task.title)}">
           ${STATUS_ORDER.map(s => `
@@ -312,7 +312,7 @@
           `).join('')}
         </div>
         <button type="button" class="pt-icon-btn" data-action="edit" aria-label="Edit task: ${escapeHtml(task.title)}"><i class="fas fa-edit" aria-hidden="true"></i></button>
-        <button type="button" class="pt-icon-btn pt-danger" data-action="delete" aria-label="Delete task: ${escapeHtml(task.title)}"><i class="fas fa-trash-alt" aria-hidden="true"></i></button>
+        ${canDelete ? `<button type="button" class="pt-icon-btn pt-danger" data-action="delete" aria-label="Delete task: ${escapeHtml(task.title)}"><i class="fas fa-trash-alt" aria-hidden="true"></i></button>` : ''}
       </div>
     ` : `<div class="pt-task-status-badge pt-status-${task.status}">${STATUS_LABELS[task.status]}</div>`;
 
@@ -336,11 +336,12 @@
    *
    * @param {HTMLElement} container
    * @param {Object} project - project row (id, creator_id, project_members)
-   * @param {Object} opts - { currentUserProfile, canManage, members: [{id,name,image_url}] }
+   * @param {Object} opts - { currentUserProfile, canEdit, canDelete, members: [{id,name,image_url}] }
    */
   function mountTasksPanel(container, project, opts) {
     ensureStyles();
-    const canManage = !!opts.canManage;
+    const canEdit = !!opts.canEdit;
+    const canDelete = !!opts.canDelete;
     const members = opts.members || [];
     const actorId = opts.currentUserProfile?.id || null;
 
@@ -354,7 +355,7 @@
     container.className = 'pt-panel';
     container.innerHTML = `
       <div class="pt-toolbar">
-        ${canManage ? '<button type="button" class="pt-add-btn" id="pt-add-toggle"><i class="fas fa-plus"></i> Add task</button>' : ''}
+        ${canEdit ? '<button type="button" class="pt-add-btn" id="pt-add-toggle"><i class="fas fa-plus"></i> Add task</button>' : ''}
         <div class="pt-filters">
           <select id="pt-filter-status" aria-label="Filter by status">
             <option value="">All statuses</option>
@@ -376,7 +377,7 @@
         </div>
       </div>
 
-      ${canManage ? `
+      ${canEdit ? `
       <form id="pt-add-form" class="pt-add-form pt-hidden" aria-label="Add a task">
         <div class="pt-add-row">
           <input type="text" class="pt-field" name="title" placeholder="Task title" required maxlength="200" aria-label="Task title">
@@ -435,7 +436,7 @@
         return `
           <div class="pt-group">
             <div class="pt-group-title"><i class="fas ${icon}" aria-hidden="true"></i> ${title} <span class="pt-group-count">${list.length}</span></div>
-            ${list.length === 0 ? '<div class="pt-empty">Nothing here.</div>' : list.map(t => taskRowHTML(t, canManage)).join('')}
+            ${list.length === 0 ? '<div class="pt-empty">Nothing here.</div>' : list.map(t => taskRowHTML(t, canEdit, canDelete)).join('')}
             ${extra || ''}
           </div>
         `;
@@ -499,7 +500,7 @@
     });
 
     // ---- Add task form ----
-    if (canManage) {
+    if (canEdit) {
       const addToggle = container.querySelector('#pt-add-toggle');
       const addForm = container.querySelector('#pt-add-form');
       const addMoreToggle = container.querySelector('#pt-add-more-toggle');
@@ -565,7 +566,7 @@
       if (!task) return;
 
       const statusBtn = e.target.closest('[data-action="status"]');
-      if (statusBtn && canManage) {
+      if (statusBtn && canEdit) {
         const newStatus = statusBtn.dataset.status;
         if (newStatus === task.status) return;
         statusBtn.closest('.pt-status-toggle').querySelectorAll('button').forEach(b => b.disabled = true);
@@ -584,7 +585,7 @@
         return;
       }
 
-      if (e.target.closest('[data-action="delete"]') && canManage) {
+      if (e.target.closest('[data-action="delete"]') && canDelete) {
         if (!confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
         try {
           await deleteTask(task);
@@ -600,7 +601,7 @@
         return;
       }
 
-      if (e.target.closest('[data-action="edit"]') && canManage) {
+      if (e.target.closest('[data-action="edit"]') && canEdit) {
         openEditor(row, task);
       }
     });
