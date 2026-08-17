@@ -162,6 +162,13 @@ window.CommandDashboard = (() => {
     _wireLogoutBtn();
     _wireReportBtn();
 
+    if (window.ExplorerCoordinator) {
+      window.ExplorerCoordinator.setActiveMode(_activeResourceTab);
+      window.ExplorerCoordinator.subscribe(() => {
+        _applyExplorerSelectionState();
+      });
+    }
+
     // Re-render identity if profile reloads (auth refresh / profile edit)
     window.addEventListener('profile-loaded', (e) => {
       const p = e?.detail?.profile;
@@ -206,6 +213,7 @@ window.CommandDashboard = (() => {
         if (resource === _activeResourceTab) return;
 
         _activeResourceTab = resource;
+        window.ExplorerCoordinator?.setActiveMode?.(resource);
         $all('.udc-resource-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
 
@@ -1233,7 +1241,7 @@ window.CommandDashboard = (() => {
       <div class="udc-resource-section-label">${_escapeHtml(tabLabel)}</div>
       ${items.length > 0
         ? items.map(item => `
-          <div class="udc-resource-item${item.pending ? ' pending' : ''}" data-id="${item.id}">
+          <div class="udc-resource-item${item.pending ? ' pending' : ''}" data-id="${item.id}" data-stub="${item.isStub ? 'true' : 'false'}">
             <div class="udc-resource-info">
               <span class="udc-resource-name" title="${_escapeHtml(item.name)}">${_escapeHtml(item.name)}</span>
               ${item.meta ? `<span class="udc-resource-meta">${_escapeHtml(item.meta)}</span>` : ''}
@@ -1250,6 +1258,8 @@ window.CommandDashboard = (() => {
         : `<div class="udc-resource-empty">${_emptyStateCTA(_activeResourceTab)}</div>`
       }
     `;
+
+    _applyExplorerSelectionState();
 
     // Opens the node side-panel, preferring window.openNodePanel then the
     // fallback panel from unified-network-integration.js.
@@ -1274,20 +1284,32 @@ window.CommandDashboard = (() => {
         const id = btn.dataset.id;
         if (!id) return;
         if (_activeResourceTab === 'people') {
-          if (window.GraphController) window.GraphController.focusNode(id);
-          _openPanelForNode(id, 'person');
+          const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || null;
+          if (window.ExplorerCoordinator) {
+            window.ExplorerCoordinator.selectPerson({ id, label: name });
+          } else {
+            if (window.GraphController) window.GraphController.focusNode(id);
+            _openPanelForNode(id, 'person');
+          }
         } else if (_activeResourceTab === 'themes') {
           // Theme: set as context lens to highlight people with matching skills
           const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || id;
-          if (window.SynapseContext) window.SynapseContext.setTheme(name);
+          if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('theme', { id, label: name });
+          else if (window.SynapseContext) window.SynapseContext.setTheme(name);
         } else if (_activeResourceTab === 'projects') {
           const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || 'Project';
-          if (window.SynapseContext) window.SynapseContext.setProject(id, name);
-          if (window.openNodePanel) window.openNodePanel({ id, type: 'project' });
+          if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('project', { id, label: name });
+          else {
+            if (window.SynapseContext) window.SynapseContext.setProject(id, name);
+            if (window.openNodePanel) window.openNodePanel({ id, type: 'project' });
+          }
         } else if (_activeResourceTab === 'organizations') {
           const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || 'Organization';
-          if (window.SynapseContext) window.SynapseContext.setOrg(id, name);
-          if (window.openNodePanel) window.openNodePanel({ id, type: 'organization' });
+          if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('organization', { id, label: name });
+          else {
+            if (window.SynapseContext) window.SynapseContext.setOrg(id, name);
+            if (window.openNodePanel) window.openNodePanel({ id, type: 'organization' });
+          }
         } else if (window.openNodePanel) {
           window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }
@@ -1298,26 +1320,71 @@ window.CommandDashboard = (() => {
     list.querySelectorAll('.udc-resource-item').forEach(row => {
       row.addEventListener('click', e => {
         if (e.target.closest('.udc-resource-show-btn')) return;
+        if (row.dataset.stub === 'true') return;
         const id = row.dataset.id;
         if (!id) return;
         if (_activeResourceTab === 'people') {
-          if (window.GraphController) window.GraphController.focusNode(id);
-          _openPanelForNode(id, 'person');
+          const name = row.querySelector('.udc-resource-name')?.textContent || null;
+          if (window.ExplorerCoordinator) {
+            window.ExplorerCoordinator.selectPerson({ id, label: name });
+          } else {
+            if (window.GraphController) window.GraphController.focusNode(id);
+            _openPanelForNode(id, 'person');
+          }
         } else if (_activeResourceTab === 'themes') {
           const name = row.querySelector('.udc-resource-name')?.textContent || id;
-          if (window.SynapseContext) window.SynapseContext.setTheme(name);
+          if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('theme', { id, label: name });
+          else if (window.SynapseContext) window.SynapseContext.setTheme(name);
         } else if (_activeResourceTab === 'projects') {
           const name = row.querySelector('.udc-resource-name')?.textContent || 'Project';
-          if (window.SynapseContext) window.SynapseContext.setProject(id, name);
-          if (window.openNodePanel) window.openNodePanel({ id, type: 'project' });
+          if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('project', { id, label: name });
+          else {
+            if (window.SynapseContext) window.SynapseContext.setProject(id, name);
+            if (window.openNodePanel) window.openNodePanel({ id, type: 'project' });
+          }
         } else if (_activeResourceTab === 'organizations') {
           const name = row.querySelector('.udc-resource-name')?.textContent || 'Organization';
-          if (window.SynapseContext) window.SynapseContext.setOrg(id, name);
-          if (window.openNodePanel) window.openNodePanel({ id, type: 'organization' });
+          if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('organization', { id, label: name });
+          else {
+            if (window.SynapseContext) window.SynapseContext.setOrg(id, name);
+            if (window.openNodePanel) window.openNodePanel({ id, type: 'organization' });
+          }
         } else if (window.openNodePanel) {
           window.openNodePanel({ id, type: TAB_TYPE[_activeResourceTab] || _activeResourceTab.replace(/s$/, '') });
         }
       });
+    });
+  }
+
+  function _applyExplorerSelectionState() {
+    const list = $id('udc-resource-list');
+    const coordinator = window.ExplorerCoordinator;
+    if (!list || !coordinator) return;
+
+    const state = coordinator.getState();
+    list.querySelectorAll('.udc-resource-item').forEach(row => {
+      const rowId = String(row.dataset.id || '');
+      let selected = false;
+
+      if (_activeResourceTab === 'people') {
+        selected = state.selectedEntity.type === 'person' &&
+          String(state.focusedPersonId || state.selectedEntity.id || '') === rowId;
+      } else {
+        const typeByTab = {
+          projects: 'project',
+          themes: 'theme',
+          organizations: 'organization',
+        };
+        const type = typeByTab[_activeResourceTab];
+        selected = !!type && state.contextLens?.type === type &&
+          String(state.contextLens.id || '') === rowId;
+      }
+
+      row.classList.toggle('is-selected', selected);
+      row.setAttribute('aria-selected', selected ? 'true' : 'false');
+      if (selected && _activeResourceTab === 'people') {
+        row.scrollIntoView({ block: 'nearest' });
+      }
     });
   }
 

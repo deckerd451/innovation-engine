@@ -140,6 +140,7 @@ function _escapeHtmlSimple(s) {
 // ----------------------------------------------------------------
 
 function _onFilterChanged(mode) {
+  window.ExplorerCoordinator?.setGraphFilter?.(mode);
   _updateChipStates(mode);
   _applyCurrentFilter();
   _updateHeader(mode);

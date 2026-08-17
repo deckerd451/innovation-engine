@@ -533,6 +533,30 @@
   border-color: rgba(0, 224, 255, 0.2);
 }
 
+.udc-resource-item.is-selected {
+  background: rgba(0, 224, 255, 0.13);
+  border-color: rgba(0, 224, 255, 0.65);
+  box-shadow: inset 3px 0 0 var(--cd-accent), 0 0 12px rgba(0, 224, 255, 0.08);
+}
+
+.udc-resource-item.is-selected .udc-resource-name {
+  color: var(--cd-accent);
+  font-weight: 700;
+}
+
+#synapse-svg .node.is-focused .node-circle {
+  stroke: #00e0ff;
+  stroke-width: 4px;
+}
+
+#synapse-svg .node.is-focused .node-glow {
+  fill: #00e0ff;
+  opacity: 0.8;
+  transform: scale(1.4);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 .udc-resource-info {
   display: flex;
   flex-direction: column;

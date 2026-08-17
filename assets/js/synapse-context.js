@@ -91,7 +91,7 @@ export async function setOrgContext(orgId, orgName) {
  * Set a theme/skill context lens.
  * Finds people with matching skills from graph node data.
  */
-export function setThemeContext(themeString) {
+export function setThemeContext(themeString, contextId = themeString) {
   if (!themeString) return;
 
   const needle = themeString.trim().toLowerCase();
@@ -118,7 +118,7 @@ export function setThemeContext(themeString) {
   }
 
   _state.type = 'theme';
-  _state.id = themeString;
+  _state.id = contextId;
   _state.name = themeString;
   _state.memberIds = memberIds;
 
@@ -133,6 +133,7 @@ export function onContextChange(fn) {
 }
 
 function _notify(ctx, prev) {
+  window.ExplorerCoordinator?.syncContext?.(ctx);
   _listeners.forEach(fn => { try { fn(ctx, prev); } catch (e) { console.error(e); } });
 }
 

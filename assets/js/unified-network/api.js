@@ -571,6 +571,8 @@ try {
 
     // ✅ CRITICAL: Persist focus to StateManager (the single source of truth)
     this._stateManager.setFocusedNode(nodeId);
+    this._nodeRenderer?.setFocusedNode?.(nodeId);
+    window.AnimationLifecycle?.recordInteraction?.();
 
     console.log(`🎯 Focus set: ${nodeId} (${node.name || node.type})`, options);
 
@@ -640,6 +642,7 @@ try {
     }
 
     this._stateManager.setFocusedNode(null);
+    this._nodeRenderer?.setFocusedNode?.(null);
     this.emit('focus-cleared', { previousNodeId: previousFocus });
   }
 

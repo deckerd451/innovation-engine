@@ -45,7 +45,7 @@ window.GraphController = (() => {
     }
   }
 
-  function focusNode(id) {
+  function focusNode(id, options = {}) {
     if (!id) return;
     const api = _api();
     if (api && typeof api.focusNode === 'function') {
@@ -57,7 +57,7 @@ window.GraphController = (() => {
       }
       api.focusNode(id);
     }
-    if (typeof window.openNodePanel === 'function') {
+    if (options.openPanel !== false && typeof window.openNodePanel === 'function') {
       const node = api?.getNode?.(id);
       if (node) window.openNodePanel(node);
     }

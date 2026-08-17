@@ -15,6 +15,7 @@ import { initializeErrorHandling } from './unified-network/error-integration.js'
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
 import { initSynapseFilterUI } from './synapse-filter-ui.js';
 import './synapse-context.js';
+import './explorer-coordinator.js';
 
 // ------------------------------------------------------------------
 // Feature flags (read dynamically so changes apply without redeploy)
@@ -520,9 +521,18 @@ function setupEventBridges() {
     showErrorNotification('Action failed. Please try again.');
   });
 
-  // Node focused (kept for future)
+  // Keep graph-originated person focus synchronized with the Explorer sidebar.
   unifiedNetworkApi.on('node-focused', ({ nodeId }) => {
     logger.debug(INTEGRATION_NS, 'Node focused', { nodeId });
+    window.ExplorerCoordinator?.syncFocusedPerson?.(nodeId);
+  });
+
+  unifiedNetworkApi.on('focus-cleared', () => {
+    window.ExplorerCoordinator?.syncFocusedPerson?.(null);
+  });
+
+  unifiedNetworkApi.on('reset-to-my-network', () => {
+    window.ExplorerCoordinator?.clearSelection?.({ clearContext: true, clearFocus: true });
   });
 
   // Background paused/resumed
@@ -859,4 +869,3 @@ if (_profileAlreadyResolved) {
     initUnifiedNetwork(null, 'synapse-svg').catch(() => {});
   }, { once: true });
 }
-

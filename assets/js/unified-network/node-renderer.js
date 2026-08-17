@@ -359,6 +359,8 @@ export class NodeRenderer {
     // ✅ UPDATE: Merge enter + existing nodes for updates
     const nodeMerge = nodeEnter.merge(nodeSelection);
 
+    nodeMerge.classed('is-focused', d => state?.currentFocusedNodeId === d.id);
+
     // ONE-TIME DIAGNOSTIC: Log first 3 node positions + SVG structure on first render
     if (!this._diagLogged) {
       this._diagLogged = true;
@@ -497,6 +499,13 @@ export class NodeRenderer {
       .attr('r', visualState.radius * 1.2)
       .attr('fill', visualState.glowColor)
       .attr('opacity', visualState.glowIntensity);
+  }
+
+  /** Apply focused-node identity immediately, including while physics is idle. */
+  setFocusedNode(nodeId) {
+    if (!this._nodeGroup) return;
+    this._nodeGroup.selectAll('.node')
+      .classed('is-focused', d => !!nodeId && d.id === nodeId);
   }
 
   /**
