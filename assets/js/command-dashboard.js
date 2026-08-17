@@ -497,6 +497,14 @@ window.CommandDashboard = (() => {
         );
         console.log(`[Projects] command list now has ${projResult.data.length} items`);
         console.log(`[Projects] titles: [${projResult.data.map(p => p.title).join(', ')}]`);
+
+        // Efficient, single-query unfinished-task counts for the Projects
+        // list badges. Never one query per project (avoids N+1).
+        if (window.ProjectTasks && typeof window.ProjectTasks.fetchOpenCounts === 'function') {
+          window.ProjectTasks.fetchOpenCounts(projResult.data.map(p => p.id))
+            .then(counts => { _enrichedData.openTaskCounts = counts; _renderResources(_currentTier); })
+            .catch(() => { _enrichedData.openTaskCounts = new Map(); });
+        }
       }
 
       if (myProjResult.data) {
@@ -1348,8 +1356,14 @@ window.CommandDashboard = (() => {
         filtered = activeIds ? allProjects.filter(p => activeIds.has(p.id)) : allProjects;
       }
       // Sort first, then slice so the newest/alphabetically-first items survive truncation
+      const openCounts = _enrichedData.openTaskCounts;
       return filtered
-        .map(p => ({ id: p.id, name: p.title || 'Untitled Project', meta: p.status || '' }))
+        .map(p => {
+          const openCount = openCounts ? (openCounts.get(p.id) || 0) : 0;
+          const metaParts = [p.status || ''];
+          if (openCount > 0) metaParts.push(`${openCount} open`);
+          return { id: p.id, name: p.title || 'Untitled Project', meta: metaParts.filter(Boolean).join(' · ') };
+        })
         .sort((a, b) => a.name.localeCompare(b.name))
         .slice(0, 20);
 

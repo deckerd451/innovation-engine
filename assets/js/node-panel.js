@@ -2857,35 +2857,57 @@ window.viewProjectDetails = async function(projectId) {
         </div>
       </div>
 
-      <!-- Description -->
-      <div style="margin-bottom:1.5rem;">
-        <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Description</h4>
-        <p style="color:#ddd; line-height:1.65; font-size:0.95rem; margin:0;">${esc(project.description || 'No description provided.')}</p>
+      <!-- Tabs -->
+      <div id="pd-tabs" role="tablist" aria-label="Project sections" style="display:flex; gap:0.4rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); flex-wrap:wrap;">
+        <button type="button" class="pd-tab-btn" data-tab="overview" role="tab" aria-selected="true" style="background:none; border:none; border-bottom:2px solid #ff6b6b; color:#ff6b6b; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Overview</button>
+        <button type="button" class="pd-tab-btn" data-tab="tasks" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>
+        <button type="button" class="pd-tab-btn" data-tab="people" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">People</button>
+        <button type="button" class="pd-tab-btn" data-tab="activity" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Activity</button>
       </div>
 
-      <!-- Skills -->
-      <div style="margin-bottom:1.5rem;">
-        <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Required Skills</h4>
-        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${skillsHTML}</div>
-      </div>
-
-      <!-- Tags -->
-      ${tagsHTML ? `
+      <!-- Overview tab -->
+      <div id="pd-tab-overview" role="tabpanel">
+        <!-- Description -->
         <div style="margin-bottom:1.5rem;">
-          <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Tags</h4>
-          <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${tagsHTML}</div>
+          <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Description</h4>
+          <p style="color:#ddd; line-height:1.65; font-size:0.95rem; margin:0;">${esc(project.description || 'No description provided.')}</p>
         </div>
-      ` : ''}
 
-      <!-- Members -->
-      ${activeMembers.length > 0 ? `
+        <!-- Skills -->
         <div style="margin-bottom:1.5rem;">
-          <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Team Members (${activeMembers.length})</h4>
-          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:0.5rem;">
-            ${membersHTML}
+          <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Required Skills</h4>
+          <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${skillsHTML}</div>
+        </div>
+
+        <!-- Tags -->
+        ${tagsHTML ? `
+          <div style="margin-bottom:1.5rem;">
+            <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Tags</h4>
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${tagsHTML}</div>
           </div>
-        </div>
-      ` : ''}
+        ` : ''}
+      </div>
+
+      <!-- Tasks tab -->
+      <div id="pd-tab-tasks" role="tabpanel" style="display:none;"></div>
+
+      <!-- People tab -->
+      <div id="pd-tab-people" role="tabpanel" style="display:none;">
+        <!-- Members -->
+        ${activeMembers.length > 0 ? `
+          <div style="margin-bottom:1.5rem;">
+            <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Team Members (${activeMembers.length})</h4>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:0.5rem;">
+              ${membersHTML}
+            </div>
+          </div>
+        ` : '<div style="color:#777; font-size:0.85rem;">No team members yet.</div>'}
+      </div>
+
+      <!-- Activity tab -->
+      <div id="pd-tab-activity" role="tabpanel" style="display:none;">
+        <div style="color:#777; font-size:0.85rem;">Loading activity…</div>
+      </div>
 
       <!-- Actions -->
       <div style="display:flex; gap:0.75rem; flex-wrap:wrap; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.08);">
@@ -2895,6 +2917,66 @@ window.viewProjectDetails = async function(projectId) {
   `;
 
   document.body.appendChild(overlay);
+
+  // --- Tabs wiring ---
+  const tabButtons = overlay.querySelectorAll('.pd-tab-btn');
+  const tabPanels = {
+    overview: overlay.querySelector('#pd-tab-overview'),
+    tasks: overlay.querySelector('#pd-tab-tasks'),
+    people: overlay.querySelector('#pd-tab-people'),
+    activity: overlay.querySelector('#pd-tab-activity'),
+  };
+  let tasksMounted = false;
+  let activityLoaded = false;
+
+  function activateTab(tabName) {
+    tabButtons.forEach(btn => {
+      const active = btn.dataset.tab === tabName;
+      btn.style.color = active ? '#ff6b6b' : '#999';
+      btn.style.borderBottomColor = active ? '#ff6b6b' : 'transparent';
+      btn.setAttribute('aria-selected', String(active));
+    });
+    Object.entries(tabPanels).forEach(([name, el]) => {
+      if (el) el.style.display = name === tabName ? 'block' : 'none';
+    });
+
+    if (tabName === 'tasks' && !tasksMounted && window.ProjectTasks) {
+      tasksMounted = true;
+      const members = [];
+      const seen = new Set();
+      if (project.creator?.id) { members.push(project.creator); seen.add(project.creator.id); }
+      activeMembers.forEach(m => {
+        if (m.user?.id && !seen.has(m.user.id)) { members.push(m.user); seen.add(m.user.id); }
+      });
+      window.ProjectTasks.mountTasksPanel(tabPanels.tasks, project, {
+        currentUserProfile,
+        canManage: rel.isCreator,
+        members,
+        onCountChange: (count) => {
+          const badge = overlay.querySelector('[data-tab="tasks"] .pt-count-badge');
+          const tasksBtn = overlay.querySelector('[data-tab="tasks"]');
+          if (count > 0) {
+            if (badge) {
+              badge.textContent = String(count);
+            } else if (tasksBtn) {
+              tasksBtn.insertAdjacentHTML('beforeend', ` <span class="pt-count-badge">${count}</span>`);
+            }
+          } else if (badge) {
+            badge.remove();
+          }
+        },
+      });
+    }
+
+    if (tabName === 'activity' && !activityLoaded) {
+      activityLoaded = true;
+      loadProjectActivity(project.id, tabPanels.activity);
+    }
+  }
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+  });
 
   // Close handlers
   const closeOverlay = () => {
@@ -2910,6 +2992,62 @@ window.viewProjectDetails = async function(projectId) {
     }
   });
 };
+
+// ================================================================
+// PROJECT ACTIVITY TAB (best-effort — activity_log already exists
+// in this schema; we just filter it by project_id and format the
+// task-related action types Tasks writes).
+// ================================================================
+async function loadProjectActivity(projectId, container) {
+  if (!container) return;
+  const esc = window.escapeHtml || (s => s);
+  const ACTION_LABELS = {
+    task_created: 'created task',
+    task_completed: 'completed task',
+    task_reopened: 'reopened task',
+    task_deleted: 'deleted task',
+    task_owner_changed: 'reassigned task',
+  };
+  try {
+    const { data: rows, error } = await supabase
+      .from('activity_log')
+      .select('auth_user_id, action_type, details, created_at')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error || !rows || rows.length === 0) {
+      container.innerHTML = '<div style="color:#777; font-size:0.85rem;">No recent activity.</div>';
+      return;
+    }
+
+    const authIds = [...new Set(rows.map(r => r.auth_user_id).filter(Boolean))];
+    let nameByAuthId = new Map();
+    if (authIds.length > 0) {
+      const { data: people } = await supabase
+        .from('community')
+        .select('user_id, name')
+        .in('user_id', authIds);
+      nameByAuthId = new Map((people || []).map(p => [p.user_id, p.name]));
+    }
+
+    container.innerHTML = rows.map(row => {
+      const actor = nameByAuthId.get(row.auth_user_id) || 'Someone';
+      const label = ACTION_LABELS[row.action_type] || row.action_type;
+      const title = row.details?.title ? `"${row.details.title}"` : '';
+      const when = new Date(row.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      return `
+        <div style="padding:0.6rem 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.85rem; color:#ccc;">
+          <strong style="color:#fff;">${esc(actor)}</strong> ${esc(label)} ${esc(title)}
+          <div style="color:#777; font-size:0.75rem; margin-top:0.15rem;">${when}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('[Project Activity] load failed:', err);
+    container.innerHTML = '<div style="color:#777; font-size:0.85rem;">Could not load activity.</div>';
+  }
+}
 
 window.editProjectFromPanel = async function(projectId) {
   try {
