@@ -677,7 +677,8 @@
 
   <div
     id="rotate-device-overlay"
-    style="position:fixed; inset:0; z-index:10050; background:rgba(10,14,39,0.98); color:#fff; align-items:center; justify-content:center; text-align:center; padding:2rem;"
+    aria-hidden="true"
+    style="display:none; pointer-events:none; position:fixed; inset:0; z-index:10050; background:rgba(10,14,39,0.98); color:#fff; align-items:center; justify-content:center; text-align:center; padding:2rem;"
   >
     <div style="max-width:320px; display:flex; flex-direction:column; gap:1rem; align-items:center;">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="color:#00e0ff;" xmlns="http://www.w3.org/2000/svg">
@@ -687,6 +688,44 @@
       <p style="font-size:0.9rem; color:#aaa; margin:0;">This app works best in portrait mode</p>
     </div>
   </div>
+
+  <script>
+    (function () {
+      const overlay = document.getElementById('rotate-device-overlay');
+      if (!overlay) return;
+
+      let settleTimer = null;
+
+      function isPhoneLandscape() {
+        const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+        const orientation = window.orientation;
+        const landscape = typeof orientation === 'number'
+          ? Math.abs(orientation) === 90
+          : window.innerWidth > window.innerHeight;
+
+        return coarsePointer && landscape && window.innerHeight <= 600;
+      }
+
+      function syncRotateOverlay() {
+        const show = isPhoneLandscape();
+        overlay.style.display = show ? 'flex' : 'none';
+        overlay.style.pointerEvents = show ? 'auto' : 'none';
+        overlay.setAttribute('aria-hidden', String(!show));
+      }
+
+      function settleRotateOverlay() {
+        clearTimeout(settleTimer);
+        requestAnimationFrame(() => requestAnimationFrame(syncRotateOverlay));
+        settleTimer = setTimeout(syncRotateOverlay, 300);
+      }
+
+      syncRotateOverlay();
+      window.addEventListener('resize', settleRotateOverlay, { passive: true });
+      window.addEventListener('orientationchange', settleRotateOverlay, { passive: true });
+      window.addEventListener('pageshow', settleRotateOverlay, { passive: true });
+      window.visualViewport?.addEventListener?.('resize', settleRotateOverlay, { passive: true });
+    })();
+  </script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" defer></script>
 
