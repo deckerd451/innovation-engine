@@ -675,19 +675,19 @@
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 968px) {
-  .messages-container {
+  #messages-container .messages-container {
     grid-template-columns: 1fr;
   }
   
-  .conversations-sidebar {
+  #messages-container .conversations-sidebar {
     display: none;
   }
   
-  .conversations-sidebar.mobile-show {
+  #messages-container .conversations-sidebar.mobile-show {
     display: flex;
   }
   
-  .chat-panel.mobile-hide {
+  #messages-container .chat-panel.mobile-hide {
     display: none;
   }
   

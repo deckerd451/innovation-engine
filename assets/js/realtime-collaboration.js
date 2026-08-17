@@ -482,7 +482,9 @@ export async function openMessagingInterface(conversationId = null) {
 
           <div id="conversations-list" style="
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             padding: 1rem;
           ">
             <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.6);">
@@ -507,9 +509,11 @@ export async function openMessagingInterface(conversationId = null) {
           <div style="flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 0;">
           <div id="messages-area" style="
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
             padding: 1rem;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             overscroll-behavior: contain;
@@ -783,10 +787,10 @@ export async function openMessagingInterface(conversationId = null) {
       }
 
       /* ══════════════════════════════════════════════
-         MOBILE LAYOUT  ≤ 640px
+         MOBILE LAYOUT  ≤ 768px
          Single-panel navigation (WhatsApp style)
          ══════════════════════════════════════════════ */
-      @media (max-width: 640px) {
+      @media (max-width: 768px) {
         /* Backdrop: no padding, stretch to fill.
            Remove backdrop-filter: on a position:fixed element it creates a
            compositor layer that gets stuck during iOS keyboard animation,
@@ -821,6 +825,11 @@ export async function openMessagingInterface(conversationId = null) {
            Give the hidden chat-area explicit zero-width so Safari's
            display:none flex-item layout bug can't leave a residual gap. */
         #messaging-interface .conversations-sidebar {
+          display: flex !important;
+          flex-direction: column !important;
+          flex: 1 1 auto !important;
+          height: 100% !important;
+          min-height: 0 !important;
           width: 100% !important;
           min-width: 0 !important;
           border-right: none !important;
@@ -1410,8 +1419,9 @@ async function loadConversationMessages(conversationId) {
     msgOffsets.set(conversationId, MSG_PAGE);
     hasMoreMsgs.set(conversationId, totalCount > MSG_PAGE);
 
-    messagesArea.style.alignItems = '';
-    messagesArea.style.justifyContent = '';
+    messagesArea.style.alignItems = 'flex-start';
+    messagesArea.style.justifyContent = 'flex-start';
+    messagesArea.style.flexDirection = 'column';
 
     let innerHtml = '<div class="rt-msg-inner" style="display: flex; flex-direction: column; width: 100%; padding: 1rem;">';
 
