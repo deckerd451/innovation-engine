@@ -204,7 +204,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   }
 
   // ================================================================
-  // UPDATE BADGES (split: messages / notifications / actions)
+  // UPDATE SYNAPSE HEADER BADGES (messages / actions)
   // ================================================================
 
   function _setBadge(el, count, showStyle) {
@@ -218,11 +218,10 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   }
 
   function updateNotificationBadge() {
-    const { msgUnread, notifUnread, actionsCount } = unifiedData;
+    const { msgUnread, actionsCount } = unifiedData;
 
     // ── Desktop command-dashboard badges ──
     _setBadge(document.getElementById('cd-messages-badge'), msgUnread, '');
-    _setBadge(document.getElementById('cd-notif-badge'), notifUnread, '');
     _setBadge(document.getElementById('cd-actions-badge'), actionsCount, '');
 
     // Show/hide the actions button itself (only visible when there are actions)
@@ -233,7 +232,6 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
 
     // ── Mobile header badges ──
     _setBadge(document.getElementById('mobile-messages-badge'), msgUnread, 'flex');
-    _setBadge(document.getElementById('mobile-notif-badge'), notifUnread, 'flex');
     _setBadge(document.getElementById('mobile-actions-badge'), actionsCount, 'flex');
 
     // Show/hide mobile actions button
@@ -594,30 +592,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     return html;
   }
 
-  function showNetworkReflection() {
-    // Remove either legacy notification surface if an older caller opened it.
-    document.getElementById('unified-notification-panel')?.remove();
-    document.getElementById('notification-panel')?.remove();
-
-    // Entity detail is the only surface allowed to replace Reflection. Closing
-    // it preserves Synapse context, Explorer selection, and graph/filter state.
-    if (document.getElementById('node-side-panel')?.classList.contains('open')) {
-      window.closeNodePanel?.();
-    }
-
-    const reflection = document.getElementById('network-reflection');
-    if (!reflection) return;
-    reflection.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    reflection.setAttribute('tabindex', '-1');
-    reflection.focus({ preventScroll: true });
-  }
-
-  function showUnifiedNotificationPanel(mode = 'reflection') {
-    if (mode !== 'actions') {
-      showNetworkReflection();
-      return;
-    }
-
+  function showUnifiedNotificationPanel() {
     // Mobile actions retain the existing responsive split view.
     if (_isMobile()) {
       _showMobileSplitView();
@@ -1309,55 +1284,19 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   window.addEventListener('user-logged-out', cleanup);
 
   // ================================================================
-  // DOWNLOAD REPORT
-  // ================================================================
-
-  // EnhancedStartUI.downloadReport() silently bails if this.currentData is
-  // null, which it always is when the panel is used without opening the START
-  // modal.  Load the data first, then fire the download.
-  async function handleDownloadReport() {
-    if (!window.EnhancedStartUI) return;
-
-    const btn = document.getElementById('unified-download-report-btn');
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing…';
-    }
-
-    try {
-      if (!window.EnhancedStartUI.currentData && window.getStartSequenceData) {
-        window.EnhancedStartUI.currentData = await window.getStartSequenceData(true);
-      }
-      if (window.EnhancedStartUI.downloadReport) {
-        await window.EnhancedStartUI.downloadReport();
-      }
-    } catch (err) {
-      console.error('[UnifiedNotifications] downloadReport error:', err);
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-download"></i> Download Report';
-      }
-    }
-  }
-
-  // ================================================================
   // PUBLIC API
   // ================================================================
 
   window.UnifiedNotifications = {
     init,
     refresh: loadAllData,
-    // showPanel — Reflection by default; action center only for explicit mode
+    // showPanel — action/notification center; Reflection lives only in its rail
     showPanel: showUnifiedNotificationPanel,
-    showReflection: showNetworkReflection,
     // navigateNotification — smart in-app routing for notification links
     navigateNotification: _navigateNotification,
     // buildSafeUrl — turn a root-relative link into a base-path-correct URL
     // (fallback for callers that need a plain URL rather than in-app routing)
     buildSafeUrl: _buildSafeUrl,
-    // downloadReport — load data if needed then trigger the HTML export
-    downloadReport: handleDownloadReport,
     // _restoreMobileDashboard — called by start-daily-digest._destroySplit
     // to ensure #command-dashboard is re-parented before the split DOM is removed.
     _restoreMobileDashboard: _restoreMobileDashboard,

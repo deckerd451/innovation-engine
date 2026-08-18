@@ -50,11 +50,26 @@
 .synapse-workspace-title { position:absolute; top:1rem; left:1rem; z-index:5; color:rgba(224,232,255,.72); font-size:.72rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; pointer-events:none; }
 #network-reflection { color:var(--cd-text); background:linear-gradient(145deg,rgba(8,12,28,.97),rgba(4,8,18,.98)); overflow:hidden; }
 .network-reflection-header { padding:1rem 1.1rem .85rem; border-bottom:1px solid rgba(0,224,255,.18); color:rgba(224,232,255,.72); font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
-.network-reflection-scroll { height:calc(100% - 48px); box-sizing:border-box; overflow-y:auto; padding:1.1rem; }
+.network-reflection-header small { display:block; margin-top:.3rem; color:rgba(200,210,255,.45); font-size:.62rem; font-weight:400; letter-spacing:.02em; text-transform:none; }
+.network-reflection-scroll { height:calc(100% - 65px); box-sizing:border-box; overflow-y:auto; padding:1.1rem; }
 .network-reflection-greeting { margin:0 0 .35rem; color:rgba(255,255,255,.62); font-size:.86rem; }
-.network-reflection-scroll h2 { margin:0 0 1rem; color:#00e0ff; font-size:1.25rem; }
+.network-reflection-scroll h2 { margin:0 0 .55rem; color:rgba(255,255,255,.5); font-size:.7rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
 .network-reflection-loading { padding:.75rem 0; color:rgba(255,255,255,.42); font-size:.82rem; }
 #network-reflection .ie-daily-brief { margin:0!important; padding:0!important; background:transparent!important; border:0!important; }
+#network-reflection .ie-daily-brief-header { display:none!important; }
+.network-reflection-section { margin:1rem 0; }
+.network-reflection-section:first-of-type { margin-top:.85rem; }
+.network-reflection-content { color:rgba(255,255,255,.72); font-size:.8rem; line-height:1.45; }
+.network-reflection-focus-card,.network-reflection-move { padding:.65rem .7rem; background:rgba(0,224,255,.045); border:1px solid rgba(0,224,255,.13); border-radius:7px; }
+.network-reflection-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.45rem; }
+.network-reflection-stat { padding:.55rem; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.07); border-radius:7px; }
+.network-reflection-stat strong { display:block; color:#fff; font-size:1rem; }
+.network-reflection-stat span { color:rgba(255,255,255,.45); font-size:.66rem; }
+.network-reflection-growth { margin-top:.55rem; color:rgba(0,255,136,.62); font-size:.72rem; }
+.network-reflection-moves { display:flex; flex-direction:column; gap:.45rem; }
+.network-reflection-move strong { display:block; color:rgba(255,255,255,.85); font-size:.78rem; }
+.network-reflection-move span { display:block; margin-top:.18rem; color:rgba(255,255,255,.48); font-size:.7rem; }
+.network-reflection-move button { margin-top:.45rem; padding:.28rem .55rem; background:rgba(0,224,255,.1); border:1px solid rgba(0,224,255,.25); border-radius:5px; color:#00e0ff; font:inherit; font-size:.7rem; cursor:pointer; }
 
 @media (min-width:1024px) {
   #network-reflection { position:absolute; z-index:550; top:0; right:0; bottom:0; width:var(--reflection-width); border-left:1px solid rgba(0,224,255,.18); }
@@ -65,7 +80,7 @@
   #network-reflection { position:fixed; z-index:450; left:0; right:0; bottom:calc(60px + env(safe-area-inset-bottom,0px)); height:42vh; height:42dvh; border-top:1px solid rgba(0,224,255,.25); border-radius:14px 14px 0 0; }
   #synapse-main-view { bottom:calc(42vh + 60px + env(safe-area-inset-bottom,0px))!important; bottom:calc(42dvh + 60px + env(safe-area-inset-bottom,0px))!important; }
   .network-reflection-header { padding:.7rem .9rem .6rem; }
-  .network-reflection-scroll { height:calc(100% - 38px); padding:.8rem .9rem; }
+  .network-reflection-scroll { height:calc(100% - 55px); padding:.8rem .9rem; }
   #command-dashboard.cd-mobile-panel .cd-search { padding:.5rem .75rem; }
   body.node-panel-open #network-reflection { visibility:hidden; }
 }
@@ -1004,19 +1019,6 @@
   border-color: rgba(0, 224, 255, 0.5);
 }
 
-/* Notifications — amber */
-.cd-notif-btn {
-  color: #ffaa00;
-  border-color: rgba(255, 170, 0, 0.3);
-  background: rgba(255, 170, 0, 0.06);
-  overflow: visible;
-  z-index: 1;
-}
-.cd-notif-btn:hover {
-  background: rgba(255, 170, 0, 0.15);
-  border-color: rgba(255, 170, 0, 0.5);
-}
-
 /* Actions — green */
 .cd-actions-btn {
   color: #00ff88;
@@ -1053,39 +1055,6 @@
   pointer-events: none;
   z-index: 10;
   box-shadow: 0 0 0 2px var(--cd-bg, #0a0e27);
-}
-
-/* ── Panel footer — report button ── */
-.cd-panel-footer {
-  padding: 0.6rem 1rem;
-  border-top: 1px solid var(--cd-border);
-  flex-shrink: 0;
-}
-
-.cd-report-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 224, 255, 0.2);
-  background: rgba(0, 224, 255, 0.05);
-  color: var(--cd-text-dim);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-.cd-report-btn:hover {
-  background: rgba(0, 224, 255, 0.12);
-  border-color: rgba(0, 224, 255, 0.4);
-  color: var(--cd-accent);
-}
-.cd-report-btn i {
-  font-size: 0.8rem;
 }
 
 .cd-identity-meta {

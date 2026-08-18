@@ -506,6 +506,7 @@ function renderDailyBriefBlock(brief) {
 
   // ── Header ────────────────────────────────────────────────────
   const hdr = document.createElement('div');
+  hdr.className = 'ie-daily-brief-header';
   hdr.style.cssText = 'display:flex;align-items:center;gap:0.48rem;margin-bottom:0.82rem;';
 
   const hdrIcon = document.createElement('span');
@@ -1066,6 +1067,113 @@ window.StartDailyDigest.generateBriefInto = function (el) {
   return window.StartDailyDigest._generateAndRenderBrief(el);
 };
 
+function _renderReflectionNetworkSummary(data) {
+  const root = document.getElementById('network-reflection-summary');
+  if (!root) return;
+  root.textContent = '';
+
+  const network = data?.network_insights || {};
+  const opportunities = data?.opportunities || {};
+  const stats = [
+    ['Connections', network.connections?.total || 0],
+    ['Active projects', network.active_projects?.count || 0],
+    ['Themes', network.participating_themes?.count || 0],
+    ['Opportunities', opportunities.open_opportunities?.count || 0],
+  ];
+  const grid = document.createElement('div');
+  grid.className = 'network-reflection-summary-grid';
+  stats.forEach(function ([label, value]) {
+    const card = document.createElement('div');
+    card.className = 'network-reflection-stat';
+    const count = document.createElement('strong');
+    count.textContent = String(value);
+    const name = document.createElement('span');
+    name.textContent = label;
+    card.append(count, name);
+    grid.appendChild(card);
+  });
+  root.appendChild(grid);
+
+  const growth = network.growth || {};
+  const growthParts = [
+    growth.new_connections ? `${growth.new_connections} new connection${growth.new_connections === 1 ? '' : 's'}` : '',
+    growth.new_projects ? `${growth.new_projects} new project${growth.new_projects === 1 ? '' : 's'}` : '',
+    growth.new_themes ? `${growth.new_themes} new theme${growth.new_themes === 1 ? '' : 's'}` : '',
+  ].filter(Boolean);
+  if (growthParts.length) {
+    const growthEl = document.createElement('div');
+    growthEl.className = 'network-reflection-growth';
+    growthEl.textContent = `${growthParts.join(' · ')} this month`;
+    root.appendChild(growthEl);
+  }
+}
+
+function _renderReflectionNextMoves(data) {
+  const root = document.getElementById('network-reflection-next-moves');
+  const section = root?.closest('.network-reflection-section');
+  if (!root) return;
+  root.textContent = '';
+
+  const insights = window.StartSequenceFormatter?.generateInsights?.(data) || [];
+  const actionable = insights.filter(item => item?.action && item?.handler).slice(0, 3);
+  if (!actionable.length) {
+    if (section) section.hidden = true;
+    return;
+  }
+  if (section) section.hidden = false;
+
+  const list = document.createElement('div');
+  list.className = 'network-reflection-moves';
+  actionable.forEach(function (item) {
+    const card = document.createElement('div');
+    card.className = 'network-reflection-move';
+    const message = document.createElement('strong');
+    message.textContent = item.message;
+    card.appendChild(message);
+    if (item.detail) {
+      const detail = document.createElement('span');
+      detail.textContent = item.detail;
+      card.appendChild(detail);
+    }
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = item.action;
+    button.dataset.insightData = JSON.stringify(item.data || {});
+    button.addEventListener('click', function (event) {
+      window.EnhancedStartUI?.handleAction?.(item.handler, event);
+    });
+    card.appendChild(button);
+    list.appendChild(card);
+  });
+  root.appendChild(list);
+}
+
+async function _renderReflectionSupportContent() {
+  const focus = document.getElementById('network-reflection-focus');
+  if (focus) {
+    if (window.MentorGuide?.renderFocusInto) {
+      try {
+        await window.MentorGuide.renderFocusInto(focus);
+      } catch (_) {
+        focus.className = 'network-reflection-content network-reflection-focus-card';
+        focus.textContent = 'Your strongest current signals are summarized below.';
+      }
+    } else {
+      focus.className = 'network-reflection-content network-reflection-focus-card';
+      focus.textContent = 'Your strongest current signals are summarized below.';
+    }
+  }
+
+  if (typeof window.getStartSequenceData !== 'function') return;
+  try {
+    const data = await window.getStartSequenceData(false);
+    _renderReflectionNetworkSummary(data);
+    _renderReflectionNextMoves(data);
+  } catch (error) {
+    console.warn('[NetworkReflection] Summary data unavailable:', error?.message || error);
+  }
+}
+
 // The same Daily Brief implementation now owns the persistent Synapse
 // Reflection rail. Entity panels layer over this surface and reveal it again
 // when closed; no second insight state is created.
@@ -1076,7 +1184,10 @@ window.StartDailyDigest.renderNetworkReflection = function (profile) {
     const firstName = String(profile?.full_name || profile?.username || '').trim().split(/\s+/)[0];
     greeting.textContent = firstName ? `Welcome back, ${firstName}.` : 'Welcome back.';
   }
-  return root ? window.StartDailyDigest._generateAndRenderBrief(root) : Promise.resolve();
+  const briefPromise = root
+    ? window.StartDailyDigest._generateAndRenderBrief(root)
+    : Promise.resolve();
+  return Promise.all([briefPromise, _renderReflectionSupportContent()]);
 };
 
 window.addEventListener('profile-loaded', function (event) {

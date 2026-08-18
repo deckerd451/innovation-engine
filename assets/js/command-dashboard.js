@@ -158,7 +158,6 @@ window.CommandDashboard = (() => {
     _wireAdminBtn();
     _wireBellBtn();
     _wireLogoutBtn();
-    _wireReportBtn();
 
     if (window.ExplorerCoordinator) {
       window.ExplorerCoordinator.setActiveMode(_activeResourceTab);
@@ -1668,14 +1667,6 @@ window.CommandDashboard = (() => {
       });
     }
 
-    // Notifications button → reveal the canonical Reflection rail
-    const notifBtn = $id('cd-notif-btn');
-    if (notifBtn) {
-      notifBtn.addEventListener('click', () => {
-        window.UnifiedNotifications?.showReflection?.();
-      });
-    }
-
     // Actions button → open unified panel (shows connection requests, bids, etc.)
     const actionsBtn = $id('cd-actions-btn');
     if (actionsBtn) {
@@ -1693,19 +1684,6 @@ window.CommandDashboard = (() => {
     if (!btn) return;
     btn.addEventListener('click', () => {
       if (window.doLogout) window.doLogout();
-    });
-  }
-
-  /** Wire report button → open the START daily digest / network report */
-  function _wireReportBtn() {
-    const btn = $id('cd-report-btn');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      if (typeof window.openStartModal === 'function') {
-        window.openStartModal();
-      } else if (typeof window.StartDailyDigest?.show === 'function') {
-        window.StartDailyDigest.show();
-      }
     });
   }
 
