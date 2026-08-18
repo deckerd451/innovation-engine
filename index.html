@@ -261,29 +261,25 @@
               </div>
             </div>
 
-            <div class="cd-identity-meta">
-              <span class="cd-level-badge" id="cd-level-badge">Lv 1</span>
-              <span class="cd-streak" id="cd-streak" style="display:none;">
-                <i class="fas fa-fire"></i>
-                <span id="cd-streak-count">0</span>
-              </span>
-            </div>
+          </div>
+        </div>
 
-            <div class="cd-xp-bar-wrap" title="XP Progress">
-              <div class="cd-xp-bar" id="cd-xp-bar" style="width:0%"></div>
-            </div>
-
-            <div id="cd-profile-completeness" style="display:none;" title="Profile completeness">
-              <div class="cd-completeness-label">
-                <span>Profile</span>
-                <span id="cd-completeness-pct">0%</span>
-              </div>
-              <div class="cd-completeness-bar-wrap">
-                <div class="cd-completeness-bar" id="cd-completeness-bar" style="width:0%"></div>
-              </div>
-            </div>
-
-            <div class="cd-greeting" id="cd-greeting"></div>
+        <div id="centered-search-container" class="cd-search" role="search">
+          <div id="category-action-bar" style="display:none;"></div>
+          <div id="search-container">
+            <label for="global-search" class="sr-only">Search your network</label>
+            <i class="fas fa-search cd-search-icon" aria-hidden="true"></i>
+            <input
+              type="text"
+              id="global-search"
+              placeholder="Search your network..."
+              autocomplete="off"
+              aria-describedby="search-suggestions"
+            />
+            <button id="search-button" aria-label="Search your network">
+              <i class="fas fa-search"></i>
+            </button>
+            <div id="search-suggestions"></div>
           </div>
         </div>
 
@@ -312,20 +308,6 @@
         <!-- Today's Focus (messages alert + insights) -->
         <div class="cd-focus" id="cd-focus">
           <div id="cd-focus-messages"></div>
-        </div>
-
-        <!-- Network Insights (collapsible) -->
-        <div class="cd-insights" id="cd-insights">
-          <div class="cd-section-toggle-row">
-            <button id="cd-insights-toggle" aria-expanded="false" style="width:100%; display:flex; align-items:center; justify-content:space-between; background:none; border:none; padding:0.5rem 0.75rem; cursor:pointer; color:#aaa;">
-              <span style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">NETWORK INSIGHTS</span>
-              <i class="fas fa-chevron-down" style="font-size:0.6rem; transition:transform 0.25s;"></i>
-            </button>
-          </div>
-          <div class="cd-section-body" id="cd-insights-body" hidden>
-            <div id="cd-insights-primary"></div>
-            <div id="cd-insights-secondary" style="display:none;"></div>
-          </div>
         </div>
 
         <div class="cd-explore" id="cd-explore">
@@ -385,6 +367,7 @@
       id="synapse-main-view"
       style="position:absolute; inset:0; z-index:1; background:#000000; overflow:hidden; touch-action:pan-y pinch-zoom;"
     >
+      <div class="synapse-workspace-title">Synapse</div>
       <!-- Synapse Filter Bar — graph lens chips -->
       <nav id="synapse-filter-bar" role="toolbar" aria-label="Graph filter">
         <button class="synapse-filter-chip" data-filter="connected" aria-pressed="false">
@@ -398,47 +381,16 @@
       <svg id="synapse-svg" style="width:100%; height:100%; background:#000000; touch-action:none;"></svg>
     </div>
 
-    <div
-      id="centered-search-container"
-      style="position:absolute; bottom:100px; width:min(700px, 85vw); max-width:min(700px, 85vw); z-index:100; display:flex; flex-direction:column; align-items:center; gap:0.75rem;"
-    >
-      <div id="category-action-bar" style="display:none; width:100%; justify-content:flex-end;"></div>
-
-      <div
-        id="search-container"
-        style="position:relative; width:100%; max-width:100%; background:rgba(10,14,39,0.6); border-radius:12px; border:2px solid rgba(0,224,255,0.3); backdrop-filter:blur(10px); box-shadow:0 4px 20px rgba(0,224,255,0.3);"
-      >
-        <div
-          id="search-drag-handle"
-          title="Drag to move"
-          style="position:absolute; top:-14px; left:50%; transform:translateX(-50%); width:48px; height:14px; cursor:grab; display:flex; align-items:center; justify-content:center; background:rgba(10,14,39,0.7); border:1px solid rgba(0,224,255,0.25); border-radius:6px 6px 0 0;"
-        >
-          <div style="width:28px; height:3px; background:rgba(0,224,255,0.4); border-radius:2px;"></div>
+    <aside id="network-reflection" aria-label="Network Reflection">
+      <div class="network-reflection-header">Network Reflection</div>
+      <div class="network-reflection-scroll">
+        <p id="network-reflection-greeting" class="network-reflection-greeting">Welcome back.</p>
+        <h2>Your focus today</h2>
+        <div id="network-reflection-brief" aria-live="polite">
+          <div class="network-reflection-loading">Reading your network…</div>
         </div>
-
-        <label for="global-search" class="sr-only">Search everything</label>
-        <input
-          type="text"
-          id="global-search"
-          placeholder="Search everything..."
-          autocomplete="off"
-          aria-describedby="search-suggestions"
-          style="width:100%; padding:0.75rem 4rem 0.75rem 1rem; background:transparent; border:none; border-radius:10px; color:#fff; font-size:16px; outline:none; box-sizing:border-box;"
-        />
-
-        <button
-          id="search-button"
-          style="position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:linear-gradient(135deg,#00e0ff,#0080ff); border:none; padding:0.5rem 0.85rem; border-radius:8px; color:white; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; z-index:1;"
-        >
-          <i class="fas fa-search"></i>
-        </button>
-
-        <div
-          id="search-suggestions"
-          style="display:none; position:absolute; left:1rem; right:1rem; background:rgba(10,14,39,0.98); border:2px solid rgba(0,224,255,0.4); border-radius:12px; max-height:min(400px, 60vh); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1000; box-shadow:0 8px 32px rgba(0,224,255,0.3);"
-        ></div>
       </div>
-    </div>
+    </aside>
   </div>
 
   <div class="modal" id="profile-modal">

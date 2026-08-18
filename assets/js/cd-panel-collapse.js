@@ -32,11 +32,12 @@
 
   const STORAGE_KEY   = 'cdPanelCollapsed';
   const STORAGE_KEY_W = 'cdPanelWidth';
-  const DEFAULT_W     = 420;
-  const MIN_W         = 300;
+  const DEFAULT_W     = 340;
+  const MIN_W         = 280;
+  const MAX_W         = 420;
 
   function getMaxW() {
-    return Math.floor(window.innerWidth * 0.65);
+    return Math.min(MAX_W, Math.floor(window.innerWidth * 0.4));
   }
 
   function applyWidth(px) {

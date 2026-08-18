@@ -16,7 +16,8 @@
    TOKENS
    ============================================================ */
 :root {
-  --cd-width: 420px; /* wider sidebar for better readability */
+  --cd-width: clamp(280px, 24vw, 340px);
+  --reflection-width: clamp(310px, 27vw, 380px);
   --cd-bg: rgba(5, 7, 15, 0.78);
   --cd-border: rgba(0, 224, 255, 0.15);
   --cd-accent: #00e0ff;
@@ -35,6 +36,38 @@
   --cd-insight-border: rgba(0, 200, 140, 0.18);
   --cd-resource-hover: rgba(0, 224, 255, 0.08);
   --cd-scrollbar: rgba(0, 224, 255, 0.2);
+}
+
+/* ============================================================
+   SYNAPSE FINAL WORKSPACE — Explore / Synapse / Reflection
+   ============================================================ */
+.cd-search { position:relative!important; inset:auto!important; left:auto!important; right:auto!important; bottom:auto!important; transform:none!important; width:auto!important; max-width:none!important; z-index:20!important; display:block!important; flex-shrink:0; padding:.6rem .75rem!important; border-bottom:1px solid var(--cd-border); box-sizing:border-box; }
+.cd-search #search-container { position:relative; width:100%; background:rgba(10,14,39,.72); border:1px solid rgba(0,224,255,.28); border-radius:8px; }
+.cd-search-icon { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); color:rgba(0,224,255,.65); font-size:.78rem; pointer-events:none; }
+.cd-search #global-search { width:100%; box-sizing:border-box; padding:.65rem 2.8rem .65rem 2.1rem!important; color:#fff; background:transparent; border:0; outline:0; font-size:.85rem; }
+.cd-search #search-button { position:absolute; right:.35rem!important; top:50%; transform:translateY(-50%); width:30px; height:30px; padding:0!important; border:0; border-radius:6px; color:#fff; background:linear-gradient(135deg,#00e0ff,#0080ff); cursor:pointer; }
+.cd-search #search-suggestions { display:none; position:absolute; top:calc(100% + .35rem); left:0; right:0; max-height:min(420px,60vh); overflow-y:auto; background:rgba(10,14,39,.99); border:1px solid rgba(0,224,255,.4); border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,.65); z-index:1000; }
+.synapse-workspace-title { position:absolute; top:1rem; left:1rem; z-index:5; color:rgba(224,232,255,.72); font-size:.72rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; pointer-events:none; }
+#network-reflection { color:var(--cd-text); background:linear-gradient(145deg,rgba(8,12,28,.97),rgba(4,8,18,.98)); overflow:hidden; }
+.network-reflection-header { padding:1rem 1.1rem .85rem; border-bottom:1px solid rgba(0,224,255,.18); color:rgba(224,232,255,.72); font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.network-reflection-scroll { height:calc(100% - 48px); box-sizing:border-box; overflow-y:auto; padding:1.1rem; }
+.network-reflection-greeting { margin:0 0 .35rem; color:rgba(255,255,255,.62); font-size:.86rem; }
+.network-reflection-scroll h2 { margin:0 0 1rem; color:#00e0ff; font-size:1.25rem; }
+.network-reflection-loading { padding:.75rem 0; color:rgba(255,255,255,.42); font-size:.82rem; }
+#network-reflection .ie-daily-brief { margin:0!important; padding:0!important; background:transparent!important; border:0!important; }
+
+@media (min-width:1024px) {
+  #network-reflection { position:absolute; z-index:550; top:0; right:0; bottom:0; width:var(--reflection-width); border-left:1px solid rgba(0,224,255,.18); }
+  body.panel-collapsed #synapse-main-view { right:var(--reflection-width)!important; }
+}
+
+@media (max-width:1023px) {
+  #network-reflection { position:fixed; z-index:450; left:0; right:0; bottom:calc(60px + env(safe-area-inset-bottom,0px)); height:42vh; height:42dvh; border-top:1px solid rgba(0,224,255,.25); border-radius:14px 14px 0 0; }
+  #synapse-main-view { bottom:calc(42vh + 60px + env(safe-area-inset-bottom,0px))!important; bottom:calc(42dvh + 60px + env(safe-area-inset-bottom,0px))!important; }
+  .network-reflection-header { padding:.7rem .9rem .6rem; }
+  .network-reflection-scroll { height:calc(100% - 38px); padding:.8rem .9rem; }
+  #command-dashboard.cd-mobile-panel .cd-search { padding:.5rem .75rem; }
+  body.node-panel-open #network-reflection { visibility:hidden; }
 }
 
 /* ============================================================
@@ -83,15 +116,7 @@
   /* We override left so the graph only fills right portion */
   #synapse-main-view {
     left: var(--cd-width) !important;   /* 320px — right of dashboard */
-  }
-
-  /* ── Search container: center within graph area ── */
-  /* Graph area: from var(--cd-width) to 100vw. Center = cd-width/2 + 50vw */
-  /* Uses CSS var so it tracks panel width changes automatically.
-     No !important so drag-start inline styles (left/transform) can override. */
-  #centered-search-container {
-    left: calc(50% + var(--cd-width) / 2);
-    transform: translateX(-50%);
+    right: var(--reflection-width) !important;
   }
 
   /* ── Node side panel: slides from right of viewport ── */
@@ -99,6 +124,7 @@
   /* It naturally overlaps only the graph area (not the left dashboard) */
   #node-side-panel {
     z-index: 2000 !important;
+    width: var(--reflection-width) !important;
   }
 }
 
@@ -840,10 +866,10 @@
 
 /* ── Layer 1: Identity ── */
 .cd-identity {
-  padding: 1rem 1rem 0.8rem;
+  padding: 0.7rem 0.75rem;
   border-bottom: 1px solid var(--cd-border);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
   background: rgba(0, 224, 255, 0.025);
   flex-shrink: 0;
@@ -851,8 +877,8 @@
 
 /* ── Avatar — clickable button ── */
 .cd-identity-avatar {
-  width: 56px;
-  height: 56px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: linear-gradient(135deg, #00e0ff, #0060cc);
   border: 2px solid rgba(0, 224, 255, 0.4);
@@ -913,7 +939,7 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  margin-bottom: 0.22rem;
+  margin-bottom: 0;
 }
 
 .cd-identity-name {
@@ -1143,7 +1169,7 @@
 
 /* ── Layer 2: Network Status ── */
 .cd-network-status {
-  padding: 0.55rem 1rem 0.6rem;
+  padding: 0.45rem 0.75rem 0.5rem;
   border-bottom: 1px solid var(--cd-border);
   flex-shrink: 0;
 }
@@ -1171,9 +1197,9 @@
   flex-direction: column;
   align-items: center;
   gap: 0.08rem;
-  padding: 0.35rem 0.15rem;
-  background: var(--cd-stat-bg);
-  border: 1px solid var(--cd-stat-border);
+  padding: 0.2rem 0.1rem;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s;
@@ -1371,7 +1397,7 @@
 
 /* ── Layer 4: Explore ── */
 .cd-explore {
-  padding: 0.55rem 1rem 0.5rem;
+  padding: 0.35rem 0.5rem 0.4rem;
   flex: 1;
   border-bottom: 1px solid var(--cd-border);
   display: flex;
@@ -1630,10 +1656,6 @@
   #synapse-main-view {
     transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
-  #centered-search-container {
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  }
 
   /* Toggle tab — pill attached to right edge of panel */
   #cd-panel-tab {
@@ -1682,10 +1704,6 @@
     border-radius: 8px 0 0 8px;
   }
   /* Re-centre the search bar when panel is gone */
-  body.panel-collapsed #centered-search-container {
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-  }
 }
 
 /* ============================================================

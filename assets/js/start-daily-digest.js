@@ -1066,6 +1066,28 @@ window.StartDailyDigest.generateBriefInto = function (el) {
   return window.StartDailyDigest._generateAndRenderBrief(el);
 };
 
+// The same Daily Brief implementation now owns the persistent Synapse
+// Reflection rail. Entity panels layer over this surface and reveal it again
+// when closed; no second insight state is created.
+window.StartDailyDigest.renderNetworkReflection = function (profile) {
+  const root = document.getElementById('network-reflection-brief');
+  const greeting = document.getElementById('network-reflection-greeting');
+  if (greeting) {
+    const firstName = String(profile?.full_name || profile?.username || '').trim().split(/\s+/)[0];
+    greeting.textContent = firstName ? `Welcome back, ${firstName}.` : 'Welcome back.';
+  }
+  return root ? window.StartDailyDigest._generateAndRenderBrief(root) : Promise.resolve();
+};
+
+window.addEventListener('profile-loaded', function (event) {
+  window.StartDailyDigest.renderNetworkReflection(event?.detail?.profile);
+});
+
+window.addEventListener('load', function () {
+  const profile = window.currentUserProfile || null;
+  window.StartDailyDigest.renderNetworkReflection(profile);
+}, { once: true });
+
 // Expose mobile-split helpers so unified-notification-system.js can build
 // the full-screen split from the bell-button path on mobile.
 window.StartDailyDigest._buildSplit   = _buildSplit;

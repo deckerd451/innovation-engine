@@ -152,7 +152,6 @@ window.CommandDashboard = (() => {
     _wireTierButtons();
     _wireResourceTabs();
     _wireAddButton();
-    _wireInsightsToggle();
     _wireExploreToggle();
     _wireStatusPillClicks();
     _wireAvatarClick();
@@ -259,7 +258,7 @@ window.CommandDashboard = (() => {
 
     // Name
     const nameEl = $id('cd-user-name');
-    if (nameEl) nameEl.textContent = profile.full_name || profile.username || 'You';
+    if (nameEl) nameEl.textContent = 'You';
 
     // Level badge with title
     const levelEl = $id('cd-level-badge');
@@ -373,9 +372,8 @@ window.CommandDashboard = (() => {
     // Messages banner (fast, in-memory)
     _renderMessages();
 
-    // Network Insights use generateDailyBrief (async, may be slow)
-    _renderInsightsPlaceholder();
-    _renderInsights(tier); // non-blocking
+    // Network intelligence is rendered by the persistent right-rail
+    // Network Reflection surface.
   }
 
   /* ================================================================
