@@ -1,16 +1,20 @@
 // ================================================================
 // SYNAPSE CONTEXT — Entity Lens State (Projects / Orgs / Themes)
 // ================================================================
-// Manages selected project, org, or theme as a "context lens" that
+// Manages selected project, org, theme, or opportunity as a "context lens" that
 // highlights related people in the people-only Synapse graph.
 // These entities are NOT graph nodes — they drive graph highlighting.
 // ================================================================
 
+import { resolveOpportunityPeople } from './opportunity-people-resolver.js';
+
 const _state = {
-  type: null,   // 'project' | 'organization' | 'theme' | null
+  type: null,   // 'project' | 'organization' | 'theme' | 'opportunity' | null
   id: null,     // entity ID (or theme string for themes)
   name: null,   // display name
   memberIds: null, // Set<string> — people IDs to highlight
+  reasonsByPerson: null, // Map<string, Reason[]> — opportunity-specific evidence
+  entity: null,
 };
 
 const _listeners = new Set();
@@ -35,6 +39,8 @@ export function clearContext() {
   _state.id = null;
   _state.name = null;
   _state.memberIds = null;
+  _state.reasonsByPerson = null;
+  _state.entity = null;
   console.log('[Context] Cleared');
   _notify(null, prev);
 }
@@ -60,6 +66,8 @@ export async function setProjectContext(projectId, projectName) {
   _state.id = projectId;
   _state.name = projectName || 'Project';
   _state.memberIds = memberIds;
+  _state.reasonsByPerson = null;
+  _state.entity = null;
 
   console.log(`[Context] Project selected: ${projectId} → highlighting ${memberIds.size} members`);
   _notify(_state);
@@ -86,6 +94,8 @@ export async function setOrgContext(orgId, orgName) {
   _state.id = orgId;
   _state.name = orgName || 'Organization';
   _state.memberIds = memberIds;
+  _state.reasonsByPerson = null;
+  _state.entity = null;
 
   console.log(`[Context] Org selected: ${orgId} → highlighting ${memberIds.size} members`);
   _notify(_state);
@@ -125,9 +135,27 @@ export function setThemeContext(themeString, contextId = themeString) {
   _state.id = contextId;
   _state.name = themeString;
   _state.memberIds = memberIds;
+  _state.reasonsByPerson = null;
+  _state.entity = null;
 
   console.log(`[Context] Theme selected: "${themeString}" → highlighting ${memberIds.size} people`);
   _notify(_state);
+}
+
+/** Resolve and activate one opportunity as a people lens. */
+export async function setOpportunityContext(opportunityId, opportunityName) {
+  const resolved = await resolveOpportunityPeople(opportunityId);
+
+  _state.type = 'opportunity';
+  _state.id = opportunityId;
+  _state.name = opportunityName || resolved.opportunity.title || 'Opportunity';
+  _state.memberIds = resolved.personIds;
+  _state.reasonsByPerson = resolved.reasonsByPerson;
+  _state.entity = resolved.opportunity;
+
+  console.log(`[Context] Opportunity selected: ${opportunityId} → highlighting ${resolved.personIds.size} relevant people`);
+  _notify(_state);
+  return resolved;
 }
 
 /** Subscribe to context changes. Returns unsubscribe function. */
@@ -149,4 +177,5 @@ window.SynapseContext = {
   setProject: setProjectContext,
   setOrg: setOrgContext,
   setTheme: setThemeContext,
+  setOpportunity: setOpportunityContext,
 };

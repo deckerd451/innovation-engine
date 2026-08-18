@@ -610,6 +610,60 @@ function normalizeSkills(raw) {
   return [];
 }
 
+function getOpportunityRelevantPeople(opportunityId) {
+  const ctx = window.SynapseContext?.get?.();
+  if (ctx?.type !== 'opportunity' || String(ctx.id) !== String(opportunityId)) return null;
+
+  const nodes = window.graphDataStore?.getAllNodes?.() || [];
+  const peopleById = new Map(
+    nodes.filter(node => node.type === 'person').map(node => [String(node.id), node])
+  );
+
+  return [...(ctx.memberIds || [])]
+    .map(personId => {
+      const node = peopleById.get(String(personId));
+      if (!node) return null;
+      return {
+        id: String(personId),
+        name: node.name || node._raw?.name || 'Community member',
+        reasons: ctx.reasonsByPerson?.get(String(personId)) || [],
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.reasons.length - a.reasons.length || a.name.localeCompare(b.name));
+}
+
+function renderOpportunityRelevantPeople(opportunityId, typeColor) {
+  const people = getOpportunityRelevantPeople(opportunityId);
+  if (people === null) return '';
+
+  const rows = people.length > 0
+    ? people.map(person => `
+      <div style="padding:0.7rem 0; border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="color:#fff; font-size:0.88rem; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(person.name)}</div>
+        <div style="display:flex; flex-direction:column; gap:0.2rem;">
+          ${person.reasons.map(reason => `
+            <span style="color:#bbb; font-size:0.76rem; line-height:1.35;">
+              ${escapeHtml(reason.label)}${reason.detail ? `: ${escapeHtml(reason.detail)}` : ''}
+            </span>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')
+    : `<p style="color:#aaa; font-size:0.82rem; line-height:1.5; margin:0;">No matching people are currently visible in your network.</p>`;
+
+  return `
+    <div style="margin-bottom:1.5rem;">
+      <h3 style="color:${typeColor}; font-size:0.9rem; margin-bottom:0.6rem; text-transform:uppercase;">
+        <i class="fas fa-users"></i> Relevant people (${people.length})
+      </h3>
+      <div style="background:rgba(255,255,255,0.035); border:1px solid ${typeColor}33; border-radius:10px; padding:0.75rem;">
+        ${rows}
+      </div>
+    </div>
+  `;
+}
+
 // Render opportunity panel — queries public.opportunities by UUID
 async function renderOpportunityPanel(nodeData) {
   const oppId = nodeData.id;
@@ -684,6 +738,8 @@ async function renderOpportunityPanel(nodeData) {
           </div>
         </div>
       ` : ''}
+
+      ${renderOpportunityRelevantPeople(opp.id, typeColor)}
 
       <!-- Status badge -->
       <div style="text-align: center; margin-top: 1rem;">

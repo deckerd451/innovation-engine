@@ -1404,7 +1404,8 @@ window.CommandDashboard = (() => {
         };
         const type = typeByTab[_activeResourceTab];
         selected = type === 'opportunity'
-          ? state.selectedEntity.type === type && String(state.selectedEntity.id || '') === rowId
+          ? (state.selectedEntity.type === type && String(state.selectedEntity.id || '') === rowId) ||
+            (state.contextLens?.type === type && String(state.contextLens.id || '') === rowId)
           : !!type && state.contextLens?.type === type && String(state.contextLens.id || '') === rowId;
       }
 

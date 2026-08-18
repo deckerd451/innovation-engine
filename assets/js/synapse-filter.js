@@ -6,6 +6,8 @@
 // for each filter lens. No DOM or rendering concerns.
 // ================================================================
 
+import { extractPersonTerms } from './opportunity-people-resolver.js';
+
 const FILTER_MODES = Object.freeze({
   ALL:        'all',
   CONNECTED:  'connected',
@@ -169,7 +171,7 @@ function _computeOpps(nodes, edges, userId, extra) {
   if (extra.oppSkills && extra.oppSkills.size > 0) {
     nodes.forEach(n => {
       if (n.id === userId) return;
-      const theirSkills = _extractSkills(n);
+      const theirSkills = extractPersonTerms(n);
       for (const skill of theirSkills) {
         if (extra.oppSkills.has(skill)) {
           active.add(n.id);
@@ -198,18 +200,3 @@ function _computeOpps(nodes, edges, userId, extra) {
 // ----------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------
-
-function _extractSkills(node) {
-  const skills = new Set();
-  if (!node) return skills;
-  const raw = node._raw || node;
-  const sources = [raw.skills, raw.interests, raw.themes];
-  sources.forEach(src => {
-    if (Array.isArray(src)) {
-      src.forEach(s => { if (typeof s === 'string' && s.trim()) skills.add(s.trim().toLowerCase()); });
-    } else if (typeof src === 'string' && src.trim()) {
-      src.split(',').forEach(s => { if (s.trim()) skills.add(s.trim().toLowerCase()); });
-    }
-  });
-  return skills;
-}

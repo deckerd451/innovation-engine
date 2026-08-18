@@ -113,16 +113,17 @@ function _renderContextChip(ctx) {
 
   if (!ctx || !ctx.type) return;
 
-  const icons = { project: 'fa-project-diagram', organization: 'fa-building', theme: 'fa-palette' };
-  const colors = { project: '#00ff88', organization: '#00e0ff', theme: '#a855f7' };
+  const icons = { project: 'fa-project-diagram', organization: 'fa-building', theme: 'fa-palette', opportunity: 'fa-bolt' };
+  const colors = { project: '#00ff88', organization: '#00e0ff', theme: '#a855f7', opportunity: '#ff5ca8' };
   const icon = icons[ctx.type] || 'fa-filter';
   const color = colors[ctx.type] || '#fff';
+  const visibleName = ctx.type === 'opportunity' ? `Opportunity: ${ctx.name}` : ctx.name;
 
   const chip = document.createElement('button');
   chip.className = 'synapse-filter-chip synapse-context-chip';
   chip.setAttribute('aria-pressed', 'true');
   chip.style.cssText = `color:${color}; border-color:${color}50; background:${color}18;`;
-  chip.innerHTML = `<i class="fas ${icon}"></i><span>${_escapeHtmlSimple(ctx.name)}</span><i class="fas fa-times" style="opacity:0.6;margin-left:2px;font-size:0.6rem"></i>`;
+  chip.innerHTML = `<i class="fas ${icon}"></i><span>${_escapeHtmlSimple(visibleName)}</span><i class="fas fa-times" style="opacity:0.6;margin-left:2px;font-size:0.6rem"></i>`;
   chip.title = `${ctx.type}: ${ctx.name} — click to remove`;
   chip.addEventListener('click', () => clearContext());
   bar.appendChild(chip);
@@ -172,12 +173,14 @@ function _applyCurrentFilter() {
       // Intersect filter + context
       const intersected = new Set();
       filtered.activeNodeIds.forEach(id => {
-        if (id === _userId || contextIds.has(id)) intersected.add(id);
+        if (contextIds.has(id) || (ctx.type !== 'opportunity' && id === _userId)) intersected.add(id);
       });
       filtered.activeNodeIds = intersected;
     } else {
       // Context alone drives highlighting
-      filtered.activeNodeIds = new Set([_userId, ...contextIds]);
+      filtered.activeNodeIds = ctx.type === 'opportunity'
+        ? new Set(contextIds)
+        : new Set([_userId, ...contextIds]);
     }
 
     // Recompute dim/edge sets
@@ -199,7 +202,7 @@ function _applyCurrentFilter() {
     // Override mode so renderer applies filter visuals
     if (mode === FILTER_MODES.ALL) {
       filtered.mode = '__context';
-      const ctxColors = { project: '#00ff88', organization: '#00e0ff', theme: '#a855f7' };
+      const ctxColors = { project: '#00ff88', organization: '#00e0ff', theme: '#a855f7', opportunity: '#ff5ca8' };
       const color = ctxColors[ctx.type] || '#00e0ff';
       filtered.visuals = { glowColor: color, strokeColor: color, edgeColor: `${color}88` };
     }
@@ -213,11 +216,16 @@ function _applyCurrentFilter() {
 
   // Update header
   if (ctx.type) {
-    const ctxLabel = ctx.type === 'project' ? 'Project' : ctx.type === 'organization' ? 'Organization' : 'Theme';
+    const ctxLabel = {
+      project: 'Project', organization: 'Organization', theme: 'Theme', opportunity: 'Opportunity',
+    }[ctx.type] || 'Context';
     const color = filtered.visuals?.glowColor || '#fff';
     const header = document.getElementById('synapse-filter-header');
     if (header) {
-      header.innerHTML = `<span style="color:${color}">${ctxLabel}: ${_escapeHtmlSimple(ctx.name)}</span> — <span class="filter-header-count">${Math.max(0, filtered.activeNodeIds.size - 1)}</span> people`;
+      const contextCount = ctx.type === 'opportunity'
+        ? filtered.activeNodeIds.size
+        : Math.max(0, filtered.activeNodeIds.size - 1);
+      header.innerHTML = `<span style="color:${color}">${ctxLabel}: ${_escapeHtmlSimple(ctx.name)}</span> — <span class="filter-header-count">${contextCount}</span> people`;
       header.classList.add('visible');
     }
   } else {
@@ -280,13 +288,21 @@ function _buildNodeContext(mode, nodes, activeNodeIds, ctx = {}) {
     let detail = '';
 
     if (ctx.type) {
-      const labels = {
-        project: 'Project member',
-        organization: 'Organization member',
-        theme: 'Matches theme',
-      };
-      reason = labels[ctx.type] || 'Matches active context';
-      detail = ctx.name || '';
+      if (ctx.type === 'opportunity') {
+        const reasons = ctx.reasonsByPerson?.get(String(n.id)) || [];
+        reason = `Relevant to ${ctx.name || 'opportunity'}`;
+        detail = reasons.map(item => item.detail
+          ? `${item.label}: ${item.detail}`
+          : item.label).join(' · ');
+      } else {
+        const labels = {
+          project: 'Project member',
+          organization: 'Organization member',
+          theme: 'Matches theme',
+        };
+        reason = labels[ctx.type] || 'Matches active context';
+        detail = ctx.name || '';
+      }
     } else switch (mode) {
       case FILTER_MODES.CONNECTED:
         reason = 'Accepted connection';
@@ -323,7 +339,7 @@ export function getNodeFilterContext(nodeId) {
 
 /** Render the existing filter/context reason for any person-panel entry path. */
 export function renderNodeContextBanner(nodeId) {
-  const panel = document.getElementById('node-panel');
+  const panel = document.getElementById('node-side-panel');
   const body = panel?.querySelector('.node-panel-body');
   if (!body) return;
 

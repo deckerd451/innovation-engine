@@ -86,7 +86,17 @@ function selectPerson({ id, label, node = null } = {}, options = {}) {
 async function selectOpportunity({ id, label } = {}, options = {}) {
   if (!id) return false;
 
-  if (window.SynapseContext?.has?.()) window.SynapseContext.clear();
+  try {
+    if (typeof window.SynapseContext?.setOpportunity !== 'function') {
+      throw new Error('Opportunity context is unavailable');
+    }
+    await window.SynapseContext.setOpportunity(id, label);
+  } catch (error) {
+    _emit('opportunity-selection-failed');
+    console.error('[ExplorerCoordinator] opportunity context resolution failed:', error);
+    return false;
+  }
+
   window.GraphController?.clearFocus?.({ source: 'opportunity-selection' });
 
   _state.focusedPersonId = null;
