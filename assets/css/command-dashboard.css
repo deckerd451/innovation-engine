@@ -70,6 +70,8 @@
 .network-reflection-move strong { display:block; color:rgba(255,255,255,.85); font-size:.78rem; }
 .network-reflection-move span { display:block; margin-top:.18rem; color:rgba(255,255,255,.48); font-size:.7rem; }
 .network-reflection-move button { margin-top:.45rem; padding:.28rem .55rem; background:rgba(0,224,255,.1); border:1px solid rgba(0,224,255,.25); border-radius:5px; color:#00e0ff; font:inherit; font-size:.7rem; cursor:pointer; }
+.network-reflection-export { margin-top:1.25rem; padding-top:.8rem; border-top:1px solid rgba(255,255,255,.1); }
+.network-reflection-export button { width:100%; padding:.48rem .65rem; background:transparent; border:1px solid rgba(255,255,255,.18); border-radius:6px; color:rgba(255,255,255,.58); font:inherit; font-size:.7rem; cursor:pointer; }
 
 @media (min-width:1024px) {
   #network-reflection { position:absolute; z-index:550; top:0; right:0; bottom:0; width:var(--reflection-width); border-left:1px solid rgba(0,224,255,.18); }
