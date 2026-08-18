@@ -743,7 +743,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
       .limit(200);
     if (!oppErr) {
       opportunities = (oppData || [])
-        .filter(row => row.is_public !== false)
+        .filter(isEligiblePublicOpportunity)
         .map(row => {
           const rawSkills = row.skills || row.required_skills || [];
           return {
@@ -781,6 +781,15 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
 // ================================================================
 // SECTION BUILDERS
 // ================================================================
+
+// Some deployed opportunity schemas predate is_public. When the field exists,
+// only an explicit true is public; null is never treated as public.
+export function isEligiblePublicOpportunity(row) {
+  if (!row || Object.prototype.hasOwnProperty.call(row, 'is_public')) {
+    return row?.is_public === true;
+  }
+  return true;
+}
 
 /**
  * 1) signals_moving — what is moving in the network right now?

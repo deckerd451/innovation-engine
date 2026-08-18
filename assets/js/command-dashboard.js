@@ -51,7 +51,7 @@ window.CommandDashboard = (() => {
         organizations: 'Nearby Organizations',
         opportunities: 'Nearby Opportunities',
       },
-      briefSections: ['combination_opportunities', 'signals_moving'],
+      briefSections: ['people_worth_knowing', 'signals_moving', 'opportunities_for_you'],
     },
     3: {
       label: 'Ecosystem',
@@ -64,7 +64,7 @@ window.CommandDashboard = (() => {
         organizations: 'All Organizations',
         opportunities: 'All Opportunities',
       },
-      briefSections: ['blind_spots', 'signals_moving', 'combination_opportunities'],
+      briefSections: ['people_worth_knowing', 'opportunities_for_you', 'signals_moving'],
     },
   };
 
@@ -1234,10 +1234,9 @@ window.CommandDashboard = (() => {
   function _ctaForSection(sectionKey) {
     const labels = {
       your_pattern:              'See Pattern',
+      people_worth_knowing:     'View Person',
       opportunities_for_you:    'Explore',
-      combination_opportunities: 'Find Intersection',
       signals_moving:            'View Signal',
-      blind_spots:               'Discover',
     };
     return labels[sectionKey] || 'Show in Graph';
   }
