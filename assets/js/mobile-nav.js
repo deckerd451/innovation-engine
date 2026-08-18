@@ -71,7 +71,7 @@
     messages: {
       activate() {
         if (window.UnifiedNotifications?.showPanel) {
-          window.UnifiedNotifications.showPanel();
+          window.UnifiedNotifications.showPanel('actions');
         } else if (typeof window.openMessagesModal === 'function') {
           window.openMessagesModal();
         }

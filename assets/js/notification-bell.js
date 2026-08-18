@@ -155,13 +155,9 @@
   // ================================================================
 
   function showNotificationPanel() {
-    const panel = createNotificationPanel();
-    document.body.appendChild(panel);
-
-    // Mark all as read after a delay
-    setTimeout(() => {
-      markAllAsRead();
-    }, 2000);
+    if (window.UnifiedNotifications?.showReflection) {
+      window.UnifiedNotifications.showReflection();
+    }
   }
 
   function createNotificationPanel() {

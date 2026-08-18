@@ -376,7 +376,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         const panel = document.getElementById('unified-notification-panel');
         if (panel) {
           panel.remove();
-          setTimeout(() => showUnifiedNotificationPanel(), 300);
+          setTimeout(() => showUnifiedNotificationPanel('actions'), 300);
         }
       } else {
         showToast('Failed to accept connection', 'error');
@@ -408,7 +408,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
         const panel = document.getElementById('unified-notification-panel');
         if (panel) {
           panel.remove();
-          setTimeout(() => showUnifiedNotificationPanel(), 300);
+          setTimeout(() => showUnifiedNotificationPanel('actions'), 300);
         }
       } else {
         showToast('Failed to decline connection', 'error');
@@ -594,14 +594,37 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     return html;
   }
 
-  function showUnifiedNotificationPanel() {
-    // Mobile: full-screen split view
+  function showNetworkReflection() {
+    // Remove either legacy notification surface if an older caller opened it.
+    document.getElementById('unified-notification-panel')?.remove();
+    document.getElementById('notification-panel')?.remove();
+
+    // Entity detail is the only surface allowed to replace Reflection. Closing
+    // it preserves Synapse context, Explorer selection, and graph/filter state.
+    if (document.getElementById('node-side-panel')?.classList.contains('open')) {
+      window.closeNodePanel?.();
+    }
+
+    const reflection = document.getElementById('network-reflection');
+    if (!reflection) return;
+    reflection.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    reflection.setAttribute('tabindex', '-1');
+    reflection.focus({ preventScroll: true });
+  }
+
+  function showUnifiedNotificationPanel(mode = 'reflection') {
+    if (mode !== 'actions') {
+      showNetworkReflection();
+      return;
+    }
+
+    // Mobile actions retain the existing responsive split view.
     if (_isMobile()) {
       _showMobileSplitView();
       return;
     }
 
-    // Desktop: floating dropdown (existing behavior)
+    // Desktop action items retain their existing floating panel.
     const existing = document.getElementById('unified-notification-panel');
     if (existing) {
       existing.remove();
@@ -610,21 +633,6 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
 
     const panel = createUnifiedPanel();
     document.body.appendChild(panel);
-
-    // Load focus content (async — fires after panel is in DOM).
-    const focusContentEl = document.getElementById('ie-focus-content-panel');
-    if (focusContentEl && window.MentorGuide && window.MentorGuide.renderFocusInto) {
-      window.MentorGuide.renderFocusInto(focusContentEl);
-    } else if (focusContentEl) {
-      focusContentEl.innerHTML = '<p style="color:rgba(255,255,255,0.4); font-size:0.85rem; margin:0;">Explore the network to discover your focus areas.</p>';
-    }
-
-    // Generate the intelligence brief into the panel's brief root element.
-    // Must happen after appendChild so the element is in the DOM.
-    const briefRoot = document.getElementById('ie-brief-root-panel');
-    if (briefRoot && window.StartDailyDigest && window.StartDailyDigest.generateBriefInto) {
-      window.StartDailyDigest.generateBriefInto(briefRoot);
-    }
 
     // Close on outside click
     setTimeout(() => {
@@ -677,12 +685,12 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     header.innerHTML = `
       <div>
         <h3 style="margin: 0 0 0.25rem 0; color: #00e0ff; font-size: 1.3rem;">
-          <i class="fas fa-bell"></i> Network Reflection
+          <i class="fas fa-bolt"></i> Actions &amp; Notifications
         </h3>
         <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
           ${unifiedData.totalUnread > 0
             ? unifiedData.totalUnread + ' ' + (unifiedData.totalUnread === 1 ? 'item' : 'items') + ' need your attention'
-            : 'Your focus, signals &amp; updates'}
+            : 'You are all caught up'}
         </p>
       </div>
       <button id="close-unified-panel" style="
@@ -713,35 +721,6 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     const notifSections = document.createElement('div');
     notifSections.innerHTML = generatePanelContent();
     content.appendChild(notifSections);
-
-    // ── Your Focus Today ─────────────────────────────────────────────
-    // The most relevant theme and interests overlap.
-    // Loaded async via MentorGuide after the panel is in DOM.
-    const focusSection = document.createElement('div');
-    focusSection.id = 'ie-focus-root-panel';
-    focusSection.style.cssText = 'padding-bottom: 0.75rem; border-bottom: 1px solid rgba(0,224,255,0.15); margin-bottom: 0.75rem;';
-    focusSection.innerHTML = `
-      <h4 style="color:#00e0ff; font-size:0.9rem; font-weight:600; text-transform:uppercase;
-        letter-spacing:0.5px; margin:0 0 0.5rem 0; display:flex; align-items:center; gap:0.5rem;">
-        <i class="fas fa-compass"></i> Your Focus Today
-      </h4>
-      <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin:0 0 0.5rem 0;">
-        Where your interests and activity currently overlap
-      </p>
-      <div id="ie-focus-content-panel" style="color:rgba(255,255,255,0.5); font-size:0.85rem; text-align:center; padding:0.75rem 0;">
-        <i class="fas fa-spinner fa-spin" style="margin-right:0.5rem;"></i>Loading your focus…
-      </div>
-    `;
-    content.appendChild(focusSection);
-
-    // ── Intelligence Signals ─────────────────────────────────────────
-    // Full personal-signal brief from the daily brief engine.
-    // Distinct from the Network Command's tier-filtered intelligence cards.
-    const briefRoot = document.createElement('div');
-    briefRoot.id = 'ie-brief-root-panel';
-    briefRoot.style.cssText = 'margin-top: 0.5rem; border-top: 1px solid rgba(0,224,255,0.15); padding-top: 0.75rem;';
-
-    content.appendChild(briefRoot);
 
     panel.appendChild(header);
     panel.appendChild(content);
@@ -1369,8 +1348,9 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   window.UnifiedNotifications = {
     init,
     refresh: loadAllData,
-    // showPanel — open the notification dropdown (bell panel)
+    // showPanel — Reflection by default; action center only for explicit mode
     showPanel: showUnifiedNotificationPanel,
+    showReflection: showNetworkReflection,
     // navigateNotification — smart in-app routing for notification links
     navigateNotification: _navigateNotification,
     // buildSafeUrl — turn a root-relative link into a base-path-correct URL

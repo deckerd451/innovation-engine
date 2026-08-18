@@ -998,7 +998,7 @@ window.CommandDashboard = (() => {
       const msgBtn = $id('cd-focus-msg-btn');
       if (msgBtn) {
         msgBtn.addEventListener('click', () => {
-          if (window.UnifiedNotifications?.showPanel) window.UnifiedNotifications.showPanel();
+          if (window.UnifiedNotifications?.showPanel) window.UnifiedNotifications.showPanel('actions');
         });
       }
       focusEl.style.display = '';
@@ -1668,15 +1668,11 @@ window.CommandDashboard = (() => {
       });
     }
 
-    // Notifications button → open notification panel
+    // Notifications button → reveal the canonical Reflection rail
     const notifBtn = $id('cd-notif-btn');
     if (notifBtn) {
       notifBtn.addEventListener('click', () => {
-        if (window.NotificationBell?.showPanel) {
-          window.NotificationBell.showPanel();
-        } else if (window.UnifiedNotifications?.showPanel) {
-          window.UnifiedNotifications.showPanel();
-        }
+        window.UnifiedNotifications?.showReflection?.();
       });
     }
 
@@ -1685,7 +1681,7 @@ window.CommandDashboard = (() => {
     if (actionsBtn) {
       actionsBtn.addEventListener('click', () => {
         if (window.UnifiedNotifications?.showPanel) {
-          window.UnifiedNotifications.showPanel();
+          window.UnifiedNotifications.showPanel('actions');
         }
       });
     }
