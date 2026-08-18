@@ -5,6 +5,7 @@
 // Shows profile details, mutual connections, and clear CTAs
 
 import { makeProfileImageClickable } from './profile-image-modal.js';
+import { getRelationshipEvidence } from './relationship-evidence.js';
 
 const NODE_PANEL_VERSION = 'v2.2-' + Date.now();
 console.log(`%c👤 Node Panel ${NODE_PANEL_VERSION} (Project Approval Fix)`, "color:#0ff; font-weight: bold; font-size: 16px");
@@ -315,10 +316,6 @@ export async function openNodePanel(nodeData) {
   // Load full data
   await loadNodeDetails(nodeData);
 
-  if (nodeData.type === 'person') {
-    window.SynapseFilter?.renderNodeContextBanner?.(nodeData.user_id || nodeData.id);
-  }
-  
   // Update presence for this user (if it's a person)
   if (nodeData.type === 'person' && window.PresenceUI) {
     const userId = nodeData.user_id || nodeData.id;
@@ -1299,8 +1296,13 @@ async function renderPersonPanel(nodeData) {
     inPersonInteraction = await getLatestInPersonInteraction(currentUserProfile.id, profile.id);
   }
 
-  // Get mutual connections
-  const mutualConnections = await getMutualConnections(profile.id);
+  // Start independent relationship evidence queries together. Endorsement work
+  // below proceeds while these resolve, avoiding a new serial query chain.
+  const relationshipDataPromise = Promise.all([
+    getMutualConnections(profile.id),
+    getSharedProjects(profile.id),
+    getSharedOrganizations(profile.id),
+  ]);
 
   // Get endorsements
   const { data: endorsementsData } = await supabase
@@ -1327,8 +1329,7 @@ async function renderPersonPanel(nodeData) {
     }));
   }
 
-  // Get shared projects
-  const sharedProjects = await getSharedProjects(profile.id);
+  const [mutualConnections, sharedProjects, sharedOrganizations] = await relationshipDataPromise;
 
   // Track profile view for engagement system
   if (window.DailyEngagement && profile.id !== currentUserProfile?.id) {
@@ -1351,6 +1352,34 @@ async function renderPersonPanel(nodeData) {
 
   // Pre-compute skills HTML to avoid nested IIFE inside template literal (browser parse risk)
   const profileSkillList = normalizeSkills(profile.skills);
+  const relationshipEvidence = getRelationshipEvidence({
+    currentUserProfile,
+    personProfile: profile,
+    connectionStatus,
+    connectionDirection,
+    mutualConnections,
+    sharedProjects,
+    sharedOrganizations,
+    activeContext: window.SynapseContext?.get?.() || null,
+    filterReason: window.SynapseFilter?.getNodeContext?.(profile.id) || null,
+  });
+  const relationshipEvidenceHtml = relationshipEvidence.reasons.length === 0 ? '' : `
+    <div class="panel-section relationship-evidence-section">
+      <div class="panel-section-inner" style="padding-top:1rem; padding-bottom:1rem;">
+        <div style="color:#00e0ff; font-size:0.82rem; font-weight:700; text-transform:uppercase; margin-bottom:0.7rem;">
+          <i class="fas fa-link"></i> Why this person is relevant
+        </div>
+        <div style="display:flex; flex-direction:column; gap:0.45rem;">
+          ${relationshipEvidence.reasons.map(reason => `
+            <div style="display:flex; align-items:flex-start; gap:0.5rem; color:#ddd; font-size:0.82rem; line-height:1.4;">
+              <i class="fas fa-circle" style="color:#00e0ff; font-size:0.35rem; margin-top:0.45rem;"></i>
+              <span><strong style="color:#fff;">${escapeHtml(reason.label)}</strong>${reason.detail ? `: ${escapeHtml(reason.detail)}` : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
   const skillsSectionHtml = profileSkillList.length === 0 ? '' : `
     <div class="panel-section">
       <div class="panel-section-header" onclick="togglePanelSection('skills')">
@@ -1464,6 +1493,8 @@ async function renderPersonPanel(nodeData) {
         </div>
       </div>
 
+      ${relationshipEvidenceHtml}
+
       <!-- Bio Section (Collapsible) — only for connected/admin/self -->
       ${hasFullAccess && profile.bio ? `
         <div class="panel-section">
@@ -1514,57 +1545,33 @@ async function renderPersonPanel(nodeData) {
         </div>
       ` : ''}
 
-      <!-- Mutual Connections Section (Collapsible) — only for connected/admin/self -->
-      ${hasFullAccess && mutualConnections.length > 0 ? `
+      <!-- Preserve self-profile resource summaries; these are not relationship evidence. -->
+      ${isOwnProfile && mutualConnections.length > 0 ? `
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('mutual')">
-            <div class="panel-section-title">
-              <i class="fas fa-user-friends"></i> ${mutualConnections.length} ${profile.id === currentUserProfile?.id ? 'CONNECTION' : 'MUTUAL CONNECTION'}${mutualConnections.length !== 1 ? 'S' : ''}
-            </div>
+            <div class="panel-section-title"><i class="fas fa-user-friends"></i> ${mutualConnections.length} CONNECTION${mutualConnections.length === 1 ? '' : 'S'}</div>
             <i class="fas fa-chevron-down panel-section-toggle" id="mutual-toggle"></i>
           </div>
           <div class="panel-section-content" id="mutual-content">
-            <div class="panel-section-inner">
-              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                ${mutualConnections.slice(0, 5).map(conn => {
-                  const connInitials = conn.name.split(' ').map(n => n[0]).join('').toUpperCase();
-                  return `
-                    <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(0,224,255,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(0,224,255,0.2);">
-                      ${conn.image_url ?
-                        `<img loading="lazy" src="${conn.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
-                        `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${connInitials}</div>`
-                      }
-                      <span style="color: white; font-size: 0.85rem;">${conn.name}</span>
-                    </div>
-                  `;
-                }).join('')}
-                ${mutualConnections.length > 5 ? `
-                  <div style="color: #aaa; font-size: 0.85rem; padding: 0.5rem;">
-                    +${mutualConnections.length - 5} more
-                  </div>
-                ` : ''}
-              </div>
+            <div class="panel-section-inner" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+              ${mutualConnections.slice(0, 5).map(connection => `
+                <span style="color:#fff; background:rgba(0,224,255,0.08); padding:0.4rem 0.65rem; border-radius:8px;">${escapeHtml(connection.name)}</span>
+              `).join('')}
+              ${mutualConnections.length > 5 ? `<span style="color:#aaa; padding:0.4rem;">+${mutualConnections.length - 5} more</span>` : ''}
             </div>
           </div>
         </div>
       ` : ''}
 
-      <!-- Shared Projects Section (Collapsible) — only for connected/admin/self -->
-      ${hasFullAccess && sharedProjects.length > 0 ? `
+      ${isOwnProfile && sharedProjects.length > 0 ? `
         <div class="panel-section">
           <div class="panel-section-header" onclick="togglePanelSection('projects')">
-            <div class="panel-section-title">
-              <i class="fas fa-project-diagram"></i> ${profile.id === currentUserProfile?.id ? 'PROJECTS' : 'SHARED PROJECTS'}
-            </div>
+            <div class="panel-section-title"><i class="fas fa-project-diagram"></i> PROJECTS</div>
             <i class="fas fa-chevron-down panel-section-toggle" id="projects-toggle"></i>
           </div>
           <div class="panel-section-content" id="projects-content">
             <div class="panel-section-inner">
-              ${sharedProjects.map(proj => `
-                <div style="background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
-                  <div style="color: #00e0ff; font-weight: bold;">${proj.title}</div>
-                </div>
-              `).join('')}
+              ${sharedProjects.map(project => `<div style="color:#00e0ff; margin-bottom:0.4rem;">${escapeHtml(project.title)}</div>`).join('')}
             </div>
           </div>
         </div>
@@ -1914,6 +1921,40 @@ async function getSharedProjects(userId) {
 
   } catch (error) {
     console.error('Error getting shared projects:', error);
+    return [];
+  }
+}
+
+async function getSharedOrganizations(userId) {
+  if (!currentUserProfile || !userId || userId === currentUserProfile.id) return [];
+
+  try {
+    const { data: memberships, error: membershipError } = await supabase
+      .from('organization_members')
+      .select('community_id, organization_id')
+      .in('community_id', [currentUserProfile.id, userId]);
+    if (membershipError) throw membershipError;
+
+    const myOrgIds = new Set(
+      (memberships || [])
+        .filter(row => row.community_id === currentUserProfile.id)
+        .map(row => row.organization_id)
+    );
+    const sharedOrgIds = [...new Set(
+      (memberships || [])
+        .filter(row => row.community_id === userId && myOrgIds.has(row.organization_id))
+        .map(row => row.organization_id)
+    )];
+    if (sharedOrgIds.length === 0) return [];
+
+    const { data: organizations, error: organizationError } = await supabase
+      .from('organizations')
+      .select('id, name')
+      .in('id', sharedOrgIds);
+    if (organizationError) throw organizationError;
+    return (organizations || []).filter(organization => organization.name);
+  } catch (error) {
+    console.warn('[NodePanel] Shared organization evidence unavailable:', error.message);
     return [];
   }
 }

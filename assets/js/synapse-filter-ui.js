@@ -337,35 +337,6 @@ export function getNodeFilterContext(nodeId) {
   return _nodeContext.get(nodeId) || null;
 }
 
-/** Render the existing filter/context reason for any person-panel entry path. */
-export function renderNodeContextBanner(nodeId) {
-  const panel = document.getElementById('node-side-panel');
-  const body = panel?.querySelector('.node-panel-body');
-  if (!body) return;
-
-  body.querySelector('.synapse-filter-context-banner')?.remove();
-  const ctx = getNodeFilterContext(nodeId);
-  if (!ctx) return;
-
-  const color = window.__synapseFilterState?.visuals?.glowColor || '#00e0ff';
-  const banner = document.createElement('div');
-  banner.className = 'synapse-filter-context-banner';
-  banner.style.cssText = `
-    margin: 0 1rem 0.5rem; padding: 0.5rem 0.75rem;
-    background: ${color}12; border: 1px solid ${color}40;
-    border-radius: 8px; font-size: 0.8rem; color: ${color};
-    display: flex; align-items: center; gap: 0.5rem;
-  `;
-  banner.innerHTML = `
-    <i class="fas fa-filter" style="opacity:0.7"></i>
-    <span><strong>${_escapeHtmlSimple(ctx.reason)}</strong>${ctx.detail ? ` — ${_escapeHtmlSimple(ctx.detail)}` : ''}</span>
-  `;
-
-  const header = body.querySelector('div[style*="text-align: center"]');
-  if (header) body.insertBefore(banner, header);
-  else body.prepend(banner);
-}
-
 // ----------------------------------------------------------------
 // Edge styling
 // ----------------------------------------------------------------
@@ -542,5 +513,4 @@ window.SynapseFilter = {
   set: setSynapseFilter,
   modes: FILTER_MODES,
   getNodeContext: getNodeFilterContext,
-  renderNodeContextBanner,
 };
