@@ -463,7 +463,7 @@ async function loadFocusContent(contentDiv) {
     relevantProjects.forEach(project => {
       const statusHint = project.status === 'active' ? 'Active this week' : 'Open for collaborators';
       html += `
-        <div style="margin-bottom:1rem; padding:1rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:all 0.2s;" onclick="if(typeof openProjectModal === 'function') openProjectModal('${project.id}');">
+        <div style="margin-bottom:1rem; padding:1rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:all 0.2s;" onclick="window.StartDailyDigest?.selectReflectionEntity?.('project', '${encodeURIComponent(String(project.id))}', '${encodeURIComponent(String(project.title || 'Project'))}');">
           <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:0.5rem;">
             <h5 style="color:#fff; font-size:0.95rem; font-weight:600; margin:0;">${escapeHtml(project.title)}</h5>
             <span style="font-size:0.75rem; color:rgba(0,224,255,0.7); padding:0.25rem 0.75rem; background:rgba(0,224,255,0.1); border-radius:12px;">${statusHint}</span>
@@ -480,7 +480,7 @@ async function loadFocusContent(contentDiv) {
     relevantPeople.forEach(person => {
       const role = person.role || 'Member';
       html += `
-        <div style="margin-bottom:0.75rem; padding:1rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; display:flex; align-items:center; gap:1rem; cursor:pointer; transition:all 0.2s;" onclick="if(typeof openProfile === 'function') openProfile('${person.id}');">
+        <div style="margin-bottom:0.75rem; padding:1rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; display:flex; align-items:center; gap:1rem; cursor:pointer; transition:all 0.2s;" onclick="window.StartDailyDigest?.selectReflectionEntity?.('person', '${encodeURIComponent(String(person.id))}', '${encodeURIComponent(String(person.name || 'Person'))}');">
           <div style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, #00e0ff, #0080ff); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.1rem; flex-shrink:0;">
             ${person.image_url ? `<img src="${person.image_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />` : getInitials(person.name)}
           </div>
@@ -496,7 +496,7 @@ async function loadFocusContent(contentDiv) {
   // Footer CTA
   html += `
     <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1); text-align:center;">
-      <button onclick="closeAllMentorPanels();" style="padding:0.75rem 2rem; background:linear-gradient(135deg, #00e0ff, #0080ff); border:none; border-radius:8px; color:#000; font-weight:600; cursor:pointer; font-size:0.9rem; transition:all 0.2s;">
+      <button onclick="window.StartDailyDigest?.activateReflectionExplorer?.('people');" style="padding:0.75rem 2rem; background:linear-gradient(135deg, #00e0ff, #0080ff); border:none; border-radius:8px; color:#000; font-weight:600; cursor:pointer; font-size:0.9rem; transition:all 0.2s;">
         <i class="fas fa-network-wired" style="margin-right:0.5rem;"></i>
         Explore Network
       </button>

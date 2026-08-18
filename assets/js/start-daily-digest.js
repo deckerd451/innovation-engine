@@ -1140,6 +1140,17 @@ function _renderReflectionNextMoves(data) {
     button.textContent = item.action;
     button.dataset.insightData = JSON.stringify(item.data || {});
     button.addEventListener('click', function (event) {
+      // Reflection is an action surface over the existing Explorer.  Keep
+      // resource navigation on the same coordinator-backed path as a normal
+      // Explore tab click; only non-Explorer actions use the legacy action
+      // dispatcher.
+      const resource = _reflectionResourceForInsight(item);
+      if (resource) {
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        window.StartDailyDigest?.activateReflectionExplorer?.(resource);
+        return;
+      }
       window.EnhancedStartUI?.handleAction?.(item.handler, event);
     });
     card.appendChild(button);
@@ -1147,6 +1158,72 @@ function _renderReflectionNextMoves(data) {
   });
   root.appendChild(list);
 }
+
+function _reflectionResourceForInsight(item) {
+  const handler = String(item?.handler || '');
+  const action = String(item?.action || '').toLowerCase();
+  if (handler === 'openThemes' || action.includes('theme')) return 'themes';
+  if (handler === 'openSkillMatchedProjects' || action.includes('project')) return 'projects';
+  if ((handler === 'openConnectionRequests' && (action.includes('people') || action.includes('network') || action.includes('find'))) || action.includes('people') || action.includes('network')) return 'people';
+  return null;
+}
+
+/**
+ * Activate an Explore resource from Reflection using the canonical dashboard
+ * route.  This is deliberately shared by desktop and mobile so Reflection
+ * cannot grow a second navigation/state implementation.
+ */
+function activateReflectionExplorer(resource) {
+  const mode = ['people', 'projects', 'themes', 'organizations', 'opportunities'].includes(resource)
+    ? resource
+    : null;
+  if (!mode) return false;
+
+  // Entity detail is layered over Reflection; closing it restores the rail
+  // without touching the active context lens or graph filters.
+  window.closeNodePanel?.();
+
+  // The dashboard is hidden on mobile until the existing Actions split is
+  // opened.  Reuse that responsive path, then select the same tab used by a
+  // manual Explore click.
+  if (window.matchMedia?.('(max-width: 768px)')?.matches) {
+    window.UnifiedNotifications?.showPanel?.('actions');
+  }
+  if (window.CommandDashboard?.selectResourceTab) {
+    window.CommandDashboard.selectResourceTab(mode);
+  } else {
+    const tab = document.querySelector(`.udc-resource-tab[data-resource="${mode}"]`);
+    tab?.click();
+  }
+
+  document.querySelector(`.udc-resource-tab[data-resource="${mode}"]`)?.scrollIntoView?.({ block: 'nearest' });
+  return true;
+}
+
+function selectReflectionEntity(type, id, label) {
+  try {
+    id = decodeURIComponent(String(id));
+    label = label == null ? label : decodeURIComponent(String(label));
+  } catch (_) { /* values may already be decoded */ }
+  if (!type || !id || !window.ExplorerCoordinator) return false;
+  if (type === 'person') {
+    window.ExplorerCoordinator.selectPerson({ id, label });
+    return true;
+  }
+  if (type === 'opportunity') {
+    window.ExplorerCoordinator.selectOpportunity({ id, label });
+    return true;
+  }
+  if (['project', 'theme', 'organization'].includes(type)) {
+    window.ExplorerCoordinator.selectContext(type, { id, label });
+    return true;
+  }
+  return false;
+}
+
+window.StartDailyDigest = window.StartDailyDigest || {};
+window.StartDailyDigest.activateReflectionExplorer = activateReflectionExplorer;
+window.StartDailyDigest.selectReflectionEntity = selectReflectionEntity;
 
 async function _renderReflectionSupportContent() {
   const focus = document.getElementById('network-reflection-focus');
