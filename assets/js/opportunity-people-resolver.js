@@ -62,7 +62,12 @@ export async function resolveOpportunityPeople(opportunityId, { supabase = windo
 
   const opportunityResult = await supabase
     .from('opportunities')
-    .select('id, title, posted_by, organization_id, project_id, theme_id, skills')
+    // Opportunity deployments do not all carry every optional association
+    // column (notably project_id/theme_id). Selecting one absent column makes
+    // PostgREST reject the entire row before the valid zero-match lens can be
+    // established. Fetch the record as deployed, then feature-detect optional
+    // relationships below.
+    .select('*')
     .eq('id', opportunityId)
     .single();
   if (opportunityResult.error || !opportunityResult.data) {
