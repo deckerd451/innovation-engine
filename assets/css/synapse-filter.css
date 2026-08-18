@@ -66,13 +66,6 @@
   box-shadow: 0 0 8px rgba(0, 224, 255, 0.2), inset 0 0 6px rgba(0, 224, 255, 0.06);
 }
 
-.synapse-filter-chip[data-filter="opps"][aria-pressed="true"] {
-  color: #ffaa00;
-  border-color: rgba(255, 170, 0, 0.5);
-  background: rgba(255, 170, 0, 0.12);
-  box-shadow: 0 0 8px rgba(255, 170, 0, 0.2), inset 0 0 6px rgba(255, 170, 0, 0.06);
-}
-
 .synapse-filter-chip[aria-pressed="true"] i {
   opacity: 1;
 }
