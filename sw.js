@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v5-synapse-intelligence-repair-20260818a";
+const VERSION = "v6-synapse-retention-20260818d";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.

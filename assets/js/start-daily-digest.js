@@ -31,7 +31,7 @@ let _briefEnginePromise = null;
  */
 async function _loadBriefEngine() {
   if (!_briefEnginePromise) {
-    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js';
+    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=synapse-retention-20260818d';
     _briefEnginePromise = import(url).catch(err => {
       _briefEnginePromise = null;   // allow retry
       throw err;
@@ -390,6 +390,19 @@ function _renderBriefItem(item) {
     card.appendChild(sub);
   }
 
+  const ref = Array.isArray(item.primary_refs) && item.primary_refs[0];
+  if (ref && ['person', 'project', 'theme', 'organization', 'opportunity'].includes(ref.nodeType) && ref.nodeId) {
+    const viewButton = document.createElement('button');
+    viewButton.type = 'button';
+    viewButton.textContent = 'View';
+    viewButton.style.cssText = 'background:none;border:1px solid rgba(0,224,255,0.22);border-radius:4px;color:rgba(0,224,255,0.7);font-size:0.72rem;padding:0.17rem 0.44rem;cursor:pointer;margin-top:0.38rem;margin-right:0.35rem;';
+    viewButton.addEventListener('click', function (event) {
+      event.stopPropagation();
+      selectReflectionEntity(ref.nodeType, ref.nodeId, ref.label);
+    });
+    card.appendChild(viewButton);
+  }
+
   // Why? toggle — lazy-loads explanation on first click.
   // Clicking anywhere on the card (or the button) toggles the pane.
   if (item.why_key) {
@@ -487,11 +500,10 @@ function _renderBriefSection(meta, items) {
  */
 function renderDailyBriefBlock(brief) {
   var SECTIONS = [
-    { key: 'signals_moving',            title: 'Signals Moving',            icon: '⚡' },
-    { key: 'your_pattern',              title: 'Your Pattern',              icon: '📊' },
-    { key: 'combination_opportunities', title: 'Combination Opportunities', icon: '🔀' },
-    { key: 'opportunities_for_you',     title: 'For You',                   icon: '🎯' },
-    { key: 'blind_spots',               title: 'Blind Spots',               icon: '👁' },
+    { key: 'opportunities_for_you', title: 'For You',              icon: '🎯' },
+    { key: 'people_worth_knowing',  title: 'People Worth Knowing',  icon: '👥' },
+    { key: 'signals_moving',        title: 'Recently Active',       icon: '⚡' },
+    { key: 'your_pattern',          title: 'Your Pattern (this device)', icon: '📊' },
   ];
 
   const wrapper = document.createElement('div');
@@ -539,15 +551,7 @@ function renderDailyBriefBlock(brief) {
     if (sec) { wrapper.appendChild(sec); rendered++; }
   });
 
-  // Empty-state fallback
-  if (rendered === 0) {
-    const empty = document.createElement('div');
-    empty.style.cssText = 'color:rgba(255,255,255,0.38);font-size:0.84rem;padding:0.22rem 0;';
-    empty.textContent   = 'No signals detected yet — check back as the network grows.';
-    wrapper.appendChild(empty);
-  }
-
-  return wrapper;
+  return rendered ? wrapper : null;
 }
 
 // ============================================================================
@@ -656,7 +660,8 @@ class StartDailyDigest {
       }
 
       root.textContent = '';
-      root.appendChild(renderDailyBriefBlock(brief));
+      const renderedBrief = renderDailyBriefBlock(brief);
+      if (renderedBrief) root.appendChild(renderedBrief);
 
     } catch (err) {
       console.warn('[DailyBrief] Unexpected error:', err);
@@ -1108,6 +1113,45 @@ function _renderReflectionNetworkSummary(data) {
   }
 }
 
+function _renderReflectionAttention(data) {
+  const root = document.getElementById('network-reflection-attention');
+  const section = root?.closest('.network-reflection-section');
+  if (!root) return;
+  root.textContent = '';
+  const immediate = data?.immediate_actions || {};
+  const countOf = value => Number(value?.count ?? value ?? 0);
+  const actions = [
+    { count: countOf(immediate.pending_requests), label: 'connection request', action: 'Review', handler: 'openConnectionRequests' },
+    { count: countOf(immediate.unread_messages), label: 'conversation with unread messages', action: 'View', handler: 'openMessaging' },
+    { count: countOf(immediate.pending_bids), label: 'pending bid', action: 'Review', handler: 'openProjectBids' },
+    { count: countOf(immediate.bids_to_review), label: 'bid awaiting review', action: 'Review', handler: 'openProjectBids' },
+  ].filter(item => item.count > 0);
+  if (!actions.length) {
+    if (section) section.hidden = true;
+    return;
+  }
+  if (section) section.hidden = false;
+  const list = document.createElement('div');
+  list.className = 'network-reflection-attention-list';
+  actions.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'network-reflection-attention-row';
+    const message = document.createElement('strong');
+    message.textContent = `${item.count} ${item.label}${item.count === 1 ? '' : 's'}`;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = item.action;
+    button.addEventListener('click', event => window.EnhancedStartUI?.handleAction?.(item.handler, event));
+    row.append(message, button);
+    list.appendChild(row);
+  });
+  root.appendChild(list);
+}
+
+function _isAttentionHandler(handler) {
+  return new Set(['openConnectionRequests', 'openMessaging', 'openProjectBids']).has(handler);
+}
+
 function _renderReflectionNextMoves(data) {
   const root = document.getElementById('network-reflection-next-moves');
   const section = root?.closest('.network-reflection-section');
@@ -1118,6 +1162,7 @@ function _renderReflectionNextMoves(data) {
   const actionable = insights
     .filter(item => item?.action && item?.handler)
     .filter(item => !_isGenericReflectionNavigation(item.action))
+    .filter(item => !_isAttentionHandler(item.handler))
     .slice(0, 3);
   if (!actionable.length) {
     if (section) section.hidden = true;
@@ -1192,6 +1237,33 @@ async function downloadReflectionNetworkReport() {
 
 window.StartDailyDigest.downloadNetworkReport = downloadReflectionNetworkReport;
 
+// Durable boundary for a later truthful "Since you were here" surface.  The
+// migration is intentionally optional: a missing column must never prevent
+// the canonical Reflection from rendering.
+let _reflectionWatermarkRecordedFor = null;
+async function _recordReflectionWatermark(profile) {
+  const supabase = window.supabase;
+  const communityId = profile?.id;
+  if (!supabase || !communityId || _reflectionWatermarkRecordedFor === String(communityId)) return;
+  try {
+    const { data: current, error: readError } = await supabase
+      .from('community')
+      .select('reflection_last_visited_at')
+      .eq('id', communityId)
+      .maybeSingle();
+    if (readError) throw readError;
+    const update = { reflection_last_visited_at: new Date().toISOString() };
+    if (current?.reflection_last_visited_at) {
+      update.reflection_previous_visited_at = current.reflection_last_visited_at;
+    }
+    const { error: updateError } = await supabase.from('community').update(update).eq('id', communityId);
+    if (updateError) throw updateError;
+    _reflectionWatermarkRecordedFor = String(communityId);
+  } catch (error) {
+    console.warn('[NetworkReflection] Visit watermark unavailable; deploy the Reflection watermark migration when ready.', error?.message || error);
+  }
+}
+
 async function _renderReflectionSupportContent() {
   const focus = document.getElementById('network-reflection-focus');
   if (focus) {
@@ -1199,18 +1271,19 @@ async function _renderReflectionSupportContent() {
       try {
         await window.MentorGuide.renderFocusInto(focus);
       } catch (_) {
-        focus.className = 'network-reflection-content network-reflection-focus-card';
-        focus.textContent = 'Your strongest current signals are summarized below.';
+        focus.textContent = '';
       }
     } else {
-      focus.className = 'network-reflection-content network-reflection-focus-card';
-      focus.textContent = 'Your strongest current signals are summarized below.';
+      focus.textContent = '';
     }
+    const focusSection = focus.closest('.network-reflection-section');
+    if (focusSection) focusSection.hidden = !focus.textContent.trim();
   }
 
   if (typeof window.getStartSequenceData !== 'function') return;
   try {
     const data = await window.getStartSequenceData(false);
+    _renderReflectionAttention(data);
     _renderReflectionNetworkSummary(data);
     _renderReflectionNextMoves(data);
   } catch (error) {
@@ -1240,7 +1313,10 @@ window.StartDailyDigest.renderNetworkReflection = function (profile) {
       });
     });
   }
-  return Promise.all([briefPromise, _renderReflectionSupportContent()]);
+  return Promise.all([briefPromise, _renderReflectionSupportContent()]).then(result => {
+    _recordReflectionWatermark(profile);
+    return result;
+  });
 };
 
 window.addEventListener('profile-loaded', function (event) {

@@ -314,190 +314,43 @@ async function loadPanelContent(panelType) {
 }
 
 // ================================================================
-// PANEL 1: YOUR FOCUS TODAY
+// PANEL 1: CURRENT FOCUS
 // ================================================================
 
 async function loadFocusContent(contentDiv) {
-  if (!mentorState.supabase || !mentorState.currentUserProfile) {
-    contentDiv.innerHTML = `
-      <div style="text-align:center; padding:2rem; color:rgba(255,255,255,0.6);">
-        <p style="margin-bottom:1rem;">Getting your focus ready...</p>
-        <p style="font-size:0.85rem; color:rgba(255,255,255,0.4);">If this takes too long, try refreshing the page</p>
-      </div>
-    `;
-
-    // Try waiting a bit longer for profile to load
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    if (!mentorState.supabase || !mentorState.currentUserProfile) {
-      contentDiv.innerHTML = `
-        <div style="text-align:center; padding:2rem;">
-          <i class="fas fa-exclamation-triangle" style="font-size:2rem; color:rgba(255,170,0,0.6); margin-bottom:1rem;"></i>
-          <p style="color:rgba(255,255,255,0.7); margin-bottom:1rem;">Unable to load your profile data</p>
-          <button onclick="location.reload()" style="padding:0.75rem 1.5rem; background:rgba(0,224,255,0.2); border:1px solid rgba(0,224,255,0.4); border-radius:8px; color:#00e0ff; cursor:pointer; font-weight:600;">
-            Refresh Page
-          </button>
-        </div>
-      `;
-      return;
-    }
-  }
-
-  const userId = mentorState.currentUserProfile.id;
-  const userSkills = normalizeToArray(mentorState.currentUserProfile.skills);
-  const userInterests = normalizeToArray(mentorState.currentUserProfile.interests);
-  const userTags = [...userSkills, ...userInterests].map(t => String(t).toLowerCase());
-
-  let themes = [];
-  let projects = [];
-  let allPeople = [];
-
+  contentDiv.textContent = '';
+  if (!mentorState.supabase || !mentorState.currentUserProfile) return;
+  const userTags = [
+    ...normalizeToArray(mentorState.currentUserProfile.skills),
+    ...normalizeToArray(mentorState.currentUserProfile.interests),
+  ].map(value => String(value).toLowerCase()).filter(Boolean);
   try {
-    // Find user's most relevant theme with timeout
-    const themesPromise = mentorState.supabase
+    const { data: themes } = await mentorState.supabase
       .from('theme_circles')
       .select('*')
       .eq('status', 'active')
       .gt('expires_at', new Date().toISOString())
       .order('activity_score', { ascending: false })
       .limit(10);
-
-    const themesResult = await Promise.race([
-      themesPromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
-    ]);
-
-    themes = themesResult.data || [];
+    const relevant = (themes || []).map(theme => {
+      const tags = normalizeToArray(theme.tags).map(value => String(value).toLowerCase());
+      const overlap = userTags.filter(tag => tags.some(candidate => candidate.includes(tag) || tag.includes(candidate)));
+      return { theme, overlap };
+    }).filter(item => item.overlap.length > 0).sort((a, b) => b.overlap.length - a.overlap.length)[0];
+    if (!relevant) return;
+    contentDiv.className = 'network-reflection-content network-reflection-focus-card';
+    const title = document.createElement('h3');
+    title.textContent = relevant.theme.title || 'Current focus';
+    const detail = document.createElement('p');
+    detail.textContent = `Matches your profile interests: ${relevant.overlap.slice(0, 3).join(', ')}`;
+    contentDiv.append(title, detail);
   } catch (error) {
-    console.warn('Could not load themes:', error);
-    // Continue without themes
+    console.warn('Could not load current focus:', error);
   }
-
-  try {
-    // Find 2-3 active projects
-    const projectsPromise = mentorState.supabase
-      .from('projects')
-      .select('*')
-      .in('status', ['active', 'in-progress', 'open'])
-      .limit(10);
-
-    const projectsResult = await Promise.race([
-      projectsPromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
-    ]);
-
-    projects = projectsResult.data || [];
-  } catch (error) {
-    console.warn('Could not load projects:', error);
-    // Continue without projects
-  }
-
-  try {
-    // Find 3 relevant people
-    const peoplePromise = mentorState.supabase
-      .from('community')
-      .select('*')
-      .neq('id', userId)
-      .or('is_hidden.is.null,is_hidden.eq.false')
-      .limit(30);
-
-    const peopleResult = await Promise.race([
-      peoplePromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
-    ]);
-
-    allPeople = peopleResult.data || [];
-  } catch (error) {
-    console.warn('Could not load people:', error);
-    // Continue without people
-  }
-
-  // Calculate relevance for each theme
-  const themesWithRelevance = themes.map(theme => {
-    const themeTags = (theme.tags || []).map(t => String(t).toLowerCase());
-    const overlap = userTags.filter(tag => themeTags.some(tt => tt.includes(tag) || tag.includes(tt)));
-    return { ...theme, relevance: overlap.length };
-  });
-
-  const mostRelevantTheme = themesWithRelevance.sort((a, b) => b.relevance - a.relevance)[0];
-
-  const relevantProjects = projects.filter(p => {
-    if (mostRelevantTheme && p.theme_id === mostRelevantTheme.id) return true;
-    const projectTags = (p.tags || []).map(t => String(t).toLowerCase());
-    return userTags.some(tag => projectTags.some(pt => pt.includes(tag) || tag.includes(pt)));
-  }).slice(0, 3);
-
-  const peopleWithRelevance = allPeople.map(person => {
-    const personSkills = normalizeToArray(person.skills).map(s => String(s).toLowerCase());
-    const personInterests = normalizeToArray(person.interests).map(i => String(i).toLowerCase());
-    const personTags = [...personSkills, ...personInterests];
-    const overlap = userTags.filter(tag => personTags.some(pt => pt.includes(tag) || tag.includes(pt)));
-    return { ...person, relevance: overlap.length };
-  });
-
-  const relevantPeople = peopleWithRelevance
-    .sort((a, b) => b.relevance - a.relevance)
-    .slice(0, 3);
-
-  // Render the content
-  let html = '';
-
-  // Theme section
-  if (mostRelevantTheme) {
-    html += `
-      <div style="margin-bottom:2rem; padding:1.5rem; background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.2); border-radius:12px;">
-        <h3 style="color:#00e0ff; font-size:1.1rem; margin-bottom:0.5rem; font-weight:600;">
-          <i class="fas fa-bullseye" style="margin-right:0.5rem;"></i>
-          ${escapeHtml(mostRelevantTheme.title)}
-        </h3>
-        <p style="color:rgba(255,255,255,0.5); font-size:0.85rem; margin-bottom:0;">
-          Where your interests and activity currently overlap
-        </p>
-      </div>
-    `;
-  }
-
-  // Projects section
-  if (relevantProjects.length > 0) {
-    html += '<h4 style="color:rgba(255,255,255,0.7); font-size:0.95rem; margin-bottom:1rem; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Active Projects</h4>';
-    relevantProjects.forEach(project => {
-      const statusHint = project.status === 'active' ? 'Active this week' : 'Open for collaborators';
-      html += `
-        <div style="margin-bottom:1rem; padding:1rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:all 0.2s;" onclick="window.StartDailyDigest?.selectReflectionEntity?.('project', '${encodeURIComponent(String(project.id))}', '${encodeURIComponent(String(project.title || 'Project'))}');">
-          <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:0.5rem;">
-            <h5 style="color:#fff; font-size:0.95rem; font-weight:600; margin:0;">${escapeHtml(project.title)}</h5>
-            <span style="font-size:0.75rem; color:rgba(0,224,255,0.7); padding:0.25rem 0.75rem; background:rgba(0,224,255,0.1); border-radius:12px;">${statusHint}</span>
-          </div>
-          <p style="color:rgba(255,255,255,0.6); font-size:0.85rem; margin:0;">${escapeHtml((project.description || '').substring(0, 100))}${project.description?.length > 100 ? '...' : ''}</p>
-        </div>
-      `;
-    });
-  }
-
-  // People section
-  if (relevantPeople.length > 0) {
-    html += '<h4 style="color:rgba(255,255,255,0.7); font-size:0.95rem; margin:2rem 0 1rem 0; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">People Worth Knowing</h4>';
-    relevantPeople.forEach(person => {
-      const role = person.role || 'Member';
-      html += `
-        <div style="margin-bottom:0.75rem; padding:1rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; display:flex; align-items:center; gap:1rem; cursor:pointer; transition:all 0.2s;" onclick="window.StartDailyDigest?.selectReflectionEntity?.('person', '${encodeURIComponent(String(person.id))}', '${encodeURIComponent(String(person.name || 'Person'))}');">
-          <div style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, #00e0ff, #0080ff); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.1rem; flex-shrink:0;">
-            ${person.image_url ? `<img src="${person.image_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />` : getInitials(person.name)}
-          </div>
-          <div style="flex:1;">
-            <div style="color:#fff; font-weight:600; font-size:0.95rem; margin-bottom:0.25rem;">${escapeHtml(person.name)}</div>
-            <div style="color:rgba(255,255,255,0.5); font-size:0.8rem;">${escapeHtml(role)}</div>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  contentDiv.innerHTML = html || '<p style="color:rgba(255,255,255,0.5); text-align:center;">No relevant focus areas found yet. Start by joining some projects!</p>';
 }
 
 // ================================================================
-// PANEL 2: PROJECTS GAINING MOMENTUM
+// PANEL 2: RECENTLY ACTIVE PROJECTS
 // ================================================================
 
 async function loadProjectsContent(contentDiv) {
@@ -796,7 +649,7 @@ function getInitials(name) {
 // PUBLIC API
 // ================================================================
 // Expose focus-content loader so the unified Intelligence Brief
-// panel can render "Your Focus Today" without a separate modal.
+// panel can render the evidence-backed Current Focus without a separate modal.
 
 window.MentorGuide = {
   renderFocusInto: async function (el) {

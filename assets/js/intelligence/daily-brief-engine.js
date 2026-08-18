@@ -61,6 +61,10 @@ import {
   getJourneySnapshot,
 } from './journeyStore.js';
 
+import {
+  getRelationshipEvidence,
+} from '../relationship-evidence.js';
+
 // ================================================================
 // INTERNAL TESTS (lightweight — run once on module load in debug)
 // ================================================================
@@ -730,13 +734,24 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     const nowIso = now.toISOString();
     const { data: oppData, error: oppErr } = await supabase
       .from('opportunities')
-      .select('id, title, description, skills, opportunity_type, commitment, status, is_public, application_deadline, view_count, application_count, created_at, updated_at, organization_id, theme_id')
+      // The deployed schema has used both required_skills/type and skills/
+      // opportunity_type.  Read the existing row shape and normalize below so
+      // a schema variant cannot silently empty the canonical Reflection.
+      .select('*')
       .eq('status', 'open')
-      .eq('is_public', true)
       .or(`application_deadline.is.null,application_deadline.gt.${nowIso}`)
       .limit(200);
     if (!oppErr) {
-      opportunities = oppData || [];
+      opportunities = (oppData || [])
+        .filter(row => row.is_public !== false)
+        .map(row => {
+          const rawSkills = row.skills || row.required_skills || [];
+          return {
+            ...row,
+            skills: Array.isArray(rawSkills) ? rawSkills : String(rawSkills).split(/[,;]+/).map(value => value.trim()).filter(Boolean),
+            opportunity_type: row.opportunity_type || row.type || null,
+          };
+        });
       usedSources.push('opportunities');
       console.debug('[brief] opportunities loaded:', opportunities.length, '— source: public.opportunities');
     } else {
@@ -776,6 +791,8 @@ function _buildSignalsMoving({ themeCircles, projects, opportunities, activityHi
 
   // Hot themes
   for (const t of themeCircles) {
+    const refDate = t.updated_at || t.last_activity_at || t.created_at || null;
+    if (!(activityHitMap[t.id] || (refDate && _daysSince(refDate, now) <= windowDays))) continue;
     const raw = _rawMomentum(t, momentumCtx);
     candidates.push({ entity: t, entityType: 'theme', raw, source: 'theme' });
   }
@@ -783,12 +800,16 @@ function _buildSignalsMoving({ themeCircles, projects, opportunities, activityHi
   // Recently active projects
   for (const p of projects) {
     if (!p.title) continue;
+    const refDate = p.updated_at || p.last_activity_at || p.created_at || null;
+    if (!(activityHitMap[p.id] || (refDate && _daysSince(refDate, now) <= windowDays))) continue;
     const raw = _rawMomentum(p, momentumCtx);
     candidates.push({ entity: p, entityType: 'project', raw, source: 'project' });
   }
 
   // Newly updated opportunities
   for (const o of opportunities) {
+    const refDate = o.updated_at || o.last_activity_at || o.created_at || null;
+    if (!(activityHitMap[o.id] || (refDate && _daysSince(refDate, now) <= windowDays))) continue;
     const raw = _rawMomentum(o, momentumCtx);
     candidates.push({ entity: o, entityType: 'opportunity', raw, source: 'opportunity' });
   }
@@ -809,13 +830,14 @@ function _buildSignalsMoving({ themeCircles, projects, opportunities, activityHi
 
     const alignment = userProfile ? _alignmentScore(userProfile, entity) : 0;
 
+    const activityHits = activityHitMap[entity.id] || 0;
+    const recentDate = entity.updated_at || entity.last_activity_at || entity.created_at || null;
     const factors = [
-      `High network activity for "${_trunc(label, 40)}"`,
+      activityHits
+        ? `${activityHits} activity event${activityHits === 1 ? '' : 's'} in the last ${windowDays} days`
+        : (recentDate ? `Updated or created recently in the network` : `Current network activity proxy for ${entityType}`),
       `Type: ${entityType}`,
     ];
-    if (activityHitMap[entity.id]) {
-      factors.push(`${activityHitMap[entity.id]} activity events in last ${windowDays} days`);
-    }
     if (entity.activity_score) {
       factors.push(`Activity score: ${entity.activity_score}`);
     }
@@ -832,11 +854,13 @@ function _buildSignalsMoving({ themeCircles, projects, opportunities, activityHi
       scores: { momentum: normalizedScore, alignment },
     });
 
-    const typeLabel = { theme: 'Theme', project: 'Project', opportunity: 'Opportunity' }[entityType] || entityType;
+    const activityLabel = activityHits
+      ? `Active in your network recently: "${_trunc(label, 55)}"`
+      : `Recently updated: "${_trunc(label, 55)}"`;
     return {
       id: _itemId('signal', entityType, String(entity.id)),
       category: 'signal',
-      headline: `${typeLabel} gaining momentum: "${_trunc(label, 55)}"`,
+      headline: activityLabel,
       subhead: _trunc(entity.description, 80) || undefined,
       confidence: _clamp01(0.5 + normalizedScore * 0.45),
       score: normalizedScore,
@@ -852,24 +876,9 @@ function _buildSignalsMoving({ themeCircles, projects, opportunities, activityHi
  */
 function _buildYourPattern({ journey, maxItems, now }) {
   if (!journey.hasHistory) {
-    // No journey data — still produce a system-level observation
-    return [{
-      id: _itemId('pattern', 'no_history'),
-      category: 'pattern',
-      headline: 'Your activity pattern will appear here as you explore the network.',
-      subhead: 'Visit projects, themes, and opportunities to build your profile.',
-      confidence: 0.3,
-      score: 0.3,
-      primary_refs: [],
-      why_key: registerWhy({
-        label: 'pattern',
-        factors: ['No local journey history yet'],
-        keywords: [],
-        signals: { hasHistory: false },
-        scores: {},
-      }),
-      created_at: new Date().toISOString(),
-    }];
+    // Journey data is device-local and has no meaningful account-level
+    // observation until the user has actually explored the network.
+    return [];
   }
 
   const items = [];
@@ -1188,7 +1197,86 @@ function _buildCombinationOpportunities({
 }
 
 /**
- * 4) opportunities_for_you — top opportunities matching user profile.
+ * Relationship-evidence-backed people recommendations.  The graph snapshot
+ * already contains community and membership data, so this reuses that
+ * deterministic evidence instead of introducing a second people ranker or
+ * additional queries.
+ */
+function _buildPeopleWorthKnowing({ userProfile, community, projects, organizations, memberships, maxItems }) {
+  if (!userProfile || !Array.isArray(community)) return [];
+  const projectById = new Map((projects || []).map(project => [String(project.id), project]));
+  const organizationById = new Map((organizations || []).map(org => [String(org.id), org]));
+  const activeContext = window.SynapseContext?.get?.() || null;
+  const weights = {
+    active_context: 5,
+    opportunity_reason: 5,
+    shared_project: 5,
+    mutual_connections: 4,
+    shared_organization: 4,
+    shared_skill: 2,
+    shared_theme: 2,
+  };
+
+  const candidates = [];
+  for (const person of community) {
+    if (!person?.id || String(person.id) === String(userProfile.id)) continue;
+    const personId = String(person.id);
+    const sharedProjectIds = [...(memberships.userProjectIds || [])]
+      .filter(projectId => memberships.projectMemberIds.get(projectId)?.has(personId));
+    const sharedOrgIds = [...(memberships.userOrgIds || [])]
+      .filter(orgId => memberships.orgMemberIds.get(orgId)?.has(personId));
+    const sharedProjects = sharedProjectIds.map(id => projectById.get(id)).filter(Boolean);
+    const sharedOrganizations = sharedOrgIds.map(id => organizationById.get(id)).filter(Boolean);
+    const connectionStatus = memberships.connectedCommunityIds.has(personId) ? 'accepted' : null;
+
+    const evidence = getRelationshipEvidence({
+      currentUserProfile: userProfile,
+      personProfile: person,
+      connectionStatus,
+      mutualConnections: [],
+      sharedProjects,
+      sharedOrganizations,
+      activeContext,
+    });
+    const meaningful = (evidence?.reasons || []).filter(reason =>
+      Object.prototype.hasOwnProperty.call(weights, reason.category)
+    );
+    if (!meaningful.length) continue;
+
+    const score = meaningful.reduce((sum, reason) => sum + (weights[reason.category] || 0), 0);
+    const summaries = meaningful.slice(0, 2).map(reason => {
+      if (reason.category === 'shared_skill') {
+        const skills = String(reason.detail || '').split(',').map(value => value.trim()).filter(Boolean);
+        return skills.length ? `${skills.length} shared skill${skills.length === 1 ? '' : 's'}` : 'Shared skills';
+      }
+      return String(reason.detail || reason.label || '').trim();
+    }).filter(Boolean);
+    const label = person.name || person.full_name || person.username || 'Network connection';
+    const why_key = registerWhy({
+      label: 'person',
+      factors: meaningful.map(reason => `${reason.label || reason.category}: ${reason.detail || 'supported relationship evidence'}`),
+      keywords: _tokenize([person.name, person.role, person.skills, person.interests].flat().join(' ')).slice(0, 8),
+      paths: meaningful.map(reason => reason.category),
+      signals: { evidenceCount: meaningful.length, directConnection: connectionStatus === 'accepted' },
+      scores: { evidence: _clamp01(score / 10) },
+    });
+    candidates.push({
+      id: _itemId('person', personId),
+      category: 'person',
+      headline: label,
+      subhead: summaries.join(' · '),
+      confidence: _clamp01(0.45 + Math.min(score, 10) * 0.05),
+      score,
+      primary_refs: [{ nodeType: 'person', nodeId: personId, label }],
+      why_key,
+      created_at: new Date().toISOString(),
+    });
+  }
+  return candidates.sort((a, b) => b.score - a.score || a.headline.localeCompare(b.headline)).slice(0, maxItems);
+}
+
+/**
+ * 5) opportunities_for_you — top opportunities matching user profile.
  */
 function _buildOpportunitiesForYou({ userProfile, opportunities, memberships, activityHitMap, now, windowDays, maxItems }) {
   if (!userProfile || opportunities.length === 0) return [];
@@ -1214,14 +1302,18 @@ function _buildOpportunitiesForYou({ userProfile, opportunities, memberships, ac
     const bucket = _mapAvailability(userProfile.availability || '');
     const avMatch = _availabilityMatch(bucket, opp.commitment || '');
 
-    return { opp, alignment, proximity, rawMomentum, score, matchedKeywords, avMatch };
+    const hasSkillEvidence = matchedKeywords.length > 0;
+    const hasNetworkEvidence = proximity >= 0.4;
+    if (!hasSkillEvidence && !hasNetworkEvidence && alignment < 0.35) return null;
+    return { opp, alignment, proximity, rawMomentum, score, matchedKeywords, avMatch, hasSkillEvidence, hasNetworkEvidence };
   });
 
   const sorted = scored
+    .filter(Boolean)
     .sort((a, b) => b.score - a.score)
     .slice(0, maxItems);
 
-  return sorted.map(({ opp, alignment, proximity, rawMomentum, score, matchedKeywords, avMatch }) => {
+  return sorted.map(({ opp, alignment, proximity, rawMomentum, score, matchedKeywords, avMatch, hasSkillEvidence, hasNetworkEvidence }) => {
     const label = opp.title || 'Untitled Opportunity';
     const orgLabel = opp.organization_name || null;
 
@@ -1230,7 +1322,7 @@ function _buildOpportunitiesForYou({ userProfile, opportunities, memberships, ac
       `Proximity: ${Math.round(proximity * 100)}%`,
     ];
     if (matchedKeywords.length) factors.push(`Skills match: ${matchedKeywords.join(', ')}`);
-    if (avMatch > 0.7) factors.push('Strong availability match');
+    if (avMatch > 0.7 && userProfile.availability) factors.push('Stated commitment appears compatible');
     if (orgLabel) factors.push(`Organization: ${orgLabel}`);
 
     const why_key = registerWhy({
@@ -1248,7 +1340,9 @@ function _buildOpportunitiesForYou({ userProfile, opportunities, memberships, ac
     return {
       id: _itemId('opportunity', String(opp.id)),
       category: 'opportunity',
-      headline: `"${_trunc(label, 55)}" matches your skills and availability.`,
+      headline: hasSkillEvidence
+        ? `"${_trunc(label, 55)}" matches your skills: ${matchedKeywords.slice(0, 3).join(', ')}.`
+        : `"${_trunc(label, 55)}" is connected to your network.`,
       subhead: orgLabel ? `via ${orgLabel}` : _trunc(opp.description, 70),
       confidence: _clamp01(0.4 + score * 0.55),
       score,
@@ -1417,6 +1511,7 @@ export async function generateDailyBrief({
     projects:        graph.projects,
     opportunities:   graph.opportunities,
     organizations:   graph.organizations,
+    community:       graph.community,
     dailySuggestions: graph.dailySuggestions,
     memberships,
     activityHitMap,
@@ -1429,9 +1524,8 @@ export async function generateDailyBrief({
   const sections = {
     signals_moving:             _buildSignalsMoving(sectionCtx),
     your_pattern:               _buildYourPattern(sectionCtx),
-    combination_opportunities:  _buildCombinationOpportunities(sectionCtx),
+    people_worth_knowing:       _buildPeopleWorthKnowing(sectionCtx),
     opportunities_for_you:      _buildOpportunitiesForYou(sectionCtx),
-    blind_spots:                _buildBlindSpots(sectionCtx),
   };
 
   const elapsed = Date.now() - t0;

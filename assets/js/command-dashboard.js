@@ -92,7 +92,7 @@ window.CommandDashboard = (() => {
       return Promise.resolve({ generateDailyBrief: window.generateDailyBrief });
     }
     if (!_briefEnginePromise) {
-      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js';
+      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=synapse-retention-20260818d';
       _briefEnginePromise = import(url).catch(err => {
         _briefEnginePromise = null;
         throw err;

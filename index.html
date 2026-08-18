@@ -38,7 +38,7 @@
 <link rel="stylesheet" href="dashboard.css?v=mobile-fix-20260328a" />
 <link rel="stylesheet" href="assets/css/quiet-mode.css" />
 <link rel="stylesheet" href="assets/css/mobile-safe-area.css?v=search-fix-20260318" />
-<link rel="stylesheet" href="assets/css/command-dashboard.css?v=synapse-reflection-export-20260818c" />
+<link rel="stylesheet" href="assets/css/command-dashboard.css?v=synapse-retention-20260818d" />
 <link rel="stylesheet" href="assets/css/ui-enhancements.css" />
 <link rel="stylesheet" href="assets/css/synapse-filter.css" />
 
@@ -350,8 +350,12 @@
       </div>
       <div class="network-reflection-scroll">
         <p id="network-reflection-greeting" class="network-reflection-greeting">Welcome back.</p>
+        <section class="network-reflection-section" aria-labelledby="reflection-attention-title" hidden>
+          <h2 id="reflection-attention-title">Needs Your Attention</h2>
+          <div id="network-reflection-attention" class="network-reflection-content"></div>
+        </section>
         <section class="network-reflection-section" aria-labelledby="reflection-focus-title">
-          <h2 id="reflection-focus-title">Your Focus Today</h2>
+          <h2 id="reflection-focus-title">Current Focus</h2>
           <div id="network-reflection-focus" class="network-reflection-content"></div>
         </section>
         <div id="network-reflection-brief" aria-live="polite">
@@ -800,11 +804,11 @@
     }
   </script>
 
-  <script src="assets/js/mentor-guide.js?v=synapse-reflection-export-20260818c" defer></script>
+  <script src="assets/js/mentor-guide.js?v=synapse-retention-20260818d" defer></script>
 
   <script src="assets/js/start-sequence-report.js?v=3" defer></script>
   <script src="assets/js/start-onboarding.js?v=3" defer></script>
-  <script src="assets/js/start-daily-digest.js?v=synapse-reflection-export-20260818c" defer></script>
+  <script src="assets/js/start-daily-digest.js?v=synapse-retention-20260818d" defer></script>
   <script src="assets/js/start-ui-enhanced.js?v=1739311200" defer></script>
 
   <!-- Unified Notification System (realtime-collaboration DEFERRED UNTIL AUTH) -->
@@ -813,7 +817,7 @@
   <!-- Daily Suggestions Engine (DEFERRED UNTIL AUTH) -->
 
   <script src="assets/js/graph-controller.js" defer></script>
-  <script src="assets/js/command-dashboard.js?v=synapse-repair-20260818a" defer></script>
+  <script src="assets/js/command-dashboard.js?v=synapse-retention-20260818d" defer></script>
 
   <script>
     window.closeStartModal = function () {
