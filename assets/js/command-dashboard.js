@@ -131,6 +131,18 @@ window.CommandDashboard = (() => {
   const $id = id => document.getElementById(id);
   const $all = sel => document.querySelectorAll(sel);
 
+  function _removeLegacySynapseIntelligenceLaunchers() {
+    ['cd-notif-btn', 'btn-notif-mobile', 'cd-report-btn'].forEach(id => {
+      document.getElementById(id)?.remove();
+    });
+    document.querySelector('#command-dashboard > .cd-panel-footer')?.remove();
+  }
+
+  // Mixed-cache safety: an older application shell can outlive a deployment
+  // while this versioned controller updates. Remove the obsolete Synapse-only
+  // launch controls from that stale DOM before any handlers can be attached.
+  _removeLegacySynapseIntelligenceLaunchers();
+
   /* ================================================================
      INITIALIZATION
      ================================================================ */
@@ -142,6 +154,7 @@ window.CommandDashboard = (() => {
    * authUserId = auth.users.id (used for generateDailyBrief)
    */
   async function initialize({ userId, authUserId, profile }) {
+    _removeLegacySynapseIntelligenceLaunchers();
     _userId = userId;
     _authUserId = authUserId;
 

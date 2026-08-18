@@ -1300,12 +1300,6 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     // _restoreMobileDashboard — called by start-daily-digest._destroySplit
     // to ensure #command-dashboard is re-parented before the split DOM is removed.
     _restoreMobileDashboard: _restoreMobileDashboard,
-    // show — kept for back-compat; opens the full START/digest modal directly
-    show: function () {
-      if (window.EnhancedStartUI && window.EnhancedStartUI.open) {
-        window.EnhancedStartUI.open();
-      }
-    },
     cleanup
   };
 

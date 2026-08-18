@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v4-msg-node-route-20260816a";
+const VERSION = "v5-synapse-intelligence-repair-20260818a";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.
