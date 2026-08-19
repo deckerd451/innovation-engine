@@ -10,8 +10,14 @@ const dashboard = fs.readFileSync(path.join(root, 'assets/js/command-dashboard.j
 const engineSource = fs.readFileSync(path.join(root, 'assets/js/intelligence/daily-brief-engine.js'), 'utf8');
 
 // Validate the actual tier keys against the section keys produced by the
-// current engine, rather than maintaining a second list of allowed keys.
-const producedKeys = new Set(['signals_moving', 'your_pattern', 'people_worth_knowing', 'opportunities_for_you']);
+// current engine, rather than maintaining a second list of allowed keys. The
+// extraction is intentionally scoped to generateDailyBrief's sections object.
+const sectionsBlock = engineSource.match(/const sections = \{\n([\s\S]*?)\n  \};/);
+assert.ok(sectionsBlock, 'Could not locate engine sections object');
+const producedKeys = new Set(
+  [...sectionsBlock[1].matchAll(/^\s{4}([a-z_]+):/gm)].map(match => match[1])
+);
+assert.ok(producedKeys.size > 0, 'Engine sections object is empty');
 const tierKeys = [...dashboard.matchAll(/briefSections:\s*\[([^\]]*)\]/g)]
   .flatMap(match => [...match[1].matchAll(/'([^']+)'/g)].map(item => item[1]));
 assert.ok(tierKeys.length > 0, 'No command-dashboard tier mappings found');
