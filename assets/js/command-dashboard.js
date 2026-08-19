@@ -437,6 +437,31 @@ window.CommandDashboard = (() => {
   }
 
   /**
+   * Explore -> Opps visibility contract, verified against the two other
+   * canonical opportunity-browse implementations in this codebase
+   * (assets/js/intelligence/daily-brief-engine.js's Reflection fetch and
+   * assets/js/organizations/opportunities.js's getOpportunities(), used by
+   * opportunities.html's public browse/search page) — both independently
+   * require status === 'open', is_public === true (excluding both false
+   * and null when the field exists), and an application_deadline that is
+   * either absent or still in the future. This is enforced at the DB query
+   * in _loadEnrichedData() below; this function re-checks the same
+   * contract client-side for rows that enter _enrichedData.opportunities
+   * outside that filtered query (the post-create optimistic merge), so a
+   * row can never become visible in Explore without satisfying it.
+   */
+  function _isEligibleExploreOpportunity(opp) {
+    if (!opp) return false;
+    if (opp.status !== 'open') return false;
+    if (Object.prototype.hasOwnProperty.call(opp, 'is_public') && opp.is_public !== true) return false;
+    if (opp.application_deadline) {
+      const deadline = new Date(opp.application_deadline);
+      if (!Number.isNaN(deadline.getTime()) && deadline.getTime() <= Date.now()) return false;
+    }
+    return true;
+  }
+
+  /**
    * Handle the result of the "+" Explore opportunity insert
    * (`.insert(oppData).select().single()`). Extracted so it can be
    * exercised directly by tests without going through the DOM add-form.
@@ -454,8 +479,16 @@ window.CommandDashboard = (() => {
       return;
     }
     if (data) {
-      _enrichedData.opportunities = _dedupeById([data, ...(_enrichedData.opportunities || [])]);
-      _renderResources(_currentTier);
+      if (!_isEligibleExploreOpportunity(data)) {
+        // Creation succeeded, but the row isn't eligible for the public
+        // Explore list (e.g. status/is_public weren't the eligible values)
+        // — surface that distinction rather than merging it in silently or
+        // logging it as if the refresh itself had failed.
+        console.warn('[CommandDashboard] Opportunity created but not eligible for Explore (status/is_public):', data.id);
+      } else {
+        _enrichedData.opportunities = _dedupeById([data, ...(_enrichedData.opportunities || [])]);
+        _renderResources(_currentTier);
+      }
     } else {
       console.warn('[CommandDashboard] Opportunity insert succeeded but returned no row; relying on refetch.');
     }
@@ -506,9 +539,19 @@ window.CommandDashboard = (() => {
         // created_at is selected so the Explore preview can be ordered by
         // recency — otherwise a newly created opportunity can be truncated
         // out of the capped preview list by an arbitrary fetch order.
+        // Visibility is enforced here at the DB query — same contract as
+        // organizations/opportunities.js's getOpportunities() (used by
+        // opportunities.html's public browse/search) and the Reflection
+        // engine's isEligiblePublicOpportunity(): status must be 'open',
+        // is_public must be strictly true (this comparison excludes both
+        // false and NULL rows at the database level), and the opportunity
+        // must not be past its application deadline.
         window.supabase
           .from('opportunities')
           .select('id, title, description, status, organization_id, created_at')
+          .eq('status', 'open')
+          .eq('is_public', true)
+          .or(`application_deadline.is.null,application_deadline.gt.${new Date().toISOString()}`)
           .then(res => res)
           .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
       ]);
@@ -1566,7 +1609,12 @@ window.CommandDashboard = (() => {
       const allOpps = _enrichedData.opportunities;
       if (!allOpps || allOpps.length === 0) return [];
       const byRecency = (o) => o.created_at ? new Date(o.created_at).getTime() : 0;
-      return [...allOpps]
+      // Re-check the visibility contract here too (fail closed): the DB
+      // query already filters, but _enrichedData.opportunities can also be
+      // updated by the post-create optimistic merge, so this is the single
+      // point every opportunity must clear before being rendered.
+      return allOpps
+        .filter(_isEligibleExploreOpportunity)
         .sort((a, b) => byRecency(b) - byRecency(a))
         .slice(0, 10)
         .map(o => ({ id: o.id, name: o.title || 'Untitled Opportunity', meta: o.status || '' }));
@@ -2025,6 +2073,13 @@ window.CommandDashboard = (() => {
       Object.assign(_enrichedData, enrichedData);
       _applyOpportunityInsertResult(insertResult);
       return _enrichedData.opportunities;
+    },
+    /**
+     * TEST-ONLY: direct access to the Explore opportunity visibility
+     * contract (status/is_public/application_deadline). Not used by the app.
+     */
+    __testIsEligibleExploreOpportunity(opp) {
+      return _isEligibleExploreOpportunity(opp);
     },
   };
 

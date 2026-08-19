@@ -1477,9 +1477,15 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
 
       if (category === "all" || category === "opportunities") {
+        // Same visibility contract as Explore -> Opps and opportunities.html's
+        // global browse/search: status must be 'open', is_public must be
+        // strictly true (excludes false and null), and not past its deadline.
         const { data, error } = await state.supabase
           .from("opportunities")
           .select("id, title, description")
+          .eq("status", "open")
+          .eq("is_public", true)
+          .or(`application_deadline.is.null,application_deadline.gt.${new Date().toISOString()}`)
           .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
           .limit(5);
         if (error) console.error('Opportunity suggestion search error:', error);
@@ -1668,9 +1674,15 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
 
       if (category === "all" || category === "opportunities") {
+        // Same visibility contract as Explore -> Opps and opportunities.html's
+        // global browse/search: status must be 'open', is_public must be
+        // strictly true (excludes false and null), and not past its deadline.
         const { data, error } = await state.supabase
           .from('opportunities')
           .select('*')
+          .eq('status', 'open')
+          .eq('is_public', true)
+          .or(`application_deadline.is.null,application_deadline.gt.${new Date().toISOString()}`)
           .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
           .limit(10);
         if (error) console.warn('Opportunities search error:', error);
