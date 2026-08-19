@@ -1226,10 +1226,21 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
     shared_theme: 2,
   };
 
+  // Stable identity for the current user: the canonical community record id
+  // plus (when present) the auth user_id it's linked to. A duplicate/legacy
+  // community row for the same human can carry a different `id` while
+  // sharing the same `user_id`, so matching on id alone lets self slip
+  // through eligibility — match on both.
+  const userId = String(userProfile.id);
+  const userAuthId = userProfile.user_id != null ? String(userProfile.user_id) : null;
+
   const candidates = [];
   for (const person of community) {
-    if (!person?.id || String(person.id) === String(userProfile.id)) continue;
+    if (!person?.id) continue;
     const personId = String(person.id);
+    const personAuthId = person.user_id != null ? String(person.user_id) : null;
+    const isSelf = personId === userId || (userAuthId != null && personAuthId === userAuthId);
+    if (isSelf) continue;
     const sharedProjectIds = [...(memberships.userProjectIds || [])]
       .filter(projectId => memberships.projectMemberIds.get(projectId)?.has(personId));
     const sharedOrgIds = [...(memberships.userOrgIds || [])]
@@ -1279,9 +1290,27 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
       primary_refs: [{ nodeType: 'person', nodeId: personId, label }],
       why_key,
       created_at: new Date().toISOString(),
+      // Canonical identity for dedup below; stripped before returning.
+      _dedupeKey: personAuthId || personId,
     });
   }
-  return candidates.sort((a, b) => b.score - a.score || a.headline.localeCompare(b.headline)).slice(0, maxItems);
+
+  // A duplicate community row for the same real person (same auth user_id,
+  // different community id) can independently pass eligibility above and
+  // generate a second candidate. Collapse those to one card, keeping the
+  // strongest-evidence (highest score) representation.
+  const bestByIdentity = new Map();
+  for (const candidate of candidates) {
+    const existing = bestByIdentity.get(candidate._dedupeKey);
+    if (!existing || candidate.score > existing.score) {
+      bestByIdentity.set(candidate._dedupeKey, candidate);
+    }
+  }
+
+  return [...bestByIdentity.values()]
+    .map(({ _dedupeKey, ...candidate }) => candidate)
+    .sort((a, b) => b.score - a.score || a.headline.localeCompare(b.headline))
+    .slice(0, maxItems);
 }
 
 /**
@@ -1568,3 +1597,8 @@ export async function generateDailyBrief({
 
 // Re-export helpers that callers may need without extra imports
 export { getWhy, registerWhy };
+
+// Test-only export of the People Worth Knowing builder, so regression
+// coverage exercises the real self-exclusion/dedupe logic instead of
+// re-implementing it. Not used by any production call path.
+export { _buildPeopleWorthKnowing as __testBuildPeopleWorthKnowing };

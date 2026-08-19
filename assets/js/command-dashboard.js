@@ -417,6 +417,25 @@ window.CommandDashboard = (() => {
     };
   }
 
+  /**
+   * De-duplicate a list of records by canonical id, keeping the first
+   * occurrence and preserving the relative order of everything else.
+   * Guards against the `connections` table containing more than one row
+   * for the same pair of people (e.g. accepted rows in both directions),
+   * which otherwise surfaces the same person twice in the Explore list.
+   */
+  function _dedupeById(items, keyFn = item => item.id) {
+    const seen = new Set();
+    const out = [];
+    for (const item of items) {
+      const key = keyFn(item);
+      if (key == null || seen.has(key)) continue;
+      seen.add(key);
+      out.push(item);
+    }
+    return out;
+  }
+
   /* ================================================================
      SUPABASE ENRICHMENT
      Loads accepted-connection peers and active project IDs once, then
@@ -466,9 +485,12 @@ window.CommandDashboard = (() => {
       ]);
 
       if (connResult.data) {
-        const acceptedPeerIds = connResult.data.map(c =>
+        // Multiple connection rows can reference the same peer (e.g. an
+        // accepted row exists in both directions), so dedupe peer ids by
+        // canonical community id before they enter enriched state.
+        const acceptedPeerIds = [...new Set(connResult.data.map(c =>
           c.from_user_id === _userId ? c.to_user_id : c.from_user_id
-        );
+        ))];
         _enrichedData.acceptedPeerIds = new Set(acceptedPeerIds);
 
         // Resolve names for accepted peers so the people list doesn't
@@ -489,18 +511,17 @@ window.CommandDashboard = (() => {
       }
 
       if (pendingResult.data && pendingResult.data.length > 0) {
-        const peerIds = pendingResult.data.map(c =>
+        const peerIds = [...new Set(pendingResult.data.map(c =>
           c.from_user_id === _userId ? c.to_user_id : c.from_user_id
-        );
+        ))];
         const { data: peers } = await window.supabase
           .from('community')
           .select('id, name')
           .in('id', peerIds);
         const nameMap = new Map((peers || []).map(p => [p.id, p.name]));
-        _enrichedData.pendingConnections = pendingResult.data.map(c => {
-          const peerId = c.from_user_id === _userId ? c.to_user_id : c.from_user_id;
-          return { id: peerId, name: nameMap.get(peerId) || 'Unknown' };
-        });
+        _enrichedData.pendingConnections = peerIds.map(peerId => (
+          { id: peerId, name: nameMap.get(peerId) || 'Unknown' }
+        ));
       } else {
         _enrichedData.pendingConnections = [];
       }
@@ -1452,7 +1473,9 @@ window.CommandDashboard = (() => {
       const pending = (_enrichedData.pendingConnections || [])
         .map(p => ({ id: p.id, name: p.name, pending: true }))
         .sort((a, b) => a.name.localeCompare(b.name));
-      return [...connected, ...pending].slice(0, 20);
+      // Accepted status is authoritative: if a peer somehow appears in both
+      // lists, keep the accepted (non-pending) card and drop the duplicate.
+      return _dedupeById([...connected, ...pending]).slice(0, 20);
 
     } else if (resourceType === 'projects') {
       // Projects come from Supabase, not graph nodes
@@ -1939,6 +1962,16 @@ window.CommandDashboard = (() => {
     /** Refresh Supabase-enriched data (projects, orgs, connections) and re-render */
     async refreshEnrichedData() {
       await _loadEnrichedData();
+    },
+    /**
+     * TEST-ONLY: exercises the real Explore "people" composition + dedupe
+     * path (_getResourceItems / _dedupeById) without requiring a live
+     * Supabase session or full DOM initialize(). Not used by the app.
+     */
+    __testGetPeopleResourceItems(userId, enrichedData) {
+      _userId = userId;
+      Object.assign(_enrichedData, enrichedData);
+      return _getResourceItems(_currentTier, 'people');
     },
   };
 
