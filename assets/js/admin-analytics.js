@@ -21,14 +21,25 @@ export function initAdminAnalytics() {
   
   supabase = window.supabase;
 
-  window.addEventListener('profile-loaded', (e) => {
-    currentUserProfile = e.detail.profile;
+  function handleProfile(profile) {
+    currentUserProfile = profile;
 
     // Only show admin button if user is admin
-    if (currentUserProfile.role === 'admin') {
+    if (currentUserProfile?.role === 'admin') {
       createAdminButton();
     }
+  }
+
+  window.addEventListener('profile-loaded', (e) => {
+    handleProfile(e.detail.profile);
   });
+
+  // This module is injected post-AUTH_READY, which races with auth.js's
+  // profile-loaded dispatch — profile-loaded may already have fired before
+  // this listener was registered. Use the already-available profile if so.
+  if (window.currentUserProfile) {
+    handleProfile(window.currentUserProfile);
+  }
 
   createAnalyticsModal();
   
@@ -512,9 +523,11 @@ function closeAnalyticsModal() {
   }, 300);
 }
 
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-  initAdminAnalytics();
-});
+// Auto-initialize. This module is loaded dynamically by the post-auth
+// module loader in index.html, long after DOMContentLoaded has already
+// fired, so a DOMContentLoaded listener here would never run — call
+// directly instead (the DOM is guaranteed ready by the time this file
+// is injected).
+initAdminAnalytics();
 
 console.log('✅ Admin analytics ready');
