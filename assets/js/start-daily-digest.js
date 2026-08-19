@@ -1245,6 +1245,10 @@ async function _recordReflectionWatermark(profile) {
   const supabase = window.supabase;
   const communityId = profile?.id;
   if (!supabase || !communityId || _reflectionWatermarkRecordedFor === String(communityId)) return;
+  // Reuses this function's own once-per-page-load guard above -- fires
+  // exactly when the canonical Reflection has actually rendered.
+  // Independent of the watermark write below succeeding or failing.
+  window.Telemetry?.logEvent('reflection_viewed', { entityType: 'person', entityId: communityId, dedupeKey: communityId });
   try {
     const { data: current, error: readError } = await supabase
       .from('community')

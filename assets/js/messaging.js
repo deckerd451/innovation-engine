@@ -734,6 +734,8 @@ const MessagingModule = (function () {
 
       if (error) throw error;
 
+      window.Telemetry?.logEvent("message_sent", { entityType: "conversation", entityId: state.activeConversation.id });
+
       // Clear input
       const input = document.querySelector(".message-input");
       if (input) input.value = "";

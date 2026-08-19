@@ -11,9 +11,14 @@
 // server-side, not solely by the client-side email allowlist in
 // dashboard-actions.js's isAdminUser().
 //
-// Only metrics backed by existing, reliable data are shown here. Returning-
-// user rate, retention cohorts, session duration, and the full activation
-// funnel are deliberately NOT implemented -- see the Admin Console Audit.
+// Only metrics backed by existing, reliable data are shown here. Retention/
+// engagement (sessions, returning users, D1/D7/D30, activation, and
+// action->return association) is computed by the separate
+// get_admin_retention_analytics RPC (supabase/sql/migrations/
+// 20260820_retention_instrumentation.sql) from the new product_sessions/
+// product_events tables -- see that migration's header for the full
+// definitions. Session duration and a full multi-stage activation funnel
+// are still deliberately out of scope -- see the Admin Console Audit.
 
 console.log("%c📊 Admin Analytics Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
 
@@ -125,23 +130,28 @@ function renderError(message, { retryable = true } = {}) {
   });
 }
 
-// Load and render analytics from the server-side aggregate RPC. No raw
-// connections/messages/activity_log rows are ever requested by the client.
+// Load and render analytics from the server-side aggregate RPCs. No raw
+// connections/messages/activity_log/product_events/product_sessions rows
+// are ever requested by the client.
 async function loadAnalyticsData() {
   try {
     console.log('📊 Fetching analytics data...');
 
-    const { data, error } = await supabase.rpc('get_admin_network_analytics', {
-      p_active_window_days: 30
-    });
+    const [networkResult, retentionResult] = await Promise.all([
+      supabase.rpc('get_admin_network_analytics', { p_active_window_days: 30 }),
+      // Retention is a separate, independently-failable RPC -- its absence
+      // (e.g. the 20260820 migration not yet applied) must never prevent
+      // the rest of the dashboard from rendering.
+      supabase.rpc('get_admin_retention_analytics', {}).catch(err => ({ data: null, error: err }))
+    ]);
 
-    if (error) {
+    if (networkResult.error) {
       // Distinguish "you're not authorized" (RPC's fail-closed admin check,
       // Postgres 42501 / insufficient_privilege) from a generic data/network
       // failure, so the message tells the admin what actually happened.
-      const isAuthError = error.code === '42501' ||
-        /not_authorized/i.test(error.message || '');
-      console.error('❌ Error loading analytics:', error);
+      const isAuthError = networkResult.error.code === '42501' ||
+        /not_authorized/i.test(networkResult.error.message || '');
+      console.error('❌ Error loading analytics:', networkResult.error);
       renderError(
         isAuthError
           ? "You don't have admin access to network analytics."
@@ -151,7 +161,11 @@ async function loadAnalyticsData() {
       return;
     }
 
-    renderAnalyticsDashboard(data);
+    if (retentionResult.error) {
+      console.warn('⚠️ Retention analytics unavailable:', retentionResult.error.message || retentionResult.error);
+    }
+
+    renderAnalyticsDashboard(networkResult.data, retentionResult.data || null);
   } catch (error) {
     console.error('❌ Error loading analytics:', error);
     renderError('Could not load analytics data. Please try again.');
@@ -207,7 +221,141 @@ export function buildAdminIntelligence(m) {
   return items;
 }
 
-function renderAnalyticsDashboard(metrics) {
+function formatShortDate(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch (_) {
+    return '';
+  }
+}
+
+const RETURN_SIGNAL_LABELS = {
+  connection_requested: { name: 'Members who made a connection', verb: 'make a connection' },
+  message_sent: { name: 'Members who sent a message', verb: 'send a message' },
+};
+
+/**
+ * One retention/activation metric card. Renders the real number when the
+ * underlying cohort has data; otherwise a "collecting data" card -- never
+ * a bare 0%, which would misrepresent "not measurable yet" as "measured
+ * and zero" (see PHASE 7/11 of the retention instrumentation plan).
+ */
+function renderRetentionMetric({ label, ratePct, cohortN, retainedN, detailSuffix, collectingText }) {
+  if (ratePct == null || !cohortN) {
+    return `
+      <div class="admin-metric-card" style="--metric-accent:#888;">
+        <div class="admin-metric-label">${esc(label)}</div>
+        <div class="admin-metric-sub" style="color:var(--admin-text-muted); margin-top:0.5rem;">${esc(collectingText)}</div>
+      </div>
+    `;
+  }
+  return `
+    <div class="admin-metric-card" style="--metric-accent:#00e0ff">
+      <div class="admin-metric-value">${ratePct}%</div>
+      <div class="admin-metric-label">${esc(label)}</div>
+      <div class="admin-metric-sub" style="color:var(--admin-text-muted)">${retainedN} of ${cohortN}${esc(detailSuffix)}</div>
+    </div>
+  `;
+}
+
+/**
+ * Retention & Engagement section. Uses ONLY product_sessions/product_events
+ * (via get_admin_retention_analytics) -- never last_seen_at or any other
+ * pre-instrumentation snapshot field, so nothing here fabricates history
+ * from before instrumentation existed.
+ */
+function renderRetentionSection(retention) {
+  if (!retention || !retention.instrumentation_since) {
+    return `
+      <div class="admin-panel-section" style="margin-bottom:1.75rem;">
+        <h3><i class="fas fa-arrow-rotate-left" style="color:#00e0ff"></i> Retention &amp; Engagement</h3>
+        <p class="admin-panel-section-sub" style="margin:0;">Collecting data -- retention metrics will appear here once members start returning after this instrumentation's launch.</p>
+      </div>
+    `;
+  }
+
+  const since = formatShortDate(retention.instrumentation_since);
+  const activation = retention.activation || {};
+  const d1 = retention.d1_retention || {};
+  const d7 = retention.d7_retention || {};
+  const d30 = retention.d30_retention || {};
+  const signals = (retention.return_signals || []).filter(s => RETURN_SIGNAL_LABELS[s.action]);
+
+  return `
+    <div class="admin-panel-section" style="margin-bottom:1.75rem;">
+      <h3><i class="fas fa-arrow-rotate-left" style="color:#00e0ff"></i> Retention &amp; Engagement</h3>
+      <p class="admin-panel-section-sub">Measured since ${esc(since)}. Early numbers will be small while data accumulates.</p>
+
+      <div class="admin-metric-grid" style="margin-bottom:1rem;">
+        <div class="admin-metric-card" style="--metric-accent:#00ff88">
+          <div class="admin-metric-value">${retention.active_users_7d ?? 0}</div>
+          <div class="admin-metric-label">Active Users (7d)</div>
+          <div class="admin-metric-sub" style="color:var(--admin-text-muted)">${retention.sessions_7d ?? 0} sessions</div>
+        </div>
+        <div class="admin-metric-card" style="--metric-accent:#00e0ff">
+          <div class="admin-metric-value">${retention.active_users_30d ?? 0}</div>
+          <div class="admin-metric-label">Active Users (30d)</div>
+          <div class="admin-metric-sub" style="color:var(--admin-text-muted)">${retention.sessions_30d ?? 0} sessions</div>
+        </div>
+        <div class="admin-metric-card" style="--metric-accent:#ff6bff">
+          <div class="admin-metric-value">${retention.returning_users ?? 0}</div>
+          <div class="admin-metric-label">Returning Users</div>
+          <div class="admin-metric-sub" style="color:var(--admin-text-muted)">2+ separate visits, ever</div>
+        </div>
+        ${renderRetentionMetric({
+          label: 'Activation',
+          ratePct: activation.rate_pct,
+          cohortN: activation.eligible_users,
+          retainedN: activation.activated_users,
+          detailSuffix: ' instrumented members completed a meaningful action',
+          collectingText: "Collecting data -- activation will appear once members have instrumented sessions."
+        })}
+      </div>
+
+      <div class="admin-metric-grid">
+        ${renderRetentionMetric({
+          label: 'D1 Retention',
+          ratePct: d1.rate_pct, cohortN: d1.cohort_n, retainedN: d1.retained_n,
+          detailSuffix: ' returned the day after joining',
+          collectingText: 'Collecting data -- D1 retention needs at least one full day-after-join window to elapse.'
+        })}
+        ${renderRetentionMetric({
+          label: '7-Day Retention',
+          ratePct: d7.rate_pct, cohortN: d7.cohort_n, retainedN: d7.retained_n,
+          detailSuffix: ' eligible members returned within 7 days',
+          collectingText: '7-day retention will become available after enough members have completed a 7-day observation window.'
+        })}
+        ${renderRetentionMetric({
+          label: '30-Day Retention',
+          ratePct: d30.rate_pct, cohortN: d30.cohort_n, retainedN: d30.retained_n,
+          detailSuffix: ' eligible members returned within 30 days',
+          collectingText: '30-day retention will become available after enough members have completed a 30-day observation window.'
+        })}
+      </div>
+
+      ${signals.length > 0 ? `
+        <div style="margin-top:1.25rem;">
+          <h4 style="margin:0 0 0.6rem; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--admin-text-muted);">
+            What drives return? <span style="text-transform:none; letter-spacing:normal;">(observed association, not causation)</span>
+          </h4>
+          <div class="admin-list">
+            ${signals.map(s => `
+              <div class="admin-list-row" style="align-items:flex-start;">
+                <div style="flex:1;">
+                  <div class="admin-list-name">${esc(RETURN_SIGNAL_LABELS[s.action].name)}</div>
+                  <div class="admin-list-meta">${s.did_return_pct}% returned within 7 days, vs ${s.not_return_pct}% who didn't ${esc(RETURN_SIGNAL_LABELS[s.action].verb)} (N=${s.did_n} vs N=${s.not_n})</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderAnalyticsDashboard(metrics, retention) {
   const isolated = metrics.isolated_members_sample || [];
   const connectors = metrics.key_connectors || [];
   const topSkills = metrics.top_skills || [];
@@ -251,6 +399,8 @@ function renderAnalyticsDashboard(metrics) {
           <div class="admin-metric-label">Open Opportunities</div>
         </div>
       </div>
+
+      ${renderRetentionSection(retention)}
 
       <div class="admin-analytics-columns">
         <div class="admin-panel-section">

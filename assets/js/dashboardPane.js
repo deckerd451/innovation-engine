@@ -3401,6 +3401,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       if (error) throw error;
 
+      window.Telemetry?.logEvent("message_sent", { entityType: "conversation", entityId: state.currentConversationId });
+
       await state.supabase
         .from("conversations")
         .update({

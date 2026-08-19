@@ -526,6 +526,7 @@ export async function sendConnectionRequest(recipientCommunityId, targetName = "
 
     showToast(`✓ Request sent to ${targetName}!`, "success");
     updateConnectionUI(recipientCommunityId);
+    window.Telemetry?.logEvent("connection_requested", { entityType: "person", entityId: recipientCommunityId });
 
     if (window.DailyEngagement) {
       await window.DailyEngagement.awardXP(
@@ -602,6 +603,7 @@ export async function acceptConnectionRequest(connectionId) {
       return { success: false, error: res.error };
     }
 
+    window.Telemetry?.logEvent("connection_accepted", { entityType: "connection", entityId: res.data?.id });
     return { success: true, status: "accepted", connection: res.data };
   } finally {
     // Best-effort side effects. These must never turn an already-successful

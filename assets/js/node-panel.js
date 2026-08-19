@@ -305,6 +305,19 @@ export async function openNodePanel(nodeData) {
 
   currentNodeData = nodeData;
 
+  // Retention/engagement telemetry -- one canonical boundary for every
+  // "view a node's detail" UI entry path (graph click, search, explorer,
+  // notifications, etc. all route through openNodePanel). dedupeKey keyed
+  // by entity id so reopening/rerendering the same node's panel within the
+  // same page load never double-logs.
+  if (nodeData?.id) {
+    if (nodeData.type === 'person') {
+      window.Telemetry?.logEvent('person_viewed', { entityType: 'person', entityId: nodeData.id, dedupeKey: nodeData.id });
+    } else if (nodeData.type === 'opportunity') {
+      window.Telemetry?.logEvent('opportunity_viewed', { entityType: 'opportunity', entityId: nodeData.id, dedupeKey: nodeData.id });
+    }
+  }
+
   // Show panel
   panelElement.style.right = '0';
   panelElement.classList.add('open');

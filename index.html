@@ -746,6 +746,9 @@
     'use strict';
 
     const AUTH_MODULES = [
+      // Retention/engagement telemetry -- loads first so session_started
+      // and any early events from other modules aren't missed.
+      { src: 'assets/js/telemetry.js?v=20260820a', module: true },
       // Feature modules (type=module)
       { src: 'assets/js/network-filters.js?v=fc09b39b-1770146154f916933b2da', module: true },
       { src: 'assets/js/graph-legend.js?v=fc09b39b-1770146154f916933b2da', module: true },
