@@ -41,6 +41,7 @@
 <link rel="stylesheet" href="assets/css/command-dashboard.css?v=synapse-retention-20260818d" />
 <link rel="stylesheet" href="assets/css/ui-enhancements.css" />
 <link rel="stylesheet" href="assets/css/synapse-filter.css" />
+<link rel="stylesheet" href="assets/css/admin-panel.css?v=20260819a" />
 
 <!-- Login styles (must be last to override others) -->
 <link rel="stylesheet" href="assets/css/login/login.css?v=2" />
@@ -755,6 +756,7 @@
       { src: 'assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da', module: true },
       // Admin People
       { src: 'assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543', module: true },
+      { src: 'assets/js/adminPrivacyPanel.js?v=20260819a', module: true },
       // Opportunity Engine
       { src: 'assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304', module: false },
       // Unified Network Discovery
@@ -770,19 +772,52 @@
     ];
 
     let loaded = false;
+    const MAX_RETRIES = 2;
+    window.__POST_AUTH_MODULE_ERRORS__ = [];
+
+    // A failed module load (network blip, ad/script blocker, bad response)
+    // otherwise leaves whatever that module assigns to `window` (e.g.
+    // admin-analytics.js's window.openAnalyticsModal) permanently undefined
+    // for the session, with no distinction from "not authorized" or "still
+    // loading". Retry with backoff, then record the failure so callers
+    // (e.g. dashboard-actions.js's Analytics tab) can tell the difference
+    // and offer a real retry instead of just "refresh the page".
+    function loadScript(m, attempt) {
+      attempt = attempt || 0;
+      var s = document.createElement('script');
+      s.src = m.src + (attempt > 0 ? '&retry=' + attempt : '');
+      if (m.module) s.type = 'module';
+      else s.async = true;
+      s.onerror = function() {
+        if (attempt < MAX_RETRIES) {
+          console.warn('⚠️ Retrying post-auth module (' + (attempt + 1) + '/' + MAX_RETRIES + '): ' + m.src);
+          setTimeout(function() { loadScript(m, attempt + 1); }, 500 * (attempt + 1));
+        } else {
+          console.error('❌ Post-auth module failed to load after retries: ' + m.src);
+          window.__POST_AUTH_MODULE_ERRORS__.push(m.src);
+          window.dispatchEvent(new CustomEvent('post-auth-module-error', { detail: { src: m.src } }));
+        }
+      };
+      document.body.appendChild(s);
+    }
 
     function loadAuthModules() {
       if (loaded) return;
       loaded = true;
       console.log('📦 Loading ' + AUTH_MODULES.length + ' post-auth modules...');
-      AUTH_MODULES.forEach(function(m) {
-        var s = document.createElement('script');
-        s.src = m.src;
-        if (m.module) s.type = 'module';
-        else s.async = true;
-        document.body.appendChild(s);
-      });
+      AUTH_MODULES.forEach(function(m) { loadScript(m, 0); });
     }
+
+    // Exposed so a failed module can be retried on demand (e.g. from a
+    // "try again" button) without reloading the whole page.
+    window.retryPostAuthModule = function(srcFragment) {
+      var m = AUTH_MODULES.find(function(mod) { return mod.src.indexOf(srcFragment) !== -1; });
+      if (!m) return;
+      window.__POST_AUTH_MODULE_ERRORS__ = window.__POST_AUTH_MODULE_ERRORS__.filter(
+        function(src) { return src.indexOf(srcFragment) === -1; }
+      );
+      loadScript(m, 0);
+    };
 
     // Use boot-gate if available, otherwise fall back to events
     if (window.bootGate) {

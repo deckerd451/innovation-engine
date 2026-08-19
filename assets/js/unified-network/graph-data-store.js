@@ -2,7 +2,7 @@
 // Graph Data Store for Unified Network Discovery
 // Version: 1.0.2 (debug instrumentation)
 
-import { getGraphAvatarUrl } from "../avatar-utils.js";
+import { getGraphAvatarUrl, shouldHidePhoto } from "../avatar-utils.js";
 
 // Debug toggle for edge loading diagnostics
 const EDGE_DEBUG =
@@ -226,7 +226,14 @@ export class GraphDataStore {
    * @private
    */
   async _loadNodes() {
-    const { data, error } = await this._supabase.from("community").select("*");
+    // Excludes members an admin has hidden from discovery -- matches the
+    // is_hidden contract already applied by search/matching/suggestions
+    // (searchEngine.js, matchEngine.js, suggestions/*). The graph was the
+    // one surface still fetching every row unfiltered.
+    const { data, error } = await this._supabase
+      .from("community")
+      .select("*")
+      .or("is_hidden.is.null,is_hidden.eq.false");
 
     if (error) {
       console.error("Error loading nodes:", error);
@@ -238,8 +245,10 @@ export class GraphDataStore {
       type: "person",
       name: user.name || user.username || "Unknown",
 
-      // Use 64×64 graph avatar to minimise bandwidth in graph rendering
-      imageUrl: getGraphAvatarUrl(user),
+      // Use 64×64 graph avatar to minimise bandwidth in graph rendering.
+      // Withheld (falls back to initials in the renderer) when the member
+      // has set photo_visible=false and this isn't their own node.
+      imageUrl: shouldHidePhoto(user, this._userId) ? null : getGraphAvatarUrl(user),
 
       // Physics properties (set by D3)
       x: 0,

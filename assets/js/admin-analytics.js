@@ -1,7 +1,19 @@
 // ================================================================
 // ADMIN ANALYTICS DASHBOARD
 // ================================================================
-// Ecosystem insights for organizers and community leaders
+// Ecosystem insights for organizers and community leaders.
+//
+// Metrics are computed entirely server-side by the get_admin_network_analytics
+// RPC (supabase/sql/migrations/20260819_admin_analytics_privacy.sql) rather
+// than downloading raw connections/messages/activity_log rows to the browser.
+// The RPC fails closed (raises) for any caller who is not
+// community.user_role = 'Admin' -- privileged access is authorized
+// server-side, not solely by the client-side email allowlist in
+// dashboard-actions.js's isAdminUser().
+//
+// Only metrics backed by existing, reliable data are shown here. Returning-
+// user rate, retention cohorts, session duration, and the full activation
+// funnel are deliberately NOT implemented -- see the Admin Console Audit.
 
 console.log("%c📊 Admin Analytics Loading...", "color:#0ff; font-weight: bold; font-size: 16px");
 
@@ -18,16 +30,11 @@ export function initAdminAnalytics() {
     return;
   }
   adminAnalyticsInitialized = true;
-  
+
   supabase = window.supabase;
 
   function handleProfile(profile) {
     currentUserProfile = profile;
-
-    // Only show admin button if user is admin
-    if (currentUserProfile?.role === 'admin') {
-      createAdminButton();
-    }
   }
 
   window.addEventListener('profile-loaded', (e) => {
@@ -42,56 +49,12 @@ export function initAdminAnalytics() {
   }
 
   createAnalyticsModal();
-  
+
   // Expose functions globally immediately
   window.openAnalyticsModal = openAnalyticsModal;
   window.closeAnalyticsModal = closeAnalyticsModal;
 
   console.log('✅ Admin analytics initialized');
-}
-
-// Create admin button - DISABLED: Now integrated into Filter View
-function createAdminButton() {
-  // Analytics button is now integrated into the Filter View UI
-  // See dashboard-actions.js createSynapseLegend() for the new location
-  console.log('📊 Analytics button integrated into Filter View');
-  return;
-
-  // Old standalone button code (kept for reference):
-  /*
-  const button = document.createElement('button');
-  button.id = 'admin-analytics-btn';
-  button.style.cssText = `
-    position: fixed;
-    top: 80px;
-    right: 20px;
-    padding: 0.75rem 1.25rem;
-    background: linear-gradient(135deg, #ff6b6b, #ff8c8c);
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-    z-index: 1500;
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
-    transition: all 0.2s;
-  `;
-  button.innerHTML = '<i class="fas fa-chart-line"></i> Analytics';
-
-  button.onmouseover = () => {
-    button.style.transform = 'translateY(-2px)';
-    button.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.6)';
-  };
-
-  button.onmouseout = () => {
-    button.style.transform = 'translateY(0)';
-    button.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.4)';
-  };
-
-  button.onclick = openAnalyticsModal;
-
-  document.body.appendChild(button);
-  */
 }
 
 // Create analytics modal
@@ -112,9 +75,19 @@ function createAnalyticsModal() {
     justify-content: center;
     opacity: 0;
     transition: opacity 0.3s;
+    padding: 1rem;
+    box-sizing: border-box;
   `;
 
   document.body.appendChild(analyticsModal);
+}
+
+function frameHtml(innerHtml) {
+  return `
+    <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 2rem; max-width: 95vw; width: 1200px; max-height: 90vh; overflow-y: auto; position: relative; box-sizing: border-box;">
+      ${innerHtml}
+    </div>
+  `;
 }
 
 // Open analytics modal
@@ -126,391 +99,229 @@ async function openAnalyticsModal() {
     analyticsModal.style.opacity = '1';
   }, 10);
 
-  // Show loading
-  analyticsModal.innerHTML = `
-    <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 3rem; max-width: 95vw; width: 1200px; max-height: 90vh; overflow-y: auto; position: relative;">
-      <div style="text-align: center; color: #ff6b6b;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 3rem;"></i>
-        <p style="margin-top: 1rem; font-size: 1.2rem;">Loading analytics...</p>
-      </div>
+  analyticsModal.innerHTML = frameHtml(`
+    <div class="admin-analytics-empty">
+      <i class="fas fa-spinner fa-spin" style="font-size: 2.5rem;"></i>
+      <p style="margin-top: 1rem; font-size: 1.1rem;">Loading analytics...</p>
     </div>
-  `;
+  `);
 
-  // Load analytics data
   await loadAnalyticsData();
 }
 
-// Load and render analytics
+function renderError(message, { retryable = true } = {}) {
+  analyticsModal.innerHTML = frameHtml(`
+    <div class="admin-analytics-error">
+      <i class="fas fa-exclamation-circle" style="font-size: 2.5rem;"></i>
+      <p style="margin-top: 1rem; color: white;">${message}</p>
+      <div style="display:flex; gap:0.75rem; justify-content:center; margin-top:1rem;">
+        ${retryable ? `<button class="admin-retry-btn" id="admin-analytics-retry-btn">Try again</button>` : ''}
+        <button onclick="closeAnalyticsModal()" class="admin-retry-btn" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25); color:white;">Close</button>
+      </div>
+    </div>
+  `);
+  document.getElementById('admin-analytics-retry-btn')?.addEventListener('click', () => {
+    openAnalyticsModal();
+  });
+}
+
+// Load and render analytics from the server-side aggregate RPC. No raw
+// connections/messages/activity_log rows are ever requested by the client.
 async function loadAnalyticsData() {
   try {
     console.log('📊 Fetching analytics data...');
 
-    // Fetch all data in parallel
-    const [
-      communityData,
-      connectionsData,
-      projectsData,
-      endorsementsData,
-      messagesData,
-      activityData
-    ] = await Promise.all([
-      supabase.from('community').select('*'),
-      supabase.from('connections').select('*'),
-      supabase.from('projects').select('*'),
-      supabase.from('endorsements').select('*'),
-      supabase.from('messages').select('*'),
-      supabase.from('activity_log').select('*')
-    ]);
+    const { data, error } = await supabase.rpc('get_admin_network_analytics', {
+      p_active_window_days: 30
+    });
 
-    const community = communityData.data || [];
-    const connections = connectionsData.data || [];
-    const projects = projectsData.data || [];
-    const endorsements = endorsementsData.data || [];
-    const messages = messagesData.data || [];
-    const activities = activityData.data || [];
+    if (error) {
+      // Distinguish "you're not authorized" (RPC's fail-closed admin check,
+      // Postgres 42501 / insufficient_privilege) from a generic data/network
+      // failure, so the message tells the admin what actually happened.
+      const isAuthError = error.code === '42501' ||
+        /not_authorized/i.test(error.message || '');
+      console.error('❌ Error loading analytics:', error);
+      renderError(
+        isAuthError
+          ? "You don't have admin access to network analytics."
+          : 'Could not load analytics data. Please try again.',
+        { retryable: !isAuthError }
+      );
+      return;
+    }
 
-    // Calculate metrics
-    const metrics = calculateMetrics(community, connections, projects, endorsements, messages, activities);
-
-    // Render dashboard
-    renderAnalyticsDashboard(metrics);
-
+    renderAnalyticsDashboard(data);
   } catch (error) {
     console.error('❌ Error loading analytics:', error);
-    analyticsModal.innerHTML = `
-      <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 3rem; text-align: center;">
-        <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #ff6666;"></i>
-        <p style="margin-top: 1rem; color: white;">Error loading analytics</p>
-        <button onclick="closeAnalyticsModal()" style="margin-top: 1rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
-          Close
-        </button>
-      </div>
-    `;
+    renderError('Could not load analytics data. Please try again.');
   }
 }
 
-// Calculate analytics metrics
-function calculateMetrics(community, connections, projects, endorsements, messages, activities) {
-  // Basic counts
-  const totalMembers = community.length;
-  const totalConnections = connections.filter(c => c.status === 'accepted').length;
-  const totalProjects = projects.length;
-  const activeProjects = projects.filter(p => p.status === 'active' || p.status === 'in-progress').length;
-
-  // Network density (actual connections / possible connections)
-  const possibleConnections = (totalMembers * (totalMembers - 1)) / 2;
-  const networkDensity = possibleConnections > 0 ? (totalConnections / possibleConnections * 100).toFixed(2) : 0;
-
-  // Identify isolated nodes (users with 0 connections)
-  const connectedUserIds = new Set();
-  connections.forEach(conn => {
-    if (conn.status === 'accepted') {
-      connectedUserIds.add(conn.from_user_id);
-      connectedUserIds.add(conn.to_user_id);
-    }
-  });
-  const isolatedNodes = community.filter(u => !connectedUserIds.has(u.id));
-
-  // Key connectors (top 10% by connection count)
-  const connectionCounts = {};
-  connections.forEach(conn => {
-    if (conn.status === 'accepted') {
-      connectionCounts[conn.from_user_id] = (connectionCounts[conn.from_user_id] || 0) + 1;
-      connectionCounts[conn.to_user_id] = (connectionCounts[conn.to_user_id] || 0) + 1;
-    }
-  });
-
-  const sortedConnectors = Object.entries(connectionCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, Math.max(5, Math.floor(totalMembers * 0.1)));
-
-  const keyConnectors = sortedConnectors.map(([userId, count]) => {
-    const user = community.find(u => u.id === userId);
-    return {
-      id: userId,
-      name: user?.name || 'Unknown',
-      connections: count,
-      image_url: user?.image_url
-    };
-  });
-
-  // Growth metrics (last 30 days)
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const newMembers = community.filter(u => new Date(u.created_at) > thirtyDaysAgo).length;
-  const newConnections = connections.filter(c => c.status === 'accepted' && new Date(c.created_at) > thirtyDaysAgo).length;
-  const newProjects = projects.filter(p => new Date(p.created_at) > thirtyDaysAgo).length;
-
-  // Engagement metrics
-  const totalMessages = messages.length;
-  const totalEndorsements = endorsements.length;
-  const avgConnectionsPerUser = totalMembers > 0 ? (totalConnections * 2 / totalMembers).toFixed(1) : 0;
-
-  // Top skills
-  const skillCounts = {};
-  community.forEach(user => {
-    if (user.skills) {
-      const skills = user.skills.split(',').map(s => s.trim());
-      skills.forEach(skill => {
-        skillCounts[skill] = (skillCounts[skill] || 0) + 1;
-      });
-    }
-  });
-
-  const topSkills = Object.entries(skillCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
-
-  // Activity breakdown
-  const activityBreakdown = {};
-  activities.forEach(act => {
-    activityBreakdown[act.action_type] = (activityBreakdown[act.action_type] || 0) + 1;
-  });
-
-  // Suggested introductions (isolated nodes + key connectors)
-  const suggestedIntros = isolatedNodes.slice(0, 5).map(isolated => {
-    // Find best connector based on shared skills
-    const isolatedSkills = isolated.skills ? isolated.skills.toLowerCase().split(',').map(s => s.trim()) : [];
-
-    let bestConnector = keyConnectors[0];
-    let maxSharedSkills = 0;
-
-    keyConnectors.forEach(connector => {
-      const connectorUser = community.find(u => u.id === connector.id);
-      if (connectorUser && connectorUser.skills) {
-        const connectorSkills = connectorUser.skills.toLowerCase().split(',').map(s => s.trim());
-        const sharedSkills = isolatedSkills.filter(skill => connectorSkills.includes(skill)).length;
-
-        if (sharedSkills > maxSharedSkills) {
-          maxSharedSkills = sharedSkills;
-          bestConnector = connector;
-        }
-      }
-    });
-
-    return {
-      isolated: {
-        id: isolated.id,
-        name: isolated.name,
-        image_url: isolated.image_url
-      },
-      connector: bestConnector,
-      reason: maxSharedSkills > 0 ? `${maxSharedSkills} shared skills` : 'Network integration'
-    };
-  });
-
-  return {
-    totalMembers,
-    totalConnections,
-    totalProjects,
-    activeProjects,
-    networkDensity,
-    isolatedNodes,
-    keyConnectors,
-    newMembers,
-    newConnections,
-    newProjects,
-    totalMessages,
-    totalEndorsements,
-    avgConnectionsPerUser,
-    topSkills,
-    activityBreakdown,
-    suggestedIntros
-  };
+function initials(name) {
+  return String(name || '?')
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?';
 }
 
-// Render analytics dashboard
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Deterministic, non-estimated observations derived from already-computed
+ * metrics. No metric is invented here -- each line only fires when the
+ * underlying count is present and non-zero.
+ * @param {object} m - the RPC's JSON response
+ * @returns {string[]}
+ */
+export function buildAdminIntelligence(m) {
+  const items = [];
+
+  if ((m?.isolated_members_count || 0) > 0) {
+    const n = m.isolated_members_count;
+    items.push(`${n} member${n === 1 ? '' : 's'} ${n === 1 ? 'has' : 'have'} zero connections.`);
+  }
+
+  if ((m?.open_opportunities_no_applications || 0) > 0) {
+    const n = m.open_opportunities_no_applications;
+    items.push(`${n} open opportunit${n === 1 ? 'y has' : 'ies have'} zero applications.`);
+  }
+
+  if ((m?.new_members_30d || 0) > 0 || (m?.new_connections_30d || 0) > 0) {
+    const nm = m.new_members_30d || 0;
+    const nc = m.new_connections_30d || 0;
+    items.push(`${nm} new member${nm === 1 ? '' : 's'} and ${nc} new connection${nc === 1 ? '' : 's'} in the last 30 days.`);
+  }
+
+  return items;
+}
+
 function renderAnalyticsDashboard(metrics) {
-  analyticsModal.innerHTML = `
-    <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 2rem; max-width: 95vw; width: 1200px; max-height: 90vh; overflow-y: auto; position: relative;">
+  const isolated = metrics.isolated_members_sample || [];
+  const connectors = metrics.key_connectors || [];
+  const topSkills = metrics.top_skills || [];
+  const intelligence = buildAdminIntelligence(metrics);
 
-      <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h1 style="color: #ff6b6b; font-size: 2rem; margin: 0;">
-          <i class="fas fa-chart-line"></i> Ecosystem Analytics
-        </h1>
-        <button onclick="closeAnalyticsModal()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">
-          <i class="fas fa-times"></i>
-        </button>
+  analyticsModal.innerHTML = frameHtml(`
+    <div class="admin-analytics">
+      <div class="admin-analytics-header">
+        <h1><i class="fas fa-chart-line"></i> Ecosystem Analytics</h1>
+        <span class="admin-analytics-window">Active window: last ${esc(metrics.active_window_days)} days</span>
+        <button class="admin-analytics-close" onclick="closeAnalyticsModal()"><i class="fas fa-times"></i></button>
       </div>
 
-      <!-- Key Metrics Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-
-        <div style="background: rgba(0,224,255,0.1); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
-          <div style="font-size: 3rem; color: #00e0ff; margin-bottom: 0.5rem;">${metrics.totalMembers}</div>
-          <div style="color: #ddd; font-size: 1rem;">Total Members</div>
-          ${metrics.newMembers > 0 ? `<div style="color: #00ff88; font-size: 0.85rem; margin-top: 0.5rem;">+${metrics.newMembers} this month</div>` : ''}
+      <div class="admin-metric-grid">
+        <div class="admin-metric-card" style="--metric-accent:#00e0ff">
+          <div class="admin-metric-value">${metrics.total_members}</div>
+          <div class="admin-metric-label">Total Members</div>
+          ${metrics.new_members_30d > 0 ? `<div class="admin-metric-sub">+${metrics.new_members_30d} in last 30 days</div>` : ''}
         </div>
-
-        <div style="background: rgba(0,255,136,0.1); border: 2px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
-          <div style="font-size: 3rem; color: #00ff88; margin-bottom: 0.5rem;">${metrics.totalConnections}</div>
-          <div style="color: #ddd; font-size: 1rem;">Connections</div>
-          ${metrics.newConnections > 0 ? `<div style="color: #00ff88; font-size: 0.85rem; margin-top: 0.5rem;">+${metrics.newConnections} this month</div>` : ''}
+        <div class="admin-metric-card" style="--metric-accent:#00ff88">
+          <div class="admin-metric-value">${metrics.active_members}</div>
+          <div class="admin-metric-label">Active Users</div>
+          <div class="admin-metric-sub" style="color:var(--admin-text-muted)">Active in last ${esc(metrics.active_window_days)} days</div>
         </div>
-
-        <div style="background: rgba(255,170,0,0.1); border: 2px solid rgba(255,170,0,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
-          <div style="font-size: 3rem; color: #ffaa00; margin-bottom: 0.5rem;">${metrics.networkDensity}%</div>
-          <div style="color: #ddd; font-size: 1rem;">Network Density</div>
-          <div style="color: #aaa; font-size: 0.85rem; margin-top: 0.5rem;">Connection saturation</div>
+        <div class="admin-metric-card" style="--metric-accent:#ff6bff">
+          <div class="admin-metric-value">${metrics.total_connections}</div>
+          <div class="admin-metric-label">Connections</div>
+          ${metrics.new_connections_30d > 0 ? `<div class="admin-metric-sub">+${metrics.new_connections_30d} in last 30 days</div>` : ''}
         </div>
-
-        <div style="background: rgba(255,107,107,0.1); border: 2px solid rgba(255,107,107,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
-          <div style="font-size: 3rem; color: #ff6b6b; margin-bottom: 0.5rem;">${metrics.activeProjects}</div>
-          <div style="color: #ddd; font-size: 1rem;">Active Projects</div>
-          <div style="color: #aaa; font-size: 0.85rem; margin-top: 0.5rem;">${metrics.totalProjects} total</div>
+        <div class="admin-metric-card" style="--metric-accent:#ffaa00">
+          <div class="admin-metric-value">${metrics.network_density_pct}%</div>
+          <div class="admin-metric-label">Network Density</div>
         </div>
-
-        <div style="background: rgba(255,107,255,0.1); border: 2px solid rgba(255,107,255,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
-          <div style="font-size: 3rem; color: #ff6bff; margin-bottom: 0.5rem;">${metrics.avgConnectionsPerUser}</div>
-          <div style="color: #ddd; font-size: 1rem;">Avg Connections</div>
-          <div style="color: #aaa; font-size: 0.85rem; margin-top: 0.5rem;">Per member</div>
+        <div class="admin-metric-card" style="--metric-accent:#ff6b6b">
+          <div class="admin-metric-value">${metrics.active_projects}</div>
+          <div class="admin-metric-label">Active Projects</div>
+          <div class="admin-metric-sub" style="color:var(--admin-text-muted)">${metrics.total_projects} total</div>
         </div>
-
-        <div style="background: rgba(255,215,0,0.1); border: 2px solid rgba(255,215,0,0.3); border-radius: 12px; padding: 1.5rem; text-align: center;">
-          <div style="font-size: 3rem; color: #ffd700; margin-bottom: 0.5rem;">${metrics.totalEndorsements}</div>
-          <div style="color: #ddd; font-size: 1rem;">Endorsements</div>
-          <div style="color: #aaa; font-size: 0.85rem; margin-top: 0.5rem;">Skills validated</div>
+        <div class="admin-metric-card" style="--metric-accent:#ffd700">
+          <div class="admin-metric-value">${metrics.open_opportunities}</div>
+          <div class="admin-metric-label">Open Opportunities</div>
         </div>
-
       </div>
 
-      <!-- Two Column Layout -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
-
-        <!-- Isolated Nodes -->
-        <div style="background: rgba(255,107,107,0.05); border: 2px solid rgba(255,107,107,0.3); border-radius: 12px; padding: 1.5rem;">
-          <h3 style="color: #ff6b6b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-            <i class="fas fa-exclamation-triangle"></i>
-            Isolated Nodes (${metrics.isolatedNodes.length})
-          </h3>
-          <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 1rem;">Members with zero connections</div>
-
-          ${metrics.isolatedNodes.length === 0 ? `
-            <div style="text-align: center; padding: 2rem; color: #00ff88;">
-              <i class="fas fa-check-circle" style="font-size: 2rem;"></i>
-              <p style="margin-top: 0.5rem;">No isolated members!</p>
+      <div class="admin-analytics-columns">
+        <div class="admin-panel-section">
+          <h3><i class="fas fa-exclamation-triangle" style="color:#ff6b6b"></i> Isolated Members (${metrics.isolated_members_count})</h3>
+          <p class="admin-panel-section-sub">Members with zero connections</p>
+          ${isolated.length === 0 ? `
+            <div class="admin-analytics-empty" style="padding:1.5rem;">
+              <i class="fas fa-check-circle" style="color:#00ff88;"></i>
+              <p style="margin-top:0.5rem;">No isolated members.</p>
             </div>
           ` : `
-            <div style="max-height: 300px; overflow-y: auto;">
-              ${metrics.isolatedNodes.slice(0, 10).map(user => {
-                const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
-                return `
-                  <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: rgba(255,107,107,0.1); border-radius: 8px; margin-bottom: 0.5rem;">
-                    ${user.image_url ?
-                      `<img src="${user.image_url}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` :
-                      `<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${initials}</div>`
-                    }
-                    <div style="flex: 1;">
-                      <div style="color: white; font-weight: bold;">${user.name}</div>
-                      <div style="color: #aaa; font-size: 0.85rem;">${user.skills || 'No skills listed'}</div>
-                    </div>
+            <div class="admin-list">
+              ${isolated.map(u => `
+                <div class="admin-list-row">
+                  <div class="admin-list-avatar">${esc(initials(u.name))}</div>
+                  <div>
+                    <div class="admin-list-name">${esc(u.name || 'Unnamed')}</div>
+                    <div class="admin-list-meta">${esc(u.skills || 'No skills listed')}</div>
                   </div>
-                `;
-              }).join('')}
+                </div>
+              `).join('')}
             </div>
           `}
         </div>
 
-        <!-- Key Connectors -->
-        <div style="background: rgba(0,255,136,0.05); border: 2px solid rgba(0,255,136,0.3); border-radius: 12px; padding: 1.5rem;">
-          <h3 style="color: #00ff88; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-            <i class="fas fa-star"></i>
-            Key Connectors
-          </h3>
-          <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 1rem;">Top network hubs</div>
-
-          <div style="max-height: 300px; overflow-y: auto;">
-            ${metrics.keyConnectors.map((connector, index) => {
-              const initials = connector.name.split(' ').map(n => n[0]).join('').toUpperCase();
-              return `
-                <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: rgba(0,255,136,0.1); border-radius: 8px; margin-bottom: 0.5rem;">
-                  <div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #ffd700, #ffed4e); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000; font-size: 0.9rem;">
-                    ${index + 1}
-                  </div>
-                  ${connector.image_url ?
-                    `<img src="${connector.image_url}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` :
-                    `<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00ff88, #00cc66); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${initials}</div>`
-                  }
-                  <div style="flex: 1;">
-                    <div style="color: white; font-weight: bold;">${connector.name}</div>
-                    <div style="color: #00ff88; font-size: 0.85rem;">${connector.connections} connections</div>
+        <div class="admin-panel-section">
+          <h3><i class="fas fa-star" style="color:#00ff88"></i> Key Connectors</h3>
+          <p class="admin-panel-section-sub">Top network hubs by connection count</p>
+          ${connectors.length === 0 ? `
+            <div class="admin-analytics-empty" style="padding:1.5rem;">No connectors yet.</div>
+          ` : `
+            <div class="admin-list">
+              ${connectors.map((c, i) => `
+                <div class="admin-list-row">
+                  <div class="admin-list-rank">${i + 1}</div>
+                  <div class="admin-list-avatar">${esc(initials(c.name))}</div>
+                  <div>
+                    <div class="admin-list-name">${esc(c.name || 'Unnamed')}</div>
+                    <div class="admin-list-meta">${c.connection_count} connections</div>
                   </div>
                 </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Top Skills -->
-      <div style="background: rgba(0,224,255,0.05); border: 2px solid rgba(0,224,255,0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-        <h3 style="color: #00e0ff; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-          <i class="fas fa-code"></i>
-          Top Skills in Network
-        </h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
-          ${metrics.topSkills.map(([skill, count], index) => `
-            <div style="background: rgba(0,224,255,${0.1 + (index / metrics.topSkills.length) * 0.2}); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; padding: 1rem; min-width: 150px; text-align: center;">
-              <div style="font-size: 2rem; color: #00e0ff; font-weight: bold;">${count}</div>
-              <div style="color: white; font-weight: bold; margin-top: 0.5rem;">${skill}</div>
+              `).join('')}
             </div>
-          `).join('')}
+          `}
         </div>
       </div>
 
-      <!-- Suggested Introductions -->
-      <div style="background: rgba(255,170,0,0.05); border: 2px solid rgba(255,170,0,0.3); border-radius: 12px; padding: 1.5rem;">
-        <h3 style="color: #ffaa00; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-          <i class="fas fa-handshake"></i>
-          Suggested Introductions
-        </h3>
-        <div style="color: #aaa; font-size: 0.9rem; margin-bottom: 1rem;">Strategic connections to strengthen the network</div>
-
-        <div style="display: grid; gap: 1rem;">
-          ${metrics.suggestedIntros.map(intro => {
-            const isolatedInitials = intro.isolated.name.split(' ').map(n => n[0]).join('').toUpperCase();
-            const connectorInitials = intro.connector.name.split(' ').map(n => n[0]).join('').toUpperCase();
-
-            return `
-              <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(255,170,0,0.1); border-radius: 8px;">
-                ${intro.isolated.image_url ?
-                  `<img src="${intro.isolated.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
-                  `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 1.2rem;">${isolatedInitials}</div>`
-                }
-
-                <div style="flex: 1;">
-                  <div style="color: white; font-weight: bold; font-size: 1rem;">${intro.isolated.name}</div>
-                  <div style="color: #aaa; font-size: 0.85rem;">Isolated member</div>
-                </div>
-
-                <div style="color: #ffaa00; font-size: 1.5rem;">
-                  <i class="fas fa-arrow-right"></i>
-                </div>
-
-                ${intro.connector.image_url ?
-                  `<img src="${intro.connector.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
-                  `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00ff88, #00cc66); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 1.2rem;">${connectorInitials}</div>`
-                }
-
-                <div style="flex: 1;">
-                  <div style="color: white; font-weight: bold; font-size: 1rem;">${intro.connector.name}</div>
-                  <div style="color: #00ff88; font-size: 0.85rem;">${intro.connector.connections} connections</div>
-                </div>
-
-                <div style="padding: 0.5rem 1rem; background: rgba(255,170,0,0.2); border-radius: 8px; color: #ffaa00; font-size: 0.85rem;">
-                  ${intro.reason}
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
+      <div class="admin-panel-section" style="margin-bottom:1.75rem;">
+        <h3><i class="fas fa-code" style="color:#00e0ff"></i> Top Skills in Network</h3>
+        ${topSkills.length === 0 ? `
+          <p class="admin-panel-section-sub" style="margin:0;">Not enough skills data yet.</p>
+        ` : `
+          <div class="admin-skill-chips">
+            ${topSkills.map(s => `<div class="admin-skill-chip"><b>${s.members}</b> ${esc(s.skill)}</div>`).join('')}
+          </div>
+        `}
       </div>
 
+      <div class="admin-panel-section">
+        <h3><i class="fas fa-lightbulb" style="color:#ffaa00"></i> Admin Intelligence</h3>
+        <p class="admin-panel-section-sub">Deterministic observations from current data -- nothing estimated</p>
+        ${intelligence.length === 0 ? `
+          <p class="admin-panel-section-sub" style="margin:0;">No notable observations right now.</p>
+        ` : `
+          <ul class="admin-intelligence-list">
+            ${intelligence.map(text => `<li><i class="fas fa-circle-info"></i> ${esc(text)}</li>`).join('')}
+          </ul>
+        `}
+      </div>
     </div>
-  `;
+  `);
 }
 
 // Close analytics modal

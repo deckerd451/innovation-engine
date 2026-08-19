@@ -1,0 +1,406 @@
+/* ================================================================
+   ADMIN PANEL — dedicated styles
+   Covers: admin panel container/tab-bar responsiveness, the Analytics
+   MVP dashboard, and the new Privacy & Visibility tab. Existing
+   Resource Management / System Settings tab bodies keep their current
+   inline styles in this pass -- only the pieces this deliverable
+   touches move to real CSS.
+   ================================================================ */
+
+:root {
+  --admin-gold: #ffd700;
+  --admin-cyan: #00e0ff;
+  --admin-red: #ff6b6b;
+  --admin-green: #00ff88;
+  --admin-amber: #ffaa00;
+  --admin-bg-1: rgba(10, 14, 39, 0.98);
+  --admin-bg-2: rgba(26, 26, 46, 0.98);
+  --admin-border: rgba(255, 255, 255, 0.12);
+  --admin-text: #f2f4f8;
+  --admin-text-muted: rgba(255, 255, 255, 0.65);
+}
+
+/* ---------------------------------------------------------------
+   Panel container + tab bar responsiveness
+   --------------------------------------------------------------- */
+
+#admin-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+#admin-tab-content {
+  min-height: 0;
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  #admin-panel {
+    inset: 0 !important;
+    border-radius: 0 !important;
+    padding: 1rem !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Analytics MVP
+   --------------------------------------------------------------- */
+
+.admin-analytics {
+  color: var(--admin-text);
+}
+
+.admin-analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-analytics-header h1 {
+  color: var(--admin-red);
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+.admin-analytics-window {
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+}
+
+.admin-analytics-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--admin-text);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.admin-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.admin-metric-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--admin-border);
+  border-left: 3px solid var(--metric-accent, var(--admin-cyan));
+  border-radius: 10px;
+  padding: 1.1rem;
+  text-align: left;
+}
+
+.admin-metric-value {
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: var(--metric-accent, var(--admin-cyan));
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.admin-metric-label {
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}
+
+.admin-metric-sub {
+  color: var(--admin-green);
+  font-size: 0.78rem;
+  margin-top: 0.4rem;
+}
+
+.admin-analytics-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+
+@media (max-width: 760px) {
+  .admin-analytics-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-panel-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.admin-panel-section h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-panel-section .admin-panel-section-sub {
+  color: var(--admin-text-muted);
+  font-size: 0.82rem;
+  margin: 0 0 0.9rem;
+}
+
+.admin-list {
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+
+.admin-list-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+  background: linear-gradient(135deg, var(--admin-cyan), #0090b0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #06131a;
+  font-size: 0.8rem;
+}
+
+.admin-list-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.admin-list-meta {
+  color: var(--admin-text-muted);
+  font-size: 0.78rem;
+}
+
+.admin-list-rank {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 215, 0, 0.18);
+  color: var(--admin-gold);
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.admin-skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.admin-skill-chip {
+  background: rgba(0, 224, 255, 0.1);
+  border: 1px solid rgba(0, 224, 255, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.admin-skill-chip b {
+  color: var(--admin-cyan);
+}
+
+.admin-intelligence-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.admin-intelligence-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(255, 170, 0, 0.08);
+  border: 1px solid rgba(255, 170, 0, 0.25);
+  border-radius: 8px;
+  font-size: 0.87rem;
+  line-height: 1.4;
+}
+
+.admin-intelligence-list i {
+  color: var(--admin-amber);
+  margin-top: 0.15rem;
+}
+
+.admin-analytics-empty,
+.admin-analytics-error {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-analytics-error {
+  color: var(--admin-red);
+}
+
+.admin-analytics-error .admin-retry-btn {
+  margin-top: 1rem;
+}
+
+.admin-retry-btn {
+  background: rgba(255, 107, 107, 0.15);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  color: var(--admin-red);
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------------
+   Privacy & Visibility tab
+   --------------------------------------------------------------- */
+
+.admin-privacy-panel {
+  color: var(--admin-text);
+}
+
+.admin-privacy-intro h3 {
+  color: var(--admin-cyan);
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-privacy-intro p {
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-width: 68ch;
+  margin: 0 0 1.25rem;
+}
+
+.admin-privacy-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.admin-privacy-search {
+  flex: 1;
+  min-width: 220px;
+  padding: 0.6rem 0.9rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  color: var(--admin-text);
+  font-size: 0.9rem;
+}
+
+.admin-privacy-status {
+  color: var(--admin-text-muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.admin-privacy-table-wrap {
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+}
+
+.admin-privacy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.admin-privacy-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--admin-bg-2);
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  color: var(--admin-text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-privacy-table tbody td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: middle;
+}
+
+.admin-privacy-name-primary {
+  font-weight: 600;
+}
+
+.admin-privacy-name-secondary {
+  color: var(--admin-text-muted);
+  font-size: 0.78rem;
+}
+
+.admin-privacy-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.admin-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--admin-cyan);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .admin-privacy-table thead {
+    display: none;
+  }
+  .admin-privacy-table,
+  .admin-privacy-table tbody,
+  .admin-privacy-table tr,
+  .admin-privacy-table td {
+    display: block;
+    width: 100%;
+  }
+  .admin-privacy-table tr {
+    padding: 0.6rem 0.2rem;
+    border-bottom: 1px solid var(--admin-border);
+  }
+}

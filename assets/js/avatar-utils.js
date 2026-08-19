@@ -220,3 +220,26 @@ export function getProfileAvatarUrl(user) {
   if (!user) return null;
   return _cachedGet(user, "original", () => resolveBaseUrl(user));
 }
+
+/**
+ * Whether a user/node's photo should be withheld from the given viewer.
+ *
+ * `photo_visible` (community column, default true) controls exposure of a
+ * member's photo to OTHER members across Synapse (graph, Explore -> People,
+ * Search, People Worth Knowing) independently of `is_hidden` (listed/
+ * searchable). A member always sees their own photo regardless of this
+ * value, so `viewerId` is checked against both the row's community `id`
+ * and its `user_id` (a duplicate/legacy community row for the same human
+ * can carry a different `id` while sharing the same `user_id` -- see the
+ * self-exclusion fix in daily-brief-engine.js for the same pattern).
+ *
+ * @param {object|null} user
+ * @param {string|null} viewerId - current viewer's community id or auth user_id
+ * @returns {boolean}
+ */
+export function shouldHidePhoto(user, viewerId) {
+  if (!user || user.photo_visible !== false) return false;
+  if (viewerId == null) return true;
+  const vid = String(viewerId);
+  return String(user.id) !== vid && String(user.user_id ?? "") !== vid;
+}

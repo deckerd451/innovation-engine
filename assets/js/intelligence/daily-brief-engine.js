@@ -720,9 +720,13 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
       .select('user_id, expires_at')
       .limit(500)
     ),
+    // Excludes members an admin has hidden from discovery -- People Worth
+    // Knowing was the one recommendation surface still sourcing every row
+    // unfiltered (search/matching/suggestions already apply this contract).
     _safe('community', () => supabase
       .from('community')
       .select('id, user_id, name, interests, skills, role, availability, bio, last_seen_at, updated_at, connection_count')
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .limit(500)
     ),
   ]);

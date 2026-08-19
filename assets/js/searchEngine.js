@@ -7,6 +7,7 @@ import {
   sendConnectionRequest,
   getCurrentUserCommunityId
 } from './connections.js';
+import { shouldHidePhoto } from './avatar-utils.js';
 
 let supabase = null;
 let allMembers = [];
@@ -70,7 +71,7 @@ async function loadCommunityData() {
     console.log('📡 Fetching community data...');
     const { data, error } = await supabase
       .from('community')
-      .select('id, name, email, image_url, skills, bio, availability, user_id, connection_count')
+      .select('id, name, email, image_url, photo_visible, skills, bio, availability, user_id, connection_count')
       .or('is_hidden.is.null,is_hidden.eq.false')
       .order('name');
 
@@ -78,10 +79,14 @@ async function loadCommunityData() {
       console.error('❌ Supabase query error:', error);
       throw error;
     }
-    
+
+    // Withhold photos members have opted out of showing to others (never
+    // to themselves) -- same contract as the Synapse graph and Explore.
+    const viewerId = getCurrentUserCommunityId();
     allMembers = (data || []).map(m => ({
       ...m,
-      skills: parseSkills(m.skills)
+      skills: parseSkills(m.skills),
+      image_url: shouldHidePhoto(m, viewerId) ? null : m.image_url
     }));
     
     isDataLoaded = true;

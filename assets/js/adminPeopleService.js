@@ -45,6 +45,7 @@ export async function listPeople({
         user_role,
         is_hidden,
         is_disabled,
+        photo_visible,
         user_id,
         created_at,
         updated_at,
@@ -242,6 +243,19 @@ export async function setHidden(id, is_hidden) {
  */
 export async function setDisabled(id, is_disabled) {
   return await updatePerson(id, { is_disabled });
+}
+
+/**
+ * Set whether this person's profile photo is shown to other members
+ * across Synapse (graph, Explore -> People, Search, People Worth Knowing).
+ * Independent of is_hidden (listed/searchable) -- see supabase/sql/
+ * migrations/20260819_admin_analytics_privacy.sql.
+ * @param {string} id - Person ID
+ * @param {boolean} photo_visible
+ * @returns {Promise<{data: Object|null, error: any}>}
+ */
+export async function setPhotoVisible(id, photo_visible) {
+  return await updatePerson(id, { photo_visible });
 }
 
 /**

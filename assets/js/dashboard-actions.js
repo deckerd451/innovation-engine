@@ -1212,6 +1212,10 @@ function openAdminPanel() {
       <button class="admin-tab" data-tab="analytics" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
         <i class="fas fa-chart-line"></i> Analytics
       </button>
+
+      <button class="admin-tab" data-tab="privacy" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <i class="fas fa-user-shield"></i> Privacy &amp; Visibility
+      </button>
     </div>
 
     <!-- Tab Content -->
@@ -1706,37 +1710,61 @@ _toast('ℹ️ Unified network is not currently active. Enable it and reload to 
             <div style="color: #00e0ff; font-size: 0.85rem; line-height: 1.5;">
               <i class="fas fa-info-circle"></i> <strong>Analytics includes:</strong>
               <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8;">
-                <li>Total members, connections, and projects</li>
-                <li>Network density and health metrics</li>
-                <li>Key connectors and isolated nodes</li>
+                <li>Members, active users, and connections</li>
+                <li>New members and connection growth (last 30 days)</li>
+                <li>Active projects and open opportunities</li>
+                <li>Network density, isolated members, and key connectors</li>
                 <li>Top skills in the community</li>
-                <li>Suggested introductions to strengthen the network</li>
-                <li>Growth metrics (last 30 days)</li>
+                <li>Admin Intelligence observations</li>
               </ul>
             </div>
           </div>
         </div>
       </div>
     `;
-    
-    // Wire up the analytics button
+
+    // Wire up the analytics button. window.openAnalyticsModal is assigned
+    // by assets/js/admin-analytics.js, which loads asynchronously after
+    // auth (see the AUTH_MODULES loader in index.html). Distinguish "the
+    // module failed to load" (dispatches post-auth-module-error) from
+    // "still loading" so the retry path is meaningful either way; any
+    // authorization failure surfaces once the module's own RPC call runs.
     const analyticsBtn = document.getElementById('open-analytics-dashboard-btn');
     if (analyticsBtn) {
       analyticsBtn.addEventListener('click', () => {
-        // Close admin panel
         const adminPanel = document.getElementById('admin-panel');
         if (adminPanel) adminPanel.remove();
-        
-        // Open analytics modal
+
         if (typeof window.openAnalyticsModal === 'function') {
           window.openAnalyticsModal();
+        } else if (window.__POST_AUTH_MODULE_ERRORS__?.some(src => src.indexOf('admin-analytics.js') !== -1)) {
+          console.error('❌ Analytics module failed to load');
+          if (typeof window.retryPostAuthModule === 'function') {
+            window.retryPostAuthModule('admin-analytics.js');
+          }
+          _toast('Analytics failed to load. Retrying — try the button again in a moment.');
         } else {
-          console.error('❌ Analytics modal not available');
-          
-_toast('Analytics dashboard is not available. Please refresh the page and try again.');
+          console.error('❌ Analytics modal not available yet');
+          _toast('Analytics is still loading. Please try again in a moment.');
         }
       });
     }
+  } else if (tabName === 'privacy') {
+    content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #00e0ff;"><i class="fas fa-spinner fa-spin"></i> Loading Privacy &amp; Visibility...</div>';
+
+    const checkModule = setInterval(() => {
+      if (typeof window.AdminPrivacyPanel !== 'undefined' && typeof window.AdminPrivacyPanel.renderPrivacyPanel === 'function') {
+        clearInterval(checkModule);
+        window.AdminPrivacyPanel.renderPrivacyPanel(content);
+      }
+    }, 100);
+
+    setTimeout(() => {
+      clearInterval(checkModule);
+      if (!window.AdminPrivacyPanel) {
+        content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load Privacy &amp; Visibility panel. Please refresh the page.</div>';
+      }
+    }, 5000);
   }
 }
 
