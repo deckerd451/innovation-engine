@@ -436,6 +436,32 @@ window.CommandDashboard = (() => {
     return out;
   }
 
+  /**
+   * Handle the result of the "+" Explore opportunity insert
+   * (`.insert(oppData).select().single()`). Extracted so it can be
+   * exercised directly by tests without going through the DOM add-form.
+   *
+   * On success, merges the real canonical row (from the DB, not a
+   * fabricated optimistic object) into _enrichedData.opportunities so the
+   * Explore list reflects it immediately, then triggers the canonical
+   * refetch. _loadEnrichedData() replaces the array wholesale and logs +
+   * swallows its own errors, so a failed refetch can never duplicate state
+   * and always leaves the locally-merged record in place.
+   */
+  function _applyOpportunityInsertResult({ data, error } = {}) {
+    if (error) {
+      console.error('[CommandDashboard] Failed to post opportunity:', error);
+      return;
+    }
+    if (data) {
+      _enrichedData.opportunities = _dedupeById([data, ...(_enrichedData.opportunities || [])]);
+      _renderResources(_currentTier);
+    } else {
+      console.warn('[CommandDashboard] Opportunity insert succeeded but returned no row; relying on refetch.');
+    }
+    _loadEnrichedData();
+  }
+
   /* ================================================================
      SUPABASE ENRICHMENT
      Loads accepted-connection peers and active project IDs once, then
@@ -476,10 +502,13 @@ window.CommandDashboard = (() => {
           .from('organization_members')
           .select('organization_id')
           .eq('community_id', _userId),
-        // Opportunities (table may not exist — handle gracefully)
+        // Opportunities (table may not exist — handle gracefully).
+        // created_at is selected so the Explore preview can be ordered by
+        // recency — otherwise a newly created opportunity can be truncated
+        // out of the capped preview list by an arbitrary fetch order.
         window.supabase
           .from('opportunities')
-          .select('id, title, description, status, organization_id')
+          .select('id, title, description, status, organization_id, created_at')
           .then(res => res)
           .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
       ]);
@@ -1529,13 +1558,18 @@ window.CommandDashboard = (() => {
         .sort((a, b) => a.name.localeCompare(b.name));
 
     } else if (resourceType === 'opportunities') {
-      // Opportunities come from Supabase — real UUIDs only, no stubs
+      // Opportunities come from Supabase — real UUIDs only, no stubs.
+      // Sort by recency BEFORE capping to 10: the fetch has no server-side
+      // ORDER BY, so slicing first (as this used to) truncated on an
+      // arbitrary row order and could drop a just-created opportunity
+      // entirely. Newest-first also guarantees it survives the cap.
       const allOpps = _enrichedData.opportunities;
       if (!allOpps || allOpps.length === 0) return [];
-      return allOpps
+      const byRecency = (o) => o.created_at ? new Date(o.created_at).getTime() : 0;
+      return [...allOpps]
+        .sort((a, b) => byRecency(b) - byRecency(a))
         .slice(0, 10)
-        .map(o => ({ id: o.id, name: o.title || 'Untitled Opportunity', meta: o.status || '' }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .map(o => ({ id: o.id, name: o.title || 'Untitled Opportunity', meta: o.status || '' }));
     }
 
     return [];
@@ -1863,13 +1897,10 @@ window.CommandDashboard = (() => {
         organization_id: null,
       };
       if (window.supabase && _userId) {
-        window.supabase.from('opportunities').insert(oppData).then(({ error }) => {
-          if (error) {
-            console.error('[CommandDashboard] Failed to post opportunity:', error);
-          } else {
-            _loadEnrichedData();
-          }
-        });
+        // .select().single() returns the canonical inserted row (real id,
+        // created_at, etc.) so the Explore list can be updated immediately
+        // without waiting on a full refetch round-trip.
+        window.supabase.from('opportunities').insert(oppData).select().single().then(_applyOpportunityInsertResult);
       }
       const meta = opType ? `${opType}${desc ? ' · ' + desc.slice(0, 30) : ''}` : undefined;
       _showAddConfirmation(resourceType, name, meta);
@@ -1972,6 +2003,28 @@ window.CommandDashboard = (() => {
       _userId = userId;
       Object.assign(_enrichedData, enrichedData);
       return _getResourceItems(_currentTier, 'people');
+    },
+    /**
+     * TEST-ONLY: exercises the real Explore "opportunities" composition
+     * path (_getResourceItems / recency sort + cap) without a live
+     * Supabase session. Not used by the app.
+     */
+    __testGetOpportunityResourceItems(userId, enrichedData) {
+      _userId = userId;
+      Object.assign(_enrichedData, enrichedData);
+      return _getResourceItems(_currentTier, 'opportunities');
+    },
+    /**
+     * TEST-ONLY: exercises the real post-create insert-result handler
+     * (_applyOpportunityInsertResult) — local merge + dedupe + refetch
+     * trigger — without a live Supabase session or the DOM add-form.
+     * Not used by the app.
+     */
+    __testApplyOpportunityInsertResult(userId, enrichedData, insertResult) {
+      _userId = userId;
+      Object.assign(_enrichedData, enrichedData);
+      _applyOpportunityInsertResult(insertResult);
+      return _enrichedData.opportunities;
     },
   };
 
