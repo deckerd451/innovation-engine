@@ -7,8 +7,9 @@
 // test-admin-analytics-rpc-security.js / test-admin-analytics-identity-
 // integrity.js), so two complementary strategies are used:
 //
-//  (a) The migration's deterministic cleanup ranking (status strength DESC,
-//      created_at ASC, id ASC) is a pure, portable algorithm -- it's
+//  (a) The migration's deterministic cleanup ranking (created_at ASC, id
+//      ASC, with status handled as a separate upgrade step) is a pure,
+//      portable algorithm -- it's
 //      mirrored here in JS and exercised directly against concrete
 //      scenarios (points 1, 2, 6, 7, 8, 9 below). `rankConnections()`
 //      below must be kept in sync with the SQL's ORDER BY clause; a
@@ -189,6 +190,22 @@ const checkIdx = sql.indexOf('STEP 4: Self-connections must remain invalid');
 const indexIdx = sql.indexOf('STEP 5: Database-level uniqueness');
 assert.ok(cleanupIdx > -1 && verifyIdx > cleanupIdx && checkIdx > verifyIdx && indexIdx > checkIdx,
   'cleanup, then verification, then the self-connection check, then the uniqueness index must appear in that order');
+
+// SCHEMA SAFETY: a live run of an earlier version of this migration failed
+// with `column "updated_at" of relation "connections" does not exist` --
+// public.connections has no updated_at column. Guards against silently
+// reintroducing that assumption in any executable statement (comments
+// describing the correction, e.g. this file's own header, are exempt).
+const executableSql = sql
+  .split('\n')
+  .filter(line => !/^\s*--/.test(line))
+  .join('\n');
+assert.doesNotMatch(executableSql, /updated_at/,
+  'no executable statement may reference connections.updated_at -- it does not exist on the live table (see the CORRECTION note in the migration header)');
+// Step 2a's survivor upgrade must set ONLY status -- id, from_user_id/
+// to_user_id, created_at, and type are left untouched on the surviving row.
+assert.match(sql, /UPDATE public\.connections c\s*\nSET status = CASE r\.best_rank WHEN 2 THEN 'accepted' ELSE 'pending' END\s*\nFROM ranked r/,
+  "step 2a's UPDATE must SET only status, nothing else");
 
 // 3: self-connections invalid at the DB level.
 assert.match(sql, /CHECK \(from_user_id <> to_user_id\) NOT VALID/,

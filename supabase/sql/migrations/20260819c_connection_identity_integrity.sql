@@ -8,12 +8,38 @@
 -- AUDIT FINDINGS (verified against this codebase, not assumed)
 -- ============================================================================
 --
--- Schema: public.connections(id, from_user_id, to_user_id, status, type,
--- created_at, updated_at), endpoints referencing public.community(id).
--- Confirmed live column names from >10 independent call sites (connections.js,
--- get_start_sequence_data.sql, the connection_count trigger, node-panel.js,
--- daily-brief-engine.js, promote_edge_to_connection RPC, and the already-
--- shipped get_admin_network_analytics RPC). Note: supabase/sql/reference/
+-- CORRECTION (post-live-run): the first version of this migration listed
+-- `updated_at` as a confirmed live column of public.connections and set it
+-- in step 2a's UPDATE. A live Supabase run failed with
+-- `column "updated_at" of relation "connections" does not exist`. The
+-- claim was wrong -- it was based on sql/nearify_ingestion_pipeline.sql's
+-- promote_edge_to_connection() RPC, which also references
+-- connections.updated_at (both in an UPDATE and an INSERT column list).
+-- That RPC is itself in the same "manually applied, not guaranteed to
+-- match the live database" category as every file under supabase/sql (see
+-- supabase/sql/README.md) -- it should never have been treated as
+-- confirmed live-schema evidence on its own. assets/js/dashboardPane.js
+-- (lines ~3912-3927) independently makes the identical assumption
+-- (`.order("updated_at", ...)`, `conn.updated_at`) when building "Connection
+-- Accepted" notifications from a live `connections` query -- corroborating,
+-- from a second independent source, that `updated_at` does not exist on
+-- the live table, and that this pre-existing notification code has the
+-- same latent bug. That is a separate, pre-existing defect outside this
+-- migration's bounded scope and is left untouched here.
+-- The columns this migration actually depends on (id, from_user_id,
+-- to_user_id, status, created_at) are corroborated more strongly: the
+-- live run's own error confirms Step 1 (which queries exactly these
+-- columns) executed successfully -- the failure was reported specifically
+-- at step 2a's `updated_at` reference, not at any of these. They are also
+-- the exact column list assets/js/connections.js's safeUpdateConnectionRow()
+-- / readConnectionRow() actually select in production
+-- (`"id, from_user_id, to_user_id, status, type, created_at"` -- notably
+-- omitting updated_at). `type` is not read or written by this migration at
+-- all, so it carries no risk here regardless.
+--
+-- Schema (corrected): public.connections(id, from_user_id, to_user_id,
+-- status, type, created_at) -- no updated_at column on the live table.
+-- Endpoints reference public.community(id). Note: supabase/sql/reference/
 -- COMPLETE_SCHEMA_FIX.sql describes an OLDER schema with different column
 -- names (user_id/connected_user_id) and a UNIQUE(user_id, connected_user_id)
 -- constraint -- that file is stale relative to the live schema and its
@@ -40,10 +66,11 @@
 --
 -- 3. Columns to preserve when collapsing a duplicate pair: the survivor is
 --    the EARLIEST-created active row for that pair (preserves original
---    request timing/direction), upgraded to the STRONGEST status found
---    among its duplicates (accepted > pending), with updated_at bumped to
---    reflect that change. `type` and `id` are the survivor's own (not
---    merged). Rejected/canceled rows for the same pair are never touched.
+--    request timing/direction, id, and created_at), upgraded to the
+--    STRONGEST status found among its duplicates (accepted > pending).
+--    `type` is the survivor's own (not merged). There is no updated_at
+--    column to bump (see CORRECTION above). Rejected/canceled rows for the
+--    same pair are never touched.
 --
 -- 4. The surviving row can be chosen fully deterministically: rank by
 --    created_at ASC (earliest wins, preserving true relationship origin),
@@ -60,10 +87,12 @@
 --    above is total.
 --
 -- Confirms this is a bounded, bounded-risk fix: promote_edge_to_connection
--- (sql/nearify_ingestion_pipeline.sql) already inserts with
+-- (sql/nearify_ingestion_pipeline.sql -- an unverified, possibly-never-
+-- applied file, see CORRECTION above) already inserts with
 -- `ON CONFLICT DO NOTHING` against from_user_id/to_user_id -- i.e. it was
--- already written assuming a uniqueness constraint would exist. Both live
--- JS "Connect" handlers (assets/js/connections.js sendConnectionRequest,
+-- already written assuming a uniqueness constraint would exist, consistent
+-- with (though not proof of) the uniqueness gap this migration closes.
+-- Both live JS "Connect" handlers (assets/js/connections.js sendConnectionRequest,
 -- assets/js/node-panel.js window.sendConnectionFromPanel) already handle a
 -- Postgres 23505 (unique_violation) response with a friendly, non-fatal
 -- toast/alert -- they were also already written for a constraint that
@@ -112,7 +141,11 @@ END $$;
 
 -- 2a. Upgrade the surviving (earliest-created) active row per pair to the
 --     strongest status found among its duplicates, in case a *later*
---     duplicate row is the one that was actually accepted.
+--     duplicate row is the one that was actually accepted. id, from_user_id/
+--     to_user_id (direction), created_at, and type are all preserved
+--     untouched on the survivor -- only status changes. There is no
+--     updated_at column on the live connections table to also set (see the
+--     CORRECTION note at the top of this file).
 WITH ranked AS (
   SELECT
     id,
@@ -130,8 +163,7 @@ WITH ranked AS (
   WHERE status IN ('pending', 'accepted')
 )
 UPDATE public.connections c
-SET status = CASE r.best_rank WHEN 2 THEN 'accepted' ELSE 'pending' END,
-    updated_at = now()
+SET status = CASE r.best_rank WHEN 2 THEN 'accepted' ELSE 'pending' END
 FROM ranked r
 WHERE c.id = r.id
   AND r.rn = 1
