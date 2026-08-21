@@ -2899,9 +2899,10 @@ window.viewProjectDetails = async function(projectId) {
   const membersHTML = activeMembers.map(m => {
     const u = m.user;
     if (!u) return '';
+    const isProjectCreator = u.id === project.creator_id;
     const initials = (u.name || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    const roleLabel = m.role === 'creator' ? 'Creator' : (m.role || 'Member');
-    const roleBadgeColor = m.role === 'creator' ? '#ff6b6b' : '#00e0ff';
+    const roleLabel = isProjectCreator || m.role === 'creator' ? 'Creator' : (m.role || 'Member');
+    const roleBadgeColor = isProjectCreator || m.role === 'creator' ? '#ff6b6b' : '#00e0ff';
     return `
       <div style="display:flex; align-items:center; gap:0.75rem; padding:0.65rem 0.75rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px;">
         <div style="width:38px; height:38px; border-radius:50%; overflow:hidden; flex-shrink:0; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size:0.85rem;">
@@ -2911,6 +2912,13 @@ window.viewProjectDetails = async function(projectId) {
           <div style="color:white; font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(u.name || 'Unknown')}</div>
           <div style="color:${roleBadgeColor}; font-size:0.75rem; font-weight:600;">${roleLabel}</div>
         </div>
+        ${rel.isCreator && !isProjectCreator ? `
+          <button type="button" class="pd-remove-member-btn" data-member-id="${u.id}" data-member-name="${esc(u.name || 'this member')}"
+            aria-label="Remove ${esc(u.name || 'member')} from project"
+            style="flex-shrink:0; padding:0.4rem 0.55rem; background:rgba(255,68,68,0.08); border:1px solid rgba(255,68,68,0.3); border-radius:7px; color:#ff6b6b; cursor:pointer; font-size:0.78rem;">
+            <i class="fas fa-user-minus" aria-hidden="true"></i> Remove
+          </button>
+        ` : ''}
       </div>`;
   }).join('');
 
@@ -3102,6 +3110,12 @@ window.viewProjectDetails = async function(projectId) {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));
   });
 
+  overlay.querySelectorAll('.pd-remove-member-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await window.removeProjectMember(project.id, btn.dataset.memberId, btn.dataset.memberName);
+    });
+  });
+
   // Close handlers
   const closeOverlay = () => {
     overlay.remove();
@@ -3115,6 +3129,42 @@ window.viewProjectDetails = async function(projectId) {
       document.removeEventListener('keydown', _escHandler);
     }
   });
+};
+
+window.removeProjectMember = async function(projectId, memberId, memberName = 'this member') {
+  if (!projectId || !memberId) return;
+  if (!window.confirm(`Remove ${memberName} from this project?`)) return;
+
+  try {
+    if (!supabase) supabase = window.supabase;
+    if (!supabase) throw new Error('Database connection not available');
+
+    const { data, error } = await supabase
+      .from('project_members')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('user_id', memberId)
+      .select('user_id');
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error('The member could not be removed. Only the project creator can manage this team.');
+    }
+
+    document.getElementById('project-detail-overlay')?.remove();
+    showToastNotification(`${memberName} was removed from the project.`, 'success');
+
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
+    }
+    if (typeof window.refreshSynapseProjectCircles === 'function') {
+      await window.refreshSynapseProjectCircles();
+    }
+    await window.viewProjectDetails(projectId);
+  } catch (error) {
+    console.error('[Projects] remove member error:', error);
+    showToastNotification(error.message || 'Failed to remove project member.', 'error');
+  }
 };
 
 // ================================================================
