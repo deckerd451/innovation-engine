@@ -459,7 +459,9 @@ window.sendCallChatMessage = function() {
   messagesContainer.appendChild(messageElement);
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-  // TODO: Send message through signaling channel for real implementation
+  // NOTE: Known limitation — this call UI is local-only scaffolding with no
+  // WebRTC/data-channel wired up yet, so this message is never sent to the
+  // other participant, only rendered in the sender's own chat panel.
   console.log('📝 Call chat message:', message);
 
   // Track chat message

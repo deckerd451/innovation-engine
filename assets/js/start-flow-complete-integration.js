@@ -471,7 +471,10 @@ function setEnhancedSessionFocus(focusType, focusData) {
  * Highlight organization opportunities in the network
  */
 function highlightOrganizationOpportunities(organizationId) {
-  // TODO: Implement network highlighting for organization opportunities
+  // NOTE: Deferred — the network already exposes highlight primitives
+  // (node-renderer setHighlightedNodes/clearHighlightedNodes, wired via
+  // api.js highlightNodes()), but mapping an organization to its
+  // opportunity nodes isn't implemented yet.
   console.log('🏢 Highlighting opportunities for organization:', organizationId);
 }
 

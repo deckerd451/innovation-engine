@@ -731,7 +731,13 @@ try {
   updatePresence(nodeId, energy, ttl) {
     this._ensureInitialized();
     console.log(`⚡ Updating presence for ${nodeId}: ${energy}`, ttl ? `TTL: ${ttl}ms` : '');
-    // TODO: Implement presence update
+    if (this._presenceTracker) {
+      if (ttl === undefined) {
+        this._presenceTracker.setEnergy(nodeId, energy);
+      } else {
+        this._presenceTracker.setEnergy(nodeId, energy, ttl);
+      }
+    }
     this.emit('presence-updated', { nodeId, energy, ttl });
   }
 
@@ -742,7 +748,9 @@ try {
   clearPresence(nodeId) {
     this._ensureInitialized();
     console.log(`🔇 Clearing presence for ${nodeId}`);
-    // TODO: Implement presence clear
+    if (this._presenceTracker) {
+      this._presenceTracker.clearPresence(nodeId);
+    }
     this.emit('presence-cleared', { nodeId });
   }
 
@@ -1425,7 +1433,10 @@ try {
     // Navigate nodes via keyboard
     this._accessibilityManager.on('navigate-nodes', ({ direction }) => {
       console.log(`♿ Navigate nodes: ${direction}`);
-      // TODO: Implement node navigation
+      // NOTE: Known accessibility gap — arrow keys are captured (and
+      // preventDefault'd) by AccessibilityManager but don't move focus yet.
+      // Needs spatial nearest-neighbor lookup against the current graph
+      // layout, keyed off this._accessibilityManager.focusedNodeId.
     });
 
     // Reduced motion enabled

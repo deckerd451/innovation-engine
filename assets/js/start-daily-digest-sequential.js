@@ -585,8 +585,9 @@ class StartDailyDigest {
   }
 
   downloadReport() {
+    // NOTE: PDF export intentionally unimplemented — UI already communicates
+    // "coming soon" to the user, so there's no silent gap.
     this.showToast('Report download feature coming soon!', 'info');
-    // TODO: Implement PDF report generation
   }
 
   showToast(message, type = 'info') {

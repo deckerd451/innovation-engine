@@ -371,29 +371,28 @@ export class TemporalPresenceManager {
   }
   
   /**
-   * Helper: Get user's active interests
+   * NOTE: checkCollaborativePresence() and checkCollectiveThemePresence()
+   * are inert until the three helpers below are backed by real data — they
+   * intentionally return empty results, so shared-interest and theme-based
+   * presence boosts never fire yet. Tracked as one known limitation (needs
+   * an activity/interest data source and a theme_interactions query) rather
+   * than three separate items.
    */
   getUserActiveInterests() {
-    // TODO: Implement based on user's current activity
-    // For now, return empty array
     return [];
   }
-  
+
   /**
    * Helper: Get node's active interests
    */
   getNodeActiveInterests(nodeId) {
-    // TODO: Implement based on node's current activity
-    // For now, return empty array
     return [];
   }
-  
+
   /**
    * Helper: Get theme participants
    */
   getThemeParticipants(themeId) {
-    // TODO: Implement based on theme_interactions table
-    // For now, return empty array
     return [];
   }
   

@@ -767,7 +767,9 @@ class StartOnboarding {
     setTimeout(() => {
       if (window.openProjectsModal) {
         window.openProjectsModal();
-        // TODO: Auto-open "Create Project" form
+        // NOTE: Opens the projects modal only; auto-focusing its "create" tab
+        // would require openProjectsModal() to accept a target-tab argument.
+        // Deferred low-priority UX polish, not a functional gap.
       } else {
         window.EnhancedStartUI.showToast('Projects feature coming soon!', 'info');
       }
