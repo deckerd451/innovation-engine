@@ -598,10 +598,10 @@ export class NodeRenderer {
   _cullOffscreenNodes(nodes) {
     if (!nodes || !Array.isArray(nodes)) return [];
 
-    // ✅ DISABLE CULLING: For now, render all nodes to avoid coordinate space issues
-    // The real issue is that nodes are in world space but culling uses viewport space
-    // Without proper transform tracking, culling will incorrectly hide visible nodes
-    // TODO: Implement proper world-to-screen coordinate transformation for culling
+    // NOTE: Culling is intentionally disabled — nodes are in world space but
+    // culling uses viewport space. Without proper transform tracking, culling
+    // would incorrectly hide visible nodes. Revisit only if perf requires it;
+    // that needs a proper world-to-screen coordinate transformation.
     return nodes.filter(node => {
       // Only filter out nodes with invalid positions
       return node.x !== undefined && 
