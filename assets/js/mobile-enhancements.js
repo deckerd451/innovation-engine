@@ -18,16 +18,29 @@ function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
+// Elements where a downward touch-drag is a normal in-app gesture
+// (dragging graph nodes, scrolling inside modals/panels, using the
+// bottom tab bar or other controls) rather than a request to reload
+// the page. #main-content fills the whole viewport and never scrolls
+// (it's position:fixed), so window.scrollY is always 0 there and
+// can't be used to distinguish "idle background" from "mid-navigation" —
+// without this check, pull-to-refresh armed on every touch anywhere
+// in the app and any accidental >80px downward drag reloaded the page.
+const PULL_REFRESH_EXCLUDE_SELECTOR =
+  'svg, .modal, #node-side-panel, #mobile-tab-bar, button, a, input, textarea, select, [role="button"], [contenteditable]';
+
 function addPullToRefresh() {
   const mainContent = document.getElementById('main-content');
   if (!mainContent) return;
-  
+
   let startY = 0;
   let currentY = 0;
   let pulling = false;
-  
+
   mainContent.addEventListener('touchstart', (e) => {
-    if (window.scrollY === 0) {
+    const target = e.target;
+    const onExcludedElement = target?.closest?.(PULL_REFRESH_EXCLUDE_SELECTOR);
+    if (window.scrollY === 0 && !onExcludedElement) {
       startY = e.touches[0].clientY;
       pulling = true;
     }
