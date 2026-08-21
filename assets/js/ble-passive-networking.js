@@ -589,9 +589,15 @@
     if (!supabase) return false;
 
     try {
-      await supabase.rpc('promote_edge_to_connection', {
+      const { error } = await supabase.rpc('promote_edge_to_connection', {
         p_edge_id: edgeId
       });
+
+      if (error) {
+        console.error('❌ [BLE] Failed to accept suggestion:', error);
+        notifyError('Failed to accept connection');
+        return false;
+      }
 
       console.log(`✅ [BLE] Accepted suggestion: ${edgeId}`);
       notifySuccess('Connection accepted!');
@@ -611,10 +617,15 @@
     if (!supabase) return false;
 
     try {
-      await supabase
+      const { error } = await supabase
         .from('interaction_edges')
         .update({ status: 'ignored' })
         .eq('id', edgeId);
+
+      if (error) {
+        console.error('❌ [BLE] Failed to ignore suggestion:', error);
+        return false;
+      }
 
       console.log(`✅ [BLE] Ignored suggestion: ${edgeId}`);
       return true;
