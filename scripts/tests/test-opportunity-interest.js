@@ -70,7 +70,8 @@ assert.match(migration, /CREATE OR REPLACE FUNCTION public\.notify_opportunity_i
 assert.match(migration, /SECURITY DEFINER[\s\S]*SET search_path = public, pg_temp/, 'notification trigger must use a locked server-side execution context');
 assert.match(migration, /SELECT o\.posted_by, o\.title[\s\S]*WHERE o\.id = NEW\.opportunity_id/, 'notification recipient must be derived from the actual opportunity poster');
 assert.match(migration, /INSERT INTO public\.notifications \(user_id, type, title, message, link, metadata\)[\s\S]*v_poster_id,[\s\S]*'opportunity_interest'/, 'only the canonical poster must receive the interest notification');
-assert.match(migration, /'\/opportunity\.html\?id=' \|\| NEW\.opportunity_id::TEXT/, 'notification must return the poster to the protected opportunity-interest view');
+assert.match(migration, /'opportunity\.html\?id=' \|\| NEW\.opportunity_id::TEXT/, 'notification must use a deployment-base-safe relative link to the protected opportunity-interest view');
+assert.doesNotMatch(migration, /'\/opportunity\.html\?id=' \|\| NEW\.opportunity_id::TEXT/, 'notification link must not discard a GitHub Pages project base path');
 assert.match(migration, /'interested_community_id', NEW\.community_id/, 'notification must retain the profile identity needed by in-app messaging');
 assert.doesNotMatch(migration.slice(migration.indexOf('CREATE OR REPLACE FUNCTION public.notify_opportunity_interest')), /\bemail\b/i, 'notification delivery must not read or include either user email');
 assert.match(migration, /AFTER INSERT ON public\.opportunity_interests[\s\S]*EXECUTE FUNCTION public\.notify_opportunity_interest\(\)/, 'notification must be atomic with a newly expressed interest');
