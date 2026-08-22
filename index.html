@@ -757,6 +757,15 @@
       { src: 'assets/js/theme-discovery.js?v=fc09b39b-1770146154f916933b2da', module: true },
       { src: 'assets/js/daily-engagement.js?v=fc09b39b-1770146154f916933b2da', module: true },
       { src: 'assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da', module: true },
+      // Canonical organization mutations. Initialize it against the same
+      // authenticated Supabase client before any Explorer create action runs.
+      { src: 'assets/js/organizations/organization-manager.js?v=explorer-org-create-20260822a', module: true,
+        initialize: function() {
+          if (!window.OrganizationManager?.init || !window.supabase) {
+            throw new Error('Organization manager dependencies unavailable');
+          }
+          return window.OrganizationManager.init(window.supabase);
+        } },
       // Admin People
       { src: 'assets/js/adminPeoplePanel.js?v=fc09b39b-17701461543', module: true },
       { src: 'assets/js/adminPrivacyPanel.js?v=20260819a', module: true },
@@ -791,15 +800,22 @@
       s.src = m.src + (attempt > 0 ? '&retry=' + attempt : '');
       if (m.module) s.type = 'module';
       else s.async = true;
-      s.onerror = function() {
+      function handleFailure(error) {
         if (attempt < MAX_RETRIES) {
           console.warn('⚠️ Retrying post-auth module (' + (attempt + 1) + '/' + MAX_RETRIES + '): ' + m.src);
           setTimeout(function() { loadScript(m, attempt + 1); }, 500 * (attempt + 1));
         } else {
           console.error('❌ Post-auth module failed to load after retries: ' + m.src);
           window.__POST_AUTH_MODULE_ERRORS__.push(m.src);
-          window.dispatchEvent(new CustomEvent('post-auth-module-error', { detail: { src: m.src } }));
+          window.dispatchEvent(new CustomEvent('post-auth-module-error', { detail: { src: m.src, error: error } }));
         }
+      }
+      s.onerror = function(error) {
+        handleFailure(error);
+      };
+      s.onload = function() {
+        if (typeof m.initialize !== 'function') return;
+        Promise.resolve().then(m.initialize).catch(handleFailure);
       };
       document.body.appendChild(s);
     }
