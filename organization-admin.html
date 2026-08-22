@@ -347,9 +347,28 @@
       console.log('[org-admin] managers ready');
     });
 
+    // Toggle a submit button between its resting label and a disabled
+    // "in flight" state. Prevents a slow network round-trip from reading as
+    // a dead click and inviting a duplicate submit (org/opportunity rows
+    // have no client-side dedupe).
+    function setFormSubmitting(button, isSubmitting, busyLabel) {
+      if (!button) return;
+      if (isSubmitting) {
+        button.dataset._restoreHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${busyLabel}`;
+      } else {
+        button.disabled = false;
+        if (button.dataset._restoreHtml) button.innerHTML = button.dataset._restoreHtml;
+      }
+    }
+
     // Create Organization Form
     document.getElementById('create-org-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      setFormSubmitting(submitBtn, true, 'Creating…');
 
       const _t0 = Date.now();
       console.group('[org-admin] create-org-form submit');
@@ -363,6 +382,7 @@
       if (!_authUserId) {
         console.error('[org-admin] SUBMIT BLOCKED — no authenticated session');
         showMessage('You must be logged in to create an organization', 'error');
+        setFormSubmitting(submitBtn, false);
         console.groupEnd();
         return;
       }
@@ -386,6 +406,7 @@
       if (!payload.name || payload.name.trim().length < 2) {
         console.error('[org-admin] SUBMIT BLOCKED — name validation failed', payload.name);
         showMessage('Organization name must be at least 2 characters', 'error');
+        setFormSubmitting(submitBtn, false);
         console.groupEnd();
         return;
       }
@@ -408,6 +429,8 @@
 
         showMessage('Organization created successfully!', 'success');
         e.target.reset();
+        // Leave the button disabled — we're navigating away momentarily,
+        // so re-enabling it would just invite a redundant second create.
         setTimeout(() => { window.location.href = '/organizations.html'; }, 2000);
 
       } catch (error) {
@@ -415,12 +438,16 @@
         console.error('[org-admin] partial state — org created before throw?', _createdOrg);
         console.groupEnd();
         showMessage(error.message || 'Failed to create organization', 'error');
+        setFormSubmitting(submitBtn, false);
       }
     });
 
     // Post Opportunity Form
     document.getElementById('post-opp-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      setFormSubmitting(submitBtn, true, 'Posting…');
 
       const skills = document.getElementById('opp-skills').value
         .split(',')
@@ -441,11 +468,13 @@
         showMessage('Opportunity posted successfully!', 'success');
         e.target.reset();
 
+        // Leave the button disabled — we're navigating away momentarily.
         setTimeout(() => {
           window.location.href = '/opportunities.html';
         }, 2000);
       } catch (error) {
         showMessage(error.message || 'Failed to post opportunity', 'error');
+        setFormSubmitting(submitBtn, false);
       }
     });
 
