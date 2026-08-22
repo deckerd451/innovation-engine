@@ -26,6 +26,8 @@ assert.match(page, /expressOpportunityInterest\(opportunityId\)/, 'member detail
 assert.match(page, /withdrawOpportunityInterest\(opportunityId\)/, 'member detail page must support withdrawing interest');
 assert.match(manager, /name,\s*email,\s*role/, 'poster query must retrieve the interested member contact email');
 assert.match(page, /href="mailto:/, 'poster must have a direct contact action for interested members');
+assert.match(page, /people\.map\(\(\{ community: person, created_at \}\) => person \?/, 'null community profiles must be handled per interest row');
+assert.match(page, /Profile unavailable/, 'hidden or unavailable profiles must render without exposing profile data');
 
 assert.match(migration, /UNIQUE\s*\(opportunity_id, community_id\)/i, 'duplicate interest must be prevented in the database');
 assert.match(migration, /Members and posters can view opportunity interests/, 'read access policy must be explicit');

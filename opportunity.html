@@ -150,14 +150,21 @@
           target.innerHTML = '<p class="hint">No one has expressed interest yet.</p>';
           return;
         }
-        target.innerHTML = people.map(({ community: person, created_at }) => `
+        target.innerHTML = people.map(({ community: person, created_at }) => person ? `
           <article class="person">
             ${person.image_url ? `<img class="avatar" src="${escapeHtml(person.image_url)}" alt="">` : '<span class="avatar"></span>'}
             <div class="person-info">
-            <strong class="person-name">${escapeHtml(person.name || 'Community member')}</strong>
+              <strong class="person-name">${escapeHtml(person.name || 'Community member')}</strong>
               <p>${escapeHtml(person.role || 'Community member')} · Interested ${escapeHtml(formatDate(created_at))}</p>
             </div>
             ${person.email ? `<a class="btn btn-primary" href="mailto:${encodeURIComponent(person.email)}?subject=${encodeURIComponent(`Your interest in ${opportunity.title}`)}"><i class="fas fa-envelope"></i> Contact</a>` : '<span class="hint">No contact email shared</span>'}
+          </article>` : `
+          <article class="person">
+            <span class="avatar"></span>
+            <div class="person-info">
+              <strong class="person-name">Profile unavailable</strong>
+              <p>Interested ${escapeHtml(formatDate(created_at))}</p>
+            </div>
           </article>`).join('');
       } catch (error) {
         console.error('Failed to load interested people:', error);
