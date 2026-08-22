@@ -1723,29 +1723,28 @@ _toast('ℹ️ Unified network is not currently active. Enable it and reload to 
       </div>
     `;
 
-    // Wire up the analytics button. window.openAnalyticsModal is assigned
-    // by assets/js/admin-analytics.js, which loads asynchronously after
-    // auth (see the AUTH_MODULES loader in index.html). Distinguish "the
-    // module failed to load" (dispatches post-auth-module-error) from
-    // "still loading" so the retry path is meaningful either way; any
-    // authorization failure surfaces once the module's own RPC call runs.
+    // The canonical analytics module normally loads asynchronously after
+    // auth. Importing its exact registered URL here makes this user action
+    // await that same module instead of racing its window global.
     const analyticsBtn = document.getElementById('open-analytics-dashboard-btn');
     if (analyticsBtn) {
-      analyticsBtn.addEventListener('click', () => {
-        const adminPanel = document.getElementById('admin-panel');
-        if (adminPanel) adminPanel.remove();
-
-        if (typeof window.openAnalyticsModal === 'function') {
-          window.openAnalyticsModal();
-        } else if (window.__POST_AUTH_MODULE_ERRORS__?.some(src => src.indexOf('admin-analytics.js') !== -1)) {
-          console.error('❌ Analytics module failed to load');
-          if (typeof window.retryPostAuthModule === 'function') {
-            window.retryPostAuthModule('admin-analytics.js');
+      analyticsBtn.addEventListener('click', async () => {
+        analyticsBtn.disabled = true;
+        try {
+          if (typeof window.openAnalyticsModal !== 'function') {
+            await import('./admin-analytics.js?v=fc09b39b-1770146154f916933b2da');
           }
-          _toast('Analytics failed to load. Retrying — try the button again in a moment.');
-        } else {
-          console.error('❌ Analytics modal not available yet');
-          _toast('Analytics is still loading. Please try again in a moment.');
+          if (typeof window.openAnalyticsModal !== 'function') {
+            throw new Error('Canonical analytics module did not initialize');
+          }
+
+          const adminPanel = document.getElementById('admin-panel');
+          if (adminPanel) adminPanel.remove();
+          await window.openAnalyticsModal();
+        } catch (error) {
+          console.error('❌ Analytics dashboard failed to open:', error);
+          _toast('Analytics could not be opened. Please try again.');
+          analyticsBtn.disabled = false;
         }
       });
     }

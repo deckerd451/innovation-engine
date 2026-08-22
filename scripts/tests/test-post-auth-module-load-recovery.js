@@ -49,7 +49,7 @@ assert.match(loader, /new CustomEvent\('post-auth-module-error'/,
 assert.match(loader, /window\.retryPostAuthModule\s*=\s*function/,
   'a manual retry entry point must be exposed for callers to use after a failure');
 
-// --- dashboard-actions.js: the click handler must distinguish failure modes ---
+// --- dashboard-actions.js: the click handler must await canonical Analytics ---
 const dashboardActions = fs.readFileSync(path.join(root, 'assets/js/dashboard-actions.js'), 'utf8');
 // dashboard-actions.js has more than one "analyticsBtn" (a separate, unrelated
 // Filter View button also uses that variable name) -- anchor on the actual
@@ -57,21 +57,22 @@ const dashboardActions = fs.readFileSync(path.join(root, 'assets/js/dashboard-ac
 const btnIdx = dashboardActions.indexOf("getElementById('open-analytics-dashboard-btn')");
 assert.ok(btnIdx > -1, 'the open-analytics-dashboard-btn element must be looked up');
 const afterBtn = dashboardActions.slice(btnIdx);
-const clickHandlerMatch = afterBtn.match(/analyticsBtn\.addEventListener\('click', \(\) => \{[\s\S]*?\n {6}\}\);/);
+const clickHandlerMatch = afterBtn.match(/analyticsBtn\.addEventListener\('click', async \(\) => \{[\s\S]*?\n {6}\}\);/);
 assert.ok(clickHandlerMatch, 'the Open Analytics Dashboard click handler must be present');
 const handler = clickHandlerMatch[0];
 
-assert.match(handler, /typeof window\.openAnalyticsModal === 'function'/,
-  'the success path must still be checked first');
-assert.match(handler, /__POST_AUTH_MODULE_ERRORS__/,
-  'the handler must check the recorded failure state to distinguish "failed to load" from "still loading"');
-assert.match(handler, /retryPostAuthModule\('admin-analytics\.js'\)/,
-  'a confirmed load failure must trigger an actual retry, not just another toast');
+assert.match(handler, /await import\('\.\/admin-analytics\.js\?v=fc09b39b-1770146154f916933b2da'\)/,
+  'the click must await the same canonical module URL registered by the post-auth loader');
+assert.match(handler, /typeof window\.openAnalyticsModal !== 'function'[\s\S]*throw new Error/,
+  'the click must verify canonical Analytics initialized before changing panel lifecycle');
+assert.match(handler, /adminPanel\.remove\(\)[\s\S]*await window\.openAnalyticsModal\(\)/,
+  'the Admin Panel must yield to and then open the canonical Analytics modal in one click');
+assert.match(handler, /catch \(error\)[\s\S]*analyticsBtn\.disabled = false/,
+  'a failed load must leave the Admin workflow retryable without refreshing');
+assert.doesNotMatch(handler, /try the button again in a moment|still loading/,
+  'the user action must no longer terminate at the asynchronous-loader race');
 
-// The two failure branches must show genuinely different copy -- a load
-// failure and "still loading" are different problems with different fixes.
-const toastMessages = [...handler.matchAll(/_toast\('([^']+)'\)/g)].map(m => m[1]);
-assert.equal(toastMessages.length, 2, 'there must be exactly two distinct toast messages for the two non-success branches');
-assert.notEqual(toastMessages[0], toastMessages[1], 'the load-failure and still-loading messages must not be identical');
+assert.match(html, /dashboard-actions\.js\?v=admin-analytics-lifecycle-20260822a/,
+  'the production entry script must carry a cache-buster for the repaired lifecycle');
 
 console.log('✅ test-post-auth-module-load-recovery passed');
