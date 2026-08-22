@@ -82,6 +82,19 @@
       const body = `Hi ${name},\n\nThanks for your interest in ${title}. I'd like to connect and discuss it with you.`;
       return { email, subject, body, href: `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
     };
+    const emailActions = (person, index) => {
+      if (!validEmail(person.email)) return '';
+      const draft = emailDraft(person);
+      return `
+        <a class="btn btn-secondary email-action" href="${escapeHtml(draft.href)}" data-person-index="${index}"><i class="fas fa-envelope"></i> Email instead</a>
+        <button class="btn btn-secondary email-options-action" type="button" data-person-index="${index}">Email options</button>`;
+    };
+
+    function recordEmailAttempt(person) {
+      void recordOpportunityInterestFollowup(opportunity.id, person.id, 'email').catch(error => {
+        console.error('Failed to record initiated email follow-up:', error);
+      });
+    }
 
     async function copyText(value, status, successMessage) {
       try {
@@ -129,24 +142,13 @@
         backdrop.remove();
       };
       const closeOnEscape = event => { if (event.key === 'Escape') close(); };
-      dialog.querySelector('.try-email-app').addEventListener('click', async event => {
-        event.preventDefault();
-        const recordAttempt = recordOpportunityInterestFollowup(opportunity.id, person.id, 'email').catch(error => {
-          console.error('Failed to record initiated email follow-up:', error);
-        });
-        await Promise.race([
-          recordAttempt,
-          new Promise(resolve => setTimeout(resolve, 300))
-        ]);
-        window.location.href = draft.href;
-      });
+      dialog.querySelector('.try-email-app').addEventListener('click', () => recordEmailAttempt(person));
       dialog.querySelector('.copy-email').addEventListener('click', () => copyText(draft.email, status, 'Email copied.'));
       dialog.querySelector('.copy-message').addEventListener('click', () => copyText(`To: ${draft.email}\nSubject: ${draft.subject}\n\n${draft.body}`, status, 'Message copied.'));
       dialog.querySelector('.close-email').addEventListener('click', close);
       backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
       document.addEventListener('keydown', closeOnEscape);
       dialog.querySelector('a').focus();
-      window.location.href = draft.href;
     }
 
     document.addEventListener('DOMContentLoaded', initialize);
@@ -253,7 +255,7 @@
             </div>
             <div class="contact-actions">
               <a class="btn btn-primary" href="index.html?contact=${encodeURIComponent(person.id)}&opportunity=${encodeURIComponent(opportunity.id)}&opportunityTitle=${encodeURIComponent(opportunity.title)}"><i class="fas fa-comment"></i> Contact</a>
-              ${validEmail(person.email) ? `<button class="btn btn-secondary email-action" type="button" data-person-index="${index}"><i class="fas fa-envelope"></i> Email instead</button>` : ''}
+              ${emailActions(person, index)}
             </div>
           </article>` : `
           <article class="person">
@@ -264,6 +266,9 @@
             </div>
           </article>`).join('');
         target.querySelectorAll('.email-action').forEach(button => {
+          button.addEventListener('click', () => recordEmailAttempt(people[Number(button.dataset.personIndex)].community));
+        });
+        target.querySelectorAll('.email-options-action').forEach(button => {
           button.addEventListener('click', () => openEmailOptions(people[Number(button.dataset.personIndex)].community));
         });
       } catch (error) {
