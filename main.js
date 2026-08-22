@@ -108,6 +108,28 @@ async function openOpportunityContactIntent() {
   if (!conversationId) log.error("Unable to open opportunity contact conversation");
 }
 
+function openExplorerIntent() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedTab = params.get("explorer");
+  if (!requestedTab) return;
+
+  const supportedTabs = new Set(["people", "projects", "themes", "organizations", "opportunities"]);
+  if (!supportedTabs.has(requestedTab)) {
+    log.warn("Ignoring invalid Explorer tab request");
+    return;
+  }
+
+  if (typeof window.CommandDashboard?.selectResourceTab !== "function") {
+    log.error("Requested Explorer tab is unavailable");
+    return;
+  }
+
+  window.CommandDashboard.selectResourceTab(requestedTab);
+  params.delete("explorer");
+  const remainingQuery = params.toString();
+  history.replaceState({}, "", window.location.pathname + (remainingQuery ? `?${remainingQuery}` : "") + window.location.hash);
+}
+
 // ------------------------------
 // Profile-loaded orchestration (attach EARLY so we don't miss events)
 // ------------------------------
@@ -290,6 +312,7 @@ async function onProfileLoaded(e) {
     }
   }
 
+  openExplorerIntent();
   await openOpportunityContactIntent();
 
   // ------------------------------

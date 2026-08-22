@@ -37,8 +37,9 @@ assert.match(main, /await window\.openMessagesModal\(\);[\s\S]*window\.Messaging
 assert.match(main, /type: "opportunity"[\s\S]*params\.get\("opportunity"\)[\s\S]*params\.get\("opportunityTitle"\)/, 'the conversation must retain opportunity context');
 assert.match(page, /people\.map\(\(\{ community: person, created_at \}\) => person \?/, 'null community profiles must be handled per interest row');
 assert.match(page, /Profile unavailable/, 'hidden or unavailable profiles must render without exposing profile data');
-assert.match(page, /class="back-link" href="opportunities\.html"/, 'the all-opportunities link must preserve a GitHub Pages project base path');
-assert.doesNotMatch(page, /class="back-link" href="\/opportunities\.html"/, 'the all-opportunities link must not be root-relative');
+assert.match(page, /class="back-link" href="index\.html\?explorer=opportunities"/, 'the back link must return to the deployment-safe canonical Opps experience');
+assert.doesNotMatch(page, /class="back-link" href="\/?opportunities\.html"/, 'the back link must not route through the standalone opportunities page');
+assert.match(main, /params\.get\("explorer"\)[\s\S]*supportedTabs\.has\(requestedTab\)[\s\S]*CommandDashboard\.selectResourceTab\(requestedTab\)/, 'main-app bootstrap must safely activate a requested Explorer tab');
 
 const singleOpportunityQuery = manager.slice(
   manager.indexOf('export async function getOpportunity(id)'),
