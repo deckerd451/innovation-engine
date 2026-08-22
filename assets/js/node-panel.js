@@ -3714,9 +3714,12 @@ window.manageProjectRequests = async function(projectId) {
         const target = event.currentTarget;
         const messagesModal = document.getElementById('messages-modal');
         const requestModalDisplay = modal.style.display;
+        const projectPanelDisplay = panelElement?.style.display;
         modal.style.display = 'none';
+        if (panelElement) panelElement.style.display = 'none';
         const restoreRequestModal = () => {
           modal.style.display = requestModalDisplay;
+          if (panelElement) panelElement.style.display = projectPanelDisplay;
           messagesObserver?.disconnect();
         };
         const messagesObserver = messagesModal ? new MutationObserver(() => {
