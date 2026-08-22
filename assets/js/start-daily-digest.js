@@ -1078,12 +1078,24 @@ async function _loadReflectionActiveProjectCount(data) {
     return data?.network_insights?.active_projects?.count || 0;
   }
 
-  const [projectsResult, membershipsResult] = await Promise.all([
-    window.supabase.from('projects').select('id, status, creator_id'),
-    window.supabase.from('project_members').select('project_id, role').eq('user_id', communityId),
-  ]);
-  if (projectsResult.error) throw projectsResult.error;
+  const membershipsResult = await window.supabase
+    .from('project_members')
+    .select('project_id, role, left_at')
+    .eq('user_id', communityId)
+    .is('left_at', null);
   if (membershipsResult.error) throw membershipsResult.error;
+
+  const memberProjectIds = Array.from(
+    window.ProjectSemantics.acceptedProjectIds(membershipsResult.data)
+  );
+  let projectsQuery = window.supabase
+    .from('projects')
+    .select('id, status, creator_id');
+  projectsQuery = memberProjectIds.length > 0
+    ? projectsQuery.or(`creator_id.eq.${communityId},id.in.(${memberProjectIds.join(',')})`)
+    : projectsQuery.eq('creator_id', communityId);
+  const projectsResult = await projectsQuery;
+  if (projectsResult.error) throw projectsResult.error;
 
   return window.ProjectSemantics.activeProjectsForUser(
     projectsResult.data,

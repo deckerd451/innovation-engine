@@ -9,7 +9,7 @@
 
   function acceptedProjectIds(memberships) {
     return new Set((memberships || [])
-      .filter(membership => membership.role !== 'pending')
+      .filter(membership => membership.role !== 'pending' && membership.left_at == null)
       .map(membership => membership.project_id));
   }
 
