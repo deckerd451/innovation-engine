@@ -107,8 +107,10 @@ window.CommandDashboard = (() => {
   let _authUserId = null;       // auth.users.id (for generateDailyBrief)
   let _activeResourceTab = 'people';
   let _addFormOpen = false;     // inline add-resource form visibility
+  let _organizationCreateInFlight = false;
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
+  let _enrichedDataLoadVersion = 0; // latest refresh wins when requests overlap
   // New state for unified dashboard UX
   let _profile = null;          // community profile for identity layer
   let _unreadMessages = 0;      // unread messages from notification system
@@ -495,6 +497,20 @@ window.CommandDashboard = (() => {
     _loadEnrichedData();
   }
 
+  /** Merge a persisted organization into Explore before the full refetch. */
+  function _applyOrganizationCreateResult(organization) {
+    if (!organization?.id) return false;
+    _enrichedData.organizations = _dedupeById([
+      organization,
+      ...(_enrichedData.organizations || []),
+    ]);
+    if (!_enrichedData.myOrgIds) _enrichedData.myOrgIds = new Set();
+    _enrichedData.myOrgIds.add(organization.id);
+    _renderResources(_currentTier);
+    _loadEnrichedData();
+    return true;
+  }
+
   /* ================================================================
      SUPABASE ENRICHMENT
      Loads accepted-connection peers and active project IDs once, then
@@ -503,6 +519,8 @@ window.CommandDashboard = (() => {
 
   async function _loadEnrichedData() {
     if (!window.supabase || !_userId) return;
+    const loadVersion = ++_enrichedDataLoadVersion;
+    const isCurrentLoad = () => loadVersion === _enrichedDataLoadVersion;
     try {
       const [connResult, pendingResult, projResult, myProjResult, orgResult, myOrgResult, oppResult] = await Promise.all([
         // Accepted connections only (both directions)
@@ -529,7 +547,8 @@ window.CommandDashboard = (() => {
         // All organizations
         window.supabase
           .from('organizations')
-          .select('id, name, description'),
+          .select('id, name, description, created_at')
+          .order('created_at', { ascending: false }),
         // Orgs the current user belongs to
         window.supabase
           .from('organization_members')
@@ -555,6 +574,7 @@ window.CommandDashboard = (() => {
           .then(res => res)
           .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
       ]);
+      if (!isCurrentLoad()) return;
 
       if (connResult.data) {
         // Multiple connection rows can reference the same peer (e.g. an
@@ -572,6 +592,7 @@ window.CommandDashboard = (() => {
             .from('community')
             .select('id, name')
             .in('id', acceptedPeerIds);
+          if (!isCurrentLoad()) return;
           const nameMap = new Map((acceptedPeers || []).map(p => [p.id, p.name]));
           _enrichedData.acceptedConnections = acceptedPeerIds.map(id => ({
             id,
@@ -590,6 +611,7 @@ window.CommandDashboard = (() => {
           .from('community')
           .select('id, name')
           .in('id', peerIds);
+        if (!isCurrentLoad()) return;
         const nameMap = new Map((peers || []).map(p => [p.id, p.name]));
         _enrichedData.pendingConnections = peerIds.map(peerId => (
           { id: peerId, name: nameMap.get(peerId) || 'Unknown' }
@@ -640,6 +662,7 @@ window.CommandDashboard = (() => {
 
       // Build themes list from theme_circles + aggregated community skills
       await _loadThemes();
+      if (!isCurrentLoad()) return;
 
       // Re-render compact status and resources now that we have accurate data
       _renderCompactStatus(_currentTier);
@@ -1899,7 +1922,9 @@ window.CommandDashboard = (() => {
   }
 
   /** Handle the submit action for the add form */
-  function _handleAddSubmit(resourceType) {
+  async function _handleAddSubmit(resourceType) {
+    if (resourceType === 'organizations' && _organizationCreateInFlight) return;
+
     const nameEl = $id('udc-add-name');
     const descEl = $id('udc-add-desc');
     const typeEl = $id('udc-add-type');
@@ -1917,6 +1942,7 @@ window.CommandDashboard = (() => {
     const desc   = descEl ? descEl.value.trim() : '';
     const opType = typeEl ? typeEl.value : '';
 
+    let completed = true;
     if (resourceType === 'projects') {
       // Delegate to the existing project creation modal if available
       if (typeof window.showEnhancedProjectCreation === 'function') {
@@ -1925,6 +1951,33 @@ window.CommandDashboard = (() => {
         window.showCreateProjectForm();
       } else {
         _showAddConfirmation('project', name);
+      }
+    } else if (resourceType === 'organizations') {
+      const submitBtn = $id('udc-add-submit');
+      if (!window.OrganizationManager?.createOrganization) {
+        completed = false;
+        window.retryPostAuthModule?.('organization-manager.js');
+        const message = 'Organization creation is still loading. Please try again.';
+        if (window.showToastNotification) window.showToastNotification(message, 'error');
+        else alert(message);
+      } else {
+        _organizationCreateInFlight = true;
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+          const organization = await window.OrganizationManager.createOrganization({
+            name,
+            description: desc || null,
+          });
+          _applyOrganizationCreateResult(organization);
+        } catch (error) {
+          completed = false;
+          console.error('[CommandDashboard] Failed to create organization:', error);
+          // OrganizationManager owns the user-facing error toast so the same
+          // validation/authorization message is not shown twice.
+        } finally {
+          _organizationCreateInFlight = false;
+          if (submitBtn) submitBtn.disabled = false;
+        }
       }
     } else if (resourceType === 'opportunities') {
       // Map form type values to schema opportunity type + commitment
@@ -1949,12 +2002,13 @@ window.CommandDashboard = (() => {
       const meta = opType ? `${opType}${desc ? ' · ' + desc.slice(0, 30) : ''}` : undefined;
       _showAddConfirmation(resourceType, name, meta);
     } else {
-      // Stub confirmation for orgs and themes
+      // Themes remain a lightweight local suggestion until a canonical,
+      // permission-aware theme creation workflow is available.
       const meta = desc.slice(0, 40) || undefined;
       _showAddConfirmation(resourceType, name, meta);
     }
 
-    _closeAddForm();
+    if (completed) _closeAddForm();
   }
 
   /** Flash a newly-added item at the top of the resource list */
@@ -2069,6 +2123,32 @@ window.CommandDashboard = (() => {
       Object.assign(_enrichedData, enrichedData);
       _applyOpportunityInsertResult(insertResult);
       return _enrichedData.opportunities;
+    },
+    /** TEST-ONLY: verifies canonical organization create results enter Explore. */
+    __testApplyOrganizationCreateResult(userId, enrichedData, organization) {
+      _userId = userId;
+      Object.assign(_enrichedData, enrichedData);
+      _applyOrganizationCreateResult(organization);
+      return {
+        organizations: _enrichedData.organizations,
+        myOrgIds: [...(_enrichedData.myOrgIds || [])],
+      };
+    },
+    /** TEST-ONLY: drives overlapping enriched refreshes with a fake Supabase client. */
+    async __testLoadEnrichedData(userId) {
+      _userId = userId;
+      await _loadEnrichedData();
+    },
+    /** TEST-ONLY: reads the organization portion of enriched state. */
+    __testGetOrganizationState() {
+      return {
+        organizations: _enrichedData.organizations,
+        myOrgIds: [...(_enrichedData.myOrgIds || [])],
+      };
+    },
+    /** TEST-ONLY: exercises all submission-path guards in the real handler. */
+    async __testHandleAddSubmit(resourceType) {
+      await _handleAddSubmit(resourceType);
     },
     /**
      * TEST-ONLY: direct access to the Explore opportunity visibility
