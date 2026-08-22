@@ -3855,6 +3855,28 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   // -----------------------------
   // Notification Center
   // -----------------------------
+  function notificationsClearedAtKey(userId) {
+    return `ie_notifications_cleared_at_${userId}`;
+  }
+
+  function getNotificationsClearedAt(userId) {
+    if (!userId) return null;
+    try {
+      return localStorage.getItem(notificationsClearedAtKey(userId));
+    } catch {
+      return null;
+    }
+  }
+
+  function setNotificationsClearedAt(userId, isoTimestamp) {
+    if (!userId) return;
+    try {
+      localStorage.setItem(notificationsClearedAtKey(userId), isoTimestamp);
+    } catch {
+      // Storage unavailable (e.g. private browsing) -- read state just won't persist.
+    }
+  }
+
   async function showNotificationsTab(tab) {
     const btnAll = $("notifications-tab-all");
     const btnUnread = $("notifications-tab-unread");
@@ -3888,6 +3910,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
       // Add connection request notifications
       if (state.communityProfile?.id) {
+        const clearedAt = getNotificationsClearedAt(state.communityProfile.id);
+
         const { data: pendingConnections, error } = await state.supabase
           .from("connections")
           .select("*, from_user:community!connections_from_user_id_fkey(id, name, image_url)")
@@ -3903,7 +3927,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
               title: "New Connection Request",
               message: `${conn.from_user?.name || "Someone"} wants to connect with you`,
               timestamp: conn.created_at,
-              read: false,
+              read: Boolean(clearedAt && new Date(conn.created_at) <= new Date(clearedAt)),
               image: conn.from_user?.image_url,
               data: conn
             });
@@ -4042,9 +4066,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   async function clearAllNotifications() {
     try {
-      // In a real implementation, this would mark notifications as read in the database
-      // For now, just reload to show the updated state
-      await loadNotifications("all");
+      if (state.communityProfile?.id) {
+        setNotificationsClearedAt(state.communityProfile.id, new Date().toISOString());
+      }
+
+      // Refresh both tabs so "Unread" reflects the new read state immediately,
+      // regardless of which tab is currently visible.
+      await Promise.all([loadNotifications("all"), loadNotifications("unread")]);
 
       if (typeof window.showNotification === "function") {
         window.showNotification({
