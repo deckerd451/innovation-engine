@@ -13,6 +13,7 @@ const panel = fs.readFileSync(path.join(root, 'assets/js/node-panel.js'), 'utf8'
 const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/migrations/20260822_opportunity_interests.sql'), 'utf8');
 const followupMigration = fs.readFileSync(path.join(root, 'supabase/sql/migrations/20260822b_opportunity_interest_followups.sql'), 'utf8');
+const contactHelpers = fs.readFileSync(path.join(root, 'assets/js/followup-contact.js'), 'utf8');
 
 for (const exportedFunction of [
   'getOpportunityInterest',
@@ -35,12 +36,12 @@ assert.match(page, /withdrawOpportunityInterest\(opportunityId\)/, 'member detai
 assert.match(manager, /community:community_id\s*\([\s\S]*?\bemail\b[\s\S]*?\)/, 'the existing poster-authorized lookup must return email for the optional contact action');
 assert.match(page, /href="index\.html\?contact=\$\{encodeURIComponent\(person\.id\)\}&opportunity=\$\{encodeURIComponent\(opportunity\.id\)\}&opportunityTitle=\$\{encodeURIComponent\(opportunity\.title\)\}"/, 'poster contact must hand the interested community id to the deployment-safe main-app route');
 assert.match(page, /if \(!validEmail\(person\.email\)\) return ''[\s\S]*fa-envelope[^\n]*> Email<\/a>/, 'email must be optional and shown only for a valid address');
-assert.match(page, /mailto:\$\{encodeURIComponent\(email\)\}\?subject=\$\{encodeURIComponent\(subject\)\}&body=\$\{encodeURIComponent\(body\)\}/, 'email must retain a safely encoded mailto draft');
+assert.match(contactHelpers, /mailto:\$\{encodeURIComponent\(recipient\)\}\?subject=\$\{encodeURIComponent\(subject\)\}&body=\$\{encodeURIComponent\(body\)\}/, 'shared email drafts must retain a safely encoded mailto request');
 assert.match(page, /const subject = `Interest in \$\{title\}`/, 'email subject must identify the opportunity');
 assert.match(page, /const body = `Hi \$\{name\},[\s\S]*interest in \$\{title\}/, 'email body must identify the interested person and opportunity');
 assert.match(page, /<a class="btn btn-primary"[^>]*><i class="fas fa-comment"><\/i> Message<\/a>[\s\S]*\$\{emailActions\(person, index\)\}/, 'in-app messaging must be an explicit primary channel in each row');
 assert.match(page, /<a class="btn btn-secondary email-action" href="\$\{escapeHtml\(draft\.href\)\}"/, 'the primary email action must be a native mailto anchor');
-assert.match(page, /function recordEmailAttempt\(person\)[\s\S]*void recordOpportunityInterestFollowup\(opportunity\.id, person\.id, 'email'\)/, 'native email clicks must start best-effort durable history without awaiting it');
+assert.match(page, /function recordEmailAttempt\(person\)[\s\S]*recordFollowupBestEffort\(\(\) => recordOpportunityInterestFollowup\(opportunity\.id, person\.id, 'email'\)/, 'native email clicks must start best-effort durable history without awaiting it');
 assert.match(page, /email-action[\s\S]*addEventListener\('click', \(\) => recordEmailAttempt/, 'the native email click must record the truthful email channel');
 assert.doesNotMatch(page, /email-action[\s\S]{0,300}preventDefault\(/, 'the primary native mailto handoff must not be intercepted');
 assert.doesNotMatch(page, /Promise\.race\([\s\S]*setTimeout\(resolve, 300\)/, 'native mailto navigation must not wait on persistence');
@@ -105,7 +106,8 @@ assert.match(followupMigration, /Posters can create opportunity interest follow-
 assert.doesNotMatch(followupMigration, /FOR (?:UPDATE|DELETE)/, 'follow-up history must be append-only');
 assert.match(followupMigration, /SECURITY INVOKER/, 'follow-up recording RPC must preserve RLS authorization');
 assert.match(manager, /followups:opportunity_interest_followups[\s\S]*channel[\s\S]*initiated_at/, 'poster interest reads must include follow-up history');
-assert.match(page, /const followupSummary = followups[\s\S]*new Map\(\)[\s\S]*\['message', 'email'\][\s\S]*summary\.count > 1[\s\S]*\$\{label\} initiated/, 'follow-up history must stay compact by showing one truthful latest summary and attempt count per channel');
+assert.match(contactHelpers, /function summarizeFollowups[\s\S]*new Map\(\)[\s\S]*\['message', 'email'\]/, 'shared follow-up summaries must keep Message and Email distinct');
+assert.match(page, /const followupSummary = followups[\s\S]*summarizeFollowups\(followups\)[\s\S]*summary\.count > 1[\s\S]*\$\{label\} initiated/, 'follow-up history must stay compact by showing one truthful latest summary and attempt count per channel');
 assert.match(page, /\$\{followupSummary\(followups\)\}/, 'each interested person must render the compact follow-up summary');
 assert.doesNotMatch(page, /Email (?:sent|delivered)/i, 'the UI must not claim mailto delivery');
 

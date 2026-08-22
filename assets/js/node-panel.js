@@ -6,6 +6,7 @@
 
 import { makeProfileImageClickable } from './profile-image-modal.js';
 import { getRelationshipEvidence } from './relationship-evidence.js';
+import { createNativeEmailDraft, recordFollowupBestEffort, summarizeFollowups } from './followup-contact.js';
 
 const NODE_PANEL_VERSION = 'v2.2-' + Date.now();
 console.log(`%c👤 Node Panel ${NODE_PANEL_VERSION} (Project Approval Fix)`, "color:#0ff; font-weight: bold; font-size: 16px");
@@ -3588,17 +3589,13 @@ window.manageProjectRequests = async function(projectId) {
       throw new Error('Database connection not available');
     }
 
-    // Fetch pending requests for this project
-    const { data: pendingRequests, error } = await supabase
-      .from('project_members')
-      .select(`
-        *,
-        user:community(id, name, image_url, bio, skills)
-      `)
-      .eq('project_id', projectId)
-      .eq('role', 'pending');
+    // Owner-gated RPC keeps requester email and follow-up history private.
+    const { data: requestResult, error } = await supabase
+      .rpc('get_project_interest_requests', { p_project_id: projectId });
 
     if (error) throw error;
+    const pendingRequests = requestResult?.requests || [];
+    const projectTitle = requestResult?.project_title || 'this project';
 
     // Create modal
     const modal = document.createElement('div');
@@ -3630,6 +3627,21 @@ window.manageProjectRequests = async function(projectId) {
             </div>
           ` : pendingRequests.map(request => {
             const user = request.user;
+            const escape = escapeHtml;
+            const email = String(user.email || '').trim();
+            const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            const emailDraft = validEmail ? createNativeEmailDraft({
+              email,
+              recipientName: user.name || 'there',
+              subject: `Join request for ${projectTitle}`,
+              body: `Hi ${user.name || 'there'},\n\nThanks for your interest in joining ${projectTitle}. I'd like to connect and discuss the project with you.`
+            }) : null;
+            const history = summarizeFollowups(request.followups).map(summary => {
+              const label = summary.channel === 'message' ? 'Message' : 'Email';
+              const attempts = summary.count > 1 ? ` · ${summary.count} attempts` : '';
+              const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(summary.latest));
+              return `<span style="color:#aaa; font-size:.85rem;">${label} initiated ${escape(date)}${attempts}</span>`;
+            }).join('');
             // Parse skills - could be string (comma-separated) or array
             let skills = user.skills || [];
             if (typeof skills === 'string') {
@@ -3639,42 +3651,52 @@ window.manageProjectRequests = async function(projectId) {
               skills = [];
             }
             return `
-              <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;" data-request-id="${request.id}">
+              <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;" data-request-id="${escape(request.id)}">
                 <div style="display: flex; gap: 1rem; align-items: start;">
                   <!-- User Avatar -->
-                  <img loading="lazy" src="${(window.escapeHtml || (s => s))(user.image_url) || 'https://via.placeholder.com/60'}"
+                  <img loading="lazy" src="${escape(user.image_url) || 'https://via.placeholder.com/60'}"
                     style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid rgba(255,107,107,0.3);"
                     onerror="this.src='https://via.placeholder.com/60'">
 
                   <!-- User Info -->
                   <div style="flex: 1; min-width: 0;">
                     <div style="color: #ff6b6b; font-weight: 800; font-size: 1.1rem; margin-bottom: 0.25rem;">
-                      ${(window.escapeHtml || (s => s))(user.name)}
+                      ${escape(user.name)}
                     </div>
                     ${user.bio ? `
                       <div style="color: #ddd; font-size: 0.9rem; margin-bottom: 0.5rem; line-height: 1.4;">
-                        ${(window.escapeHtml || (s => s))(user.bio.substring(0, 120))}${user.bio.length > 120 ? '...' : ''}
+                        ${escape(user.bio.substring(0, 120))}${user.bio.length > 120 ? '...' : ''}
                       </div>
                     ` : ''}
                     ${skills.length > 0 ? `
                       <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;">
                         ${skills.slice(0, 5).map(skill => `
                           <span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.8rem; border: 1px solid rgba(0,224,255,0.2);">
-                            ${(window.escapeHtml || (s => s))(skill)}
+                            ${escape(skill)}
                           </span>
                         `).join('')}
                         ${skills.length > 5 ? `<span style="color: #888; font-size: 0.8rem;">+${skills.length - 5} more</span>` : ''}
                       </div>
                     ` : ''}
+                    ${history ? `<div aria-label="Follow-up history" style="display:flex; flex-wrap:wrap; gap:.35rem .75rem; margin-top:.65rem;">${history}</div>` : ''}
                   </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
+                  <button class="message-request-btn" type="button" data-project-id="${escape(projectId)}" data-project-title="${escape(projectTitle)}" data-request-id="${escape(request.id)}" data-user-id="${escape(user.id)}" style="flex:1; padding:.65rem; background:#00e0ff; border:0; border-radius:8px; color:#041018; font-weight:bold; cursor:pointer;">
+                    <i class="fas fa-comment"></i> Message
+                  </button>
+                  ${emailDraft ? `<a class="email-request-action" href="${escape(emailDraft.href)}" data-request-id="${escape(request.id)}" style="flex:1; padding:.65rem; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); border-radius:8px; color:white; font-weight:bold; text-decoration:none; text-align:center;">
+                    <i class="fas fa-envelope"></i> Email
+                  </a>` : ''}
                 </div>
 
                 <!-- Action Buttons -->
                 <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-                  <button class="approve-request-btn" data-project-id="${projectId}" data-request-id="${request.id}" data-user-id="${user.id}" style="flex: 1; padding: 0.65rem; background: linear-gradient(135deg, #00ff88, #00cc70); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                  <button class="approve-request-btn" data-project-id="${escape(projectId)}" data-request-id="${escape(request.id)}" data-user-id="${escape(user.id)}" style="flex: 1; padding: 0.65rem; background: linear-gradient(135deg, #00ff88, #00cc70); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
                     <i class="fas fa-check"></i> Approve
                   </button>
-                  <button class="decline-request-btn" data-project-id="${projectId}" data-request-id="${request.id}" style="flex: 1; padding: 0.65rem; background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer;">
+                  <button class="decline-request-btn" data-project-id="${escape(projectId)}" data-request-id="${escape(request.id)}" style="flex: 1; padding: 0.65rem; background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer;">
                     <i class="fas fa-times"></i> Decline
                   </button>
                 </div>
@@ -3686,6 +3708,43 @@ window.manageProjectRequests = async function(projectId) {
     `;
 
     document.body.appendChild(modal);
+
+    modal.querySelectorAll('.message-request-btn').forEach(btn => {
+      btn.addEventListener('click', async event => {
+        const target = event.currentTarget;
+        try {
+          await window.openMessagesModal();
+          const conversationId = await window.MessagingModule.startConversation(target.dataset.userId, {
+            type: 'project',
+            id: target.dataset.projectId,
+            title: target.dataset.projectTitle,
+          });
+          if (!conversationId) throw new Error('Unable to open project conversation');
+          const { error: followupError } = await supabase.rpc('record_project_interest_followup', {
+            p_project_member_id: target.dataset.requestId,
+            p_channel: 'message',
+          });
+          if (followupError) console.error('Unable to record project message follow-up:', followupError);
+        } catch (contactError) {
+          console.error('Unable to start project message follow-up:', contactError);
+        }
+      });
+    });
+
+    modal.querySelectorAll('.email-request-action').forEach(link => {
+      link.addEventListener('click', event => {
+        const requestId = event.currentTarget.dataset.requestId;
+        recordFollowupBestEffort(
+          () => supabase.rpc('record_project_interest_followup', {
+            p_project_member_id: requestId,
+            p_channel: 'email',
+          }).then(({ error: followupError }) => {
+            if (followupError) throw followupError;
+          }),
+          followupError => console.error('Unable to record project email follow-up:', followupError)
+        );
+      });
+    });
 
     // Add event listeners for approve/decline buttons
     modal.querySelectorAll('.approve-request-btn').forEach(btn => {

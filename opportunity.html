@@ -46,6 +46,7 @@
 
   <script type="module" src="assets/js/supabaseClient.js"></script>
   <script type="module">
+    import { createNativeEmailDraft, recordFollowupBestEffort, summarizeFollowups } from './assets/js/followup-contact.js';
     import {
       initOpportunityManager,
       getOpportunity,
@@ -74,7 +75,7 @@
       const title = opportunity.title || 'the opportunity';
       const subject = `Interest in ${title}`;
       const body = `Hi ${name},\n\nThanks for your interest in ${title}. I'd like to connect and discuss it with you.`;
-      return { email, subject, body, href: `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
+      return createNativeEmailDraft({ email, recipientName: name, subject, body });
     };
     const emailActions = (person, index) => {
       if (!validEmail(person.email)) return '';
@@ -83,20 +84,8 @@
     };
 
     const followupSummary = followups => {
-      const byChannel = new Map();
-      followups.forEach(followup => {
-        if (!['message', 'email'].includes(followup.channel)) return;
-        const current = byChannel.get(followup.channel);
-        if (!current) {
-          byChannel.set(followup.channel, { count: 1, latest: followup.initiated_at });
-          return;
-        }
-        current.count += 1;
-        if (new Date(followup.initiated_at) > new Date(current.latest)) current.latest = followup.initiated_at;
-      });
-      const summaries = ['message', 'email'].flatMap(channel => {
-        const summary = byChannel.get(channel);
-        if (!summary) return [];
+      const summaries = summarizeFollowups(followups).map(summary => {
+        const channel = summary.channel;
         const label = channel === 'message' ? 'Message' : 'Email';
         const attempts = summary.count > 1 ? ` · ${summary.count} attempts` : '';
         return `<span>${label} initiated ${escapeHtml(formatDate(summary.latest))}${attempts}</span>`;
@@ -105,7 +94,7 @@
     };
 
     function recordEmailAttempt(person) {
-      void recordOpportunityInterestFollowup(opportunity.id, person.id, 'email').catch(error => {
+      recordFollowupBestEffort(() => recordOpportunityInterestFollowup(opportunity.id, person.id, 'email'), error => {
         console.error('Failed to record initiated email follow-up:', error);
       });
     }
