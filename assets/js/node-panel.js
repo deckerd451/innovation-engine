@@ -3712,6 +3712,17 @@ window.manageProjectRequests = async function(projectId) {
     modal.querySelectorAll('.message-request-btn').forEach(btn => {
       btn.addEventListener('click', async event => {
         const target = event.currentTarget;
+        const messagesModal = document.getElementById('messages-modal');
+        const requestModalDisplay = modal.style.display;
+        modal.style.display = 'none';
+        const restoreRequestModal = () => {
+          modal.style.display = requestModalDisplay;
+          messagesObserver?.disconnect();
+        };
+        const messagesObserver = messagesModal ? new MutationObserver(() => {
+          if (!messagesModal.classList.contains('active')) restoreRequestModal();
+        }) : null;
+        messagesObserver?.observe(messagesModal, { attributes: true, attributeFilter: ['class'] });
         try {
           await window.openMessagesModal();
           const conversationId = await window.MessagingModule.startConversation(target.dataset.userId, {
@@ -3727,6 +3738,7 @@ window.manageProjectRequests = async function(projectId) {
           if (followupError) console.error('Unable to record project message follow-up:', followupError);
         } catch (contactError) {
           console.error('Unable to start project message follow-up:', contactError);
+          if (!messagesModal?.classList.contains('active')) restoreRequestModal();
         }
       });
     });

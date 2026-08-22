@@ -36,6 +36,9 @@ assert.match(panel, /<a class="email-request-action" href="\$\{escape\(emailDraf
 assert.doesNotMatch(panel, /email-request-action[\s\S]{0,500}preventDefault\(/, 'native email handoff must not be intercepted');
 assert.match(panel, /email-request-action[\s\S]*recordFollowupBestEffort[\s\S]*p_channel: 'email'/, 'Email clicks must start best-effort truthful persistence');
 assert.match(panel, /openMessagesModal\(\)[\s\S]*MessagingModule\.startConversation[\s\S]*type: 'project'[\s\S]*p_channel: 'message'/, 'Message must use canonical messaging with project context and record only after initiation');
+assert.match(panel, /const messagesModal = document\.getElementById\('messages-modal'\);[\s\S]*const requestModalDisplay = modal\.style\.display;[\s\S]*modal\.style\.display = 'none';[\s\S]*await window\.openMessagesModal\(\)/, 'Message must hide the request overlay before opening canonical messaging');
+assert.match(panel, /const restoreRequestModal = \(\) => \{[\s\S]*modal\.style\.display = requestModalDisplay;[\s\S]*messagesObserver\?\.disconnect\(\);[\s\S]*MutationObserver[\s\S]*!messagesModal\.classList\.contains\('active'\)\) restoreRequestModal\(\)/, 'closing canonical messaging must restore the same Join Requests modal');
+assert.match(panel, /catch \(contactError\)[\s\S]*if \(!messagesModal\?\.classList\.contains\('active'\)\) restoreRequestModal\(\)/, 'failed message handoff must not strand the Join Requests modal hidden');
 assert.match(panel, /summarizeFollowups\(request\.followups\)[\s\S]*Message[\s\S]*Email[\s\S]*attempts[\s\S]*initiated/, 'history must compactly preserve each truthful channel and repeat attempts');
 assert.doesNotMatch(panel, /Email (?:sent|delivered)/i, 'mailto history must not claim delivery');
 
