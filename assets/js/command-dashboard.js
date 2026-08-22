@@ -109,6 +109,7 @@ window.CommandDashboard = (() => {
   let _addFormOpen = false;     // inline add-resource form visibility
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
+  let _enrichedDataLoadVersion = 0; // latest refresh wins when requests overlap
   // New state for unified dashboard UX
   let _profile = null;          // community profile for identity layer
   let _unreadMessages = 0;      // unread messages from notification system
@@ -517,6 +518,8 @@ window.CommandDashboard = (() => {
 
   async function _loadEnrichedData() {
     if (!window.supabase || !_userId) return;
+    const loadVersion = ++_enrichedDataLoadVersion;
+    const isCurrentLoad = () => loadVersion === _enrichedDataLoadVersion;
     try {
       const [connResult, pendingResult, projResult, myProjResult, orgResult, myOrgResult, oppResult] = await Promise.all([
         // Accepted connections only (both directions)
@@ -570,6 +573,7 @@ window.CommandDashboard = (() => {
           .then(res => res)
           .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
       ]);
+      if (!isCurrentLoad()) return;
 
       if (connResult.data) {
         // Multiple connection rows can reference the same peer (e.g. an
@@ -587,6 +591,7 @@ window.CommandDashboard = (() => {
             .from('community')
             .select('id, name')
             .in('id', acceptedPeerIds);
+          if (!isCurrentLoad()) return;
           const nameMap = new Map((acceptedPeers || []).map(p => [p.id, p.name]));
           _enrichedData.acceptedConnections = acceptedPeerIds.map(id => ({
             id,
@@ -605,6 +610,7 @@ window.CommandDashboard = (() => {
           .from('community')
           .select('id, name')
           .in('id', peerIds);
+        if (!isCurrentLoad()) return;
         const nameMap = new Map((peers || []).map(p => [p.id, p.name]));
         _enrichedData.pendingConnections = peerIds.map(peerId => (
           { id: peerId, name: nameMap.get(peerId) || 'Unknown' }
@@ -655,6 +661,7 @@ window.CommandDashboard = (() => {
 
       // Build themes list from theme_circles + aggregated community skills
       await _loadThemes();
+      if (!isCurrentLoad()) return;
 
       // Re-render compact status and resources now that we have accurate data
       _renderCompactStatus(_currentTier);
@@ -2117,6 +2124,18 @@ window.CommandDashboard = (() => {
       _userId = userId;
       Object.assign(_enrichedData, enrichedData);
       _applyOrganizationCreateResult(organization);
+      return {
+        organizations: _enrichedData.organizations,
+        myOrgIds: [...(_enrichedData.myOrgIds || [])],
+      };
+    },
+    /** TEST-ONLY: drives overlapping enriched refreshes with a fake Supabase client. */
+    async __testLoadEnrichedData(userId) {
+      _userId = userId;
+      await _loadEnrichedData();
+    },
+    /** TEST-ONLY: reads the organization portion of enriched state. */
+    __testGetOrganizationState() {
       return {
         organizations: _enrichedData.organizations,
         myOrgIds: [...(_enrichedData.myOrgIds || [])],

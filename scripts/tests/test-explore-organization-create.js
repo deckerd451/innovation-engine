@@ -37,7 +37,11 @@ const documentShim = {
 const sandbox = {
   console,
   document: documentShim,
-  window: { document: documentShim, location: { search: '', hostname: 'localhost' } },
+  window: {
+    document: documentShim,
+    location: { search: '', hostname: 'localhost' },
+    ProjectSemantics: { isActive: () => false, acceptedProjectIds: () => new Set() },
+  },
   setTimeout, clearTimeout, setInterval, clearInterval,
   URLSearchParams, localStorage: { getItem: () => null, setItem: noop },
   Set, Map, Promise, Date,
@@ -58,4 +62,64 @@ const plain = JSON.parse(JSON.stringify(result));
 assert.deepEqual(plain.organizations.map(org => org.id), ['new-org', 'existing']);
 assert.deepEqual(plain.myOrgIds, ['new-org']);
 
-console.log('Explore organization creation: all checks passed');
+async function verifyStaleRefreshCannotOverwriteNewerOrganizations() {
+  let releaseOld;
+  const oldGate = new Promise(resolve => { releaseOld = resolve; });
+  let connectionQueryCount = 0;
+  let currentLoad = 0;
+
+  const queryResult = (table, load) => {
+    if (table === 'organizations') {
+      return { data: load === 1
+        ? [{ id: 'old-org', name: 'Old snapshot' }]
+        : [{ id: 'new-org', name: 'New snapshot' }] };
+    }
+    if (table === 'organization_members') {
+      return { data: [{ organization_id: load === 1 ? 'old-org' : 'new-org' }] };
+    }
+    return { data: [] };
+  };
+
+  sandbox.window.supabase = {
+    from(table) {
+      if (table === 'connections') {
+        connectionQueryCount += 1;
+        if (connectionQueryCount % 2 === 1) currentLoad += 1;
+      }
+      const load = currentLoad;
+      const builder = {
+        select: () => builder,
+        or: () => builder,
+        eq: () => builder,
+        in: () => builder,
+        order: () => builder,
+        limit: () => builder,
+        then(resolve, reject) {
+          const result = load === 1
+            ? oldGate.then(() => queryResult(table, load))
+            : Promise.resolve(queryResult(table, load));
+          return result.then(resolve, reject);
+        },
+        catch(reject) { return Promise.resolve(queryResult(table, load)).catch(reject); },
+      };
+      return builder;
+    },
+  };
+
+  const oldRefresh = sandbox.window.CommandDashboard.__testLoadEnrichedData('me');
+  const newRefresh = sandbox.window.CommandDashboard.__testLoadEnrichedData('me');
+  await newRefresh;
+  releaseOld();
+  await oldRefresh;
+
+  const state = sandbox.window.CommandDashboard.__testGetOrganizationState();
+  assert.deepEqual(JSON.parse(JSON.stringify(state.organizations.map(org => org.id))), ['new-org']);
+  assert.deepEqual(JSON.parse(JSON.stringify(state.myOrgIds)), ['new-org']);
+}
+
+verifyStaleRefreshCannotOverwriteNewerOrganizations()
+  .then(() => console.log('Explore organization creation: all checks passed'))
+  .catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+  });
