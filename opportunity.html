@@ -72,16 +72,20 @@
         const identity = await initOpportunityManager(window.supabase);
         profileId = identity.currentUserCommunityId;
         opportunity = await getOpportunity(opportunityId);
-        const deadlinePassed = opportunity?.application_deadline && new Date(opportunity.application_deadline) <= new Date();
-        if (!opportunity || opportunity.status !== 'open' || opportunity.is_public !== true || deadlinePassed) {
+        if (!opportunity || opportunity.status !== 'open' || opportunity.is_public !== true) {
           return renderError('This opportunity is not available.');
         }
-        if (profileId && profileId !== opportunity.posted_by) {
+        const isPoster = profileId === opportunity.posted_by;
+        if (profileId && !isPoster) {
           interest = await getOpportunityInterest(opportunityId);
+        }
+        const deadlinePassed = opportunity.application_deadline && new Date(opportunity.application_deadline) <= new Date();
+        if (deadlinePassed && !isPoster && !interest) {
+          return renderError('This opportunity is not available.');
         }
         renderOpportunity();
         incrementViewCount(opportunityId);
-        if (profileId === opportunity.posted_by) await renderInterestedPeople();
+        if (isPoster) await renderInterestedPeople();
       } catch (error) {
         console.error('Failed to load opportunity:', error);
         renderError('We could not load this opportunity.');

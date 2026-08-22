@@ -18,6 +18,27 @@ CREATE INDEX IF NOT EXISTS idx_opportunity_interests_community
 
 ALTER TABLE public.opportunity_interests ENABLE ROW LEVEL SECURITY;
 
+-- Interest visibility trusts opportunities.posted_by, so ownership must not
+-- be transferable through the broader organization-editor UPDATE policy.
+CREATE OR REPLACE FUNCTION public.prevent_opportunity_poster_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.posted_by IS DISTINCT FROM OLD.posted_by THEN
+    RAISE EXCEPTION 'opportunity posted_by cannot be changed';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS prevent_opportunity_poster_change ON public.opportunities;
+CREATE TRIGGER prevent_opportunity_poster_change
+  BEFORE UPDATE OF posted_by ON public.opportunities
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_opportunity_poster_change();
+
 DROP POLICY IF EXISTS "Members and posters can view opportunity interests" ON public.opportunity_interests;
 CREATE POLICY "Members and posters can view opportunity interests"
   ON public.opportunity_interests

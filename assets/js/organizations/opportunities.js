@@ -257,10 +257,12 @@ export async function updateOpportunity(id, updates) {
       throw new Error("You don't have permission to edit this opportunity");
     }
 
+    // Ownership is assigned at creation and must never be transferred by an edit.
+    const { posted_by: _ignoredPostedBy, ...safeUpdates } = updates;
     const { data: opportunity, error } = await supabase
       .from("opportunities")
       .update({
-        ...updates,
+        ...safeUpdates,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
