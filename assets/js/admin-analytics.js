@@ -125,7 +125,7 @@ function renderError(message, { retryable = true } = {}) {
       </div>
     </div>
   `);
-  document.getElementById('admin-analytics-retry-btn')?.addEventListener('click', () => {
+  analyticsModal.querySelector('#admin-analytics-retry-btn')?.addEventListener('click', () => {
     openAnalyticsModal();
   });
 }

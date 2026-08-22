@@ -1732,7 +1732,7 @@ _toast('ℹ️ Unified network is not currently active. Enable it and reload to 
         analyticsBtn.disabled = true;
         try {
           if (typeof window.openAnalyticsModal !== 'function') {
-            await import('./admin-analytics.js?v=fc09b39b-1770146154f916933b2da');
+            await import('./admin-analytics.js?v=admin-analytics-retry-20260822a');
           }
           if (typeof window.openAnalyticsModal !== 'function') {
             throw new Error('Canonical analytics module did not initialize');
