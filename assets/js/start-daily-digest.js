@@ -1072,16 +1072,42 @@ window.StartDailyDigest.generateBriefInto = function (el) {
   return window.StartDailyDigest._generateAndRenderBrief(el);
 };
 
-function _renderReflectionNetworkSummary(data) {
+async function _loadReflectionActiveProjectCount(data) {
+  const communityId = data?.profile?.id;
+  if (!window.supabase || !window.ProjectSemantics || !communityId) {
+    return data?.network_insights?.active_projects?.count || 0;
+  }
+
+  const [projectsResult, membershipsResult] = await Promise.all([
+    window.supabase.from('projects').select('id, status, creator_id'),
+    window.supabase.from('project_members').select('project_id, role').eq('user_id', communityId),
+  ]);
+  if (projectsResult.error) throw projectsResult.error;
+  if (membershipsResult.error) throw membershipsResult.error;
+
+  return window.ProjectSemantics.activeProjectsForUser(
+    projectsResult.data,
+    membershipsResult.data,
+    communityId
+  ).length;
+}
+
+async function _renderReflectionNetworkSummary(data) {
   const root = document.getElementById('network-reflection-summary');
   if (!root) return;
   root.textContent = '';
 
   const network = data?.network_insights || {};
   const opportunities = data?.opportunities || {};
+  let activeProjectCount = network.active_projects?.count || 0;
+  try {
+    activeProjectCount = await _loadReflectionActiveProjectCount(data);
+  } catch (error) {
+    console.warn('[NetworkReflection] Canonical active-project count unavailable:', error?.message || error);
+  }
   const stats = [
     ['Connections', network.connections?.total || 0],
-    ['Active projects', network.active_projects?.count || 0],
+    ['Active projects', activeProjectCount],
     ['Themes', network.participating_themes?.count || 0],
     ['Opportunities', opportunities.open_opportunities?.count || 0],
   ];
@@ -1288,7 +1314,7 @@ async function _renderReflectionSupportContent() {
   try {
     const data = await window.getStartSequenceData(false);
     _renderReflectionAttention(data);
-    _renderReflectionNetworkSummary(data);
+    await _renderReflectionNetworkSummary(data);
     _renderReflectionNextMoves(data);
   } catch (error) {
     console.warn('[NetworkReflection] Summary data unavailable:', error?.message || error);
