@@ -753,7 +753,7 @@ async function renderOpportunityPanel(nodeData) {
 
       <!-- Canonical interest workflow -->
       <div style="margin: 1.5rem 0;">
-        <a href="/opportunity.html?id=${encodeURIComponent(opp.id)}" style="width: 100%; box-sizing: border-box; padding: 0.85rem; background: linear-gradient(135deg, ${typeColor}, ${typeColor}cc); border: none; border-radius: 8px; color: #041018; font-weight: bold; cursor: pointer; font-size: 1rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+        <a href="opportunity.html?id=${encodeURIComponent(opp.id)}" style="width: 100%; box-sizing: border-box; padding: 0.85rem; background: linear-gradient(135deg, ${typeColor}, ${typeColor}cc); border: none; border-radius: 8px; color: #041018; font-weight: bold; cursor: pointer; font-size: 1rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
           <i class="fas ${currentUserProfile?.id === opp.posted_by ? 'fa-users' : 'fa-hand'}"></i>
           ${currentUserProfile?.id === opp.posted_by ? 'View interested people' : 'Express or manage interest'}
         </a>
