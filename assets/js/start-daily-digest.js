@@ -1104,10 +1104,12 @@ async function _loadReflectionActiveProjectCount(data) {
   ).length;
 }
 
+let _reflectionNetworkSummaryRenderId = 0;
+
 async function _renderReflectionNetworkSummary(data) {
   const root = document.getElementById('network-reflection-summary');
   if (!root) return;
-  root.textContent = '';
+  const renderId = ++_reflectionNetworkSummaryRenderId;
 
   const network = data?.network_insights || {};
   const opportunities = data?.opportunities || {};
@@ -1117,10 +1119,12 @@ async function _renderReflectionNetworkSummary(data) {
   } catch (error) {
     console.warn('[NetworkReflection] Canonical active-project count unavailable:', error?.message || error);
   }
+  if (renderId !== _reflectionNetworkSummaryRenderId
+      || root !== document.getElementById('network-reflection-summary')) return;
+
   const stats = [
     ['Connections', network.connections?.total || 0],
     ['Active projects', activeProjectCount],
-    ['Themes', network.participating_themes?.count || 0],
     ['Opportunities', opportunities.open_opportunities?.count || 0],
   ];
   const grid = document.createElement('div');
@@ -1135,20 +1139,19 @@ async function _renderReflectionNetworkSummary(data) {
     card.append(count, name);
     grid.appendChild(card);
   });
-  root.appendChild(grid);
-
   const growth = network.growth || {};
   const growthParts = [
     growth.new_connections ? `${growth.new_connections} new connection${growth.new_connections === 1 ? '' : 's'}` : '',
     growth.new_projects ? `${growth.new_projects} new project${growth.new_projects === 1 ? '' : 's'}` : '',
     growth.new_themes ? `${growth.new_themes} new theme${growth.new_themes === 1 ? '' : 's'}` : '',
   ].filter(Boolean);
+  let growthEl = null;
   if (growthParts.length) {
-    const growthEl = document.createElement('div');
+    growthEl = document.createElement('div');
     growthEl.className = 'network-reflection-growth';
     growthEl.textContent = `${growthParts.join(' · ')} this month`;
-    root.appendChild(growthEl);
   }
+  root.replaceChildren(...[grid, growthEl].filter(Boolean));
 }
 
 function _renderReflectionAttention(data) {
