@@ -714,7 +714,7 @@
   <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>
   <script src="assets/js/project-relationship.js?v=1" defer></script>
   <script src="assets/js/project-tasks.js?v=1" defer></script>
-  <script type="module" src="assets/js/node-panel.js?v=msg-node-route-20260816a"></script>
+  <script type="module" src="assets/js/node-panel.js?v=production-cutover-20260821a"></script>
   <script src="assets/js/node-panel-fixes.js?v=fc09b39b-17701461543" defer></script>
   <script src="assets/js/dashboard-actions.js?v=fc09b39b-1770146154f916933b2da" defer></script>
 
@@ -1082,7 +1082,7 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("./sw.js?v=synapse-repair-20260818a", {
+          .register("./sw.js?v=production-cutover-20260821a", {
             scope: "./",
             updateViaCache: "none",
           })
