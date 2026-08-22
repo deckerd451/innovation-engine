@@ -1,0 +1,173 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Opportunity | Innovation Engine</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { min-height: 100vh; background: #07111f; color: #fff; font-family: Inter, system-ui, sans-serif; }
+    .opp-shell { width: min(960px, calc(100% - 2rem)); margin: 0 auto; padding: 2rem 0 4rem; }
+    .back-link { display: inline-flex; gap: .5rem; align-items: center; color: #63e8ff; margin-bottom: 1.5rem; text-decoration: none; }
+    .opp-panel { background: rgba(14, 27, 46, .96); border: 1px solid rgba(0, 224, 255, .25); border-radius: 18px; padding: clamp(1.25rem, 4vw, 2.5rem); }
+    .opp-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+    .opp-heading h1 { margin: 0 0 .5rem; font-size: clamp(1.8rem, 5vw, 3rem); }
+    .org-link, .person-name { color: #63e8ff; text-decoration: none; }
+    .badge { padding: .4rem .75rem; border-radius: 999px; background: rgba(0, 224, 255, .14); color: #63e8ff; text-transform: capitalize; }
+    .description { color: rgba(255,255,255,.82); line-height: 1.7; white-space: pre-wrap; margin: 2rem 0; }
+    .details, .skills { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin: 1rem 0; color: rgba(255,255,255,.72); }
+    .skill { padding: .35rem .65rem; background: rgba(255,255,255,.08); border-radius: 6px; }
+    .interest-box { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,.12); }
+    .btn { border: 0; border-radius: 8px; padding: .8rem 1.1rem; cursor: pointer; font: inherit; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; }
+    .btn-primary { color: #041018; background: #00e0ff; }
+    .btn-secondary { color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); }
+    .btn:disabled { opacity: .6; cursor: wait; }
+    .hint, .status { color: rgba(255,255,255,.65); }
+    .status.error { color: #ff8f8f; }
+    .people { display: grid; gap: .75rem; margin-top: 1rem; }
+    .person { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(255,255,255,.05); border-radius: 10px; }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,.1); }
+    .person-info { min-width: 0; flex: 1; }
+    .person-info p { margin: .25rem 0 0; color: rgba(255,255,255,.65); }
+    @media (max-width: 520px) { .person { align-items: flex-start; flex-wrap: wrap; } .person .btn { width: 100%; justify-content: center; } }
+  </style>
+</head>
+<body>
+  <main class="opp-shell">
+    <a class="back-link" href="/opportunities.html"><i class="fas fa-arrow-left"></i> All opportunities</a>
+    <section id="opportunity-content" class="opp-panel" aria-live="polite">
+      <p class="status"><i class="fas fa-spinner fa-spin"></i> Loading opportunity…</p>
+    </section>
+  </main>
+
+  <script type="module" src="assets/js/supabaseClient.js"></script>
+  <script type="module">
+    import {
+      initOpportunityManager,
+      getOpportunity,
+      getOpportunityInterest,
+      expressOpportunityInterest,
+      withdrawOpportunityInterest,
+      getInterestedPeople,
+      incrementViewCount
+    } from './assets/js/organizations/opportunities.js';
+
+    const content = document.getElementById('opportunity-content');
+    const opportunityId = new URLSearchParams(location.search).get('id');
+    let opportunity = null;
+    let profileId = null;
+    let interest = null;
+
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
+    })[char]);
+    const formatDate = value => value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) : '';
+
+    document.addEventListener('DOMContentLoaded', initialize);
+
+    async function initialize() {
+      if (!opportunityId) return renderError('No opportunity was specified.');
+      try {
+        const identity = await initOpportunityManager(window.supabase);
+        profileId = identity.currentUserCommunityId;
+        opportunity = await getOpportunity(opportunityId);
+        const deadlinePassed = opportunity?.application_deadline && new Date(opportunity.application_deadline) <= new Date();
+        if (!opportunity || opportunity.status !== 'open' || opportunity.is_public !== true || deadlinePassed) {
+          return renderError('This opportunity is not available.');
+        }
+        if (profileId && profileId !== opportunity.posted_by) {
+          interest = await getOpportunityInterest(opportunityId);
+        }
+        renderOpportunity();
+        incrementViewCount(opportunityId);
+        if (profileId === opportunity.posted_by) await renderInterestedPeople();
+      } catch (error) {
+        console.error('Failed to load opportunity:', error);
+        renderError('We could not load this opportunity.');
+      }
+    }
+
+    function renderOpportunity() {
+      const org = opportunity.organizations || {};
+      const skills = opportunity.required_skills || opportunity.skills || [];
+      const isPoster = profileId === opportunity.posted_by;
+      content.innerHTML = `
+        <div class="opp-heading">
+          <div>
+            <h1>${escapeHtml(opportunity.title)}</h1>
+            ${org.name ? `<a class="org-link" href="/organization-profile.html?slug=${encodeURIComponent(org.slug || '')}">${escapeHtml(org.name)}</a>` : '<span class="hint">Community opportunity</span>'}
+          </div>
+          <span class="badge">${escapeHtml(opportunity.type || 'opportunity')}</span>
+        </div>
+        <div class="description">${escapeHtml(opportunity.description)}</div>
+        <div class="details">
+          ${opportunity.location ? `<span><i class="fas fa-map-marker-alt"></i> ${escapeHtml(opportunity.location)}</span>` : ''}
+          ${opportunity.remote_ok ? '<span><i class="fas fa-house-laptop"></i> Remote OK</span>' : ''}
+          ${opportunity.commitment ? `<span><i class="fas fa-clock"></i> ${escapeHtml(opportunity.commitment)}</span>` : ''}
+          ${opportunity.application_deadline ? `<span><i class="fas fa-calendar"></i> Respond by ${escapeHtml(formatDate(opportunity.application_deadline))}</span>` : ''}
+        </div>
+        ${skills.length ? `<div class="skills">${skills.map(skill => `<span class="skill">${escapeHtml(skill)}</span>`).join('')}</div>` : ''}
+        <div id="interest-area" class="interest-box">${renderInterestAction(isPoster)}</div>
+      `;
+      document.getElementById('interest-toggle')?.addEventListener('click', toggleInterest);
+    }
+
+    function renderInterestAction(isPoster) {
+      if (isPoster) return '<h2>People interested</h2><p class="hint">Only you can see the people who expressed interest.</p><div id="interested-people" class="people"><p class="status">Loading…</p></div>';
+      if (!profileId) return '<h2>Interested?</h2><p class="hint">Sign in to share your interest privately with the poster.</p><a class="btn btn-primary" href="/index.html">Sign in</a>';
+      return `
+        <h2>${interest ? 'Interest shared' : 'Interested?'}</h2>
+        <p class="hint">${interest ? 'The poster can now see your profile and contact you.' : 'Share your profile with the poster so they can contact you.'}</p>
+        <button id="interest-toggle" class="btn ${interest ? 'btn-secondary' : 'btn-primary'}">
+          <i class="fas ${interest ? 'fa-check' : 'fa-hand'}"></i> ${interest ? 'Withdraw interest' : "I'm interested"}
+        </button>`;
+    }
+
+    async function toggleInterest(event) {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        interest = interest
+          ? (await withdrawOpportunityInterest(opportunityId), null)
+          : await expressOpportunityInterest(opportunityId);
+        const area = document.getElementById('interest-area');
+        area.innerHTML = renderInterestAction(false);
+        document.getElementById('interest-toggle')?.addEventListener('click', toggleInterest);
+      } catch (error) {
+        console.error('Failed to update interest:', error);
+        button.disabled = false;
+        button.insertAdjacentHTML('afterend', `<p class="status error">${escapeHtml(error.message || 'Please try again.')}</p>`);
+      }
+    }
+
+    async function renderInterestedPeople() {
+      const target = document.getElementById('interested-people');
+      if (!target) return;
+      try {
+        const people = await getInterestedPeople(opportunityId);
+        if (!people.length) {
+          target.innerHTML = '<p class="hint">No one has expressed interest yet.</p>';
+          return;
+        }
+        target.innerHTML = people.map(({ community: person, created_at }) => `
+          <article class="person">
+            ${person.image_url ? `<img class="avatar" src="${escapeHtml(person.image_url)}" alt="">` : '<span class="avatar"></span>'}
+            <div class="person-info">
+            <strong class="person-name">${escapeHtml(person.name || 'Community member')}</strong>
+              <p>${escapeHtml(person.role || 'Community member')} · Interested ${escapeHtml(formatDate(created_at))}</p>
+            </div>
+            ${person.email ? `<a class="btn btn-primary" href="mailto:${encodeURIComponent(person.email)}?subject=${encodeURIComponent(`Your interest in ${opportunity.title}`)}"><i class="fas fa-envelope"></i> Contact</a>` : '<span class="hint">No contact email shared</span>'}
+          </article>`).join('');
+      } catch (error) {
+        console.error('Failed to load interested people:', error);
+        target.innerHTML = '<p class="status error">Could not load interested people.</p>';
+      }
+    }
+
+    function renderError(message) {
+      content.innerHTML = `<p class="status error"><i class="fas fa-triangle-exclamation"></i> ${escapeHtml(message)}</p>`;
+    }
+  </script>
+</body>
+</html>

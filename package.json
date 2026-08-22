@@ -4,6 +4,7 @@
   "description": "Static site (no bundler). These scripts are deterministic local checks only -- see docs/VALIDATION.md for known gaps.",
   "scripts": {
     "test": "node scripts/validate.js",
-    "lint": "node scripts/lint.js"
+    "lint": "node scripts/lint.js",
+    "build": "npm run lint"
   }
 }
