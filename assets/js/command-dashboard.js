@@ -601,9 +601,7 @@ window.CommandDashboard = (() => {
       if (projResult.data) {
         _enrichedData.projects = projResult.data;
         _enrichedData.activeProjectIds = new Set(
-          projResult.data
-            .filter(p => ['active', 'in-progress', 'open', 'recruiting'].includes(p.status))
-            .map(p => p.id)
+          projResult.data.filter(window.ProjectSemantics.isActive).map(p => p.id)
         );
         console.log(`[Projects] command list now has ${projResult.data.length} items`);
         console.log(`[Projects] titles: [${projResult.data.map(p => p.title).join(', ')}]`);
@@ -625,9 +623,7 @@ window.CommandDashboard = (() => {
       }
 
       if (myProjResult.data) {
-        _enrichedData.myProjectIds = new Set(
-          myProjResult.data.filter(m => m.role !== 'pending').map(m => m.project_id)
-        );
+        _enrichedData.myProjectIds = window.ProjectSemantics.acceptedProjectIds(myProjResult.data);
       }
 
       if (orgResult.data) {

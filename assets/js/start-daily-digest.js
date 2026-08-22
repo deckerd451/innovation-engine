@@ -1072,16 +1072,54 @@ window.StartDailyDigest.generateBriefInto = function (el) {
   return window.StartDailyDigest._generateAndRenderBrief(el);
 };
 
-function _renderReflectionNetworkSummary(data) {
+async function _loadReflectionActiveProjectCount(data) {
+  const communityId = data?.profile?.id;
+  if (!window.supabase || !window.ProjectSemantics || !communityId) {
+    return data?.network_insights?.active_projects?.count || 0;
+  }
+
+  const membershipsResult = await window.supabase
+    .from('project_members')
+    .select('project_id, role, left_at')
+    .eq('user_id', communityId)
+    .is('left_at', null);
+  if (membershipsResult.error) throw membershipsResult.error;
+
+  const memberProjectIds = Array.from(
+    window.ProjectSemantics.acceptedProjectIds(membershipsResult.data)
+  );
+  let projectsQuery = window.supabase
+    .from('projects')
+    .select('id, status, creator_id');
+  projectsQuery = memberProjectIds.length > 0
+    ? projectsQuery.or(`creator_id.eq.${communityId},id.in.(${memberProjectIds.join(',')})`)
+    : projectsQuery.eq('creator_id', communityId);
+  const projectsResult = await projectsQuery;
+  if (projectsResult.error) throw projectsResult.error;
+
+  return window.ProjectSemantics.activeProjectsForUser(
+    projectsResult.data,
+    membershipsResult.data,
+    communityId
+  ).length;
+}
+
+async function _renderReflectionNetworkSummary(data) {
   const root = document.getElementById('network-reflection-summary');
   if (!root) return;
   root.textContent = '';
 
   const network = data?.network_insights || {};
   const opportunities = data?.opportunities || {};
+  let activeProjectCount = network.active_projects?.count || 0;
+  try {
+    activeProjectCount = await _loadReflectionActiveProjectCount(data);
+  } catch (error) {
+    console.warn('[NetworkReflection] Canonical active-project count unavailable:', error?.message || error);
+  }
   const stats = [
     ['Connections', network.connections?.total || 0],
-    ['Active projects', network.active_projects?.count || 0],
+    ['Active projects', activeProjectCount],
     ['Themes', network.participating_themes?.count || 0],
     ['Opportunities', opportunities.open_opportunities?.count || 0],
   ];
@@ -1288,7 +1326,7 @@ async function _renderReflectionSupportContent() {
   try {
     const data = await window.getStartSequenceData(false);
     _renderReflectionAttention(data);
-    _renderReflectionNetworkSummary(data);
+    await _renderReflectionNetworkSummary(data);
     _renderReflectionNextMoves(data);
   } catch (error) {
     console.warn('[NetworkReflection] Summary data unavailable:', error?.message || error);
