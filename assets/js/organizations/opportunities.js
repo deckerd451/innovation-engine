@@ -608,6 +608,7 @@ export async function getInterestedPeople(opportunityId) {
       community:community_id (
         id,
         name,
+        email,
         role,
         bio,
         image_url,

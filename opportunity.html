@@ -30,6 +30,7 @@
     .avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,.1); }
     .person-info { min-width: 0; flex: 1; }
     .person-info p { margin: .25rem 0 0; color: rgba(255,255,255,.65); }
+    .contact-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
     @media (max-width: 520px) { .person { align-items: flex-start; flex-wrap: wrap; } .person .btn { width: 100%; justify-content: center; } }
   </style>
 </head>
@@ -63,6 +64,15 @@
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
     })[char]);
     const formatDate = value => value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) : '';
+    const validEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+    const emailHref = person => {
+      const email = String(person.email).trim();
+      const name = person.name || 'there';
+      const title = opportunity.title || 'the opportunity';
+      const subject = `Interest in ${title}`;
+      const body = `Hi ${name},\n\nThanks for your interest in ${title}. I'd like to connect and discuss it with you.`;
+      return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    };
 
     document.addEventListener('DOMContentLoaded', initialize);
 
@@ -161,7 +171,10 @@
               <strong class="person-name">${escapeHtml(person.name || 'Community member')}</strong>
               <p>${escapeHtml(person.role || 'Community member')} · Interested ${escapeHtml(formatDate(created_at))}</p>
             </div>
-            <a class="btn btn-primary" href="index.html?contact=${encodeURIComponent(person.id)}&opportunity=${encodeURIComponent(opportunity.id)}&opportunityTitle=${encodeURIComponent(opportunity.title)}"><i class="fas fa-comment"></i> Contact</a>
+            <div class="contact-actions">
+              <a class="btn btn-primary" href="index.html?contact=${encodeURIComponent(person.id)}&opportunity=${encodeURIComponent(opportunity.id)}&opportunityTitle=${encodeURIComponent(opportunity.title)}"><i class="fas fa-comment"></i> Contact</a>
+              ${validEmail(person.email) ? `<a class="btn btn-secondary" href="${escapeHtml(emailHref(person))}"><i class="fas fa-envelope"></i> Email instead</a>` : ''}
+            </div>
           </article>` : `
           <article class="person">
             <span class="avatar"></span>
