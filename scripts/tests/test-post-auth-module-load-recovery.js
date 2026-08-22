@@ -61,7 +61,7 @@ const clickHandlerMatch = afterBtn.match(/analyticsBtn\.addEventListener\('click
 assert.ok(clickHandlerMatch, 'the Open Analytics Dashboard click handler must be present');
 const handler = clickHandlerMatch[0];
 
-assert.match(handler, /await import\('\.\/admin-analytics\.js\?v=admin-analytics-retry-20260822a'\)/,
+assert.match(handler, /await import\('\.\/admin-analytics\.js\?v=admin-analytics-rpc-await-20260822b'\)/,
   'the click must await the same canonical module URL registered by the post-auth loader');
 assert.match(handler, /typeof window\.openAnalyticsModal !== 'function'[\s\S]*throw new Error/,
   'the click must verify canonical Analytics initialized before changing panel lifecycle');

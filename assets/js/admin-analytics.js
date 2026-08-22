@@ -137,12 +137,23 @@ async function loadAnalyticsData() {
   try {
     console.log('📊 Fetching analytics data...');
 
+    // Supabase builders are awaitable but do not implement Promise.catch().
+    // Normalize the optional RPC through the canonical awaited result shape.
+    const retentionRequest = (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_admin_retention_analytics', {});
+        return { data, error };
+      } catch (error) {
+        return { data: null, error };
+      }
+    })();
+
     const [networkResult, retentionResult] = await Promise.all([
       supabase.rpc('get_admin_network_analytics', { p_active_window_days: 30 }),
       // Retention is a separate, independently-failable RPC -- its absence
       // (e.g. the 20260820 migration not yet applied) must never prevent
       // the rest of the dashboard from rendering.
-      supabase.rpc('get_admin_retention_analytics', {}).catch(err => ({ data: null, error: err }))
+      retentionRequest
     ]);
 
     if (networkResult.error) {

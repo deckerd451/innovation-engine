@@ -23,11 +23,15 @@ assert.match(openModal, /Loading analytics[\s\S]*await loadAnalyticsData\(\)/,
 const loadData = analytics.slice(analytics.indexOf('async function loadAnalyticsData()'), analytics.indexOf('function initials('));
 assert.match(loadData, /supabase\.rpc\('get_admin_network_analytics', \{ p_active_window_days: 30 \}\)/,
   'each canonical loader entry must issue a new network analytics RPC');
+assert.doesNotMatch(loadData, /supabase\.rpc\([\s\S]{0,120}\.catch\(/,
+  'Supabase RPC builders must not use unsupported Promise.catch chaining');
+assert.match(loadData, /const \{ data, error \} = await supabase\.rpc\('get_admin_retention_analytics', \{\}\);[\s\S]*return \{ data, error \};[\s\S]*catch \(error\)[\s\S]*return \{ data: null, error \};/,
+  'optional retention analytics must use the canonical awaited { data, error } result while remaining independently fail-safe');
 assert.match(loadData, /renderError\([\s\S]*retryable: !isAuthError/,
   'data failures must remain retryable while authorization failures stay fail-closed');
 
-assert.match(html, /admin-analytics\.js\?v=admin-analytics-retry-20260822a/, 'post-auth loading must deploy the retry fix');
-assert.match(actions, /import\('\.\/admin-analytics\.js\?v=admin-analytics-retry-20260822a'\)/,
+assert.match(html, /admin-analytics\.js\?v=admin-analytics-rpc-await-20260822b/, 'post-auth loading must deploy the RPC await fix');
+assert.match(actions, /import\('\.\/admin-analytics\.js\?v=admin-analytics-rpc-await-20260822b'\)/,
   'on-demand loading must use the identical canonical module URL');
 
 assert.match(analytics, /function closeAnalyticsModal\([\s\S]*analyticsModal\.style\.display = 'none'/,
