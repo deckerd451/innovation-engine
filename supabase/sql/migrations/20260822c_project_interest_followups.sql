@@ -115,7 +115,7 @@ BEGIN
         FROM public.project_interest_followups f
         WHERE f.project_member_id = pm.id
       ), '[]'::jsonb)
-    ) ORDER BY pm.created_at DESC
+    )
   ), '[]'::jsonb) INTO v_requests
   FROM public.project_members pm
   JOIN public.community requester ON requester.id = pm.user_id

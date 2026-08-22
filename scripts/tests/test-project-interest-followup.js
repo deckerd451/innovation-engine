@@ -17,6 +17,10 @@ assert.match(migration, /Project owners can create request follow-ups[\s\S]*pm\.
 assert.doesNotMatch(migration, /FOR (?:UPDATE|DELETE)/, 'follow-up facts must be append-only');
 assert.match(migration, /get_project_interest_requests[\s\S]*SECURITY DEFINER[\s\S]*owner\.user_id = auth\.uid\(\)[\s\S]*requester\.email/, 'requester email must be returned only through an owner-gated read');
 assert.match(migration, /REVOKE ALL ON FUNCTION public\.get_project_interest_requests\(UUID\) FROM PUBLIC/, 'owner contact lookup must not be publicly executable');
+const ownerRequestRpc = migration.slice(migration.indexOf('CREATE OR REPLACE FUNCTION public.get_project_interest_requests'));
+assert.doesNotMatch(ownerRequestRpc, /pm\.created_at/, 'owner request loading must not depend on the nonexistent live project_members.created_at column');
+assert.doesNotMatch(ownerRequestRpc, /ORDER BY pm\.joined_at/, 'pending requests must not be ordered by joined_at, which represents actual membership and is not populated for requests');
+assert.doesNotMatch(panel, /project_members\.created_at|pm\.created_at/, 'Project request UI must not assume a project_members request timestamp');
 
 assert.match(panel, /from '\.\/followup-contact\.js'/, 'Projects must reuse the Opportunity contact helpers');
 assert.match(panel, /rpc\('get_project_interest_requests', \{ p_project_id: projectId \}\)/, 'Project owner review must use the protected request lookup');
