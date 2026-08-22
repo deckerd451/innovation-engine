@@ -33,14 +33,6 @@
     .follow-up-summary { display: flex; flex-wrap: wrap; gap: .35rem .75rem; margin-top: .5rem; }
     .follow-up-summary span { color: rgba(255,255,255,.65); font-size: .9rem; }
     .contact-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-    .email-dialog-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 1rem; background: rgba(0,0,0,.7); }
-    .email-dialog { width: min(560px, 100%); max-height: calc(100vh - 2rem); overflow-y: auto; box-sizing: border-box; color: #fff; background: #0e1b2e; border: 1px solid rgba(0,224,255,.35); border-radius: 14px; padding: 1.25rem; }
-    .email-dialog h2 { margin-top: 0; }
-    .email-field { margin: .9rem 0; }
-    .email-field label { display: block; margin-bottom: .35rem; color: rgba(255,255,255,.65); font-size: .9rem; }
-    .email-field input, .email-field textarea { width: 100%; box-sizing: border-box; padding: .65rem; color: #fff; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); border-radius: 6px; font: inherit; }
-    .email-field textarea { min-height: 110px; resize: vertical; }
-    .email-dialog-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
     @media (max-width: 520px) { .person { align-items: flex-start; flex-wrap: wrap; } .person .btn { width: 100%; justify-content: center; } }
   </style>
 </head>
@@ -87,9 +79,7 @@
     const emailActions = (person, index) => {
       if (!validEmail(person.email)) return '';
       const draft = emailDraft(person);
-      return `
-        <a class="btn btn-secondary email-action" href="${escapeHtml(draft.href)}" data-person-index="${index}"><i class="fas fa-envelope"></i> Email</a>
-        <button class="btn btn-secondary email-options-action" type="button" data-person-index="${index}">Email details</button>`;
+      return `<a class="btn btn-secondary email-action" href="${escapeHtml(draft.href)}" data-person-index="${index}"><i class="fas fa-envelope"></i> Email</a>`;
     };
 
     const followupSummary = followups => {
@@ -118,61 +108,6 @@
       void recordOpportunityInterestFollowup(opportunity.id, person.id, 'email').catch(error => {
         console.error('Failed to record initiated email follow-up:', error);
       });
-    }
-
-    async function copyText(value, status, successMessage) {
-      try {
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(value);
-        } else {
-          const textarea = document.createElement('textarea');
-          textarea.value = value;
-          textarea.style.position = 'fixed';
-          textarea.style.opacity = '0';
-          document.body.appendChild(textarea);
-          textarea.select();
-          document.execCommand('copy');
-          textarea.remove();
-        }
-        status.textContent = successMessage;
-      } catch (_) {
-        status.textContent = 'Copy was unavailable. Select the details above to copy them manually.';
-      }
-    }
-
-    function openEmailOptions(person) {
-      const draft = emailDraft(person);
-      const backdrop = document.createElement('div');
-      backdrop.className = 'email-dialog-backdrop';
-      backdrop.innerHTML = `
-        <section class="email-dialog" role="dialog" aria-modal="true" aria-labelledby="email-dialog-title">
-        <h2 id="email-dialog-title">Email ${escapeHtml(person.name || 'community member')}</h2>
-        <p class="hint">We’ll try your configured email app. If it doesn’t open, use the copy options below.</p>
-        <div class="email-field"><label for="email-recipient">Recipient</label><input id="email-recipient" value="${escapeHtml(draft.email)}" readonly></div>
-        <div class="email-field"><label for="email-subject">Subject</label><input id="email-subject" value="${escapeHtml(draft.subject)}" readonly></div>
-        <div class="email-field"><label for="email-body">Message</label><textarea id="email-body" readonly>${escapeHtml(draft.body)}</textarea></div>
-        <p class="status" aria-live="polite"></p>
-        <div class="email-dialog-actions">
-          <a class="btn btn-primary try-email-app" href="${escapeHtml(draft.href)}"><i class="fas fa-envelope"></i> Try email app again</a>
-          <button class="btn btn-secondary copy-email" type="button">Copy email</button>
-          <button class="btn btn-secondary copy-message" type="button">Copy message</button>
-          <button class="btn btn-secondary close-email" type="button">Close</button>
-        </div></section>`;
-      document.body.appendChild(backdrop);
-      const dialog = backdrop.querySelector('.email-dialog');
-      const status = dialog.querySelector('.status');
-      const close = () => {
-        document.removeEventListener('keydown', closeOnEscape);
-        backdrop.remove();
-      };
-      const closeOnEscape = event => { if (event.key === 'Escape') close(); };
-      dialog.querySelector('.try-email-app').addEventListener('click', () => recordEmailAttempt(person));
-      dialog.querySelector('.copy-email').addEventListener('click', () => copyText(draft.email, status, 'Email copied.'));
-      dialog.querySelector('.copy-message').addEventListener('click', () => copyText(`To: ${draft.email}\nSubject: ${draft.subject}\n\n${draft.body}`, status, 'Message copied.'));
-      dialog.querySelector('.close-email').addEventListener('click', close);
-      backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
-      document.addEventListener('keydown', closeOnEscape);
-      dialog.querySelector('a').focus();
     }
 
     document.addEventListener('DOMContentLoaded', initialize);
@@ -287,9 +222,6 @@
           </article>`).join('');
         target.querySelectorAll('.email-action').forEach(button => {
           button.addEventListener('click', () => recordEmailAttempt(people[Number(button.dataset.personIndex)].community));
-        });
-        target.querySelectorAll('.email-options-action').forEach(button => {
-          button.addEventListener('click', () => openEmailOptions(people[Number(button.dataset.personIndex)].community));
         });
       } catch (error) {
         console.error('Failed to load interested people:', error);

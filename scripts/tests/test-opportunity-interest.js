@@ -39,18 +39,12 @@ assert.match(page, /mailto:\$\{encodeURIComponent\(email\)\}\?subject=\$\{encode
 assert.match(page, /const subject = `Interest in \$\{title\}`/, 'email subject must identify the opportunity');
 assert.match(page, /const body = `Hi \$\{name\},[\s\S]*interest in \$\{title\}/, 'email body must identify the interested person and opportunity');
 assert.match(page, /<a class="btn btn-primary"[^>]*><i class="fas fa-comment"><\/i> Message<\/a>[\s\S]*\$\{emailActions\(person, index\)\}/, 'in-app messaging must be an explicit primary channel in each row');
-assert.match(page, /fa-envelope[^\n]*> Email<\/a>[\s\S]*Email details/, 'email and its fallback details must remain explicit without presenting email as a secondary substitute');
 assert.match(page, /<a class="btn btn-secondary email-action" href="\$\{escapeHtml\(draft\.href\)\}"/, 'the primary email action must be a native mailto anchor');
 assert.match(page, /function recordEmailAttempt\(person\)[\s\S]*void recordOpportunityInterestFollowup\(opportunity\.id, person\.id, 'email'\)/, 'native email clicks must start best-effort durable history without awaiting it');
 assert.match(page, /email-action[\s\S]*addEventListener\('click', \(\) => recordEmailAttempt/, 'the native email click must record the truthful email channel');
 assert.doesNotMatch(page, /email-action[\s\S]{0,300}preventDefault\(/, 'the primary native mailto handoff must not be intercepted');
 assert.doesNotMatch(page, /Promise\.race\([\s\S]*setTimeout\(resolve, 300\)/, 'native mailto navigation must not wait on persistence');
-assert.match(page, /email-options-action[\s\S]*openEmailOptions/, 'email details and copy actions must remain available as a secondary fallback');
-const emailFallback = page.slice(page.indexOf('function openEmailOptions(person)'), page.indexOf("document.addEventListener('DOMContentLoaded'"));
-assert.doesNotMatch(emailFallback, /window\.location\.href = draft\.href/, 'opening the fallback panel must not trigger another scripted mailto handoff');
-assert.match(page, /role="dialog" aria-modal="true"[\s\S]*closeOnEscape/, 'email fallback must be an accessible dismissible panel without relying on native dialog support');
-assert.match(page, /Recipient[\s\S]*Subject[\s\S]*Message[\s\S]*Try email app again[\s\S]*Copy email[\s\S]*Copy message/, 'email fallback must expose the complete draft and retry/copy actions');
-assert.match(page, /navigator\.clipboard\?\.writeText[\s\S]*document\.execCommand\('copy'\)/, 'copy actions must degrade when the modern clipboard API is unavailable');
+assert.doesNotMatch(page, /Email details|email-options-action|openEmailOptions|email-dialog|Try email app again|copy-email|copy-message/, 'the redundant visible email fallback and its unreachable implementation must be removed');
 assert.doesNotMatch(page, /person-info[\s\S]{0,500}\$\{escapeHtml\(person\.email\)\}/, 'email address must not be displayed in the normal interested-person row');
 assert.match(main, /await window\.openMessagesModal\(\);[\s\S]*window\.MessagingModule\.startConversation\(contactId, context\)/, 'opportunity contact intent must use the canonical in-app messaging flow');
 assert.match(main, /if \(!conversationId\)[\s\S]*return;[\s\S]*record_opportunity_interest_followup[\s\S]*p_channel: "message"/, 'message follow-up must be recorded only after a conversation is initiated');
@@ -111,7 +105,6 @@ assert.match(followupMigration, /Posters can create opportunity interest follow-
 assert.doesNotMatch(followupMigration, /FOR (?:UPDATE|DELETE)/, 'follow-up history must be append-only');
 assert.match(followupMigration, /SECURITY INVOKER/, 'follow-up recording RPC must preserve RLS authorization');
 assert.match(manager, /followups:opportunity_interest_followups[\s\S]*channel[\s\S]*initiated_at/, 'poster interest reads must include follow-up history');
-assert.match(page, /try-email-app[\s\S]*addEventListener\('click', \(\) => recordEmailAttempt\(person\)\)/, 'fallback retry must retain native anchor navigation and record another explicit email attempt');
 assert.match(page, /const followupSummary = followups[\s\S]*new Map\(\)[\s\S]*\['message', 'email'\][\s\S]*summary\.count > 1[\s\S]*\$\{label\} initiated/, 'follow-up history must stay compact by showing one truthful latest summary and attempt count per channel');
 assert.match(page, /\$\{followupSummary\(followups\)\}/, 'each interested person must render the compact follow-up summary');
 assert.doesNotMatch(page, /Email (?:sent|delivered)/i, 'the UI must not claim mailto delivery');
