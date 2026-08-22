@@ -10,6 +10,7 @@ const page = fs.readFileSync(path.join(root, 'opportunity.html'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'assets/js/command-dashboard.js'), 'utf8');
 const coordinator = fs.readFileSync(path.join(root, 'assets/js/explorer-coordinator.js'), 'utf8');
 const panel = fs.readFileSync(path.join(root, 'assets/js/node-panel.js'), 'utf8');
+const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/migrations/20260822_opportunity_interests.sql'), 'utf8');
 
 for (const exportedFunction of [
@@ -29,8 +30,11 @@ assert.match(page, /profileId === opportunity\.posted_by/, 'poster view must be 
 assert.match(page, /getInterestedPeople\(opportunityId\)/, 'poster detail page must load interested people');
 assert.match(page, /expressOpportunityInterest\(opportunityId\)/, 'member detail page must support expressing interest');
 assert.match(page, /withdrawOpportunityInterest\(opportunityId\)/, 'member detail page must support withdrawing interest');
-assert.match(manager, /name,\s*email,\s*role/, 'poster query must retrieve the interested member contact email');
-assert.match(page, /href="mailto:/, 'poster must have a direct contact action for interested members');
+assert.doesNotMatch(manager, /community:community_id\s*\([\s\S]*?\bemail\b[\s\S]*?\)/, 'interested-person lookup must not expose email when in-app messaging only needs community id');
+assert.match(page, /href="index\.html\?contact=\$\{encodeURIComponent\(person\.id\)\}&opportunity=\$\{encodeURIComponent\(opportunity\.id\)\}&opportunityTitle=\$\{encodeURIComponent\(opportunity\.title\)\}"/, 'poster contact must hand the interested community id to the deployment-safe main-app route');
+assert.doesNotMatch(page, /href="mailto:/, 'poster contact must not depend on an external mail handler');
+assert.match(main, /await window\.openMessagesModal\(\);[\s\S]*window\.MessagingModule\.startConversation\(contactId, context\)/, 'opportunity contact intent must use the canonical in-app messaging flow');
+assert.match(main, /type: "opportunity"[\s\S]*params\.get\("opportunity"\)[\s\S]*params\.get\("opportunityTitle"\)/, 'the conversation must retain opportunity context');
 assert.match(page, /people\.map\(\(\{ community: person, created_at \}\) => person \?/, 'null community profiles must be handled per interest row');
 assert.match(page, /Profile unavailable/, 'hidden or unavailable profiles must render without exposing profile data');
 assert.match(page, /class="back-link" href="opportunities\.html"/, 'the all-opportunities link must preserve a GitHub Pages project base path');

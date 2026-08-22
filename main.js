@@ -65,6 +65,49 @@ function waitForGlobals() {
   });
 }
 
+async function openOpportunityContactIntent() {
+  if (window.__IE_OPPORTUNITY_CONTACT_OPENED__) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const contactId = params.get("contact");
+  if (!contactId) return;
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(contactId)) {
+    log.warn("Ignoring invalid opportunity contact target");
+    return;
+  }
+
+  const startedAt = Date.now();
+  while ((typeof window.openMessagesModal !== "function" ||
+          typeof window.MessagingModule?.startConversation !== "function") &&
+         Date.now() - startedAt < 5000) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+
+  if (typeof window.openMessagesModal !== "function" ||
+      typeof window.MessagingModule?.startConversation !== "function") {
+    log.error("Opportunity contact messaging is unavailable");
+    return;
+  }
+
+  window.__IE_OPPORTUNITY_CONTACT_OPENED__ = true;
+  const context = {
+    type: "opportunity",
+    id: params.get("opportunity") || null,
+    title: params.get("opportunityTitle") || null,
+  };
+
+  params.delete("contact");
+  params.delete("opportunity");
+  params.delete("opportunityTitle");
+  const remainingQuery = params.toString();
+  history.replaceState({}, "", window.location.pathname + (remainingQuery ? `?${remainingQuery}` : "") + window.location.hash);
+
+  await window.openMessagesModal();
+  const conversationId = await window.MessagingModule.startConversation(contactId, context);
+  if (!conversationId) log.error("Unable to open opportunity contact conversation");
+}
+
 // ------------------------------
 // Profile-loaded orchestration (attach EARLY so we don't miss events)
 // ------------------------------
@@ -246,6 +289,8 @@ async function onProfileLoaded(e) {
       log.warn("⚠️ CommandDashboard not loaded — dashboard content unavailable");
     }
   }
+
+  await openOpportunityContactIntent();
 
   // ------------------------------
   // Admin controls script load (single-flight, only after auth)

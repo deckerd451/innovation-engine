@@ -161,7 +161,7 @@
               <strong class="person-name">${escapeHtml(person.name || 'Community member')}</strong>
               <p>${escapeHtml(person.role || 'Community member')} · Interested ${escapeHtml(formatDate(created_at))}</p>
             </div>
-            ${person.email ? `<a class="btn btn-primary" href="mailto:${encodeURIComponent(person.email)}?subject=${encodeURIComponent(`Your interest in ${opportunity.title}`)}"><i class="fas fa-envelope"></i> Contact</a>` : '<span class="hint">No contact email shared</span>'}
+            <a class="btn btn-primary" href="index.html?contact=${encodeURIComponent(person.id)}&opportunity=${encodeURIComponent(opportunity.id)}&opportunityTitle=${encodeURIComponent(opportunity.title)}"><i class="fas fa-comment"></i> Contact</a>
           </article>` : `
           <article class="person">
             <span class="avatar"></span>
