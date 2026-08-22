@@ -543,7 +543,8 @@ window.CommandDashboard = (() => {
         // All organizations
         window.supabase
           .from('organizations')
-          .select('id, name, description'),
+          .select('id, name, description, created_at')
+          .order('created_at', { ascending: false }),
         // Orgs the current user belongs to
         window.supabase
           .from('organization_members')
@@ -1945,6 +1946,7 @@ window.CommandDashboard = (() => {
       const submitBtn = $id('udc-add-submit');
       if (!window.OrganizationManager?.createOrganization) {
         completed = false;
+        window.retryPostAuthModule?.('organization-manager.js');
         const message = 'Organization creation is still loading. Please try again.';
         if (window.showToastNotification) window.showToastNotification(message, 'error');
         else alert(message);

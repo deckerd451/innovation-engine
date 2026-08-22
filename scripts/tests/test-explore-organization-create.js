@@ -15,6 +15,10 @@ assert.match(src, /await window\.OrganizationManager\.createOrganization\(\{[\s\
   'Explorer organization creation must await the canonical authorization-aware mutation');
 assert.doesNotMatch(src, /resourceType === 'organizations'[\s\S]{0,300}_showAddConfirmation/,
   'Explorer must not claim an organization was added without persistence');
+assert.match(src, /\.from\('organizations'\)\s*\.select\('id, name, description, created_at'\)\s*\.order\('created_at', \{ ascending: false \}\)/,
+  'canonical reconciliation must fetch newest organizations first so a new row survives the capped preview');
+assert.match(src, /if \(!window\.OrganizationManager\?\.createOrganization\) \{[\s\S]*?window\.retryPostAuthModule\?\.\('organization-manager\.js'\);/,
+  'an unavailable organization manager must restart the existing post-auth module loader');
 
 const noop = () => {};
 const fakeEl = () => ({
