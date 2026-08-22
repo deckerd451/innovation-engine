@@ -34,11 +34,12 @@ assert.match(page, /expressOpportunityInterest\(opportunityId\)/, 'member detail
 assert.match(page, /withdrawOpportunityInterest\(opportunityId\)/, 'member detail page must support withdrawing interest');
 assert.match(manager, /community:community_id\s*\([\s\S]*?\bemail\b[\s\S]*?\)/, 'the existing poster-authorized lookup must return email for the optional contact action');
 assert.match(page, /href="index\.html\?contact=\$\{encodeURIComponent\(person\.id\)\}&opportunity=\$\{encodeURIComponent\(opportunity\.id\)\}&opportunityTitle=\$\{encodeURIComponent\(opportunity\.title\)\}"/, 'poster contact must hand the interested community id to the deployment-safe main-app route');
-assert.match(page, /if \(!validEmail\(person\.email\)\) return ''[\s\S]*Email instead/, 'email must be optional and shown only for a valid address');
+assert.match(page, /if \(!validEmail\(person\.email\)\) return ''[\s\S]*fa-envelope[^\n]*> Email<\/a>/, 'email must be optional and shown only for a valid address');
 assert.match(page, /mailto:\$\{encodeURIComponent\(email\)\}\?subject=\$\{encodeURIComponent\(subject\)\}&body=\$\{encodeURIComponent\(body\)\}/, 'email must retain a safely encoded mailto draft');
 assert.match(page, /const subject = `Interest in \$\{title\}`/, 'email subject must identify the opportunity');
 assert.match(page, /const body = `Hi \$\{name\},[\s\S]*interest in \$\{title\}/, 'email body must identify the interested person and opportunity');
-assert.match(page, /<a class="btn btn-primary"[^>]*><i class="fas fa-comment"><\/i> Contact<\/a>[\s\S]*\$\{emailActions\(person, index\)\}/, 'in-app messaging must remain the primary contact action in each row');
+assert.match(page, /<a class="btn btn-primary"[^>]*><i class="fas fa-comment"><\/i> Message<\/a>[\s\S]*\$\{emailActions\(person, index\)\}/, 'in-app messaging must be an explicit primary channel in each row');
+assert.match(page, /fa-envelope[^\n]*> Email<\/a>[\s\S]*Email details/, 'email and its fallback details must remain explicit without presenting email as a secondary substitute');
 assert.match(page, /<a class="btn btn-secondary email-action" href="\$\{escapeHtml\(draft\.href\)\}"/, 'the primary email action must be a native mailto anchor');
 assert.match(page, /function recordEmailAttempt\(person\)[\s\S]*void recordOpportunityInterestFollowup\(opportunity\.id, person\.id, 'email'\)/, 'native email clicks must start best-effort durable history without awaiting it');
 assert.match(page, /email-action[\s\S]*addEventListener\('click', \(\) => recordEmailAttempt/, 'the native email click must record the truthful email channel');
@@ -111,7 +112,8 @@ assert.doesNotMatch(followupMigration, /FOR (?:UPDATE|DELETE)/, 'follow-up histo
 assert.match(followupMigration, /SECURITY INVOKER/, 'follow-up recording RPC must preserve RLS authorization');
 assert.match(manager, /followups:opportunity_interest_followups[\s\S]*channel[\s\S]*initiated_at/, 'poster interest reads must include follow-up history');
 assert.match(page, /try-email-app[\s\S]*addEventListener\('click', \(\) => recordEmailAttempt\(person\)\)/, 'fallback retry must retain native anchor navigation and record another explicit email attempt');
-assert.match(page, /Email initiated[\s\S]*Follow-up started[\s\S]*Message/, 'follow-up history wording must describe initiation without claiming delivery');
+assert.match(page, /const followupSummary = followups[\s\S]*new Map\(\)[\s\S]*\['message', 'email'\][\s\S]*summary\.count > 1[\s\S]*\$\{label\} initiated/, 'follow-up history must stay compact by showing one truthful latest summary and attempt count per channel');
+assert.match(page, /\$\{followupSummary\(followups\)\}/, 'each interested person must render the compact follow-up summary');
 assert.doesNotMatch(page, /Email (?:sent|delivered)/i, 'the UI must not claim mailto delivery');
 
 console.log('Opportunity interest flow and privacy: all checks passed');

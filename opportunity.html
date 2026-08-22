@@ -30,6 +30,8 @@
     .avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,.1); }
     .person-info { min-width: 0; flex: 1; }
     .person-info p { margin: .25rem 0 0; color: rgba(255,255,255,.65); }
+    .follow-up-summary { display: flex; flex-wrap: wrap; gap: .35rem .75rem; margin-top: .5rem; }
+    .follow-up-summary span { color: rgba(255,255,255,.65); font-size: .9rem; }
     .contact-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
     .email-dialog-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 1rem; background: rgba(0,0,0,.7); }
     .email-dialog { width: min(560px, 100%); max-height: calc(100vh - 2rem); overflow-y: auto; box-sizing: border-box; color: #fff; background: #0e1b2e; border: 1px solid rgba(0,224,255,.35); border-radius: 14px; padding: 1.25rem; }
@@ -86,8 +88,30 @@
       if (!validEmail(person.email)) return '';
       const draft = emailDraft(person);
       return `
-        <a class="btn btn-secondary email-action" href="${escapeHtml(draft.href)}" data-person-index="${index}"><i class="fas fa-envelope"></i> Email instead</a>
-        <button class="btn btn-secondary email-options-action" type="button" data-person-index="${index}">Email options</button>`;
+        <a class="btn btn-secondary email-action" href="${escapeHtml(draft.href)}" data-person-index="${index}"><i class="fas fa-envelope"></i> Email</a>
+        <button class="btn btn-secondary email-options-action" type="button" data-person-index="${index}">Email details</button>`;
+    };
+
+    const followupSummary = followups => {
+      const byChannel = new Map();
+      followups.forEach(followup => {
+        if (!['message', 'email'].includes(followup.channel)) return;
+        const current = byChannel.get(followup.channel);
+        if (!current) {
+          byChannel.set(followup.channel, { count: 1, latest: followup.initiated_at });
+          return;
+        }
+        current.count += 1;
+        if (new Date(followup.initiated_at) > new Date(current.latest)) current.latest = followup.initiated_at;
+      });
+      const summaries = ['message', 'email'].flatMap(channel => {
+        const summary = byChannel.get(channel);
+        if (!summary) return [];
+        const label = channel === 'message' ? 'Message' : 'Email';
+        const attempts = summary.count > 1 ? ` · ${summary.count} attempts` : '';
+        return `<span>${label} initiated ${escapeHtml(formatDate(summary.latest))}${attempts}</span>`;
+      });
+      return summaries.length ? `<div class="follow-up-summary" aria-label="Follow-up history">${summaries.join('')}</div>` : '';
     };
 
     function recordEmailAttempt(person) {
@@ -247,14 +271,10 @@
             <div class="person-info">
               <strong class="person-name">${escapeHtml(person.name || 'Community member')}</strong>
               <p>${escapeHtml(person.role || 'Community member')} · Interested ${escapeHtml(formatDate(created_at))}</p>
-              ${followups.sort((a, b) => new Date(b.initiated_at) - new Date(a.initiated_at)).map(followup =>
-                `<p class="follow-up-history">${followup.channel === 'email'
-                  ? `Email initiated ${escapeHtml(formatDate(followup.initiated_at))}`
-                  : `Follow-up started ${escapeHtml(formatDate(followup.initiated_at))} · Message`}</p>`
-              ).join('')}
+              ${followupSummary(followups)}
             </div>
             <div class="contact-actions">
-              <a class="btn btn-primary" href="index.html?contact=${encodeURIComponent(person.id)}&opportunity=${encodeURIComponent(opportunity.id)}&opportunityTitle=${encodeURIComponent(opportunity.title)}"><i class="fas fa-comment"></i> Contact</a>
+              <a class="btn btn-primary" href="index.html?contact=${encodeURIComponent(person.id)}&opportunity=${encodeURIComponent(opportunity.id)}&opportunityTitle=${encodeURIComponent(opportunity.title)}"><i class="fas fa-comment"></i> Message</a>
               ${emailActions(person, index)}
             </div>
           </article>` : `
