@@ -7,6 +7,9 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '../..');
 const manager = fs.readFileSync(path.join(root, 'assets/js/organizations/opportunities.js'), 'utf8');
 const page = fs.readFileSync(path.join(root, 'opportunity.html'), 'utf8');
+const dashboard = fs.readFileSync(path.join(root, 'assets/js/command-dashboard.js'), 'utf8');
+const coordinator = fs.readFileSync(path.join(root, 'assets/js/explorer-coordinator.js'), 'utf8');
+const panel = fs.readFileSync(path.join(root, 'assets/js/node-panel.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/migrations/20260822_opportunity_interests.sql'), 'utf8');
 
 for (const exportedFunction of [
@@ -30,6 +33,12 @@ assert.match(manager, /name,\s*email,\s*role/, 'poster query must retrieve the i
 assert.match(page, /href="mailto:/, 'poster must have a direct contact action for interested members');
 assert.match(page, /people\.map\(\(\{ community: person, created_at \}\) => person \?/, 'null community profiles must be handled per interest row');
 assert.match(page, /Profile unavailable/, 'hidden or unavailable profiles must render without exposing profile data');
+
+assert.match(dashboard, /ExplorerCoordinator\.selectOpportunity\(\{ id, label: name \}\)/, 'the normal Opps surface must select opportunities through ExplorerCoordinator');
+assert.match(coordinator, /await window\.openNodePanel\(\{ id, type: 'opportunity', name: label \}\)/, 'opportunity selection must preserve the current detail-panel flow');
+assert.match(panel, /href="\/opportunity\.html\?id=\$\{encodeURIComponent\(opp\.id\)\}"/, 'the in-app opportunity panel must link to the canonical interest workflow');
+assert.match(panel, /Express or manage interest/, 'members must see an obvious interest action in the normal in-app flow');
+assert.match(panel, /View interested people/, 'posters must see an obvious interested-people action in the normal in-app flow');
 
 assert.match(migration, /UNIQUE\s*\(opportunity_id, community_id\)/i, 'duplicate interest must be prevented in the database');
 assert.match(migration, /Members and posters can view opportunity interests/, 'read access policy must be explicit');

@@ -751,6 +751,14 @@ async function renderOpportunityPanel(nodeData) {
 
       ${renderOpportunityRelevantPeople(opp.id, typeColor)}
 
+      <!-- Canonical interest workflow -->
+      <div style="margin: 1.5rem 0;">
+        <a href="/opportunity.html?id=${encodeURIComponent(opp.id)}" style="width: 100%; box-sizing: border-box; padding: 0.85rem; background: linear-gradient(135deg, ${typeColor}, ${typeColor}cc); border: none; border-radius: 8px; color: #041018; font-weight: bold; cursor: pointer; font-size: 1rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          <i class="fas ${currentUserProfile?.id === opp.posted_by ? 'fa-users' : 'fa-hand'}"></i>
+          ${currentUserProfile?.id === opp.posted_by ? 'View interested people' : 'Express or manage interest'}
+        </a>
+      </div>
+
       <!-- Status badge -->
       <div style="text-align: center; margin-top: 1rem;">
         <span style="background: ${opp.status === 'open' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${opp.status === 'open' ? '#10b981' : '#ef4444'}; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
