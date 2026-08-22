@@ -22,6 +22,10 @@
 //  - getOpportunitiesByOrganization(organizationId)
 //  - incrementViewCount(id)
 //  - incrementApplicationCount(id)
+//  - getOpportunityInterest(id)
+//  - expressOpportunityInterest(id)
+//  - withdrawOpportunityInterest(id)
+//  - getInterestedPeople(id)
 // ================================================================
 
 /* global console */
@@ -253,10 +257,12 @@ export async function updateOpportunity(id, updates) {
       throw new Error("You don't have permission to edit this opportunity");
     }
 
+    // Ownership is assigned at creation and must never be transferred by an edit.
+    const { posted_by: _ignoredPostedBy, ...safeUpdates } = updates;
     const { data: opportunity, error } = await supabase
       .from("opportunities")
       .update({
-        ...updates,
+        ...safeUpdates,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -549,6 +555,92 @@ export async function incrementApplicationCount(id) {
   }
 }
 
+// ========================
+// OPPORTUNITY INTEREST
+// ========================
+
+/** Return the signed-in member's interest record, or null. */
+export async function getOpportunityInterest(opportunityId) {
+  if (!currentUserCommunityId) return null;
+
+  const { data, error } = await supabase
+    .from("opportunity_interests")
+    .select("id, opportunity_id, community_id, created_at")
+    .eq("opportunity_id", opportunityId)
+    .eq("community_id", currentUserCommunityId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/** Express interest once. The database uniqueness constraint makes this idempotent. */
+export async function expressOpportunityInterest(opportunityId) {
+  if (!currentUserCommunityId) {
+    throw new Error("Sign in to express interest in this opportunity");
+  }
+
+  const { data, error } = await supabase
+    .from("opportunity_interests")
+    .insert({ opportunity_id: opportunityId, community_id: currentUserCommunityId })
+    .select("id, opportunity_id, community_id, created_at")
+    .single();
+
+  // A retry or second tab may race the first insert. Return the existing row
+  // instead of requiring UPDATE permission on this immutable record.
+  if (error?.code === "23505") return getOpportunityInterest(opportunityId);
+  if (error) throw error;
+  showToast("Interest shared with the opportunity poster", "success");
+  return data;
+}
+
+/** Withdraw the signed-in member's interest. */
+export async function withdrawOpportunityInterest(opportunityId) {
+  if (!currentUserCommunityId) {
+    throw new Error("Sign in to manage your interest");
+  }
+
+  const { error } = await supabase
+    .from("opportunity_interests")
+    .delete()
+    .eq("opportunity_id", opportunityId)
+    .eq("community_id", currentUserCommunityId);
+
+  if (error) throw error;
+  showToast("Interest withdrawn", "success");
+  return true;
+}
+
+/**
+ * Return interested people to the opportunity poster. RLS is the final
+ * authorization boundary; callers receive no rows for opportunities they did
+ * not post.
+ */
+export async function getInterestedPeople(opportunityId) {
+  if (!currentUserCommunityId) return [];
+
+  const { data, error } = await supabase
+    .from("opportunity_interests")
+    .select(`
+      id,
+      created_at,
+      community:community_id (
+        id,
+        name,
+        email,
+        role,
+        bio,
+        image_url,
+        skills
+      )
+    `)
+    .eq("opportunity_id", opportunityId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
 /**
  * Get recommended opportunities for current user based on skills
  * @returns {Promise<Array>} Array of recommended opportunities
@@ -616,6 +708,10 @@ if (typeof window !== "undefined") {
     getOpportunitiesByOrganization,
     incrementViewCount,
     incrementApplicationCount,
+    getOpportunityInterest,
+    expressOpportunityInterest,
+    withdrawOpportunityInterest,
+    getInterestedPeople,
     getRecommendedOpportunities,
   };
 }
