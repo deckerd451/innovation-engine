@@ -117,7 +117,42 @@ async function verifyStaleRefreshCannotOverwriteNewerOrganizations() {
   assert.deepEqual(JSON.parse(JSON.stringify(state.myOrgIds)), ['new-org']);
 }
 
-verifyStaleRefreshCannotOverwriteNewerOrganizations()
+async function verifyConcurrentOrganizationSubmitIsIgnored() {
+  const elements = {
+    'udc-add-name': { value: 'Guarded Org', style: {}, focus: noop },
+    'udc-add-desc': { value: 'One canonical create', style: {} },
+    'udc-add-submit': { disabled: false },
+    'udc-add-form': { classList: { add: noop } },
+    'udc-add-resource-btn': { classList: { remove: noop } },
+  };
+  documentShim.getElementById = id => elements[id] || null;
+  sandbox.window.supabase = null;
+
+  let rejectFirst;
+  let createCalls = 0;
+  sandbox.window.OrganizationManager = {
+    createOrganization() {
+      createCalls += 1;
+      if (createCalls === 1) {
+        return new Promise((resolve, reject) => { rejectFirst = reject; });
+      }
+      return Promise.resolve({ id: 'retry-org', name: 'Guarded Org' });
+    },
+  };
+
+  const firstSubmit = sandbox.window.CommandDashboard.__testHandleAddSubmit('organizations');
+  const overlappingSubmit = sandbox.window.CommandDashboard.__testHandleAddSubmit('organizations');
+  assert.equal(createCalls, 1, 'a submission while creation is pending must not create again');
+
+  rejectFirst(new Error('test failure'));
+  await Promise.all([firstSubmit, overlappingSubmit]);
+  await sandbox.window.CommandDashboard.__testHandleAddSubmit('organizations');
+  assert.equal(createCalls, 2, 'the guard must be released after failure so retry remains possible');
+}
+
+Promise.resolve()
+  .then(verifyStaleRefreshCannotOverwriteNewerOrganizations)
+  .then(verifyConcurrentOrganizationSubmitIsIgnored)
   .then(() => console.log('Explore organization creation: all checks passed'))
   .catch(error => {
     console.error(error);

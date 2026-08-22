@@ -107,6 +107,7 @@ window.CommandDashboard = (() => {
   let _authUserId = null;       // auth.users.id (for generateDailyBrief)
   let _activeResourceTab = 'people';
   let _addFormOpen = false;     // inline add-resource form visibility
+  let _organizationCreateInFlight = false;
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
   let _enrichedDataLoadVersion = 0; // latest refresh wins when requests overlap
@@ -1922,6 +1923,8 @@ window.CommandDashboard = (() => {
 
   /** Handle the submit action for the add form */
   async function _handleAddSubmit(resourceType) {
+    if (resourceType === 'organizations' && _organizationCreateInFlight) return;
+
     const nameEl = $id('udc-add-name');
     const descEl = $id('udc-add-desc');
     const typeEl = $id('udc-add-type');
@@ -1958,6 +1961,7 @@ window.CommandDashboard = (() => {
         if (window.showToastNotification) window.showToastNotification(message, 'error');
         else alert(message);
       } else {
+        _organizationCreateInFlight = true;
         if (submitBtn) submitBtn.disabled = true;
         try {
           const organization = await window.OrganizationManager.createOrganization({
@@ -1971,6 +1975,7 @@ window.CommandDashboard = (() => {
           // OrganizationManager owns the user-facing error toast so the same
           // validation/authorization message is not shown twice.
         } finally {
+          _organizationCreateInFlight = false;
           if (submitBtn) submitBtn.disabled = false;
         }
       }
@@ -2140,6 +2145,10 @@ window.CommandDashboard = (() => {
         organizations: _enrichedData.organizations,
         myOrgIds: [...(_enrichedData.myOrgIds || [])],
       };
+    },
+    /** TEST-ONLY: exercises all submission-path guards in the real handler. */
+    async __testHandleAddSubmit(resourceType) {
+      await _handleAddSubmit(resourceType);
     },
     /**
      * TEST-ONLY: direct access to the Explore opportunity visibility
