@@ -33,6 +33,15 @@ assert.match(manager, /name,\s*email,\s*role/, 'poster query must retrieve the i
 assert.match(page, /href="mailto:/, 'poster must have a direct contact action for interested members');
 assert.match(page, /people\.map\(\(\{ community: person, created_at \}\) => person \?/, 'null community profiles must be handled per interest row');
 assert.match(page, /Profile unavailable/, 'hidden or unavailable profiles must render without exposing profile data');
+assert.match(page, /class="back-link" href="opportunities\.html"/, 'the all-opportunities link must preserve a GitHub Pages project base path');
+assert.doesNotMatch(page, /class="back-link" href="\/opportunities\.html"/, 'the all-opportunities link must not be root-relative');
+
+const singleOpportunityQuery = manager.slice(
+  manager.indexOf('export async function getOpportunity(id)'),
+  manager.indexOf('export async function getOpportunities(filters')
+);
+assert.match(singleOpportunityQuery, /\.from\("opportunities"\)\s*\.select\("\*"\)\s*\.eq\("id", id\)\s*\.single\(\)/, 'single-opportunity loading must use the canonical opportunity row query');
+assert.doesNotMatch(singleOpportunityQuery, /organizations\s*\(|theme_circles\s*\(|projects\s*\(/, 'single-opportunity loading must not depend on unnecessary nested relationships');
 
 assert.match(dashboard, /ExplorerCoordinator\.selectOpportunity\(\{ id, label: name \}\)/, 'the normal Opps surface must select opportunities through ExplorerCoordinator');
 assert.match(coordinator, /await window\.openNodePanel\(\{ id, type: 'opportunity', name: label \}\)/, 'opportunity selection must preserve the current detail-panel flow');

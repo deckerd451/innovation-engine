@@ -343,26 +343,7 @@ export async function getOpportunity(id) {
   try {
     const { data: opportunity, error } = await supabase
       .from("opportunities")
-      .select(`
-        *,
-        organizations (
-          id,
-          name,
-          slug,
-          logo_url,
-          verified
-        ),
-        theme_circles (
-          id,
-          title,
-          description
-        ),
-        projects (
-          id,
-          title,
-          description
-        )
-      `)
+      .select("*")
       .eq("id", id)
       .single();
 
