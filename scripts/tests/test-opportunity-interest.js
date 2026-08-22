@@ -12,12 +12,14 @@ const coordinator = fs.readFileSync(path.join(root, 'assets/js/explorer-coordina
 const panel = fs.readFileSync(path.join(root, 'assets/js/node-panel.js'), 'utf8');
 const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/sql/migrations/20260822_opportunity_interests.sql'), 'utf8');
+const followupMigration = fs.readFileSync(path.join(root, 'supabase/sql/migrations/20260822b_opportunity_interest_followups.sql'), 'utf8');
 
 for (const exportedFunction of [
   'getOpportunityInterest',
   'expressOpportunityInterest',
   'withdrawOpportunityInterest',
-  'getInterestedPeople'
+  'getInterestedPeople',
+  'recordOpportunityInterestFollowup'
 ]) {
   assert.match(manager, new RegExp(`export async function ${exportedFunction}\\b`), `${exportedFunction} must be exported`);
 }
@@ -43,8 +45,9 @@ assert.match(page, /Recipient[\s\S]*Subject[\s\S]*Message[\s\S]*Try email app ag
 assert.match(page, /navigator\.clipboard\?\.writeText[\s\S]*document\.execCommand\('copy'\)/, 'copy actions must degrade when the modern clipboard API is unavailable');
 assert.doesNotMatch(page, /person-info[\s\S]{0,500}\$\{escapeHtml\(person\.email\)\}/, 'email address must not be displayed in the normal interested-person row');
 assert.match(main, /await window\.openMessagesModal\(\);[\s\S]*window\.MessagingModule\.startConversation\(contactId, context\)/, 'opportunity contact intent must use the canonical in-app messaging flow');
+assert.match(main, /if \(!conversationId\)[\s\S]*return;[\s\S]*record_opportunity_interest_followup[\s\S]*p_channel: "message"/, 'message follow-up must be recorded only after a conversation is initiated');
 assert.match(main, /type: "opportunity"[\s\S]*params\.get\("opportunity"\)[\s\S]*params\.get\("opportunityTitle"\)/, 'the conversation must retain opportunity context');
-assert.match(page, /people\.map\(\(\{ community: person, created_at \}, index\) => person \?/, 'null community profiles must be handled per interest row');
+assert.match(page, /people\.map\(\(\{ community: person, created_at, followups = \[\] \}, index\) => person \?/, 'null community profiles must be handled per interest row');
 assert.match(page, /Profile unavailable/, 'hidden or unavailable profiles must render without exposing profile data');
 assert.match(page, /class="back-link" href="index\.html\?explorer=opportunities"/, 'the back link must return to the deployment-safe canonical Opps experience');
 assert.doesNotMatch(page, /class="back-link" href="\/?opportunities\.html"/, 'the back link must not route through the standalone opportunities page');
@@ -91,5 +94,17 @@ assert.match(page, /deadlinePassed && !isPoster && !interest/, 'expired opportun
 assert.match(page, /if \(isPoster\) await renderInterestedPeople\(\)/, 'poster must still load interested people after passing the deadline gate');
 assert.match(page, /interest = interest\s*\?\s*\(await withdrawOpportunityInterest\(opportunityId\), null\)\s*:\s*await expressOpportunityInterest\(opportunityId\)/, 'existing interested members must retain withdrawal while new interest uses the protected insert path');
 assert.match(migration, /o\.application_deadline IS NULL OR o\.application_deadline > NOW\(\)/, 'database policy must block new interest after the deadline');
+
+assert.match(followupMigration, /CREATE TABLE IF NOT EXISTS public\.opportunity_interest_followups/, 'follow-up history must be durable');
+assert.match(followupMigration, /REFERENCES public\.opportunity_interests\(id\) ON DELETE CASCADE/, 'follow-ups must belong to the private interest relationship');
+assert.match(followupMigration, /CHECK \(channel IN \('message', 'email'\)\)/, 'follow-up channels must use a narrow truthful taxonomy');
+assert.match(followupMigration, /Posters can view opportunity interest follow-ups[\s\S]*poster\.user_id = auth\.uid\(\)/, 'only the actual poster may read follow-up history');
+assert.match(followupMigration, /Posters can create opportunity interest follow-ups[\s\S]*poster\.user_id = auth\.uid\(\)/, 'only the actual poster may create follow-up history');
+assert.doesNotMatch(followupMigration, /FOR (?:UPDATE|DELETE)/, 'follow-up history must be append-only');
+assert.match(followupMigration, /SECURITY INVOKER/, 'follow-up recording RPC must preserve RLS authorization');
+assert.match(manager, /followups:opportunity_interest_followups[\s\S]*channel[\s\S]*initiated_at/, 'poster interest reads must include follow-up history');
+assert.match(page, /try-email-app[\s\S]*addEventListener\('click', async event =>[\s\S]*preventDefault\(\)[\s\S]*const recordAttempt = recordOpportunityInterestFollowup\(opportunity\.id, person\.id, 'email'\)[\s\S]*Promise\.race\(\[[\s\S]*recordAttempt,[\s\S]*setTimeout\(resolve, 300\)[\s\S]*window\.location\.href = draft\.href/, 'email follow-up recording must start on the explicit action while bounding persistence latency before the handoff');
+assert.match(page, /Email initiated[\s\S]*Follow-up started[\s\S]*Message/, 'follow-up history wording must describe initiation without claiming delivery');
+assert.doesNotMatch(page, /Email (?:sent|delivered)/i, 'the UI must not claim mailto delivery');
 
 console.log('Opportunity interest flow and privacy: all checks passed');

@@ -59,6 +59,7 @@
       expressOpportunityInterest,
       withdrawOpportunityInterest,
       getInterestedPeople,
+      recordOpportunityInterestFollowup,
       incrementViewCount
     } from './assets/js/organizations/opportunities.js';
 
@@ -115,7 +116,7 @@
         <div class="email-field"><label for="email-body">Message</label><textarea id="email-body" readonly>${escapeHtml(draft.body)}</textarea></div>
         <p class="status" aria-live="polite"></p>
         <div class="email-dialog-actions">
-          <a class="btn btn-primary" href="${escapeHtml(draft.href)}"><i class="fas fa-envelope"></i> Try email app again</a>
+          <a class="btn btn-primary try-email-app" href="${escapeHtml(draft.href)}"><i class="fas fa-envelope"></i> Try email app again</a>
           <button class="btn btn-secondary copy-email" type="button">Copy email</button>
           <button class="btn btn-secondary copy-message" type="button">Copy message</button>
           <button class="btn btn-secondary close-email" type="button">Close</button>
@@ -128,6 +129,17 @@
         backdrop.remove();
       };
       const closeOnEscape = event => { if (event.key === 'Escape') close(); };
+      dialog.querySelector('.try-email-app').addEventListener('click', async event => {
+        event.preventDefault();
+        const recordAttempt = recordOpportunityInterestFollowup(opportunity.id, person.id, 'email').catch(error => {
+          console.error('Failed to record initiated email follow-up:', error);
+        });
+        await Promise.race([
+          recordAttempt,
+          new Promise(resolve => setTimeout(resolve, 300))
+        ]);
+        window.location.href = draft.href;
+      });
       dialog.querySelector('.copy-email').addEventListener('click', () => copyText(draft.email, status, 'Email copied.'));
       dialog.querySelector('.copy-message').addEventListener('click', () => copyText(`To: ${draft.email}\nSubject: ${draft.subject}\n\n${draft.body}`, status, 'Message copied.'));
       dialog.querySelector('.close-email').addEventListener('click', close);
@@ -227,12 +239,17 @@
           target.innerHTML = '<p class="hint">No one has expressed interest yet.</p>';
           return;
         }
-        target.innerHTML = people.map(({ community: person, created_at }, index) => person ? `
+        target.innerHTML = people.map(({ community: person, created_at, followups = [] }, index) => person ? `
           <article class="person">
             ${person.image_url ? `<img class="avatar" src="${escapeHtml(person.image_url)}" alt="">` : '<span class="avatar"></span>'}
             <div class="person-info">
               <strong class="person-name">${escapeHtml(person.name || 'Community member')}</strong>
               <p>${escapeHtml(person.role || 'Community member')} · Interested ${escapeHtml(formatDate(created_at))}</p>
+              ${followups.sort((a, b) => new Date(b.initiated_at) - new Date(a.initiated_at)).map(followup =>
+                `<p class="follow-up-history">${followup.channel === 'email'
+                  ? `Email initiated ${escapeHtml(formatDate(followup.initiated_at))}`
+                  : `Follow-up started ${escapeHtml(formatDate(followup.initiated_at))} · Message`}</p>`
+              ).join('')}
             </div>
             <div class="contact-actions">
               <a class="btn btn-primary" href="index.html?contact=${encodeURIComponent(person.id)}&opportunity=${encodeURIComponent(opportunity.id)}&opportunityTitle=${encodeURIComponent(opportunity.title)}"><i class="fas fa-comment"></i> Contact</a>

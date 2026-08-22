@@ -105,7 +105,19 @@ async function openOpportunityContactIntent() {
 
   await window.openMessagesModal();
   const conversationId = await window.MessagingModule.startConversation(contactId, context);
-  if (!conversationId) log.error("Unable to open opportunity contact conversation");
+  if (!conversationId) {
+    log.error("Unable to open opportunity contact conversation");
+    return;
+  }
+
+  if (context.id) {
+    const { error } = await window.supabase.rpc("record_opportunity_interest_followup", {
+      p_opportunity_id: context.id,
+      p_interested_community_id: contactId,
+      p_channel: "message",
+    });
+    if (error) log.error("Unable to record opportunity follow-up:", error);
+  }
 }
 
 function openExplorerIntent() {

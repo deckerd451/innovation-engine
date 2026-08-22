@@ -26,6 +26,7 @@
 //  - expressOpportunityInterest(id)
 //  - withdrawOpportunityInterest(id)
 //  - getInterestedPeople(id)
+//  - recordOpportunityInterestFollowup(opportunityId, interestedCommunityId, channel)
 // ================================================================
 
 /* global console */
@@ -605,6 +606,11 @@ export async function getInterestedPeople(opportunityId) {
     .select(`
       id,
       created_at,
+      followups:opportunity_interest_followups (
+        id,
+        channel,
+        initiated_at
+      ),
       community:community_id (
         id,
         name,
@@ -620,6 +626,20 @@ export async function getInterestedPeople(opportunityId) {
 
   if (error) throw error;
   return data || [];
+}
+
+/** Record that the poster initiated follow-up; this never implies delivery. */
+export async function recordOpportunityInterestFollowup(opportunityId, interestedCommunityId, channel) {
+  if (!currentUserCommunityId) throw new Error("Sign in to record follow-up");
+
+  const { data, error } = await supabase.rpc("record_opportunity_interest_followup", {
+    p_opportunity_id: opportunityId,
+    p_interested_community_id: interestedCommunityId,
+    p_channel: channel,
+  });
+
+  if (error) throw error;
+  return data;
 }
 
 /**
