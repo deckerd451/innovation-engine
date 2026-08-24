@@ -29,6 +29,7 @@ const _extra = {
   acceptedPeerIds: null,
   projectCollaboratorIds: null,
   oppRelevantIds: null,
+  oppRelevantNames: null,
   oppSkills: null,
 };
 
@@ -318,6 +319,8 @@ function _buildNodeContext(mode, nodes, activeNodeIds, ctx = {}) {
           reason = 'Project collaborator';
         } else if (_extra.oppRelevantIds?.has(n.id)) {
           reason = 'Linked to opportunity';
+          const oppNames = _extra.oppRelevantNames?.get(n.id);
+          if (oppNames && oppNames.length > 0) detail = oppNames.slice(0, 3).join(', ');
         } else {
           reason = 'Opportunity-relevant skills';
         }
@@ -414,7 +417,7 @@ async function _loadEnrichmentData(userId) {
       // Opportunities
       supabase
         .from('opportunities')
-        .select('id, organization_id, skills')
+        .select('id, organization_id, title, skills')
         .then(r => r)
         .catch(() => ({ data: null })),
     ]);
@@ -472,17 +475,35 @@ async function _loadEnrichmentData(userId) {
       });
       _extra.oppSkills = oppSkills;
 
-      // Org IDs posting opportunities
+      // Org IDs posting opportunities, and which opportunity title(s) each
+      // org posted (an org may have more than one) — mirrors how shared
+      // project names are attributed per person just above.
       const orgIds = new Set(oppsRes.data.map(o => o.organization_id).filter(Boolean));
+      const titlesByOrg = new Map();
+      oppsRes.data.forEach(opp => {
+        if (!opp.organization_id || !opp.title) return;
+        if (!titlesByOrg.has(opp.organization_id)) titlesByOrg.set(opp.organization_id, []);
+        titlesByOrg.get(opp.organization_id).push(opp.title);
+      });
       // Resolve org members
       if (orgIds.size > 0) {
         const { data: orgMembers } = await supabase
           .from('organization_members')
-          .select('community_id')
+          .select('community_id, organization_id')
           .in('organization_id', [...orgIds]);
         const relevant = new Set();
-        (orgMembers || []).forEach(om => relevant.add(om.community_id));
+        const relevantNames = new Map();
+        (orgMembers || []).forEach(om => {
+          relevant.add(om.community_id);
+          const titles = titlesByOrg.get(om.organization_id);
+          if (titles && titles.length > 0) {
+            if (!relevantNames.has(om.community_id)) relevantNames.set(om.community_id, []);
+            const arr = relevantNames.get(om.community_id);
+            titles.forEach(t => { if (!arr.includes(t)) arr.push(t); });
+          }
+        });
         _extra.oppRelevantIds = relevant;
+        _extra.oppRelevantNames = relevantNames;
       }
     }
 
