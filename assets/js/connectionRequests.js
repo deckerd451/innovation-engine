@@ -16,6 +16,16 @@ let supabase = null;
 let panelElement = null;
 let notificationBadge = null;
 
+// connections.js's action functions (accept/decline/cancel/remove) resolve
+// to a { success, error } result rather than rejecting on a handled failure
+// (RLS denial, stale/already-actioned row, missing profile, etc.) — a try/
+// catch around the call alone never sees those. This reads the result the
+// same way node-panel.js and unified-notification-system.js already do.
+function connectionActionErrorMessage(result, fallback) {
+  const error = result?.error;
+  return (typeof error === 'string' ? error : error?.message) || fallback;
+}
+
 // Initialize the connection requests module
 export async function initConnectionRequests(supabaseClient) {
   supabase = supabaseClient;
@@ -177,26 +187,30 @@ async function loadReceivedRequests() {
       btn.addEventListener('click', async () => {
         try {
           btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          await acceptConnectionRequest(btn.dataset.id);
+          const result = await acceptConnectionRequest(btn.dataset.id);
+          if (!result?.success) throw new Error(connectionActionErrorMessage(result, 'Failed to accept connection request.'));
           showPanelNotification('Connection accepted!', 'success');
           await loadAllSections();
           await refreshPendingCount();
         } catch (err) {
           showPanelNotification(err.message, 'error');
+          await loadReceivedRequests();
         }
       });
     });
-    
+
     container.querySelectorAll('.crp-decline').forEach(btn => {
       btn.addEventListener('click', async () => {
         try {
           btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          await declineConnectionRequest(btn.dataset.id);
+          const result = await declineConnectionRequest(btn.dataset.id);
+          if (!result?.success) throw new Error(connectionActionErrorMessage(result, 'Failed to decline connection request.'));
           showPanelNotification('Request declined.', 'info');
           await loadAllSections();
           await refreshPendingCount();
         } catch (err) {
           showPanelNotification(err.message, 'error');
+          await loadReceivedRequests();
         }
       });
     });
@@ -250,11 +264,13 @@ async function loadSentRequests() {
       btn.addEventListener('click', async () => {
         try {
           btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          await cancelConnectionRequest(btn.dataset.id);
+          const result = await cancelConnectionRequest(btn.dataset.id);
+          if (!result?.success) throw new Error(connectionActionErrorMessage(result, 'Failed to cancel connection request.'));
           showPanelNotification('Request cancelled.', 'info');
           await loadSentRequests();
         } catch (err) {
           showPanelNotification(err.message, 'error');
+          await loadSentRequests();
         }
       });
     });
@@ -310,11 +326,13 @@ async function loadConnectedUsers() {
         
         try {
           btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          await removeConnection(btn.dataset.id);
+          const result = await removeConnection(btn.dataset.id);
+          if (!result?.success) throw new Error(connectionActionErrorMessage(result, 'Failed to remove connection.'));
           showPanelNotification('Connection removed.', 'info');
           await loadConnectedUsers();
         } catch (err) {
           showPanelNotification(err.message, 'error');
+          await loadConnectedUsers();
         }
       });
     });
