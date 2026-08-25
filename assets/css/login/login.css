@@ -66,9 +66,9 @@
 ========================= */
 
 .ie-login-kicker,
-.ie-login-logo,
-.ie-login-title-fallback,
+.ie-login-brand,
 .ie-login-title,
+.ie-login-supporting,
 .ie-login-module,
 .ie-login-footer {
   position: relative;
@@ -93,29 +93,43 @@
   text-transform: uppercase;
 }
 
-.ie-login-logo {
-  display: block;
-  max-width: min(100%, 430px);
-  height: auto;
+.ie-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   margin-bottom: 0.7rem;
+  color: #e8c27d;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.ie-login-title-fallback {
-  display: none;
-  margin: 0 0 0.7rem;
-  color: #00e0ff;
-  font-size: 1.9rem;
-  font-weight: 800;
+.ie-login-logo {
+  display: block;
+  width: 2.4rem;
+  height: 2.4rem;
+  object-fit: contain;
 }
 
 .ie-login-title {
-  margin: 0 0 1.15rem;
-  max-width: 11ch;
+  margin: 0 0 0.3rem;
   color: #ffffff;
-  font-size: clamp(1.85rem, 3.6vw, 2.7rem);
+  font-size: clamp(2.45rem, 5.5vw, 4rem);
   font-weight: 800;
   line-height: 1.03;
   letter-spacing: -0.035em;
+  text-transform: uppercase;
+}
+
+.ie-login-supporting {
+  margin: 0 0 1.15rem;
+  max-width: 26ch;
+  color: #ffffff;
+  font-size: clamp(1.25rem, 2.5vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 /* =========================
@@ -287,15 +301,9 @@
     border-radius: 20px;
   }
 
-  .ie-login-logo {
-    max-width: min(100%, 380px);
-    margin-bottom: 0.6rem;
-  }
-
   .ie-login-title {
     max-width: none;
-    margin-bottom: 1rem;
-    font-size: 1.9rem;
+    font-size: 2.4rem;
   }
 
   .ie-oauth-btn {
@@ -324,7 +332,7 @@
   }
 
   .ie-login-title {
-    font-size: 1.72rem;
+    font-size: 2.15rem;
     line-height: 1.02;
   }
 
