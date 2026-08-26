@@ -103,6 +103,9 @@ document.getElementById('btn-orgs')?.addEventListener('click', () => {
 document.getElementById('btn-admin-top')?.addEventListener('click', () => {
   openAdminPanel();
 });
+document.getElementById('btn-admin-mobile')?.addEventListener('click', () => {
+  openAdminPanel();
+});
 
 // -----------------------------
 // Admin UI Application (Idempotent)
@@ -133,6 +136,11 @@ function applyAdminUIOnce(reason = "") {
   const cdAdminBtn = document.getElementById('cd-admin-btn');
   if (cdAdminBtn) {
     cdAdminBtn.style.display = '';
+  }
+
+  const mobileAdminBtn = document.getElementById('btn-admin-mobile');
+  if (mobileAdminBtn) {
+    mobileAdminBtn.style.display = 'flex';
   }
 
   const adminBadge = document.getElementById('admin-badge-header');

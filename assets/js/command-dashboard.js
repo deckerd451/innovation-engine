@@ -173,6 +173,7 @@ window.CommandDashboard = (() => {
     _wireAdminBtn();
     _wireBellBtn();
     _wireLogoutBtn();
+    _wireReflectionControls();
 
     if (window.ExplorerCoordinator) {
       window.ExplorerCoordinator.setActiveMode(_activeResourceTab);
@@ -1787,6 +1788,84 @@ window.CommandDashboard = (() => {
     if (typeof window.isAdminUser === 'function' && window.isAdminUser()) {
       btn.style.display = '';
     }
+  }
+
+  function _wireReflectionControls() {
+    const panel = $id('network-reflection');
+    const toggle = $id('network-reflection-toggle');
+    const resizer = $id('network-reflection-resizer');
+    if (!panel || !toggle || !resizer || panel.dataset.controlsWired === 'true') return;
+    panel.dataset.controlsWired = 'true';
+
+    const setCollapsed = (collapsed) => {
+      document.body.classList.toggle('reflection-collapsed', collapsed);
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} Network Reflection`);
+      toggle.querySelector('i')?.classList.toggle('fa-chevron-up', collapsed);
+      toggle.querySelector('i')?.classList.toggle('fa-chevron-down', !collapsed);
+      try { localStorage.setItem('networkReflectionCollapsed', String(collapsed)); } catch (_) { /* storage optional */ }
+    };
+
+    try { setCollapsed(localStorage.getItem('networkReflectionCollapsed') === 'true'); } catch (_) { setCollapsed(false); }
+    toggle.addEventListener('click', () => setCollapsed(!document.body.classList.contains('reflection-collapsed')));
+
+    const setSize = (clientX, clientY) => {
+      if (window.innerWidth >= 1024) {
+        const width = Math.max(280, Math.min(560, window.innerWidth - clientX));
+        document.documentElement.style.setProperty('--reflection-width', `${width}px`);
+        try { localStorage.setItem('networkReflectionDesktopWidth', String(width)); } catch (_) { /* storage optional */ }
+      } else {
+        const height = Math.max(150, Math.min(window.innerHeight * 0.75, window.innerHeight - clientY - 60));
+        document.documentElement.style.setProperty('--reflection-mobile-height', `${height}px`);
+        try { localStorage.setItem('networkReflectionMobileHeight', String(height)); } catch (_) { /* storage optional */ }
+      }
+    };
+
+    try {
+      const desktopWidth = Number(localStorage.getItem('networkReflectionDesktopWidth'));
+      const mobileHeight = Number(localStorage.getItem('networkReflectionMobileHeight'));
+      if (desktopWidth >= 280 && desktopWidth <= 560) document.documentElement.style.setProperty('--reflection-width', `${desktopWidth}px`);
+      if (mobileHeight >= 150) document.documentElement.style.setProperty('--reflection-mobile-height', `${mobileHeight}px`);
+    } catch (_) { /* storage optional */ }
+
+    resizer.addEventListener('pointerdown', (event) => {
+      if (document.body.classList.contains('reflection-collapsed')) return;
+      event.preventDefault();
+      resizer.setPointerCapture?.(event.pointerId);
+      document.body.classList.add('reflection-resizing');
+      const move = (moveEvent) => setSize(moveEvent.clientX, moveEvent.clientY);
+      const end = () => {
+        document.body.classList.remove('reflection-resizing');
+        resizer.removeEventListener('pointermove', move);
+        resizer.removeEventListener('pointerup', end);
+        resizer.removeEventListener('pointercancel', end);
+      };
+      resizer.addEventListener('pointermove', move);
+      resizer.addEventListener('pointerup', end);
+      resizer.addEventListener('pointercancel', end);
+    });
+
+    resizer.addEventListener('keydown', (event) => {
+      const desktop = window.innerWidth >= 1024;
+      const relevantKey = desktop
+        ? ['ArrowLeft', 'ArrowRight'].includes(event.key)
+        : ['ArrowUp', 'ArrowDown'].includes(event.key);
+      if (!relevantKey || document.body.classList.contains('reflection-collapsed')) return;
+      event.preventDefault();
+      const rect = panel.getBoundingClientRect();
+      const step = event.shiftKey ? 40 : 16;
+      if (desktop) {
+        const width = rect.width + (event.key === 'ArrowLeft' ? step : -step);
+        setSize(window.innerWidth - width, rect.top);
+      } else {
+        const height = rect.height + (event.key === 'ArrowUp' ? step : -step);
+        setSize(rect.left, window.innerHeight - height - 60);
+      }
+    });
+
+    const updateOrientation = () => resizer.setAttribute('aria-orientation', window.innerWidth >= 1024 ? 'vertical' : 'horizontal');
+    updateOrientation();
+    window.addEventListener('resize', updateOrientation);
   }
 
   /** Wire messages button → open messaging */

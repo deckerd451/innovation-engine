@@ -34,6 +34,87 @@
   flex: 1;
 }
 
+.admin-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.admin-people-heading h2 {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 1.25rem;
+}
+
+.admin-people-heading p {
+  margin: 0.25rem 0 1rem;
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+}
+
+.admin-people-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.admin-people-stat {
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--admin-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.admin-people-stat:hover,
+.admin-people-stat:focus-visible {
+  border-color: var(--admin-cyan);
+  background: rgba(0, 224, 255, 0.08);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.admin-people-stat.is-active {
+  box-shadow: inset 0 -3px var(--admin-cyan);
+}
+
+.admin-people-stat-claimed.is-active { box-shadow: inset 0 -3px #a855f7; }
+.admin-people-stat-unclaimed.is-active { box-shadow: inset 0 -3px var(--admin-amber); }
+
+.admin-people-stat-label {
+  margin-top: 0.15rem;
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.admin-people-stat-hint,
+.admin-active-filter-count {
+  margin-top: 0.2rem;
+  color: var(--admin-text-muted);
+  font-size: 0.72rem;
+}
+
+#filter-clear-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+}
+
+@media (max-width: 620px) {
+  .admin-people-stats { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 720px) {
   #admin-panel {
     inset: 0 !important;
@@ -116,6 +197,68 @@
   font-size: 0.78rem;
   margin-top: 0.4rem;
 }
+
+.admin-priorities-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-priorities-count {
+  flex: none;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 170, 0, 0.12);
+  color: var(--admin-amber);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.admin-priority-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-priority-item {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-priority-marker {
+  width: 8px;
+  min-height: 100%;
+  border-radius: 999px;
+  background: var(--admin-cyan);
+}
+
+.admin-priority-urgent .admin-priority-marker { background: var(--admin-red); }
+.admin-priority-attention .admin-priority-marker { background: var(--admin-amber); }
+.admin-priority-info .admin-priority-marker { background: var(--admin-cyan); }
+
+.admin-priority-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.admin-priority-evidence,
+.admin-priority-action {
+  margin-top: 0.3rem;
+  color: var(--admin-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.admin-priority-action b { color: var(--admin-text); }
 
 .admin-analytics-columns {
   display: grid;
