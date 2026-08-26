@@ -542,8 +542,12 @@ function attachCardListeners(card, member) {
         connectBtn.disabled = true;
         connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
-        await sendConnectionRequest(member.id);
-        
+        const result = await sendConnectionRequest(member.id);
+        if (!result?.success) {
+          const error = result?.error;
+          throw new Error((typeof error === 'string' ? error : error?.message) || 'Failed to send connection request.');
+        }
+
         showSearchNotification('Connection request sent!', 'success');
         
         // Update button
