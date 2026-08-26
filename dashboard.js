@@ -587,17 +587,23 @@ window.sendRequest = async function(userId) {
 
 window.acceptRequest = async function(requestId) {
   try {
-    await acceptConnectionRequest(requestId);
-    
+    const result = await acceptConnectionRequest(requestId);
+    if (!result?.success) {
+      const error = result?.error;
+      const message = (typeof error === 'string' ? error : error?.message) || 'Failed to accept connection request.';
+      showErrorToast(message);
+      return;
+    }
+
     // Reload both pending requests and recent connections
     await Promise.all([
       loadPendingRequests(),
       loadRecentConnections()
     ]);
-    
+
   } catch (err) {
-    // Error already shown via toast notification from connections.js
     console.error('Error accepting request:', err);
+    showErrorToast('Failed to accept connection request.');
   }
 };
 
