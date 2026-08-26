@@ -57,22 +57,39 @@ let searchDebounceTimer = null;
 export function renderPeoplePanel(container) {
   if (!container) return;
 
+  // Opening the panel is a fresh management session. Keep the visible controls
+  // and query state aligned rather than restoring invisible filters from a
+  // previously removed panel.
+  state.search = '';
+  state.filters = { role: null, hidden: null, disabled: null, claimed: null };
+  state.page = 0;
+  state.selectedIds.clear();
+
   container.innerHTML = `
-    <div id="people-panel" style="max-height: 70vh; overflow: hidden; display: flex; flex-direction: column;">
+    <div id="people-panel" class="admin-people-panel" style="max-height: 70vh; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="admin-people-heading">
+        <div>
+          <h2>People</h2>
+          <p>Find members, resolve account issues, and manage access.</p>
+        </div>
+      </div>
       <!-- Claim Stats Banner -->
-      <div id="claim-stats-banner" style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(0,224,255,0.08); border: 1px solid rgba(0,224,255,0.3); border-radius: 10px; text-align: center;">
+      <div id="claim-stats-banner" class="admin-people-stats">
+        <button type="button" class="admin-people-stat admin-people-stat-total" data-claimed-filter="" aria-label="Show all people">
           <div id="stat-total" style="font-size: 1.75rem; font-weight: 700; color: #00e0ff;">—</div>
-          <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Total Users</div>
-        </div>
-        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.3); border-radius: 10px; text-align: center;">
+          <div class="admin-people-stat-label">All people</div>
+          <div class="admin-people-stat-hint">View complete directory</div>
+        </button>
+        <button type="button" class="admin-people-stat admin-people-stat-claimed" data-claimed-filter="true" aria-label="Show claimed accounts">
           <div id="stat-claimed" style="font-size: 1.75rem; font-weight: 700; color: #a855f7;">—</div>
-          <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Claimed</div>
-        </div>
-        <div style="flex: 1; min-width: 140px; padding: 1rem; background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.3); border-radius: 10px; text-align: center;">
+          <div class="admin-people-stat-label">Claimed accounts</div>
+          <div id="stat-claimed-rate" class="admin-people-stat-hint">Account adoption</div>
+        </button>
+        <button type="button" class="admin-people-stat admin-people-stat-unclaimed" data-claimed-filter="false" aria-label="Show unclaimed accounts">
           <div id="stat-unclaimed" style="font-size: 1.75rem; font-weight: 700; color: #ffaa00;">—</div>
-          <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.25rem;">Unclaimed</div>
-        </div>
+          <div class="admin-people-stat-label">Need follow-up</div>
+          <div class="admin-people-stat-hint">Review unclaimed accounts →</div>
+        </button>
       </div>
 
       <!-- Toolbar -->
@@ -80,7 +97,8 @@ export function renderPeoplePanel(container) {
         <!-- Search and Filters Row -->
         <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center;">
           <!-- Search -->
-          <input 
+          <label class="admin-sr-only" for="people-search-input">Search people by name or email</label>
+          <input
             type="text" 
             id="people-search-input" 
             placeholder="Search by name or email..." 
@@ -121,8 +139,9 @@ export function renderPeoplePanel(container) {
             <option value="false">Unclaimed</option>
           </select>
           
+          <span id="active-filter-count" class="admin-active-filter-count" aria-live="polite">No filters applied</span>
           <button id="filter-clear-btn" style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; color: rgba(255,255,255,0.7); font-size: 0.9rem; cursor: pointer;">
-            <i class="fas fa-times"></i> Clear
+            <i class="fas fa-times"></i> Clear all
           </button>
         </div>
       </div>
@@ -261,6 +280,7 @@ function wireUpEventListeners() {
       searchDebounceTimer = setTimeout(() => {
         state.search = e.target.value.trim();
         state.page = 0;
+        updateFilterSummary();
         loadPeopleData();
       }, 300);
     });
@@ -280,6 +300,7 @@ function wireUpEventListeners() {
           state.filters[filterKey] = value || null;
         }
         state.page = 0;
+        updateFilterSummary();
         loadPeopleData();
       });
     }
@@ -290,14 +311,30 @@ function wireUpEventListeners() {
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       state.filters = { role: null, hidden: null, disabled: null, claimed: null };
+      state.search = '';
+      document.getElementById('people-search-input').value = '';
       document.getElementById('filter-role').value = '';
       document.getElementById('filter-hidden').value = '';
       document.getElementById('filter-disabled').value = '';
       document.getElementById('filter-claimed').value = '';
       state.page = 0;
+      updateFilterSummary();
       loadPeopleData();
     });
   }
+
+  document.querySelectorAll('[data-claimed-filter]').forEach(card => {
+    card.addEventListener('click', () => {
+      const value = card.dataset.claimedFilter;
+      state.filters.claimed = value === '' ? null : value === 'true';
+      document.getElementById('filter-claimed').value = value;
+      state.page = 0;
+      updateFilterSummary();
+      loadPeopleData();
+    });
+  });
+
+  updateFilterSummary();
   
   // Invite button
   const inviteBtn = document.getElementById('people-invite-btn');
@@ -396,6 +433,31 @@ function wireUpEventListeners() {
       }
       loadPeopleData();
     });
+  });
+}
+
+function updateFilterSummary() {
+  const activeFilters = Object.values(state.filters).filter(value => value !== null).length;
+  const totalActive = activeFilters + (state.search ? 1 : 0);
+  const summary = document.getElementById('active-filter-count');
+  const clearBtn = document.getElementById('filter-clear-btn');
+  if (summary) {
+    summary.textContent = totalActive === 0
+      ? 'No filters applied'
+      : `${totalActive} filter${totalActive === 1 ? '' : 's'} applied`;
+  }
+  if (clearBtn) {
+    clearBtn.disabled = totalActive === 0;
+    clearBtn.setAttribute('aria-disabled', String(totalActive === 0));
+  }
+
+  document.querySelectorAll('[data-claimed-filter]').forEach(card => {
+    const value = card.dataset.claimedFilter;
+    const isActive = value === ''
+      ? state.filters.claimed === null
+      : state.filters.claimed === (value === 'true');
+    card.classList.toggle('is-active', isActive);
+    card.setAttribute('aria-pressed', String(isActive));
   });
 }
 
@@ -1129,9 +1191,15 @@ async function loadClaimStats() {
   const totalEl = document.getElementById('stat-total');
   const claimedEl = document.getElementById('stat-claimed');
   const unclaimedEl = document.getElementById('stat-unclaimed');
+  const claimedRateEl = document.getElementById('stat-claimed-rate');
   if (totalEl) totalEl.textContent = total;
   if (claimedEl) claimedEl.textContent = claimed;
   if (unclaimedEl) unclaimedEl.textContent = unclaimed;
+  if (claimedRateEl) {
+    claimedRateEl.textContent = total > 0
+      ? `${Math.round((claimed / total) * 100)}% account adoption`
+      : 'Account adoption';
+  }
 }
 
 /**
