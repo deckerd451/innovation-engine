@@ -232,6 +232,53 @@ export function buildAdminIntelligence(m) {
   return items;
 }
 
+/**
+ * Turn descriptive metrics into a short, ordered admin work queue. The
+ * recommendations are intentionally generic: the evidence comes from the RPC,
+ * while the suggested next step never implies that an action already happened.
+ */
+export function buildAdminPriorities(m) {
+  const priorities = [];
+  const totalMembers = Number(m?.total_members) || 0;
+  const isolatedMembers = Number(m?.isolated_members_count) || 0;
+  const activeMembers = Number(m?.active_members) || 0;
+  const emptyOpportunities = Number(m?.open_opportunities_no_applications) || 0;
+
+  if (isolatedMembers > 0) {
+    const share = totalMembers > 0 ? Math.round((isolatedMembers / totalMembers) * 100) : null;
+    priorities.push({
+      tone: 'urgent',
+      title: 'Connect isolated members',
+      evidence: `${isolatedMembers} member${isolatedMembers === 1 ? '' : 's'} have no connections${share == null ? '' : ` (${share}% of members)`}.`,
+      action: 'Review the list below and introduce each person to a relevant connector or project.'
+    });
+  }
+
+  if (emptyOpportunities > 0) {
+    priorities.push({
+      tone: 'attention',
+      title: 'Unblock open opportunities',
+      evidence: `${emptyOpportunities} open opportunit${emptyOpportunities === 1 ? 'y has' : 'ies have'} no applications.`,
+      action: 'Check the brief, owner, and skills needed, then share it with matching members.'
+    });
+  }
+
+  if (totalMembers > 0) {
+    const inactiveMembers = Math.max(totalMembers - activeMembers, 0);
+    const activeShare = Math.round((activeMembers / totalMembers) * 100);
+    priorities.push({
+      tone: activeMembers > 0 ? 'info' : 'attention',
+      title: 'Grow active participation',
+      evidence: `${activeMembers} of ${totalMembers} members were active in the selected window (${activeShare}%).`,
+      action: inactiveMembers > 0
+        ? `Re-engage the ${inactiveMembers} member${inactiveMembers === 1 ? '' : 's'} not active in this window with a specific reason to return.`
+        : 'Participation reached every member; keep the current engagement rhythm going.'
+    });
+  }
+
+  return priorities;
+}
+
 function formatShortDate(iso) {
   if (!iso) return '';
   try {
@@ -371,6 +418,10 @@ function renderAnalyticsDashboard(metrics, retention) {
   const connectors = metrics.key_connectors || [];
   const topSkills = metrics.top_skills || [];
   const intelligence = buildAdminIntelligence(metrics);
+  const priorities = buildAdminPriorities(metrics);
+  const activeShare = metrics.total_members > 0
+    ? Math.round((metrics.active_members / metrics.total_members) * 100)
+    : null;
 
   analyticsModal.innerHTML = frameHtml(`
     <div class="admin-analytics">
@@ -389,7 +440,7 @@ function renderAnalyticsDashboard(metrics, retention) {
         <div class="admin-metric-card" style="--metric-accent:#00ff88">
           <div class="admin-metric-value">${metrics.active_members}</div>
           <div class="admin-metric-label">Active Users</div>
-          <div class="admin-metric-sub" style="color:var(--admin-text-muted)">Active in last ${esc(metrics.active_window_days)} days</div>
+          <div class="admin-metric-sub" style="color:var(--admin-text-muted)">Active in last ${esc(metrics.active_window_days)} days${activeShare == null ? '' : ` · ${activeShare}% of members`}</div>
         </div>
         <div class="admin-metric-card" style="--metric-accent:#ff6bff">
           <div class="admin-metric-value">${metrics.total_connections}</div>
@@ -409,6 +460,32 @@ function renderAnalyticsDashboard(metrics, retention) {
           <div class="admin-metric-value">${metrics.open_opportunities}</div>
           <div class="admin-metric-label">Open Opportunities</div>
         </div>
+      </div>
+
+      <div class="admin-panel-section admin-priorities" style="margin-bottom:1.75rem;">
+        <div class="admin-priorities-heading">
+          <div>
+            <h3><i class="fas fa-list-check" style="color:#ffaa00"></i> Recommended next steps</h3>
+            <p class="admin-panel-section-sub">A prioritized work queue based on the current snapshot</p>
+          </div>
+          <span class="admin-priorities-count">${priorities.length} action${priorities.length === 1 ? '' : 's'}</span>
+        </div>
+        ${priorities.length === 0 ? `
+          <p class="admin-panel-section-sub" style="margin:0;">No immediate follow-up is suggested by the available metrics.</p>
+        ` : `
+          <ol class="admin-priority-list">
+            ${priorities.map(item => `
+              <li class="admin-priority-item admin-priority-${esc(item.tone)}">
+                <div class="admin-priority-marker" aria-hidden="true"></div>
+                <div>
+                  <div class="admin-priority-title">${esc(item.title)}</div>
+                  <div class="admin-priority-evidence">${esc(item.evidence)}</div>
+                  <div class="admin-priority-action"><b>Next:</b> ${esc(item.action)}</div>
+                </div>
+              </li>
+            `).join('')}
+          </ol>
+        `}
       </div>
 
       ${renderRetentionSection(retention)}
