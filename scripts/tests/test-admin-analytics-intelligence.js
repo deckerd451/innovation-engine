@@ -37,6 +37,9 @@ global.document = {
     'admin-analytics.js must expose buildAdminIntelligence for testing');
 
   const build = mod.buildAdminIntelligence;
+  const buildPriorities = mod.buildAdminPriorities;
+  assert.equal(typeof buildPriorities, 'function',
+    'admin-analytics.js must expose buildAdminPriorities for testing');
 
   // No signal at all -> no fabricated observations.
   {
@@ -99,6 +102,26 @@ global.document = {
     assert.deepEqual(items, [], 'missing fields must not produce observations');
     assert.deepEqual(build(undefined), [], 'undefined metrics object must not throw or fabricate observations');
   }
+
+  // The action queue uses only supplied counts, calculates transparent
+  // percentages, and preserves the urgency-first order.
+  {
+    const priorities = buildPriorities({
+      total_members: 20,
+      active_members: 5,
+      isolated_members_count: 4,
+      open_opportunities_no_applications: 2,
+    });
+    assert.equal(priorities.length, 3);
+    assert.equal(priorities[0].title, 'Connect isolated members');
+    assert.match(priorities[0].evidence, /20% of members/);
+    assert.equal(priorities[1].title, 'Unblock open opportunities');
+    assert.match(priorities[2].evidence, /5 of 20.*25%/);
+    assert.match(priorities[2].action, /15 members/);
+  }
+
+  // With no measurable population, the dashboard must not fabricate work.
+  assert.deepEqual(buildPriorities({}), []);
 
   console.log('✅ test-admin-analytics-intelligence passed');
 })().catch(err => {

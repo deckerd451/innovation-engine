@@ -117,6 +117,68 @@
   margin-top: 0.4rem;
 }
 
+.admin-priorities-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-priorities-count {
+  flex: none;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 170, 0, 0.12);
+  color: var(--admin-amber);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.admin-priority-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-priority-item {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-priority-marker {
+  width: 8px;
+  min-height: 100%;
+  border-radius: 999px;
+  background: var(--admin-cyan);
+}
+
+.admin-priority-urgent .admin-priority-marker { background: var(--admin-red); }
+.admin-priority-attention .admin-priority-marker { background: var(--admin-amber); }
+.admin-priority-info .admin-priority-marker { background: var(--admin-cyan); }
+
+.admin-priority-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.admin-priority-evidence,
+.admin-priority-action {
+  margin-top: 0.3rem;
+  color: var(--admin-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.admin-priority-action b { color: var(--admin-text); }
+
 .admin-analytics-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
