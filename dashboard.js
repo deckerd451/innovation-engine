@@ -613,10 +613,19 @@ window.acceptRequest = async function(requestId) {
 
 window.declineRequest = async function(requestId) {
   try {
-    await declineConnectionRequest(requestId);
+    const result = await declineConnectionRequest(requestId);
+    if (!result?.success) {
+      const error = result?.error;
+      const message = (typeof error === 'string' ? error : error?.message) || 'Failed to decline connection request.';
+      showErrorToast(message);
+      return;
+    }
+
     await loadPendingRequests();
+
   } catch (err) {
-    // Error already shown via toast
+    console.error('Error declining request:', err);
+    showErrorToast('Failed to decline connection request.');
   }
 };
 

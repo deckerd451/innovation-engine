@@ -591,7 +591,11 @@ function attachCardListeners(card, member) {
       e.stopPropagation();
       try {
         const { declineConnectionRequest } = await import('./connections.js');
-        await declineConnectionRequest(declineBtn.dataset.id);
+        const result = await declineConnectionRequest(declineBtn.dataset.id);
+        if (!result?.success) {
+          const error = result?.error;
+          throw new Error((typeof error === 'string' ? error : error?.message) || 'Failed to decline connection request.');
+        }
         showSearchNotification('Connection declined.', 'info');
         
         // Refresh card
