@@ -38,7 +38,7 @@
 <link rel="stylesheet" href="dashboard.css?v=mobile-fix-20260328a" />
 <link rel="stylesheet" href="assets/css/quiet-mode.css" />
 <link rel="stylesheet" href="assets/css/mobile-safe-area.css?v=search-fix-20260318" />
-<link rel="stylesheet" href="assets/css/command-dashboard.css?v=synapse-retention-20260818d" />
+<link rel="stylesheet" href="assets/css/command-dashboard.css?v=reflection-controls-20260826" />
 <link rel="stylesheet" href="assets/css/ui-enhancements.css" />
 <link rel="stylesheet" href="assets/css/synapse-filter.css" />
 <link rel="stylesheet" href="assets/css/admin-panel.css?v=20260819a" />
@@ -344,12 +344,22 @@
       <svg id="synapse-svg" style="width:100%; height:100%; background:#000000; touch-action:none;"></svg>
     </div>
 
+    <button id="btn-admin-mobile" type="button" aria-label="Open Admin Panel" title="Admin Panel" style="display:none;">
+      <i class="fas fa-crown" aria-hidden="true"></i>
+    </button>
+
     <aside id="network-reflection" aria-label="Network Reflection">
+      <div id="network-reflection-resizer" role="separator" aria-label="Resize Network Reflection" aria-orientation="vertical" tabindex="0"></div>
       <div class="network-reflection-header">
-        <span>Network Reflection</span>
-        <small>Your network, signals &amp; next moves</small>
+        <div>
+          <span>Network Reflection</span>
+          <small>Your network, signals &amp; next moves</small>
+        </div>
+        <button id="network-reflection-toggle" type="button" aria-expanded="true" aria-controls="network-reflection-scroll" aria-label="Collapse Network Reflection">
+          <i class="fas fa-chevron-down" aria-hidden="true"></i>
+        </button>
       </div>
-      <div class="network-reflection-scroll">
+      <div id="network-reflection-scroll" class="network-reflection-scroll">
         <p id="network-reflection-greeting" class="network-reflection-greeting">Welcome back.</p>
         <section class="network-reflection-section" aria-labelledby="reflection-attention-title" hidden>
           <h2 id="reflection-attention-title">Needs Your Attention</h2>
@@ -872,7 +882,7 @@
   <!-- Daily Suggestions Engine (DEFERRED UNTIL AUTH) -->
 
   <script src="assets/js/graph-controller.js" defer></script>
-  <script src="assets/js/command-dashboard.js?v=active-project-count-20260821a" defer></script>
+  <script src="assets/js/command-dashboard.js?v=reflection-controls-20260826" defer></script>
 
   <script>
     window.closeStartModal = function () {
