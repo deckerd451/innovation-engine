@@ -1161,32 +1161,77 @@ function _renderReflectionAttention(data) {
   root.textContent = '';
   const immediate = data?.immediate_actions || {};
   const countOf = value => Number(value?.count ?? value ?? 0);
+  // Plain, relatable phrasing instead of system nouns ("pending bid",
+  // "unread message"): each row says, in a sentence, who is waiting on the
+  // person reading it.  `urgency` drives the colour treatment so the items
+  // that involve another human waiting stand out from routine follow-ups.
   const actions = [
-    { count: countOf(immediate.pending_requests), label: 'connection request', action: 'Review', handler: 'openConnectionRequests' },
-    { count: countOf(immediate.unread_messages), label: 'conversation with unread messages', action: 'View', handler: 'openMessaging' },
-    { count: countOf(immediate.pending_bids), label: 'pending bid', action: 'Review', handler: 'openProjectBids' },
-    { count: countOf(immediate.bids_to_review), label: 'bid awaiting review', action: 'Review', handler: 'openProjectBids' },
+    {
+      count: countOf(immediate.pending_requests),
+      urgency: 'now',
+      message: n => `${n} ${n === 1 ? 'person wants' : 'people want'} to connect with you`,
+      action: 'See who',
+      handler: 'openConnectionRequests',
+    },
+    {
+      count: countOf(immediate.unread_messages),
+      urgency: 'now',
+      message: n => `${n === 1 ? 'Someone is' : `${n} people are`} waiting to hear back from you`,
+      action: 'Reply',
+      handler: 'openMessaging',
+    },
+    {
+      count: countOf(immediate.bids_to_review),
+      urgency: 'now',
+      message: n => `${n} ${n === 1 ? 'person offered' : 'people offered'} to help on your projects`,
+      action: 'Review offers',
+      handler: 'openProjectBids',
+    },
+    {
+      count: countOf(immediate.pending_bids),
+      urgency: 'soon',
+      message: n => `You're still waiting to hear back on ${n} ${n === 1 ? 'offer' : 'offers'} you sent`,
+      action: 'Check status',
+      handler: 'openProjectBids',
+    },
   ].filter(item => item.count > 0);
   if (!actions.length) {
     if (section) section.hidden = true;
     return;
   }
   if (section) section.hidden = false;
+  // People waiting on you first, routine follow-ups after.
+  const urgencyRank = { now: 0, soon: 1 };
+  actions.sort((a, b) => (urgencyRank[a.urgency] ?? 9) - (urgencyRank[b.urgency] ?? 9));
+
+  const lead = document.createElement('p');
+  lead.className = 'network-reflection-attention-lead';
+  lead.textContent = actions.some(item => item.urgency === 'now')
+    ? "Here's who's waiting on you right now."
+    : "A few things to circle back on when you get a moment.";
+
   const list = document.createElement('div');
   list.className = 'network-reflection-attention-list';
   actions.forEach(item => {
     const row = document.createElement('div');
-    row.className = 'network-reflection-attention-row';
+    row.className = `network-reflection-attention-row network-reflection-attention-row--${item.urgency}`;
+    const label = document.createElement('div');
+    label.className = 'network-reflection-attention-label';
+    const dot = document.createElement('span');
+    dot.className = 'network-reflection-attention-dot';
     const message = document.createElement('strong');
-    message.textContent = `${item.count} ${item.label}${item.count === 1 ? '' : 's'}`;
+    message.textContent = typeof item.message === 'function'
+      ? item.message(item.count)
+      : `${item.count} ${item.message}`;
+    label.append(dot, message);
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = item.action;
     button.addEventListener('click', event => window.EnhancedStartUI?.handleAction?.(item.handler, event));
-    row.append(message, button);
+    row.append(label, button);
     list.appendChild(row);
   });
-  root.appendChild(list);
+  root.append(lead, list);
 }
 
 function _isAttentionHandler(handler) {

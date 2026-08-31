@@ -66,10 +66,17 @@ body.reflection-resizing #network-reflection { transition:none; }
 .network-reflection-section:first-of-type { margin-top:.85rem; }
 .network-reflection-content { color:rgba(255,255,255,.72); font-size:.8rem; line-height:1.45; }
 .network-reflection-focus-card,.network-reflection-move { padding:.65rem .7rem; background:rgba(0,224,255,.045); border:1px solid rgba(0,224,255,.13); border-radius:7px; }
+.network-reflection-attention-lead { margin:0 0 .5rem; color:rgba(255,255,255,.6); font-size:.74rem; line-height:1.4; }
 .network-reflection-attention-list { display:flex; flex-direction:column; gap:.4rem; }
-.network-reflection-attention-row { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.55rem .65rem; background:rgba(255,176,0,.055); border:1px solid rgba(255,176,0,.18); border-radius:7px; }
+.network-reflection-attention-row { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.55rem .65rem; border:1px solid rgba(255,255,255,.12); border-left-width:3px; border-radius:7px; background:rgba(255,255,255,.035); color:rgba(255,255,255,.5); }
+.network-reflection-attention-label { display:flex; align-items:center; gap:.45rem; min-width:0; }
+.network-reflection-attention-dot { flex:none; width:7px; height:7px; border-radius:50%; background:currentColor; }
 .network-reflection-attention-row strong { color:rgba(255,255,255,.84); font-size:.76rem; font-weight:600; }
-.network-reflection-attention-row button { padding:.25rem .5rem; background:transparent; border:1px solid rgba(255,176,0,.3); border-radius:5px; color:#ffc04d; font:inherit; font-size:.69rem; cursor:pointer; }
+.network-reflection-attention-row button { flex:none; padding:.25rem .5rem; background:transparent; border:1px solid currentColor; border-radius:5px; color:inherit; font:inherit; font-size:.69rem; cursor:pointer; }
+/* Colour signals priority: warm red = a person is waiting on you now;
+   amber = a routine follow-up you can get to soon. */
+.network-reflection-attention-row--now { color:#ff8a6b; border-color:rgba(255,99,71,.3); border-left-color:#ff6347; background:rgba(255,99,71,.07); }
+.network-reflection-attention-row--soon { color:#ffc04d; border-color:rgba(255,176,0,.28); border-left-color:#ffb000; background:rgba(255,176,0,.055); }
 .network-reflection-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.45rem; }
 .network-reflection-stat { padding:.55rem; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.07); border-radius:7px; }
 .network-reflection-stat strong { display:block; color:#fff; font-size:1rem; }
