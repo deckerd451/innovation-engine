@@ -20,11 +20,35 @@ RETURNS JSON AS $$
 DECLARE
   result JSON;
   user_community_id UUID;
+  -- community.skills is a TEXT[] column in some environments and a
+  -- comma-separated TEXT string in others. Reading it straight into
+  -- `skill = ANY(c.skills)` fails wherever it is the string form with
+  -- "op ANY/ALL (array) requires array on right side", which aborts the whole
+  -- RPC and takes the entire Network Reflection payload down. Read it as text
+  -- and normalise it to a real array once, up front, so every downstream use
+  -- is array-typed regardless of how the column is stored.
+  user_skills TEXT[];
+  skills_raw TEXT;
 BEGIN
-  SELECT id INTO user_community_id 
-  FROM community 
-  WHERE user_id = auth_user_id 
+  SELECT id, skills::text
+  INTO user_community_id, skills_raw
+  FROM community
+  WHERE user_id = auth_user_id
   LIMIT 1;
+
+  IF skills_raw IS NULL OR btrim(skills_raw) = '' THEN
+    user_skills := ARRAY[]::TEXT[];
+  ELSIF skills_raw LIKE '{%}' THEN
+    -- Already stored in Postgres array literal form.
+    user_skills := skills_raw::TEXT[];
+  ELSE
+    -- Comma-separated string -- split and trim into a real array.
+    user_skills := ARRAY(
+      SELECT btrim(part)
+      FROM unnest(string_to_array(skills_raw, ',')) AS part
+      WHERE btrim(part) <> ''
+    );
+  END IF;
 
   IF user_community_id IS NULL THEN
     RETURN json_build_object(
@@ -40,7 +64,7 @@ BEGIN
       'email', c.email,
       'image_url', c.image_url,
       'bio', c.bio,
-      'skills', c.skills,
+      'skills', user_skills,
       'interests', c.interests,
       'user_role', c.user_role,
       'profile_completed', c.profile_completed
@@ -125,16 +149,21 @@ BEGIN
     
     'opportunities', json_build_object(
       'skill_matched_projects', json_build_object(
-        'count', (
-          SELECT COUNT(*)::int
-          FROM projects p
-          WHERE p.status = 'open'
-          AND p.creator_id != auth_user_id
-          AND EXISTS (
-            SELECT 1 FROM unnest(p.required_skills) skill 
-            WHERE skill = ANY(c.skills)
+        'count', CASE
+          WHEN array_length(user_skills, 1) > 0 THEN (
+            SELECT COUNT(*)::int
+            FROM projects p
+            WHERE p.status = 'open'
+            AND p.creator_id != auth_user_id
+            AND p.required_skills IS NOT NULL
+            AND array_length(p.required_skills, 1) > 0
+            AND EXISTS (
+              SELECT 1 FROM unnest(p.required_skills) skill
+              WHERE skill = ANY(user_skills)
+            )
           )
-        ),
+          ELSE 0
+        END,
         'items', '[]'::json
       ),
       
@@ -164,7 +193,9 @@ BEGIN
           FROM community other
           WHERE other.id != user_community_id
           AND other.skills IS NOT NULL
-          AND array_length(other.skills, 1) > 0
+          -- text-safe "has any skills" check: works whether other.skills is a
+          -- TEXT[] ('{a,b}') or a comma-separated TEXT string ('a,b').
+          AND btrim(other.skills::text, '{} ') <> ''
           AND NOT EXISTS (
             SELECT 1 FROM connections conn
             WHERE ((conn.from_user_id = user_community_id AND conn.to_user_id = other.id)
