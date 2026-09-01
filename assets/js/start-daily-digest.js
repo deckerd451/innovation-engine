@@ -1104,6 +1104,41 @@ async function _loadReflectionActiveProjectCount(data) {
   ).length;
 }
 
+// The RPC payload reports connections as the denormalised community.connection_count
+// column, which is not kept in step with the connections table -- so it reads 0 for
+// people who plainly have accepted connections everywhere else in this interface.
+// Count the accepted connections directly, the same way fetchActualCounts() does,
+// and only fall back to the RPC figure when there is no client to ask.
+async function _loadReflectionConnectionCount(data) {
+  const communityId = data?.profile?.id;
+  const fallback = data?.network_insights?.connections?.total || 0;
+  if (!window.supabase || !communityId) return fallback;
+
+  const result = await window.supabase
+    .from('connections')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'accepted')
+    .or(`from_user_id.eq.${communityId},to_user_id.eq.${communityId}`);
+  if (result.error) throw result.error;
+  return result.count || 0;
+}
+
+// The RPC also gates open_opportunities on an expires_at window that the rest of
+// the app does not apply, so this summary can show 0 while the same opportunities
+// are listed elsewhere. Count open opportunities the way the opportunity engine
+// does (status = 'open'), falling back to the RPC figure when offline.
+async function _loadReflectionOpportunityCount(data) {
+  const fallback = data?.opportunities?.open_opportunities?.count || 0;
+  if (!window.supabase) return fallback;
+
+  const result = await window.supabase
+    .from('opportunities')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'open');
+  if (result.error) throw result.error;
+  return result.count || 0;
+}
+
 let _reflectionNetworkSummaryRenderId = 0;
 
 async function _renderReflectionNetworkSummary(data) {
@@ -1114,18 +1149,30 @@ async function _renderReflectionNetworkSummary(data) {
   const network = data?.network_insights || {};
   const opportunities = data?.opportunities || {};
   let activeProjectCount = network.active_projects?.count || 0;
+  let connectionCount = network.connections?.total || 0;
+  let openOpportunityCount = opportunities.open_opportunities?.count || 0;
   try {
     activeProjectCount = await _loadReflectionActiveProjectCount(data);
   } catch (error) {
     console.warn('[NetworkReflection] Canonical active-project count unavailable:', error?.message || error);
   }
+  try {
+    connectionCount = await _loadReflectionConnectionCount(data);
+  } catch (error) {
+    console.warn('[NetworkReflection] Canonical connection count unavailable:', error?.message || error);
+  }
+  try {
+    openOpportunityCount = await _loadReflectionOpportunityCount(data);
+  } catch (error) {
+    console.warn('[NetworkReflection] Canonical opportunity count unavailable:', error?.message || error);
+  }
   if (renderId !== _reflectionNetworkSummaryRenderId
       || root !== document.getElementById('network-reflection-summary')) return;
 
   const stats = [
-    ['Connections', network.connections?.total || 0],
+    ['Connections', connectionCount],
     ['Active projects', activeProjectCount],
-    ['Opportunities', opportunities.open_opportunities?.count || 0],
+    ['Opportunities', openOpportunityCount],
   ];
   const grid = document.createElement('div');
   grid.className = 'network-reflection-summary-grid';

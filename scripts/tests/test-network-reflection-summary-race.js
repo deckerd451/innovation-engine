@@ -45,6 +45,16 @@ const sandbox = {
   _loadReflectionActiveProjectCount(data) {
     return new Promise(resolve => pendingCounts.set(data.profile.id, resolve));
   },
+  // Connections and Opportunities are now counted from the live tables too,
+  // with the RPC payload only as an offline fallback. The race harness cares
+  // about the out-of-order active-project resolution, so these resolve inline
+  // from the same payload the fallback would read.
+  async _loadReflectionConnectionCount(data) {
+    return data?.network_insights?.connections?.total || 0;
+  },
+  async _loadReflectionOpportunityCount(data) {
+    return data?.opportunities?.open_opportunities?.count || 0;
+  },
 };
 
 vm.runInNewContext(`
