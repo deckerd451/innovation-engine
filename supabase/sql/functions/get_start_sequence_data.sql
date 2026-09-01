@@ -80,7 +80,27 @@ BEGIN
         ),
         'conversations', '[]'::json
       ),
-      
+
+      -- Threads where the reader sent the most recent message and is now
+      -- waiting to hear back -- the mirror image of unread_messages.  The
+      -- Reflection surfaces this separately so "waiting on your reply" and
+      -- "you're waiting to hear back" are not conflated.
+      'messages_awaiting_reply', json_build_object(
+        'count', (
+          SELECT COUNT(*)::int
+          FROM conversations conv
+          WHERE (conv.participant_1_id = user_community_id OR conv.participant_2_id = user_community_id)
+          AND (
+            SELECT m.sender_id
+            FROM messages m
+            WHERE m.conversation_id = conv.id
+            ORDER BY m.created_at DESC
+            LIMIT 1
+          ) = user_community_id
+        ),
+        'conversations', '[]'::json
+      ),
+
       'pending_bids', json_build_object(
         'count', (
           SELECT COUNT(*)::int

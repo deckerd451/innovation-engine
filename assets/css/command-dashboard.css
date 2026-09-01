@@ -77,6 +77,16 @@ body.reflection-resizing #network-reflection { transition:none; }
    amber = a routine follow-up you can get to soon. */
 .network-reflection-attention-row--now { color:#ff8a6b; border-color:rgba(255,99,71,.3); border-left-color:#ff6347; background:rgba(255,99,71,.07); }
 .network-reflection-attention-row--soon { color:#ffc04d; border-color:rgba(255,176,0,.28); border-left-color:#ffb000; background:rgba(255,176,0,.055); }
+/* Grouping headers separate "waiting on your reply" from "you're waiting to
+   hear back" when both are present. */
+.network-reflection-attention-group + .network-reflection-attention-group { margin-top:.55rem; }
+.network-reflection-attention-group-title { margin:0 0 .3rem; color:rgba(255,255,255,.42); font-size:.63rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+/* The one row to start with; a subtle inset ring in its own priority colour. */
+.network-reflection-attention-row--focus { box-shadow:inset 0 0 0 1px currentColor; }
+.network-reflection-attention-focus-tag { flex:none; padding:.02rem .34rem; border:1px solid currentColor; border-radius:999px; color:inherit; font-size:.57rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+/* Rows already acted on this visit recede so the next one reads as the focus. */
+.network-reflection-attention-row--done { color:rgba(255,255,255,.4); border-color:rgba(255,255,255,.1); border-left-color:rgba(255,255,255,.18); background:rgba(255,255,255,.02); }
+.network-reflection-attention-row--done strong { color:rgba(255,255,255,.5); }
 .network-reflection-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.45rem; }
 .network-reflection-stat { padding:.55rem; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.07); border-radius:7px; }
 .network-reflection-stat strong { display:block; color:#fff; font-size:1rem; }
