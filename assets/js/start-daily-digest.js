@@ -1219,12 +1219,14 @@ async function _renderReflectionNetworkSummary(data) {
 const _clearedAttention = new Set();
 let _lastReflectionData = null;
 
-// Every row is a plain sentence about who is waiting, tagged with a
-// `direction` -- the distinction people miss when the rows all look alike:
-//   inbound  -> someone is waiting on a reply or a decision from you now
-//   outbound -> you already did your part and are waiting to hear back
-// Colour and ordering follow from `direction` (inbound = warm red, first).
-function _reflectionAttentionActions(immediate) {
+// Every row is a plain sentence about what needs the reader next, tagged with
+// a `direction` -- the distinction people miss when the rows all look alike:
+//   inbound     -> someone is waiting on a reply or a decision from you now
+//   outbound    -> you already did your part and are waiting to hear back
+//   opportunity -> nobody is waiting, but there's an opening worth acting on
+// Colour and ordering follow from `direction` (inbound = warm red, first;
+// opportunities sit last so a real person waiting always outranks them).
+function _reflectionAttentionActions(immediate, opportunities) {
   const countOf = value => Number(value?.count ?? value ?? 0);
   return [
     {
@@ -1267,6 +1269,14 @@ function _reflectionAttentionActions(immediate) {
       action: 'Check status',
       handler: 'openProjectBids',
     },
+    {
+      key: 'skill_matched_projects',
+      count: countOf(opportunities?.skill_matched_projects),
+      direction: 'opportunity',
+      message: n => `${n} open ${n === 1 ? 'project matches' : 'projects match'} your skills`,
+      action: 'Take a look',
+      handler: 'openSkillMatchedProjects',
+    },
   ].filter(item => item.count > 0);
 }
 
@@ -1277,7 +1287,7 @@ function _renderReflectionAttention(data) {
   _lastReflectionData = data;
   root.textContent = '';
   const immediate = data?.immediate_actions || {};
-  const actions = _reflectionAttentionActions(immediate);
+  const actions = _reflectionAttentionActions(immediate, data?.opportunities || {});
   if (!actions.length) {
     if (section) section.hidden = true;
     return;
@@ -1285,15 +1295,18 @@ function _renderReflectionAttention(data) {
   if (section) section.hidden = false;
 
   // Inbound (someone is waiting on you) before outbound (you're waiting on
-  // them); within that, rows already acted on this visit sink to the bottom
-  // so the next unactioned row reads as the focus.
+  // them) before opportunities (nobody waiting, just worth a look); within
+  // that, rows already acted on this visit sink to the bottom so the next
+  // unactioned row reads as the focus.
   const directionRank = { inbound: 0, outbound: 1 };
+  const rankOf = direction => direction === 'opportunity' ? 2 : (directionRank[direction] ?? 9);
   actions.sort((a, b) =>
     (Number(_clearedAttention.has(a.key)) - Number(_clearedAttention.has(b.key)))
-    || (directionRank[a.direction] ?? 9) - (directionRank[b.direction] ?? 9));
+    || rankOf(a.direction) - rankOf(b.direction));
 
   // The first row the reader has not acted on yet is the one to "start
-  // here"; acting on it hands the focus to whatever comes next.
+  // here" -- message, offer to review, or opportunity alike; acting on it
+  // hands the focus to whatever comes next.
   const focus = actions.find(item => !_clearedAttention.has(item.key)) || null;
 
   const lead = document.createElement('p');
@@ -1302,6 +1315,8 @@ function _renderReflectionAttention(data) {
     lead.textContent = "You've worked through everything here. Nice.";
   } else if (focus.direction === 'inbound') {
     lead.textContent = 'Start with the people waiting on you; the rest can hold.';
+  } else if (focus.direction === 'opportunity') {
+    lead.textContent = "Nobody's waiting on you — here's an opening worth a look.";
   } else {
     lead.textContent = 'Nothing urgent — just a few threads to follow up on.';
   }
@@ -1310,6 +1325,7 @@ function _renderReflectionAttention(data) {
   const groups = [
     { direction: 'inbound', title: 'Waiting on your reply' },
     { direction: 'outbound', title: "You're waiting to hear back" },
+    { direction: 'opportunity', title: 'Worth a look' },
   ].filter(group => actions.some(item => item.direction === group.direction));
   const showTitles = groups.length > 1;
 
@@ -1333,10 +1349,14 @@ function _renderReflectionAttention(data) {
 }
 
 function _buildAttentionRow(item, isFocus) {
+  // inbound = a person waiting on you now (red), outbound = a follow-up soon
+  // (amber); opportunities are the calmer "when you have a minute" tier (blue)
+  // so they read as distinct from the two waiting states.
   const urgency = item.direction === 'inbound' ? 'now' : 'soon';
+  const tone = item.direction === 'opportunity' ? 'later' : urgency;
   const done = _clearedAttention.has(item.key);
   const row = document.createElement('div');
-  row.className = `network-reflection-attention-row network-reflection-attention-row--${urgency}`;
+  row.className = `network-reflection-attention-row network-reflection-attention-row--${tone}`;
   if (isFocus) row.classList.add('network-reflection-attention-row--focus');
   if (done) row.classList.add('network-reflection-attention-row--done');
 
@@ -1378,7 +1398,12 @@ function _buildAttentionRow(item, isFocus) {
 }
 
 function _isAttentionHandler(handler) {
-  return new Set(['openConnectionRequests', 'openMessaging', 'openProjectBids']).has(handler);
+  return new Set([
+    'openConnectionRequests',
+    'openMessaging',
+    'openProjectBids',
+    'openSkillMatchedProjects',
+  ]).has(handler);
 }
 
 function _renderReflectionNextMoves(data) {

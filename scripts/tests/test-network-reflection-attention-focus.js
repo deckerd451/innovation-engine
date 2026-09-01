@@ -7,6 +7,9 @@
 //     the same row any more.
 //  2. Acting on the highlighted row hands the "start here" focus to the next
 //     item instead of always pinning messages as the sole top priority.
+//  3. Opportunities and project bids that need attention join the same
+//     distinct-highlight-and-advance flow, so the single "start here" item can
+//     be any of them -- not just a message.
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -49,5 +52,26 @@ assert.match(css, /\.network-reflection-attention-row--done\b/);
 assert.match(sql, /'messages_awaiting_reply', json_build_object/, 'RPC exposes the sent-and-awaiting-reply count');
 assert.match(sql, /ORDER BY m\.created_at DESC\s*\n\s*LIMIT 1\s*\n\s*\) = user_community_id/, 'counts threads whose last message the reader sent');
 assert.match(report, /messages_awaiting_reply: \{ count: 0/, 'empty report keeps the shape stable before the RPC redeploys');
+
+// --- 5. opportunities + bids share the highlight-and-advance flow --------
+// Project bids already flow through as inbound (bids_to_review) and outbound
+// (pending_bids); opportunities now join too, as their own calm tier so the
+// "start here" focus can land on any of them.
+assert.match(digest, /key:\s*'bids_to_review'/, 'offers to review are an attention row');
+assert.match(digest, /key:\s*'pending_bids'/, 'offers you sent are an attention row');
+assert.match(digest, /_reflectionAttentionActions\(immediate, data\?\.opportunities/, 'opportunity data is fed into the attention builder');
+assert.match(digest, /direction:\s*'opportunity'/, 'opportunities carry their own direction');
+assert.match(digest, /key:\s*'skill_matched_projects'/, 'skill-matched opportunities surface as an attention row');
+assert.match(digest, /countOf\(opportunities\?\.skill_matched_projects\)/, 'the opportunity row reads its count from opportunity data');
+assert.match(digest, /handler:\s*'openSkillMatchedProjects'/, 'the opportunity row routes to the skill-matched projects handler');
+assert.match(digest, /direction:\s*'opportunity',\s*title:\s*'Worth a look'/, 'opportunities get their own group heading');
+assert.match(digest, /focus\.direction === 'opportunity'/, 'an opportunity can be the "start here" focus');
+// The opportunity row is not keyed on its handler either -- same per-row rule.
+assert.match(digest, /rankOf\(a\.direction\) - rankOf\(b\.direction\)/, 'ordering ranks every direction, opportunities last');
+assert.match(digest, /item\.direction === 'opportunity' \? 'later' : urgency/, 'opportunities get a distinct colour tone');
+assert.match(css, /\.network-reflection-attention-row--later\b/, 'opportunity rows have their own styling hook');
+// openSkillMatchedProjects is now an attention handler, so the same insight is
+// not also duplicated under "Next moves".
+assert.match(digest, /_isAttentionHandler[\s\S]{0,200}openSkillMatchedProjects/, 'skill-matched projects count as an attention handler');
 
 console.log('Network Reflection attention direction + focus: all checks passed');
