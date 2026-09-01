@@ -178,11 +178,16 @@ BEGIN
       ),
       
       'open_opportunities', json_build_object(
+        -- The production opportunities table has no expires_at column, so an
+        -- `expires_at IS NULL OR expires_at > NOW()` predicate raised
+        -- "column \"expires_at\" does not exist" and aborted the whole RPC,
+        -- taking the entire Network Reflection payload down with it. Count open
+        -- opportunities the way the rest of the app does -- status = 'open'
+        -- alone (see _loadReflectionOpportunityCount in start-daily-digest.js).
         'count', (
           SELECT COUNT(*)::int
           FROM opportunities
           WHERE status = 'open'
-          AND (expires_at IS NULL OR expires_at > NOW())
         ),
         'items', '[]'::json
       ),
