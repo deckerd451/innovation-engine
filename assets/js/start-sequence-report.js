@@ -137,6 +137,7 @@ class StartSequenceReport {
       immediate_actions: {
         pending_requests: { count: 0, items: [] },
         unread_messages: { count: 0, conversations: [] },
+        messages_awaiting_reply: { count: 0, conversations: [] },
         pending_bids: { count: 0, items: [] },
         bids_to_review: { count: 0, items: [] }
       },

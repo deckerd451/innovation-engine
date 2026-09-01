@@ -1154,84 +1154,170 @@ async function _renderReflectionNetworkSummary(data) {
   root.replaceChildren(...[grid, growthEl].filter(Boolean));
 }
 
-function _renderReflectionAttention(data) {
-  const root = document.getElementById('network-reflection-attention');
-  const section = root?.closest('.network-reflection-section');
-  if (!root) return;
-  root.textContent = '';
-  const immediate = data?.immediate_actions || {};
+// Attention rows the reader has already acted on this visit.  Keyed by each
+// row's own `key` (not its handler -- inbound and outbound message rows share
+// openMessaging) so the "start here" focus can move on to the next thing
+// instead of pinning the same row forever.  Reset on page reload; a row also
+// just disappears once fresh data drops its count to 0.
+const _clearedAttention = new Set();
+let _lastReflectionData = null;
+
+// Every row is a plain sentence about who is waiting, tagged with a
+// `direction` -- the distinction people miss when the rows all look alike:
+//   inbound  -> someone is waiting on a reply or a decision from you now
+//   outbound -> you already did your part and are waiting to hear back
+// Colour and ordering follow from `direction` (inbound = warm red, first).
+function _reflectionAttentionActions(immediate) {
   const countOf = value => Number(value?.count ?? value ?? 0);
-  // Plain, relatable phrasing instead of system nouns ("pending bid",
-  // "unread message"): each row says, in a sentence, who is waiting on the
-  // person reading it.  `urgency` drives the colour treatment so the items
-  // that involve another human waiting stand out from routine follow-ups.
-  const actions = [
+  return [
     {
+      key: 'pending_requests',
       count: countOf(immediate.pending_requests),
-      urgency: 'now',
+      direction: 'inbound',
       message: n => `${n} ${n === 1 ? 'person wants' : 'people want'} to connect with you`,
       action: 'See who',
       handler: 'openConnectionRequests',
     },
     {
+      key: 'unread_messages',
       count: countOf(immediate.unread_messages),
-      urgency: 'now',
-      message: n => `${n === 1 ? 'Someone is' : `${n} people are`} waiting to hear back from you`,
+      direction: 'inbound',
+      message: n => `${n === 1 ? 'Someone is' : `${n} people are`} waiting on your reply`,
       action: 'Reply',
       handler: 'openMessaging',
     },
     {
+      key: 'bids_to_review',
       count: countOf(immediate.bids_to_review),
-      urgency: 'now',
+      direction: 'inbound',
       message: n => `${n} ${n === 1 ? 'person offered' : 'people offered'} to help on your projects`,
       action: 'Review offers',
       handler: 'openProjectBids',
     },
     {
+      key: 'messages_awaiting_reply',
+      count: countOf(immediate.messages_awaiting_reply),
+      direction: 'outbound',
+      message: n => `You're waiting to hear back on ${n} ${n === 1 ? 'message' : 'messages'} you sent`,
+      action: 'Open messages',
+      handler: 'openMessaging',
+    },
+    {
+      key: 'pending_bids',
       count: countOf(immediate.pending_bids),
-      urgency: 'soon',
-      message: n => `You're still waiting to hear back on ${n} ${n === 1 ? 'offer' : 'offers'} you sent`,
+      direction: 'outbound',
+      message: n => `You're waiting to hear back on ${n} ${n === 1 ? 'offer' : 'offers'} you sent`,
       action: 'Check status',
       handler: 'openProjectBids',
     },
   ].filter(item => item.count > 0);
+}
+
+function _renderReflectionAttention(data) {
+  const root = document.getElementById('network-reflection-attention');
+  const section = root?.closest('.network-reflection-section');
+  if (!root) return;
+  _lastReflectionData = data;
+  root.textContent = '';
+  const immediate = data?.immediate_actions || {};
+  const actions = _reflectionAttentionActions(immediate);
   if (!actions.length) {
     if (section) section.hidden = true;
     return;
   }
   if (section) section.hidden = false;
-  // People waiting on you first, routine follow-ups after.
-  const urgencyRank = { now: 0, soon: 1 };
-  actions.sort((a, b) => (urgencyRank[a.urgency] ?? 9) - (urgencyRank[b.urgency] ?? 9));
+
+  // Inbound (someone is waiting on you) before outbound (you're waiting on
+  // them); within that, rows already acted on this visit sink to the bottom
+  // so the next unactioned row reads as the focus.
+  const directionRank = { inbound: 0, outbound: 1 };
+  actions.sort((a, b) =>
+    (Number(_clearedAttention.has(a.key)) - Number(_clearedAttention.has(b.key)))
+    || (directionRank[a.direction] ?? 9) - (directionRank[b.direction] ?? 9));
+
+  // The first row the reader has not acted on yet is the one to "start
+  // here"; acting on it hands the focus to whatever comes next.
+  const focus = actions.find(item => !_clearedAttention.has(item.key)) || null;
 
   const lead = document.createElement('p');
   lead.className = 'network-reflection-attention-lead';
-  lead.textContent = actions.some(item => item.urgency === 'now')
-    ? "Here's who's waiting on you right now."
-    : "A few things to circle back on when you get a moment.";
+  if (!focus) {
+    lead.textContent = "You've worked through everything here. Nice.";
+  } else if (focus.direction === 'inbound') {
+    lead.textContent = 'Start with the people waiting on you; the rest can hold.';
+  } else {
+    lead.textContent = 'Nothing urgent — just a few threads to follow up on.';
+  }
+  root.appendChild(lead);
 
-  const list = document.createElement('div');
-  list.className = 'network-reflection-attention-list';
-  actions.forEach(item => {
-    const row = document.createElement('div');
-    row.className = `network-reflection-attention-row network-reflection-attention-row--${item.urgency}`;
-    const label = document.createElement('div');
-    label.className = 'network-reflection-attention-label';
-    const dot = document.createElement('span');
-    dot.className = 'network-reflection-attention-dot';
-    const message = document.createElement('strong');
-    message.textContent = typeof item.message === 'function'
-      ? item.message(item.count)
-      : `${item.count} ${item.message}`;
-    label.append(dot, message);
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = item.action;
-    button.addEventListener('click', event => window.EnhancedStartUI?.handleAction?.(item.handler, event));
-    row.append(label, button);
-    list.appendChild(row);
+  const groups = [
+    { direction: 'inbound', title: 'Waiting on your reply' },
+    { direction: 'outbound', title: "You're waiting to hear back" },
+  ].filter(group => actions.some(item => item.direction === group.direction));
+  const showTitles = groups.length > 1;
+
+  groups.forEach(group => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'network-reflection-attention-group';
+    if (showTitles) {
+      const title = document.createElement('p');
+      title.className = 'network-reflection-attention-group-title';
+      title.textContent = group.title;
+      groupEl.appendChild(title);
+    }
+    const list = document.createElement('div');
+    list.className = 'network-reflection-attention-list';
+    actions
+      .filter(item => item.direction === group.direction)
+      .forEach(item => list.appendChild(_buildAttentionRow(item, item === focus)));
+    groupEl.appendChild(list);
+    root.appendChild(groupEl);
   });
-  root.append(lead, list);
+}
+
+function _buildAttentionRow(item, isFocus) {
+  const urgency = item.direction === 'inbound' ? 'now' : 'soon';
+  const done = _clearedAttention.has(item.key);
+  const row = document.createElement('div');
+  row.className = `network-reflection-attention-row network-reflection-attention-row--${urgency}`;
+  if (isFocus) row.classList.add('network-reflection-attention-row--focus');
+  if (done) row.classList.add('network-reflection-attention-row--done');
+
+  const label = document.createElement('div');
+  label.className = 'network-reflection-attention-label';
+  const dot = document.createElement('span');
+  dot.className = 'network-reflection-attention-dot';
+  const message = document.createElement('strong');
+  message.textContent = typeof item.message === 'function'
+    ? item.message(item.count)
+    : `${item.count} ${item.message}`;
+  label.append(dot, message);
+  if (isFocus) {
+    const tag = document.createElement('span');
+    tag.className = 'network-reflection-attention-focus-tag';
+    tag.textContent = 'Start here';
+    label.appendChild(tag);
+  }
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = done ? 'Reopen' : item.action;
+  button.addEventListener('click', event => {
+    try {
+      window.EnhancedStartUI?.handleAction?.(item.handler, event);
+    } finally {
+      // Acting on a row advances the "start here" focus to the next item
+      // instead of leaving the same one highlighted as the only priority.
+      if (_clearedAttention.has(item.key)) {
+        _clearedAttention.delete(item.key);
+      } else {
+        _clearedAttention.add(item.key);
+      }
+      _renderReflectionAttention(_lastReflectionData);
+    }
+  });
+  row.append(label, button);
+  return row;
 }
 
 function _isAttentionHandler(handler) {
