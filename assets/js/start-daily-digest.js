@@ -1107,8 +1107,14 @@ async function _loadReflectionActiveProjectCount(data) {
 // The RPC payload reports connections as the denormalised community.connection_count
 // column, which is not kept in step with the connections table -- so it reads 0 for
 // people who plainly have accepted connections everywhere else in this interface.
-// Count the accepted connections directly, the same way fetchActualCounts() does,
-// and only fall back to the RPC figure when there is no client to ask.
+// Count the accepted connections directly, and only fall back to the RPC figure when
+// there is no client to ask.
+//
+// This must count DISTINCT peers, not raw connection rows: an accepted relationship
+// can be represented by rows in both directions (A->B and B->A), so a COUNT(*) over
+// rows double-counts those peers. The left sidebar's "Connected" stat
+// (command-dashboard.js) already dedupes peer ids the same way -- counting rows here
+// instead is exactly what made the two surfaces disagree for the same account.
 async function _loadReflectionConnectionCount(data) {
   const communityId = data?.profile?.id;
   const fallback = data?.network_insights?.connections?.total || 0;
@@ -1116,11 +1122,15 @@ async function _loadReflectionConnectionCount(data) {
 
   const result = await window.supabase
     .from('connections')
-    .select('id', { count: 'exact', head: true })
+    .select('from_user_id, to_user_id')
     .eq('status', 'accepted')
     .or(`from_user_id.eq.${communityId},to_user_id.eq.${communityId}`);
   if (result.error) throw result.error;
-  return result.count || 0;
+
+  const peerIds = new Set((result.data || []).map(row =>
+    row.from_user_id === communityId ? row.to_user_id : row.from_user_id
+  ));
+  return peerIds.size;
 }
 
 // The RPC also gates open_opportunities on an expires_at window that the rest of
