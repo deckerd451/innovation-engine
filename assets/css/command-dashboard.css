@@ -74,11 +74,13 @@ body.reflection-resizing #network-reflection { transition:none; }
 .network-reflection-attention-row strong { color:rgba(255,255,255,.84); font-size:.76rem; font-weight:600; }
 .network-reflection-attention-row button { flex:none; padding:.25rem .5rem; background:transparent; border:1px solid currentColor; border-radius:5px; color:inherit; font:inherit; font-size:.69rem; cursor:pointer; }
 /* Colour signals priority: warm red = a person is waiting on you now;
-   amber = a routine follow-up you can get to soon. */
+   amber = a routine follow-up you can get to soon; calm blue = an opportunity
+   worth a look when nobody is waiting. */
 .network-reflection-attention-row--now { color:#ff8a6b; border-color:rgba(255,99,71,.3); border-left-color:#ff6347; background:rgba(255,99,71,.07); }
 .network-reflection-attention-row--soon { color:#ffc04d; border-color:rgba(255,176,0,.28); border-left-color:#ffb000; background:rgba(255,176,0,.055); }
+.network-reflection-attention-row--later { color:#6fb8ff; border-color:rgba(80,150,255,.28); border-left-color:#4d90ff; background:rgba(80,150,255,.06); }
 /* Grouping headers separate "waiting on your reply" from "you're waiting to
-   hear back" when both are present. */
+   hear back" and "worth a look" when more than one is present. */
 .network-reflection-attention-group + .network-reflection-attention-group { margin-top:.55rem; }
 .network-reflection-attention-group-title { margin:0 0 .3rem; color:rgba(255,255,255,.42); font-size:.63rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
 /* The single most important item to address right now: a bright cyan highlight
