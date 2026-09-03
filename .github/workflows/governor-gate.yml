@@ -1,0 +1,28 @@
+name: Governor Certification Gate
+
+# Real downstream gate on the OVM Nano Governor's certification, not just
+# an optional signal: this runs on a self-hosted runner on the same local
+# WiFi network as the physical device (ovm-nano.local), because GitHub's
+# hosted runners cannot reach it. It fails the check unless the PR's head
+# commit has verified_<revision> = TRUE on the Governor's LIVE ledger,
+# fetched fresh every run -- never a cached or assumed value. Wired into
+# branch protection as a required status check, so a PR genuinely cannot
+# merge without this passing.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  governor-gate:
+    name: Governor Certification Gate
+    runs-on: [self-hosted, ovm-governor]
+    timeout-minutes: 5
+    steps:
+      - name: Check Governor's live ledger for verified_<revision>
+        env:
+          # Hardcoded IP, not ovm-nano.local: this runner's Python has
+          # the same mDNS-resolution caveat documented throughout this
+          # project (rook_verify.py, continuous_verifier.py, ...).
+          OVM_HOST: 192.168.50.129
+        run: |
+          python3 /Users/douglashamilton/ovm-nano/gate_pr.py "${{ github.event.pull_request.head.sha }}"
