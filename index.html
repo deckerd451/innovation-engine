@@ -361,25 +361,39 @@
       </div>
       <div id="network-reflection-scroll" class="network-reflection-scroll">
         <p id="network-reflection-greeting" class="network-reflection-greeting">Welcome back.</p>
-        <section class="network-reflection-section" aria-labelledby="reflection-attention-title" aria-live="polite" hidden>
-          <h2 id="reflection-attention-title">Waiting On You</h2>
-          <div id="network-reflection-attention" class="network-reflection-content"></div>
-        </section>
-        <section class="network-reflection-section" aria-labelledby="reflection-focus-title">
-          <h2 id="reflection-focus-title">Current Focus</h2>
-          <div id="network-reflection-focus" class="network-reflection-content"></div>
-        </section>
-        <div id="network-reflection-brief" aria-live="polite">
-          <div class="network-reflection-loading">Reading your network…</div>
+        <div id="network-reflection-steps" class="network-reflection-steps">
+          <section class="network-reflection-section" aria-labelledby="reflection-attention-title" aria-live="polite" hidden>
+            <h2 id="reflection-attention-title">Waiting On You</h2>
+            <div id="network-reflection-attention" class="network-reflection-content"></div>
+          </section>
+          <section class="network-reflection-section" aria-labelledby="reflection-focus-title">
+            <h2 id="reflection-focus-title">Current Focus</h2>
+            <div id="network-reflection-focus" class="network-reflection-content"></div>
+          </section>
+          <section class="network-reflection-section" aria-labelledby="reflection-brief-title">
+            <h2 id="reflection-brief-title">Your Brief</h2>
+            <div id="network-reflection-brief" aria-live="polite">
+              <div class="network-reflection-loading">Reading your network…</div>
+            </div>
+          </section>
+          <section class="network-reflection-section" aria-labelledby="reflection-network-title">
+            <h2 id="reflection-network-title">Your Network</h2>
+            <div id="network-reflection-summary" class="network-reflection-content"></div>
+          </section>
+          <section class="network-reflection-section" aria-labelledby="reflection-next-title">
+            <h2 id="reflection-next-title">Next Moves</h2>
+            <div id="network-reflection-next-moves" class="network-reflection-content"></div>
+          </section>
         </div>
-        <section class="network-reflection-section" aria-labelledby="reflection-network-title">
-          <h2 id="reflection-network-title">Your Network</h2>
-          <div id="network-reflection-summary" class="network-reflection-content"></div>
-        </section>
-        <section class="network-reflection-section" aria-labelledby="reflection-next-title">
-          <h2 id="reflection-next-title">Next Moves</h2>
-          <div id="network-reflection-next-moves" class="network-reflection-content"></div>
-        </section>
+        <div id="network-reflection-stepper-nav" class="network-reflection-stepper-nav">
+          <button id="network-reflection-step-prev" type="button" class="network-reflection-step-btn" aria-label="Previous objective">
+            <i class="fas fa-chevron-left" aria-hidden="true"></i>
+          </button>
+          <span id="network-reflection-step-label" class="network-reflection-step-label" aria-live="polite"></span>
+          <button id="network-reflection-step-next" type="button" class="network-reflection-step-btn" aria-label="Next objective">
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+          </button>
+        </div>
         <div class="network-reflection-export">
           <button id="network-reflection-download" type="button">Download Network Report</button>
         </div>

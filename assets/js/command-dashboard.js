@@ -174,6 +174,7 @@ window.CommandDashboard = (() => {
     _wireBellBtn();
     _wireLogoutBtn();
     _wireReflectionControls();
+    _wireReflectionStepper();
 
     if (window.ExplorerCoordinator) {
       window.ExplorerCoordinator.setActiveMode(_activeResourceTab);
@@ -1866,6 +1867,61 @@ window.CommandDashboard = (() => {
     const updateOrientation = () => resizer.setAttribute('aria-orientation', window.innerWidth >= 1024 ? 'vertical' : 'horizontal');
     updateOrientation();
     window.addEventListener('resize', updateOrientation);
+  }
+
+  /**
+   * Wire the Network Reflection stepper — presents its objective sections
+   * ("Waiting On You", "Current Focus", "Your Brief", "Your Network",
+   * "Next Moves") one at a time instead of a long scroll, since each is a
+   * standalone objective rather than part of one continuous read.
+   * Sections still toggle their own `hidden` attribute based on whether they
+   * have content (see start-daily-digest.js); a MutationObserver here just
+   * recomputes which of the currently-visible sections is "current" whenever
+   * that changes.
+   */
+  function _wireReflectionStepper() {
+    const container = $id('network-reflection-steps');
+    const nav = $id('network-reflection-stepper-nav');
+    const prevBtn = $id('network-reflection-step-prev');
+    const nextBtn = $id('network-reflection-step-next');
+    const label = $id('network-reflection-step-label');
+    if (!container || !nav || !prevBtn || !nextBtn || !label || container.dataset.stepperWired === 'true') return;
+    container.dataset.stepperWired = 'true';
+
+    let currentIndex = 0;
+
+    const visibleSteps = () =>
+      Array.from(container.querySelectorAll(':scope > .network-reflection-section')).filter(section => !section.hidden);
+
+    const update = () => {
+      const steps = visibleSteps();
+      container.querySelectorAll('.network-reflection-section').forEach(section => {
+        section.classList.remove('network-reflection-step-active');
+        section.setAttribute('aria-hidden', 'true');
+      });
+
+      if (!steps.length) {
+        nav.hidden = true;
+        return;
+      }
+
+      currentIndex = Math.max(0, Math.min(currentIndex, steps.length - 1));
+      const active = steps[currentIndex];
+      active.classList.add('network-reflection-step-active');
+      active.setAttribute('aria-hidden', 'false');
+
+      nav.hidden = steps.length < 2;
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex === steps.length - 1;
+      const title = active.querySelector('h2')?.textContent || '';
+      label.textContent = `${currentIndex + 1} of ${steps.length}${title ? ` — ${title}` : ''}`;
+    };
+
+    prevBtn.addEventListener('click', () => { currentIndex -= 1; update(); });
+    nextBtn.addEventListener('click', () => { currentIndex += 1; update(); });
+
+    new MutationObserver(update).observe(container, { attributes: true, attributeFilter: ['hidden'], subtree: true });
+    update();
   }
 
   /** Wire messages button → open messaging */
