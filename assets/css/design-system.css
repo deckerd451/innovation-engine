@@ -1,0 +1,222 @@
+/* ==========================================================================
+   CharlestonHacks Innovation Engine — design-system.css
+
+   A single, cascade-friendly baseline for the human-centered fundamentals:
+   design tokens, a readable type scale, WCAG-contrast-safe text colors,
+   consistent keyboard focus states, and a skip-to-content link.
+
+   Load order: this file is intentionally loaded EARLY (right after base.css)
+   so page/feature stylesheets can still override specifics. It defines tokens
+   and low-specificity defaults only — it avoids `!important` except for the
+   accessibility-critical focus outline, which must not be silently removed by
+   later rules.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. DESIGN TOKENS
+   Single source of truth for color, type, spacing, radius, and elevation.
+   Feature CSS can consume these instead of hard-coding hex values.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Brand + accent (matches existing cyan identity) */
+  --ds-accent: #00e0ff;
+  --ds-accent-strong: #33e9ff;      /* brighter cyan for text-on-dark AA */
+  --ds-accent-deep: #0080ff;
+  --ds-accent-gold: #e8c27d;
+
+  /* Status colors (aligned with the Network Reflection priority palette) */
+  --ds-danger: #ff6b6b;
+  --ds-warning: #ffc04d;
+  --ds-success: #38e08b;
+  --ds-info: #6fb8ff;
+
+  /* Surfaces (dark theme) */
+  --ds-bg: #000000;
+  --ds-surface-1: rgba(10, 14, 39, 0.72);
+  --ds-surface-2: rgba(8, 12, 28, 0.9);
+  --ds-border: rgba(0, 224, 255, 0.16);
+  --ds-border-strong: rgba(0, 224, 255, 0.4);
+
+  /* Text — contrast-checked against the near-black app background (#000/#0a0e27).
+     Values chosen to meet WCAG AA (>=4.5:1 for body, >=3:1 for large/secondary).
+     Previous UI used opacities as low as 0.45 which fall below AA. */
+  --ds-text-primary: #ffffff;                  /* ~21:1 */
+  --ds-text-secondary: rgba(255, 255, 255, 0.82); /* ~15:1 */
+  --ds-text-muted: rgba(255, 255, 255, 0.68);  /* ~9:1 — lowest we use for real text */
+  --ds-text-on-accent: #04222b;                /* dark ink on cyan buttons */
+
+  /* Type scale — root stays 16px (also prevents iOS input zoom).
+     rem-based steps keep proportions consistent and respect user zoom. */
+  --ds-font-size-xs: 0.8125rem;   /* 13px — smallest allowed, use sparingly */
+  --ds-font-size-sm: 0.875rem;    /* 14px — minimum for body/interactive text */
+  --ds-font-size-base: 1rem;      /* 16px */
+  --ds-font-size-lg: 1.125rem;    /* 18px */
+  --ds-font-size-xl: 1.375rem;    /* 22px */
+  --ds-font-size-2xl: 1.75rem;    /* 28px */
+  --ds-line-tight: 1.25;
+  --ds-line-base: 1.5;
+
+  /* Spacing scale (4px base) */
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-4: 1rem;
+  --ds-space-6: 1.5rem;
+  --ds-space-8: 2rem;
+
+  /* Radius + elevation */
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 12px;
+  --ds-radius-pill: 999px;
+  --ds-shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.8);
+
+  /* Focus ring — one definition reused everywhere */
+  --ds-focus-ring: 0 0 0 2px #04222b, 0 0 0 4px var(--ds-accent-strong);
+  --ds-focus-outline: 2px solid var(--ds-accent-strong);
+}
+
+/* --------------------------------------------------------------------------
+   2. SKIP-TO-CONTENT LINK
+   Lets keyboard/screen-reader users jump past the panels straight to the
+   main workspace. Hidden until focused.
+   -------------------------------------------------------------------------- */
+.ds-skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100000;
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  transform: translateY(-140%);
+  background: var(--ds-accent-strong);
+  color: var(--ds-text-on-accent);
+  font-family: system-ui, sans-serif;
+  font-size: var(--ds-font-size-sm);
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 0 0 var(--ds-radius-md) 0;
+  transition: transform 0.15s ease;
+}
+
+.ds-skip-link:focus {
+  transform: translateY(0);
+  outline: var(--ds-focus-outline);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   3. GLOBAL KEYBOARD FOCUS
+   A single, visible, high-contrast focus indicator for every interactive
+   element. Uses :focus-visible so it only shows for keyboard/AT users, not
+   on mouse click. Marked !important so decorative later rules that do
+   `outline:none` can't silently remove keyboard visibility.
+   -------------------------------------------------------------------------- */
+:focus-visible {
+  outline: var(--ds-focus-outline) !important;
+  outline-offset: 2px !important;
+  border-radius: 2px;
+}
+
+/* For elements where an outline is visually clipped (round icon buttons,
+   pills, graph controls), fall back to a box-shadow ring. */
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: var(--ds-focus-outline) !important;
+  outline-offset: 2px !important;
+}
+
+/* Do not show the ring for mouse users who happen to trigger :focus. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   4. READABLE-TEXT UTILITIES
+   Opt-in classes so pages can adopt the compliant palette/type incrementally
+   without a risky global override of existing layouts.
+   -------------------------------------------------------------------------- */
+.ds-text-primary { color: var(--ds-text-primary) !important; }
+.ds-text-secondary { color: var(--ds-text-secondary) !important; }
+.ds-text-muted { color: var(--ds-text-muted) !important; }
+
+.ds-readable {
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-base);
+  color: var(--ds-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   5. REDUCED MOTION
+   Respect users who ask for less animation across the whole app.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   6. CONFIRM DIALOG
+   Reusable confirmation modal (replaces native window.confirm) built on the
+   existing .modal / .modal-content / active-class convention.
+   -------------------------------------------------------------------------- */
+.ds-confirm-content {
+  max-width: 440px;
+  text-align: left;
+}
+
+.ds-confirm-title {
+  margin: 0 0 var(--ds-space-2);
+  color: var(--ds-text-primary);
+  font-size: var(--ds-font-size-xl);
+  font-weight: 700;
+}
+
+.ds-confirm-message {
+  margin: 0 0 var(--ds-space-6);
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-font-size-base);
+  line-height: var(--ds-line-base);
+}
+
+.ds-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ds-space-3);
+}
+
+.ds-btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--ds-radius-md);
+  font-family: inherit;
+  font-size: var(--ds-font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.ds-btn:hover { filter: brightness(1.1); }
+.ds-btn:active { transform: scale(0.97); }
+
+.ds-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--ds-text-primary);
+}
+
+.ds-btn-danger {
+  background: var(--ds-danger);
+  border: 1px solid var(--ds-danger);
+  color: #2a0606;
+}
