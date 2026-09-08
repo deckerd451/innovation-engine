@@ -31,6 +31,7 @@
   </script>
 
  <link rel="stylesheet" href="assets/css/base.css?v=search-icon-20260318" />
+<link rel="stylesheet" href="assets/css/design-system.css?v=hcd-20260908" />
 <link rel="stylesheet" href="assets/css/engine.css" />
 <link rel="stylesheet" href="assets/css/overlays.css" />
 <link rel="stylesheet" href="assets/css/connections.css" />
@@ -53,6 +54,7 @@
 </head>
 
 <body>
+  <a href="#main-content" class="ds-skip-link">Skip to main content</a>
   <canvas
     id="neural-bg"
     style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);"
@@ -130,6 +132,7 @@
   <div
     class="unified-main"
     id="main-content"
+    tabindex="-1"
     style="position: fixed; inset: 0; overflow: hidden; background: #000000; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); max-width: 100vw; touch-action: pan-y pinch-zoom;"
   >
     <div
@@ -407,6 +410,82 @@
       <div id="modal-profile-content"></div>
     </div>
   </div>
+
+  <!-- Reusable confirmation dialog (replaces native window.confirm) -->
+  <div class="modal" id="ds-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="ds-confirm-title" aria-describedby="ds-confirm-message">
+    <div class="modal-content ds-confirm-content">
+      <h2 class="ds-confirm-title" id="ds-confirm-title">Are you sure?</h2>
+      <p class="ds-confirm-message" id="ds-confirm-message"></p>
+      <div class="ds-confirm-actions">
+        <button type="button" class="ds-btn ds-btn-secondary" id="ds-confirm-cancel">Cancel</button>
+        <button type="button" class="ds-btn ds-btn-danger" id="ds-confirm-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Promise-based confirmation dialog that matches the app's modal styling
+     * and, unlike native confirm(), is keyboard-accessible (Esc cancels,
+     * focus is trapped on the actions, focus is restored on close).
+     * Usage: if (await window.dsConfirm({ message, confirmLabel })) { ... }
+     */
+    window.dsConfirm = function dsConfirm(opts) {
+      opts = opts || {};
+      const modal = document.getElementById("ds-confirm-modal");
+      const titleEl = document.getElementById("ds-confirm-title");
+      const msgEl = document.getElementById("ds-confirm-message");
+      const okBtn = document.getElementById("ds-confirm-ok");
+      const cancelBtn = document.getElementById("ds-confirm-cancel");
+
+      // No modal in DOM (defensive) — fall back to native confirm.
+      if (!modal || !okBtn || !cancelBtn) {
+        return Promise.resolve(window.confirm(opts.message || "Are you sure?"));
+      }
+
+      titleEl.textContent = opts.title || "Are you sure?";
+      msgEl.textContent = opts.message || "";
+      okBtn.textContent = opts.confirmLabel || "Confirm";
+      cancelBtn.textContent = opts.cancelLabel || "Cancel";
+      okBtn.classList.toggle("ds-btn-danger", opts.danger !== false);
+
+      const previouslyFocused = document.activeElement;
+
+      return new Promise((resolve) => {
+        function cleanup(result) {
+          modal.classList.remove("active");
+          okBtn.removeEventListener("click", onOk);
+          cancelBtn.removeEventListener("click", onCancel);
+          modal.removeEventListener("click", onBackdrop);
+          document.removeEventListener("keydown", onKey);
+          if (previouslyFocused && previouslyFocused.focus) {
+            try { previouslyFocused.focus(); } catch (e) {}
+          }
+          resolve(result);
+        }
+        function onOk() { cleanup(true); }
+        function onCancel() { cleanup(false); }
+        function onBackdrop(e) { if (e.target === modal) cleanup(false); }
+        function onKey(e) {
+          if (e.key === "Escape") { e.preventDefault(); cleanup(false); }
+          if (e.key === "Tab") {
+            // Simple two-element focus trap between Cancel and Confirm.
+            e.preventDefault();
+            (document.activeElement === okBtn ? cancelBtn : okBtn).focus();
+          }
+        }
+
+        okBtn.addEventListener("click", onOk);
+        cancelBtn.addEventListener("click", onCancel);
+        modal.addEventListener("click", onBackdrop);
+        document.addEventListener("keydown", onKey);
+
+        modal.classList.add("active");
+        // Focus the safe (cancel) action by default.
+        setTimeout(() => cancelBtn.focus(), 0);
+      });
+    };
+  </script>
 
   <script>
     (function () {
@@ -914,7 +993,13 @@
 
   <script>
     window.doLogout = async function doLogout() {
-      if (!confirm("Are you sure you want to logout?")) return;
+      const confirmed = await window.dsConfirm({
+        title: "Log out?",
+        message: "You'll be signed out of BUILDSPACE and returned to the sign-in screen.",
+        confirmLabel: "Log out",
+        cancelLabel: "Stay signed in",
+      });
+      if (!confirmed) return;
 
       try {
         if (window.handleLogout) {
