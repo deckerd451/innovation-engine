@@ -648,6 +648,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     dailySuggestions,
     presenceSessions,
     community,
+    nearifyEventPresence,
   ] = await Promise.all([
     _safe('connections', () => supabase
       .from('connections')
@@ -729,6 +730,16 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
       .or('is_hidden.is.null,is_hidden.eq.false')
       .limit(500)
     ),
+    // Nearify event presence (who's currently at the same real-world event).
+    // RLS on this table already scopes visibility to the caller's own rows
+    // plus co-attendees at events the caller is currently joined to — this
+    // query can never leak a global roster.
+    _safe('nearify_event_presence', () => supabase
+      .from('nearify_event_presence')
+      .select('community_id, nearify_event_id, event_name, status')
+      .eq('status', 'joined')
+      .limit(500)
+    ),
   ]);
 
   // Opportunities: query public.opportunities directly (opportunities_with_org view does not exist).
@@ -778,6 +789,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     presenceSessions,
     opportunities,
     community,
+    nearifyEventPresence,
     usedSources,
   };
 }
@@ -1215,12 +1227,13 @@ function _buildCombinationOpportunities({
  * deterministic evidence instead of introducing a second people ranker or
  * additional queries.
  */
-function _buildPeopleWorthKnowing({ userProfile, community, projects, organizations, memberships, maxItems }) {
+function _buildPeopleWorthKnowing({ userProfile, community, projects, organizations, memberships, nearifyEventPresence, maxItems }) {
   if (!userProfile || !Array.isArray(community)) return [];
   const projectById = new Map((projects || []).map(project => [String(project.id), project]));
   const organizationById = new Map((organizations || []).map(org => [String(org.id), org]));
   const activeContext = window.SynapseContext?.get?.() || null;
   const weights = {
+    shared_nearify_event: 6,
     active_context: 5,
     opportunity_reason: 5,
     shared_project: 5,
@@ -1229,6 +1242,33 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
     shared_skill: 2,
     shared_theme: 2,
   };
+
+  // Nearify co-presence: which event(s) is the current user currently
+  // joined to, and who else (by community_id) is at each of those same
+  // events right now? Physical co-presence at a live event is a strong,
+  // time-sensitive signal, weighted above the static graph-membership
+  // signals above. RLS on nearify_event_presence already restricts what
+  // rows this query can even see (own rows + co-attendees), so this map
+  // can never reveal a global roster beyond what the user is entitled to.
+  const myEventsByPersonId = new Map(); // personId -> event_name (first match)
+  if (Array.isArray(nearifyEventPresence) && nearifyEventPresence.length) {
+    const userId0 = String(userProfile.id);
+    const myEventIds = new Set(
+      nearifyEventPresence
+        .filter(row => String(row.community_id) === userId0)
+        .map(row => row.nearify_event_id)
+    );
+    if (myEventIds.size) {
+      for (const row of nearifyEventPresence) {
+        const rowPersonId = String(row.community_id);
+        if (rowPersonId === userId0) continue;
+        if (!myEventIds.has(row.nearify_event_id)) continue;
+        if (!myEventsByPersonId.has(rowPersonId)) {
+          myEventsByPersonId.set(rowPersonId, row.event_name || 'a Nearify event');
+        }
+      }
+    }
+  }
 
   // Stable identity for the current user: the canonical community record id
   // plus (when present) the auth user_id it's linked to. A duplicate/legacy
@@ -1265,7 +1305,28 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
     const meaningful = (evidence?.reasons || []).filter(reason =>
       Object.prototype.hasOwnProperty.call(weights, reason.category)
     );
+
+    // Nearify co-presence: only a candidacy signal for people not already
+    // meaningfully connected — physical proximity to someone you already
+    // know isn't a "you should meet" recommendation. This can, on its own
+    // (with no other evidence category), make an otherwise-unconnected
+    // stranger eligible, which is the actual point of the signal: it
+    // surfaces people at the same event you haven't met yet.
+    const sharedEventName = myEventsByPersonId.get(personId);
+    if (sharedEventName && connectionStatus !== 'accepted') {
+      meaningful.push({
+        category: 'shared_nearify_event',
+        label: 'At the same event',
+        detail: `You're both at ${sharedEventName}`,
+      });
+    }
+
     if (!meaningful.length) continue;
+
+    // Surface the highest-weight reasons first (e.g. a live shared event
+    // ahead of a static shared skill), so the explanation leads with the
+    // most compelling/time-sensitive evidence.
+    meaningful.sort((a, b) => (weights[b.category] || 0) - (weights[a.category] || 0));
 
     const score = meaningful.reduce((sum, reason) => sum + (weights[reason.category] || 0), 0);
     const summaries = meaningful.slice(0, 2).map(reason => {
@@ -1555,6 +1616,7 @@ export async function generateDailyBrief({
     organizations:   graph.organizations,
     community:       graph.community,
     dailySuggestions: graph.dailySuggestions,
+    nearifyEventPresence: graph.nearifyEventPresence,
     memberships,
     activityHitMap,
     now,
