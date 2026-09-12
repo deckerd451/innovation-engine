@@ -229,6 +229,11 @@
       .ch-profile-card-label{color:#00e0ff;font-weight:800;font-size:.85rem;text-transform:uppercase;margin-bottom:.35rem;letter-spacing:.08em;}
       .ch-profile-card-value{color:#ddd;word-break:break-word;}
 
+      .ch-nearify-link-card{margin-top:.6rem;padding:.6rem .8rem;border-radius:10px;background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.2);}
+      .ch-nearify-link-status{color:#ccc;font-size:.8rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;}
+      .ch-nearify-unlink-btn{font-size:.72rem;padding:.25rem .6rem;border-radius:20px;background:transparent;border:1px solid rgba(244,63,94,.4);color:#f43f5e;cursor:pointer;}
+      .ch-nearify-unlink-btn:disabled{opacity:.5;cursor:not-allowed;}
+
       .ch-profile-actions, .ch-profile-editor-actions{
         position:sticky;bottom:0;padding:1rem;display:flex;gap:.75rem;flex-wrap:wrap;
         background:rgba(0,0,0,.85);backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.12);
@@ -401,6 +406,11 @@
               <div class="ch-profile-card-value">${escapeHtml(interests || "—")}</div>
             </div>
           </div>
+
+          <div class="ch-nearify-link-card" id="nearify-link-card">
+            <div class="ch-nearify-link-status" id="nearify-link-status">Nearify: checking…</div>
+          </div>
+          ${window.NearifyEventsPanel?.render?.() || ""}
         </div>
 
         <div class="ch-profile-actions">
@@ -421,13 +431,55 @@
     if (!modal || !content) return;
 
     ensureStyles();
+    window.NearifyEventsPanel?.ensureStyles?.();
     content.innerHTML = renderProfileView(state.profile, state.user);
 
     $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
     $("logout-btn")?.addEventListener("click", () => window.handleLogout?.(), { once: true });
 
+    _loadNearifyLinkStatus(content);
+    window.NearifyEventsPanel?.init?.(content);
+
     openModal(modal);
   };
+
+  // ================================================================
+  // Nearify link status (identity linking is initiated from the
+  // Nearify app itself — see assets/js/nearify-link.js — this just
+  // surfaces the resulting status and lets the user unlink).
+  // ================================================================
+  async function _loadNearifyLinkStatus(content) {
+    const statusEl = content.querySelector("#nearify-link-status");
+    if (!statusEl || !window.NearifyLink) return;
+
+    try {
+      const { linked, linkedAt } = await window.NearifyLink.getLinkedStatus();
+      if (linked) {
+        const when = linkedAt ? new Date(linkedAt).toLocaleDateString() : "";
+        statusEl.innerHTML = `
+          <span>Linked to Nearify${when ? ` (since ${escapeHtml(when)})` : ""}</span>
+          <button type="button" class="ch-nearify-unlink-btn" id="nearify-unlink-btn">Unlink</button>
+        `;
+        content.querySelector("#nearify-unlink-btn")?.addEventListener("click", async (e) => {
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          btn.textContent = "Unlinking…";
+          const result = await window.NearifyLink.unlinkAccount();
+          if (result?.success) {
+            statusEl.textContent = "Not linked to Nearify. Connect from the Nearify app to see people you've met at events here.";
+          } else {
+            btn.disabled = false;
+            btn.textContent = "Unlink";
+          }
+        }, { once: true });
+      } else {
+        statusEl.textContent = "Not linked to Nearify. Connect from the Nearify app to see people you've met at events here.";
+      }
+    } catch (err) {
+      console.warn("[Profile] Nearify link status check failed:", err);
+      statusEl.textContent = "";
+    }
+  }
 
   // ================================================================
   // Profile editor

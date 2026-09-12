@@ -60,9 +60,12 @@ function sleep(ms) {
  * @param {string} [params.toAuthUserId] - Auth user ID of target
  * @param {string} [params.fromCommunityId] - Community ID of initiator
  * @param {string} [params.toCommunityId] - Community ID of target
+ * @param {string} [params.fromNearifyId] - Opaque Nearify user ID of initiator (resolved via nearify_identity_map)
+ * @param {string} [params.toNearifyId] - Opaque Nearify user ID of target (resolved via nearify_identity_map)
  * @param {string} [params.signalType='proximity'] - Signal type
  * @param {number} [params.confidence=50] - Confidence 0-100
  * @param {string} [params.occurredAt] - ISO timestamp
+ * @param {string} [params.eventName] - Display name of the event, stored in meta for later display
  * @param {Object} [params.meta={}] - Additional metadata
  * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
  */
@@ -72,9 +75,12 @@ export async function sendInteraction({
   toAuthUserId = null,
   fromCommunityId = null,
   toCommunityId = null,
+  fromNearifyId = null,
+  toNearifyId = null,
   signalType = 'proximity',
   confidence = 50,
   occurredAt = null,
+  eventName = null,
   meta = {},
 } = {}) {
   if (!eventId) {
@@ -82,13 +88,13 @@ export async function sendInteraction({
     return { success: false, error: 'eventId is required' };
   }
 
-  if (!fromCommunityId && !fromAuthUserId) {
-    console.error(LOG_PREFIX, 'Must provide fromCommunityId or fromAuthUserId');
+  if (!fromCommunityId && !fromAuthUserId && !fromNearifyId) {
+    console.error(LOG_PREFIX, 'Must provide fromCommunityId, fromAuthUserId, or fromNearifyId');
     return { success: false, error: 'from_user identity required' };
   }
 
-  if (!toCommunityId && !toAuthUserId) {
-    console.error(LOG_PREFIX, 'Must provide toCommunityId or toAuthUserId');
+  if (!toCommunityId && !toAuthUserId && !toNearifyId) {
+    console.error(LOG_PREFIX, 'Must provide toCommunityId, toAuthUserId, or toNearifyId');
     return { success: false, error: 'to_user identity required' };
   }
 
@@ -105,6 +111,7 @@ export async function sendInteraction({
     source_version: '1.0.0',
     signal_type: signalType,
     qr_confirmed: signalType === 'qr_confirmed',
+    ...(eventName ? { event_name: eventName } : {}),
   };
 
   const payload = {
@@ -117,6 +124,8 @@ export async function sendInteraction({
     p_confidence: confidence,
     p_occurred_at: occurredAt || new Date().toISOString(),
     p_meta: enrichedMeta,
+    p_from_nearify_id: fromNearifyId || null,
+    p_to_nearify_id: toNearifyId || null,
   };
 
   // Retry loop
