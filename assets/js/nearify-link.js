@@ -9,10 +9,18 @@
 // redirect here. This module only surfaces the resulting link
 // status on the profile, and lets a user unlink from this side too.
 //
+// Identity (nearify_identity_map — "who is this person in Nearify")
+// and authorization (community_experience_authorizations — "may that
+// identity's community context be used") are separate, independently
+// revocable concerns. getAuthorizationStatus()/reconfirmAuthorization()
+// surface the latter; getLinkedStatus()/unlinkAccount() the former.
+//
 // Exports (also available on window.NearifyLink):
-//   getLinkedStatus()  — { linked, nearifyUserId, linkedAt } from Supabase
-//   getCachedStatus()  — synchronous cached read for immediate render
-//   unlinkAccount()    — remove the link
+//   getLinkedStatus()         — { linked, nearifyUserId, linkedAt } from Supabase
+//   getCachedStatus()         — synchronous cached read for immediate render
+//   unlinkAccount()           — remove the link (and revoke authorization)
+//   getAuthorizationStatus()  — { status: authorized|needs_reconfirmation|revoked|none }
+//   reconfirmAuthorization()  — { success, error? } — the one-tap "Continue" action
 // ================================================================
 
 const CACHE_KEY = 'nearify_link_cache';
@@ -76,10 +84,42 @@ export async function unlinkAccount() {
   return { success: true };
 }
 
+export async function getAuthorizationStatus() {
+  const supabase = _getSupabase();
+  if (!supabase) return { status: 'none' };
+
+  const { data, error } = await supabase.rpc('get_nearify_authorization_status');
+  if (error) {
+    console.warn('[NearifyLink] Authorization status check failed:', error.message);
+    return { status: 'none' };
+  }
+
+  const result = typeof data === 'string' ? JSON.parse(data) : data;
+  return { status: result?.status || 'none' };
+}
+
+export async function reconfirmAuthorization() {
+  const supabase = _getSupabase();
+  if (!supabase) return { success: false, error: 'Supabase not initialized' };
+
+  const { data, error } = await supabase.rpc('reconfirm_nearify_authorization');
+  if (error) {
+    console.error('[NearifyLink] Reconfirm error:', error.message);
+    return { success: false, error: error.message };
+  }
+
+  const result = typeof data === 'string' ? JSON.parse(data) : data;
+  return result?.success
+    ? { success: true }
+    : { success: false, error: result?.error || 'Unknown error' };
+}
+
 window.NearifyLink = {
   getLinkedStatus,
   getCachedStatus,
   unlinkAccount,
+  getAuthorizationStatus,
+  reconfirmAuthorization,
 };
 
 export default window.NearifyLink;

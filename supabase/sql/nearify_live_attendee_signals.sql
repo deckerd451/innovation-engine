@@ -29,12 +29,17 @@
 -- Also never exposes a separate "is this candidate linked" flag: a missing
 -- key in the response means "no usable Buildspace enrichment" for that
 -- candidate, and intentionally does not distinguish between "unlinked",
--- "hidden", or "resolves to the caller" — those are not observable from
--- the response. A candidate that IS linked, visible, and not the caller
--- always gets an entry, even when every count is zero
--- ({"score": 0, "reasons": []}) — a resolvable-but-zero-overlap result is
--- not the same as "could not resolve", and callers should not conflate
--- them.
+-- "hidden", "not authorized", or "resolves to the caller" — those are not
+-- observable from the response. A candidate that IS linked, visible,
+-- 'authorized' (see community_experience_authorizations.sql — a candidate
+-- who is merely 'needs_reconfirmation' or 'revoked' is treated identically
+-- to unresolved), and not the caller always gets an entry, even when every
+-- count is zero ({"score": 0, "reasons": []}) — a resolvable-but-zero-
+-- overlap result is not the same as "could not resolve", and callers
+-- should not conflate them.
+--
+-- DEPENDENCY: requires public.community_experience_authorizations to
+-- exist (see that file) — apply it before this revision of this file.
 --
 -- No exclusion of already-connected candidates: unlike
 -- get_nearify_event_recommendations (which excludes accepted connections
@@ -55,9 +60,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_community_id UUID;
-  v_ids          TEXT[];
-  v_result       JSONB;
+  v_community_id  UUID;
+  v_caller_status TEXT;
+  v_ids           TEXT[];
+  v_result        JSONB;
 BEGIN
   -- Identity resolved EXCLUSIVELY from auth.uid(), same as
   -- get_nearify_event_recommendations — this RPC only ever answers "how
@@ -65,6 +71,21 @@ BEGIN
   SELECT id INTO v_community_id FROM community WHERE user_id = auth.uid() LIMIT 1;
   IF v_community_id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'No linked community profile found for current user');
+  END IF;
+
+  -- Caller-side authorization gate. 'authorized' and
+  -- 'needs_reconfirmation' are both allowed here: needs_reconfirmation
+  -- exists specifically to preserve previously-disclosed
+  -- personalization-FOR the caller during the migration window — see
+  -- community_experience_authorizations.sql. 'revoked' or no row at
+  -- all ('none') yields no enrichment, returned as a normal empty
+  -- success rather than an error — identical, non-blocking shape to
+  -- every other "nothing to enrich" outcome this RPC already produces.
+  SELECT status INTO v_caller_status
+  FROM community_experience_authorizations
+  WHERE community_id = v_community_id AND experience = 'nearify';
+  IF v_caller_status IS NULL OR v_caller_status = 'revoked' THEN
+    RETURN jsonb_build_object('success', true, 'signals', '{}'::jsonb);
   END IF;
 
   IF p_nearify_user_ids IS NULL OR array_length(p_nearify_user_ids, 1) IS NULL THEN
@@ -114,6 +135,16 @@ BEGIN
     SELECT DISTINCT nim.nearify_user_id, nim.community_id
     FROM nearify_identity_map nim
     JOIN community c ON c.id = nim.community_id
+    -- Candidate-side authorization gate: ONLY an 'authorized' candidate
+    -- may be enriched/explained to another Nearify participant.
+    -- needs_reconfirmation, revoked, and no-row all behave identically
+    -- to "no usable enrichment for this candidate" — no different than
+    -- an unresolved identity, silently excluded (no key emitted) rather
+    -- than surfaced with a distinguishing flag.
+    JOIN community_experience_authorizations cea
+      ON cea.community_id = nim.community_id
+     AND cea.experience   = 'nearify'
+     AND cea.status       = 'authorized'
     WHERE nim.nearify_user_id = ANY(v_ids)
       AND nim.community_id <> v_community_id
       AND (c.is_hidden IS NULL OR c.is_hidden = false)

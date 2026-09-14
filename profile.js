@@ -229,10 +229,21 @@
       .ch-profile-card-label{color:#00e0ff;font-weight:800;font-size:.85rem;text-transform:uppercase;margin-bottom:.35rem;letter-spacing:.08em;}
       .ch-profile-card-value{color:#ddd;word-break:break-word;}
 
-      .ch-nearify-link-card{margin-top:.6rem;padding:.6rem .8rem;border-radius:10px;background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.2);}
-      .ch-nearify-link-status{color:#ccc;font-size:.8rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;}
+      .ch-network-experiences-card{margin-top:.6rem;padding:.8rem .9rem;border-radius:12px;background:rgba(0,224,255,.05);border:1px solid rgba(0,224,255,.2);}
+      .ch-network-experiences-label{color:#00e0ff;font-weight:800;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
+      .ch-network-experiences-blurb{color:#aaa;font-size:.8rem;line-height:1.45;margin-top:.3rem;}
+      .ch-network-experiences-heading{color:#ddd;font-weight:700;font-size:.85rem;margin-top:.8rem;}
+      .ch-network-experiences-subblurb{color:#aaa;font-size:.78rem;line-height:1.4;margin-top:.2rem;margin-bottom:.6rem;}
+      .ch-experience-row{padding-top:.5rem;border-top:1px solid rgba(255,255,255,.08);}
+      .ch-experience-name{color:#eee;font-weight:700;font-size:.85rem;display:flex;align-items:center;gap:.4rem;}
+      .ch-experience-name .connected-dot{width:7px;height:7px;border-radius:999px;background:#00ff88;display:inline-block;}
+      .ch-experience-desc{color:#ccc;font-size:.78rem;line-height:1.45;margin-top:.3rem;}
+      .ch-experience-meta{color:#888;font-size:.72rem;margin-top:.25rem;}
+      .ch-experience-actions{margin-top:.55rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
       .ch-nearify-unlink-btn{font-size:.72rem;padding:.25rem .6rem;border-radius:20px;background:transparent;border:1px solid rgba(244,63,94,.4);color:#f43f5e;cursor:pointer;}
       .ch-nearify-unlink-btn:disabled{opacity:.5;cursor:not-allowed;}
+      .ch-nearify-continue-btn{font-size:.75rem;padding:.35rem .8rem;border-radius:20px;background:linear-gradient(135deg,#00e0ff,#0080ff);border:none;color:#001;font-weight:800;cursor:pointer;}
+      .ch-nearify-continue-btn:disabled{opacity:.5;cursor:not-allowed;}
 
       .ch-profile-actions, .ch-profile-editor-actions{
         position:sticky;bottom:0;padding:1rem;display:flex;gap:.75rem;flex-wrap:wrap;
@@ -407,8 +418,14 @@
             </div>
           </div>
 
-          <div class="ch-nearify-link-card" id="nearify-link-card">
-            <div class="ch-nearify-link-status" id="nearify-link-status">Nearify: checking…</div>
+          <div class="ch-network-experiences-card" id="network-experiences-card">
+            <div class="ch-network-experiences-label">Your community profile</div>
+            <div class="ch-network-experiences-blurb">Your community profile helps people understand who you are, what you're building, and what you can contribute across network experiences.</div>
+            <div class="ch-network-experiences-heading">Network experiences</div>
+            <div class="ch-network-experiences-subblurb">Choose where your community profile can be used to personalize connections.</div>
+            <div class="ch-experience-row" id="nearify-experience-row">
+              <div class="ch-experience-name">Nearify: checking…</div>
+            </div>
           </div>
           ${window.NearifyEventsPanel?.render?.() || ""}
         </div>
@@ -437,47 +454,88 @@
     $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
     $("logout-btn")?.addEventListener("click", () => window.handleLogout?.(), { once: true });
 
-    _loadNearifyLinkStatus(content);
+    _loadNearifyExperienceRow(content);
     window.NearifyEventsPanel?.init?.(content);
 
     openModal(modal);
   };
 
   // ================================================================
-  // Nearify link status (identity linking is initiated from the
-  // Nearify app itself — see assets/js/nearify-link.js — this just
-  // surfaces the resulting status and lets the user unlink).
+  // Nearify network-experience row (identity linking is initiated
+  // from the Nearify app itself — see assets/js/nearify-link.js —
+  // this surfaces link + authorization status and lets the user
+  // disconnect, or reconfirm during the transitional consent-copy
+  // update. Buildspace never initiates or completes linking itself:
+  // "not connected" only ever points back to the Nearify app.
   // ================================================================
-  async function _loadNearifyLinkStatus(content) {
-    const statusEl = content.querySelector("#nearify-link-status");
-    if (!statusEl || !window.NearifyLink) return;
+  async function _loadNearifyExperienceRow(content) {
+    const rowEl = content.querySelector("#nearify-experience-row");
+    if (!rowEl || !window.NearifyLink) return;
 
     try {
-      const { linked, linkedAt } = await window.NearifyLink.getLinkedStatus();
-      if (linked) {
-        const when = linkedAt ? new Date(linkedAt).toLocaleDateString() : "";
-        statusEl.innerHTML = `
-          <span>Linked to Nearify${when ? ` (since ${escapeHtml(when)})` : ""}</span>
-          <button type="button" class="ch-nearify-unlink-btn" id="nearify-unlink-btn">Unlink</button>
+      const [{ linked, linkedAt }, { status }] = await Promise.all([
+        window.NearifyLink.getLinkedStatus(),
+        window.NearifyLink.getAuthorizationStatus(),
+      ]);
+
+      if (!linked) {
+        rowEl.innerHTML = `
+          <div class="ch-experience-name">Nearify</div>
+          <div class="ch-experience-desc">Connect from the Nearify app to use your community profile there.</div>
         `;
-        content.querySelector("#nearify-unlink-btn")?.addEventListener("click", async (e) => {
+        return;
+      }
+
+      if (status === "needs_reconfirmation") {
+        rowEl.innerHTML = `
+          <div class="ch-experience-name">Nearify</div>
+          <div class="ch-experience-desc">We've clarified how your community profile works with Nearify. When you participate in a Nearify experience, your profile can help Nearify make relevant introductions for you and explain why another participant may benefit from meeting you.</div>
+          <div class="ch-experience-actions">
+            <button type="button" class="ch-nearify-continue-btn" id="nearify-continue-btn">Continue</button>
+          </div>
+        `;
+        content.querySelector("#nearify-continue-btn")?.addEventListener("click", async (e) => {
           const btn = e.currentTarget;
           btn.disabled = true;
-          btn.textContent = "Unlinking…";
-          const result = await window.NearifyLink.unlinkAccount();
+          btn.textContent = "Continuing…";
+          const result = await window.NearifyLink.reconfirmAuthorization();
           if (result?.success) {
-            statusEl.textContent = "Not linked to Nearify. Connect from the Nearify app to see people you've met at events here.";
+            _loadNearifyExperienceRow(content);
           } else {
             btn.disabled = false;
-            btn.textContent = "Unlink";
+            btn.textContent = "Continue";
           }
         }, { once: true });
-      } else {
-        statusEl.textContent = "Not linked to Nearify. Connect from the Nearify app to see people you've met at events here.";
+        return;
       }
+
+      // authorized (or a defensive fallback for an unexpected status
+      // while linked=true — never render the reconfirmation prompt or
+      // the not-connected copy for a genuinely linked identity)
+      const when = linkedAt ? new Date(linkedAt).toLocaleDateString() : "";
+      rowEl.innerHTML = `
+        <div class="ch-experience-name"><span class="connected-dot" aria-hidden="true"></span>Nearify · Connected</div>
+        <div class="ch-experience-desc">Use my community profile to make introductions more relevant when I participate in Nearify experiences.</div>
+        ${when ? `<div class="ch-experience-meta">Connected since ${escapeHtml(when)}</div>` : ""}
+        <div class="ch-experience-actions">
+          <button type="button" class="ch-nearify-unlink-btn" id="nearify-unlink-btn">Disconnect</button>
+        </div>
+      `;
+      content.querySelector("#nearify-unlink-btn")?.addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = "Disconnecting…";
+        const result = await window.NearifyLink.unlinkAccount();
+        if (result?.success) {
+          _loadNearifyExperienceRow(content);
+        } else {
+          btn.disabled = false;
+          btn.textContent = "Disconnect";
+        }
+      }, { once: true });
     } catch (err) {
-      console.warn("[Profile] Nearify link status check failed:", err);
-      statusEl.textContent = "";
+      console.warn("[Profile] Nearify experience status check failed:", err);
+      rowEl.innerHTML = "";
     }
   }
 

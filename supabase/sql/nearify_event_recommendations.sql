@@ -30,6 +30,16 @@
 -- action on the Nearify side, so no identifier is needed there; this
 -- also means a compromised or buggy Nearify client can't harvest
 -- Innovation Engine community IDs through this endpoint.
+--
+-- Authorization: both the caller and every candidate must hold an
+-- 'authorized' row in community_experience_authorizations for
+-- experience='nearify' (candidate) / at least 'needs_reconfirmation'
+-- (caller) — see community_experience_authorizations.sql. This is a
+-- pure narrowing of the existing co-attendee candidate set, never a
+-- broadening of it.
+--
+-- DEPENDENCY: requires public.community_experience_authorizations to
+-- exist (see that file) — apply it before this revision of this file.
 -- ================================================================
 
 CREATE OR REPLACE FUNCTION public.get_nearify_event_recommendations(
@@ -42,7 +52,8 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_community_id UUID;
+  v_community_id  UUID;
+  v_caller_status TEXT;
   v_limit INT;
   v_result JSONB;
 BEGIN
@@ -55,6 +66,21 @@ BEGIN
   SELECT id INTO v_community_id FROM community WHERE user_id = auth.uid() LIMIT 1;
   IF v_community_id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'No linked community profile found for current user');
+  END IF;
+
+  -- Caller-side authorization gate — same semantics as
+  -- get_nearify_live_attendee_signals: 'authorized' and
+  -- 'needs_reconfirmation' both continue serving personalization FOR
+  -- the caller (the latter exists to preserve what was already
+  -- disclosed to existing links during the migration window);
+  -- 'revoked' or no row ('none') yields no recommendations, returned
+  -- as the same empty shape the client already treats as a normal
+  -- cold-start/no-candidates outcome — never a distinct error.
+  SELECT status INTO v_caller_status
+  FROM community_experience_authorizations
+  WHERE community_id = v_community_id AND experience = 'nearify';
+  IF v_caller_status IS NULL OR v_caller_status = 'revoked' THEN
+    RETURN jsonb_build_object('success', true, 'nearify_event_id', p_nearify_event_id, 'recommendations', '[]'::jsonb);
   END IF;
 
   -- Hard server-side cap regardless of what the caller requests — this
@@ -91,10 +117,20 @@ BEGIN
       AND status = 'joined'
       AND community_id <> v_community_id
   ),
-  -- Exclude anyone already meaningfully connected.
+  -- Exclude anyone already meaningfully connected, and require the
+  -- candidate to be 'authorized' for the nearify experience — a
+  -- candidate merely 'needs_reconfirmation' or 'revoked' (or with no
+  -- authorization row at all) must never be recommended to, or
+  -- explained via, another Nearify participant. This narrows
+  -- candidate generation; it never broadens it beyond the existing
+  -- co-attendee-and-not-already-connected set.
   eligible AS (
     SELECT ca.community_id
     FROM co_attendees ca
+    JOIN community_experience_authorizations cea
+      ON cea.community_id = ca.community_id
+     AND cea.experience   = 'nearify'
+     AND cea.status       = 'authorized'
     WHERE NOT EXISTS (
       SELECT 1 FROM connections c
       WHERE c.status = 'accepted'

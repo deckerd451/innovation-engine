@@ -1,11 +1,20 @@
 -- ================================================================
 -- NEARIFY ↔ INNOVATION ENGINE: Identity Bridge
 -- ================================================================
--- STATUS: ALREADY LIVE IN PRODUCTION (project mqbsjlgnsirqsmfnreqd).
--- This file is restored to the repo for documentation / source-of-
--- truth purposes only. DO NOT RE-RUN this file against production —
--- every object below already exists and is in active use. It was
--- originally merged via PR #208 (2026-05-04) but was later lost from
+-- STATUS: the table and RLS policies below are ALREADY LIVE IN
+-- PRODUCTION (project mqbsjlgnsirqsmfnreqd) and unchanged by this
+-- revision — do not re-run section 1 in isolation. Sections 2 and 3
+-- (link_nearify_account / unlink_nearify_account) and the new section
+-- 6 (identity-map hardening) ARE pending changes from the community-
+-- experience-authorizations pass and have NOT yet been deployed as of
+-- this revision — see that pass's migration notes before applying.
+--
+-- DEPENDENCY: sections 2, 3, and 6 of this file reference
+-- public.community_experience_authorizations, so
+-- supabase/sql/community_experience_authorizations.sql MUST be applied
+-- to production before this file's updated sections are applied.
+--
+-- Originally merged via PR #208 (2026-05-04) but was later lost from
 -- `main`'s tracked history during an unrelated history reset; the
 -- live database was never affected by that reset.
 --
@@ -85,6 +94,19 @@ CREATE POLICY "Users can delete their own nearify link"
 -- nearify_user_id -> community_id mapping for the currently
 -- authenticated Supabase user.
 
+-- Establishes both the identity bridge AND the Nearify authorization
+-- atomically (single function invocation = single implicit
+-- transaction — either both take effect or neither does). This RPC is
+-- only ever called from a genuine, deliberate "Connect Buildspace"
+-- action in the Nearify app (see nearify-ios MainTabView), performed
+-- under copy that explicitly discloses both directions (personalizing
+-- what this user sees, and using their profile to explain them to
+-- another Nearify participant) — so a (re-)link always sets status
+-- straight to 'authorized', including when re-linking after a prior
+-- revocation. This is the ONLY path that should ever set status to
+-- 'authorized' from a state other than 'needs_reconfirmation' — see
+-- reconfirm_nearify_authorization() in community_experience_
+-- authorizations.sql for the narrower transitional path.
 CREATE OR REPLACE FUNCTION public.link_nearify_account(
   p_nearify_user_id TEXT
 )
@@ -115,6 +137,14 @@ BEGIN
     SET nearify_user_id = trim(p_nearify_user_id),
         updated_at      = now();
 
+  INSERT INTO community_experience_authorizations (community_id, experience, status, authorized_at, updated_at)
+  VALUES (v_community_id, 'nearify', 'authorized', now(), now())
+  ON CONFLICT (community_id, experience) DO UPDATE
+    SET status        = 'authorized',
+        authorized_at = now(),
+        revoked_at    = NULL,
+        updated_at    = now();
+
   RETURN jsonb_build_object(
     'success',          true,
     'community_id',     v_community_id,
@@ -131,6 +161,11 @@ GRANT EXECUTE ON FUNCTION public.link_nearify_account(TEXT) TO authenticated;
 -- 3. UNLINK ACCOUNT RPC
 -- ================================================================
 
+-- Revokes both the identity bridge and the Nearify authorization.
+-- Revocation NEVER deletes the underlying community profile or auth
+-- account (only the CASCADE-scoped identity_map row and an authorization
+-- status flip) — the Buildspace account and Nearify account both
+-- remain fully intact after this call.
 CREATE OR REPLACE FUNCTION public.unlink_nearify_account()
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -152,6 +187,14 @@ BEGIN
 
   DELETE FROM nearify_identity_map WHERE community_id = v_community_id;
   GET DIAGNOSTICS v_deleted = ROW_COUNT;
+
+  UPDATE community_experience_authorizations
+  SET status     = 'revoked',
+      revoked_at = now(),
+      updated_at = now()
+  WHERE community_id = v_community_id
+    AND experience   = 'nearify'
+    AND status      != 'revoked';
 
   RETURN jsonb_build_object('success', true, 'unlinked', v_deleted > 0);
 END;
@@ -388,14 +431,39 @@ GRANT EXECUTE ON FUNCTION public.ingest_nearify_interaction(
 
 
 -- ================================================================
+-- 6. IDENTITY-MAP HARDENING
+-- ================================================================
+-- This project carries a schema-level default privilege that grants
+-- broad table access to anon/authenticated on new tables — confirmed
+-- directly against production: anon and authenticated both currently
+-- hold INSERT/UPDATE/DELETE on nearify_identity_map despite no code
+-- ever granting it explicitly, and despite the RLS policies above
+-- already existing as the intended (but bypassable-at-the-grant-level)
+-- guard. No client anywhere (Nearify or Innovation Engine web) issues
+-- a direct table write against nearify_identity_map — every mutation
+-- goes through link_nearify_account()/unlink_nearify_account() — so
+-- revoking direct write privileges cannot break the existing native
+-- linking flow: those RPCs are SECURITY DEFINER and mutate the table
+-- under the function owner's privileges regardless of what the
+-- calling role itself is granted.
+--
+-- SELECT is left untouched — no finding suggested it was being misused,
+-- and it's the RLS-scoped "view your own link" policy's intended path.
+REVOKE INSERT, UPDATE, DELETE ON public.nearify_identity_map FROM PUBLIC;
+REVOKE INSERT, UPDATE, DELETE ON public.nearify_identity_map FROM anon;
+REVOKE INSERT, UPDATE, DELETE ON public.nearify_identity_map FROM authenticated;
+
+
+-- ================================================================
 -- COMPLETION
 -- ================================================================
 DO $$
 BEGIN
   RAISE NOTICE '✅ Nearify identity bridge deployed:';
   RAISE NOTICE '   ✓ nearify_identity_map table';
-  RAISE NOTICE '   ✓ link_nearify_account() RPC';
-  RAISE NOTICE '   ✓ unlink_nearify_account() RPC';
+  RAISE NOTICE '   ✓ link_nearify_account() RPC — now also authorizes community_experience_authorizations';
+  RAISE NOTICE '   ✓ unlink_nearify_account() RPC — now also revokes community_experience_authorizations';
   RAISE NOTICE '   ✓ get_nearify_link_status() RPC';
   RAISE NOTICE '   ✓ ingest_nearify_interaction() updated with nearify_id resolution';
+  RAISE NOTICE '   ✓ nearify_identity_map direct INSERT/UPDATE/DELETE revoked from anon/authenticated';
 END $$;
