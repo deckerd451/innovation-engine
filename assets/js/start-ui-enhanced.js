@@ -601,34 +601,23 @@ class EnhancedStartUI {
             return;
           }
           
-          // Check if we're in cards mode and need to switch to circles
-          const currentStrategy = window.currentStrategy || 'new';
-          
-          if (window.toggleThemeStrategy && typeof window.toggleThemeStrategy === 'function') {
-            // If in cards mode, switch to circles to see themes
-            if (currentStrategy === 'new') {
-              window.toggleThemeStrategy();
-            }
+          const themesBtn = document.querySelector('[data-category="themes"]');
+          if (themesBtn) {
+            themesBtn.click();
+
+            // Check if there are themes after a short delay
+            setTimeout(() => {
+              const themeNodes = document.querySelectorAll('[data-type="theme"]');
+              if (themeNodes.length === 0) {
+                this.showToast('No active themes found. Check back later!', 'info');
+              }
+            }, 500);
+          } else if (window.Synapse && window.Synapse.filterByType) {
+            window.Synapse.filterByType('theme');
+          } else if (window.filterByNodeType) {
+            window.filterByNodeType('theme');
           } else {
-            // Fallback: Click the Themes filter button
-            const themesBtn = document.querySelector('[data-category="themes"]');
-            if (themesBtn) {
-              themesBtn.click();
-              
-              // Check if there are themes after a short delay
-              setTimeout(() => {
-                const themeNodes = document.querySelectorAll('[data-type="theme"]');
-                if (themeNodes.length === 0) {
-                  this.showToast('No active themes found. Check back later!', 'info');
-                }
-              }, 500);
-            } else if (window.Synapse && window.Synapse.filterByType) {
-              window.Synapse.filterByType('theme');
-            } else if (window.filterByNodeType) {
-              window.filterByNodeType('theme');
-            } else {
-              this.showToast('Please click the "Themes" button to view active themes', 'info');
-            }
+            this.showToast('Please click the "Themes" button to view active themes', 'info');
           }
         }
       };

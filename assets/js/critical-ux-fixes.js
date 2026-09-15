@@ -188,31 +188,7 @@
   }
 
   // ================================================================
-  // FIX 4: Add Visible Feedback to Notification Bell
-  // ================================================================
-
-  function enhanceNotificationBell() {
-    // Notification bell already has badge and empty state — nothing to patch.
-  }
-
-  // ================================================================
-  // FIX 5: Show Projects Without theme_id
-  // ================================================================
-
-  function patchProjectVisibility() {
-    // This needs to be done in synapse/data.js
-    // We'll add a runtime patch here
-    console.log('🔧 Patching project visibility for projects without theme_id');
-    
-    // Store original loadSynapseData if it exists
-    if (window.loadSynapseData) {
-      console.log('⚠️ Cannot patch loadSynapseData - it\'s a module export');
-      console.log('📝 Note: Projects without theme_id will need database fix or code change');
-    }
-  }
-
-  // ================================================================
-  // FIX 6: Remove Bottom-Bar Toggle Code
+  // FIX 4: Remove Bottom-Bar Toggle Code
   // ================================================================
 
   function removeBottomBarToggle() {
@@ -231,7 +207,7 @@
   }
 
   // ================================================================
-  // FIX 7: Reduce Admin-Check Logging
+  // FIX 5: Reduce Admin-Check Logging
   // ================================================================
 
   function reduceAdminCheckLogging() {
@@ -257,8 +233,6 @@
     ensureEngagementContainers();
     addSynapseIdempotentGuards();
     patchThemeRecommendations();
-    enhanceNotificationBell();
-    patchProjectVisibility();
     removeBottomBarToggle();
     reduceAdminCheckLogging();
     
