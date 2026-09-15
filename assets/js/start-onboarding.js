@@ -722,17 +722,9 @@ class StartOnboarding {
     window.EnhancedStartUI.close();
 
     setTimeout(() => {
-      // Switch to circle view if in cards mode
-      if (window.toggleThemeStrategy && typeof window.toggleThemeStrategy === 'function') {
-        const currentStrategy = window.currentStrategy || 'new';
-        if (currentStrategy === 'new') {
-          window.toggleThemeStrategy();
-        }
-      } else {
-        // Fallback: click themes filter
-        const themesBtn = document.querySelector('[data-category="themes"]');
-        if (themesBtn) themesBtn.click();
-      }
+      const themesBtn = document.querySelector('[data-resource="themes"]');
+      if (themesBtn) themesBtn.click();
+      else window.EnhancedStartUI.showToast('Themes are unavailable right now.', 'info');
     }, 300);
   }
 
