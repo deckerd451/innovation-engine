@@ -722,8 +722,9 @@ class StartOnboarding {
     window.EnhancedStartUI.close();
 
     setTimeout(() => {
-      const themesBtn = document.querySelector('[data-category="themes"]');
+      const themesBtn = document.querySelector('[data-resource="themes"]');
       if (themesBtn) themesBtn.click();
+      else window.EnhancedStartUI.showToast('Themes are unavailable right now.', 'info');
     }, 300);
   }
 

@@ -601,23 +601,11 @@ class EnhancedStartUI {
             return;
           }
           
-          const themesBtn = document.querySelector('[data-category="themes"]');
+          const themesBtn = document.querySelector('[data-resource="themes"]');
           if (themesBtn) {
             themesBtn.click();
-
-            // Check if there are themes after a short delay
-            setTimeout(() => {
-              const themeNodes = document.querySelectorAll('[data-type="theme"]');
-              if (themeNodes.length === 0) {
-                this.showToast('No active themes found. Check back later!', 'info');
-              }
-            }, 500);
-          } else if (window.Synapse && window.Synapse.filterByType) {
-            window.Synapse.filterByType('theme');
-          } else if (window.filterByNodeType) {
-            window.filterByNodeType('theme');
           } else {
-            this.showToast('Please click the "Themes" button to view active themes', 'info');
+            this.showToast('Themes are unavailable right now.', 'info');
           }
         }
       };
