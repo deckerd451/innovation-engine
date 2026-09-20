@@ -408,7 +408,7 @@ async function renderThemeLensPanel(themeData) {
   // Get current user info
   let currentUserCommunityId = null;
   let isCreator = false;
-  let isParticipant = false;
+  let participation = null;
   
   // Remove 'theme:' prefix from theme ID
   const cleanThemeId = themeData.id ? themeData.id.replace(/^theme:/, '') : null;
@@ -430,24 +430,30 @@ async function renderThemeLensPanel(themeData) {
       // Check if user is a participant
       if (cleanThemeId && currentUserCommunityId) {
         try {
-          const { data: participation } = await supabase
+          const { data: participationRow } = await supabase
             .from('theme_participants')
-            .select('id')
+            .select('id, engagement_level, participation_confirmed_at, participation_expires_at')
             .eq('theme_id', cleanThemeId)
             .eq('community_id', currentUserCommunityId)
             .maybeSingle();
           
-          isParticipant = !!participation;
-          console.log('Participation check:', { cleanThemeId, currentUserCommunityId, isParticipant });
+          participation = participationRow || null;
+          console.log('Participation check:', { cleanThemeId, currentUserCommunityId, participation });
         } catch (err) {
           console.warn('Error checking participation:', err);
-          isParticipant = false;
+          participation = null;
         }
       }
     }
   } catch (error) {
     console.error('Error checking user status:', error);
   }
+
+  const isParticipant = !!participation;
+  const isCurrentParticipation = participation?.engagement_level === 'participating'
+    && participation.participation_expires_at
+    && new Date(participation.participation_expires_at).getTime() > Date.now();
+  const participationExpired = participation?.engagement_level === 'participating' && !isCurrentParticipation;
 
   // Calculate time remaining
   const now = Date.now();
@@ -496,7 +502,11 @@ async function renderThemeLensPanel(themeData) {
               onmouseout="this.style.background='linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1))'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
               style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,224,255,0.1)); border: 1px solid rgba(0,224,255,0.4); 
               border-radius: 8px; color: #00e0ff; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;">
-              <i class="fas fa-user-plus"></i> Join Theme
+              <i class="fas fa-star"></i> I'm interested
+            </button>
+            <button onclick="confirmThemeParticipation('${themeData.id}', '${escapeHtml(name)}')"
+              style="flex: 1; padding: 0.75rem; background: rgba(115,230,166,0.16); border: 1px solid rgba(115,230,166,0.55); border-radius: 8px; color: #73e6a6; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+              I'm participating
             </button>
           ` : ''}
           ${isCreator ? `
@@ -508,7 +518,31 @@ async function renderThemeLensPanel(themeData) {
               <i class="fas fa-trash"></i> Delete Theme
             </button>
           ` : ''}
-          ${isParticipant && !isCreator ? `
+          ${isParticipant && !isCreator && isCurrentParticipation ? `
+            <button onclick="stopThemeParticipation('${themeData.id}', '${escapeHtml(name)}')"
+              style="flex: 1; padding: 0.75rem; background: rgba(115,230,166,0.16); border: 1px solid rgba(115,230,166,0.55); border-radius: 8px; color: #73e6a6; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+              You're participating · Stop participating
+            </button>
+            <button onclick="leaveTheme('${themeData.id}', '${escapeHtml(name)}')"
+              style="flex: 1; padding: 0.75rem; background: rgba(255,170,0,0.15); border: 1px solid rgba(255,170,0,0.4); border-radius: 8px; color: #ffaa00; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+              <i class="fas fa-sign-out-alt"></i> Leave Theme
+            </button>
+          ` : ''}
+          ${isParticipant && !isCreator && participationExpired ? `
+            <button onclick="confirmThemeParticipation('${themeData.id}', '${escapeHtml(name)}')"
+              style="flex: 1; padding: 0.75rem; background: rgba(115,230,166,0.16); border: 1px solid rgba(115,230,166,0.55); border-radius: 8px; color: #73e6a6; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+              Participation expired · Reconfirm
+            </button>
+            <button onclick="leaveTheme('${themeData.id}', '${escapeHtml(name)}')"
+              style="flex: 1; padding: 0.75rem; background: rgba(255,170,0,0.15); border: 1px solid rgba(255,170,0,0.4); border-radius: 8px; color: #ffaa00; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+              <i class="fas fa-sign-out-alt"></i> Leave Theme
+            </button>
+          ` : ''}
+          ${isParticipant && !isCreator && !isCurrentParticipation && !participationExpired && participation?.engagement_level !== 'participating' ? `
+            <button onclick="confirmThemeParticipation('${themeData.id}', '${escapeHtml(name)}')"
+              style="flex: 1; padding: 0.75rem; background: rgba(115,230,166,0.16); border: 1px solid rgba(115,230,166,0.55); border-radius: 8px; color: #73e6a6; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+              I'm participating
+            </button>
             <button onclick="leaveTheme('${themeData.id}', '${escapeHtml(name)}')"
               onmouseover="this.style.background='rgba(255,170,0,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,170,0,0.3)';"
               onmouseout="this.style.background='rgba(255,170,0,0.15)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
@@ -4170,6 +4204,52 @@ window.joinTheme = async function(themeId, themeName) {
   } catch (error) {
     console.error('Error joining theme:', error);
     alert('Failed to join theme. Please try again.');
+  }
+};
+
+// Confirm current participation through the server-controlled RPC.
+window.confirmThemeParticipation = async function(themeId, themeName) {
+  try {
+    const cleanThemeId = themeId.replace(/^theme:/, '');
+    const { data, error } = await supabase.rpc('confirm_theme_participation', { p_theme_id: cleanThemeId });
+    if (error) throw error;
+    if (!data?.success) {
+      showToastNotification(data?.error || 'This theme is no longer current.', 'error');
+      return;
+    }
+    showToastNotification(`✓ You're participating in "${themeName}" for 30 days.`, 'success');
+    closeNodePanel();
+    if (window.reloadAllData && typeof window.reloadAllData === 'function') {
+      await window.reloadAllData();
+      if (window.rebuildGraph && typeof window.rebuildGraph === 'function') await window.rebuildGraph();
+    } else {
+      window.location.reload();
+    }
+  } catch (error) {
+    console.error('Error confirming theme participation:', error);
+    alert('Failed to confirm participation. Please try again.');
+  }
+};
+
+// Stop current participation through the server-controlled RPC; the row remains interested.
+window.stopThemeParticipation = async function(themeId, themeName) {
+  if (!confirm(`Stop participating in "${themeName}"?`)) return;
+  try {
+    const cleanThemeId = themeId.replace(/^theme:/, '');
+    const { data, error } = await supabase.rpc('stop_theme_participation', { p_theme_id: cleanThemeId });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'Unable to stop participation');
+    showToastNotification(`✓ You are now interested in "${themeName}"`, 'success');
+    closeNodePanel();
+    if (window.reloadAllData && typeof window.reloadAllData === 'function') {
+      await window.reloadAllData();
+      if (window.rebuildGraph && typeof window.rebuildGraph === 'function') await window.rebuildGraph();
+    } else {
+      window.location.reload();
+    }
+  } catch (error) {
+    console.error('Error stopping theme participation:', error);
+    alert('Failed to stop participation. Please try again.');
   }
 };
 

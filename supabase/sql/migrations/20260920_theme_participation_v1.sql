@@ -1,3 +1,182 @@
+-- ============================================================================
+-- THEME PARTICIPATION V1
+-- Explicit interested/participating state with server-controlled freshness.
+-- Apply only after implementation/security review.
+-- ============================================================================
+
+ALTER TABLE public.theme_participants
+  ADD COLUMN IF NOT EXISTS participation_confirmed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS participation_expires_at TIMESTAMPTZ;
+
+ALTER TABLE public.theme_participants
+  DROP CONSTRAINT IF EXISTS theme_participants_engagement_level_check;
+
+ALTER TABLE public.theme_participants
+  ADD CONSTRAINT theme_participants_engagement_level_check CHECK (
+    engagement_level = ANY (ARRAY[
+      'hover'::text,
+      'exploring'::text,
+      'interested'::text,
+      'active'::text,
+      'leading'::text,
+      'proposing'::text,
+      'participating'::text
+    ])
+  );
+
+ALTER TABLE public.theme_participants
+  DROP CONSTRAINT IF EXISTS theme_participants_participation_state_check;
+
+ALTER TABLE public.theme_participants
+  ADD CONSTRAINT theme_participants_participation_state_check CHECK (
+    (engagement_level = 'participating'
+      AND participation_confirmed_at IS NOT NULL
+      AND participation_expires_at IS NOT NULL
+      AND participation_expires_at > participation_confirmed_at)
+    OR
+    (engagement_level <> 'participating'
+      AND participation_confirmed_at IS NULL
+      AND participation_expires_at IS NULL)
+  );
+
+CREATE INDEX IF NOT EXISTS idx_theme_participants_current_participation
+  ON public.theme_participants(theme_id, engagement_level, participation_expires_at);
+
+-- Only the SECURITY DEFINER confirmation/stop functions may write the
+-- participating state or its server-owned timestamps.
+DROP POLICY IF EXISTS "Users can join themes" ON public.theme_participants;
+CREATE POLICY "Users can join themes"
+  ON public.theme_participants FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    engagement_level <> 'participating'
+    AND community_id IN (SELECT id FROM public.community WHERE user_id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Users can update their participation" ON public.theme_participants;
+CREATE POLICY "Users can update their participation"
+  ON public.theme_participants FOR UPDATE
+  TO authenticated
+  USING (community_id IN (SELECT id FROM public.community WHERE user_id = auth.uid()))
+  WITH CHECK (
+    engagement_level <> 'participating'
+    AND community_id IN (SELECT id FROM public.community WHERE user_id = auth.uid())
+  );
+
+-- ================================================================
+-- CONFIRM CURRENT THEME PARTICIPATION
+-- ================================================================
+-- Explicit user intent only. The server owns the confirmation window;
+-- clients cannot supply confirmation or expiry timestamps.
+
+CREATE OR REPLACE FUNCTION public.confirm_theme_participation(p_theme_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_community_id UUID;
+  v_status TEXT;
+  v_theme_expires_at TIMESTAMPTZ;
+  v_confirmed_at TIMESTAMPTZ := now();
+  v_expires_at TIMESTAMPTZ;
+BEGIN
+  SELECT id INTO v_community_id
+  FROM community
+  WHERE user_id = auth.uid()
+  LIMIT 1;
+
+  IF v_community_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'No community profile found for current user');
+  END IF;
+
+  SELECT status, expires_at
+    INTO v_status, v_theme_expires_at
+  FROM theme_circles
+  WHERE id = p_theme_id;
+
+  IF v_status IS DISTINCT FROM 'active'
+     OR (v_theme_expires_at IS NOT NULL AND v_theme_expires_at <= v_confirmed_at) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Theme is no longer current');
+  END IF;
+
+  v_expires_at := v_confirmed_at + interval '30 days';
+  IF v_theme_expires_at IS NOT NULL AND v_theme_expires_at < v_expires_at THEN
+    v_expires_at := v_theme_expires_at;
+  END IF;
+
+  INSERT INTO theme_participants (
+    theme_id,
+    community_id,
+    engagement_level,
+    participation_confirmed_at,
+    participation_expires_at
+  )
+  VALUES (
+    p_theme_id,
+    v_community_id,
+    'participating',
+    v_confirmed_at,
+    v_expires_at
+  )
+  ON CONFLICT (theme_id, community_id)
+  DO UPDATE SET
+    engagement_level = 'participating',
+    participation_confirmed_at = EXCLUDED.participation_confirmed_at,
+    participation_expires_at = EXCLUDED.participation_expires_at;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'engagement_level', 'participating',
+    'participation_confirmed_at', v_confirmed_at,
+    'participation_expires_at', v_expires_at
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.confirm_theme_participation(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.confirm_theme_participation(UUID) FROM anon;
+GRANT EXECUTE ON FUNCTION public.confirm_theme_participation(UUID) TO authenticated;
+-- ================================================================
+-- STOP CURRENT THEME PARTICIPATION
+-- ================================================================
+-- Stopping is explicit and preserves the lightweight interested state.
+
+CREATE OR REPLACE FUNCTION public.stop_theme_participation(p_theme_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_community_id UUID;
+  v_updated INTEGER;
+BEGIN
+  SELECT id INTO v_community_id
+  FROM community
+  WHERE user_id = auth.uid()
+  LIMIT 1;
+
+  IF v_community_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'No community profile found for current user');
+  END IF;
+
+  UPDATE theme_participants
+  SET engagement_level = 'interested',
+      participation_confirmed_at = NULL,
+      participation_expires_at = NULL
+  WHERE theme_id = p_theme_id
+    AND community_id = v_community_id;
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN jsonb_build_object('success', true, 'updated', v_updated > 0, 'engagement_level', 'interested');
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.stop_theme_participation(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.stop_theme_participation(UUID) FROM anon;
+GRANT EXECUTE ON FUNCTION public.stop_theme_participation(UUID) TO authenticated;
 -- ================================================================
 -- NEARIFY → INNOVATION ENGINE: Between-Events Intelligence
 -- (Aggregation across a Nearify-established relationship set)

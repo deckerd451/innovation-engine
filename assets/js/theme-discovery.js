@@ -10,7 +10,7 @@ const showSynapseNotification = (...args) => window.showSynapseNotification?.(..
  * Inline replacement for synapse/themes.js markInterested.
  * Upserts a theme_participants row for the current user.
  */
-async function markInterested(sb, { themeId, communityId, days = 7 }) {
+async function markInterested(sb, { themeId, communityId }) {
   if (!sb || !themeId || !communityId) throw new Error('Missing required params');
   const { error } = await sb
     .from('theme_participants')
@@ -18,7 +18,9 @@ async function markInterested(sb, { themeId, communityId, days = 7 }) {
       theme_id: themeId,
       community_id: communityId,
       engagement_level: 'interested',
-      signals: { joined_at: new Date().toISOString() }
+      signals: { joined_at: new Date().toISOString() },
+      participation_confirmed_at: null,
+      participation_expires_at: null
     }, { onConflict: 'theme_id,community_id' });
   if (error) throw error;
 }
@@ -65,7 +67,7 @@ async function loadActiveThemes() {
       .from('theme_circles')
       .select('*')
       .eq('status', 'active')
-      .gt('expires_at', new Date().toISOString())
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
       .order('activity_score', { ascending: false });
 
     if (error) throw error;
@@ -90,7 +92,7 @@ async function loadUserParticipations() {
   try {
     const { data, error } = await supabase
       .from('theme_participants')
-      .select('theme_id, signals, engagement_level')
+      .select('theme_id, signals, engagement_level, participation_confirmed_at, participation_expires_at')
       .eq('community_id', currentUser.id);
 
     if (error) throw error;
@@ -109,6 +111,16 @@ function isUserParticipating(themeId) {
 function getUserEngagement(themeId) {
   const participation = userParticipations.find(p => p.theme_id === themeId);
   return participation?.engagement_level || null;
+}
+
+function getUserParticipation(themeId) {
+  return userParticipations.find(p => p.theme_id === themeId) || null;
+}
+
+function isCurrentParticipation(participation) {
+  return participation?.engagement_level === 'participating'
+    && participation.participation_expires_at
+    && new Date(participation.participation_expires_at).getTime() > Date.now();
 }
 
 // ============================================================================
@@ -294,11 +306,14 @@ function renderThemesGrid(themes, mode = 'all') {
 
 function renderDiscoveryThemeCard(theme, matches = []) {
   const now = Date.now();
-  const expires = new Date(theme.expires_at).getTime();
+  const expires = theme.expires_at ? new Date(theme.expires_at).getTime() : Infinity;
   const remaining = expires - now;
   const daysRemaining = Math.floor(remaining / (1000 * 60 * 60 * 24));
   const isParticipating = isUserParticipating(theme.id);
   const engagement = getUserEngagement(theme.id);
+  const participation = getUserParticipation(theme.id);
+  const currentParticipation = isCurrentParticipation(participation);
+  const expiredParticipation = participation?.engagement_level === 'participating' && !currentParticipation;
 
   return `
     <div class="discovery-theme-card" data-theme-id="${theme.id}" style="
@@ -356,7 +371,7 @@ function renderDiscoveryThemeCard(theme, matches = []) {
 
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">
-          <i class="fas fa-clock"></i> ${daysRemaining} days left
+          <i class="fas fa-clock"></i> ${Number.isFinite(expires) ? `${daysRemaining} days left` : 'No expiry'}
           <span style="margin-left: 0.75rem;">
             <i class="fas fa-users"></i> ${theme.activity_score || 0}
           </span>
@@ -369,13 +384,40 @@ function renderDiscoveryThemeCard(theme, matches = []) {
                    border: none; border-radius: 6px; color: #000; cursor: pointer;
                    font-weight: 700; font-size: 0.85rem;"
           >
-            <i class="fas fa-star"></i> Join
+            <i class="fas fa-star"></i> I'm interested
           </button>
+          <button
+            class="btn-participating-theme"
+            data-theme-id="${theme.id}"
+            style="padding: 0.5rem 1rem; background: rgba(115,230,166,0.16);
+                   border: 1px solid rgba(115,230,166,0.55); border-radius: 6px; color: #73e6a6;
+                   cursor: pointer; font-weight: 700; font-size: 0.85rem;"
+          >
+            I'm participating
+          </button>
+        ` : currentParticipation ? `
+          <span style="display:flex; gap:.5rem; align-items:center;">
+            <span style="padding: 0.5rem 0.75rem; background: rgba(115,230,166,0.2);
+                         border: 1px solid rgba(115,230,166,0.5); border-radius: 6px;
+                         color: #73e6a6; font-weight: 600; font-size: 0.85rem;">
+              You're participating
+            </span>
+            <button class="btn-stop-participating-theme" data-theme-id="${theme.id}"
+                    style="padding:.5rem .65rem; background:transparent; border:1px solid rgba(255,255,255,.3); border-radius:6px; color:#c7cedb; cursor:pointer; font-size:.75rem;">
+              Stop participating
+            </button>
+          </span>
         ` : engagement ? `
+          <span style="display:flex; gap:.5rem; align-items:center;">
           <span style="padding: 0.5rem 1rem; background: rgba(0,255,136,0.2);
                        border: 1px solid rgba(0,255,136,0.5); border-radius: 6px;
                        color: #00ff88; font-weight: 600; font-size: 0.85rem;">
-            ${engagement === 'leading' ? '👑 Leading' : engagement === 'active' ? '⚡ Active' : '⭐ Interested'}
+            ${expiredParticipation ? 'Participation expired' : (engagement === 'leading' ? '👑 Leading' : engagement === 'active' ? '⚡ Active' : '⭐ Interested')}
+          </span>
+          <button class="btn-participating-theme" data-theme-id="${theme.id}"
+                  style="padding: .5rem .75rem; background: rgba(115,230,166,0.16); border: 1px solid rgba(115,230,166,0.55); border-radius: 6px; color: #73e6a6; cursor: pointer; font-size: .8rem;">
+            I'm participating
+          </button>
           </span>
         ` : ''}
       </div>
@@ -415,6 +457,20 @@ function wireDiscoveryEvents() {
     if (joinBtn) {
       e.stopPropagation();
       handleJoinTheme(joinBtn.dataset.themeId);
+      return;
+    }
+
+    const participatingBtn = e.target.closest('.btn-participating-theme');
+    if (participatingBtn) {
+      e.stopPropagation();
+      handleParticipatingTheme(participatingBtn.dataset.themeId);
+      return;
+    }
+
+    const stopBtn = e.target.closest('.btn-stop-participating-theme');
+    if (stopBtn) {
+      e.stopPropagation();
+      handleStopParticipatingTheme(stopBtn.dataset.themeId);
       return;
     }
 
@@ -525,8 +581,7 @@ async function handleJoinTheme(themeId) {
   try {
     await markInterested(supabase, {
       themeId,
-      communityId: currentUser.id,
-      days: 7
+      communityId: currentUser.id
     });
 
     showSynapseNotification('Joined theme! ✨', 'success');
@@ -544,6 +599,35 @@ async function handleJoinTheme(themeId) {
     console.error('Failed to join theme:', error);
     showSynapseNotification(error.message || 'Failed to join theme', 'error');
   }
+}
+
+async function handleParticipatingTheme(themeId) {
+  if (!currentUser) {
+    showSynapseNotification('Please log in to confirm participation', 'info');
+    return;
+  }
+  const { data, error } = await supabase.rpc('confirm_theme_participation', { p_theme_id: themeId });
+  if (error || !data?.success) {
+    showSynapseNotification(data?.error || error?.message || 'This theme is no longer current', 'error');
+    return;
+  }
+  showSynapseNotification("You're participating for the next 30 days.", 'success');
+  await loadUserParticipations();
+  const container = document.getElementById('themes-grid-container');
+  if (container) container.innerHTML = renderThemesGrid(allThemes, 'all');
+}
+
+async function handleStopParticipatingTheme(themeId) {
+  if (!currentUser) return;
+  const { data, error } = await supabase.rpc('stop_theme_participation', { p_theme_id: themeId });
+  if (error || !data?.success) {
+    showSynapseNotification(error?.message || 'Could not stop participation', 'error');
+    return;
+  }
+  showSynapseNotification("You're interested in this theme.", 'success');
+  await loadUserParticipations();
+  const container = document.getElementById('themes-grid-container');
+  if (container) container.innerHTML = renderThemesGrid(allThemes, 'all');
 }
 
 async function handleThemeClick(themeId) {

@@ -29,9 +29,24 @@ BEGIN
       -- Timestamps
       joined_at TIMESTAMPTZ DEFAULT NOW(),
       last_active_at TIMESTAMPTZ DEFAULT NOW(),
+      participation_confirmed_at TIMESTAMPTZ,
+      participation_expires_at TIMESTAMPTZ,
       
       -- Prevent duplicate participations
-      CONSTRAINT unique_theme_participation UNIQUE (theme_id, community_id)
+      CONSTRAINT unique_theme_participation UNIQUE (theme_id, community_id),
+      CONSTRAINT theme_participants_engagement_level_check CHECK (
+        engagement_level IN ('hover', 'exploring', 'interested', 'active', 'leading', 'proposing', 'participating')
+      ),
+      CONSTRAINT theme_participants_participation_state_check CHECK (
+        (engagement_level = 'participating'
+          AND participation_confirmed_at IS NOT NULL
+          AND participation_expires_at IS NOT NULL
+          AND participation_expires_at > participation_confirmed_at)
+        OR
+        (engagement_level <> 'participating'
+          AND participation_confirmed_at IS NULL
+          AND participation_expires_at IS NULL)
+      )
     );
     
     RAISE NOTICE 'Created theme_participants table';
@@ -44,6 +59,8 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_theme_participants_theme ON public.theme_participants(theme_id);
 CREATE INDEX IF NOT EXISTS idx_theme_participants_community ON public.theme_participants(community_id);
 CREATE INDEX IF NOT EXISTS idx_theme_participants_engagement ON public.theme_participants(engagement_level);
+CREATE INDEX IF NOT EXISTS idx_theme_participants_current_participation
+  ON public.theme_participants(theme_id, engagement_level, participation_expires_at);
 
 -- Enable RLS
 ALTER TABLE public.theme_participants ENABLE ROW LEVEL SECURITY;
@@ -60,7 +77,8 @@ CREATE POLICY "Users can join themes"
   ON public.theme_participants FOR INSERT
   TO authenticated
   WITH CHECK (
-    community_id IN (
+    engagement_level <> 'participating'
+    AND community_id IN (
       SELECT id FROM public.community WHERE user_id = auth.uid()
     )
   );
@@ -81,6 +99,12 @@ CREATE POLICY "Users can update their participation"
   TO authenticated
   USING (
     community_id IN (
+      SELECT id FROM public.community WHERE user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    engagement_level <> 'participating'
+    AND community_id IN (
       SELECT id FROM public.community WHERE user_id = auth.uid()
     )
   );
