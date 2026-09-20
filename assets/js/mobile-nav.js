@@ -68,6 +68,16 @@
         return false; // modal, not a destination
       }
     },
+    themes: {
+      activate() {
+        if (typeof window.openThemeDiscoveryModal === 'function') {
+          window.openThemeDiscoveryModal();
+        } else {
+          alert('Themes are not available yet. Please refresh and try again.');
+        }
+        return false; // modal, not a destination
+      }
+    },
     messages: {
       activate() {
         if (window.UnifiedNotifications?.showPanel) {

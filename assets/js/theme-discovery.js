@@ -631,23 +631,21 @@ async function handleStopParticipatingTheme(themeId) {
 }
 
 async function handleThemeClick(themeId) {
-  // Open theme details — simplified (legacy overlay card removed with synapse)
+  // Open the canonical theme lens; participation is handled there.
   const theme = allThemes.find(t => t.id === themeId);
   if (!theme) return;
-
-  const isParticipating = isUserParticipating(theme.id);
-  if (isParticipating) {
-    showSynapseNotification('You are already a member of this theme', 'info');
-    return;
-  }
-
-  if (currentUser) {
-    const confirmed = confirm(`Join "${theme.title}"?`);
-    if (confirmed) {
-      await handleJoinTheme(theme.id);
-    }
+  closeThemeDiscoveryModal();
+  if (typeof window.openNodePanel === 'function') {
+    await window.openNodePanel({
+      ...theme,
+      id: `theme:${theme.id}`,
+      type: 'theme',
+      name: theme.title,
+      relatedProjects: [],
+      isThemeLens: true
+    });
   } else {
-    showSynapseNotification('Please log in to join themes', 'info');
+    showSynapseNotification('Theme details are not available yet. Please refresh and try again.', 'error');
   }
 }
 
