@@ -7,6 +7,7 @@ const confirm = fs.readFileSync('supabase/sql/functions/confirm_theme_participat
 const stop = fs.readFileSync('supabase/sql/functions/stop_theme_participation.sql', 'utf8');
 const discovery = fs.readFileSync('assets/js/theme-discovery.js', 'utf8');
 const panel = fs.readFileSync('assets/js/node-panel.js', 'utf8');
+const dashboardPane = fs.readFileSync('assets/js/dashboardPane.js', 'utf8');
 
 for (const value of ['participation_confirmed_at', 'participation_expires_at', "'participating'", "interval '30 days'"]) {
   assert(migration.includes(value), `migration missing ${value}`);
@@ -18,5 +19,7 @@ assert(rpc.includes("'participating_count'") && rpc.includes("'participating_nea
 assert(/tp\.engagement_level\s*=\s*'participating'/.test(rpc) && rpc.includes('tp.participation_expires_at > now()'), 'RPC must require current explicit participation');
 assert(discovery.includes("rpc('confirm_theme_participation'") && discovery.includes("rpc('stop_theme_participation'"), 'UI must use server RPCs');
 assert(panel.includes("rpc('confirm_theme_participation'") && panel.includes("rpc('stop_theme_participation'"), 'theme panel must use server RPCs');
+assert(dashboardPane.includes("selectContext?.('theme'") && dashboardPane.includes('isThemeLens: true'), 'theme search must preserve context and open canonical lens');
+assert(dashboardPane.includes("from('theme_circles')"), 'theme search must load full lens data');
 assert(discovery.includes("I'm interested") && discovery.includes("I'm participating"), 'UI copy missing');
 console.log('theme participation V1 static checks passed');

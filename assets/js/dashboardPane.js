@@ -1270,6 +1270,28 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       await coordinator?.selectContext?.('project', { id: entity.id, label });
     } else if (type === 'themes') {
       await coordinator?.selectContext?.('theme', { id: entity.id, label });
+      // Preserve the context lens selection, then open the one canonical
+      // theme lens panel so theme participation actions are reachable from
+      // the normal search flow on mobile and desktop.
+      if (state.supabase && typeof window.openNodePanel === 'function') {
+        const { data: theme, error: themeError } = await state.supabase
+          .from('theme_circles')
+          .select('*')
+          .eq('id', entity.id)
+          .single();
+        if (!themeError && theme) {
+          await window.openNodePanel({
+            ...theme,
+            id: `theme:${theme.id}`,
+            type: 'theme',
+            name: theme.title,
+            relatedProjects: [],
+            isThemeLens: true
+          });
+        } else {
+          console.warn('[DashboardPane] Theme lens unavailable:', themeError?.message || 'theme not found');
+        }
+      }
     } else if (type === 'organizations') {
       await coordinator?.selectContext?.('organization', { id: entity.id, label });
     } else if (type === 'opportunities') {
