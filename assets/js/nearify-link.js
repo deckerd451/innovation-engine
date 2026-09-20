@@ -72,7 +72,19 @@ export async function unlinkAccount() {
   const supabase = _getSupabase();
   if (!supabase) return { success: false, error: 'Supabase not initialized' };
 
-  const { data, error } = await supabase.rpc('unlink_nearify_account');
+  // unlink_nearify_account now requires the caller to name which Nearify
+  // identity it believes is currently linked, and refuses to mutate
+  // anything if that doesn't match what's actually on file (see
+  // nearify_identity_integrity_hardening.sql) — fetch the authoritative
+  // current mapping first rather than trusting a possibly-stale cache.
+  const current = await getLinkedStatus();
+  if (!current.linked || !current.nearifyUserId) {
+    return { success: false, error: 'No linked Nearify account found' };
+  }
+
+  const { data, error } = await supabase.rpc('unlink_nearify_account', {
+    p_expected_nearify_user_id: current.nearifyUserId,
+  });
   if (error) {
     console.error('[NearifyLink] Unlink error:', error.message);
     return { success: false, error: error.message };
