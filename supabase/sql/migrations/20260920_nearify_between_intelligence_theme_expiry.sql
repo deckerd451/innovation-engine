@@ -1,3 +1,9 @@
+-- ============================================================================
+-- NEARIFY BETWEEN INTELLIGENCE: EXCLUDE EXPIRED THEMES
+-- Source-of-truth migration for the deployed function definition.
+-- Apply only after implementation/security review.
+-- ============================================================================
+
 -- ================================================================
 -- NEARIFY → INNOVATION ENGINE: Between-Events Intelligence
 -- (Aggregation across a Nearify-established relationship set)
@@ -32,10 +38,8 @@
 -- IDs — which is safe specifically because they are a SUBSET of the
 -- IDs the caller already supplied, not a new identity being disclosed.
 --
--- Visibility filters use the same authorization posture as
--- get_nearify_relationship_enrichment (verified against the live schema,
--- not tracked-file comments). Between Intelligence additionally excludes
--- themes whose explicit expiry has passed:
+-- Visibility filters mirror get_nearify_relationship_enrichment exactly
+-- (verified against the live schema, not tracked-file comments):
 --   projects:       status IN ('open','active','completed')
 --   organizations:  status = 'active', membership status = 'active'
 --   theme_circles:  status = 'active', and (expires_at is null or in the future)

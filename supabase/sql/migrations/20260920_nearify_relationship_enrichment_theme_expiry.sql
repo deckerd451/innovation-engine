@@ -1,3 +1,8 @@
+-- ============================================================================
+-- NEARIFY RELATIONSHIP ENRICHMENT: EXCLUDE EXPIRED THEMES
+-- Source-of-truth migration for the deployed function definition.
+-- Apply only after implementation/security review.
+-- ============================================================================
 -- ================================================================
 -- NEARIFY → INNOVATION ENGINE: Relationship Enrichment
 -- (Between-events "why this relationship may matter" context)
