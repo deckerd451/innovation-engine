@@ -1,47 +1,96 @@
--- ================================================================
--- NEARIFY → INNOVATION ENGINE: Event Recommendations
--- ================================================================
--- "Who should I meet at this event?" — a Nearify-facing, event-scoped
--- recommendation surface. Deliberately NOT a SQL clone of the browser
--- Daily Brief engine (assets/js/intelligence/daily-brief-engine.js) —
--- that engine answers a broader question ("who's worth knowing across
--- everything I'm part of") using signals with no server-side runtime
--- to share (browser JS calling window.supabase). This RPC answers a
--- narrower, purpose-built question using the same underlying tables
--- and a compatible weighting philosophy, computed directly in SQL so
--- it can be called on-demand from a native client with no browser
--- session.
---
--- Identity: resolved EXCLUSIVELY from auth.uid() — no caller-supplied
--- community_id/auth_user_id/nearify_id parameters. This RPC only ever
--- answers "who should the CALLING user meet"; there is no legitimate
--- case for it to act on behalf of another identity, unlike
--- ingest_nearify_interaction (which records a relationship between two
--- arbitrary people and genuinely needs explicit from/to identity) or
--- ingest_nearify_event_presence (which mirrors that pattern for
--- consistency). Accepting a caller-supplied identity parameter here
--- would let any authenticated session request recommendations "as"
--- an arbitrary community_id — deliberately not offered.
---
--- Privacy: the response never includes the recommended person's
--- community_id or any other internal identifier — only display data
--- (name, avatar, role/skill text) and structured, machine-readable
--- reasons (type + count, no IDs). There is currently no "View profile"
--- action on the Nearify side, so no identifier is needed there; this
--- also means a compromised or buggy Nearify client can't harvest
--- Innovation Engine community IDs through this endpoint.
---
--- Authorization: both the caller and every candidate must hold an
--- 'authorized' row in community_experience_authorizations for
--- experience='nearify' (candidate) / at least 'needs_reconfirmation'
--- (caller) — see community_experience_authorizations.sql. This is a
--- pure narrowing of the existing co-attendee candidate set, never a
--- broadening of it.
---
--- DEPENDENCY: requires public.community_experience_authorizations to
--- exist (see that file) — apply it before this revision of this file.
--- ================================================================
+-- Separate Nearify RSVP/commitment from explicit live check-in.
+-- Existing rows remain non-live; this migration never reclassifies history.
 
+ALTER TABLE public.nearify_event_presence
+  ADD COLUMN IF NOT EXISTS is_live BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_nep_event_live
+  ON public.nearify_event_presence(nearify_event_id)
+  WHERE is_live = true;
+
+CREATE OR REPLACE FUNCTION public._my_active_nearify_event_ids()
+RETURNS TABLE(nearify_event_id TEXT)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT nep.nearify_event_id
+  FROM public.nearify_event_presence nep
+  JOIN public.community c ON c.id = nep.community_id
+  WHERE c.user_id = auth.uid() AND nep.status = 'joined' AND nep.is_live = true;
+$$;
+
+REVOKE ALL ON FUNCTION public._my_active_nearify_event_ids() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public._my_active_nearify_event_ids() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.set_nearify_event_live_presence(
+  p_nearify_event_id TEXT,
+  p_event_name       TEXT DEFAULT NULL,
+  p_event_starts_at  TIMESTAMPTZ DEFAULT NULL,
+  p_is_live          BOOLEAN DEFAULT false
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_community_id UUID;
+  v_row_id UUID;
+  v_status TEXT;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Authentication required');
+  END IF;
+  IF p_nearify_event_id IS NULL OR trim(p_nearify_event_id) = '' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'nearify_event_id is required');
+  END IF;
+
+  SELECT id INTO v_community_id
+  FROM public.community
+  WHERE user_id = auth.uid()
+  LIMIT 1;
+
+  IF v_community_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'No linked community profile found');
+  END IF;
+
+  SELECT status INTO v_status
+  FROM public.nearify_event_presence
+  WHERE community_id = v_community_id
+    AND nearify_event_id = trim(p_nearify_event_id)
+  FOR UPDATE;
+
+  IF v_status IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Event commitment not found');
+  END IF;
+  IF p_is_live AND v_status <> 'joined' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'A left event cannot become live without rejoining');
+  END IF;
+
+  UPDATE public.nearify_event_presence
+  SET is_live = COALESCE(p_is_live, false),
+      event_name = COALESCE(p_event_name, event_name),
+      event_starts_at = COALESCE(p_event_starts_at, event_starts_at),
+      last_seen_at = now(),
+      updated_at = now()
+  WHERE community_id = v_community_id
+    AND nearify_event_id = trim(p_nearify_event_id)
+  RETURNING id INTO v_row_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'community_id', v_community_id,
+    'presence_id', v_row_id,
+    'is_live', COALESCE(p_is_live, false),
+    'status', v_status
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.set_nearify_event_live_presence(TEXT, TEXT, TIMESTAMPTZ, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_nearify_event_live_presence(TEXT, TEXT, TIMESTAMPTZ, BOOLEAN) TO authenticated;
 CREATE OR REPLACE FUNCTION public.get_nearify_event_recommendations(
   p_nearify_event_id TEXT,
   p_limit INT DEFAULT 3

@@ -37,9 +37,10 @@
 
     const { data: rows, error } = await client
       .from('nearify_event_presence')
-      .select('nearify_event_id, event_name, event_starts_at, status, updated_at')
+      .select('nearify_event_id, event_name, event_starts_at, status, is_live, updated_at')
       .eq('community_id', profile.id)
       .eq('status', 'joined')
+      .eq('is_live', true)
       .order('updated_at', { ascending: false })
       .limit(1);
     if (error || !rows?.length) return null;

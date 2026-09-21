@@ -53,7 +53,7 @@ function loadContext(supabase) {
     from(table) {
       if (table === 'community') return queryResult({ id: 'community-me' });
       assert.equal(table, 'nearify_event_presence');
-      return queryResult([{ nearify_event_id: 'event-1', event_name: 'Nearify Live', status: 'joined' }]);
+      return queryResult([{ nearify_event_id: 'event-1', event_name: 'Nearify Live', status: 'joined', is_live: true }]);
     },
     rpc(name, args) {
       if (name === 'get_nearify_authorization_status') return Promise.resolve({ data: { status: 'authorized' }, error: null });
@@ -67,6 +67,16 @@ function loadContext(supabase) {
   assert.equal(loaded.event.event_name, 'Nearify Live');
   assert.equal(requestedEvent, 'event-1');
   assert.deepEqual(loaded.recommendations.map((person) => person.name), ['Grounded person']);
+
+  // RSVP/commitment alone must never create mobile live context.
+  const committedOnly = loadContext({
+    auth: supabase.auth,
+    from(table) { return table === 'community' ? queryResult({ id: 'community-me' }) : queryResult([]); },
+    rpc: async (name) => name === 'get_nearify_authorization_status'
+      ? ({ data: { status: 'authorized' }, error: null })
+      : (() => { throw new Error('must not request recommendations for RSVP-only context'); })(),
+  });
+  assert.equal((await committedOnly.loadContext()).event, null);
 
   const noEvent = loadContext({
     auth: supabase.auth,
