@@ -210,6 +210,7 @@
       /* The profile modal has one scroll owner.  The old 35vh cap left the
          authoring form behind a second nested scroller and sticky footer. */
       #profile-modal .modal-content { box-sizing:border-box !important; display:flex; flex-direction:column; width:min(900px,calc(100vw - 48px)) !important; height:min(92dvh,900px) !important; max-height:calc(100dvh - 32px) !important; min-height:0; overflow:hidden !important; }
+      #profile-modal #modal-profile-content { display:flex; flex:1 1 auto; flex-direction:column; min-height:0; min-width:0; overflow:hidden; }
       .ch-profile-layout { display:flex; flex:1 1 auto; flex-direction:column; height:100%; min-height:0; overflow:hidden; }
       .ch-profile-top { flex:1 1 0%; min-height:0; padding:1rem; overflow-y:auto !important; max-height:none !important; scrollbar-gutter:stable; overscroll-behavior:contain; }
       .ch-profile-layout.is-collapsed .ch-profile-bio, .ch-profile-layout.is-collapsed .ch-profile-cards { display:none!important; }
