@@ -209,9 +209,9 @@
     style.textContent = `
       /* The profile modal has one scroll owner.  The old 35vh cap left the
          authoring form behind a second nested scroller and sticky footer. */
-      #profile-modal .modal-content { display:flex; flex-direction:column; width:min(900px,calc(100vw - 48px)) !important; height:min(92vh,900px); max-height:min(92vh,900px) !important; min-height:0; overflow:hidden !important; }
-      .ch-profile-layout { display:flex; flex-direction:column; flex:1 1 auto; height:100%; min-height:0; }
-      .ch-profile-top { flex:1 1 auto; min-height:0; padding:1rem; overflow-y:auto; max-height:none !important; scrollbar-gutter:stable; }
+      #profile-modal .modal-content { box-sizing:border-box !important; display:flex; flex-direction:column; width:min(900px,calc(100vw - 48px)) !important; height:min(92dvh,900px) !important; max-height:calc(100dvh - 32px) !important; min-height:0; overflow:hidden !important; }
+      .ch-profile-layout { display:flex; flex:1 1 auto; flex-direction:column; height:100%; min-height:0; overflow:hidden; }
+      .ch-profile-top { flex:1 1 0%; min-height:0; padding:1rem; overflow-y:auto !important; max-height:none !important; scrollbar-gutter:stable; overscroll-behavior:contain; }
       .ch-profile-layout.is-collapsed .ch-profile-bio, .ch-profile-layout.is-collapsed .ch-profile-cards { display:none!important; }
       @media (max-height:680px){ .ch-profile-top{padding:.85rem;} .ch-profile-bio,.ch-profile-cards{display:none;} }
       @media (max-height:560px){ .ch-profile-top{padding:.75rem;} }
@@ -305,7 +305,7 @@
       }
       .ch-profile-editor-actions .btn{flex:1;min-width:200px;}
       @media (max-width:700px){
-        #profile-modal .modal-content{width:calc(100vw - 16px) !important;height:calc(100dvh - 16px);max-height:calc(100dvh - 16px) !important;border-radius:12px !important;}
+        #profile-modal .modal-content{width:calc(100vw - 16px) !important;height:calc(100dvh - 16px) !important;max-height:calc(100dvh - 16px) !important;border-radius:12px !important;}
         .ch-profile-actions,.ch-profile-editor-actions{padding:.75rem;}
         .ch-profile-actions .btn,.ch-profile-editor-actions .btn{min-width:0;flex:1 1 140px;}
       }
