@@ -207,12 +207,14 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-      #profile-modal .modal-content { display:flex; flex-direction:column; max-height:85vh; min-height:0; }
-      .ch-profile-layout { display:flex; flex-direction:column; height:100%; min-height:0; }
-      .ch-profile-top { padding:1rem; overflow-y:auto; max-height:clamp(240px,35vh,440px); scrollbar-gutter:stable; }
+      /* The profile modal has one scroll owner.  The old 35vh cap left the
+         authoring form behind a second nested scroller and sticky footer. */
+      #profile-modal .modal-content { display:flex; flex-direction:column; width:min(900px,calc(100vw - 48px)) !important; height:min(92vh,900px); max-height:min(92vh,900px) !important; min-height:0; overflow:hidden !important; }
+      .ch-profile-layout { display:flex; flex-direction:column; flex:1 1 auto; height:100%; min-height:0; }
+      .ch-profile-top { flex:1 1 auto; min-height:0; padding:1rem; overflow-y:auto; max-height:none !important; scrollbar-gutter:stable; }
       .ch-profile-layout.is-collapsed .ch-profile-bio, .ch-profile-layout.is-collapsed .ch-profile-cards { display:none!important; }
-      @media (max-height:680px){ .ch-profile-top{max-height:28vh;padding:.85rem;} .ch-profile-bio,.ch-profile-cards{display:none;} }
-      @media (max-height:560px){ .ch-profile-top{max-height:24vh;padding:.75rem;} }
+      @media (max-height:680px){ .ch-profile-top{padding:.85rem;} .ch-profile-bio,.ch-profile-cards{display:none;} }
+      @media (max-height:560px){ .ch-profile-top{padding:.75rem;} }
 
       .ch-profile-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.1rem;}
       .ch-profile-avatar{width:72px;height:72px;border-radius:999px;object-fit:cover;border:3px solid #00e0ff;flex:0 0 auto;}
@@ -265,7 +267,7 @@
       .ch-nearify-continue-btn:disabled{opacity:.5;cursor:not-allowed;}
 
       .ch-profile-actions, .ch-profile-editor-actions{
-        position:sticky;bottom:0;padding:1rem;display:flex;gap:.75rem;flex-wrap:wrap;
+        position:static;flex:0 0 auto;padding:1rem;display:flex;gap:.75rem;flex-wrap:wrap;
         background:rgba(0,0,0,.85);backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.12);
       }
       .ch-profile-actions .btn{min-width:160px;}
@@ -302,6 +304,11 @@
         color:white;font-weight:800;cursor:pointer;font-size:1rem;
       }
       .ch-profile-editor-actions .btn{flex:1;min-width:200px;}
+      @media (max-width:700px){
+        #profile-modal .modal-content{width:calc(100vw - 16px) !important;height:calc(100dvh - 16px);max-height:calc(100dvh - 16px) !important;border-radius:12px !important;}
+        .ch-profile-actions,.ch-profile-editor-actions{padding:.75rem;}
+        .ch-profile-actions .btn,.ch-profile-editor-actions .btn{min-width:0;flex:1 1 140px;}
+      }
 
       .ch-toast{
         position:fixed;top:100px;right:20px;background:linear-gradient(135deg,#00ff88,#00cc70);color:white;
