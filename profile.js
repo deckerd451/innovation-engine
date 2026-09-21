@@ -240,6 +240,25 @@
       .ch-experience-desc{color:#ccc;font-size:.78rem;line-height:1.45;margin-top:.3rem;}
       .ch-experience-meta{color:#888;font-size:.72rem;margin-top:.25rem;}
       .ch-experience-actions{margin-top:.55rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+      .ch-right-now-card{margin-top:.75rem;padding:.9rem;border-radius:12px;background:rgba(142,92,255,.08);border:1px solid rgba(142,92,255,.32);}
+      .ch-right-now-heading{color:#fff;font-weight:800;font-size:.95rem;letter-spacing:.04em;}
+      .ch-right-now-copy{color:#aaa;font-size:.8rem;line-height:1.45;margin:.3rem 0 .7rem;}
+      .ch-intent-row{padding:.7rem 0;border-top:1px solid rgba(255,255,255,.1);}
+      .ch-intent-row:first-child{border-top:0;padding-top:0;}
+      .ch-intent-label{color:#00e0ff;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;}
+      .ch-intent-subject{color:#fff;font-weight:800;margin-top:.18rem;}
+      .ch-intent-statement{color:#ccc;font-size:.82rem;line-height:1.4;margin-top:.2rem;white-space:pre-wrap;}
+      .ch-intent-meta{color:#888;font-size:.72rem;margin-top:.25rem;}
+      .ch-intent-actions{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.5rem;}
+      .ch-intent-actions button,.ch-right-now-start{border:1px solid rgba(0,224,255,.35);background:rgba(0,224,255,.08);color:#dffaff;border-radius:999px;padding:.35rem .7rem;font-size:.75rem;font-weight:700;cursor:pointer;}
+      .ch-right-now-start{margin:.35rem .35rem 0 0;background:linear-gradient(135deg,#00e0ff,#0080ff);color:#001;border:0;}
+      .ch-intent-form{margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(255,255,255,.1);}
+      .ch-intent-form h4{margin:0 0 .55rem;color:#fff;}
+      .ch-intent-form .ch-form-group{margin-bottom:.65rem;}
+      .ch-intent-form .ch-form-label{font-size:.8rem;margin-bottom:.3rem;}
+      .ch-intent-form .ch-input,.ch-intent-form .ch-textarea,.ch-intent-form .ch-select{padding:.55rem;font-size:.85rem;}
+      .ch-intent-form-hint{color:#999;font-size:.72rem;line-height:1.35;margin-top:.3rem;}
+      .ch-intent-form-actions{display:flex;gap:.5rem;flex-wrap:wrap;}
       .ch-nearify-unlink-btn{font-size:.72rem;padding:.25rem .6rem;border-radius:20px;background:transparent;border:1px solid rgba(244,63,94,.4);color:#f43f5e;cursor:pointer;}
       .ch-nearify-unlink-btn:disabled{opacity:.5;cursor:not-allowed;}
       .ch-nearify-continue-btn{font-size:.75rem;padding:.35rem .8rem;border-radius:20px;background:linear-gradient(135deg,#00e0ff,#0080ff);border:none;color:#001;font-weight:800;cursor:pointer;}
@@ -427,6 +446,13 @@
               <div class="ch-experience-name">Nearify: checking…</div>
             </div>
           </div>
+          <div class="ch-right-now-card" id="community-intent-card" aria-labelledby="community-intent-heading">
+            <div class="ch-right-now-heading" id="community-intent-heading">Right now</div>
+            <div class="ch-right-now-copy">Tell your community what you’re looking for or how you can help. You decide where it is shared.</div>
+            <div id="community-intent-current" aria-live="polite">Loading your current statements…</div>
+            <div id="community-intent-start-actions"></div>
+            <div id="community-intent-form-host"></div>
+          </div>
           ${window.NearifyEventsPanel?.render?.() || ""}
         </div>
 
@@ -455,6 +481,7 @@
     $("logout-btn")?.addEventListener("click", () => window.handleLogout?.(), { once: true });
 
     _loadNearifyExperienceRow(content);
+    _loadCommunityIntents(content);
     window.NearifyEventsPanel?.init?.(content);
 
     openModal(modal);
@@ -537,6 +564,203 @@
       console.warn("[Profile] Nearify experience status check failed:", err);
       rowEl.innerHTML = "";
     }
+  }
+
+  // ================================================================
+  // Small, explicit current-intent authoring loop.  The UI deliberately
+  // keeps one active statement of each kind visible; the database functions
+  // remain the authority for episode, confirmation, and end semantics.
+  // ================================================================
+  function normalizeIntentSubject(label) {
+    return String(label || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .replace(/_+/g, "_");
+  }
+
+  function intentTypeLabel(type) {
+    return type === "offering" ? "Can help with" : "Looking for";
+  }
+
+  function operationStorageKey(type, subjectKey) {
+    return `ch-intent-operation:${type}:${subjectKey}`;
+  }
+
+  function operationIdFor(type, subjectKey) {
+    const key = operationStorageKey(type, subjectKey);
+    try {
+      const existing = window.localStorage.getItem(key);
+      if (existing) return existing;
+      const next = crypto.randomUUID();
+      window.localStorage.setItem(key, next);
+      return next;
+    } catch (_) {
+      return crypto.randomUUID();
+    }
+  }
+
+  function clearOperationId(type, subjectKey) {
+    try { window.localStorage.removeItem(operationStorageKey(type, subjectKey)); } catch (_) {}
+  }
+
+  function renderIntentRow(intent) {
+    const type = intent.intent_type;
+    const currentWord = type === "offering" ? "Still available" : "Still looking";
+    const visibilityText = intent.visibility === "private"
+      ? "Only you can see this"
+      : "Shared with authorized community experiences";
+    return `
+      <div class="ch-intent-row" data-intent-id="${escapeHtml(intent.id)}">
+        <div class="ch-intent-label">${escapeHtml(intentTypeLabel(type))}</div>
+        <div class="ch-intent-subject">${escapeHtml(intent.subject_label)}</div>
+        <div class="ch-intent-statement">${escapeHtml(intent.statement)}</div>
+        <div class="ch-intent-meta">${visibilityText} · currently active</div>
+        <div class="ch-intent-actions">
+          <button type="button" data-intent-action="edit">Edit</button>
+          <button type="button" data-intent-action="confirm">${currentWord}</button>
+          <button type="button" data-intent-action="end">End</button>
+        </div>
+      </div>`;
+  }
+
+  function _loadCommunityIntents(content) {
+    const currentEl = content.querySelector("#community-intent-current");
+    const actionsEl = content.querySelector("#community-intent-start-actions");
+    if (!currentEl || !actionsEl) return;
+    const supabase = ensureSupabase();
+
+    const render = (intents) => {
+      const rows = Array.isArray(intents) ? intents.filter((i) => i?.active) : [];
+      currentEl.innerHTML = rows.length
+        ? rows.map(renderIntentRow).join("")
+        : `<div class="ch-intent-meta">Nothing shared right now.</div>`;
+      const byType = new Set(rows.map((i) => i.intent_type));
+      actionsEl.innerHTML = ["seeking", "offering"].map((type) => {
+        const label = byType.has(type) ? `Edit ${intentTypeLabel(type)}` : intentTypeLabel(type);
+        return `<button type="button" class="ch-right-now-start" data-intent-start="${type}">${escapeHtml(label)}</button>`;
+      }).join("");
+      actionsEl.querySelectorAll("[data-intent-start]").forEach((button) => {
+        button.addEventListener("click", () => openIntentComposer(content, button.dataset.intentStart, null, rows), { once: true });
+      });
+      currentEl.querySelectorAll("[data-intent-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const row = rows.find((i) => i.id === button.closest("[data-intent-id]")?.dataset.intentId);
+          if (!row) return;
+          if (button.dataset.intentAction === "edit") openIntentComposer(content, row.intent_type, row, rows);
+          else if (button.dataset.intentAction === "confirm") confirmIntent(content, row);
+          else endIntent(content, row);
+        }, { once: true });
+      });
+    };
+
+    supabase.rpc("get_my_community_intents").then(({ data, error }) => {
+      if (error) {
+        console.warn("[Profile] current intent load failed:", error);
+        currentEl.innerHTML = `<div class="ch-intent-meta">Current statements are unavailable right now.</div>`;
+        actionsEl.innerHTML = "";
+        return;
+      }
+      render(data?.intents || []);
+    });
+  }
+
+  function openIntentComposer(content, type, existing, rows) {
+    const host = content.querySelector("#community-intent-form-host");
+    if (!host) return;
+    const profile = state.profile || {};
+    const suggestions = [
+      ...(typeof profile.skills === "string" ? profile.skills.split(",") : []),
+      ...(Array.isArray(profile.interests) ? profile.interests : []),
+    ].map((s) => String(s).trim()).filter(Boolean);
+    const uniqueSuggestions = [...new Set(suggestions)].slice(0, 12);
+    host.innerHTML = `
+      <form class="ch-intent-form" id="community-intent-form">
+        <h4>${escapeHtml(existing ? `Update “${intentTypeLabel(type)}”` : intentTypeLabel(type))}</h4>
+        <div class="ch-form-group">
+          <label class="ch-form-label" for="community-intent-subject">${type === "offering" ? "What could you help with?" : "What are you looking for?"}</label>
+          <input class="ch-input" id="community-intent-subject" list="community-intent-suggestions" required maxlength="80" value="${escapeHtml(existing?.subject_label || "")}" placeholder="e.g. Product design" />
+          <datalist id="community-intent-suggestions">${uniqueSuggestions.map((s) => `<option value="${escapeHtml(s)}"></option>`).join("")}</datalist>
+          <div class="ch-intent-form-hint">This becomes a clear, consistent subject so people can understand what you mean.</div>
+        </div>
+        <div class="ch-form-group">
+          <label class="ch-form-label" for="community-intent-statement">Add a short note <span style="font-weight:400;color:#888">(optional)</span></label>
+          <textarea class="ch-textarea" id="community-intent-statement" rows="2" maxlength="280" placeholder="Add a little context, in your own words.">${escapeHtml(existing?.statement || "")}</textarea>
+        </div>
+        <div class="ch-form-group">
+          <label class="ch-form-label" for="community-intent-visibility">Who can see this?</label>
+          <select class="ch-select" id="community-intent-visibility">
+            <option value="nearify" ${existing?.visibility !== "private" ? "selected" : ""}>Authorized community experiences (including Nearify when linked)</option>
+            <option value="private" ${existing?.visibility === "private" ? "selected" : ""}>Only me for now</option>
+          </select>
+        </div>
+        <div class="ch-intent-form-actions">
+          <button type="submit" class="btn ch-btn-save">${existing ? "Save" : "Share"}</button>
+          <button type="button" class="btn ch-btn-secondary" id="community-intent-cancel">Cancel</button>
+        </div>
+      </form>`;
+    host.querySelector("#community-intent-cancel")?.addEventListener("click", () => { host.innerHTML = ""; }, { once: true });
+    host.querySelector("#community-intent-form")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const subjectLabel = host.querySelector("#community-intent-subject")?.value.trim() || "";
+      const subjectKey = normalizeIntentSubject(subjectLabel);
+      if (!subjectKey) return toastError("Choose a subject first.");
+      const statementInput = host.querySelector("#community-intent-statement")?.value.trim() || "";
+      const statement = statementInput || (type === "offering" ? `I can help with ${subjectLabel}.` : `I’m looking for ${subjectLabel}.`);
+      const visibility = host.querySelector("#community-intent-visibility")?.value || "nearify";
+      const submit = host.querySelector("[type=submit]");
+      if (submit) { submit.disabled = true; submit.textContent = "Sharing…"; }
+      try {
+        const supabase = ensureSupabase();
+        const operationId = operationIdFor(type, subjectKey);
+        const { error } = await supabase.rpc("begin_community_intent", {
+          p_client_operation_id: operationId,
+          p_intent_type: type,
+          p_subject_key: subjectKey,
+          p_subject_label: subjectLabel,
+          p_statement: statement,
+          p_visibility: visibility,
+        });
+        if (error) throw error;
+        clearOperationId(type, subjectKey);
+        host.innerHTML = "";
+        toast(existing ? "Your statement was updated." : "Shared with your community.");
+        _loadCommunityIntents(content);
+      } catch (error) {
+        console.error("[Profile] intent publish failed:", error);
+        toastError(error?.message || "Could not share that right now.");
+        if (submit) { submit.disabled = false; submit.textContent = existing ? "Save" : "Share"; }
+      }
+    }, { once: true });
+    host.querySelector("#community-intent-subject")?.focus();
+  }
+
+  async function confirmIntent(content, intent) {
+    try {
+      const { error } = await ensureSupabase().rpc("confirm_community_intent", {
+        p_intent_id: intent.id,
+        p_confirmation_operation_id: crypto.randomUUID(),
+      });
+      if (error) throw error;
+      toast(intent.intent_type === "offering" ? "Marked as still available." : "Marked as still looking.");
+      _loadCommunityIntents(content);
+    } catch (error) { toastError(error?.message || "Could not confirm that right now."); }
+  }
+
+  async function endIntent(content, intent) {
+    try {
+      const { error } = await ensureSupabase().rpc("end_community_intent", {
+        p_intent_id: intent.id,
+        p_client_operation_id: crypto.randomUUID(),
+      });
+      if (error) throw error;
+      toast("That statement has ended.");
+      _loadCommunityIntents(content);
+    } catch (error) { toastError(error?.message || "Could not end that right now."); }
   }
 
   // ================================================================
@@ -855,6 +1079,7 @@ setUploaderStatus("Photo uploaded.", "ok");
   // Keep CHProfile exports
   window.CHProfile.openModal = () => window.openProfileModal?.();
   window.CHProfile.openEditor = () => window.openProfileEditor?.();
+  window.CHProfile.normalizeIntentSubject = normalizeIntentSubject;
 
   // Listen for auth events
   window.addEventListener("app-ready", (e) => {
