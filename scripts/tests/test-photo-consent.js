@@ -11,6 +11,8 @@ vm.runInContext(read('assets/js/photo-privacy.js'), context);
 const photo = { id: 'member', user_id: 'member-auth', image_url: 'https://example.com/photo.jpg' };
 const optedIn = { ...photo, photo_visible: true, photo_consent_at: '2026-10-10T00:00:00Z' };
 const url = person => window.profilePhotoUrl(person);
+assert.equal(window.profileInitials({ name: 'Ada Lovelace' }), 'AL');
+assert.equal(window.profileInitials({ name: 'Prince' }), 'PR');
 
 assert.equal(url(photo), null, 'existing users default private');
 assert.equal(url({ ...photo, photo_visible: true }), null, 'legacy default true is not consent');

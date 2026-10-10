@@ -22,6 +22,14 @@
     return person.image_url || person.imageUrl || person.avatar_url || person.image_path || null;
   }
 
+  function profileInitials(person) {
+    const name = String(person?.name || person?.email || '?').trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    return parts.length === 1 ? parts[0].slice(0, 2).toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
   window.shouldHideProfilePhoto = shouldHidePhoto;
   window.profilePhotoUrl = profilePhotoUrl;
+  window.profileInitials = profileInitials;
 })();

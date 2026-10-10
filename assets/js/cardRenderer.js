@@ -13,11 +13,11 @@ export function generateUserCardHTML(user) {
   const name = user.name || "Unnamed User";
   const skills = user.skills || "No skills listed";
   const bio = user.bio || "";
-  const image = getCardAvatarUrl(user) || "https://via.placeholder.com/150";
+  const image = getCardAvatarUrl(user);
 
   return `
     <div class="user-card">
-      <img src="${image}" class="user-avatar" alt="${name}">
+      ${image ? `<img src="${image}" class="user-avatar" alt="${name}">` : `<div class="user-avatar user-avatar-initials" aria-label="${name}">${window.profileInitials?.(user) || '?'}</div>`}
       <h3>${name}</h3>
       <p class="skills"><strong>Skills:</strong> ${skills}</p>
       ${bio ? `<p class="bio">${bio}</p>` : ""}

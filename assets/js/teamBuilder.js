@@ -69,11 +69,9 @@ function createPersonCard(person) {
     .filter(s => s.length > 0);
 
   card.innerHTML = `
-    <img 
-      src="${window.profilePhotoUrl?.(person) || "assets/default-avatar.png"}"
-      class="profile-avatar"
-      alt="${person.name || "Profile"}"
-    />
+    ${window.profilePhotoUrl?.(person)
+      ? `<img src="${window.profilePhotoUrl(person)}" class="profile-avatar" alt="${person.name || "Profile"}" />`
+      : `<div class="profile-avatar profile-avatar-initials" aria-label="${person.name || "Profile"}">${window.profileInitials?.(person) || '?'}</div>`}
 
     <div class="result-info">
       <div class="result-name">
