@@ -1317,17 +1317,13 @@ body.reflection-resizing #network-reflection { transition:none; }
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
+  cursor: default;
+  transition: none;
   text-align: center;
 }
 
 .cd-status-pill:hover,
-.cd-status-pill:focus-visible {
-  background: rgba(0, 224, 255, 0.1);
-  border-color: var(--cd-accent-dim);
-  outline: none;
-}
+.cd-status-pill:focus-visible { background: transparent; border-color: transparent; outline: none; }
 
 .cd-status-value {
   font-size: 1rem;

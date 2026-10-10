@@ -17,7 +17,7 @@
     },
     projects: () => {
       document.getElementById('command-dashboard')?.classList.add('cd-mobile-panel');
-      document.querySelector('[data-action="focus-projects"]')?.click();
+      document.querySelector('[data-resource="projects"]')?.click();
     },
     'event-mode': () => window.NearifyMobileContext?.showEvent(),
     suggestions: () => window.NearifyMobileContext?.showNearby(),

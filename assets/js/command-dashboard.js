@@ -170,7 +170,6 @@ window.CommandDashboard = (() => {
     _wireResourceTabs();
     _wireAddButton();
     _wireExploreToggle();
-    _wireStatusPillClicks();
     _wireAvatarClick();
     _wireAdminBtn();
     _wireBellBtn();
@@ -1874,13 +1873,6 @@ window.CommandDashboard = (() => {
     if (!toggle || !body) return;
     toggle.setAttribute('aria-expanded', 'true');
     body.hidden = false;
-  }
-
-  /** Wire compact status pills to graph actions */
-  function _wireStatusPillClicks() {
-    $all('.cd-status-pill[data-action]').forEach(pill => {
-      pill.addEventListener('click', () => _onStatClick(pill.dataset.action));
-    });
   }
 
   /** Wire avatar click → open profile modal (same as top-nav user circle) */
