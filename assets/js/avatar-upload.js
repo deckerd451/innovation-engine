@@ -13,7 +13,7 @@
   }
   window[GUARD] = true;
 
-  const BUCKET_NAME = 'hacksbucket';
+  const BUCKET_NAME = 'private-avatars';
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   
@@ -148,14 +148,17 @@
 
       console.log('✅ Avatar uploaded:', data.path);
 
-      // Get public URL
-      const { data: urlData } = window.supabase.storage
+      // Private bucket: return a one-hour signed URL for this session only.
+      const { data: urlData, error: signedError } = await window.supabase.storage
         .from(BUCKET_NAME)
-        .getPublicUrl(data.path);
+        .createSignedUrl(data.path, 3600);
+      if (signedError || !urlData?.signedUrl) {
+        throw signedError || new Error('Could not create signed avatar URL');
+      }
 
       return {
-        path: data.path,
-        url: urlData.publicUrl
+        path: `${BUCKET_NAME}/${data.path}`,
+        url: urlData.signedUrl
       };
 
     } catch (err) {
@@ -172,9 +175,9 @@
     if (!path) return;
 
     try {
-      const { error } = await window.supabase.storage
-        .from(BUCKET_NAME)
-        .remove([path]);
+      const rawPath = String(path).replace(/^private-avatars\//, '');
+      const bucket = String(path).startsWith('private-avatars/') ? 'private-avatars' : 'hacksbucket';
+      const { error } = await window.supabase.storage.from(bucket).remove([rawPath]);
 
       if (error) {
         console.warn('Error deleting old avatar:', error);

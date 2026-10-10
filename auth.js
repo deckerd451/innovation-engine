@@ -670,6 +670,12 @@
           log("✅ [PROFILE-LINK] Successfully created new profile:", profile.id);
         }
 
+        // Private avatar paths need a fresh signed URL for this session.
+        // This is deliberately best-effort; the policy still fails closed.
+        if (window.refreshProfilePhotoUrl) {
+          await window.refreshProfilePhotoUrl(profile);
+        }
+
         // ============================================================
         // Enforce onboarding if needed
         // ============================================================

@@ -64,6 +64,13 @@ assert.match(storageSql, /owner\.photo_visible = true/);
 assert.match(storageSql, /viewer\.user_role = 'Admin'/);
 assert.match(storageSql, /Private avatar owners can upload/);
 assert.doesNotMatch(storageSql, /UPDATE storage\.buckets[\s\S]*hacksbucket/);
+assert.match(read('profile.js'), /from\("private-avatars"\)/);
+assert.match(read('profile.js'), /createSignedUrl\(path, 3600\)/);
+assert.match(read('profile.js'), /updated\.avatar_storage_path = uploadedAvatar\.path/);
+assert.match(read('assets/js/avatar-upload.js'), /const BUCKET_NAME = 'private-avatars'/);
+assert.match(read('assets/js/avatar-upload.js'), /createSignedUrl\(data\.path, 3600\)/);
+assert.match(read('assets/js/photo-privacy.js'), /refreshProfilePhotoUrl/);
+assert.match(read('auth.js'), /await window\.refreshProfilePhotoUrl\(profile\)/);
 
 // Broad regression guard for raw photo rendering paths that used to bypass
 // the admin panel's setting. These modules must use the shared policy.

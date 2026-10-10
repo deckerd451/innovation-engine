@@ -18,6 +18,7 @@ import { supabase } from "./supabaseClient.js";
 
 // Bucket where all user avatars are stored (matches avatar-upload.js / profile.js).
 const AVATAR_BUCKET = "hacksbucket";
+const PRIVATE_AVATAR_BUCKET = "private-avatars";
 
 // ---------------------------------------------------------------------------
 // In-memory URL cache — keyed by "storagePath::width×height" or "rawUrl::width×height"
@@ -176,7 +177,13 @@ function withTransform(url, width, height) {
  */
 function resolveBaseUrl(user) {
   if (!user) return null;
-  if (user.avatar_storage_path) return storagePathToPublicUrl(user.avatar_storage_path);
+  if (user.avatar_storage_path) {
+    const path = String(user.avatar_storage_path).replace(/^\/+/, "");
+    // Private paths are resolved to a signed URL by photo-privacy/auth. Never
+    // construct a public URL for them; if the signed URL expired, initials win.
+    if (path.startsWith(`${PRIVATE_AVATAR_BUCKET}/`)) return user.image_url || null;
+    return storagePathToPublicUrl(path);
+  }
   if (user.image_url) return user.image_url;
   if (user.imageUrl) return user.imageUrl;
   if (user.avatar_url) return user.avatar_url;

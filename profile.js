@@ -7,7 +7,7 @@
 // - Header user display (name/initials/avatar)
 // - Profile modal view + editor
 // - Save profile to community table
-// - Avatar upload: pick -> resize/crop -> compress -> Supabase Storage -> community.image_url
+// - Avatar upload: pick -> resize/crop -> compress -> private Supabase Storage
 //
 // Depends on:
 // - window.supabase from /assets/js/supabaseClient.js
@@ -366,13 +366,15 @@
   }
 
   // ================================================================
-  // Avatar: upload + public URL
+  // Avatar: upload + short-lived signed URL. New photos never enter the
+  // shared public bucket; the database keeps the private object path.
   // ================================================================
   async function uploadAvatarToSupabase({ supabase, userId, blob, mime }) {
+    const bucket = "private-avatars";
     const path = avatarObjectPath(userId);
 
     const { error } = await supabase.storage
-      .from(AVATAR_BUCKET)
+      .from(bucket)
       .upload(path, blob, {
         upsert: true,
         contentType: mime,
@@ -381,16 +383,19 @@
 
     if (error) throw error;
 
-    const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-    const publicUrl = data?.publicUrl;
-    if (!publicUrl) throw new Error("Could not get public URL for uploaded avatar.");
-    return publicUrl;
+    const { data, error: signedError } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, 3600);
+    if (signedError || !data?.signedUrl) {
+      throw signedError || new Error("Could not create a signed URL for uploaded avatar.");
+    }
+    return { path: `${bucket}/${path}`, url: data.signedUrl };
   }
 
   async function removeAvatarFromSupabase({ supabase, userId }) {
     const path = avatarObjectPath(userId);
     // best-effort
-    const { error } = await supabase.storage.from(AVATAR_BUCKET).remove([path]);
+    const { error } = await supabase.storage.from("private-avatars").remove([path]);
     if (error) throw error;
   }
 
@@ -1016,17 +1021,18 @@
             const { blob, mime, size, width, height } = await createSquareAvatarJpeg(selectedFile);
             setUploaderStatus(`Uploading ${width}×${height} (${Math.round(size / 1024)}KB)…`, "");
 
-            const publicUrl = await uploadAvatarToSupabase({
+            const uploadedAvatar = await uploadAvatarToSupabase({
   supabase,
   userId: user.id,
   blob,
   mime,
 });
 
-updated.image_url = publicUrl;
+updated.avatar_storage_path = uploadedAvatar.path;
+updated.image_url = uploadedAvatar.url;
 
 // ✅ Immediately switch modal preview from blob URL to real stored URL
-setPreviewToUrl(publicUrl);
+setPreviewToUrl(uploadedAvatar.url);
 
 setUploaderStatus("Photo uploaded.", "ok");
           } else if (pendingRemoveAvatar) {

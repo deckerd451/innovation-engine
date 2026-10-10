@@ -29,7 +29,24 @@
     return parts.length === 1 ? parts[0].slice(0, 2).toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
+  // Resolve new private avatar objects through a short-lived signed URL.
+  // Missing or expired URLs fail closed and callers can render initials.
+  async function refreshProfilePhotoUrl(person, expiresIn = 3600) {
+    if (!person?.avatar_storage_path || !window.supabase) return person;
+    const raw = String(person.avatar_storage_path).replace(/^\/+/, '');
+    const prefix = 'private-avatars/';
+    if (!raw.startsWith(prefix)) return person;
+    const objectPath = raw.slice(prefix.length);
+    if (!objectPath) return person;
+    const { data, error } = await window.supabase.storage
+      .from('private-avatars')
+      .createSignedUrl(objectPath, expiresIn);
+    if (!error && data?.signedUrl) person.image_url = data.signedUrl;
+    return person;
+  }
+
   window.shouldHideProfilePhoto = shouldHidePhoto;
   window.profilePhotoUrl = profilePhotoUrl;
   window.profileInitials = profileInitials;
+  window.refreshProfilePhotoUrl = refreshProfilePhotoUrl;
 })();
