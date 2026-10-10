@@ -616,13 +616,24 @@ try {
 
     const svgSel = window.d3.select(this._svg);
     const svgRect = this._svg.getBoundingClientRect();
-    const midX = svgRect.width / 2;
-    const midY = svgRect.height / 2;
+    const width = Number(svgRect?.width);
+    const height = Number(svgRect?.height);
+    const nodeX = Number(userNode.x);
+    const nodeY = Number(userNode.y);
+    // Today hides the graph until the user opens Network. Do not send an
+    // invalid zoom transform while the SVG has no measurable viewport or the
+    // force simulation has not assigned coordinates yet.
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width < 2 || height < 2 ||
+        !Number.isFinite(nodeX) || !Number.isFinite(nodeY)) {
+      return false;
+    }
+    const midX = width / 2;
+    const midY = height / 2;
 
     // Zoom scale — close enough to see the user and their neighbors
     const k = 1.2;
-    const tx = midX - userNode.x * k;
-    const ty = midY - userNode.y * k;
+    const tx = midX - nodeX * k;
+    const ty = midY - nodeY * k;
 
     const transform = window.d3.zoomIdentity.translate(tx, ty).scale(k);
 
@@ -632,6 +643,7 @@ try {
 
     console.log(`🎯 Centered on user node (${userNode.name}) at [${Math.round(userNode.x)}, ${Math.round(userNode.y)}]`);
     this.emit('centered-on-user', { userId: this._userId });
+    return true;
   }
 
   /**

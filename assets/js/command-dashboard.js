@@ -220,6 +220,11 @@ window.CommandDashboard = (() => {
     });
     try { sessionStorage.setItem('buildspace-view', nextView); } catch (_) {}
     window.dispatchEvent(new Event('resize'));
+    if (nextView === 'network') {
+      // The graph was hidden in Today, so center it after the browser has
+      // committed the visible layout and supplied a real SVG viewport.
+      setTimeout(() => window.unifiedNetworkIntegration?.api?.centerOnCurrentUser?.(), 80);
+    }
   }
 
   function _wireWorkspaceView() {
