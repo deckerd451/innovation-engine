@@ -41,12 +41,12 @@ window.CommandDashboard = (() => {
       briefSections: ['your_pattern', 'opportunities_for_you'],
     },
     2: {
-      label: 'Extended',
-      desc:  '2-hop network. Bridges and momentum zones.',
-      statsLabel: 'Extended Network',
+      label: 'Nearby',
+      desc:  'People and projects connected to your network.',
+      statsLabel: 'Nearby Network',
       resourcesLabel: {
-        people:        'Extended Network',
-        projects:      'Adjacent Projects',
+        people:        'Nearby People',
+        projects:      'Nearby Projects',
         themes:        'Strategic Themes',
         organizations: 'Nearby Organizations',
         opportunities: 'Nearby Opportunities',
@@ -54,11 +54,11 @@ window.CommandDashboard = (() => {
       briefSections: ['people_worth_knowing', 'signals_moving', 'opportunities_for_you'],
     },
     3: {
-      label: 'Ecosystem',
-      desc:  'Full ecosystem view. Discover patterns and signals.',
-      statsLabel: 'Ecosystem',
+      label: 'Everyone',
+      desc:  'The wider community. Discover patterns and possibilities.',
+      statsLabel: 'Everyone',
       resourcesLabel: {
-        people:        'All People',
+        people:        'Everyone',
         projects:      'All Projects',
         themes:        'All Themes',
         organizations: 'All Organizations',
