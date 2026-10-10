@@ -1595,14 +1595,14 @@ async function _renderReflectionSupportContent() {
       if (focusTitle) focusTitle.textContent = 'Try this together';
       _renderCollaborationConcierge(focus, concierge);
     } else if (window.MentorGuide?.renderFocusInto) {
-      if (focusTitle) focusTitle.textContent = 'Current Focus';
+      if (focusTitle) focusTitle.textContent = 'Start here';
       try {
         await window.MentorGuide.renderFocusInto(focus);
       } catch (_) {
         focus.textContent = '';
       }
     } else {
-      if (focusTitle) focusTitle.textContent = 'Current Focus';
+      if (focusTitle) focusTitle.textContent = 'Start here';
       focus.textContent = '';
     }
     const focusSection = focus.closest('.network-reflection-section');
@@ -1730,11 +1730,6 @@ function _renderCollaborationConcierge(root, candidate) {
 // when closed; no second insight state is created.
 window.StartDailyDigest.renderNetworkReflection = function (profile) {
   const root = document.getElementById('network-reflection-brief');
-  const greeting = document.getElementById('network-reflection-greeting');
-  if (greeting) {
-    const firstName = String(profile?.full_name || profile?.username || '').trim().split(/\s+/)[0];
-    greeting.textContent = firstName ? `Welcome back, ${firstName}. Pick up where you left off.` : 'Welcome back. Pick up where you left off.';
-  }
   const briefPromise = root
     ? window.StartDailyDigest._generateAndRenderBrief(root)
     : Promise.resolve();
