@@ -419,15 +419,31 @@ window.CommandDashboard = (() => {
       focus.style.display = '';
       return;
     }
+    const profileFields = [
+      _profile.name || _profile.full_name || _profile.username,
+      _profile.bio,
+      _profile.skills,
+      _profile.interests,
+      _profile.image_url || _profile.avatar_storage_path,
+    ];
+    const profileComplete = profileFields.filter(Boolean).length >= 4;
+    const title = profileComplete
+      ? 'Your network has a new way to work.'
+      : 'Make your profile useful to the right people.';
+    const copy = profileComplete
+      ? 'Synapse connects people, projects, themes, and opportunities so you can see where one useful conversation could start.'
+      : 'Add a short bio, skills, and interests so Synapse can surface better people, projects, and opportunities for you.';
     welcome.innerHTML = `
       <section class="cd-welcome-guide" aria-labelledby="cd-welcome-title">
         <div class="cd-welcome-guide-copy">
           <div class="cd-focus-primary-label">Welcome back</div>
-          <h3 id="cd-welcome-title">Your network has a new way to work.</h3>
-          <p>Synapse connects people, projects, themes, and opportunities so you can see where one useful conversation could start.</p>
+          <h3 id="cd-welcome-title">${title}</h3>
+          <p>${copy}</p>
         </div>
         <div class="cd-welcome-guide-actions">
-          <button type="button" class="cd-focus-cta" data-welcome-action="people">Find people</button>
+          ${profileComplete
+            ? '<button type="button" class="cd-focus-cta" data-welcome-action="people">Find people</button>'
+            : '<button type="button" class="cd-focus-cta" data-welcome-action="profile">Complete profile</button>'}
           <button type="button" class="cd-focus-cta cd-welcome-secondary" data-welcome-action="network">View my network</button>
           <button type="button" class="cd-welcome-dismiss" data-welcome-action="dismiss">Maybe later</button>
         </div>
@@ -443,6 +459,8 @@ window.CommandDashboard = (() => {
         } else if (action === 'people') {
           _switchResourceTab('people');
           document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (action === 'profile') {
+          document.getElementById('cd-avatar')?.click();
         } else if (action === 'network') {
           window.GraphController?.resetToTierDefault?.();
           document.getElementById('synapse-main-view')?.focus?.({ preventScroll: true });
