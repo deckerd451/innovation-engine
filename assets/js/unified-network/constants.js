@@ -132,9 +132,9 @@ export const DECAY_RATES = {
  */
 export const GLOW_INTENSITY = {
   none: 0,
-  ambient: 0.3,
-  relevant: 0.5,
-  actionable: 0.8
+  ambient: 0.08,
+  relevant: 0.16,
+  actionable: 0.32
 };
 
 /**

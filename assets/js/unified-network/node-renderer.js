@@ -230,9 +230,9 @@ export class NodeRenderer {
       .append('line')
       .attr('class', 'link')
       .attr('stroke', d => {
-        if (d.type === 'connection') return 'rgba(0, 224, 255, 0.25)';
-        if (d.type === 'project_membership') return 'rgba(0, 255, 136, 0.2)';
-        return 'rgba(255, 255, 255, 0.1)';
+        if (d.type === 'connection') return 'rgba(0, 224, 255, 0.14)';
+        if (d.type === 'project_membership') return 'rgba(0, 255, 136, 0.12)';
+        return 'rgba(255, 255, 255, 0.06)';
       })
       .attr('stroke-width', d => {
         if (d.status === 'accepted') return 1.2;
@@ -281,8 +281,8 @@ export class NodeRenderer {
         .style('opacity', null)
         .style('stroke-width', null)
         .attr('stroke', d => d.type === 'connection'
-          ? 'rgba(0, 224, 255, 0.25)'
-          : 'rgba(255, 255, 255, 0.1)');
+          ? 'rgba(0, 224, 255, 0.14)'
+          : 'rgba(255, 255, 255, 0.06)');
     }
   }
 

@@ -48,7 +48,7 @@
 .cd-search #global-search { display:block!important; width:100%!important; height:40px!important; min-height:40px!important; max-height:40px!important; box-sizing:border-box!important; margin:0!important; padding:0 2.8rem 0 2.1rem!important; color:#fff; background:transparent!important; border:0!important; border-radius:8px!important; outline:0; font-family:inherit!important; font-size:14px!important; font-weight:400!important; line-height:40px!important; appearance:none; }
 .cd-search #search-button { position:absolute!important; left:auto!important; right:5px!important; top:5px!important; bottom:auto!important; transform:none!important; display:flex!important; align-items:center!important; justify-content:center!important; flex:none!important; width:30px!important; min-width:30px!important; max-width:30px!important; height:30px!important; min-height:30px!important; max-height:30px!important; margin:0!important; padding:0!important; border:0; border-radius:6px; color:#fff; background:linear-gradient(135deg,#00e0ff,#0080ff); font-size:13px!important; line-height:1!important; cursor:pointer; }
 .cd-search #search-suggestions { display:none; position:absolute; top:calc(100% + .35rem); left:0; right:0; max-height:min(420px,60vh); overflow-y:auto; background:rgba(10,14,39,.99); border:1px solid rgba(0,224,255,.4); border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,.65); z-index:1000; }
-.synapse-workspace-title { position:absolute; top:1rem; left:1rem; z-index:5; color:rgba(224,232,255,.72); font-size:.72rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; pointer-events:none; }
+.synapse-workspace-title { position:absolute; top:1rem; left:1rem; z-index:5; color:rgba(224,232,255,.62); font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; pointer-events:none; }
 #network-reflection { color:var(--cd-text); background:linear-gradient(145deg,rgba(8,12,28,.97),rgba(4,8,18,.98)); overflow:hidden; transition:width .2s ease,height .2s ease; }
 .network-reflection-header { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:1rem 1.1rem .85rem; border-bottom:1px solid rgba(0,224,255,.18); color:rgba(224,232,255,.72); font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
 .network-reflection-header small { display:block; margin-top:.3rem; color:rgba(200,210,255,.45); font-size:.62rem; font-weight:400; letter-spacing:.02em; text-transform:none; }
@@ -240,7 +240,10 @@ body.reflection-resizing #network-reflection { transition:none; }
   #synapse-main-view {
     left: var(--cd-width) !important;   /* 320px — right of dashboard */
     right: var(--reflection-width) !important;
+    background: radial-gradient(circle at 56% 42%, rgba(0,224,255,.045), transparent 52%), #060a12 !important;
   }
+
+  #synapse-svg { background: transparent !important; }
 
   /* ── Node side panel: slides from right of viewport ── */
   /* Panel already uses position:fixed; right:-450px → right:0 */
@@ -700,7 +703,7 @@ body.reflection-resizing #network-reflection { transition:none; }
 
 #synapse-svg .node.is-focused .node-glow {
   fill: #00e0ff;
-  opacity: 0.8;
+  opacity: 0.55;
   transform: scale(1.4);
   transform-box: fill-box;
   transform-origin: center;
@@ -709,8 +712,9 @@ body.reflection-resizing #network-reflection { transition:none; }
 /* The graph's visual hierarchy should answer "where do I look next?" without
    making every node glow. Keep the member anchor and one recommendation clear. */
 #synapse-svg .node.is-current-user .node-circle { stroke:#00e0ff; stroke-width:3px; }
+#synapse-svg .node.is-current-user .node-glow { opacity:.28; }
 #synapse-svg .node.is-recommended:not(.is-focused) .node-circle { stroke:#8cecff; stroke-width:2px; }
-#synapse-svg .node.is-recommended:not(.is-focused) .node-glow { opacity:.28; }
+#synapse-svg .node.is-recommended:not(.is-focused) .node-glow { opacity:.18; }
 #synapse-svg .node.is-focused .node-circle { stroke-width:4px; }
 
 .udc-resource-info {
