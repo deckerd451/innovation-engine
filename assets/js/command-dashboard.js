@@ -1991,7 +1991,9 @@ window.CommandDashboard = (() => {
       prevBtn.disabled = currentIndex === 0;
       nextBtn.disabled = currentIndex === steps.length - 1;
       const title = active.querySelector('h2')?.textContent || '';
-      label.textContent = `${currentIndex + 1} of ${steps.length}${title ? ` — ${title}` : ''}`;
+      // Keep the panel oriented around the current action. The number of
+      // available insight sections is secondary and adds cognitive load.
+      label.textContent = title || 'Next step';
     };
 
     prevBtn.addEventListener('click', () => { currentIndex -= 1; update(); });
