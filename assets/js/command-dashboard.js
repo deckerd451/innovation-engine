@@ -127,6 +127,7 @@ window.CommandDashboard = (() => {
     myProjectIds: null,          // Set<string> — projects the user is a member of
     organizations: null,         // Array — all organizations from Supabase
     myOrgIds: null,              // Set<string> — orgs the user belongs to
+    myOrgPendingIds: null,       // Set<string> — join requests awaiting review
     opportunities: null,         // Array — all opportunities from Supabase
     themes: null,                // Array<{id, label, count}> — aggregated themes/skills
   };
@@ -684,7 +685,7 @@ window.CommandDashboard = (() => {
         // Orgs the current user belongs to
         window.supabase
           .from('organization_members')
-          .select('organization_id')
+          .select('organization_id, status')
           .eq('community_id', _userId),
         // Opportunities (table may not exist — handle gracefully).
         // created_at is selected so the Explore preview can be ordered by
@@ -785,7 +786,8 @@ window.CommandDashboard = (() => {
       }
 
       if (myOrgResult.data) {
-        _enrichedData.myOrgIds = new Set(myOrgResult.data.map(o => o.organization_id));
+        _enrichedData.myOrgIds = new Set(myOrgResult.data.filter(o => o.status !== 'pending').map(o => o.organization_id));
+        _enrichedData.myOrgPendingIds = new Set(myOrgResult.data.filter(o => o.status === 'pending').map(o => o.organization_id));
       }
 
       if (oppResult.data) {
@@ -1520,6 +1522,8 @@ window.CommandDashboard = (() => {
             </div>
             ${item.isStub
               ? `<span class="udc-resource-stub-badge">sample</span>`
+              : item.joinable
+                ? `<button class="udc-resource-join-btn" data-id="${item.id}" data-name="${_escapeHtml(item.name)}" type="button" title="Request to join ${_escapeHtml(item.name)}">Join</button>`
               : `<button class="udc-resource-show-btn" data-id="${item.id}" title="${['people','themes'].includes(_activeResourceTab) ? 'Show in graph' : 'View details'}" aria-label="Show ${_escapeHtml(item.name)}">
                   <i class="fas ${['people','themes'].includes(_activeResourceTab) ? 'fa-crosshairs' : 'fa-info-circle'}"></i>
                 </button>`
@@ -1541,6 +1545,37 @@ window.CommandDashboard = (() => {
         window.unifiedNetworkIntegration.openFallbackPanel({ id });
       }
     }
+
+    // Organization rows can request membership without leaving Explore.
+    list.querySelectorAll('.udc-resource-join-btn').forEach(btn => {
+      btn.addEventListener('click', async event => {
+        event.stopPropagation();
+        const orgId = btn.dataset.id;
+        const orgName = btn.dataset.name || 'this organization';
+        if (!orgId || !_userId || btn.disabled) return;
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+        try {
+          if (typeof window.ComprehensiveFixes?.submitOrganizationJoinRequest === 'function') {
+            await window.ComprehensiveFixes.submitOrganizationJoinRequest(orgId, _userId);
+          } else {
+            const { error } = await window.supabase.from('organization_members').insert({
+              organization_id: orgId, community_id: _userId, role: 'member', status: 'pending'
+            });
+            if (error) throw error;
+            window.showToast?.(`Join request sent to ${orgName}.`, 'success');
+          }
+          _enrichedData.myOrgPendingIds = _enrichedData.myOrgPendingIds || new Set();
+          _enrichedData.myOrgPendingIds.add(orgId);
+          _renderResources(_currentTier);
+        } catch (error) {
+          console.warn('[CommandDashboard] organization join request failed:', error?.message || error);
+          btn.disabled = false;
+          btn.textContent = 'Join';
+          window.showToast?.('Could not send the join request. Try again.', 'error');
+        }
+      });
+    });
 
     // Wire "Show in Graph" buttons — for people, focus in graph;
     // for projects/orgs/themes, set as context lens (highlights related people)
@@ -1750,16 +1785,22 @@ window.CommandDashboard = (() => {
       // Organizations come from Supabase, not graph nodes
       const allOrgs = _enrichedData.organizations;
       if (!allOrgs || allOrgs.length === 0) return STUB_ORGANIZATIONS;
-      if (tier === 1) {
-        const myIds = _enrichedData.myOrgIds;
-        filtered = myIds ? allOrgs.filter(o => myIds.has(o.id)) : [];
-        if (filtered.length === 0) return STUB_ORGANIZATIONS;
-      } else {
-        filtered = allOrgs;
-      }
+      // Keep the organization directory discoverable in every tier. Users
+      // who are not members can request access directly from each row.
+      filtered = allOrgs;
       return filtered
         .slice(0, 10)
-        .map(o => ({ id: o.id, name: o.name || 'Unknown Org' }))
+        .map(o => {
+          const id = String(o.id);
+          const member = _enrichedData.myOrgIds?.has(id);
+          const pending = _enrichedData.myOrgPendingIds?.has(id);
+          return {
+            id,
+            name: o.name || 'Unknown Org',
+            meta: pending ? 'request pending' : (member ? 'connected' : 'open to join'),
+            joinable: !member && !pending,
+          };
+        })
         .sort((a, b) => a.name.localeCompare(b.name));
 
     } else if (resourceType === 'opportunities') {
