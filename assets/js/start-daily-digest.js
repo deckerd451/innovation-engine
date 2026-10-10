@@ -1549,10 +1549,11 @@ window.StartDailyDigest.downloadNetworkReport = downloadReflectionNetworkReport;
 // migration is intentionally optional: a missing column must never prevent
 // the canonical Reflection from rendering.
 let _reflectionWatermarkRecordedFor = null;
+let _reflectionWatermarkSchemaUnavailable = false;
 async function _recordReflectionWatermark(profile) {
   const supabase = window.supabase;
   const communityId = profile?.id;
-  if (!supabase || !communityId || _reflectionWatermarkRecordedFor === String(communityId)) return;
+  if (!supabase || !communityId || _reflectionWatermarkSchemaUnavailable || _reflectionWatermarkRecordedFor === String(communityId)) return;
   // Reuses this function's own once-per-page-load guard above -- fires
   // exactly when the canonical Reflection has actually rendered.
   // Independent of the watermark write below succeeding or failing.
@@ -1572,7 +1573,16 @@ async function _recordReflectionWatermark(profile) {
     if (updateError) throw updateError;
     _reflectionWatermarkRecordedFor = String(communityId);
   } catch (error) {
-    console.warn('[NetworkReflection] Visit watermark unavailable; deploy the Reflection watermark migration when ready.', error?.message || error);
+    const message = error?.message || String(error || '');
+    // Older Supabase projects may not have applied the optional watermark
+    // migration yet. Reflection remains fully usable; stop retrying on every
+    // render and keep one actionable diagnostic in the console.
+    if (/reflection_(last|previous)_visited_at|column .* does not exist/i.test(message)) {
+      _reflectionWatermarkSchemaUnavailable = true;
+      console.info('[NetworkReflection] Visit watermark is unavailable until supabase/sql/migrations/20260818_reflection_watermark.sql is applied.');
+    } else {
+      console.warn('[NetworkReflection] Visit watermark unavailable:', message);
+    }
   }
 }
 

@@ -429,22 +429,15 @@ async function renderSkillLensPanel(skillData) {
   try {
     const client = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
     if (!client) throw new Error('Database unavailable');
-    let { data, error } = await client
+    // Keep this query to the columns present in the original community
+    // schema. Some deployed projects do not have full_name/username, and
+    // skills has existed as both JSON and text, so filtering locally avoids
+    // turning a valid skill click into a schema error.
+    const { data, error } = await client
       .from('community')
-      .select('id,name,full_name,username,skills')
-      .contains('skills', [skill])
-      .limit(50);
-    // Some older profiles store skills as text or use different casing. Use
-    // the same canonical community table, with a safe client-side fallback,
-    // so a valid skill never appears to have no matches.
-    if (error || !data?.length) {
-      const fallback = await client
-        .from('community')
-        .select('id,name,full_name,username,skills')
-        .limit(500);
-      if (fallback.error) throw error || fallback.error;
-      data = fallback.data || [];
-    }
+      .select('id,name,skills')
+      .limit(1000);
+    if (error) throw error;
     const people = (data || []).filter(person => {
       const skills = Array.isArray(person.skills)
         ? person.skills
