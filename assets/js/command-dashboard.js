@@ -1993,6 +1993,16 @@ window.CommandDashboard = (() => {
 
     const update = () => {
       const steps = visibleSteps();
+      const secondaryAvailable = Array.from(container.querySelectorAll(':scope > .network-reflection-section'))
+        .some(section => !section.hidden && section.dataset.secondary === 'true');
+      moreToggle.hidden = !secondaryAvailable;
+      if (!secondaryAvailable && showSecondary) {
+        showSecondary = false;
+        moreToggle.setAttribute('aria-expanded', 'false');
+        moreToggle.classList.remove('is-open');
+        moreToggle.childNodes[0].textContent = 'More context ';
+        scroll?.classList.remove('show-secondary');
+      }
       container.querySelectorAll('.network-reflection-section').forEach(section => {
         section.classList.remove('network-reflection-step-active');
         section.setAttribute('aria-hidden', 'true');

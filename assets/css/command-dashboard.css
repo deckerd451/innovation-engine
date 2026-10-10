@@ -18,7 +18,7 @@
 :root {
   --cd-width: clamp(280px, 24vw, 340px);
   --reflection-width: clamp(310px, 27vw, 380px);
-  --reflection-mobile-height: 42dvh;
+  --reflection-mobile-height: clamp(250px,38dvh,420px);
   --cd-bg: rgba(5, 7, 15, 0.78);
   --cd-border: rgba(0, 224, 255, 0.15);
   --cd-accent: #00e0ff;
