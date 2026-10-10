@@ -439,9 +439,9 @@ window.CommandDashboard = (() => {
     const key = `ie:synapse-welcome:${_profile.id}`;
     let dismissed = false;
     try { dismissed = localStorage.getItem(key) === 'dismissed'; } catch (_) {}
-    if (!established || dismissed) {
-      if (dismissed || !established) welcome.innerHTML = '';
-      if (!welcome.children.length && !_unreadMessages) focus.style.display = 'none';
+    if (dismissed) {
+      welcome.innerHTML = '';
+      if (!_unreadMessages) focus.style.display = 'none';
       return;
     }
     if (welcome.children.length) {
@@ -456,12 +456,20 @@ window.CommandDashboard = (() => {
       _profile.image_url || _profile.avatar_storage_path,
     ];
     const profileComplete = profileFields.filter(Boolean).length >= 4;
-    const title = profileComplete
-      ? 'Find one useful conversation.'
-      : 'Help people find you.';
-    const copy = profileComplete
-      ? 'Start with someone relevant to what you’re building.'
-      : 'Add a bio, skills, and interests.';
+    const title = !profileComplete
+      ? 'Help people find you.'
+      : _unreadMessages > 0
+        ? 'You have a conversation waiting.'
+        : established
+          ? 'Find one useful conversation.'
+          : 'Take one small step toward your network.';
+    const copy = !profileComplete
+      ? 'Add a bio, skills, and interests so recommendations feel relevant.'
+      : _unreadMessages > 0
+        ? 'Reply while the context is fresh.'
+        : 'Start with someone relevant to what you’re building.';
+    const primaryAction = !profileComplete ? 'profile' : _unreadMessages > 0 ? 'messages' : 'people';
+    const primaryLabel = !profileComplete ? 'Complete profile' : _unreadMessages > 0 ? 'Review messages' : 'Find people';
     welcome.innerHTML = `
       <section class="cd-welcome-guide" aria-labelledby="cd-welcome-title">
         <div class="cd-welcome-guide-copy">
@@ -470,9 +478,7 @@ window.CommandDashboard = (() => {
           <p>${copy}</p>
         </div>
         <div class="cd-welcome-guide-actions">
-          ${profileComplete
-            ? '<button type="button" class="cd-focus-cta" data-welcome-action="people">Find people</button>'
-            : '<button type="button" class="cd-focus-cta" data-welcome-action="profile">Complete profile</button>'}
+          <button type="button" class="cd-focus-cta" data-welcome-action="${primaryAction}">${primaryLabel}</button>
           <button type="button" class="cd-focus-cta cd-welcome-secondary" data-welcome-action="network">View my network</button>
           <button type="button" class="cd-welcome-dismiss" data-welcome-action="dismiss">Maybe later</button>
         </div>
@@ -490,6 +496,8 @@ window.CommandDashboard = (() => {
         } else if (action === 'people') {
           _switchResourceTab('people');
           document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (action === 'messages') {
+          document.getElementById('cd-messages-btn')?.click();
         } else if (action === 'profile') {
           document.getElementById('cd-avatar')?.click();
         } else if (action === 'network') {

@@ -1607,6 +1607,14 @@ async function _renderReflectionSupportContent() {
     _renderReflectionNextMoves(data);
   } catch (error) {
     console.warn('[NetworkReflection] Summary data unavailable:', error?.message || error);
+    const summary = document.getElementById('network-reflection-summary');
+    if (summary && !summary.textContent.trim()) {
+      summary.innerHTML = '<div class="network-reflection-error"><span>We couldn’t load your network yet.</span><button type="button" class="network-reflection-retry">Try again</button></div>';
+      summary.querySelector('.network-reflection-retry')?.addEventListener('click', () => {
+        summary.innerHTML = '<div class="network-reflection-loading">Trying again…</div>';
+        window.StartDailyDigest.renderNetworkReflection(window.currentUserProfile || null);
+      }, { once: true });
+    }
   }
 }
 
