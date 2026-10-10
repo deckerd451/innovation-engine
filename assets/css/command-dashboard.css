@@ -1815,3 +1815,22 @@ body.reflection-resizing #network-reflection { transition:none; }
     display: none;
   }
 }
+
+/* Final visual overrides: calmer hierarchy and larger mobile targets. */
+.cd-section-label,
+.udc-resource-section-label,
+.network-reflection-header,
+.network-reflection-scroll h2,
+.cd-focus-primary-label { letter-spacing:.04em; text-transform:none; }
+.udc-resource-tabs { gap:.35rem; }
+.udc-resource-tab { border-radius:7px; text-transform:none; letter-spacing:0; }
+.cd-focus-card,
+.network-reflection-focus-card,
+.network-reflection-move { box-shadow:none; }
+.cd-focus-cta,
+.cd-welcome-guide { box-shadow:none; }
+@media (max-width:1023px) {
+  .udc-resource-tab { min-height:38px; padding:.55rem .7rem; }
+  .cd-status-pill { min-height:48px; }
+  .network-reflection-header { text-transform:none; letter-spacing:.02em; }
+}
