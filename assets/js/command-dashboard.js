@@ -450,7 +450,9 @@ window.CommandDashboard = (() => {
       </section>`;
     focus.style.display = '';
     welcome.querySelectorAll('[data-welcome-action]').forEach((button) => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         const action = button.dataset.welcomeAction;
         if (action === 'dismiss') {
           try { localStorage.setItem(key, 'dismissed'); } catch (_) {}
@@ -462,8 +464,22 @@ window.CommandDashboard = (() => {
         } else if (action === 'profile') {
           document.getElementById('cd-avatar')?.click();
         } else if (action === 'network') {
-          window.GraphController?.resetToTierDefault?.();
-          document.getElementById('synapse-main-view')?.focus?.({ preventScroll: true });
+          button.disabled = true;
+          button.textContent = 'Opening network…';
+          try {
+            // Use the same tier controller as the rest of the dashboard so
+            // this action changes the graph rather than only clearing a glow.
+            await switchTier(1);
+            if (_userId && window.GraphController?.focusNode) {
+              window.GraphController.focusNode(_userId, { openPanel: false });
+            } else {
+              window.GraphController?.resetToTierDefault?.();
+            }
+            document.getElementById('synapse-main-view')?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+          } finally {
+            button.disabled = false;
+            button.textContent = 'View my network';
+          }
         }
       });
     });
