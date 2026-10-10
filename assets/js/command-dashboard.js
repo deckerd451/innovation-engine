@@ -2019,34 +2019,20 @@ window.CommandDashboard = (() => {
     const prevBtn = $id('network-reflection-step-prev');
     const nextBtn = $id('network-reflection-step-next');
     const label = $id('network-reflection-step-label');
-    const moreToggle = $id('network-reflection-more-toggle');
-    if (!container || !nav || !prevBtn || !nextBtn || !label || !moreToggle || container.dataset.stepperWired === 'true') return;
+    if (!container || !nav || !prevBtn || !nextBtn || !label || container.dataset.stepperWired === 'true') return;
     container.dataset.stepperWired = 'true';
-    let showSecondary = false;
-    const scroll = $id('network-reflection-scroll');
-
     let currentIndex = 0;
 
     const visibleSteps = () =>
       Array.from(container.querySelectorAll(':scope > .network-reflection-section')).filter(section =>
-        !section.hidden && (showSecondary || !section.dataset.secondary)
+        !section.hidden
       );
 
     const update = () => {
       const steps = visibleSteps();
-      const secondaryAvailable = Array.from(container.querySelectorAll(':scope > .network-reflection-section'))
-        .some(section => !section.hidden && section.dataset.secondary === 'true');
-      moreToggle.hidden = !secondaryAvailable;
-      if (!secondaryAvailable && showSecondary) {
-        showSecondary = false;
-        moreToggle.setAttribute('aria-expanded', 'false');
-        moreToggle.classList.remove('is-open');
-        moreToggle.childNodes[0].textContent = 'See details ';
-        scroll?.classList.remove('show-secondary');
-      }
       container.querySelectorAll('.network-reflection-section').forEach(section => {
         section.classList.remove('network-reflection-step-active');
-        section.setAttribute('aria-hidden', 'true');
+        section.setAttribute('aria-hidden', section.hidden ? 'true' : 'false');
       });
 
       if (!steps.length) {
@@ -2054,31 +2040,11 @@ window.CommandDashboard = (() => {
         return;
       }
 
-      currentIndex = Math.max(0, Math.min(currentIndex, steps.length - 1));
-      const active = steps[currentIndex];
-      active.classList.add('network-reflection-step-active');
-      active.setAttribute('aria-hidden', 'false');
-
-      nav.hidden = steps.length < 2;
-      prevBtn.disabled = currentIndex === 0;
-      nextBtn.disabled = currentIndex === steps.length - 1;
-      const title = active.querySelector('h2')?.textContent || '';
-      // Keep the panel oriented around the current action. The number of
-      // available insight sections is secondary and adds cognitive load.
-      label.textContent = title || 'Next step';
+      nav.hidden = true;
     };
 
     prevBtn.addEventListener('click', () => { currentIndex -= 1; update(); });
     nextBtn.addEventListener('click', () => { currentIndex += 1; update(); });
-    moreToggle.addEventListener('click', () => {
-      showSecondary = !showSecondary;
-      moreToggle.setAttribute('aria-expanded', String(showSecondary));
-      moreToggle.classList.toggle('is-open', showSecondary);
-      moreToggle.childNodes[0].textContent = showSecondary ? 'Hide details ' : 'See details ';
-      scroll?.classList.toggle('show-secondary', showSecondary);
-      currentIndex = 0;
-      update();
-    });
 
     new MutationObserver(update).observe(container, { attributes: true, attributeFilter: ['hidden'], subtree: true });
     update();
