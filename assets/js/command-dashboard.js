@@ -869,9 +869,10 @@ window.CommandDashboard = (() => {
             });
           });
 
-          // Promote skills with 2+ people; merge counts into theme circles
+          // Keep every real skill, including one-person skills. Today mode is
+          // often where a member follows a specific skill, and dropping it
+          // here makes the Themes tab appear empty after that selection.
           skillCounts.forEach((count, key) => {
-            if (count < 2) return;
             if (themes.has(key)) {
               // Update count on existing theme circle
               themes.get(key).count = count;
