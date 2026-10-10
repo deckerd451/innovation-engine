@@ -372,6 +372,19 @@ export class NodeRenderer {
       .attr('clip-path', 'circle()')
       .style('pointer-events', 'all'); // ✅ Ensure image is clickable
 
+    nodeEnter.append('text')
+      .attr('class', 'node-initials')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.35em')
+      .style('pointer-events', 'none')
+      .style('fill', '#fff')
+      .style('font-weight', '700')
+      .style('font-size', '11px')
+      .text(d => {
+        const parts = String(d.name || '?').trim().split(/\s+/).filter(Boolean);
+        return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : (parts[0] || '?').slice(0, 2).toUpperCase();
+      });
+
     // ✅ UPDATE: Merge enter + existing nodes for updates
     const nodeMerge = nodeEnter.merge(nodeSelection);
 
@@ -487,6 +500,10 @@ export class NodeRenderer {
         const visualState = this.getVisualState(d, state);
         return visualState.radius * 2;
       });
+
+    nodeMerge.select('.node-initials')
+      .style('display', d => d.imageUrl ? 'none' : 'block')
+      .style('font-size', d => `${Math.max(9, Math.min(16, this.getVisualState(d, state).radius * 0.65))}px`);
 
     // ✅ Note: exit().remove() was already called above (before enter)
     // This ensures removed nodes are cleaned up before new ones are added

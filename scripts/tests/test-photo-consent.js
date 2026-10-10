@@ -65,4 +65,6 @@ for (const file of ['connectionRequests', 'messaging', 'node-panel', 'dashboardP
   'teamBuilder', 'leaderboard', 'live-activity-feed', 'nearify-events-panel']) {
   assert.match(read(`assets/js/${file}.js`), /window\.profilePhotoUrl\?\./, file);
 }
+assert.match(read('assets/js/unified-network/node-renderer.js'), /node-initials/);
+assert.match(read('assets/js/unified-network/node-renderer.js'), /d\.imageUrl \? 'none' : 'block'/);
 console.log('Photo consent: defaults, opt-in/out, owner/admin access, cache and UI checks passed');
