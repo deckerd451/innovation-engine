@@ -1647,12 +1647,14 @@ function _renderCollaborationConcierge(root, candidate) {
   invite.className = 'network-reflection-concierge-primary';
   invite.textContent = 'Invite';
   invite.addEventListener('click', async () => {
-    if (typeof window.sendConnectionRequest !== 'function') {
+    if (typeof window.CollaborationConcierge?.sendInvite !== 'function' && typeof window.sendConnectionRequest !== 'function') {
       window.showToast?.('Connection requests are still loading.', 'info');
       return;
     }
     invite.disabled = true;
-    const result = await window.sendConnectionRequest(candidate.id, candidate.name, 'collaborator');
+    const result = window.CollaborationConcierge?.sendInvite
+      ? await window.CollaborationConcierge.sendInvite(candidate.id, candidate.name, candidate.reason)
+      : await window.sendConnectionRequest(candidate.id, candidate.name, 'collaborator');
     if (result?.success) {
       _conciergeSaved = true;
       _saveConciergeState(window.currentUserProfile);

@@ -409,7 +409,7 @@ export async function getAcceptedConnections() {
 
   const { data, error } = await supabase
     .from("connections")
-    .select("id, from_user_id, to_user_id, created_at, status, type")
+    .select("id, from_user_id, to_user_id, created_at, status, type, context_type, context_reason, context_prompt, context_outcome, context_status, context_schedule, context_completed_at, context_completed_by")
     .or(
       `and(from_user_id.eq.${currentUserCommunityId},status.eq.accepted),and(to_user_id.eq.${currentUserCommunityId},status.eq.accepted)`
     )
@@ -438,7 +438,7 @@ export async function getPendingRequestsReceived() {
 
   const { data, error } = await supabase
     .from("connections")
-    .select("id, from_user_id, to_user_id, created_at, status, type")
+    .select("id, from_user_id, to_user_id, created_at, status, type, context_type, context_reason, context_prompt, context_outcome, context_status, context_schedule, context_completed_at, context_completed_by")
     .eq("to_user_id", currentUserCommunityId)
     .eq("status", "pending")
     .order("created_at", { ascending: false });
@@ -460,7 +460,7 @@ export async function getPendingRequestsSent() {
 
   const { data, error } = await supabase
     .from("connections")
-    .select("id, from_user_id, to_user_id, created_at, status, type")
+    .select("id, from_user_id, to_user_id, created_at, status, type, context_type, context_reason, context_prompt, context_outcome, context_status, context_schedule, context_completed_at, context_completed_by")
     .eq("from_user_id", currentUserCommunityId)
     .eq("status", "pending")
     .order("created_at", { ascending: false });
@@ -480,7 +480,7 @@ export async function getPendingRequestsSent() {
 // ========================
 // MUTATIONS
 // ========================
-export async function sendConnectionRequest(recipientCommunityId, targetName = "User", type = "generic") {
+export async function sendConnectionRequest(recipientCommunityId, targetName = "User", type = "generic", context = null) {
   try {
     if (!ensureSupabase()) return { success: false };
     if (!ensureCurrentUserCommunityId()) {
@@ -522,12 +522,21 @@ export async function sendConnectionRequest(recipientCommunityId, targetName = "
     // To keep it simple and RLS-safe, insert a new row.
     const safeType = normalizeConnectionType(type);
 
-    const { error } = await supabase.from("connections").insert({
+    const connectionPayload = {
       from_user_id: currentUserCommunityId,
       to_user_id: recipientCommunityId,
       status: "pending",
       type: safeType,
-    });
+    };
+    if (safeType === "collaborator" && context?.type === "collaboration_concierge") {
+      connectionPayload.context_type = "collaboration_concierge";
+      connectionPayload.context_reason = String(context.reason || "").slice(0, 500) || null;
+      connectionPayload.context_prompt = String(context.prompt || "").slice(0, 500) || null;
+      connectionPayload.context_outcome = String(context.outcome || "").slice(0, 500) || null;
+      connectionPayload.context_status = "pending";
+    }
+
+    const { error } = await supabase.from("connections").insert(connectionPayload);
 
     if (error) {
       if (error.code === "23505") showToast("Already exists", "info");
@@ -551,7 +560,8 @@ export async function sendConnectionRequest(recipientCommunityId, targetName = "
       await window.refreshSynapseConnections();
     }
 
-    return { success: true };
+    const connection = await getConnectionBetween(currentUserCommunityId, recipientCommunityId);
+    return { success: true, connection };
   } catch (err) {
     console.error("sendConnectionRequest error:", err);
     showToast("Failed to send request", "error");

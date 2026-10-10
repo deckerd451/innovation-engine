@@ -26,6 +26,67 @@ function connectionActionErrorMessage(result, fallback) {
   return (typeof error === 'string' ? error : error?.message) || fallback;
 }
 
+function collaborationContextMarkup(req) {
+  if (req.context_type !== 'collaboration_concierge') return '';
+  const reason = String(req.context_reason || 'You have a useful point of overlap.');
+  const prompt = String(req.context_prompt || 'Compare what you are building and trade one useful resource.');
+  return `<div class="crp-collab-context"><strong>Collaboration invitation</strong><span>${reason}</span><span>${prompt}</span></div>`;
+}
+
+function collaborationCompletionMarkup(conn) {
+  if (conn.context_type !== 'collaboration_concierge' || conn.context_status !== 'accepted') return '';
+  const schedule = String(conn.context_schedule || 'a time that works for both of you').replace('_', ' ');
+  return `<div class="crp-collab-followup"><span>15-minute collaboration: ${schedule}</span><button class="crp-collab-complete" data-id="${conn.id}" type="button">Mark complete</button></div>`;
+}
+
+function chooseCollaborationSchedule(req) {
+  if (req.context_type !== 'collaboration_concierge' || !window.CollaborationConcierge?.respond) return Promise.resolve();
+  return new Promise(resolve => {
+    const options = window.CollaborationConcierge.scheduleOptions?.() || [];
+    const backdrop = document.createElement('div');
+    backdrop.className = 'crp-collab-backdrop';
+    const dialog = document.createElement('div');
+    dialog.className = 'crp-collab-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.innerHTML = '<h3>Make the 15-minute collaboration real</h3><p>Pick a starting window. You can coordinate the exact time in messages.</p>';
+    const close = (result) => { backdrop.remove(); resolve(result); };
+    options.forEach(option => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = option.label;
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        const result = await window.CollaborationConcierge.respond(req.id, 'accepted', option.value);
+        if (result?.success) showPanelNotification('Invitation accepted. A starter message is ready.', 'success');
+        close(result);
+      });
+      dialog.appendChild(button);
+    });
+    const decline = document.createElement('button');
+    decline.type = 'button';
+    decline.className = 'crp-collab-decline';
+    decline.textContent = 'Decline this invitation';
+    decline.addEventListener('click', async () => {
+      await window.CollaborationConcierge.respond(req.id, 'declined');
+      close({ success: true, status: 'declined' });
+    });
+    dialog.appendChild(decline);
+    backdrop.appendChild(dialog);
+    backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
+    document.body.appendChild(backdrop);
+  });
+}
+
+async function connectionWasAccepted(connectionId) {
+  try {
+    const { data } = await supabase.from('connections').select('status').eq('id', connectionId).maybeSingle();
+    return data?.status === 'accepted';
+  } catch (_) {
+    return false;
+  }
+}
+
 // Initialize the connection requests module
 export async function initConnectionRequests(supabaseClient) {
   supabase = supabaseClient;
@@ -169,6 +230,7 @@ async function loadReceivedRequests() {
           <div class="crp-item-info">
             <div class="crp-item-name">${user.name || 'Unknown'}</div>
             <div class="crp-item-meta">${formatTimeAgo(req.created_at)}</div>
+            ${collaborationContextMarkup(req)}
           </div>
           <div class="crp-item-actions">
             <button class="crp-accept" data-id="${req.id}" title="Accept">
@@ -196,6 +258,7 @@ async function loadReceivedRequests() {
           showPanelNotification(err.message, 'error');
           await loadReceivedRequests();
         }
+        if (req.context_type === 'collaboration_concierge' && await connectionWasAccepted(req.id)) await chooseCollaborationSchedule(req);
       });
     });
 
@@ -249,6 +312,7 @@ async function loadSentRequests() {
           <div class="crp-item-info">
             <div class="crp-item-name">${user.name || 'Unknown'}</div>
             <div class="crp-item-meta">Sent ${formatTimeAgo(req.created_at)}</div>
+            ${collaborationContextMarkup(req)}
           </div>
           <div class="crp-item-actions">
             <button class="crp-cancel" data-id="${req.id}" title="Cancel request">
@@ -309,6 +373,8 @@ async function loadConnectedUsers() {
           <div class="crp-item-info">
             <div class="crp-item-name">${user.name || 'Unknown'}</div>
             <div class="crp-item-email">${user.email || ''}</div>
+            ${collaborationContextMarkup(conn)}
+            ${collaborationCompletionMarkup(conn)}
           </div>
           <div class="crp-item-actions">
             <button class="crp-remove" data-id="${conn.id}" title="Remove connection">
@@ -319,6 +385,21 @@ async function loadConnectedUsers() {
       `;
     }).join('');
     
+    // Attach remove listeners
+    container.querySelectorAll('.crp-collab-complete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const result = await window.CollaborationConcierge?.respond?.(btn.dataset.id, 'completed');
+        if (result?.success) {
+          btn.textContent = 'Completed';
+          showPanelNotification('Nice work — collaboration completed.', 'success');
+        } else {
+          btn.disabled = false;
+          showPanelNotification('Could not save completion yet.', 'error');
+        }
+      });
+    });
+
     // Attach remove listeners
     container.querySelectorAll('.crp-remove').forEach(btn => {
       btn.addEventListener('click', async () => {
