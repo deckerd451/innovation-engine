@@ -933,10 +933,6 @@ window.CommandDashboard = (() => {
       projects = _enrichedData.activeProjectIds ? _enrichedData.activeProjectIds.size : 0;
     }
 
-    // Themes use the same authoritative collection as the Explore list.
-    // null means loading/unavailable; an empty loaded collection is a real zero.
-    const themes = Array.isArray(_enrichedData.themes) ? _enrichedData.themes.length : null;
-
     // Opportunities: from Supabase (no longer in graph)
     const opps = _enrichedData.opportunities ? _enrichedData.opportunities.length : 0;
 
@@ -948,7 +944,6 @@ window.CommandDashboard = (() => {
 
     setVal('cd-stat-connections',   connections);
     setVal('cd-stat-projects',      projects);
-    setVal('cd-stat-themes',        themes, { showZero: true });
     setVal('cd-stat-opportunities', opps);
   }
 
