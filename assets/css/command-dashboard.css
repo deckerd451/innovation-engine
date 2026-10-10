@@ -82,10 +82,10 @@ body.reflection-resizing #network-reflection { transition:none; }
 .network-reflection-step-label { flex:1; text-align:center; color:rgba(255,255,255,.5); font-size:.68rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
 .network-reflection-focus-card,.network-reflection-move { padding:.65rem .7rem; background:rgba(0,224,255,.045); border:1px solid rgba(0,224,255,.13); border-radius:7px; }
 .network-reflection-concierge { padding:.8rem; background:linear-gradient(145deg,rgba(0,224,255,.11),rgba(0,255,136,.05)); border:1px solid rgba(0,224,255,.28); border-radius:10px; }
-.network-reflection-concierge-eyebrow { display:block; color:#00e0ff; font-size:.62rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.network-reflection-concierge-eyebrow { display:block; color:#00e0ff; font-size:.62rem; font-weight:700; letter-spacing:.04em; text-transform:none; }
 .network-reflection-concierge-title { display:block; margin-top:.3rem; color:#fff; font-size:.92rem; line-height:1.25; }
 .network-reflection-concierge-reason { margin:.38rem 0 0; color:rgba(255,255,255,.65); font-size:.74rem; line-height:1.4; }
-.network-reflection-concierge-prompt { margin:.68rem 0 .25rem; color:rgba(255,255,255,.88); font-size:.76rem; line-height:1.4; }
+.network-reflection-concierge-prompt { margin:.68rem 0 .25rem; color:rgba(255,255,255,.88); font-size:.76rem; line-height:1.45; }
 .network-reflection-concierge-outcome { display:block; color:rgba(255,255,255,.48); font-size:.67rem; }
 .network-reflection-concierge-actions { display:flex; align-items:center; gap:.38rem; margin-top:.72rem; flex-wrap:wrap; }
 .network-reflection-concierge-actions button,.network-reflection-concierge-profile { min-height:32px; padding:.35rem .58rem; border-radius:6px; font:inherit; font-size:.69rem; cursor:pointer; }

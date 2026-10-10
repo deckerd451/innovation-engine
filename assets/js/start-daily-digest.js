@@ -1625,7 +1625,7 @@ function _renderCollaborationConcierge(root, candidate) {
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'network-reflection-concierge-eyebrow';
-  eyebrow.textContent = 'Suggested connection';
+  eyebrow.textContent = 'Suggested connection · Why this fits';
   card.appendChild(eyebrow);
 
   const title = document.createElement('strong');
@@ -1640,12 +1640,12 @@ function _renderCollaborationConcierge(root, candidate) {
 
   const prompt = document.createElement('p');
   prompt.className = 'network-reflection-concierge-prompt';
-  prompt.textContent = 'Compare what you’re building.';
+  prompt.textContent = 'Try asking: “What are you working on that you’d like to move forward?”';
   card.appendChild(prompt);
 
   const outcome = document.createElement('span');
   outcome.className = 'network-reflection-concierge-outcome';
-  outcome.textContent = 'Leave with one next step.';
+  outcome.textContent = 'If they accept, your conversation will appear in Messages.';
   card.appendChild(outcome);
 
   const actions = document.createElement('div');
@@ -1667,6 +1667,7 @@ function _renderCollaborationConcierge(root, candidate) {
       _conciergeSaved = true;
       _saveConciergeState(window.currentUserProfile);
       invite.textContent = 'Request sent';
+      outcome.textContent = 'Request sent — you’ll see their reply in Messages.';
     } else {
       invite.disabled = false;
     }
@@ -1722,7 +1723,7 @@ window.StartDailyDigest.renderNetworkReflection = function (profile) {
   const greeting = document.getElementById('network-reflection-greeting');
   if (greeting) {
     const firstName = String(profile?.full_name || profile?.username || '').trim().split(/\s+/)[0];
-    greeting.textContent = firstName ? `Welcome back, ${firstName}.` : 'Welcome back.';
+    greeting.textContent = firstName ? `Welcome back, ${firstName}. Pick up where you left off.` : 'Welcome back. Pick up where you left off.';
   }
   const briefPromise = root
     ? window.StartDailyDigest._generateAndRenderBrief(root)
