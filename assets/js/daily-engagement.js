@@ -41,6 +41,10 @@ const DailyEngagement = (function () {
 
   // Listener binding guard
   let listenersBound = false;
+  // Actions can complete while auth/profile bootstrap is still loading. Keep
+  // those rewards until the canonical community row is available instead of
+  // silently dropping them.
+  const pendingXPAwards = [];
 
   // ============================================================
   // XP REWARDS TABLE
@@ -120,6 +124,7 @@ const DailyEngagement = (function () {
         console.log("🎯 Daily Engagement: Loading stats for user:", user.email);
 
         await loadUserStats();
+        await flushPendingXPAwards();
         await checkDailyCheckIn();
 
         initXPDisplay();
@@ -185,9 +190,22 @@ const DailyEngagement = (function () {
     state.xpToNextLevel = nextLevelData ? nextLevelData.xp : state.xp;
   }
 
+  async function flushPendingXPAwards() {
+    if (!state.userStats || pendingXPAwards.length === 0) return;
+    const awards = pendingXPAwards.splice(0, pendingXPAwards.length);
+    for (const { amount, reason } of awards) {
+      await awardXP(amount, reason);
+    }
+  }
+
   async function awardXP(amount, reason) {
     if (!state.userStats) {
-      console.warn("⚠️ Cannot award XP: user stats not loaded");
+      if (state.currentUser && state.initializing && Number.isFinite(Number(amount))) {
+        pendingXPAwards.push({ amount: Number(amount), reason: reason || 'Activity' });
+        console.info("🎯 XP queued until engagement stats finish loading");
+      } else {
+        console.warn("⚠️ Cannot award XP: user stats not loaded");
+      }
       return { didLevelUp: false, newLevel: state.level, totalXP: state.xp };
     }
 
