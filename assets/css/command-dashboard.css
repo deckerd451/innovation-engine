@@ -1862,6 +1862,7 @@ body.reflection-resizing #network-reflection { transition:none; }
    ============================================================ */
 #cd-resize-handle {
   display: none; /* hidden on mobile */
+  touch-action: none;
 }
 
 @media (min-width: 1024px) {
@@ -1870,7 +1871,7 @@ body.reflection-resizing #network-reflection { transition:none; }
     position: absolute;
     top: 0;
     right: 0;
-    width: 6px;
+    width: 10px;
     height: 100%;
     cursor: col-resize;
     z-index: 20;

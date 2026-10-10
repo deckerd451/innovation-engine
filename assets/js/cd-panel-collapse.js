@@ -27,7 +27,16 @@
   window.addEventListener('resize', () => {
     if (!isDesktop()) {
       document.body.classList.remove('panel-collapsed');
+      return;
     }
+
+    // Re-clamp a saved or previously dragged width when the viewport narrows.
+    // This keeps the graph usable after orientation changes and window resize.
+    const current = parseInt(
+      getComputedStyle(document.documentElement).getPropertyValue('--cd-width'),
+      10
+    );
+    if (Number.isFinite(current)) applyWidth(current);
   }, { passive: true });
 
   const STORAGE_KEY   = 'cdPanelCollapsed';
@@ -117,6 +126,21 @@
     handle.addEventListener('dblclick', () => {
       applyWidth(DEFAULT_W);
       localStorage.removeItem(STORAGE_KEY_W);
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    handle.addEventListener('keydown', (event) => {
+      if (!isDesktop() || document.body.classList.contains('panel-collapsed')) return;
+      if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      const current = parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue('--cd-width'),
+        10
+      ) || DEFAULT_W;
+      const step = event.shiftKey ? 40 : 16;
+      const next = current + (event.key === 'ArrowRight' ? step : -step);
+      const applied = applyWidth(next);
+      localStorage.setItem(STORAGE_KEY_W, applied);
       window.dispatchEvent(new Event('resize'));
     });
 
