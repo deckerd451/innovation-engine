@@ -428,11 +428,11 @@ window.CommandDashboard = (() => {
     ];
     const profileComplete = profileFields.filter(Boolean).length >= 4;
     const title = profileComplete
-      ? 'Your network has a new way to work.'
-      : 'Make your profile useful to the right people.';
+      ? 'Find one useful conversation.'
+      : 'Help people find you.';
     const copy = profileComplete
-      ? 'Synapse connects people, projects, themes, and opportunities so you can see where one useful conversation could start.'
-      : 'Add a short bio, skills, and interests so Synapse can surface better people, projects, and opportunities for you.';
+      ? 'Start with someone relevant to what you’re building.'
+      : 'Add a bio, skills, and interests.';
     welcome.innerHTML = `
       <section class="cd-welcome-guide" aria-labelledby="cd-welcome-title">
         <div class="cd-welcome-guide-copy">
@@ -2000,7 +2000,7 @@ window.CommandDashboard = (() => {
         showSecondary = false;
         moreToggle.setAttribute('aria-expanded', 'false');
         moreToggle.classList.remove('is-open');
-        moreToggle.childNodes[0].textContent = 'More context ';
+        moreToggle.childNodes[0].textContent = 'See details ';
         scroll?.classList.remove('show-secondary');
       }
       container.querySelectorAll('.network-reflection-section').forEach(section => {
@@ -2033,7 +2033,7 @@ window.CommandDashboard = (() => {
       showSecondary = !showSecondary;
       moreToggle.setAttribute('aria-expanded', String(showSecondary));
       moreToggle.classList.toggle('is-open', showSecondary);
-      moreToggle.childNodes[0].textContent = showSecondary ? 'Hide context ' : 'More context ';
+      moreToggle.childNodes[0].textContent = showSecondary ? 'Hide details ' : 'See details ';
       scroll?.classList.toggle('show-secondary', showSecondary);
       currentIndex = 0;
       update();
