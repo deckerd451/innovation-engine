@@ -102,7 +102,9 @@ window.CommandDashboard = (() => {
   }
 
   /* ── Internal state ─────────────────────────────────────────── */
-  let _currentTier = 3;
+  // Start with the member's own network. Broader ecosystem context remains
+  // available through the existing tier controls and reflection surface.
+  let _currentTier = 1;
   let _userId = null;           // community.id
   let _authUserId = null;       // auth.users.id (for generateDailyBrief)
   let _activeResourceTab = 'people';
@@ -189,8 +191,9 @@ window.CommandDashboard = (() => {
       if (p) _renderIdentity(p);
     });
 
-    // Render initial Tier 3 (ecosystem) content — tier buttons removed
-    await _renderAll(3);
+    // Start with the member's direct network so the first screen feels
+    // personal and actionable rather than like a directory.
+    await _renderAll(1);
 
     // Enrich status with accepted-connection + active-project data from Supabase.
     // Non-blocking: re-renders compact status once data arrives.
