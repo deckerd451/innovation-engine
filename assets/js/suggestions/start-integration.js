@@ -503,9 +503,26 @@ async function initializeWhenReady() {
     console.log('✅ [START] Synapse ready');
   }
 
-  // Check if required modules are loaded
+  // V2 initializes asynchronously after profile-loaded. Waiting for its
+  // readiness event avoids a harmless startup race being reported as an
+  // error and still gives the integration a bounded fallback if generation
+  // really fails.
   if (!window.DailySuggestionsUI) {
-    console.warn('⚠️ [START] Daily Suggestions Engine not ready yet');
+    await new Promise(resolve => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        window.removeEventListener('daily-suggestions-ready', finish);
+        resolve();
+      };
+      window.addEventListener('daily-suggestions-ready', finish, { once: true });
+      setTimeout(finish, 10000);
+    });
+  }
+
+  if (!window.DailySuggestionsUI) {
+    console.warn('⚠️ [START] Daily Suggestions Engine did not become ready; START suggestions remain unavailable');
     return;
   }
 

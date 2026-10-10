@@ -46,6 +46,6 @@ assert.match(readRpc, /SET search_path = public/);
 assert.match(readRpc, /auth\.uid\(\)/);
 assert.match(readRpc, /GRANT EXECUTE ON FUNCTION public\.get_my_community_intents\(\) TO authenticated/);
 assert.match(readRpc, /i\.active = true/);
-assert.match(index, /profile\.js\?v=community-intent-20260921/);
+assert.match(index, /profile\.js\?v=(?:community-intent-20260921|photo-consent-20261010a)/);
 
 console.log('✅ community intent authoring truth/idempotency checks passed');
