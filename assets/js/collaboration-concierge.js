@@ -66,7 +66,19 @@ async function setSchedule(connectionId, schedule) {
   return { success: !error && !!data, connection: data, error };
 }
 
+async function recordOutcome(connectionId, outcome) {
+  const client = db();
+  if (!client || !connectionId || !me() || !outcome) return { success: false };
+  const { data, error } = await client.from('connections')
+    .update({ context_outcome: outcome })
+    .eq('id', connectionId)
+    .select('id, context_outcome')
+    .maybeSingle();
+  if (!error && data) window.Telemetry?.logEvent('collaboration_outcome_recorded', { entityType: 'connection', entityId: connectionId });
+  return { success: !error && !!data, connection: data, error };
+}
+
 function scheduleOptions() { return SCHEDULE_OPTIONS.slice(); }
 
-window.CollaborationConcierge = { sendInvite, respond, setSchedule, accept: connectionId => respond(connectionId, 'accepted'), scheduleOptions };
+window.CollaborationConcierge = { sendInvite, respond, setSchedule, recordOutcome, accept: connectionId => respond(connectionId, 'accepted'), scheduleOptions };
 window.addEventListener('profile-loaded', () => { window.CollaborationConcierge.ready = true; });

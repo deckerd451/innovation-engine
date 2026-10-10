@@ -34,9 +34,16 @@ function collaborationContextMarkup(req) {
 }
 
 function collaborationCompletionMarkup(conn) {
-  if (conn.context_type !== 'collaboration_concierge' || conn.context_status !== 'accepted') return '';
+  if (conn.context_type !== 'collaboration_concierge') return '';
   const schedule = String(conn.context_schedule || 'a time that works for both of you').replace('_', ' ');
-  return `<div class="crp-collab-followup"><span>15-minute collaboration: ${schedule}</span><button class="crp-collab-complete" data-id="${conn.id}" type="button">Mark complete</button></div>`;
+  if (conn.context_status === 'accepted') {
+    return `<div class="crp-collab-followup"><span>15-minute collaboration: ${schedule}</span><button class="crp-collab-complete" data-id="${conn.id}" type="button">Mark complete</button></div>`;
+  }
+  if (conn.context_status === 'completed' && !conn.context_outcome) {
+    return `<div class="crp-collab-checkin" data-id="${conn.id}"><span>How did it go?</span><button class="crp-collab-outcome" data-outcome="next_step" type="button">We found a next step</button><button class="crp-collab-outcome" data-outcome="useful_connection" type="button">Useful connection</button><button class="crp-collab-outcome" data-outcome="not_yet" type="button">Not yet</button></div>`;
+  }
+  if (conn.context_status === 'completed') return `<div class="crp-collab-followup"><span>Collaboration complete · ${String(conn.context_outcome).replace('_', ' ')}</span></div>`;
+  return '';
 }
 
 async function connectionWasAccepted(connectionId) {
@@ -354,11 +361,23 @@ async function loadConnectedUsers() {
         btn.disabled = true;
         const result = await window.CollaborationConcierge?.respond?.(btn.dataset.id, 'completed');
         if (result?.success) {
-          btn.textContent = 'Completed';
           showPanelNotification('Nice work — collaboration completed.', 'success');
+          await loadConnectedUsers();
         } else {
           btn.disabled = false;
           showPanelNotification('Could not save completion yet.', 'error');
+        }
+      });
+    });
+    container.querySelectorAll('.crp-collab-outcome').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const result = await window.CollaborationConcierge?.recordOutcome?.(btn.closest('.crp-collab-checkin')?.dataset.id, btn.dataset.outcome);
+        if (result?.success) {
+          btn.closest('.crp-collab-checkin').innerHTML = '<span>Saved — thank you for closing the loop.</span>';
+        } else {
+          btn.disabled = false;
+          showPanelNotification('Could not save the outcome yet.', 'error');
         }
       });
     });
