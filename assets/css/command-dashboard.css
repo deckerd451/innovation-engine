@@ -793,6 +793,15 @@ body.reflection-resizing #network-reflection { transition:none; }
   margin-top: 0.1rem;
 }
 
+.udc-resource-context {
+  color: rgba(126, 232, 255, 0.72);
+  opacity: 1;
+}
+
+.udc-resource-item.pending .udc-resource-context {
+  color: #ffaa00;
+}
+
 .udc-resource-show-btn {
   flex-shrink: 0;
   width: 26px;

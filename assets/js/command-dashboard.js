@@ -723,13 +723,14 @@ window.CommandDashboard = (() => {
         if (acceptedPeerIds.length > 0) {
           const { data: acceptedPeers } = await window.supabase
             .from('community')
-            .select('id, name')
+            .select('id, name, skills')
             .in('id', acceptedPeerIds);
           if (!isCurrentLoad()) return;
-          const nameMap = new Map((acceptedPeers || []).map(p => [p.id, p.name]));
+          const nameMap = new Map((acceptedPeers || []).map(p => [p.id, p]));
           _enrichedData.acceptedConnections = acceptedPeerIds.map(id => ({
             id,
-            name: nameMap.get(id) || 'Unknown'
+            name: nameMap.get(id)?.name || 'Unknown',
+            skills: nameMap.get(id)?.skills || []
           }));
         } else {
           _enrichedData.acceptedConnections = [];
@@ -742,12 +743,12 @@ window.CommandDashboard = (() => {
         ))];
         const { data: peers } = await window.supabase
           .from('community')
-          .select('id, name')
+          .select('id, name, skills')
           .in('id', peerIds);
         if (!isCurrentLoad()) return;
-        const nameMap = new Map((peers || []).map(p => [p.id, p.name]));
+        const nameMap = new Map((peers || []).map(p => [p.id, p]));
         _enrichedData.pendingConnections = peerIds.map(peerId => (
-          { id: peerId, name: nameMap.get(peerId) || 'Unknown' }
+          { id: peerId, name: nameMap.get(peerId)?.name || 'Unknown', skills: nameMap.get(peerId)?.skills || [] }
         ));
       } else {
         _enrichedData.pendingConnections = [];
@@ -1517,8 +1518,8 @@ window.CommandDashboard = (() => {
           <div class="udc-resource-item${item.pending ? ' pending' : ''}" data-id="${item.id}" data-stub="${item.isStub ? 'true' : 'false'}">
             <div class="udc-resource-info">
               <span class="udc-resource-name" title="${_escapeHtml(item.name)}">${_escapeHtml(item.name)}</span>
-              ${item.meta ? `<span class="udc-resource-meta">${_escapeHtml(item.meta)}</span>` : ''}
-              ${item.pending ? `<span class="udc-resource-meta udc-pending-label">pending request</span>` : ''}
+              ${item.meta ? `<span class="udc-resource-meta${_activeResourceTab === 'people' ? ' udc-resource-context' : ''}">${_escapeHtml(item.meta)}</span>` : ''}
+              ${item.pending && !item.meta ? `<span class="udc-resource-meta udc-pending-label">pending request</span>` : ''}
             </div>
             ${item.isStub
               ? `<span class="udc-resource-stub-badge">sample</span>`
@@ -1736,11 +1737,15 @@ window.CommandDashboard = (() => {
       // Always show: accepted connections first, then pending requests in yellow.
       // Use pre-resolved acceptedConnections (names from Supabase) so the list
       // doesn't depend on graph nodes being loaded.
+      const myTerms = new Set([
+        ..._resourceTerms(_profile?.skills),
+        ..._resourceTerms(_profile?.interests),
+      ]);
       const connected = (_enrichedData.acceptedConnections || [])
-        .map(p => ({ id: p.id, name: p.name }))
+        .map(p => ({ id: p.id, name: p.name, meta: _connectionContext(p, myTerms) }))
         .sort((a, b) => a.name.localeCompare(b.name));
       const pending = (_enrichedData.pendingConnections || [])
-        .map(p => ({ id: p.id, name: p.name, pending: true }))
+        .map(p => ({ id: p.id, name: p.name, pending: true, meta: 'Connection request' }))
         .sort((a, b) => a.name.localeCompare(b.name));
       // Accepted status is authoritative: if a peer somehow appears in both
       // lists, keep the accepted (non-pending) card and drop the duplicate.
@@ -1824,6 +1829,20 @@ window.CommandDashboard = (() => {
     }
 
     return [];
+  }
+
+  function _resourceTerms(value) {
+    const values = Array.isArray(value) ? value : (typeof value === 'string' ? value.split(',') : []);
+    return values.map(item => String(item || '').trim().toLowerCase()).filter(Boolean);
+  }
+
+  function _connectionContext(person, myTerms) {
+    const shared = _resourceTerms(person.skills).filter(skill => myTerms.has(skill));
+    if (shared.length) {
+      const label = shared[0].replace(/\b\w/g, letter => letter.toUpperCase());
+      return `Shares ${label}`;
+    }
+    return 'Direct connection';
   }
 
   function _emptyStateCTA(type) {
