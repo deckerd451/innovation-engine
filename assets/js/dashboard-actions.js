@@ -1214,11 +1214,6 @@ function openAdminPanel() {
           </button>
         </div>
       </div>
-      
-      <button class="admin-tab" data-tab="system" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-cog"></i> Settings
-      </button>
-      
       <button class="admin-tab" data-tab="analytics" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
         <i class="fas fa-chart-line"></i> Analytics
       </button>
