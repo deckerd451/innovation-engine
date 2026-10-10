@@ -132,6 +132,29 @@
   letter-spacing: -0.02em;
 }
 
+.ie-login-benefits {
+  display: grid;
+  gap: .55rem;
+  margin: 0 0 1.15rem;
+  padding: 0;
+  list-style: none;
+  color: #d7e1ef;
+  font-size: .9rem;
+  line-height: 1.35;
+}
+
+.ie-login-benefits li {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+}
+
+.ie-login-benefits i {
+  width: 1rem;
+  color: #7eeaff;
+  text-align: center;
+}
+
 /* =========================
    ACCESS MODULE
 ========================= */

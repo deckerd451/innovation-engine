@@ -63,8 +63,6 @@
   <div id="login-section" class="active-tab-pane ie-login-screen">
   <div class="ie-login-shell">
     <div class="ie-login-panel">
-      <div class="ie-login-kicker">NETWORK</div>
-
       <div class="ie-login-brand" aria-label="CharlestonHacks">
         <img
           src="images/bubbleh.png"
@@ -76,10 +74,16 @@
       </div>
 
       <h1 class="ie-login-title">BUILDSPACE</h1>
-      <p class="ie-login-supporting">Find your place in Charleston’s innovation community.</p>
+      <p class="ie-login-supporting">Connect with people, projects, and opportunities in Charleston’s innovation community.</p>
+
+      <ul class="ie-login-benefits" aria-label="What you can do in Buildspace">
+        <li><i class="fas fa-users" aria-hidden="true"></i><span>Find people with complementary skills</span></li>
+        <li><i class="fas fa-project-diagram" aria-hidden="true"></i><span>Discover projects and opportunities</span></li>
+        <li><i class="fas fa-compass" aria-hidden="true"></i><span>See where you can contribute next</span></li>
+      </ul>
 
       <div class="ie-login-module">
-        <div class="ie-login-module-label">Access</div>
+        <div class="ie-login-module-label">Choose how to continue</div>
 
         <div class="ie-oauth-buttons">
           <button id="github-login" class="ie-oauth-btn ie-oauth-btn--github" type="button">
@@ -119,11 +123,11 @@
       <div class="ie-login-footer">
         <div class="ie-login-footer-item">
           <i class="fas fa-shield-alt"></i>
-          <span>Secure OAuth authentication</span>
+          <span>Your profile stays under your control</span>
         </div>
         <div class="ie-login-footer-item">
           <i class="fas fa-bolt"></i>
-          <span>Realtime network experience</span>
+          <span>See relevant people and projects as they change</span>
         </div>
       </div>
     </div>
@@ -263,21 +267,21 @@
         <div class="cd-network-status" id="cd-network-status">
           <div class="cd-section-label">Your progress</div>
           <div class="cd-status-row" id="cd-status-row">
-            <div class="cd-status-pill" data-action="focus-direct" title="Your direct connections" role="button" tabindex="0">
+            <div class="cd-status-pill" data-action="focus-direct" title="People you're connected to" aria-label="People you're connected to" role="button" tabindex="0">
               <span class="cd-status-value" id="cd-stat-connections">—</span>
               <span class="cd-status-label">Connected</span>
             </div>
-            <div class="cd-status-pill" data-action="focus-projects" title="Your projects" role="button" tabindex="0">
+            <div class="cd-status-pill" data-action="focus-projects" title="Projects you're part of" aria-label="Projects you're part of" role="button" tabindex="0">
               <span class="cd-status-value" id="cd-stat-projects">—</span>
               <span class="cd-status-label">Projects</span>
             </div>
-            <div class="cd-status-pill" title="Themes you participate in">
+            <div class="cd-status-pill" title="Focus areas in the community" aria-label="Focus areas in the community">
               <span class="cd-status-value" id="cd-stat-themes">—</span>
               <span class="cd-status-label">Themes</span>
             </div>
-            <div class="cd-status-pill" title="Open opportunities">
+            <div class="cd-status-pill" title="Open opportunities that may fit you" aria-label="Open opportunities that may fit you">
               <span class="cd-status-value" id="cd-stat-opportunities">—</span>
-              <span class="cd-status-label">Opps</span>
+              <span class="cd-status-label">Opportunities</span>
             </div>
           </div>
         </div>
@@ -335,6 +339,7 @@
       style="position:absolute; inset:0; z-index:1; background:#000000; overflow:hidden; touch-action:pan-y pinch-zoom;"
     >
       <div class="synapse-workspace-title">Synapse</div>
+      <div class="synapse-guidance" role="note">Start with people you already know. Expand the network when you’re ready.</div>
       <!-- Synapse Filter Bar — graph lens chips -->
       <nav id="synapse-filter-bar" role="toolbar" aria-label="Graph filter">
         <button class="synapse-filter-chip" data-filter="connected" aria-pressed="false">

@@ -116,6 +116,8 @@ body.reflection-resizing #network-reflection { transition:none; }
 .network-reflection-more-toggle i { transition:transform .18s ease; }
 .network-reflection-more-toggle.is-open i { transform:rotate(180deg); }
 .network-reflection-scroll:not(.show-secondary) .network-reflection-export { display:none; }
+.synapse-guidance { position:absolute; top:3.25rem; left:1rem; z-index:5; max-width:32ch; padding:.45rem .65rem; border:1px solid rgba(255,255,255,.12); border-radius:7px; background:rgba(5,7,15,.72); color:rgba(224,232,255,.64); font-size:.72rem; line-height:1.35; pointer-events:none; }
+@media (max-width:1023px) { .synapse-guidance { top:2.7rem; left:.7rem; max-width:26ch; font-size:.68rem; } }
 
 /* Returning-member orientation lives in the existing Focus surface. */
 .cd-welcome-guide { margin:.65rem .75rem .2rem; padding:.8rem; border:1px solid rgba(0,224,255,.25); border-radius:9px; background:linear-gradient(145deg,rgba(0,224,255,.1),rgba(10,14,39,.65)); }
