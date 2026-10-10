@@ -385,10 +385,30 @@ export class NodeRenderer {
         return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : (parts[0] || '?').slice(0, 2).toUpperCase();
       });
 
+    // Give every node a plain-language description for hover and assistive
+    // technology. The graph remains visual, but it no longer requires users
+    // to decode a circle before they can understand what it represents.
+    nodeEnter.append('title');
+
     // ✅ UPDATE: Merge enter + existing nodes for updates
     const nodeMerge = nodeEnter.merge(nodeSelection);
 
-    nodeMerge.classed('is-focused', d => state?.currentFocusedNodeId === d.id);
+    nodeMerge
+      .classed('is-focused', d => state?.currentFocusedNodeId === d.id)
+      .classed('is-current-user', d => d.isCurrentUser === true)
+      .classed('is-recommended', d => d.isGuided === true || d.recommended === true)
+      .attr('aria-label', d => {
+        const name = d.name || d.label || d.title || 'Network member';
+        if (d.isCurrentUser) return `${name}, you`;
+        if (d.isGuided || d.recommended) return `${name}, suggested connection`;
+        return name;
+      });
+    nodeMerge.select('title').text(d => {
+      const name = d.name || d.label || d.title || 'Network member';
+      if (d.isCurrentUser) return `${name} — you`;
+      if (d.isGuided || d.recommended) return `${name} — suggested connection`;
+      return name;
+    });
 
     // ONE-TIME DIAGNOSTIC: Log first 3 node positions + SVG structure on first render
     if (!this._diagLogged) {

@@ -692,6 +692,13 @@ body.reflection-resizing #network-reflection { transition:none; }
   transform-origin: center;
 }
 
+/* The graph's visual hierarchy should answer "where do I look next?" without
+   making every node glow. Keep the member anchor and one recommendation clear. */
+#synapse-svg .node.is-current-user .node-circle { stroke:#00e0ff; stroke-width:3px; }
+#synapse-svg .node.is-recommended:not(.is-focused) .node-circle { stroke:#8cecff; stroke-width:2px; }
+#synapse-svg .node.is-recommended:not(.is-focused) .node-glow { opacity:.28; }
+#synapse-svg .node.is-focused .node-circle { stroke-width:4px; }
+
 .udc-resource-info {
   display: flex;
   flex-direction: column;
