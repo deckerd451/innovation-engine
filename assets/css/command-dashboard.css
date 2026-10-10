@@ -751,6 +751,23 @@ body.reflection-resizing #network-reflection { transition:none; }
 #synapse-svg .node.is-recommended:not(.is-focused) .node-glow { opacity:.18; }
 #synapse-svg .node.is-focused .node-circle { stroke-width:4px; }
 
+/* The network should feel like a calm workspace, not a wall of neon. Keep
+   the existing D3 interaction model while giving the canvas a quiet focal
+   gradient and making only intentional states visually loud. */
+#synapse-main-view { background:radial-gradient(circle at 48% 42%,rgba(10,28,48,.72),rgba(2,6,16,.98) 68%) !important; }
+#synapse-svg { background:radial-gradient(circle at 48% 42%,rgba(8,24,42,.72),rgba(1,4,12,.98) 72%) !important; }
+#synapse-svg .links line { stroke-linecap:round; transition:opacity .22s ease,stroke-width .22s ease; }
+#synapse-svg .node-circle { transition:stroke .22s ease,stroke-width .22s ease,fill .22s ease; }
+#synapse-svg .node-glow { transition:opacity .3s ease; }
+#synapse-svg .node.is-current-user .node-circle { fill:#12364a; }
+#synapse-svg .node.is-recommended:not(.is-focused) .node-circle { fill:#164a5a; }
+#synapse-svg .node.is-focused { filter:drop-shadow(0 0 10px rgba(0,224,255,.36)); }
+#synapse-svg .node.is-focused .node-initials,
+#synapse-svg .node.is-current-user .node-initials { fill:#e8fbff; }
+@media (prefers-reduced-motion:reduce) {
+  #synapse-svg .links line,#synapse-svg .node-circle,#synapse-svg .node-glow { transition:none; }
+}
+
 .udc-resource-info {
   display: flex;
   flex-direction: column;
