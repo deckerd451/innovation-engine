@@ -388,8 +388,64 @@ window.CommandDashboard = (() => {
     // Messages banner (fast, in-memory)
     _renderMessages();
 
+    // Orient established members inside the existing Focus surface. This is
+    // deliberately not a second dashboard or a forced onboarding flow.
+    _renderWelcomeGuide();
+
     // Network intelligence is rendered by the persistent right-rail
     // Network Reflection surface.
+  }
+
+  function _renderWelcomeGuide() {
+    const welcome = $id('cd-focus-welcome');
+    const focus = $id('cd-focus');
+    if (!welcome || !_profile?.id) return;
+    const createdAt = Date.parse(_profile.created_at || '');
+    const established = Number.isFinite(createdAt)
+      ? Date.now() - createdAt > 7 * 24 * 60 * 60 * 1000
+      : !!_profile.profile_completed;
+    const key = `ie:synapse-welcome:${_profile.id}`;
+    let dismissed = false;
+    try { dismissed = localStorage.getItem(key) === 'dismissed'; } catch (_) {}
+    if (!established || dismissed) {
+      if (dismissed || !established) welcome.innerHTML = '';
+      if (!welcome.children.length && !_unreadMessages) focus.style.display = 'none';
+      return;
+    }
+    if (welcome.children.length) {
+      focus.style.display = '';
+      return;
+    }
+    welcome.innerHTML = `
+      <section class="cd-welcome-guide" aria-labelledby="cd-welcome-title">
+        <div class="cd-welcome-guide-copy">
+          <div class="cd-focus-primary-label">Welcome back</div>
+          <h3 id="cd-welcome-title">Your network has a new way to work.</h3>
+          <p>Synapse connects people, projects, themes, and opportunities so you can see where one useful conversation could start.</p>
+        </div>
+        <div class="cd-welcome-guide-actions">
+          <button type="button" class="cd-focus-cta" data-welcome-action="people">Find people</button>
+          <button type="button" class="cd-focus-cta cd-welcome-secondary" data-welcome-action="network">View my network</button>
+          <button type="button" class="cd-welcome-dismiss" data-welcome-action="dismiss">Maybe later</button>
+        </div>
+      </section>`;
+    focus.style.display = '';
+    welcome.querySelectorAll('[data-welcome-action]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const action = button.dataset.welcomeAction;
+        if (action === 'dismiss') {
+          try { localStorage.setItem(key, 'dismissed'); } catch (_) {}
+          welcome.innerHTML = '';
+          if (!_unreadMessages) focus.style.display = 'none';
+        } else if (action === 'people') {
+          _switchResourceTab('people');
+          document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (action === 'network') {
+          window.GraphController?.resetToTierDefault?.();
+          document.getElementById('synapse-main-view')?.focus?.({ preventScroll: true });
+        }
+      });
+    });
   }
 
   /* ================================================================
