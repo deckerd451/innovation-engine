@@ -102,7 +102,7 @@
     try {
       const { data, error } = await window.supabase
         .from('community')
-        .select('id, name, image_url, bio, skills')
+        .select('id, name, image_url, bio, skills, user_id, photo_visible, photo_consent_at')
         .contains('skills', [skill])
         .limit(50);
 
@@ -193,7 +193,7 @@
             transition: all 0.2s;
           " onmouseenter="this.style.background='rgba(0,224,255,0.15)'" onmouseleave="this.style.background='rgba(0,224,255,0.05)'">
             <div style="width: 48px; height: 48px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">
-              ${person.image_url ? `<img src="${person.image_url}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+              ${window.profilePhotoUrl?.(person) ? `<img src="${window.profilePhotoUrl?.(person)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
             </div>
             <div style="flex: 1; min-width: 0;">
               <div style="font-weight: 600; color: white; margin-bottom: 0.25rem;">${person.name || 'Unknown'}</div>

@@ -117,7 +117,7 @@ async function loadSearchData() {
       .from('projects')
       .select(`
         *,
-        creator:community!projects_creator_id_fkey(name, image_url),
+        creator:community!projects_creator_id_fkey(name, image_url, user_id, photo_visible, photo_consent_at),
         theme:theme_circles(title, tags)
       `)
       .order('created_at', { ascending: false });

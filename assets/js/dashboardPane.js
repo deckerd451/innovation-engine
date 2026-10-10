@@ -1419,7 +1419,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (category === "all" || category === "people") {
         const { data, error } = await state.supabase
           .from("community")
-          .select("id, name, bio, skills, image_url")
+          .select("id, name, bio, skills, image_url, user_id, photo_visible, photo_consent_at")
           .or(`name.ilike.%${q}%,bio.ilike.%${q}%,skills.ilike.%${q}%`)
           .limit(5);
         
@@ -1431,7 +1431,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
             color: "#00e0ff",
             title: item.name,
             subtitle: item.bio ? item.bio.substring(0, 60) + "..." : "Member",
-            image: item.image_url,
+            image: window.profilePhotoUrl?.(item),
             data: item
           })));
         }
@@ -2717,8 +2717,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         onmouseleave="this.style.background='rgba(0,224,255,0.05)'; this.style.borderColor='rgba(0,224,255,0.2)'"
         data-person='${personDataJson}'>
         ${
-          person.image_url
-            ? `<img loading="lazy" src="${escapeHtml(person.image_url)}" style="width:52px; height:52px; border-radius:50%;
+          window.profilePhotoUrl?.(person)
+            ? `<img loading="lazy" src="${escapeHtml(window.profilePhotoUrl?.(person))}" style="width:52px; height:52px; border-radius:50%;
                  object-fit:cover; border:2px solid #00e0ff; pointer-events:none;">`
             : `<div style="width:52px; height:52px; border-radius:50%;
                  background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center;
@@ -3139,8 +3139,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           .select(
             `
             *,
-            from_user:community!connections_from_user_id_fkey(id, name, image_url),
-            to_user:community!connections_to_user_id_fkey(id, name, image_url)
+            from_user:community!connections_from_user_id_fkey(id, name, image_url, user_id, photo_visible, photo_consent_at),
+            to_user:community!connections_to_user_id_fkey(id, name, image_url, user_id, photo_visible, photo_consent_at)
           `
           )
           .or(`from_user_id.eq.${myCommunityId},to_user_id.eq.${myCommunityId}`)
@@ -3161,7 +3161,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       if (otherCommunityIds.size) {
         const { data: profiles, error: pErr } = await state.supabase
           .from("community")
-          .select("id, name, image_url")
+          .select("id, name, image_url, user_id, photo_visible, photo_consent_at")
           .in("id", Array.from(otherCommunityIds));
 
         if (!pErr && profiles) {
@@ -3201,8 +3201,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
                     background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.1);
                     border-radius:8px; cursor:pointer; margin-bottom:0.4rem; transition:all 0.2s;">
                     ${
-                      conn.image_url
-                        ? `<img loading="lazy" src="${escapeHtml(conn.image_url)}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
+                      window.profilePhotoUrl?.(conn)
+                        ? `<img loading="lazy" src="${escapeHtml(window.profilePhotoUrl?.(conn))}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
                         : `<div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.85rem;">${initials}</div>`
                     }
                     <div style="flex:1; min-width:0;">
@@ -3248,8 +3248,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
                     background:rgba(0,224,255,0.05); border:1px solid rgba(0,224,255,0.1);
                     border-radius:8px; cursor:pointer; margin-bottom:0.5rem; transition:all 0.2s;">
                     ${
-                      other?.image_url
-                        ? `<img loading="lazy" src="${escapeHtml(other.image_url)}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
+                      window.profilePhotoUrl?.(other)
+                        ? `<img loading="lazy" src="${escapeHtml(window.profilePhotoUrl?.(other))}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid #00e0ff;">`
                         : `<div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:white;">${initials}</div>`
                     }
                     <div style="flex:1; min-width:0;">
@@ -3762,7 +3762,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           const endorserIds = [...new Set(data.map(e => e.endorser_community_id))];
           const { data: profiles } = await state.supabase
             .from("community")
-            .select("id, name, image_url, bio")
+            .select("id, name, image_url, bio, user_id, photo_visible, photo_consent_at")
             .in("id", endorserIds);
           
           // Map profiles to endorsements
@@ -3786,7 +3786,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           const endorsedIds = [...new Set(data.map(e => e.endorsed_community_id))];
           const { data: profiles } = await state.supabase
             .from("community")
-            .select("id, name, image_url, bio")
+            .select("id, name, image_url, bio, user_id, photo_visible, photo_consent_at")
             .in("id", endorsedIds);
           
           // Map profiles to endorsements
@@ -3810,7 +3810,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         .map((endorsement) => {
           const user = type === "received" ? endorsement.endorser : endorsement.endorsed;
           const userName = user?.name || "Unknown User";
-          const userImage = user?.image_url || "https://via.placeholder.com/50";
+          const userImage = window.profilePhotoUrl?.(user) || "https://via.placeholder.com/50";
           const skill = endorsement.skill || "General";
           const note = endorsement.note || endorsement.comment || "";
           const createdDate = endorsement.created_at ? new Date(endorsement.created_at).toLocaleDateString() : "";
@@ -3936,7 +3936,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
         const { data: pendingConnections, error } = await state.supabase
           .from("connections")
-          .select("*, from_user:community!connections_from_user_id_fkey(id, name, image_url)")
+          .select("*, from_user:community!connections_from_user_id_fkey(id, name, image_url, user_id, photo_visible, photo_consent_at)")
           .eq("to_user_id", state.communityProfile.id)
           .eq("status", "pending")
           .order("created_at", { ascending: false });
@@ -3950,7 +3950,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
               message: `${conn.from_user?.name || "Someone"} wants to connect with you`,
               timestamp: conn.created_at,
               read: Boolean(clearedAt && new Date(conn.created_at) <= new Date(clearedAt)),
-              image: conn.from_user?.image_url,
+              image: window.profilePhotoUrl?.(conn?.from_user),
               data: conn
             });
           });
@@ -3959,7 +3959,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         // Add accepted connection notifications
         const { data: acceptedConnections, error: acceptError } = await state.supabase
           .from("connections")
-          .select("*, to_user:community!connections_to_user_id_fkey(id, name, image_url)")
+          .select("*, to_user:community!connections_to_user_id_fkey(id, name, image_url, user_id, photo_visible, photo_consent_at)")
           .eq("from_user_id", state.communityProfile.id)
           .eq("status", "accepted")
           .order("updated_at", { ascending: false })
@@ -3974,7 +3974,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
               message: `${conn.to_user?.name || "Someone"} accepted your connection request`,
               timestamp: conn.updated_at,
               read: true,
-              image: conn.to_user?.image_url,
+              image: window.profilePhotoUrl?.(conn?.to_user),
               data: conn
             });
           });
@@ -4266,8 +4266,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
               ? `<div style="width:52px; height:52px; border-radius:8px;
                    background:linear-gradient(135deg,#ff6b6b,#ff4757); display:flex; align-items:center; justify-content:center;
                    font-size:1.8rem;">${icon}</div>`
-              : rec.node?.image_url
-              ? `<img loading="lazy" src="${escapeHtml(rec.node.image_url)}" style="width:52px; height:52px; border-radius:50%;
+              : window.profilePhotoUrl?.(rec?.node)
+              ? `<img loading="lazy" src="${escapeHtml(window.profilePhotoUrl?.(rec?.node))}" style="width:52px; height:52px; border-radius:50%;
                    object-fit:cover; border:2px solid #00e0ff;">`
               : `<div style="width:52px; height:52px; border-radius:50%;
                    background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center;

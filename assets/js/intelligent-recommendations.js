@@ -243,7 +243,10 @@ async function generatePeopleRecommendations(limit) {
         name: person.name,
         skills: person.skills,
         bio: person.bio,
-        image_url: person.image_url,
+        image_url: window.profilePhotoUrl?.(person),
+        user_id: person.user_id,
+        photo_visible: person.photo_visible,
+        photo_consent_at: person.photo_consent_at,
         score: person.score,
         reasons: person.reasons,
         type: 'person'
@@ -334,7 +337,7 @@ async function generateProjectRecommendations(limit) {
       .from('projects')
       .select(`
         *,
-        creator:community!creator_id(name, image_url),
+        creator:community!creator_id(name, image_url, user_id, photo_visible, photo_consent_at),
         theme:theme_circles(title, tags)
       `)
       .neq('creator_id', currentUserProfile.id)

@@ -669,7 +669,7 @@ function getInitials(name) {
 }
 
 function getAvatarHTML(person, initials, size) {
-  const imageUrl = getCardAvatarUrl(person) || person.image_path;
+  const imageUrl = getCardAvatarUrl(person);
   if (imageUrl) {
     return `<img loading="lazy" src="${esc(imageUrl)}" style="width: ${size}px; height: ${size}px; border-radius: 50%; object-fit: cover;" alt="${esc(person.name)}">`;
   }

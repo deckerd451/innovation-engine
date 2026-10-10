@@ -161,8 +161,8 @@ async function loadReceivedRequests() {
       return `
         <div class="crp-item" data-id="${req.id}">
           <div class="crp-item-avatar">
-            ${user.image_url 
-              ? `<img src="${user.image_url}" alt="${user.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%2300e0ff%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2250%22 dy=%22.35em%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2240%22>${getInitials(user.name)}</text></svg>'">` 
+            ${window.profilePhotoUrl?.(user)
+              ? `<img src="${window.profilePhotoUrl?.(user)}" alt="${user.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%2300e0ff%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2250%22 dy=%22.35em%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2240%22>${getInitials(user.name)}</text></svg>'">`
               : `<div class="crp-avatar-fallback">${getInitials(user.name)}</div>`
             }
           </div>
@@ -241,8 +241,8 @@ async function loadSentRequests() {
       return `
         <div class="crp-item" data-id="${req.id}">
           <div class="crp-item-avatar">
-            ${user.image_url 
-              ? `<img src="${user.image_url}" alt="${user.name}" onerror="this.src='data:image/svg+xml,...'">` 
+            ${window.profilePhotoUrl?.(user)
+              ? `<img src="${window.profilePhotoUrl?.(user)}" alt="${user.name}" onerror="this.src='data:image/svg+xml,...'">`
               : `<div class="crp-avatar-fallback">${getInitials(user.name)}</div>`
             }
           </div>
@@ -301,8 +301,8 @@ async function loadConnectedUsers() {
       return `
         <div class="crp-item connected" data-id="${conn.id}">
           <div class="crp-item-avatar">
-            ${user.image_url 
-              ? `<img src="${user.image_url}" alt="${user.name}" onerror="this.src='data:image/svg+xml,...'">` 
+            ${window.profilePhotoUrl?.(user)
+              ? `<img src="${window.profilePhotoUrl?.(user)}" alt="${user.name}" onerror="this.src='data:image/svg+xml,...'">`
               : `<div class="crp-avatar-fallback">${getInitials(user.name)}</div>`
             }
           </div>

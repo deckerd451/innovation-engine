@@ -1864,7 +1864,7 @@ async function adminSearchPeople(query) {
     
     const { data: people, error } = await supabase
       .from('community')
-      .select('id, name, email, image_url, is_hidden')
+      .select('id, name, email, image_url, is_hidden, user_id, photo_visible, photo_consent_at')
       .ilike('name', `%${query}%`)
       .order('name')
       .limit(50); // Increased limit to show more results including removed members
@@ -1889,8 +1889,8 @@ async function adminSearchPeople(query) {
       html += `
         <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: ${isRemoved ? 'rgba(255,107,107,0.05)' : 'rgba(0,224,255,0.05)'}; 
           border: 1px solid ${isRemoved ? 'rgba(255,107,107,0.2)' : 'rgba(0,224,255,0.2)'}; border-radius: 8px;">
-          ${person.image_url ?
-            `<img src="${person.image_url}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; ${isRemoved ? 'opacity: 0.6;' : ''}">` :
+          ${window.profilePhotoUrl?.(person) ?
+            `<img src="${window.profilePhotoUrl?.(person)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; ${isRemoved ? 'opacity: 0.6;' : ''}">` :
             `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); 
               display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; ${isRemoved ? 'opacity: 0.6;' : ''}">${initials}</div>`
           }

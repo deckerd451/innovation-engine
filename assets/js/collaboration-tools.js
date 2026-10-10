@@ -317,7 +317,7 @@ async function loadActiveProjects() {
           project_members (
             user_id,
             role,
-            community (name, image_url)
+            community (name, image_url, user_id, photo_visible, photo_consent_at)
           )
         )
       `)
@@ -436,7 +436,7 @@ async function loadTeamInvitations() {
           title,
           description,
           creator_id,
-          community (name, image_url)
+          community (name, image_url, user_id, photo_visible, photo_consent_at)
         )
       `)
       .eq('user_id', currentUserProfile.id)

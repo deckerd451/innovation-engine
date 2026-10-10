@@ -79,6 +79,17 @@ export async function initNearifyEventsPanel(container) {
     }
 
     const events = result.events || [];
+    // The peers RPC predates photo consent. Resolve current community choices
+    // instead of treating its raw avatar URL as permission to show a photo.
+    const peerIds = [...new Set(events.flatMap(ev => (ev.peers || []).map(p => p.community_id)).filter(Boolean))];
+    if (peerIds.length) {
+      const { data: profiles } = await supabase.from('community')
+        .select('id, user_id, image_url, photo_visible, photo_consent_at').in('id', peerIds);
+      const byId = new Map((profiles || []).map(p => [p.id, p]));
+      events.forEach(ev => (ev.peers || []).forEach(peer => {
+        peer.photoProfile = byId.get(peer.community_id) || null;
+      }));
+    }
 
     if (events.length === 0) {
       if (body) body.innerHTML = '<p class="ch-nearify-events-empty">No event interactions yet. Attend a Nearify event to see people you\'ve met here.</p>';
@@ -125,8 +136,8 @@ function _renderEventGroup(ev) {
 function _renderPeer(peer) {
   const name = _esc(peer.name || 'Unknown');
   const headline = peer.headline ? `<div class="ch-peer-headline">${_esc(peer.headline)}</div>` : '';
-  const avatar = peer.avatar_url
-    ? `<img src="${_esc(peer.avatar_url)}" alt="${name}" class="ch-peer-avatar" loading="lazy">`
+  const avatar = window.profilePhotoUrl?.(peer.photoProfile)
+    ? `<img src="${_esc(window.profilePhotoUrl?.(peer.photoProfile))}" alt="${name}" class="ch-peer-avatar" loading="lazy">`
     : `<div class="ch-peer-avatar ch-peer-avatar-placeholder">${_initials(peer.name)}</div>`;
 
   const signalBadge = peer.signal_type === 'qr_confirmed'

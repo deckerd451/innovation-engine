@@ -41,9 +41,10 @@ function loadShouldHidePhoto() {
   const transformed = src
     .replace(/^import\s*\{[^}]*\}\s*from\s*["'][^"']+["'];?\s*$/m, 'const supabase = null;')
     .replace(/^export function/gm, 'function');
-  const sandbox = { window: { location: { search: '' } }, localStorage: { getItem: () => null }, URLSearchParams, console };
+  const sandbox = { window: { location: { search: '' }, currentAuthUser: { id: 'viewer-auth' } }, localStorage: { getItem: () => null }, URLSearchParams, console };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(root, 'assets/js/photo-privacy.js'), 'utf8'), sandbox);
   vm.runInContext(transformed, sandbox, { filename: 'avatar-utils.js (transformed for test)' });
   assert.equal(typeof sandbox.shouldHidePhoto, 'function', 'avatar-utils.js must define shouldHidePhoto');
   return sandbox.shouldHidePhoto;
@@ -51,9 +52,9 @@ function loadShouldHidePhoto() {
 
 const shouldHidePhoto = loadShouldHidePhoto();
 
-// Default (photo_visible unset/true): never hidden, from anyone.
-assert.equal(shouldHidePhoto({ id: 'a' }, 'viewer'), false, 'no photo_visible field must default to visible');
-assert.equal(shouldHidePhoto({ id: 'a', photo_visible: true }, 'viewer'), false);
+// Legacy/missing visibility never counts as explicit member consent.
+assert.equal(shouldHidePhoto({ id: 'a' }, 'viewer'), true, 'missing visibility must default to hidden');
+assert.equal(shouldHidePhoto({ id: 'a', photo_visible: true }, 'viewer'), true);
 
 // photo_visible=false: hidden from a stranger...
 assert.equal(shouldHidePhoto({ id: 'a', user_id: 'auth-a', photo_visible: false }, 'someone-else'), true);
@@ -66,7 +67,7 @@ assert.equal(shouldHidePhoto({ id: 'a', user_id: 'auth-a', photo_visible: false 
 
 // Unknown viewer (viewerId null/undefined) must fail closed -- hide, not show.
 assert.equal(shouldHidePhoto({ id: 'a', photo_visible: false }, null), true);
-assert.equal(shouldHidePhoto(null, 'viewer'), false, 'a missing user object must not throw');
+assert.equal(shouldHidePhoto(null, 'viewer'), true, 'a missing user object must not throw');
 
 console.log('✅ shouldHidePhoto behaves correctly');
 

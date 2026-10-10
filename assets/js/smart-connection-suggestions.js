@@ -459,8 +459,8 @@ export function renderSmartSuggestionCard(suggestion) {
     <div class="smart-suggestion-card" data-user-id="${suggestion.id}">
       <div class="suggestion-header">
         <div class="suggestion-avatar">
-          ${suggestion.image_url 
-            ? `<img src="${suggestion.image_url}" alt="${suggestion.name}">` 
+          ${window.profilePhotoUrl?.(suggestion)
+            ? `<img src="${window.profilePhotoUrl?.(suggestion)}" alt="${suggestion.name}">`
             : `<div class="avatar-placeholder">${initials}</div>`
           }
         </div>

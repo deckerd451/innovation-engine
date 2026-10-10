@@ -1,16 +1,10 @@
 // ================================================================
 // ADMIN PRIVACY & VISIBILITY PANEL
 // ================================================================
-// Lets an admin control, per person, whether they are listed/searchable
-// across Synapse (community.is_hidden -- reused, already the contract
-// enforced by search/matching/suggestions/graph) and whether their photo
-// is shown to other members (community.photo_visible -- new, independent
-// of is_hidden; see supabase/sql/migrations/20260819_admin_analytics_privacy.sql).
-//
-// Reuses adminPeopleService.js's existing listPeople/setHidden mutators
-// and adds one new setPhotoVisible, rather than a parallel query layer.
+// Admins control listing and can inspect member-owned photo sharing choices.
+// Photo sharing is private by default and can only be enabled by its owner.
 
-import { listPeople, setHidden, setPhotoVisible } from './adminPeopleService.js';
+import { listPeople, setHidden } from './adminPeopleService.js';
 
 function esc(str) {
   if (str == null) return '';
@@ -28,7 +22,7 @@ let searchDebounce = null;
 
 function rowHtml(person) {
   const listed = !person.is_hidden;
-  const photoVisible = person.photo_visible !== false;
+  const photoVisible = person.photo_visible === true && !!person.photo_consent_at;
   return `
     <tr data-id="${esc(person.id)}">
       <td class="admin-privacy-name">
@@ -43,7 +37,7 @@ function rowHtml(person) {
       </td>
       <td>
         <label class="admin-toggle">
-          <input type="checkbox" data-action="toggle-photo" ${photoVisible ? 'checked' : ''}>
+          <input type="checkbox" disabled aria-label="Member photo sharing choice" ${photoVisible ? 'checked' : ''}>
           <span>${photoVisible ? 'Photo visible' : 'Photo hidden'}</span>
         </label>
       </td>
@@ -89,8 +83,6 @@ async function handleToggle(e) {
   if (action === 'toggle-listed') {
     // Checked = listed, so is_hidden is the inverse of the checkbox state.
     result = await setHidden(id, !input.checked);
-  } else if (action === 'toggle-photo') {
-    result = await setPhotoVisible(id, input.checked);
   }
 
   input.disabled = false;
@@ -106,7 +98,6 @@ async function handleToggle(e) {
   const label = input.closest('label')?.querySelector('span');
   if (label) {
     if (action === 'toggle-listed') label.textContent = input.checked ? 'Listed' : 'Hidden';
-    if (action === 'toggle-photo') label.textContent = input.checked ? 'Photo visible' : 'Photo hidden';
   }
 }
 
@@ -118,8 +109,8 @@ export function renderPrivacyPanel(targetEl) {
         <h3><i class="fas fa-user-shield"></i> Privacy &amp; Visibility</h3>
         <p>
           Controls whether a member is listed/searchable across Synapse (graph, Explore, Search,
-          People Worth Knowing) and whether their profile photo is shown to other members.
-          A member always sees their own profile and photo regardless of these settings.
+          People Worth Knowing) and shows whether they have chosen to share their photo with other members.
+          Photos are private by default. Admins and the member can see them; only the member can enable sharing.
         </p>
       </div>
       <div class="admin-privacy-toolbar">

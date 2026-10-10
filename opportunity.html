@@ -44,6 +44,7 @@
     </section>
   </main>
 
+  <script src="assets/js/photo-privacy.js?v=photo-consent-20261010a"></script>
   <script type="module" src="assets/js/supabaseClient.js"></script>
   <script type="module">
     import { createNativeEmailDraft, recordFollowupBestEffort, summarizeFollowups } from './assets/js/followup-contact.js';
@@ -191,7 +192,7 @@
         }
         target.innerHTML = people.map(({ community: person, created_at, followups = [] }, index) => person ? `
           <article class="person">
-            ${person.image_url ? `<img class="avatar" src="${escapeHtml(person.image_url)}" alt="">` : '<span class="avatar"></span>'}
+            ${window.profilePhotoUrl?.(person) ? `<img class="avatar" src="${escapeHtml(window.profilePhotoUrl?.(person))}" alt="">` : '<span class="avatar"></span>'}
             <div class="person-info">
               <strong class="person-name">${escapeHtml(person.name || 'Community member')}</strong>
               <p>${escapeHtml(person.role || 'Community member')} · Interested ${escapeHtml(formatDate(created_at))}</p>

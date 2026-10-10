@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v7-production-cutover-20260821a";
+const VERSION = "v8-photo-consent-20261010a";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.
@@ -100,7 +100,7 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         const cache = await caches.open(CACHE_NAME);
         try {
-          const fresh = await fetch(req);
+          const fresh = await fetch(req, { cache: "no-cache" });
           await safeCachePut(cache, req, fresh.clone());
           return fresh;
         } catch {
@@ -118,7 +118,7 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       try {
-        const fresh = await fetch(req);
+        const fresh = await fetch(req, { cache: "no-cache" });
         await safeCachePut(cache, req, fresh.clone());
         return fresh;
       } catch {

@@ -71,7 +71,7 @@ async function loadCommunityData() {
     console.log('📡 Fetching community data...');
     const { data, error } = await supabase
       .from('community')
-      .select('id, name, email, image_url, photo_visible, skills, bio, availability, user_id, connection_count')
+      .select('id, name, email, image_url, photo_visible, skills, bio, availability, user_id, connection_count, photo_consent_at')
       .or('is_hidden.is.null,is_hidden.eq.false')
       .order('name');
 

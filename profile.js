@@ -826,6 +826,14 @@
             </div>
 
             <div class="ch-form-group">
+              <label for="edit-photo-visible">
+                <input type="checkbox" id="edit-photo-visible" ${safeProfile.photo_visible === true && safeProfile.photo_consent_at ? 'checked' : ''}>
+                Show my photo to other signed-in members
+              </label>
+              <p class="ch-uploader-hint">Off by default. You and admins can still see your photo. Accepting a connection or uploading a photo does not change this setting.</p>
+            </div>
+
+            <div class="ch-form-group">
               <label class="ch-form-label" for="edit-name">Name *</label>
               <input
                 type="text"
@@ -1047,6 +1055,17 @@ setUploaderStatus("Photo uploaded.", "ok");
             return;
           }
 
+          const { data: photoPreference, error: photoError } = await supabase.rpc('set_my_photo_visibility', {
+            p_visible: $("edit-photo-visible")?.checked === true,
+          });
+          if (photoError) {
+            setUploaderStatus("Profile saved, but photo visibility could not be saved. Please try again.", "bad");
+            setBusy(false);
+            return;
+          }
+          updated.photo_visible = photoPreference.photo_visible;
+          updated.photo_consent_at = photoPreference.photo_consent_at;
+
           // Update in-memory state + header
           state.user = user;
 
@@ -1054,6 +1073,7 @@ setUploaderStatus("Photo uploaded.", "ok");
           if (typeof updated.image_url === "undefined") merged.image_url = profile?.image_url || null;
 
           state.profile = merged;
+          window.currentUserProfile = merged;
           setHeaderUser(user, state.profile);
 
           toast("Profile updated successfully!");

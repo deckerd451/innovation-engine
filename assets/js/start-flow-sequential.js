@@ -156,6 +156,7 @@ function generateStepHTML(stepType, items, config) {
   const totalSteps = wizardState.steps.length - 1; // Exclude summary from count
 
   const itemsHTML = items.slice(0, 5).map(item => {
+    const itemImage = stepType === "people" ? window.profilePhotoUrl?.(item) : (item.image_url || item.logo_url);
     const isSelected = wizardState.selections[stepType]?.includes?.(item.id) ||
                       wizardState.selections[stepType]?.id === item.id;
 
@@ -170,8 +171,8 @@ function generateStepHTML(stepType, items, config) {
         transition: all 0.2s ease;
       ">
         <div style="display: flex; align-items: center; gap: 1rem;">
-          ${item.image_url || item.logo_url ? `
-            <img src="${item.image_url || item.logo_url}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;" />
+          ${itemImage ? `
+            <img src="${itemImage}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;" />
           ` : `
             <div style="width: 48px; height: 48px; border-radius: 50%; background: ${config.color}40; display: flex; align-items: center; justify-content: center; color: ${config.color}; font-weight: bold; font-size: 1.2rem;">
               ${(item.name || item.title || '?').charAt(0).toUpperCase()}
@@ -380,7 +381,7 @@ async function loadProjects(supabase, currentUser) {
 async function loadPeople(supabase, currentUser) {
   const { data } = await supabase
     .from('community')
-    .select('id, name, bio, image_url')
+    .select('id, name, bio, image_url, user_id, photo_visible, photo_consent_at')
     .neq('id', currentUser.id)
     .or('is_hidden.is.null,is_hidden.eq.false')
     .limit(5);

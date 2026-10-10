@@ -476,8 +476,8 @@ async function loadRealActivityFeed() {
       .from('activity_log')
       .select(`
         *,
-        user:community!user_id(id, name, image_url),
-        target_user:community!target_user_id(id, name, image_url)
+        user:community!user_id(id, name, image_url, user_id, photo_visible, photo_consent_at),
+        target_user:community!target_user_id(id, name, image_url, user_id, photo_visible, photo_consent_at)
       `)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -556,8 +556,8 @@ function renderActivityItem(activity) {
     <div class="activity-item" data-activity-id="${activity.id}">
       <div style="display: flex; align-items: flex-start;">
         <div style="position: relative;">
-          ${user.image_url 
-            ? `<img src="${user.image_url}" class="activity-avatar" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; margin-right: 1rem;">`
+          ${window.profilePhotoUrl?.(user)
+            ? `<img src="${window.profilePhotoUrl?.(user)}" class="activity-avatar" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; margin-right: 1rem;">`
             : `<div class="activity-avatar">${initials}</div>`
           }
           <div class="activity-icon ${iconClass}">

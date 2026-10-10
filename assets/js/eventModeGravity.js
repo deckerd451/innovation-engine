@@ -455,8 +455,7 @@
           community:user_id (
             id,
             name,
-            image_url
-          )
+            image_url, user_id, photo_visible, photo_consent_at)
         `)
         .eq('context_type', 'beacon')
         .eq('context_id', currentBeacon.id)
@@ -483,7 +482,7 @@
         newAttendees.set(communityId, {
           id: communityId,
           name: session.community.name || 'Unknown',
-          imageUrl: session.community.image_url,
+          imageUrl: window.profilePhotoUrl?.(session?.community),
           energy: session.energy || 0.6,
           expiresAt: new Date(session.expires_at),
         });

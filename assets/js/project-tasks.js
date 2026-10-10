@@ -78,7 +78,7 @@
   async function fetchTasks(projectId) {
     const { data, error } = await supa()
       .from('project_tasks')
-      .select('*, owner:community!project_tasks_owner_id_fkey(id, name, image_url)')
+      .select('*, owner:community!project_tasks_owner_id_fkey(id, name, image_url, user_id, photo_visible, photo_consent_at)')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
     if (error) {
@@ -127,7 +127,7 @@
     }
   }
 
-  const TASK_SELECT = '*, owner:community!project_tasks_owner_id_fkey(id, name, image_url)';
+  const TASK_SELECT = '*, owner:community!project_tasks_owner_id_fkey(id, name, image_url, user_id, photo_visible, photo_consent_at)';
 
   async function createTask(projectId, fields, actorId) {
     const title = (fields.title || '').trim();

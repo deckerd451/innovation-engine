@@ -1066,7 +1066,7 @@ async function renderOrganizationPanel(nodeData) {
         community_id,
         role,
         status,
-        community:community_id(id, name, image_url)
+        community:community_id(id, name, image_url, user_id, photo_visible, photo_consent_at)
       `)
       .eq('organization_id', orgId)
       .eq('status', 'active');
@@ -1181,8 +1181,8 @@ function renderOrganizationContent(org, members, currentCommunityId) {
               const roleLabel = member.role === 'owner' ? '(Owner)' : member.role === 'admin' ? '(Admin)' : '';
               return `
                 <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(168,85,247,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(168,85,247,0.2);">
-                  ${user.image_url ?
-                    `<img loading="lazy" src="${escapeHtml(user.image_url)}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
+                  ${window.profilePhotoUrl?.(user) ?
+                    `<img loading="lazy" src="${escapeHtml(window.profilePhotoUrl?.(user))}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
                     `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #a855f7, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${memberInitials}</div>`
                   }
                   <span style="color: white; font-size: 0.85rem;">${escapeHtml(user.name)} ${roleLabel}</span>
@@ -1464,8 +1464,8 @@ async function renderPersonPanel(nodeData) {
       <!-- Profile Header -->
       <div style="text-align: center; padding: 2rem; padding-bottom: 1.5rem;">
         <div style="position: relative; display: inline-block; margin-bottom: 1rem;">
-          ${profile.image_url ?
-            `<img loading="lazy" src="${profile.image_url}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff;">` :
+          ${window.profilePhotoUrl?.(profile) ?
+            `<img loading="lazy" src="${window.profilePhotoUrl?.(profile)}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff;">` :
             `<div style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; color: white; border: 3px solid #00e0ff;">${initials}</div>`
           }
           <!-- Presence Indicator Dot -->
@@ -1698,9 +1698,9 @@ async function renderPersonPanel(nodeData) {
   panelElement.innerHTML = html;
   
   // Make profile image clickable to enlarge
-  const profileImage = panelElement.querySelector('img[src*="' + (profile.image_url || '') + '"]');
-  if (profileImage && profile.image_url) {
-    makeProfileImageClickable(profileImage, profile.image_url, profile.name, initials);
+  const profileImage = panelElement.querySelector('img[src*="' + (window.profilePhotoUrl?.(profile) || '') + '"]');
+  if (profileImage && window.profilePhotoUrl?.(profile)) {
+    makeProfileImageClickable(profileImage, window.profilePhotoUrl?.(profile), profile.name, initials);
   } else {
     // Handle placeholder avatar
     const placeholderAvatar = panelElement.querySelector('div[style*="border-radius: 50%"][style*="gradient"]');
@@ -1718,11 +1718,11 @@ async function renderProjectPanel(nodeData) {
     .from('projects')
     .select(`
       *,
-      creator:community!projects_creator_id_fkey(name, image_url),
+      creator:community!projects_creator_id_fkey(name, image_url, user_id, photo_visible, photo_consent_at),
       project_members(
         user_id,
         role,
-        user:community(id, name, image_url)
+        user:community(id, name, image_url, user_id, photo_visible, photo_consent_at)
       )
     `)
     .eq('id', nodeData.id)
@@ -1831,8 +1831,8 @@ async function renderProjectPanel(nodeData) {
               const roleLabel = member.role === 'creator' ? '(Creator)' : '';
               return `
                 <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,107,107,0.05); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,107,107,0.2);">
-                  ${user.image_url ?
-                    `<img loading="lazy" src="${user.image_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
+                  ${window.profilePhotoUrl?.(user) ?
+                    `<img loading="lazy" src="${window.profilePhotoUrl?.(user)}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` :
                     `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white;">${initials}</div>`
                   }
                   <span style="color: white; font-size: 0.85rem;">${(window.escapeHtml || (s => s))(user.name)} ${roleLabel}</span>
@@ -1850,8 +1850,8 @@ async function renderProjectPanel(nodeData) {
             <i class="fas fa-user-circle"></i> Created By
           </h3>
           <div style="display: flex; align-items: center; gap: 1rem; background: rgba(255,107,107,0.05); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,107,107,0.2);">
-            ${project.creator.image_url ?
-              `<img loading="lazy" src="${project.creator.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
+            ${window.profilePhotoUrl?.(project?.creator) ?
+              `<img loading="lazy" src="${window.profilePhotoUrl?.(project?.creator)}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
               `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; color: white;">${project.creator.name[0]}</div>`
             }
             <div>
@@ -1943,7 +1943,7 @@ async function getMutualConnections(userId) {
 
     const { data: mutuals } = await supabase
       .from('community')
-      .select('id, name, image_url')
+      .select('id, name, image_url, user_id, photo_visible, photo_consent_at')
       .in('id', mutualIds)
       .or('is_hidden.is.null,is_hidden.eq.false');
 
@@ -2853,11 +2853,11 @@ window.viewProjectDetails = async function(projectId) {
     .from('projects')
     .select(`
       *,
-      creator:community!projects_creator_id_fkey(id, name, image_url),
+      creator:community!projects_creator_id_fkey(id, name, image_url, user_id, photo_visible, photo_consent_at),
       project_members(
         user_id,
         role,
-        user:community(id, name, image_url, skills)
+        user:community(id, name, image_url, skills, user_id, photo_visible, photo_consent_at)
       )
     `)
     .eq('id', projectId)
@@ -2949,7 +2949,7 @@ window.viewProjectDetails = async function(projectId) {
     return `
       <div style="display:flex; align-items:center; gap:0.75rem; padding:0.65rem 0.75rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px;">
         <div style="width:38px; height:38px; border-radius:50%; overflow:hidden; flex-shrink:0; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size:0.85rem;">
-          ${u.image_url ? `<img src="${u.image_url}" style="width:100%;height:100%;object-fit:cover;">` : initials}
+          ${window.profilePhotoUrl?.(u) ? `<img src="${window.profilePhotoUrl?.(u)}" style="width:100%;height:100%;object-fit:cover;">` : initials}
         </div>
         <div style="flex:1; min-width:0;">
           <div style="color:white; font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(u.name || 'Unknown')}</div>
@@ -3024,7 +3024,7 @@ window.viewProjectDetails = async function(projectId) {
       <!-- Creator -->
       <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.5rem; padding:0.75rem; background:rgba(255,107,107,0.05); border:1px solid rgba(255,107,107,0.15); border-radius:10px;">
         <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size:1rem; flex-shrink:0;">
-          ${project.creator?.image_url ? `<img src="${project.creator.image_url}" style="width:100%;height:100%;object-fit:cover;">` : creatorInitial}
+          ${window.profilePhotoUrl?.(project?.creator) ? `<img src="${window.profilePhotoUrl?.(project?.creator)}" style="width:100%;height:100%;object-fit:cover;">` : creatorInitial}
         </div>
         <div>
           <div style="color:white; font-weight:600; font-size:0.9rem;">${esc(creatorName)}</div>
@@ -3688,7 +3688,7 @@ window.manageProjectRequests = async function(projectId) {
               <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;" data-request-id="${escape(request.id)}">
                 <div style="display: flex; gap: 1rem; align-items: start;">
                   <!-- User Avatar -->
-                  <img loading="lazy" src="${escape(user.image_url) || 'https://via.placeholder.com/60'}"
+                  <img loading="lazy" src="${escape(window.profilePhotoUrl?.(user)) || 'https://via.placeholder.com/60'}"
                     style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid rgba(255,107,107,0.3);"
                     onerror="this.src='https://via.placeholder.com/60'">
 

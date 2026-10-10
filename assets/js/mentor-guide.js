@@ -514,7 +514,7 @@ async function loadPeopleContent(contentDiv) {
         <div style="margin-bottom:1.25rem; padding:1.25rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px;">
           <div style="display:flex; align-items:start; gap:1rem; margin-bottom:1rem;">
             <div style="width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg, #00e0ff, #0080ff); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.2rem; flex-shrink:0;">
-              ${person.image_url ? `<img src="${person.image_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />` : getInitials(person.name)}
+              ${window.profilePhotoUrl?.(person) ? `<img src="${window.profilePhotoUrl?.(person)}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />` : getInitials(person.name)}
             </div>
             <div style="flex:1;">
               <h5 style="color:#fff; font-weight:600; font-size:1rem; margin:0 0 0.25rem 0;">${escapeHtml(person.name)}</h5>

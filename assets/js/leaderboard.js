@@ -18,7 +18,7 @@ async function loadCommunity() {
       skills,
       connection_count,
       image_url,
-      availability
+      availability, user_id, photo_visible, photo_consent_at
     `);
 
   if (error) {
@@ -129,7 +129,7 @@ function makeTopConnectors(data) {
     .slice(0, 15)
     .map(person => ({
       name: person.name,
-      image_url: person.image_url,
+      image_url: window.profilePhotoUrl?.(person),
       subtext: "Connections",
       score: person.connection_count || 0
     }));
@@ -143,7 +143,7 @@ async function makeMostEndorsed(communityData) {
     // Return community members with 0 endorsements
     return communityData.slice(0, 15).map(person => ({
       name: person.name,
-      image_url: person.image_url,
+      image_url: window.profilePhotoUrl?.(person),
       subtext: "Endorsements",
       score: 0
     }));
@@ -159,7 +159,7 @@ async function makeMostEndorsed(communityData) {
   return communityData
     .map(person => ({
       name: person.name,
-      image_url: person.image_url,
+      image_url: window.profilePhotoUrl?.(person),
       subtext: "Endorsements",
       score: endorsementCount[person.id] || 0
     }))
@@ -172,7 +172,7 @@ function makeRisingStars(data) {
   return data
     .map(person => ({
       name: person.name,
-      image_url: person.image_url,
+      image_url: window.profilePhotoUrl?.(person),
       subtext: "Potential Score",
       score: (person.skillsArray.length || 0) * 2 - (person.connection_count || 0)
     }))

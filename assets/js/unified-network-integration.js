@@ -328,8 +328,8 @@ async function _openFallbackPanel(node) {
         <button onclick="window.closeNodePanel()" style="position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:white;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.2rem">
           <i class="fas fa-times"></i></button>
         <div style="text-align:center;padding:2rem 2rem 1rem">
-          ${profile.image_url
-            ? `<img loading="lazy" src="${profile.image_url}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #00e0ff">`
+          ${window.profilePhotoUrl?.(profile)
+            ? `<img loading="lazy" src="${window.profilePhotoUrl?.(profile)}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #00e0ff">`
             : `<div style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#00e0ff,#0080ff);display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:bold;color:white;margin:0 auto">${initials}</div>`}
           <h2 style="color:#00e0ff;font-size:1.6rem;margin:.75rem 0 .25rem">${profile.name || 'Unknown'}</h2>
           ${profile.user_role ? `<div style="color:#aaa;font-size:.9rem;margin-bottom:.5rem">${profile.user_role}</div>` : ''}

@@ -18,7 +18,7 @@
  * Requirements:
  * - window.supabase exists (from supabaseClient.js)
  * - Tables:
- *   - community(id, user_id, name, email, image_url, skills, ...)
+ *   - community(id, user_id, name, email, image_url, skills, ..., photo_visible, photo_consent_at)
  *   - conversations(participant_1_id, participant_2_id, context_type, context_id, context_title, last_message_at, last_message_preview)
  *   - messages(conversation_id, sender_id [community.id], content, read, created_at)
  */
@@ -105,7 +105,7 @@ const MessagingModule = (function () {
         email: state.authUser.email,
         name: profile?.name || (state.authUser.email ? state.authUser.email.split("@")[0] : "User"),
         communityId: profile.id, // ✅ critical
-        avatar: profile?.image_url || null
+        avatar: window.profilePhotoUrl?.(profile) || null
       };
 
       await Promise.all([
@@ -412,10 +412,10 @@ const MessagingModule = (function () {
       .select(`
         *,
         participant_1:community!conversations_participant_1_id_fkey(
-          id, user_id, name, email, image_url
+          id, user_id, name, email, image_url, photo_visible, photo_consent_at
         ),
         participant_2:community!conversations_participant_2_id_fkey(
-          id, user_id, name, email, image_url
+          id, user_id, name, email, image_url, photo_visible, photo_consent_at
         )
       `)
       .or(`participant_1_id.eq.${myCid},participant_2_id.eq.${myCid}`)
@@ -439,7 +439,7 @@ const MessagingModule = (function () {
               communityId: other.id,
               name: other.name || "Unknown",
               email: other.email || "",
-              avatar: other.image_url || null
+              avatar: window.profilePhotoUrl?.(other) || null
             }
           : {
               authId: null,
@@ -508,11 +508,11 @@ const MessagingModule = (function () {
     if (senderCommunityIds.length > 0) {
       const { data: senders } = await window.supabase
         .from("community")
-        .select("id, name, image_url")
+        .select("id, name, image_url, user_id, photo_visible, photo_consent_at")
         .in("id", senderCommunityIds);
 
       (senders || []).forEach((s) => {
-        senderMap[s.id] = { id: s.id, name: s.name, image_url: s.image_url };
+        senderMap[s.id] = { id: s.id, name: s.name, image_url: window.profilePhotoUrl?.(s) };
       });
     }
 
@@ -553,10 +553,10 @@ const MessagingModule = (function () {
     if (senderCommunityIds.length > 0) {
       const { data: senders } = await window.supabase
         .from("community")
-        .select("id, name, image_url")
+        .select("id, name, image_url, user_id, photo_visible, photo_consent_at")
         .in("id", senderCommunityIds);
       (senders || []).forEach((s) => {
-        senderMap[s.id] = { id: s.id, name: s.name, image_url: s.image_url };
+        senderMap[s.id] = { id: s.id, name: s.name, image_url: window.profilePhotoUrl?.(s) };
       });
     }
 
@@ -598,7 +598,7 @@ const MessagingModule = (function () {
     // Load all other community members
     const { data, error } = await window.supabase
       .from("community")
-      .select("id, user_id, name, email, skills, image_url")
+      .select("id, user_id, name, email, skills, image_url, photo_visible, photo_consent_at")
       .neq("id", state.currentUser.communityId);
 
     if (error) {
@@ -866,14 +866,14 @@ const MessagingModule = (function () {
           // sender_id is community.id.
           const { data: sender } = await window.supabase
             .from("community")
-            .select("id, name, image_url")
+            .select("id, name, image_url, user_id, photo_visible, photo_consent_at")
             .eq("id", newMessage.sender_id)
             .single()
             .catch(() => ({ data: null }));
 
           state.messages.push({
             ...newMessage,
-            sender: sender ? { id: sender.id, name: sender.name, image_url: sender.image_url } : null
+            sender: sender ? { id: sender.id, name: sender.name, image_url: window.profilePhotoUrl?.(sender) } : null
           });
 
           renderMessages();
@@ -1197,8 +1197,8 @@ const MessagingModule = (function () {
           <div class="user-item" onclick="MessagingModule.startConversationWith('${user.id}')">
             <div class="user-item-avatar">
               ${
-                user.image_url
-                  ? `<img src="${user.image_url}" alt="${escapeHtml(user.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+                window.profilePhotoUrl?.(user)
+                  ? `<img src="${window.profilePhotoUrl?.(user)}" alt="${escapeHtml(user.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
                   : initials
               }
             </div>

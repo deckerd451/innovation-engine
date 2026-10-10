@@ -238,7 +238,8 @@ async function setupRealtimeChannels() {
           await presenceChannel.track({
             user_id: currentUserProfile.id,
             name: currentUserProfile.name,
-            avatar: currentUserProfile.image_url,
+            avatar: currentUserProfile.photo_visible === true && currentUserProfile.photo_consent_at
+              ? currentUserProfile.image_url : null,
             online_at: new Date().toISOString()
           });
           console.log('✅ Presence tracking started');
@@ -1196,7 +1197,7 @@ async function loadConversationsList() {
       try {
         const { data: participants } = await supabase
           .from('community')
-          .select('id, name, image_url')
+          .select('id, name, image_url, user_id, photo_visible, photo_consent_at')
           .in('id', Array.from(participantIds));
 
         if (participants) {
@@ -1258,8 +1259,8 @@ async function loadConversationsList() {
                onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'"
                onmouseout="this.style.background='transparent'">
             <div style="position: relative;">
-              ${otherUser.image_url
-                ? `<img src="${otherUser.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
+              ${window.profilePhotoUrl?.(otherUser)
+                ? `<img src="${window.profilePhotoUrl?.(otherUser)}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
                 : `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 1.2rem;">${otherUser.name?.[0] || '?'}</div>`
               }
               <div class="online-indicator" style="display: none;"></div>
@@ -1388,8 +1389,8 @@ async function loadConversationMessages(conversationId) {
           padding: 0.5rem; font-size: 1.2rem; touch-action: manipulation;
         "><i class="fas fa-arrow-left"></i></button>
         <div style="position: relative;">
-          ${otherUser.image_url
-            ? `<img src="${otherUser.image_url}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
+          ${window.profilePhotoUrl?.(otherUser)
+            ? `<img src="${window.profilePhotoUrl?.(otherUser)}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">`
             : `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 1.2rem;">${otherUser.name[0]}</div>`
           }
           <div class="online-indicator" style="display: none;"></div>
@@ -1939,7 +1940,7 @@ async function searchUsers(query, container) {
   try {
     const { data: users, error } = await supabase
       .from('community')
-      .select('id, name, image_url, bio, user_role')
+      .select('id, name, image_url, bio, user_role, user_id, photo_visible, photo_consent_at')
       .neq('id', currentUserProfile.id)
       .ilike('name', `%${query}%`)
       .limit(10);
@@ -1970,8 +1971,8 @@ async function searchUsers(query, container) {
           border: 1px solid transparent;
         " onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'; this.style.borderColor='rgba(0, 224, 255, 0.3)'"
            onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
-          ${user.image_url
-            ? `<img src="${user.image_url}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+          ${window.profilePhotoUrl?.(user)
+            ? `<img src="${window.profilePhotoUrl?.(user)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
             : `<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${user.name?.[0] || '?'}</div>`
           }
           <div style="flex: 1; min-width: 0;">

@@ -21,7 +21,7 @@ async function loadCommunity() {
       bio,
       availability,
       image_url,
-      connection_count
+      connection_count, user_id, photo_visible, photo_consent_at
     `);
 
   if (error) {
@@ -70,7 +70,7 @@ function createPersonCard(person) {
 
   card.innerHTML = `
     <img 
-      src="${person.image_url || "assets/default-avatar.png"}"
+      src="${window.profilePhotoUrl?.(person) || "assets/default-avatar.png"}"
       class="profile-avatar"
       alt="${person.name || "Profile"}"
     />

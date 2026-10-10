@@ -618,8 +618,7 @@ export async function getInterestedPeople(opportunityId) {
         role,
         bio,
         image_url,
-        skills
-      )
+        skills, user_id, photo_visible, photo_consent_at)
     `)
     .eq("opportunity_id", opportunityId)
     .order("created_at", { ascending: false });

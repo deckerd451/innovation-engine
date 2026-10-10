@@ -195,7 +195,7 @@ function resolveBaseUrl(user) {
  * @returns {string|null}
  */
 export function getGraphAvatarUrl(user) {
-  if (!user) return null;
+  if (shouldHidePhoto(user)) return null;
   return _cachedGet(user, "64x64", () => withTransform(resolveBaseUrl(user), 64, 64));
 }
 
@@ -206,7 +206,7 @@ export function getGraphAvatarUrl(user) {
  * @returns {string|null}
  */
 export function getCardAvatarUrl(user) {
-  if (!user) return null;
+  if (shouldHidePhoto(user)) return null;
   return _cachedGet(user, "128x128", () => withTransform(resolveBaseUrl(user), 128, 128));
 }
 
@@ -217,29 +217,22 @@ export function getCardAvatarUrl(user) {
  * @returns {string|null}
  */
 export function getProfileAvatarUrl(user) {
-  if (!user) return null;
+  if (shouldHidePhoto(user)) return null;
   return _cachedGet(user, "original", () => resolveBaseUrl(user));
 }
 
 /**
  * Whether a user/node's photo should be withheld from the given viewer.
  *
- * `photo_visible` (community column, default true) controls exposure of a
- * member's photo to OTHER members across Synapse (graph, Explore -> People,
- * Search, People Worth Knowing) independently of `is_hidden` (listed/
- * searchable). A member always sees their own photo regardless of this
- * value, so `viewerId` is checked against both the row's community `id`
- * and its `user_id` (a duplicate/legacy community row for the same human
- * can carry a different `id` while sharing the same `user_id` -- see the
- * self-exclusion fix in daily-brief-engine.js for the same pattern).
+ * Photos require member opt-in (photo_visible plus server-recorded
+ * photo_consent_at). Owners and signed-in admins may view private photos.
+ * Missing consent data fails closed. The shared policy also covers classic
+ * scripts; checks happen before the URL cache is consulted.
  *
  * @param {object|null} user
  * @param {string|null} viewerId - current viewer's community id or auth user_id
  * @returns {boolean}
  */
 export function shouldHidePhoto(user, viewerId) {
-  if (!user || user.photo_visible !== false) return false;
-  if (viewerId == null) return true;
-  const vid = String(viewerId);
-  return String(user.id) !== vid && String(user.user_id ?? "") !== vid;
+  return window.shouldHideProfilePhoto?.(user, viewerId) ?? true;
 }

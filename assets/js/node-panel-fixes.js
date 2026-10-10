@@ -77,7 +77,7 @@
           .from('projects')
           .select(`
             *,
-            creator:community!projects_creator_id_fkey(id, name, image_url)
+            creator:community!projects_creator_id_fkey(id, name, image_url, user_id, photo_visible, photo_consent_at)
           `)
           .eq('id', projectId)
           .single();
@@ -92,7 +92,7 @@
           .from('project_members')
           .select(`
             *,
-            user:community(id, name, image_url, skills)
+            user:community(id, name, image_url, skills, user_id, photo_visible, photo_consent_at)
           `)
           .eq('project_id', projectId);
 
@@ -155,7 +155,7 @@
         <!-- Avatar -->
         <div style="text-align: center; margin-bottom: 1.5rem;">
           <div style="width: 100px; height: 100px; border-radius: 50%; margin: 0 auto; overflow: hidden; border: 3px solid rgba(0,224,255,0.3); background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: white; font-weight: bold;">
-            ${user.image_url ? `<img src="${user.image_url}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+            ${window.profilePhotoUrl?.(user) ? `<img src="${window.profilePhotoUrl?.(user)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
           </div>
         </div>
 
@@ -453,7 +453,7 @@
                   transition: all 0.2s;
                 " onmouseenter="this.style.background='rgba(0,224,255,0.15)'" onmouseleave="this.style.background='rgba(0,224,255,0.05)'">
                   <div style="width: 36px; height: 36px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 0.9rem;">
-                    ${user.image_url ? `<img src="${user.image_url}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+                    ${window.profilePhotoUrl?.(user) ? `<img src="${window.profilePhotoUrl?.(user)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
                   </div>
                   <div style="flex: 1;">
                     <div style="font-weight: 600; color: white; font-size: 0.9rem;">${user.name || 'Unknown'}</div>
