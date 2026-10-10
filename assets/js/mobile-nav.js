@@ -57,7 +57,22 @@
 
   function wire() {
     document.querySelectorAll('.mob-tab[data-tab]').forEach((button) => {
-      button.addEventListener('click', () => tabs[button.dataset.tab]?.());
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.mob-tab[data-tab]').forEach((tab) => {
+          const active = tab === button;
+          tab.classList.toggle('active', active);
+          if (active) tab.setAttribute('aria-current', 'page');
+          else tab.removeAttribute('aria-current');
+        });
+        tabs[button.dataset.tab]?.();
+      });
+      button.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        const all = [...document.querySelectorAll('.mob-tab[data-tab]')];
+        const next = all[(all.indexOf(button) + (event.key === 'ArrowRight' ? 1 : -1) + all.length) % all.length];
+        next?.focus();
+        event.preventDefault();
+      });
     });
     const source = document.getElementById('cd-messages-badge');
     const target = document.getElementById('mob-tab-messages-badge');
