@@ -93,6 +93,7 @@ body.reflection-resizing #network-reflection { transition:none; }
 .network-reflection-concierge-secondary { border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.04); color:rgba(255,255,255,.72); }
 .network-reflection-concierge-link,.network-reflection-concierge-profile { border:0; background:transparent; color:rgba(255,255,255,.48); }
 .network-reflection-concierge-profile { width:100%; margin-top:.2rem; padding-left:0; text-align:left; color:#00e0ff; }
+.network-reflection-concierge-actions .network-reflection-concierge-profile { width:auto; margin-top:0; padding:.35rem .58rem; text-align:center; }
 .network-reflection-concierge-options { margin-top:.55rem; }
 .network-reflection-concierge-options summary { color:rgba(255,255,255,.48); font-size:.67rem; cursor:pointer; list-style:none; }
 .network-reflection-concierge-options summary::-webkit-details-marker { display:none; }

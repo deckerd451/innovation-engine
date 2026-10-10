@@ -1635,17 +1635,17 @@ function _renderCollaborationConcierge(root, candidate) {
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'network-reflection-concierge-eyebrow';
-  eyebrow.textContent = 'Suggested connection · Why this fits';
+  eyebrow.textContent = 'ONE MOVE';
   card.appendChild(eyebrow);
 
   const title = document.createElement('strong');
   title.className = 'network-reflection-concierge-title';
-  title.textContent = `Talk with ${candidate.name}`;
+  title.textContent = `Meet ${candidate.name}`;
   card.appendChild(title);
 
   const reason = document.createElement('p');
   reason.className = 'network-reflection-concierge-reason';
-  reason.textContent = candidate.reason;
+  reason.textContent = `Why this fits: ${candidate.reason}`;
   card.appendChild(reason);
 
   const prompt = document.createElement('p');
@@ -1663,7 +1663,7 @@ function _renderCollaborationConcierge(root, candidate) {
   const invite = document.createElement('button');
   invite.type = 'button';
   invite.className = 'network-reflection-concierge-primary';
-  invite.textContent = 'Invite';
+  invite.textContent = 'Connect';
   invite.addEventListener('click', async () => {
     if (typeof window.CollaborationConcierge?.sendInvite !== 'function' && typeof window.sendConnectionRequest !== 'function') {
       window.showToast?.('Connection requests are still loading.', 'info');
@@ -1684,27 +1684,10 @@ function _renderCollaborationConcierge(root, candidate) {
   });
   actions.appendChild(invite);
 
-  const options = document.createElement('details');
-  options.className = 'network-reflection-concierge-options';
-  const optionsSummary = document.createElement('summary');
-  optionsSummary.textContent = 'More options';
-  options.appendChild(optionsSummary);
-
-  const save = document.createElement('button');
-  save.type = 'button';
-  save.className = 'network-reflection-concierge-secondary';
-  save.textContent = _conciergeSaved ? 'Saved' : 'Save';
-  save.addEventListener('click', () => {
-    _conciergeSaved = true;
-    _saveConciergeState(window.currentUserProfile);
-    save.textContent = 'Saved';
-  });
-  options.appendChild(save);
-
   const skip = document.createElement('button');
   skip.type = 'button';
   skip.className = 'network-reflection-concierge-link';
-  skip.textContent = 'Not for me';
+  skip.textContent = 'Not now';
   skip.addEventListener('click', () => {
     _conciergeDismissed.add(candidate.id);
     _saveConciergeState(window.currentUserProfile);
@@ -1712,7 +1695,6 @@ function _renderCollaborationConcierge(root, candidate) {
     if (next) _renderCollaborationConcierge(root, next);
     else if (root.closest('.network-reflection-section')) root.closest('.network-reflection-section').hidden = true;
   });
-  options.appendChild(skip);
   card.appendChild(actions);
 
   const profile = document.createElement('button');
@@ -1720,8 +1702,8 @@ function _renderCollaborationConcierge(root, candidate) {
   profile.className = 'network-reflection-concierge-profile';
   profile.textContent = 'View profile';
   profile.addEventListener('click', () => selectReflectionEntity('person', candidate.id, candidate.name));
-  options.appendChild(profile);
-  card.appendChild(options);
+  actions.appendChild(profile);
+  actions.appendChild(skip);
   root.appendChild(card);
 }
 
