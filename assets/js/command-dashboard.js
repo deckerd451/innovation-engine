@@ -1962,13 +1962,18 @@ window.CommandDashboard = (() => {
     const prevBtn = $id('network-reflection-step-prev');
     const nextBtn = $id('network-reflection-step-next');
     const label = $id('network-reflection-step-label');
-    if (!container || !nav || !prevBtn || !nextBtn || !label || container.dataset.stepperWired === 'true') return;
+    const moreToggle = $id('network-reflection-more-toggle');
+    if (!container || !nav || !prevBtn || !nextBtn || !label || !moreToggle || container.dataset.stepperWired === 'true') return;
     container.dataset.stepperWired = 'true';
+    let showSecondary = false;
+    const scroll = $id('network-reflection-scroll');
 
     let currentIndex = 0;
 
     const visibleSteps = () =>
-      Array.from(container.querySelectorAll(':scope > .network-reflection-section')).filter(section => !section.hidden);
+      Array.from(container.querySelectorAll(':scope > .network-reflection-section')).filter(section =>
+        !section.hidden && (showSecondary || !section.dataset.secondary)
+      );
 
     const update = () => {
       const steps = visibleSteps();
@@ -1998,6 +2003,15 @@ window.CommandDashboard = (() => {
 
     prevBtn.addEventListener('click', () => { currentIndex -= 1; update(); });
     nextBtn.addEventListener('click', () => { currentIndex += 1; update(); });
+    moreToggle.addEventListener('click', () => {
+      showSecondary = !showSecondary;
+      moreToggle.setAttribute('aria-expanded', String(showSecondary));
+      moreToggle.classList.toggle('is-open', showSecondary);
+      moreToggle.childNodes[0].textContent = showSecondary ? 'Hide context ' : 'More context ';
+      scroll?.classList.toggle('show-secondary', showSecondary);
+      currentIndex = 0;
+      update();
+    });
 
     new MutationObserver(update).observe(container, { attributes: true, attributeFilter: ['hidden'], subtree: true });
     update();
