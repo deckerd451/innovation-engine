@@ -54,16 +54,29 @@ function _saveConciergeState(profile) {
 }
 
 function _conciergeCandidates(brief) {
-  return (brief?.sections?.people_worth_knowing || [])
-    .map(item => {
-      const ref = (item.primary_refs || []).find(value => String(value?.nodeType || '').toLowerCase() === 'person');
+  const sections = [
+    ...(brief?.sections?.people_worth_knowing || []).map(item => ({ item, type: 'person', priority: 3 })),
+    ...(brief?.sections?.opportunities_for_you || []).map(item => ({ item, type: 'opportunity', priority: 2 })),
+    ...(brief?.sections?.signals_moving || []).map(item => ({ item, type: null, priority: 1 })),
+  ];
+  return sections.map(({ item, type, priority }) => {
+      const refs = item.primary_refs || [];
+      const ref = type
+        ? refs.find(value => String(value?.nodeType || '').toLowerCase() === type)
+        : refs.find(value => ['project', 'opportunity'].includes(String(value?.nodeType || '').toLowerCase()));
+      const resolvedType = type || String(ref?.nodeType || '').toLowerCase();
       return ref?.nodeId ? {
-        id: String(ref.nodeId),
-        name: item.headline || ref.label || 'Someone in your network',
-        reason: item.subhead || 'You have a useful point of overlap.',
+        id: `${resolvedType}:${ref.nodeId}`,
+        entityId: String(ref.nodeId),
+        type: resolvedType,
+        name: ref.label || item.headline || 'Something worth exploring',
+        reason: item.subhead || 'This is a useful next step based on your activity.',
+        score: Number(item.score) || 0,
+        priority,
       } : null;
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => (b.score - a.score) || (b.priority - a.priority));
 }
 
 function _getConciergeCandidate(brief, profile) {
@@ -1640,7 +1653,9 @@ function _renderCollaborationConcierge(root, candidate) {
 
   const title = document.createElement('strong');
   title.className = 'network-reflection-concierge-title';
-  title.textContent = `Meet ${candidate.name}`;
+  title.textContent = candidate.type === 'person'
+    ? `Meet ${candidate.name}`
+    : candidate.type === 'project' ? `Explore ${candidate.name}` : `Consider ${candidate.name}`;
   card.appendChild(title);
 
   const reason = document.createElement('p');
@@ -1650,12 +1665,16 @@ function _renderCollaborationConcierge(root, candidate) {
 
   const prompt = document.createElement('p');
   prompt.className = 'network-reflection-concierge-prompt';
-  prompt.textContent = 'Try asking: “What are you working on that you’d like to move forward?”';
+  prompt.textContent = candidate.type === 'person'
+    ? 'Try asking: “What are you working on that you’d like to move forward?”'
+    : candidate.type === 'project' ? 'See where your skills could help move it forward.' : 'See what this could make possible for you.';
   card.appendChild(prompt);
 
   const outcome = document.createElement('span');
   outcome.className = 'network-reflection-concierge-outcome';
-  outcome.textContent = 'If they accept, your conversation will appear in Messages.';
+  outcome.textContent = candidate.type === 'person'
+    ? 'If they accept, your conversation will appear in Messages.'
+    : 'Buildspace chose this from your profile and recent activity.';
   card.appendChild(outcome);
 
   const actions = document.createElement('div');
@@ -1663,16 +1682,24 @@ function _renderCollaborationConcierge(root, candidate) {
   const invite = document.createElement('button');
   invite.type = 'button';
   invite.className = 'network-reflection-concierge-primary';
-  invite.textContent = 'Connect';
+  invite.textContent = candidate.type === 'person' ? 'Connect' : 'Open';
   invite.addEventListener('click', async () => {
+    if (candidate.type !== 'person') {
+      if (typeof window.openNodePanel === 'function') {
+        window.openNodePanel({ id: candidate.entityId, type: candidate.type, name: candidate.name });
+      } else {
+        selectReflectionEntity(candidate.type, candidate.entityId, candidate.name);
+      }
+      return;
+    }
     if (typeof window.CollaborationConcierge?.sendInvite !== 'function' && typeof window.sendConnectionRequest !== 'function') {
       window.showToast?.('Connection requests are still loading.', 'info');
       return;
     }
     invite.disabled = true;
     const result = window.CollaborationConcierge?.sendInvite
-      ? await window.CollaborationConcierge.sendInvite(candidate.id, candidate.name, candidate.reason)
-      : await window.sendConnectionRequest(candidate.id, candidate.name, 'collaborator');
+      ? await window.CollaborationConcierge.sendInvite(candidate.entityId, candidate.name, candidate.reason)
+      : await window.sendConnectionRequest(candidate.entityId, candidate.name, 'collaborator');
     if (result?.success) {
       _conciergeSaved = true;
       _saveConciergeState(window.currentUserProfile);
@@ -1700,8 +1727,17 @@ function _renderCollaborationConcierge(root, candidate) {
   const profile = document.createElement('button');
   profile.type = 'button';
   profile.className = 'network-reflection-concierge-profile';
-  profile.textContent = 'View profile';
-  profile.addEventListener('click', () => selectReflectionEntity('person', candidate.id, candidate.name));
+  profile.textContent = candidate.type === 'person' ? 'View profile' : 'See details';
+  profile.addEventListener('click', () => {
+    if (candidate.type === 'person') selectReflectionEntity('person', candidate.entityId, candidate.name);
+    else {
+      _conciergeDismissed.add(candidate.id);
+      _saveConciergeState(window.currentUserProfile);
+      const next = _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile);
+      if (next) _renderCollaborationConcierge(root, next);
+      else if (root.closest('.network-reflection-section')) root.closest('.network-reflection-section').hidden = true;
+    }
+  });
   actions.appendChild(profile);
   actions.appendChild(skip);
   root.appendChild(card);
