@@ -24,6 +24,52 @@ const _SCRIPT_BASE = (() => {
 })();
 
 let _briefEnginePromise = null;
+let _lastDailyBrief = null;
+let _conciergeSaved = false;
+let _conciergeDismissed = new Set();
+
+function _conciergeStorageKey(profile) {
+  const id = profile?.id || profile?.user_id || window.currentUserProfile?.id || 'anonymous';
+  return `ie:collaboration-concierge:${id}:${new Date().toISOString().slice(0, 10)}`;
+}
+
+function _loadConciergeState(profile) {
+  _conciergeSaved = false;
+  _conciergeDismissed = new Set();
+  try {
+    const raw = localStorage.getItem(_conciergeStorageKey(profile));
+    const state = raw ? JSON.parse(raw) : {};
+    _conciergeSaved = !!state.saved;
+    _conciergeDismissed = new Set(Array.isArray(state.dismissed) ? state.dismissed.map(String) : []);
+  } catch (_) { /* local storage is optional */ }
+}
+
+function _saveConciergeState(profile) {
+  try {
+    localStorage.setItem(_conciergeStorageKey(profile), JSON.stringify({
+      saved: _conciergeSaved,
+      dismissed: [..._conciergeDismissed].slice(-20),
+    }));
+  } catch (_) { /* local storage is optional */ }
+}
+
+function _conciergeCandidates(brief) {
+  return (brief?.sections?.people_worth_knowing || [])
+    .map(item => {
+      const ref = (item.primary_refs || []).find(value => String(value?.nodeType || '').toLowerCase() === 'person');
+      return ref?.nodeId ? {
+        id: String(ref.nodeId),
+        name: item.headline || ref.label || 'Someone in your network',
+        reason: item.subhead || 'You have a useful point of overlap.',
+      } : null;
+    })
+    .filter(Boolean);
+}
+
+function _getConciergeCandidate(brief, profile) {
+  _loadConciergeState(profile);
+  return _conciergeCandidates(brief).find(item => !_conciergeDismissed.has(item.id)) || null;
+}
 
 /**
  * Load (and cache) the intelligence engine ES module.
@@ -468,8 +514,12 @@ function _renderBriefItem(item) {
  * Build one named section (up to 3 items).
  * Returns null when items array is empty (caller skips appending).
  */
-function _renderBriefSection(meta, items) {
-  var top3 = items.slice(0, 3);
+function _renderBriefSection(meta, items, excludePersonId = null) {
+  var top3 = items.slice(0, 3).filter(item => {
+    if (!excludePersonId || meta.key !== 'people_worth_knowing') return true;
+    const ref = (item.primary_refs || []).find(value => String(value?.nodeType || '').toLowerCase() === 'person');
+    return !(ref && String(ref.nodeId) === String(excludePersonId));
+  });
   if (top3.length === 0) return null;
 
   const section = document.createElement('div');
@@ -498,7 +548,7 @@ function _renderBriefSection(meta, items) {
  * Assemble the complete Daily Brief DOM block from a Brief object.
  * Returns an HTMLElement — safe to appendChild anywhere.
  */
-function renderDailyBriefBlock(brief) {
+function renderDailyBriefBlock(brief, excludePersonId = null) {
   var SECTIONS = [
     { key: 'opportunities_for_you', title: 'For You',              icon: '🎯' },
     { key: 'people_worth_knowing',  title: 'People Worth Knowing',  icon: '👥' },
@@ -547,7 +597,7 @@ function renderDailyBriefBlock(brief) {
   var rendered = 0;
   SECTIONS.forEach(function (meta) {
     var items = (brief.sections && brief.sections[meta.key]) || [];
-    var sec   = _renderBriefSection(meta, items);
+    var sec   = _renderBriefSection(meta, items, excludePersonId);
     if (sec) { wrapper.appendChild(sec); rendered++; }
   });
 
@@ -645,6 +695,7 @@ class StartDailyDigest {
       try {
         brief = await generateDailyBrief({ userAuthId: uid, debug: false });
       } catch (engineErr) {
+        _lastDailyBrief = null;
         root.textContent = '';
         const el = document.createElement('div');
         el.style.cssText = 'color:rgba(255,255,255,0.38);font-size:0.84rem;padding:0.28rem 0;';
@@ -659,11 +710,14 @@ class StartDailyDigest {
         return;
       }
 
+      _lastDailyBrief = brief;
+      const concierge = _getConciergeCandidate(brief, window.currentUserProfile);
       root.textContent = '';
-      const renderedBrief = renderDailyBriefBlock(brief);
+      const renderedBrief = renderDailyBriefBlock(brief, concierge?.id || null);
       if (renderedBrief) root.appendChild(renderedBrief);
 
     } catch (err) {
+      _lastDailyBrief = null;
       console.warn('[DailyBrief] Unexpected error:', err);
       root.textContent = '';
       const el = document.createElement('div');
@@ -1525,13 +1579,20 @@ async function _recordReflectionWatermark(profile) {
 async function _renderReflectionSupportContent() {
   const focus = document.getElementById('network-reflection-focus');
   if (focus) {
-    if (window.MentorGuide?.renderFocusInto) {
+    const concierge = _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile);
+    const focusTitle = focus.closest('.network-reflection-section')?.querySelector('h2');
+    if (concierge) {
+      if (focusTitle) focusTitle.textContent = 'Try this together';
+      _renderCollaborationConcierge(focus, concierge);
+    } else if (window.MentorGuide?.renderFocusInto) {
+      if (focusTitle) focusTitle.textContent = 'Current Focus';
       try {
         await window.MentorGuide.renderFocusInto(focus);
       } catch (_) {
         focus.textContent = '';
       }
     } else {
+      if (focusTitle) focusTitle.textContent = 'Current Focus';
       focus.textContent = '';
     }
     const focusSection = focus.closest('.network-reflection-section');
@@ -1547,6 +1608,93 @@ async function _renderReflectionSupportContent() {
   } catch (error) {
     console.warn('[NetworkReflection] Summary data unavailable:', error?.message || error);
   }
+}
+
+function _renderCollaborationConcierge(root, candidate) {
+  root.textContent = '';
+  const card = document.createElement('div');
+  card.className = 'network-reflection-concierge';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'network-reflection-concierge-eyebrow';
+  eyebrow.textContent = 'A 15-minute collaboration';
+  card.appendChild(eyebrow);
+
+  const title = document.createElement('strong');
+  title.className = 'network-reflection-concierge-title';
+  title.textContent = `Try this with ${candidate.name}`;
+  card.appendChild(title);
+
+  const reason = document.createElement('p');
+  reason.className = 'network-reflection-concierge-reason';
+  reason.textContent = candidate.reason;
+  card.appendChild(reason);
+
+  const prompt = document.createElement('p');
+  prompt.className = 'network-reflection-concierge-prompt';
+  prompt.textContent = 'Compare what you are building and trade one useful resource.';
+  card.appendChild(prompt);
+
+  const outcome = document.createElement('span');
+  outcome.className = 'network-reflection-concierge-outcome';
+  outcome.textContent = 'Leave with one next step you can each take.';
+  card.appendChild(outcome);
+
+  const actions = document.createElement('div');
+  actions.className = 'network-reflection-concierge-actions';
+  const invite = document.createElement('button');
+  invite.type = 'button';
+  invite.className = 'network-reflection-concierge-primary';
+  invite.textContent = 'Invite';
+  invite.addEventListener('click', async () => {
+    if (typeof window.sendConnectionRequest !== 'function') {
+      window.showToast?.('Connection requests are still loading.', 'info');
+      return;
+    }
+    invite.disabled = true;
+    const result = await window.sendConnectionRequest(candidate.id, candidate.name, 'collaborator');
+    if (result?.success) {
+      _conciergeSaved = true;
+      _saveConciergeState(window.currentUserProfile);
+      invite.textContent = 'Request sent';
+    } else {
+      invite.disabled = false;
+    }
+  });
+  actions.appendChild(invite);
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'network-reflection-concierge-secondary';
+  save.textContent = _conciergeSaved ? 'Saved' : 'Save';
+  save.addEventListener('click', () => {
+    _conciergeSaved = true;
+    _saveConciergeState(window.currentUserProfile);
+    save.textContent = 'Saved';
+  });
+  actions.appendChild(save);
+
+  const skip = document.createElement('button');
+  skip.type = 'button';
+  skip.className = 'network-reflection-concierge-link';
+  skip.textContent = 'Not for me';
+  skip.addEventListener('click', () => {
+    _conciergeDismissed.add(candidate.id);
+    _saveConciergeState(window.currentUserProfile);
+    const next = _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile);
+    if (next) _renderCollaborationConcierge(root, next);
+    else if (root.closest('.network-reflection-section')) root.closest('.network-reflection-section').hidden = true;
+  });
+  actions.appendChild(skip);
+  card.appendChild(actions);
+
+  const profile = document.createElement('button');
+  profile.type = 'button';
+  profile.className = 'network-reflection-concierge-profile';
+  profile.textContent = 'View profile';
+  profile.addEventListener('click', () => selectReflectionEntity('person', candidate.id, candidate.name));
+  card.appendChild(profile);
+  root.appendChild(card);
 }
 
 // The same Daily Brief implementation now owns the persistent Synapse
@@ -1571,7 +1719,7 @@ window.StartDailyDigest.renderNetworkReflection = function (profile) {
       });
     });
   }
-  return Promise.all([briefPromise, _renderReflectionSupportContent()]).then(result => {
+  return briefPromise.then(() => _renderReflectionSupportContent()).then(result => {
     _recordReflectionWatermark(profile);
     return result;
   });
