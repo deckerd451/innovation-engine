@@ -53,7 +53,7 @@
 />
 </head>
 
-<body>
+<body class="buildspace-view-today">
   <a href="#main-content" class="ds-skip-link">Skip to main content</a>
   <canvas
     id="neural-bg"
@@ -244,6 +244,11 @@
 
           </div>
         </div>
+
+        <nav class="buildspace-view-switcher" aria-label="Buildspace view">
+          <button type="button" class="buildspace-view-btn is-active" data-workspace-view="today" aria-current="page">Today</button>
+          <button type="button" class="buildspace-view-btn" data-workspace-view="network">Network</button>
+        </nav>
 
         <div id="centered-search-container" class="cd-search" role="search">
           <div id="category-action-bar" style="display:none;"></div>

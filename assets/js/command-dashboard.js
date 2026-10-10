@@ -175,6 +175,7 @@ window.CommandDashboard = (() => {
     _wireAdminBtn();
     _wireBellBtn();
     _wireLogoutBtn();
+    _wireWorkspaceView();
     _wireReflectionControls();
     _wireReflectionStepper();
 
@@ -206,6 +207,30 @@ window.CommandDashboard = (() => {
     }, { once: true });
 
     console.log('[CommandDashboard] Initialized for userId:', userId);
+  }
+
+  function setWorkspaceView(view) {
+    const nextView = view === 'network' ? 'network' : 'today';
+    document.body.classList.toggle('buildspace-view-today', nextView === 'today');
+    document.body.classList.toggle('buildspace-view-network', nextView === 'network');
+    document.querySelectorAll('[data-workspace-view]').forEach(button => {
+      const active = button.dataset.workspaceView === nextView;
+      button.classList.toggle('is-active', active);
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    try { sessionStorage.setItem('buildspace-view', nextView); } catch (_) {}
+    window.dispatchEvent(new Event('resize'));
+  }
+
+  function _wireWorkspaceView() {
+    const buttons = document.querySelectorAll('[data-workspace-view]');
+    if (!buttons.length || document.body.dataset.workspaceViewWired === 'true') return;
+    document.body.dataset.workspaceViewWired = 'true';
+    let initial = 'today';
+    try { initial = sessionStorage.getItem('buildspace-view') || 'today'; } catch (_) {}
+    setWorkspaceView(initial);
+    buttons.forEach(button => button.addEventListener('click', () => setWorkspaceView(button.dataset.workspaceView)));
   }
 
   /* ================================================================
@@ -2320,6 +2345,7 @@ window.CommandDashboard = (() => {
      ================================================================ */
   return {
     initialize,
+    setWorkspaceView,
     switchTier,
     selectResourceTab: _switchResourceTab,
     getCurrentTier: () => _currentTier,

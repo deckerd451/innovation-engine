@@ -7,6 +7,7 @@
 
   const tabs = {
     home: () => {
+      window.CommandDashboard?.setWorkspaceView?.('today');
       document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
       document.getElementById('cd-panel-tab')?.focus();
     },

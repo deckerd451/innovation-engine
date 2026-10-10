@@ -43,6 +43,10 @@
    SYNAPSE FINAL WORKSPACE — Explore / Synapse / Reflection
    ============================================================ */
 .cd-search { position:relative!important; inset:auto!important; left:auto!important; right:auto!important; bottom:auto!important; transform:none!important; width:auto!important; max-width:none!important; z-index:20!important; display:block!important; flex-shrink:0; padding:.6rem .75rem!important; border-bottom:1px solid var(--cd-border); box-sizing:border-box; }
+.buildspace-view-switcher { display:flex; gap:.25rem; padding:.45rem .75rem .15rem; background:rgba(5,7,15,.55); }
+.buildspace-view-btn { flex:1; min-height:30px; border:1px solid transparent; border-radius:6px; background:transparent; color:rgba(224,232,255,.5); font:inherit; font-size:.68rem; font-weight:700; cursor:pointer; }
+.buildspace-view-btn:hover,.buildspace-view-btn:focus-visible { color:#fff; border-color:rgba(0,224,255,.25); outline:none; }
+.buildspace-view-btn.is-active { color:#06151c; background:#00e0ff; border-color:#00e0ff; }
 .cd-search #search-container { position:relative!important; display:block!important; flex:none!important; width:100%!important; height:42px!important; min-height:42px!important; max-height:42px!important; margin:0!important; padding:0!important; background:rgba(10,14,39,.72); border:1px solid rgba(0,224,255,.28); border-radius:8px; box-sizing:border-box!important; overflow:visible; }
 .cd-search-icon { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); color:rgba(0,224,255,.65); font-size:.78rem; pointer-events:none; }
 .cd-search #global-search { display:block!important; width:100%!important; height:40px!important; min-height:40px!important; max-height:40px!important; box-sizing:border-box!important; margin:0!important; padding:0 2.8rem 0 2.1rem!important; color:#fff; background:transparent!important; border:0!important; border-radius:8px!important; outline:0; font-family:inherit!important; font-size:14px!important; font-weight:400!important; line-height:40px!important; appearance:none; }
@@ -251,6 +255,11 @@ body.reflection-resizing #network-reflection { transition:none; }
 
   #synapse-svg { background: transparent !important; }
 
+  body.buildspace-view-today #synapse-main-view { display:none!important; }
+  body.buildspace-view-today #command-dashboard { width:calc(100% - var(--reflection-width))!important; border-right:0!important; }
+  body.buildspace-view-today #command-dashboard .cd-scroll-area { width:min(760px,100%); margin:0 auto; }
+  body.buildspace-view-today #cd-panel-tab { display:none!important; }
+
   /* ── Node side panel: slides from right of viewport ── */
   /* Panel already uses position:fixed; right:-450px → right:0 */
   /* It naturally overlaps only the graph area (not the left dashboard) */
@@ -268,6 +277,19 @@ body.reflection-resizing #network-reflection { transition:none; }
   #command-dashboard:not(.cd-mobile-panel) {
     display: none !important;
   }
+
+  body.buildspace-view-today #synapse-main-view { display:none!important; }
+  body.buildspace-view-today #command-dashboard {
+    display:flex!important;
+    position:absolute!important;
+    inset:0 0 calc(60px + env(safe-area-inset-bottom,0px)) 0!important;
+    width:100%!important;
+    height:auto!important;
+    background:rgba(5,7,15,.96)!important;
+    overflow:hidden!important;
+    z-index:500!important;
+  }
+  body.buildspace-view-today #command-dashboard .cd-scroll-area { overflow-y:auto; }
 
   /* ── Mobile split-view panel ─────────────────────────────── */
   #command-dashboard.cd-mobile-panel {
