@@ -58,6 +58,12 @@ assert.match(sql, /WHERE photo_consent_at IS NULL AND photo_visible IS DISTINCT 
 assert.match(sql, /OLD\.user_id IS DISTINCT FROM auth\.uid\(\)/);
 assert.match(sql, /NEW\.photo_consent_at := CASE WHEN NEW\.photo_visible THEN now\(\) ELSE NULL END/);
 assert.match(sql, /REVOKE ALL ON FUNCTION public\.set_my_photo_visibility\(boolean\) FROM PUBLIC, anon/);
+const storageSql = read('supabase/sql/migrations/20261010_private_avatar_storage.sql');
+assert.match(storageSql, /VALUES \('private-avatars', 'private-avatars', false/);
+assert.match(storageSql, /owner\.photo_visible = true/);
+assert.match(storageSql, /viewer\.user_role = 'Admin'/);
+assert.match(storageSql, /Private avatar owners can upload/);
+assert.doesNotMatch(storageSql, /UPDATE storage\.buckets[\s\S]*hacksbucket/);
 
 // Broad regression guard for raw photo rendering paths that used to bypass
 // the admin panel's setting. These modules must use the shared policy.
