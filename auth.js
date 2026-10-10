@@ -143,6 +143,8 @@
   // Auth subscription guard
   let authSubAttached = false;
   let authUnsub = null;
+  let sessionValidation = null;
+  let authGeneration = 0;
 
   // Signal to other modules that initial auth decision is done
   window.__authReady = false;
@@ -229,6 +231,7 @@
 
   function showAppUI(user) {
     hasBootstrappedThisLoad = true;
+    loginUIShown = false;
 
     loginSection?.classList.add("hidden");
     loginSection?.classList.remove("active-tab-pane");
@@ -699,6 +702,53 @@
   // -----------------------------
   // Boot logic (dedupe auth events + ensure synapse loads)
   // -----------------------------
+  function resetAuthenticatedState() {
+    authGeneration++;
+    sessionValidation = null;
+    bootUserId = null;
+    profileLoadPromise = null;
+    hasBootstrappedThisLoad = false;
+    signedInBootstrapStarted = false;
+    window.currentAuthUser = null;
+    window.currentUserProfile = null;
+    window.__claimedCommunityId = null;
+    window.dispatchEvent(new CustomEvent("user-logged-out"));
+  }
+
+  // Run outside onAuthStateChange: Supabase calls can acquire the auth lock.
+  // Do not release authenticated modules until the server accepts the session.
+  async function bootstrapForSession(session, sourceEvent) {
+    if (!session?.user || bootUserId === session.user.id) return;
+    if (sessionValidation) return sessionValidation;
+    const generation = authGeneration;
+    sessionValidation = (async () => {
+      try {
+        await withTimeout((async () => {
+          let result = await window.supabase.auth.getUser();
+          if (result.error?.status === 401 || /jwt expired/i.test(result.error?.message || "")) {
+            const refreshed = await window.supabase.auth.refreshSession();
+            if (refreshed.error) throw refreshed.error;
+            if (!refreshed.data?.session) throw new Error("Session expired");
+            result = await window.supabase.auth.getUser();
+          }
+          if (result.error) throw result.error;
+          if (!result.data?.user) throw new Error("No authenticated user");
+          if (generation !== authGeneration) return;
+          await bootstrapForUser(result.data.user, sourceEvent);
+        })(), 10000, "Session validation timeout");
+      } catch (e) {
+        if (generation !== authGeneration) return;
+        warn("Session validation failed:", e.message);
+        resetAuthenticatedState();
+        showLoginUI();
+        showAuthError("Your session could not be restored. Please sign in again.");
+      } finally {
+        if (generation === authGeneration) sessionValidation = null;
+      }
+    })();
+    return sessionValidation;
+  }
+
   async function bootstrapForUser(user, sourceEvent = "unknown") {
     if (!user?.id) return;
 
@@ -782,7 +832,7 @@
     authSubAttached = true;
     log("📡 Setting up onAuthStateChange listener...");
 
-    const { data: sub } = window.supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: sub } = window.supabase.auth.onAuthStateChange((event, session) => {
       log(
         "⚡ Auth event received:",
         event,
@@ -801,17 +851,17 @@
       if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
         log("🛡️ [AUTH-GUARD] SIGNED_IN guard activated — authenticated bootstrap starting for:", session.user.email);
         cancelSessionTimer();
-        await bootstrapForUser(session.user, event);
+        const generation = authGeneration;
+        setTimeout(() => {
+          if (generation === authGeneration) bootstrapForSession(session, event);
+        }, 0);
         return;
       }
 
       if (event === "SIGNED_OUT") {
         cancelSessionTimer();
         log("🟡 User signed out");
-        bootUserId = null;
-        profileLoadPromise = null;
-        hasBootstrappedThisLoad = false;
-        signedInBootstrapStarted = false;
+        resetAuthenticatedState();
         showLoginUI();
         return;
       }
@@ -894,14 +944,14 @@
         const session = data?.session;
         if (session?.user) {
           log("🟢 Already logged in as:", session.user.email);
-          await bootstrapForUser(session.user, "getSession");
+          await bootstrapForSession(session, "getSession");
         } else {
           log("🟡 No active session");
           showLoginUI();
         }
       } catch (e) {
         err("❌ Session check failed:", e);
-        if (hasBootstrappedThisLoad || signedInBootstrapStarted) {
+        if (hasBootstrappedThisLoad || signedInBootstrapStarted || sessionValidation) {
           log("🛡️ [AUTH-GUARD] Session check timeout ignored — authenticated bootstrap already started");
         } else {
           showLoginUI();
