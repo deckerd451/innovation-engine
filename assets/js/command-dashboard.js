@@ -936,15 +936,17 @@ window.CommandDashboard = (() => {
     // Opportunities: from Supabase (no longer in graph)
     const opps = _enrichedData.opportunities ? _enrichedData.opportunities.length : 0;
 
-    const setVal = (id, val, { showZero = false } = {}) => {
-      const el = $id(id);
+    const setResourceCount = (resource, value, label) => {
+      const el = document.querySelector(`[data-count-for="${resource}"]`);
       if (!el) return;
-      el.textContent = val == null ? '—' : (val > 0 || showZero ? val : '—');
+      const count = Number.isFinite(Number(value)) ? Number(value) : 0;
+      el.textContent = String(count);
+      el.setAttribute('aria-label', `${count} ${label}`);
     };
 
-    setVal('cd-stat-connections',   connections);
-    setVal('cd-stat-projects',      projects);
-    setVal('cd-stat-opportunities', opps);
+    setResourceCount('people', connections, 'connected people');
+    setResourceCount('projects', projects, 'projects');
+    setResourceCount('opportunities', opps, 'opportunities');
   }
 
   function _computeStats(tier) {

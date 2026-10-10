@@ -1900,6 +1900,7 @@ body.reflection-resizing #network-reflection { transition:none; }
 .cd-focus-primary-label { letter-spacing:.04em; text-transform:none; }
 .udc-resource-tabs { gap:.35rem; }
 .udc-resource-tab { border-radius:7px; text-transform:none; letter-spacing:0; }
+.udc-resource-count { display:inline-grid; place-items:center; min-width:1.25rem; height:1.15rem; margin-left:.2rem; padding:0 .25rem; border-radius:999px; background:rgba(0,224,255,.12); color:#9cefff; font-size:.62rem; font-weight:800; line-height:1; }
 .cd-focus-card,
 .network-reflection-focus-card,
 .network-reflection-move { box-shadow:none; }

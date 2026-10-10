@@ -269,24 +269,6 @@
           </div>
         </div>
 
-        <div class="cd-network-status" id="cd-network-status">
-          <div class="cd-section-label">Overview</div>
-          <div class="cd-status-row" id="cd-status-row">
-            <div class="cd-status-pill" title="People you're connected to" aria-label="People you're connected to">
-              <span class="cd-status-value" id="cd-stat-connections">—</span>
-              <span class="cd-status-label">Connected</span>
-            </div>
-            <div class="cd-status-pill" title="Projects you're part of" aria-label="Projects you're part of">
-              <span class="cd-status-value" id="cd-stat-projects">—</span>
-              <span class="cd-status-label">Projects</span>
-            </div>
-            <div class="cd-status-pill" title="Open opportunities that may fit you" aria-label="Open opportunities that may fit you">
-              <span class="cd-status-value" id="cd-stat-opportunities">—</span>
-              <span class="cd-status-label">Opportunities</span>
-            </div>
-          </div>
-        </div>
-
         <!-- Today's Focus (messages alert + insights) -->
         <div class="cd-focus" id="cd-focus">
           <div id="cd-focus-welcome"></div>
@@ -311,11 +293,11 @@
 
           <div class="cd-section-body" id="cd-explore-body">
             <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist">
-              <button class="udc-resource-tab active" data-resource="people" role="tab" aria-selected="true">People</button>
-              <button class="udc-resource-tab" data-resource="projects" role="tab" aria-selected="false">Projects</button>
+              <button class="udc-resource-tab active" data-resource="people" role="tab" aria-selected="true">People <span class="udc-resource-count" data-count-for="people" aria-label="0 connected">0</span></button>
+              <button class="udc-resource-tab" data-resource="projects" role="tab" aria-selected="false">Projects <span class="udc-resource-count" data-count-for="projects" aria-label="0 projects">0</span></button>
               <button class="udc-resource-tab" data-resource="themes" role="tab" aria-selected="false">Themes</button>
               <button class="udc-resource-tab" data-resource="organizations" role="tab" aria-selected="false">Orgs</button>
-              <button class="udc-resource-tab" data-resource="opportunities" role="tab" aria-selected="false">Opps</button>
+              <button class="udc-resource-tab" data-resource="opportunities" role="tab" aria-selected="false">Opps <span class="udc-resource-count" data-count-for="opportunities" aria-label="0 opportunities">0</span></button>
             </div>
 
             <div id="udc-add-form" class="udc-add-form hidden"></div>
