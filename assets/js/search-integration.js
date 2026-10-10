@@ -186,12 +186,19 @@ async function openSkillResult(skillName) {
     window.closeEnhancedSearch();
   }
 
-  // Open enhanced search with skill filter
-  setTimeout(() => {
-    if (typeof window.openEnhancedSearch === 'function') {
-      window.openEnhancedSearch(skillName, 'people');
-    }
-  }, 100);
+  // Use the canonical right panel so this works in Today mode, where the
+  // graph is intentionally hidden. Individual people reuse openNodePanel.
+  if (typeof window.openNodePanel === 'function') {
+    await window.openNodePanel({
+      id: `skill:${skillName}`,
+      type: 'skill',
+      name: skillName,
+      skillName,
+      isSkillLens: true,
+    });
+    return;
+  }
+  setTimeout(() => window.openEnhancedSearch?.(skillName, 'people'), 100);
 }
 
 // Search notification helper

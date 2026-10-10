@@ -374,6 +374,10 @@ async function loadNodeDetails(nodeData) {
 
   try {
     // Check if this is a theme lens view
+    if (nodeData.isSkillLens) {
+      await renderSkillLensPanel(nodeData);
+      return;
+    }
     if (nodeData.isThemeLens) {
       await renderThemeLensPanel(nodeData);
       return;
@@ -398,6 +402,76 @@ async function loadNodeDetails(nodeData) {
         <p style="margin-top: 1rem;">Error loading details</p>
       </div>
     `;
+  }
+}
+
+// Render the canonical right panel for a skill selection. This keeps Today
+// mode useful when the graph is hidden and reuses the existing person panel
+// for individual results instead of creating a second people browser.
+async function renderSkillLensPanel(skillData) {
+  const skill = String(skillData.skillName || skillData.name || '').trim();
+  const title = escapeHtml(skill || 'Skill');
+  panelElement.innerHTML = `
+    <div class="node-panel-header" style="background:linear-gradient(135deg,rgba(0,224,255,.15),rgba(0,224,255,.05));padding:1.5rem;border-bottom:1px solid rgba(0,224,255,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:1rem;">
+        <div><div style="color:#8beeff;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">People with this skill</div><h2 style="color:#fff;margin:.35rem 0 0;font-size:1.35rem;">${title}</h2></div>
+        <button type="button" class="close-node-panel" onclick="window.closeNodePanel?.()" aria-label="Close panel" style="background:transparent;border:0;color:rgba(255,255,255,.7);font-size:1.25rem;cursor:pointer;"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div class="node-panel-body" style="padding:1rem 1.25rem;overflow-y:auto;height:calc(100% - 104px);">
+      <div data-skill-lens-status style="color:rgba(255,255,255,.55);font-size:.82rem;">Finding people…</div>
+    </div>`;
+
+  const body = panelElement.querySelector('.node-panel-body');
+  const status = panelElement.querySelector('[data-skill-lens-status]');
+  if (!body || !status || !skill) return;
+
+  try {
+    const client = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+    if (!client) throw new Error('Database unavailable');
+    let { data, error } = await client
+      .from('community')
+      .select('id,name,full_name,username,skills')
+      .contains('skills', [skill])
+      .limit(50);
+    // Some older profiles store skills as text or use different casing. Use
+    // the same canonical community table, with a safe client-side fallback,
+    // so a valid skill never appears to have no matches.
+    if (error || !data?.length) {
+      const fallback = await client
+        .from('community')
+        .select('id,name,full_name,username,skills')
+        .limit(500);
+      if (fallback.error) throw error || fallback.error;
+      data = fallback.data || [];
+    }
+    const people = (data || []).filter(person => {
+      const skills = Array.isArray(person.skills)
+        ? person.skills
+        : String(person.skills || '').split(',').map(value => value.trim()).filter(Boolean);
+      return skills.some(value => value.toLowerCase() === skill.toLowerCase());
+    });
+    if (!people.length) {
+      status.textContent = `No one lists ${skill} yet.`;
+      return;
+    }
+    status.textContent = `${people.length} ${people.length === 1 ? 'person' : 'people'} list ${skill}.`;
+    const list = document.createElement('div');
+    list.style.cssText = 'display:flex;flex-direction:column;gap:.55rem;margin-top:.8rem;';
+    people.forEach(person => {
+      const name = String(person.full_name || person.name || person.username || 'Community member').trim();
+      const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.style.cssText = 'display:flex;align-items:center;gap:.7rem;width:100%;padding:.65rem .7rem;border:1px solid rgba(0,224,255,.16);border-radius:9px;background:rgba(0,224,255,.05);color:#fff;text-align:left;font:inherit;cursor:pointer;';
+      button.innerHTML = `<span aria-hidden="true" style="display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(0,224,255,.18);color:#a9f3ff;font-size:.72rem;font-weight:800;">${escapeHtml(initials)}</span><span style="min-width:0;"><strong style="display:block;font-size:.82rem;">${escapeHtml(name)}</strong><small style="color:rgba(255,255,255,.5);">View profile</small></span>`;
+      button.addEventListener('click', () => window.openNodePanel?.({ id: person.id, type: 'person', name }));
+      list.appendChild(button);
+    });
+    body.appendChild(list);
+  } catch (error) {
+    console.warn('[node-panel] skill lens query failed:', error);
+    status.textContent = 'We couldn’t load people for this skill. Try again in a moment.';
   }
 }
 

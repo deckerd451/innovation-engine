@@ -1563,9 +1563,12 @@ window.CommandDashboard = (() => {
             _openPanelForNode(id, 'person');
           }
         } else if (_activeResourceTab === 'themes') {
-          // Theme: set as context lens to highlight people with matching skills
+          // In Today, the graph is hidden, so open the canonical right panel
+          // with matching people. Network mode keeps the existing graph lens.
           const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || id;
-          if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('theme', { id, label: name });
+          if (document.body.classList.contains('buildspace-view-today') && window.openNodePanel) {
+            window.openNodePanel({ id: `skill:${name}`, type: 'skill', name, skillName: name, isSkillLens: true });
+          } else if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('theme', { id, label: name });
           else if (window.SynapseContext) window.SynapseContext.setTheme(name);
         } else if (_activeResourceTab === 'projects') {
           const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || 'Project';
@@ -1611,7 +1614,9 @@ window.CommandDashboard = (() => {
           }
         } else if (_activeResourceTab === 'themes') {
           const name = row.querySelector('.udc-resource-name')?.textContent || id;
-          if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('theme', { id, label: name });
+          if (document.body.classList.contains('buildspace-view-today') && window.openNodePanel) {
+            window.openNodePanel({ id: `skill:${name}`, type: 'skill', name, skillName: name, isSkillLens: true });
+          } else if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('theme', { id, label: name });
           else if (window.SynapseContext) window.SynapseContext.setTheme(name);
         } else if (_activeResourceTab === 'projects') {
           const name = row.querySelector('.udc-resource-name')?.textContent || 'Project';
