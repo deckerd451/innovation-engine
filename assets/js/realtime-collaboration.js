@@ -17,6 +17,7 @@ let allConversationsCache = []; // for sidebar search
 let participantDetailsCache = new Map(); // for incoming toast
 let msgOffsets = new Map(); // conversationId -> number of messages loaded
 let hasMoreMsgs = new Map(); // conversationId -> boolean
+let pendingCollaborationContext = null;
 
 // Collaboration event types
 const COLLAB_EVENTS = {
@@ -52,7 +53,7 @@ function isOwnMessage(message) {
 }
 
 // Send direct message function
-async function sendDirectMessage(targetCommunityUserId, message) {
+async function sendDirectMessage(targetCommunityUserId, message, options = {}) {
   console.log('📨 Direct message function called:', targetCommunityUserId, message);
 
   if (!currentUserProfile || !targetCommunityUserId) {
@@ -119,6 +120,7 @@ async function sendDirectMessage(targetCommunityUserId, message) {
         .eq('id', conversationId);
     }
 
+    pendingCollaborationContext = options.collaboration || null;
     await openMessagingInterface(conversationId);
 
     console.log('✅ Direct message sent successfully');
@@ -1338,6 +1340,49 @@ async function openConversation(conversationId) {
 
   await loadConversationMessages(conversationId);
   await markMessagesAsRead(conversationId);
+  renderCollaborationScheduleChips(conversationId);
+}
+
+function renderCollaborationScheduleChips(conversationId) {
+  const context = pendingCollaborationContext;
+  if (!context || context.conversationId && context.conversationId !== conversationId) return;
+  pendingCollaborationContext = null;
+  const area = document.getElementById('message-input-area');
+  if (!area || area.querySelector('.rt-collab-schedule')) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'rt-collab-schedule';
+  wrap.style.cssText = 'display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;padding:.45rem .65rem;border-top:1px solid rgba(0,224,255,.15);background:rgba(0,224,255,.035);font-size:.72rem;color:rgba(255,255,255,.58);';
+  const label = document.createElement('span');
+  label.textContent = 'Pick a starting window:';
+  wrap.appendChild(label);
+  const options = window.CollaborationConcierge?.scheduleOptions?.() || [
+    { value: 'today', label: 'Today' },
+    { value: 'this_week', label: 'This week' },
+    { value: 'suggest_time', label: "I'll suggest a time" },
+  ];
+  options.forEach(option => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = option.label;
+    button.style.cssText = 'min-height:28px;padding:.25rem .48rem;border:1px solid rgba(0,224,255,.3);border-radius:999px;background:rgba(0,224,255,.08);color:#00e0ff;font:inherit;font-size:.68rem;cursor:pointer;';
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const result = await window.CollaborationConcierge?.setSchedule?.(context.connectionId, option.value);
+      if (result?.success) {
+        const input = document.getElementById('message-input');
+        if (input) {
+          input.value = `I can make ${option.label.toLowerCase()} work.`;
+          input.focus();
+        }
+        wrap.querySelectorAll('button').forEach(item => { item.disabled = true; });
+        label.textContent = `You chose ${option.label}. Send the suggested reply when ready.`;
+      } else {
+        button.disabled = false;
+      }
+    });
+    wrap.appendChild(button);
+  });
+  area.prepend(wrap);
 }
 
 async function loadConversationMessages(conversationId) {

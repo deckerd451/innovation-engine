@@ -46,16 +46,27 @@ async function respond(connectionId, status, schedule = null) {
   if (error || !data) return { success: false, error: error || { message: 'The collaboration response was not saved.' } };
 
   if (status === 'accepted' && data.from_user_id && window.sendDirectMessage) {
-    const scheduleLabel = SCHEDULE_OPTIONS.find(option => option.value === schedule)?.label || 'a time that works for both of you';
     await window.sendDirectMessage(
       data.from_user_id,
-      `I accepted our Buildspace collaboration invitation. ${scheduleLabel} works for me. ${data.context_prompt || 'Let’s compare what we are building and trade one useful resource.'}`,
+      `I accepted our Buildspace collaboration invitation. ${data.context_prompt || 'Let’s compare what we are building and trade one useful resource.'}`,
+      { collaboration: { connectionId, targetCommunityUserId: data.from_user_id } },
     );
   }
   return { success: true, connection: data };
 }
 
+async function setSchedule(connectionId, schedule) {
+  const client = db();
+  if (!client || !connectionId || !me()) return { success: false };
+  const { data, error } = await client.from('connections')
+    .update({ context_schedule: schedule })
+    .eq('id', connectionId)
+    .select('id, context_schedule')
+    .maybeSingle();
+  return { success: !error && !!data, connection: data, error };
+}
+
 function scheduleOptions() { return SCHEDULE_OPTIONS.slice(); }
 
-window.CollaborationConcierge = { sendInvite, respond, scheduleOptions };
+window.CollaborationConcierge = { sendInvite, respond, setSchedule, accept: connectionId => respond(connectionId, 'accepted'), scheduleOptions };
 window.addEventListener('profile-loaded', () => { window.CollaborationConcierge.ready = true; });

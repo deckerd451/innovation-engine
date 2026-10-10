@@ -39,45 +39,6 @@ function collaborationCompletionMarkup(conn) {
   return `<div class="crp-collab-followup"><span>15-minute collaboration: ${schedule}</span><button class="crp-collab-complete" data-id="${conn.id}" type="button">Mark complete</button></div>`;
 }
 
-function chooseCollaborationSchedule(req) {
-  if (req.context_type !== 'collaboration_concierge' || !window.CollaborationConcierge?.respond) return Promise.resolve();
-  return new Promise(resolve => {
-    const options = window.CollaborationConcierge.scheduleOptions?.() || [];
-    const backdrop = document.createElement('div');
-    backdrop.className = 'crp-collab-backdrop';
-    const dialog = document.createElement('div');
-    dialog.className = 'crp-collab-dialog';
-    dialog.setAttribute('role', 'dialog');
-    dialog.setAttribute('aria-modal', 'true');
-    dialog.innerHTML = '<h3>Make the 15-minute collaboration real</h3><p>Pick a starting window. You can coordinate the exact time in messages.</p>';
-    const close = (result) => { backdrop.remove(); resolve(result); };
-    options.forEach(option => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = option.label;
-      button.addEventListener('click', async () => {
-        button.disabled = true;
-        const result = await window.CollaborationConcierge.respond(req.id, 'accepted', option.value);
-        if (result?.success) showPanelNotification('Invitation accepted. A starter message is ready.', 'success');
-        close(result);
-      });
-      dialog.appendChild(button);
-    });
-    const decline = document.createElement('button');
-    decline.type = 'button';
-    decline.className = 'crp-collab-decline';
-    decline.textContent = 'Decline this invitation';
-    decline.addEventListener('click', async () => {
-      await window.CollaborationConcierge.respond(req.id, 'declined');
-      close({ success: true, status: 'declined' });
-    });
-    dialog.appendChild(decline);
-    backdrop.appendChild(dialog);
-    backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
-    document.body.appendChild(backdrop);
-  });
-}
-
 async function connectionWasAccepted(connectionId) {
   try {
     const { data } = await supabase.from('connections').select('status').eq('id', connectionId).maybeSingle();
@@ -258,7 +219,9 @@ async function loadReceivedRequests() {
           showPanelNotification(err.message, 'error');
           await loadReceivedRequests();
         }
-        if (req.context_type === 'collaboration_concierge' && await connectionWasAccepted(req.id)) await chooseCollaborationSchedule(req);
+        if (req.context_type === 'collaboration_concierge' && await connectionWasAccepted(req.id)) {
+          await window.CollaborationConcierge?.accept?.(req.id);
+        }
       });
     });
 
