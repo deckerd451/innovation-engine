@@ -722,17 +722,10 @@ class StartOnboarding {
     window.EnhancedStartUI.close();
 
     setTimeout(() => {
-      // Switch to circle view if in cards mode
-      if (window.toggleThemeStrategy && typeof window.toggleThemeStrategy === 'function') {
-        const currentStrategy = window.currentStrategy || 'new';
-        if (currentStrategy === 'new') {
-          window.toggleThemeStrategy();
-        }
-      } else {
-        // Fallback: click themes filter
-        const themesBtn = document.querySelector('[data-category="themes"]');
-        if (themesBtn) themesBtn.click();
-      }
+      // Themes now use the unified network filter; the retired strategy
+      // toggle must not open a second visualization.
+      const themesBtn = document.querySelector('[data-category="themes"]');
+      if (themesBtn) themesBtn.click();
     }, 300);
   }
 
