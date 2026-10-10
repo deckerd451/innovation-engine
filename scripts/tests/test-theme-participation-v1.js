@@ -23,7 +23,7 @@ assert(discovery.includes("rpc('confirm_theme_participation'") && discovery.incl
 assert(panel.includes("rpc('confirm_theme_participation'") && panel.includes("rpc('stop_theme_participation'"), 'theme panel must use server RPCs');
 assert(dashboardPane.includes("selectContext?.('theme'") && dashboardPane.includes('isThemeLens: true'), 'theme search must preserve context and open canonical lens');
 assert(dashboardPane.includes("from('theme_circles')"), 'theme search must load full lens data');
-assert(index.includes('id="mob-tab-themes"'), 'mobile navigation must expose Themes');
+assert(index.includes('data-resource="themes"'), 'mobile dashboard must retain Themes in the advanced resource panel');
 assert(mobileNav.includes("themes:") && mobileNav.includes('openThemeDiscoveryModal'), 'mobile Themes tab must reuse discovery');
 assert(discovery.includes('isThemeLens: true') && discovery.includes('openNodePanel'), 'discovery cards must open canonical theme lens');
 assert(discovery.includes("I'm interested") && discovery.includes("I'm participating"), 'UI copy missing');

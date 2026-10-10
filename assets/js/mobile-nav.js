@@ -6,6 +6,18 @@
   window.__CH_MOBILE_NAV_LOADED__ = true;
 
   const tabs = {
+    home: () => {
+      document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
+      document.getElementById('cd-panel-tab')?.focus();
+    },
+    people: () => {
+      document.getElementById('command-dashboard')?.classList.add('cd-mobile-panel');
+      document.querySelector('[data-resource="people"]')?.click();
+    },
+    projects: () => {
+      document.getElementById('command-dashboard')?.classList.add('cd-mobile-panel');
+      document.querySelector('[data-action="focus-projects"]')?.click();
+    },
     'event-mode': () => window.NearifyMobileContext?.showEvent(),
     suggestions: () => window.NearifyMobileContext?.showNearby(),
     themes: () => typeof window.openThemeDiscoveryModal === 'function'
