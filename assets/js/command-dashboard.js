@@ -936,6 +936,13 @@ window.CommandDashboard = (() => {
     // Opportunities: from Supabase (no longer in graph)
     const opps = _enrichedData.opportunities ? _enrichedData.opportunities.length : 0;
 
+    // Organizations follow the same scope as the Explore resource list:
+    // members see their organizations in You, and the available directory in
+    // broader views.
+    const organizations = tier === 1
+      ? (_enrichedData.myOrgIds ? _enrichedData.myOrgIds.size : 0)
+      : (_enrichedData.organizations ? _enrichedData.organizations.length : 0);
+
     const setResourceCount = (resource, value, label) => {
       const el = document.querySelector(`[data-count-for="${resource}"]`);
       if (!el) return;
@@ -946,6 +953,7 @@ window.CommandDashboard = (() => {
 
     setResourceCount('people', connections, 'connected people');
     setResourceCount('projects', projects, 'projects');
+    setResourceCount('organizations', organizations, 'organizations');
     setResourceCount('opportunities', opps, 'opportunities');
   }
 
