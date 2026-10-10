@@ -496,6 +496,17 @@ export async function sendConnectionRequest(recipientCommunityId, targetName = "
       return { success: false };
     }
 
+    // Give the sender a clear moment of intent using the app's existing
+    // confirmation surface. The recipient will see a pending request and can
+    // accept or decline it; no duplicate messaging flow is created here.
+    if (typeof window.dsConfirm === "function") {
+      const confirmed = await window.dsConfirm({
+        message: `Send a connection request to ${targetName}? They can accept or decline it.`,
+        confirmLabel: "Send request",
+      });
+      if (!confirmed) return { success: false, status: "canceled" };
+    }
+
     showToast(`Connecting with ${targetName}...`, "info");
 
     const existing = await getConnectionBetween(currentUserCommunityId, recipientCommunityId);
