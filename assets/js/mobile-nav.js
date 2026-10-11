@@ -32,7 +32,9 @@
       setMobileMapButton(false);
       removeMobileRightNow();
       removeMobileNetworkHistory();
-      document.querySelector('[data-resource="people"]')?.click();
+      // Explore starts with Skills: it is the broadest discovery surface,
+      // while the People tab remains available for intentional browsing.
+      document.querySelector('[data-resource="themes"]')?.click();
       const exploreToggle = document.getElementById('cd-explore-toggle');
       if (exploreToggle) exploreToggle.querySelector('span').textContent = 'Explore';
       const toggle = document.getElementById('cd-explore-toggle');
