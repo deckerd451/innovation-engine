@@ -442,7 +442,7 @@ window.CommandDashboard = (() => {
     const key = `ie:synapse-next-move:${_profile.id}`;
     let dismissed = false;
     try { dismissed = localStorage.getItem(key) === 'dismissed'; } catch (_) {}
-    if (dismissed) {
+    if (dismissed && window.innerWidth >= 1024) {
       welcome.innerHTML = '';
       if (!_unreadMessages) focus.style.display = 'none';
       return;
@@ -459,18 +459,23 @@ window.CommandDashboard = (() => {
       _profile.image_url || _profile.avatar_storage_path,
     ];
     const profileComplete = profileFields.filter(Boolean).length >= 4;
+    const isMobile = window.innerWidth < 1024;
     const title = _unreadMessages > 0
       ? 'You have a conversation waiting.'
       : !profileComplete
         ? 'Add the details people need to find you.'
-        : '';
+        : isMobile
+          ? 'Your next useful step starts here.'
+          : '';
     const copy = _unreadMessages > 0
       ? 'Reply while the context is fresh.'
       : !profileComplete
         ? 'Your bio, skills, or interests are missing, so recommendations may stay broad.'
-        : '';
-    const primaryAction = _unreadMessages > 0 ? 'messages' : !profileComplete ? 'profile' : null;
-    const primaryLabel = _unreadMessages > 0 ? 'Reply now' : !profileComplete ? 'Improve profile' : '';
+        : isMobile
+          ? 'Explore people, projects, and opportunities matched to your interests.'
+          : '';
+    const primaryAction = _unreadMessages > 0 ? 'messages' : !profileComplete ? 'profile' : isMobile ? 'explore' : null;
+    const primaryLabel = _unreadMessages > 0 ? 'Reply now' : !profileComplete ? 'Improve profile' : isMobile ? 'Explore now' : '';
     if (!primaryAction) {
       welcome.innerHTML = '';
       focus.style.display = _unreadMessages ? '' : 'none';
@@ -485,7 +490,7 @@ window.CommandDashboard = (() => {
         </div>
         <div class="cd-next-move-actions">
           <button type="button" class="cd-focus-cta" data-welcome-action="${primaryAction}">${primaryLabel}</button>
-          <button type="button" class="cd-next-move-dismiss" data-welcome-action="dismiss" aria-label="Dismiss next move">×</button>
+          ${primaryAction === 'explore' ? '' : '<button type="button" class="cd-next-move-dismiss" data-welcome-action="dismiss" aria-label="Dismiss next move">×</button>'}
         </div>
       </section>`;
     focus.style.display = '';
@@ -505,6 +510,8 @@ window.CommandDashboard = (() => {
           document.getElementById('cd-messages-btn')?.click();
         } else if (action === 'profile') {
           document.getElementById('cd-avatar')?.click();
+        } else if (action === 'explore') {
+          document.getElementById('mob-tab-explore')?.click();
         }
       });
     });
