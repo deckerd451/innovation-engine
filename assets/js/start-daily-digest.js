@@ -564,7 +564,7 @@ function _renderBriefSection(meta, items, excludePersonId = null) {
 function renderDailyBriefBlock(brief, excludePersonId = null) {
   var SECTIONS = [
     { key: 'opportunities_for_you', title: 'For You',              icon: '🎯' },
-    { key: 'people_worth_knowing',  title: 'People Worth Knowing',  icon: '👥' },
+    { key: 'people_worth_knowing',  title: 'People to meet',         icon: '👥' },
     { key: 'signals_moving',        title: 'Recently Active',       icon: '⚡' },
     { key: 'your_pattern',          title: 'Your Pattern (this device)', icon: '📊' },
   ];
@@ -600,7 +600,7 @@ function renderDailyBriefBlock(brief, excludePersonId = null) {
   if (awake > 0) {
     const awakeEl = document.createElement('span');
     awakeEl.style.cssText = 'color:rgba(0,255,136,0.65);font-size:0.71rem;margin-left:auto;';
-    awakeEl.textContent   = Math.round(awake * 100) + '% network active';
+    awakeEl.textContent   = Math.round(awake * 100) + '% recently active';
     hdr.appendChild(awakeEl);
   }
 

@@ -257,6 +257,7 @@ window.CommandDashboard = (() => {
     $all('.udc-resource-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const resource = tab.dataset.resource;
+        _setExploreExpanded(true);
         if (resource === _activeResourceTab) return;
 
         _activeResourceTab = resource;
@@ -1849,8 +1850,8 @@ window.CommandDashboard = (() => {
     const defs = {
       people: {
         icon: 'fa-user-plus',
-        msg: 'No connections yet',
-        hint: 'Search for people to connect with',
+        msg: 'No people here yet',
+        hint: 'Search your network to find someone relevant',
         cta: 'Find People',
         action: () => {
           const input = document.getElementById('global-search');
@@ -1859,29 +1860,29 @@ window.CommandDashboard = (() => {
       },
       projects: {
         icon: 'fa-rocket',
-        msg: 'No projects yet',
-        hint: 'Start or join a project to collaborate',
+        msg: 'No projects here yet',
+        hint: 'Start or join one to collaborate',
         cta: 'Create Project',
         action: () => document.getElementById('udc-add-resource-btn')?.click(),
       },
       themes: {
         icon: 'fa-lightbulb',
-        msg: 'No skills in view',
+        msg: 'No skills here yet',
         hint: 'Skills help you find relevant people and projects',
         cta: null,
         action: null,
       },
       organizations: {
         icon: 'fa-building',
-        msg: 'No organizations',
-        hint: 'Join or create an organization',
+        msg: 'No organizations here yet',
+        hint: 'Join one to find people working toward a shared goal',
         cta: 'Create Org',
         action: () => document.getElementById('udc-add-resource-btn')?.click(),
       },
       opportunities: {
         icon: 'fa-star',
-        msg: 'No opportunities',
-        hint: 'Post or discover open opportunities',
+        msg: 'No opportunities here yet',
+        hint: 'Discover open ways to contribute',
         cta: 'Post Opportunity',
         action: () => document.getElementById('udc-add-resource-btn')?.click(),
       },
@@ -1944,10 +1945,27 @@ window.CommandDashboard = (() => {
     });
   }
 
-  /** Explore section is always visible — no toggle needed */
-  function _wireExploreToggle() {
+  function _setExploreExpanded(expanded) {
     const body = $id('cd-explore-body');
-    if (body) body.hidden = false;
+    const toggle = $id('cd-explore-toggle');
+    if (!body || !toggle) return;
+    const next = window.innerWidth >= 1024 ? true : Boolean(expanded);
+    body.hidden = !next;
+    toggle.setAttribute('aria-expanded', String(next));
+    toggle.querySelector('i')?.classList.toggle('fa-chevron-up', next);
+    toggle.querySelector('i')?.classList.toggle('fa-chevron-down', !next);
+  }
+
+  function _wireExploreToggle() {
+    const toggle = $id('cd-explore-toggle');
+    const body = $id('cd-explore-body');
+    if (!toggle || !body || toggle.dataset.wired === 'true') return;
+    toggle.dataset.wired = 'true';
+    toggle.addEventListener('click', () => {
+      _setExploreExpanded(toggle.getAttribute('aria-expanded') !== 'true');
+    });
+    _setExploreExpanded(window.innerWidth >= 1024);
+    window.addEventListener('resize', () => _setExploreExpanded(toggle.getAttribute('aria-expanded') === 'true'), { passive: true });
   }
 
   /** Auto-open the Insights section once content is ready (first action surface) */
@@ -2003,6 +2021,19 @@ window.CommandDashboard = (() => {
 
     try { setCollapsed(localStorage.getItem('networkReflectionCollapsed') === 'true'); } catch (_) { setCollapsed(false); }
     toggle.addEventListener('click', () => setCollapsed(!document.body.classList.contains('reflection-collapsed')));
+
+    const moreToggle = $id('network-reflection-more-toggle');
+    const secondary = $id('network-reflection-secondary');
+    if (moreToggle && secondary && moreToggle.dataset.wired !== 'true') {
+      moreToggle.dataset.wired = 'true';
+      moreToggle.addEventListener('click', () => {
+        const expanded = moreToggle.getAttribute('aria-expanded') === 'true';
+        moreToggle.setAttribute('aria-expanded', String(!expanded));
+        moreToggle.classList.toggle('is-open', !expanded);
+        secondary.hidden = expanded;
+      });
+      secondary.hidden = window.innerWidth < 1024;
+    }
 
     const setSize = (clientX, clientY) => {
       if (window.innerWidth >= 1024) {

@@ -156,6 +156,7 @@ body.reflection-resizing #network-reflection { transition:none; }
 .cd-welcome-dismiss:hover,.cd-welcome-dismiss:focus-visible { color:#fff; text-decoration:underline; }
 
 @media (min-width:1024px) {
+  #network-reflection-more-toggle { display:none; }
   #network-reflection { position:absolute; z-index:550; top:0; right:0; bottom:0; width:var(--reflection-width); border-left:1px solid rgba(0,224,255,.18); }
   body.panel-collapsed #synapse-main-view { right:var(--reflection-width)!important; }
   #network-reflection-resizer { top:0; bottom:0; left:-5px; width:10px; cursor:col-resize; }
@@ -401,8 +402,8 @@ body.reflection-resizing #network-reflection { transition:none; }
 
   /* Resource list — constrained height, scrollable */
   #command-dashboard.cd-mobile-panel #udc-resource-list {
-    max-height: 140px;
-    overflow-y: auto;
+    max-height: none;
+    overflow-y: visible;
   }
   #command-dashboard.cd-mobile-panel .udc-resource-item {
     padding: 0.35rem 0.5rem;
@@ -654,16 +655,21 @@ body.reflection-resizing #network-reflection { transition:none; }
 
 .udc-resource-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
   gap: 0.3rem;
   margin-bottom: 0.75rem;
 }
+.udc-resource-tabs::-webkit-scrollbar { display:none; }
 
 .udc-resource-tab {
   /* 3 per row on row-1, 2 per row on row-2 via flex-basis */
-  flex: 1 1 28%;
-  padding: 0.3rem 0.25rem;
-  font-size: 0.6rem;
+  flex: 0 0 auto;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -705,6 +711,8 @@ body.reflection-resizing #network-reflection { transition:none; }
   flex-direction: column;
   gap: 0.25rem;
 }
+
+#network-reflection-secondary[hidden] { display:none; }
 
 .udc-resource-item {
   display: flex;
@@ -1649,8 +1657,8 @@ body.reflection-resizing #network-reflection { transition:none; }
     padding: 0.4rem 0.75rem 0.4rem;
   }
   #command-dashboard.cd-mobile-panel #udc-resource-list {
-    max-height: 120px;
-    overflow-y: auto;
+    max-height: none;
+    overflow-y: visible;
   }
   #command-dashboard.cd-mobile-panel .cd-deep-actions {
     display: none; /* hide tier toggle on mobile — graph gestures handle it */
@@ -1943,7 +1951,10 @@ body.reflection-resizing #network-reflection { transition:none; }
 @media (max-width:1023px) {
   .udc-resource-label-web { display:none; }
   .udc-resource-label-mobile { display:inline; }
-  .udc-resource-tab { min-height:38px; padding:.55rem .7rem; }
+  .udc-resource-tab { min-height:44px; padding:.55rem .8rem; font-size:.8rem; }
   .cd-status-pill { min-height:48px; }
   .network-reflection-header { text-transform:none; letter-spacing:.02em; }
+  .network-reflection-more-toggle { min-height:44px; font-size:.8rem; }
+  #command-dashboard.cd-mobile-panel .udc-resource-name { font-size:.9rem; }
+  #command-dashboard.cd-mobile-panel .udc-resource-meta { font-size:.78rem; }
 }
