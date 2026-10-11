@@ -27,6 +27,8 @@ let _briefEnginePromise = null;
 let _lastDailyBrief = null;
 let _conciergeSaved = false;
 let _conciergeDismissed = new Set();
+let _conciergePendingIds = new Set();
+let _conciergePendingLoadedFor = null;
 
 function _conciergeStorageKey(profile) {
   const id = profile?.id || profile?.user_id || window.currentUserProfile?.id || 'anonymous';
@@ -42,6 +44,40 @@ function _loadConciergeState(profile) {
     _conciergeSaved = !!state.saved;
     _conciergeDismissed = new Set(Array.isArray(state.dismissed) ? state.dismissed.map(String) : []);
   } catch (_) { /* local storage is optional */ }
+}
+
+// One Move must never suggest someone who already has an outbound request
+// waiting. Keep this state scoped to the current community profile and reuse
+// it for the Daily Brief and the desktop Reflection card so the two surfaces
+// cannot disagree.
+async function _loadConciergePendingConnections(profile) {
+  const communityId = profile?.id || profile?.community_id;
+  const client = window.supabase;
+  if (!client || !communityId) {
+    _conciergePendingIds = new Set();
+    _conciergePendingLoadedFor = null;
+    return _conciergePendingIds;
+  }
+  if (_conciergePendingLoadedFor === String(communityId)) return _conciergePendingIds;
+  try {
+    const { data, error } = await client
+      .from('connections')
+      .select('from_user_id, to_user_id')
+      .eq('status', 'pending')
+      .or(`from_user_id.eq.${communityId},to_user_id.eq.${communityId}`);
+    if (error) throw error;
+    _conciergePendingIds = new Set((data || [])
+      .filter(row => String(row.from_user_id) === String(communityId))
+      .map(row => String(row.to_user_id)));
+    _conciergePendingLoadedFor = String(communityId);
+  } catch (error) {
+    // Suggestions remain available if the optional status check cannot load;
+    // the send action still performs its own authoritative duplicate check.
+    _conciergePendingIds = new Set();
+    _conciergePendingLoadedFor = String(communityId);
+    console.info('[NetworkReflection] Pending connection filter unavailable:', error?.message || error);
+  }
+  return _conciergePendingIds;
 }
 
 function _saveConciergeState(profile) {
@@ -81,7 +117,10 @@ function _conciergeCandidates(brief) {
 
 function _getConciergeCandidate(brief, profile) {
   _loadConciergeState(profile);
-  return _conciergeCandidates(brief).find(item => !_conciergeDismissed.has(item.id)) || null;
+  return _conciergeCandidates(brief).find(item => (
+    !_conciergeDismissed.has(item.id)
+    && (item.type !== 'person' || !_conciergePendingIds.has(String(item.entityId)))
+  )) || null;
 }
 
 /**
@@ -724,6 +763,7 @@ class StartDailyDigest {
       }
 
       _lastDailyBrief = brief;
+      await _loadConciergePendingConnections(window.currentUserProfile);
       const concierge = _getConciergeCandidate(brief, window.currentUserProfile);
       root.textContent = '';
       const renderedBrief = renderDailyBriefBlock(brief, concierge?.id || null);
@@ -1602,6 +1642,7 @@ async function _recordReflectionWatermark(profile) {
 async function _renderReflectionSupportContent() {
   const focus = document.getElementById('network-reflection-focus');
   if (focus) {
+    await _loadConciergePendingConnections(window.currentUserProfile);
     const concierge = _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile);
     const focusTitle = focus.closest('.network-reflection-section')?.querySelector('h2');
     if (concierge) {
@@ -1701,6 +1742,7 @@ function _renderCollaborationConcierge(root, candidate) {
       ? await window.CollaborationConcierge.sendInvite(candidate.entityId, candidate.name, candidate.reason)
       : await window.sendConnectionRequest(candidate.entityId, candidate.name, 'collaborator');
     if (result?.success) {
+      _conciergePendingIds.add(String(candidate.entityId));
       _conciergeSaved = true;
       _saveConciergeState(window.currentUserProfile);
       invite.textContent = 'Request sent';
