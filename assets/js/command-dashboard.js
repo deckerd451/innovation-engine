@@ -439,11 +439,7 @@ window.CommandDashboard = (() => {
     const welcome = $id('cd-focus-welcome');
     const focus = $id('cd-focus');
     if (!welcome || !_profile?.id) return;
-    const createdAt = Date.parse(_profile.created_at || '');
-    const established = Number.isFinite(createdAt)
-      ? Date.now() - createdAt > 7 * 24 * 60 * 60 * 1000
-      : !!_profile.profile_completed;
-    const key = `ie:synapse-welcome:${_profile.id}`;
+    const key = `ie:synapse-next-move:${_profile.id}`;
     let dismissed = false;
     try { dismissed = localStorage.getItem(key) === 'dismissed'; } catch (_) {}
     if (dismissed) {
@@ -464,30 +460,32 @@ window.CommandDashboard = (() => {
     ];
     const profileComplete = profileFields.filter(Boolean).length >= 4;
     const title = !profileComplete
-      ? 'Help people find you.'
+      ? 'Add the details people need to find you.'
       : _unreadMessages > 0
         ? 'You have a conversation waiting.'
-        : established
-          ? 'Find one useful conversation.'
-          : 'Take one small step toward your network.';
+        : '';
     const copy = !profileComplete
-      ? 'Add a bio, skills, and interests so recommendations feel relevant.'
+      ? 'Your bio, skills, or interests are missing, so recommendations may stay broad.'
       : _unreadMessages > 0
         ? 'Reply while the context is fresh.'
-        : 'Start with someone relevant to what you’re building.';
-    const primaryAction = !profileComplete ? 'profile' : _unreadMessages > 0 ? 'messages' : 'people';
-    const primaryLabel = !profileComplete ? 'Complete profile' : _unreadMessages > 0 ? 'Review messages' : 'Find people';
+        : '';
+    const primaryAction = !profileComplete ? 'profile' : _unreadMessages > 0 ? 'messages' : null;
+    const primaryLabel = !profileComplete ? 'Improve profile' : _unreadMessages > 0 ? 'Reply now' : '';
+    if (!primaryAction) {
+      welcome.innerHTML = '';
+      focus.style.display = _unreadMessages ? '' : 'none';
+      return;
+    }
     welcome.innerHTML = `
-      <section class="cd-welcome-guide" aria-labelledby="cd-welcome-title">
-        <div class="cd-welcome-guide-copy">
-          <div class="cd-focus-primary-label">Welcome back</div>
-          <h3 id="cd-welcome-title">${title}</h3>
+      <section class="cd-next-move" aria-labelledby="cd-next-move-title">
+        <div class="cd-next-move-copy">
+          <div class="cd-focus-primary-label">Next move</div>
+          <h3 id="cd-next-move-title">${title}</h3>
           <p>${copy}</p>
         </div>
-        <div class="cd-welcome-guide-actions">
+        <div class="cd-next-move-actions">
           <button type="button" class="cd-focus-cta" data-welcome-action="${primaryAction}">${primaryLabel}</button>
-          <button type="button" class="cd-focus-cta cd-welcome-secondary" data-welcome-action="network">View my network</button>
-          <button type="button" class="cd-welcome-dismiss" data-welcome-action="dismiss">Maybe later</button>
+          <button type="button" class="cd-next-move-dismiss" data-welcome-action="dismiss" aria-label="Dismiss next move">×</button>
         </div>
       </section>`;
     focus.style.display = '';
@@ -507,23 +505,6 @@ window.CommandDashboard = (() => {
           document.getElementById('cd-messages-btn')?.click();
         } else if (action === 'profile') {
           document.getElementById('cd-avatar')?.click();
-        } else if (action === 'network') {
-          button.disabled = true;
-          button.textContent = 'Opening network…';
-          try {
-            // Use the same tier controller as the rest of the dashboard so
-            // this action changes the graph rather than only clearing a glow.
-            await switchTier(1);
-            if (_userId && window.GraphController?.focusNode) {
-              window.GraphController.focusNode(_userId, { openPanel: false });
-            } else {
-              window.GraphController?.resetToTierDefault?.();
-            }
-            document.getElementById('synapse-main-view')?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
-          } finally {
-            button.disabled = false;
-            button.textContent = 'View my network';
-          }
         }
       });
     });
