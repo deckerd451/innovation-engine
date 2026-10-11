@@ -15,6 +15,8 @@
       const dashboard = document.getElementById('command-dashboard');
       dashboard?.classList.remove('cd-mobile-panel');
       dashboard?.style.removeProperty('display');
+      document.body.classList.remove('mobile-network-list');
+      setMobileMapButton(false);
       document.getElementById('cd-panel-tab')?.focus();
     },
     explore: () => {
@@ -24,14 +26,33 @@
       const dashboard = document.getElementById('command-dashboard');
       dashboard?.classList.add('cd-mobile-panel');
       dashboard?.style.removeProperty('display');
+      document.body.classList.remove('mobile-network-list');
+      setMobileMapButton(false);
+      document.querySelector('[data-resource="people"]')?.click();
+      const exploreToggle = document.getElementById('cd-explore-toggle');
+      if (exploreToggle) exploreToggle.querySelector('span').textContent = 'Explore';
       const toggle = document.getElementById('cd-explore-toggle');
       if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
       document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
     network: () => {
-      window.CommandDashboard?.setWorkspaceView?.('network');
-      document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
-      document.getElementById('command-dashboard')?.style.removeProperty('display');
+      // Mobile Network opens as a readable people list. The existing graph
+      // remains available through the explicit View map action.
+      document.body.classList.add('buildspace-view-today');
+      document.body.classList.remove('buildspace-view-network');
+      window.CommandDashboard?.setWorkspaceView?.('today');
+      const dashboard = document.getElementById('command-dashboard');
+      dashboard?.classList.add('cd-mobile-panel');
+      dashboard?.style.removeProperty('display');
+      document.body.classList.add('mobile-network-list');
+      document.querySelector('[data-resource="people"]')?.click();
+      const toggle = document.getElementById('cd-explore-toggle');
+      if (toggle) {
+        toggle.querySelector('span').textContent = 'Network';
+        if (toggle.getAttribute('aria-expanded') === 'false') toggle.click();
+      }
+      setMobileMapButton(true);
+      document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
     'event-mode': () => window.NearifyMobileContext?.showEvent(),
     suggestions: () => window.NearifyMobileContext?.showNearby(),
@@ -43,6 +64,27 @@
       : window.openMessagesModal?.(),
     profile: showMobileProfileSheet,
   };
+
+  function setMobileMapButton(show) {
+    const row = document.querySelector('#cd-explore .cd-section-toggle-row');
+    if (!row) return;
+    let button = document.getElementById('cd-mobile-view-map');
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'cd-mobile-view-map';
+      button.className = 'cd-mobile-view-map';
+      button.innerHTML = '<i class="fas fa-project-diagram" aria-hidden="true"></i><span>View map</span>';
+      button.addEventListener('click', () => {
+        window.CommandDashboard?.setWorkspaceView?.('network');
+        document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
+        document.body.classList.remove('mobile-network-list');
+        button.hidden = true;
+      });
+      row.appendChild(button);
+    }
+    button.hidden = !show;
+  }
 
   function showMobileProfileSheet() {
     if (typeof window.openProfileModal !== 'function') return;

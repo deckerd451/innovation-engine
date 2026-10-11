@@ -169,6 +169,40 @@ body.reflection-resizing #network-reflection { transition:none; }
 }
 
 @media (max-width:1023px) {
+  /* Mobile is a decision surface, not a compressed desktop canvas. */
+  #command-dashboard .cd-identity { display:none!important; }
+  body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) .cd-search,
+  body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) .buildspace-view-switcher,
+  body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) #cd-explore { display:none!important; }
+  body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) #cd-focus {
+    min-height:calc(100dvh - 60px - env(safe-area-inset-bottom,0px));
+    display:flex; flex-direction:column; justify-content:center; padding:1rem .75rem 2rem;
+  }
+  body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) #cd-focus-welcome:empty { display:none; }
+  #command-dashboard.cd-mobile-panel .cd-search { display:none!important; }
+  #command-dashboard.cd-mobile-panel #cd-explore { margin:0; }
+  #command-dashboard.cd-mobile-panel .cd-section-toggle-row { align-items:center; padding:.8rem .75rem .65rem; }
+  #command-dashboard.cd-mobile-panel .cd-section-toggle { font-size:.9rem; letter-spacing:.02em; text-transform:none; }
+  #command-dashboard.cd-mobile-panel .udc-resource-tabs {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.55rem; padding:.65rem .75rem .75rem;
+  }
+  #command-dashboard.cd-mobile-panel .udc-resource-tab {
+    min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:.35rem;
+    padding:.7rem .75rem; border:1px solid rgba(0,224,255,.14); border-radius:12px;
+    background:rgba(255,255,255,.035); color:rgba(255,255,255,.62); font-size:.78rem; text-align:left;
+  }
+  #command-dashboard.cd-mobile-panel .udc-resource-tab.active { border-color:rgba(0,224,255,.65); background:linear-gradient(145deg,rgba(0,224,255,.16),rgba(0,224,255,.045)); color:#fff; }
+  #command-dashboard.cd-mobile-panel .udc-resource-count { color:#00e0ff; font-size:.82rem; font-weight:800; }
+  #command-dashboard.cd-mobile-panel #udc-resource-list { padding:0 .75rem 1rem; }
+  #command-dashboard.cd-mobile-panel .udc-resource-item { min-height:58px; padding:.65rem .7rem; border-radius:11px; background:rgba(255,255,255,.035); }
+  #command-dashboard.cd-mobile-panel .udc-resource-name { font-size:.86rem; }
+  #command-dashboard.cd-mobile-panel .udc-resource-context { color:rgba(0,224,255,.72); font-size:.68rem; }
+  .cd-mobile-view-map { display:inline-flex; align-items:center; gap:.35rem; min-height:34px; padding:.35rem .55rem; border:1px solid rgba(0,224,255,.32); border-radius:8px; background:rgba(0,224,255,.08); color:#8beeff; font:inherit; font-size:.68rem; font-weight:700; cursor:pointer; }
+  .cd-mobile-view-map[hidden] { display:none; }
+  body.mobile-network-list #command-dashboard.cd-mobile-panel .udc-resource-tabs .udc-resource-tab:not([data-resource="people"]) { display:none; }
+  body.mobile-network-list #command-dashboard.cd-mobile-panel .udc-resource-tabs { display:block; padding-bottom:.35rem; }
+  body.mobile-network-list #command-dashboard.cd-mobile-panel .udc-resource-tab[data-resource="people"] { display:flex; width:100%; }
+
   /* One predictable top action rail: admin stays left, message/action
      controls stay grouped right, all below the device safe area. */
   #mobile-header-actions {
