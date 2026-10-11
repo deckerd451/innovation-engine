@@ -1706,6 +1706,9 @@ async function renderPersonPanel(nodeData) {
           <button onclick="closeNodePanel(); window.openProfileEditor?.();" style="width: 100%; padding: 0.85rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 10px; color: white; font-weight: 700; cursor: pointer; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 12px rgba(0,224,255,0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,224,255,0.5)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,224,255,0.3)';">
             <i class="fas fa-edit"></i> Edit Profile
           </button>
+          <button id="profile-logout-btn" type="button" onclick="window.doLogout?.();" style="width: 100%; margin-top: .65rem; padding: .7rem .85rem; background: rgba(255,107,107,.08); border: 1px solid rgba(255,107,107,.35); border-radius: 10px; color: #ff9a9a; font-weight: 700; cursor: pointer; font-size: .9rem;">
+            <i class="fas fa-sign-out-alt"></i> Log out
+          </button>
         </div>
       ` : ''}
     </div>
