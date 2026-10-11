@@ -183,12 +183,16 @@ body.reflection-resizing #network-reflection { transition:none; }
   .cd-mobile-context-eyebrow { color:#d7c6ff; font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
   .cd-mobile-greeting { margin-top:.18rem; color:#fff; font-size:1.05rem; font-weight:800; letter-spacing:-.01em; }
   .cd-mobile-context-copy { margin:.28rem 0 .65rem; color:rgba(224,232,255,.62); font-size:.76rem; line-height:1.4; }
+  .cd-mobile-next-headline { margin-top:.55rem; color:#fff; font-size:1.12rem; font-weight:800; line-height:1.2; letter-spacing:-.02em; }
+  .cd-mobile-brief-meta { margin-top:.65rem; color:rgba(158,239,255,.72); font-size:.7rem; font-weight:700; }
   .cd-mobile-context-loading,.cd-mobile-intent-empty { color:rgba(224,232,255,.58); font-size:.76rem; line-height:1.45; }
   .cd-mobile-intent-list { display:grid; gap:.4rem; }
   .cd-mobile-intent-row { display:flex; align-items:baseline; justify-content:space-between; gap:.7rem; padding:.45rem .55rem; border-radius:8px; background:rgba(255,255,255,.05); }
   .cd-mobile-intent-row span { color:rgba(224,232,255,.58); font-size:.7rem; }
   .cd-mobile-intent-row strong { min-width:0; overflow:hidden; color:#fff; font-size:.78rem; text-overflow:ellipsis; white-space:nowrap; }
   .cd-mobile-context-link { margin-top:.65rem; padding:0; border:0; background:transparent; color:#9eefff; font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }
+  .cd-mobile-context-action { display:inline-flex; align-items:center; justify-content:space-between; width:100%; margin-top:.8rem; min-height:40px; padding:.55rem .7rem; border:1px solid rgba(0,224,255,.34); border-radius:9px; background:rgba(0,224,255,.1); color:#dffbff; font:inherit; font-size:.78rem; font-weight:800; cursor:pointer; }
+  .cd-mobile-context-action span { color:#00e0ff; font-size:1rem; }
   .cd-mobile-network-history { margin-top:.8rem; }
   .cd-mobile-discover-mode { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.35rem; margin:.6rem .75rem .15rem; padding:.25rem; border:1px solid rgba(255,255,255,.1); border-radius:10px; background:rgba(255,255,255,.035); }
   .cd-mobile-discover-mode button { min-height:34px; border:0; border-radius:7px; background:transparent; color:rgba(224,232,255,.58); font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }

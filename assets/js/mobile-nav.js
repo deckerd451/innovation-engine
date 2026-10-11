@@ -124,18 +124,50 @@
       const name = String(profile.full_name || profile.name || profile.username || '').trim().split(/\s+/)[0];
       const hour = new Date().getHours();
       const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-      card.innerHTML = `<div class="cd-mobile-context-eyebrow" id="cd-mobile-right-now-title">Right now</div>
+      const unreadBadge = document.getElementById('cd-messages-badge');
+      const unread = Number.parseInt(unreadBadge?.textContent || '0', 10) || 0;
+      const peopleCount = document.querySelector('[data-count-for="people"]')?.textContent?.trim();
+      const opportunityCount = document.querySelector('[data-count-for="opportunities"]')?.textContent?.trim();
+      const hasPeople = peopleCount && Number.parseInt(peopleCount, 10) > 0;
+      const hasOpportunities = opportunityCount && Number.parseInt(opportunityCount, 10) > 0;
+      const firstIntent = intents[0]?.subject_label || '';
+      const action = unread > 0 ? 'messages' : intents.length ? 'people' : 'profile-intent';
+      const headline = unread > 0
+        ? `${unread} conversation${unread === 1 ? '' : 's'} waiting for you`
+        : intents.length
+          ? `Find a useful connection around ${firstIntent}`
+          : 'Give Buildspace one thing to work with';
+      const copy = unread > 0
+        ? 'A reply is the fastest way to keep momentum.'
+        : intents.length
+          ? 'Your focus is shared with people who may fit.'
+          : 'Share what you need or can offer, and your suggestions get sharper.';
+      const actionLabel = unread > 0 ? 'Open messages' : intents.length ? 'Find people' : 'Set your focus';
+      const counts = hasPeople || hasOpportunities
+        ? `<div class="cd-mobile-brief-meta">${hasPeople ? `${escape(peopleCount)} people` : ''}${hasPeople && hasOpportunities ? ' · ' : ''}${hasOpportunities ? `${escape(opportunityCount)} opportunities` : ''}</div>`
+        : '';
+      card.innerHTML = `<div class="cd-mobile-context-eyebrow" id="cd-mobile-right-now-title">Today</div>
         <div class="cd-mobile-greeting">${escape(greeting)}${name ? `, ${escape(name)}` : ''}</div>
-        <p class="cd-mobile-context-copy">Your current focus helps the right people find you.</p>
-        <div class="cd-mobile-intent-list">${rows || '<div class="cd-mobile-intent-empty">Nothing shared yet. Add a focus from your profile.</div>'}</div>
-        <button type="button" class="cd-mobile-context-link" data-open-profile-intent>Update in You</button>`;
-      card.querySelector('[data-open-profile-intent]')?.addEventListener('click', () => {
-        window.openProfileModal?.();
-        window.setTimeout(() => {
-          const intentCard = document.querySelector('#profile-modal .ch-right-now-card');
-          intentCard?.classList.add('mobile-intent-editor-open');
-          intentCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 80);
+        <div class="cd-mobile-next-headline">${escape(headline)}</div>
+        <p class="cd-mobile-context-copy">${escape(copy)}</p>
+        ${rows ? `<div class="cd-mobile-intent-list">${rows}</div>` : ''}
+        ${counts}
+        <button type="button" class="cd-mobile-context-action" data-mobile-today-action="${action}">${escape(actionLabel)} <span aria-hidden="true">→</span></button>`;
+      card.querySelector('[data-mobile-today-action]')?.addEventListener('click', (event) => {
+        const nextAction = event.currentTarget.dataset.mobileTodayAction;
+        if (nextAction === 'messages') {
+          tabs.messages();
+        } else if (nextAction === 'people') {
+          setDiscoverMode('network');
+          document.querySelector('[data-resource="people"]')?.click();
+        } else {
+          window.openProfileModal?.();
+          window.setTimeout(() => {
+            const intentCard = document.querySelector('#profile-modal .ch-right-now-card');
+            intentCard?.classList.add('mobile-intent-editor-open');
+            intentCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 80);
+        }
       });
     } catch (error) {
       console.warn('[MobileNav] current intent load failed:', error);
