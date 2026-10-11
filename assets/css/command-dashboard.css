@@ -169,6 +169,23 @@ body.reflection-resizing #network-reflection { transition:none; }
 }
 
 @media (max-width:1023px) {
+  /* One predictable top action rail: admin stays left, message/action
+     controls stay grouped right, all below the device safe area. */
+  #mobile-header-actions {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+    right: 12px !important;
+    left: auto !important;
+    gap: .5rem !important;
+    z-index: 701 !important;
+  }
+  #mobile-header-actions .mobile-notif-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
   /* Mobile has one persistent message entry point in the global header.
      Keep the dashboard's desktop identity control from duplicating it when
      the People or Projects panel is opened. */
@@ -199,7 +216,7 @@ body.reflection-resizing #network-reflection { transition:none; }
     position:fixed;
     top:calc(12px + env(safe-area-inset-top,0px));
     left:12px;
-    z-index:700;
+    z-index:701;
     width:44px;
     height:44px;
     align-items:center;
