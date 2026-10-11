@@ -453,7 +453,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     if (typeof window.StartDailyDigest?.isMobileSplit === 'function') {
       return window.StartDailyDigest.isMobileSplit();
     }
-    return window.matchMedia('(max-width: 768px)').matches;
+    return window.matchMedia('(max-width: 1023px)').matches;
   }
 
   function _showMobileSplitView() {
@@ -1335,7 +1335,7 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
       background: rgba(0,224,255,0.5);
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 1023px) {
       #unified-notification-panel {
         top: 70px !important;
         right: 10px !important;

@@ -731,7 +731,7 @@
   --safe-top: env(safe-area-inset-top, 0px);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   /* Full-screen modal behavior - override ALL constraints */
   #messages-modal {
     position: fixed !important;

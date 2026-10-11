@@ -2,7 +2,7 @@
 // modules remain available to desktop/test surfaces but are not mobile paths.
 (() => {
   'use strict';
-  if (window.__CH_MOBILE_NAV_LOADED__ || window.innerWidth >= 1024) return;
+  if (window.__CH_MOBILE_NAV_LOADED__) return;
   window.__CH_MOBILE_NAV_LOADED__ = true;
 
   const tabs = {
@@ -64,6 +64,8 @@
 
   function wire() {
     document.querySelectorAll('.mob-tab[data-tab]').forEach((button) => {
+      if (button.dataset.mobileNavWired === 'true') return;
+      button.dataset.mobileNavWired = 'true';
       button.addEventListener('click', () => {
         document.querySelectorAll('.mob-tab[data-tab]').forEach((tab) => {
           const active = tab === button;
@@ -81,13 +83,14 @@
         event.preventDefault();
       });
     });
-    const source = document.getElementById('cd-messages-badge');
-    const target = document.getElementById('mob-tab-messages-badge');
-    if (source && target) {
-      const sync = () => { const hidden = source.style.display === 'none' || !source.textContent.trim(); target.style.display = hidden ? 'none' : ''; target.textContent = source.textContent; };
-      new MutationObserver(sync).observe(source, { attributes: true, childList: true, characterData: true }); sync();
-    }
   }
-  window.addEventListener('resize', () => { const bar = document.getElementById('mobile-tab-bar'); if (bar) bar.style.display = window.innerWidth >= 1024 ? 'none' : ''; }, { passive: true });
+  function syncViewport() {
+    const bar = document.getElementById('mobile-tab-bar');
+    if (bar) bar.style.display = window.innerWidth >= 1024 ? 'none' : '';
+    if (window.innerWidth < 1024) wire();
+  }
+  window.addEventListener('resize', syncViewport, { passive: true });
+  window.addEventListener('orientationchange', syncViewport, { passive: true });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
+  syncViewport();
 })();

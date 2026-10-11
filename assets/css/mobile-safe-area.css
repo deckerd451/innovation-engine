@@ -85,11 +85,11 @@
    ============================================================================
 
    Apply fixes only when:
-   - Viewport is mobile (max-width: 768px)
+   - Viewport is mobile (max-width: 1023px)
    - Unified network is enabled (body has data-unified-network="on")
 */
 
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
 
   /* Apply when unified network is ON */
   body[data-unified-network="on"] {
@@ -105,9 +105,16 @@
     }
 
     /* Target the top-right HUD container (action buttons) */
-    body > div[style*="position:absolute"][style*="top:20px"][style*="right:20px"] {
+    #mobile-header-actions {
       top: calc(var(--safe-top) + 20px) !important;
       right: calc(var(--safe-right) + 20px) !important;
+    }
+
+    #mobile-header-actions .mobile-notif-btn {
+      width: 44px !important;
+      height: 44px !important;
+      min-width: 44px !important;
+      min-height: 44px !important;
     }
 
     /* Top-left admin button: position below safe area */
@@ -340,7 +347,7 @@
 
   } /* end body[data-unified-network="on"] */
 
-} /* end @media (max-width: 768px) */
+} /* end @media (max-width: 1023px) */
 
 
 /* ============================================================================
@@ -396,7 +403,7 @@
    12. LANDSCAPE MODE (Mobile devices in landscape)
    ============================================================================ */
 
-@media (max-width: 768px) and (orientation: landscape) {
+@media (max-width: 1023px) and (orientation: landscape) {
 
   body[data-unified-network="on"] {
 
