@@ -190,6 +190,11 @@ body.reflection-resizing #network-reflection { transition:none; }
      Keep the dashboard's desktop identity control from duplicating it when
      the People or Projects panel is opened. */
   #command-dashboard .cd-messages-btn { display: none !important; }
+  #command-dashboard .cd-admin-btn,
+  #command-dashboard #cd-logout-btn { display: none !important; }
+  #command-dashboard .cd-network-status,
+  #command-dashboard .cd-focus-messages { display: none !important; }
+  .synapse-guidance { display: none !important; }
   #network-reflection { position:fixed; z-index:450; left:0; right:0; bottom:calc(60px + env(safe-area-inset-bottom,0px)); height:var(--reflection-mobile-height); border-top:1px solid rgba(0,224,255,.25); border-radius:14px 14px 0 0; }
   #synapse-main-view { bottom:calc(var(--reflection-mobile-height) + 60px + env(safe-area-inset-bottom,0px))!important; }
   .cd-next-move { align-items:flex-start; margin:.55rem .6rem .15rem; }

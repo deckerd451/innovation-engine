@@ -459,18 +459,18 @@ window.CommandDashboard = (() => {
       _profile.image_url || _profile.avatar_storage_path,
     ];
     const profileComplete = profileFields.filter(Boolean).length >= 4;
-    const title = !profileComplete
-      ? 'Add the details people need to find you.'
-      : _unreadMessages > 0
-        ? 'You have a conversation waiting.'
+    const title = _unreadMessages > 0
+      ? 'You have a conversation waiting.'
+      : !profileComplete
+        ? 'Add the details people need to find you.'
         : '';
-    const copy = !profileComplete
-      ? 'Your bio, skills, or interests are missing, so recommendations may stay broad.'
-      : _unreadMessages > 0
-        ? 'Reply while the context is fresh.'
+    const copy = _unreadMessages > 0
+      ? 'Reply while the context is fresh.'
+      : !profileComplete
+        ? 'Your bio, skills, or interests are missing, so recommendations may stay broad.'
         : '';
-    const primaryAction = !profileComplete ? 'profile' : _unreadMessages > 0 ? 'messages' : null;
-    const primaryLabel = !profileComplete ? 'Improve profile' : _unreadMessages > 0 ? 'Reply now' : '';
+    const primaryAction = _unreadMessages > 0 ? 'messages' : !profileComplete ? 'profile' : null;
+    const primaryLabel = _unreadMessages > 0 ? 'Reply now' : !profileComplete ? 'Improve profile' : '';
     if (!primaryAction) {
       welcome.innerHTML = '';
       focus.style.display = _unreadMessages ? '' : 'none';
@@ -1234,30 +1234,8 @@ window.CommandDashboard = (() => {
      ================================================================ */
 
   function _renderMessages() {
-    const focusEl    = $id('cd-focus');
     const messagesEl = $id('cd-focus-messages');
-    if (!focusEl || !messagesEl) return;
-
-    if (_unreadMessages > 0) {
-      const n = _unreadMessages;
-      messagesEl.innerHTML = `
-        <div class="cd-focus-messages-alert">
-          <i class="fas fa-envelope"></i>
-          <span>${n} unread message${n !== 1 ? 's' : ''}</span>
-          <button class="cd-focus-cta" id="cd-focus-msg-btn">View</button>
-        </div>
-      `;
-      const msgBtn = $id('cd-focus-msg-btn');
-      if (msgBtn) {
-        msgBtn.addEventListener('click', () => {
-          if (window.UnifiedNotifications?.showPanel) window.UnifiedNotifications.showPanel('actions');
-        });
-      }
-      focusEl.style.display = '';
-    } else {
-      focusEl.style.display = 'none';
-      messagesEl.innerHTML = '';
-    }
+    if (messagesEl) messagesEl.innerHTML = '';
   }
 
   /* ================================================================
@@ -2412,6 +2390,7 @@ window.CommandDashboard = (() => {
     setUnreadMessages(n) {
       _unreadMessages = Math.max(0, parseInt(n, 10) || 0);
       _renderMessages();
+      _renderWelcomeGuide();
       // Drive the messages badge in the identity header
       const badge = $id('cd-messages-badge');
       if (badge) {
