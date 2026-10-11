@@ -3240,6 +3240,7 @@ window.viewProjectDetails = async function(projectId) {
         currentUserProfile,
         canCreate: canViewTasks,
         canUse: Boolean(currentUserProfile),
+        canEdit: canViewTasks,
       });
     }
 

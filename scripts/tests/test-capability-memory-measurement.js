@@ -13,7 +13,7 @@ const context = {
   console,
 };
 vm.runInNewContext(source, context, { filename: 'capability-memory.js' });
-const { median, confidenceAdjustedEffectiveness, rankPackages, summarizeStats } = context.window.CapabilityMemoryTesting;
+const { median, confidenceAdjustedEffectiveness, rankPackages, summarizeStats, goalMatch, buildTaskPlan } = context.window.CapabilityMemoryTesting;
 
 assert.equal(median([8, 2, 4]), 4, 'median should use all actual attempt values');
 
@@ -33,6 +33,12 @@ const ranked = rankPackages([
 assert.equal(ranked[0].id, 'high-sample', 'ranking must use returned stats fields');
 assert.equal(Object.prototype.hasOwnProperty.call(ranked[0], 'goalRelevance'), false, 'goal relevance must not be claimed before goal matching exists');
 
+const matched = goalMatch({ title: 'Interview customers', goal: 'Validate demand', steps: ['Run customer interviews'], tools: [] }, 'validate customer demand');
+assert.equal(Array.from(matched.matched).join(','), 'validate,customer,demand', 'goal matching should explain matched terms');
+assert.equal(rankPackages([{ id: 'unrelated', title: 'Deploy servers', goal: 'Ship code' }, { id: 'matched', title: 'Interview customers', goal: 'Validate demand' }], new Map(), 'validate customer demand')[0].id, 'matched', 'goal relevance should be the first ranking dimension when a goal exists');
+
+assert.deepEqual(buildTaskPlan(['Define scope', 'define scope', 'Run test'], new Set(['Run test'])), ['Define scope'], 'task import should prevent duplicate tasks');
+
 const summary = summarizeStats(new Map([
   ['a', { completed: 2, success: 1, verifiedSuccess: 0, savedHours: [8, 2] }],
   ['b', { completed: 1, success: 1, verifiedSuccess: 1, savedHours: [4] }],
@@ -46,5 +52,7 @@ assert.match(sql, /verification_status = 'verified'/, 'SQL must keep independent
 assert.match(sql, /Only a different package creator can verify an attempt/, 'self-reported results must not self-upgrade');
 assert.match(sql, /ARRAY_AGG\(a\.baseline_hours - a\.actual_hours/, 'SQL must return actual attempt savings for a weighted median');
 assert.match(sql, /verified_success_count >= 2/, 'SQL must not call two self-reported successes proven');
+assert.match(sql, /permission_mode = 'community'/, 'shared capability search must be permission constrained');
+assert.match(sql, /task_ids UUID\[\]/, 'attempt tracking must retain imported task ids');
 
 console.log('✅ Capability Memory measurement contracts passed');

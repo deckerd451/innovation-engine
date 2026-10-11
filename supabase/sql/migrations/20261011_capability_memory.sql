@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS public.capability_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   capability_id UUID NOT NULL REFERENCES public.capability_packages(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
+  project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+  goal TEXT,
+  task_ids UUID[] NOT NULL DEFAULT '{}'::UUID[],
   baseline_hours NUMERIC(10,2) CHECK (baseline_hours IS NULL OR baseline_hours >= 0),
   actual_hours NUMERIC(10,2) CHECK (actual_hours IS NULL OR actual_hours >= 0),
   baseline_cost NUMERIC(12,2) CHECK (baseline_cost IS NULL OR baseline_cost >= 0),
@@ -36,6 +39,10 @@ CREATE TABLE IF NOT EXISTS public.capability_attempts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.capability_attempts ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL;
+ALTER TABLE public.capability_attempts ADD COLUMN IF NOT EXISTS goal TEXT;
+ALTER TABLE public.capability_attempts ADD COLUMN IF NOT EXISTS task_ids UUID[] NOT NULL DEFAULT '{}'::UUID[];
 
 -- Keep upgrades safe if the pilot tables were created before verification was
 -- added. A self-reported result is evidence of use, never independent proof.
@@ -58,6 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_capability_packages_project ON public.capability_
 CREATE INDEX IF NOT EXISTS idx_capability_packages_visibility ON public.capability_packages(permission_mode, evidence_status);
 CREATE INDEX IF NOT EXISTS idx_capability_attempts_capability ON public.capability_attempts(capability_id, outcome_status);
 CREATE INDEX IF NOT EXISTS idx_capability_attempts_member ON public.capability_attempts(member_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_capability_attempts_project ON public.capability_attempts(project_id, outcome_status);
 
 CREATE OR REPLACE FUNCTION public.set_capability_memory_timestamps()
 RETURNS TRIGGER AS $$
