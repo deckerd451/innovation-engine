@@ -722,6 +722,15 @@ function normalizeSkills(raw) {
   return [];
 }
 
+// Stranger previews use a recognizable first name without exposing a full
+// identity. Accepted connections, admins, and the owner still see the full
+// profile name through the existing access policy.
+function limitedDisplayName(rawName) {
+  const parts = String(rawName || 'Community member').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || 'Community member';
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+}
+
 function getOpportunityRelevantPeople(opportunityId) {
   const ctx = window.SynapseContext?.get?.();
   if (ctx?.type !== 'opportunity' || String(ctx.id) !== String(opportunityId)) return null;
@@ -1465,16 +1474,23 @@ async function renderPersonPanel(nodeData) {
   }
 
   // Build panel HTML
-  const initials = (profile.name || '?').split(' ').map(n => n[0]).join('').toUpperCase();
-
   // Determine visibility tier
   const isOwnProfile = profile.id === currentUserProfile?.id;
   const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
   const isConnected = connectionStatus === 'accepted';
   const hasFullAccess = isOwnProfile || isAdmin || isConnected;
+  const profileSkillList = normalizeSkills(profile.skills);
+  const displayName = hasFullAccess ? (profile.name || 'Community member') : limitedDisplayName(profile.name);
+  const initials = (hasFullAccess ? (profile.name || '?') : displayName)
+    .split(/\s+/)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  const visibleSkillList = hasFullAccess ? profileSkillList : profileSkillList.slice(0, 3);
+  const actionColumns = (hasFullAccess || (connectionStatus === 'pending' && connectionDirection === 'incoming')) ? 2 : 1;
 
   // Pre-compute skills HTML to avoid nested IIFE inside template literal (browser parse risk)
-  const profileSkillList = normalizeSkills(profile.skills);
   const relationshipEvidence = getRelationshipEvidence({
     currentUserProfile,
     personProfile: profile,
@@ -1514,7 +1530,7 @@ async function renderPersonPanel(nodeData) {
       <div class="panel-section-content" id="skills-content">
         <div class="panel-section-inner">
           <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-            ${profileSkillList.map(skill => `<span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">${escapeHtml(skill)}</span>`).join('')}
+            ${visibleSkillList.map(skill => `<span style="background: rgba(0,224,255,0.1); color: #00e0ff; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(0,224,255,0.3);">${escapeHtml(skill)}</span>`).join('')}
           </div>
         </div>
       </div>
@@ -1535,13 +1551,13 @@ async function renderPersonPanel(nodeData) {
             `<img loading="lazy" src="${window.profilePhotoUrl?.(profile)}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00e0ff;">` :
             `<div style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; color: white; border: 3px solid #00e0ff;">${initials}</div>`
           }
-          <!-- Presence Indicator Dot -->
-          <div data-presence-user-id="${profile.id}" 
+          <!-- Presence is private until a connection exists. -->
+          ${hasFullAccess ? `<div data-presence-user-id="${profile.id}"
                style="width: 24px; height: 24px; border-radius: 50%; background-color: #666; border: 3px solid #0a0e27; position: absolute; bottom: 5px; right: 5px; z-index: 10; transition: all 0.3s ease;"
-               title="Offline"></div>
+               title="Offline"></div>` : ''}
         </div>
 
-        <h2 style="color: #00e0ff; font-size: 1.75rem; margin-bottom: 0.5rem;">${profile.name}</h2>
+        <h2 style="color: #00e0ff; font-size: 1.75rem; margin-bottom: 0.5rem;">${escapeHtml(displayName)}</h2>
 
         <!-- Presence Status — only for connected/admin/self -->
         ${hasFullAccess ? (() => {
@@ -1562,7 +1578,7 @@ async function renderPersonPanel(nodeData) {
         </div>`;
         })() : ''}
 
-        ${profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${profile.user_role}</div>` : ''}
+        ${hasFullAccess && profile.user_role ? `<div style="color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem;">${escapeHtml(profile.user_role)}</div>` : ''}
 
         <!-- Met in Person Badge -->
         ${inPersonInteraction ? `
@@ -1598,21 +1614,21 @@ async function renderPersonPanel(nodeData) {
           </div>
         ` : ''}
 
-        ${profile.availability && (profile.availability !== 'Available now' || isCurrentlyActive(profile)) ? `
+        ${hasFullAccess && profile.availability && (profile.availability !== 'Available now' || isCurrentlyActive(profile)) ? `
           <div style="display: inline-block; background: rgba(0,255,136,0.2); color: #00ff88; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; margin-bottom: 1rem;">
             <i class="fas fa-circle" style="font-size: 0.5rem;"></i> ${profile.availability}
           </div>
         ` : ''}
 
         <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; font-size: 0.9rem; color: #aaa;">
-          <div>
+          ${hasFullAccess ? `<div>
             <i class="fas fa-users"></i> ${profile.connection_count || 0} connections
           </div>
           ${profile.projects_created ? `
             <div>
               <i class="fas fa-lightbulb"></i> ${profile.projects_created} projects
             </div>
-          ` : ''}
+          ` : ''}` : ''}
         </div>
       </div>
 
@@ -1635,14 +1651,14 @@ async function renderPersonPanel(nodeData) {
         </div>
       ` : ''}
 
-      <!-- Skills Section (Collapsible) — visible to all for discovery -->
+      <!-- Skills Section (Collapsible) — limited preview for unconnected people -->
       ${skillsSectionHtml}
 
       <!-- Connect prompt for unconnected users -->
       ${!hasFullAccess && !isOwnProfile ? `
         <div style="padding: 1rem 1.5rem; margin: 0.5rem 0; background: rgba(0,224,255,0.05); border: 1px solid rgba(0,224,255,0.15); border-radius: 10px; text-align: center;">
           <i class="fas fa-lock" style="color: rgba(0,224,255,0.5); font-size: 1.2rem; margin-bottom: 0.5rem;"></i>
-          <p style="color: #aaa; font-size: 0.85rem; margin: 0;">Connect to see full profile, bio, and endorsements</p>
+          <p style="color: #aaa; font-size: 0.85rem; margin: 0;">Limited preview. Connect to see more.</p>
         </div>
       ` : ''}
 
@@ -1720,11 +1736,11 @@ async function renderPersonPanel(nodeData) {
         <div style="display: none;"></div>
       ` : `
         <!-- Other User Actions -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+        <div style="display: grid; grid-template-columns: repeat(${actionColumns}, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
           <!-- Message button - always available -->
-          <button onclick="openMessageForUser('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+          ${hasFullAccess ? `<button onclick="openMessageForUser('${profile.id}')" style="padding: 0.75rem; background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <i class="fas fa-comment"></i> Message
-          </button>
+          </button>` : ''}
 
           <!-- Connection status button -->
           ${connectionStatus === 'accepted' ? `

@@ -452,15 +452,19 @@ async function createProfileCard(member, currentUserCommunityId) {
   }
   
   const isCurrentUser = member.id === currentUserCommunityId;
+  const hasFullAccess = isCurrentUser || connStatus.status === 'accepted'
+    || (typeof window.isAdminUser === 'function' && window.isAdminUser());
+  const displayName = hasFullAccess ? (member.name || 'Community member') : limitedDisplayName(member.name);
+  const visibleSkills = hasFullAccess ? member.skills : member.skills.slice(0, 3);
   
   // Avatar
-  const initials = getInitials(member.name);
-  const avatarColor = getAvatarColor(member.name);
+  const initials = getInitials(displayName);
+  const avatarColor = getAvatarColor(displayName);
   
   let avatarHtml;
-  if (member.image_url) {
+  if (hasFullAccess && member.image_url) {
     avatarHtml = `
-      <img src="${member.image_url}" alt="${member.name}" 
+      <img src="${member.image_url}" alt="${displayName}"
            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
       <div class="avatar-initials" style="display:none; background:${avatarColor};">${initials}</div>
     `;
@@ -469,8 +473,8 @@ async function createProfileCard(member, currentUserCommunityId) {
   }
   
   // Skills
-  const skillsHtml = member.skills.length > 0
-    ? member.skills.slice(0, 6).map(s => `<span class="skill-tag">${s}</span>`).join('')
+  const skillsHtml = visibleSkills.length > 0
+    ? visibleSkills.slice(0, 6).map(s => `<span class="skill-tag">${s}</span>`).join('')
     : '<span class="skill-tag" style="opacity:0.5;">No skills listed</span>';
   
   // Email (privacy controlled)
@@ -515,13 +519,13 @@ async function createProfileCard(member, currentUserCommunityId) {
   
   card.innerHTML = `
     <div class="card-avatar">${avatarHtml}</div>
-    <div class="card-name">${member.name || 'Anonymous'}</div>
+    <div class="card-name">${displayName}</div>
     ${emailHtml}
-    <div class="card-bio">${member.bio || 'No bio available'}</div>
+    ${hasFullAccess ? `<div class="card-bio">${member.bio || 'No bio available'}</div>` : '<div class="card-bio">Limited preview — connect to see more.</div>'}
     <div class="card-skills">${skillsHtml}</div>
-    <div class="card-availability ${(member.availability || 'available').toLowerCase().replace(/\s+/g, '-')}">
+    ${hasFullAccess ? `<div class="card-availability ${(member.availability || 'available').toLowerCase().replace(/\s+/g, '-')}">
       ${member.availability || 'Available'}
-    </div>
+    </div>` : ''}
     <div class="card-actions">${actionHtml}</div>
   `;
   
@@ -619,6 +623,12 @@ function getInitials(name) {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   }
   return parts[0].charAt(0).toUpperCase();
+}
+
+function limitedDisplayName(rawName) {
+  const parts = String(rawName || 'Community member').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || 'Community member';
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
 }
 
 function getAvatarColor(name) {

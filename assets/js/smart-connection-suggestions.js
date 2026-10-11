@@ -90,7 +90,18 @@ export async function getSmartConnectionSuggestions(limit = 8) {
     // Sort by score and return top suggestions
     const suggestions = scoredCandidates
       .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+      .slice(0, limit)
+      // Suggestions are intentionally previews: the detail panel applies the
+      // full access policy after the person chooses to connect.
+      .map(candidate => ({
+        ...candidate,
+        name: limitedDisplayName(candidate.name),
+        image_url: null,
+        bio: null,
+        availability: null,
+        user_role: null,
+        skills: Array.isArray(candidate.skills) ? candidate.skills.slice(0, 3) : candidate.skills,
+      }));
 
     console.log(`✅ Generated ${suggestions.length} smart suggestions`);
     console.log('🏆 Top suggestion:', suggestions[0]?.name, 'Score:', suggestions[0]?.score);
@@ -398,6 +409,12 @@ function calculateProfileCompletenessScore(candidate) {
 function parseSkills(skillsString) {
   if (!skillsString) return [];
   return skillsString.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function limitedDisplayName(rawName) {
+  const parts = String(rawName || 'Community member').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || 'Community member';
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
 }
 
 function getSkillCategories(skills) {
