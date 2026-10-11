@@ -120,7 +120,12 @@
         const label = item.intent_type === 'offering' ? 'Can help with' : 'Looking for';
         return `<div class="cd-mobile-intent-row"><span>${escape(label)}</span><strong>${escape(item.subject_label || 'Something useful')}</strong></div>`;
       }).join('');
+      const profile = window.currentUserProfile || {};
+      const name = String(profile.full_name || profile.name || profile.username || '').trim().split(/\s+/)[0];
+      const hour = new Date().getHours();
+      const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
       card.innerHTML = `<div class="cd-mobile-context-eyebrow" id="cd-mobile-right-now-title">Right now</div>
+        <div class="cd-mobile-greeting">${escape(greeting)}${name ? `, ${escape(name)}` : ''}</div>
         <p class="cd-mobile-context-copy">Your current focus helps the right people find you.</p>
         <div class="cd-mobile-intent-list">${rows || '<div class="cd-mobile-intent-empty">Nothing shared yet. Add a focus from your profile.</div>'}</div>
         <button type="button" class="cd-mobile-context-link" data-open-profile-intent>Update in You</button>`;
@@ -229,6 +234,9 @@
   }
   window.addEventListener('resize', syncViewport, { passive: true });
   window.addEventListener('orientationchange', syncViewport, { passive: true });
+  window.addEventListener('profile-loaded', () => {
+    if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
+  });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
   syncViewport();
 })();

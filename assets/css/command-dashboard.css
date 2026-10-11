@@ -181,6 +181,7 @@ body.reflection-resizing #network-reflection { transition:none; }
   body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) #cd-focus-welcome:empty { display:none; }
   .cd-mobile-context-card { margin:.65rem 0 0; padding:.85rem .9rem; border:1px solid rgba(142,92,255,.34); border-radius:13px; background:linear-gradient(145deg,rgba(142,92,255,.14),rgba(10,14,39,.72)); }
   .cd-mobile-context-eyebrow { color:#d7c6ff; font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .cd-mobile-greeting { margin-top:.18rem; color:#fff; font-size:1.05rem; font-weight:800; letter-spacing:-.01em; }
   .cd-mobile-context-copy { margin:.28rem 0 .65rem; color:rgba(224,232,255,.62); font-size:.76rem; line-height:1.4; }
   .cd-mobile-context-loading,.cd-mobile-intent-empty { color:rgba(224,232,255,.58); font-size:.76rem; line-height:1.45; }
   .cd-mobile-intent-list { display:grid; gap:.4rem; }
