@@ -1983,7 +1983,12 @@ window.CommandDashboard = (() => {
       try { localStorage.setItem('networkReflectionCollapsed', String(collapsed)); } catch (_) { /* storage optional */ }
     };
 
-    try { setCollapsed(localStorage.getItem('networkReflectionCollapsed') === 'true'); } catch (_) { setCollapsed(false); }
+    try {
+      const stored = localStorage.getItem('networkReflectionCollapsed');
+      // On phones the reflection is a compact Today card first; members can
+      // expand it when they want the full context and actions.
+      setCollapsed(stored === null ? window.innerWidth < 1024 : stored === 'true');
+    } catch (_) { setCollapsed(window.innerWidth < 1024); }
     toggle.addEventListener('click', () => setCollapsed(!document.body.classList.contains('reflection-collapsed')));
 
     const moreToggle = $id('network-reflection-more-toggle');

@@ -187,8 +187,8 @@ body.reflection-resizing #network-reflection { transition:none; }
   }
 
   /* Mobile has one persistent message entry point in the global header.
-     Keep the dashboard's desktop identity control from duplicating it when
-     the People or Projects panel is opened. */
+     Keep the dashboard's desktop identity controls from duplicating it when
+     Explore is opened. */
   #command-dashboard .cd-messages-btn { display: none !important; }
   #command-dashboard .cd-admin-btn,
   #command-dashboard #cd-logout-btn { display: none !important; }
@@ -209,6 +209,8 @@ body.reflection-resizing #network-reflection { transition:none; }
   .network-reflection-header { padding:.7rem .9rem .6rem; }
   .network-reflection-scroll { height:calc(100% - 55px); padding:.8rem .9rem; }
   .network-reflection-privacy-note { margin-top:.3rem; }
+  .network-reflection-privacy-note,
+  .network-reflection-export { display:none!important; }
   .network-reflection-concierge-actions button,.network-reflection-concierge-profile,.network-reflection-retry { min-height:40px; }
   #command-dashboard.cd-mobile-panel .cd-search { padding:.5rem .75rem; }
   body.node-panel-open #network-reflection { visibility:hidden; }
@@ -345,6 +347,8 @@ body.reflection-resizing #network-reflection { transition:none; }
     box-shadow: 0 6px 22px rgba(0,0,0,.35);
     backdrop-filter: blur(10px);
   }
+  /* The bottom navigation is the single mobile view switcher. */
+  body.buildspace-view-network #command-dashboard .buildspace-view-switcher { display:none!important; }
   body.buildspace-view-network #command-dashboard .buildspace-view-btn {
     min-height: 40px !important;
     font-size: .78rem !important;

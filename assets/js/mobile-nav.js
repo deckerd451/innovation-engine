@@ -17,13 +17,21 @@
       dashboard?.style.removeProperty('display');
       document.getElementById('cd-panel-tab')?.focus();
     },
-    people: () => {
-      document.getElementById('command-dashboard')?.classList.add('cd-mobile-panel');
-      document.querySelector('[data-resource="people"]')?.click();
+    explore: () => {
+      document.body.classList.add('buildspace-view-today');
+      document.body.classList.remove('buildspace-view-network');
+      window.CommandDashboard?.setWorkspaceView?.('today');
+      const dashboard = document.getElementById('command-dashboard');
+      dashboard?.classList.add('cd-mobile-panel');
+      dashboard?.style.removeProperty('display');
+      const toggle = document.getElementById('cd-explore-toggle');
+      if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
+      document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
-    projects: () => {
-      document.getElementById('command-dashboard')?.classList.add('cd-mobile-panel');
-      document.querySelector('[data-resource="projects"]')?.click();
+    network: () => {
+      window.CommandDashboard?.setWorkspaceView?.('network');
+      document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
+      document.getElementById('command-dashboard')?.style.removeProperty('display');
     },
     'event-mode': () => window.NearifyMobileContext?.showEvent(),
     suggestions: () => window.NearifyMobileContext?.showNearby(),
