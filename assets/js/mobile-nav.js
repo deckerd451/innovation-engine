@@ -21,47 +21,10 @@
       renderMobileRightNow();
       document.getElementById('cd-panel-tab')?.focus();
     },
-    explore: () => {
-      document.body.classList.add('buildspace-view-today');
-      document.body.classList.remove('buildspace-view-network');
-      window.CommandDashboard?.setWorkspaceView?.('today');
-      const dashboard = document.getElementById('command-dashboard');
-      dashboard?.classList.add('cd-mobile-panel');
-      dashboard?.style.removeProperty('display');
-      document.body.classList.remove('mobile-network-list');
-      setMobileMapButton(false);
-      removeMobileRightNow();
-      removeMobileNetworkHistory();
-      // Explore starts with Skills: it is the broadest discovery surface,
-      // while the People tab remains available for intentional browsing.
-      document.querySelector('[data-resource="themes"]')?.click();
-      const exploreToggle = document.getElementById('cd-explore-toggle');
-      if (exploreToggle) exploreToggle.querySelector('span').textContent = 'Explore';
-      const toggle = document.getElementById('cd-explore-toggle');
-      if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
-      document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    },
-    network: () => {
-      // Mobile Network opens as a readable people list. The existing graph
-      // remains available through the explicit View map action.
-      document.body.classList.add('buildspace-view-today');
-      document.body.classList.remove('buildspace-view-network');
-      window.CommandDashboard?.setWorkspaceView?.('today');
-      const dashboard = document.getElementById('command-dashboard');
-      dashboard?.classList.add('cd-mobile-panel');
-      dashboard?.style.removeProperty('display');
-      document.body.classList.add('mobile-network-list');
-      document.querySelector('[data-resource="people"]')?.click();
-      const toggle = document.getElementById('cd-explore-toggle');
-      if (toggle) {
-        toggle.querySelector('span').textContent = 'Network';
-        if (toggle.getAttribute('aria-expanded') === 'false') toggle.click();
-      }
-      setMobileMapButton(true);
-      removeMobileRightNow();
-      renderMobileNetworkHistory();
-      document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    },
+    discover: () => setDiscoverMode('explore'),
+    // Kept as an internal compatibility path for existing callers; Network
+    // is now a mode inside Discover rather than a separate destination.
+    network: () => setDiscoverMode('network'),
     'event-mode': () => window.NearifyMobileContext?.showEvent(),
     suggestions: () => window.NearifyMobileContext?.showNearby(),
     themes: () => typeof window.openThemeDiscoveryModal === 'function'
@@ -72,6 +35,59 @@
       : window.openMessagesModal?.(),
     profile: showMobileProfileSheet,
   };
+
+  function setDiscoverMode(mode) {
+    const isNetwork = mode === 'network';
+    document.body.classList.add('buildspace-view-today');
+    document.body.classList.remove('buildspace-view-network');
+    window.CommandDashboard?.setWorkspaceView?.('today');
+    const dashboard = document.getElementById('command-dashboard');
+    dashboard?.classList.add('cd-mobile-panel');
+    dashboard?.style.removeProperty('display');
+    ensureDiscoverModeControl();
+    document.body.classList.toggle('mobile-network-list', isNetwork);
+    setMobileMapButton(isNetwork);
+    removeMobileRightNow();
+    if (isNetwork) {
+      document.querySelector('[data-resource="people"]')?.click();
+      renderMobileNetworkHistory();
+    } else {
+      removeMobileNetworkHistory();
+      document.querySelector('[data-resource="themes"]')?.click();
+    }
+    const toggle = document.getElementById('cd-explore-toggle');
+    if (toggle) {
+      toggle.querySelector('span').textContent = isNetwork ? 'My network' : 'Discover';
+      if (toggle.getAttribute('aria-expanded') === 'false') toggle.click();
+    }
+    updateDiscoverModeControl(isNetwork ? 'network' : 'explore');
+    document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function updateDiscoverModeControl(mode) {
+    const control = document.getElementById('cd-mobile-discover-mode');
+    if (!control) return;
+    control.querySelectorAll('button[data-discover-mode]').forEach((button) => {
+      const active = button.dataset.discoverMode === mode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  }
+
+  function ensureDiscoverModeControl() {
+    const explore = document.getElementById('cd-explore');
+    const row = explore?.querySelector('.cd-section-toggle-row');
+    if (!row || document.getElementById('cd-mobile-discover-mode')) return;
+    const control = document.createElement('div');
+    control.id = 'cd-mobile-discover-mode';
+    control.className = 'cd-mobile-discover-mode';
+    control.setAttribute('role', 'tablist');
+    control.innerHTML = '<button type="button" role="tab" data-discover-mode="explore" aria-selected="true">Discover</button><button type="button" role="tab" data-discover-mode="network" aria-selected="false">My network</button>';
+    control.querySelectorAll('button[data-discover-mode]').forEach((button) => {
+      button.addEventListener('click', () => setDiscoverMode(button.dataset.discoverMode));
+    });
+    row.parentNode.insertBefore(control, row);
+  }
 
   const escape = (value) => String(value ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -107,7 +123,7 @@
       card.innerHTML = `<div class="cd-mobile-context-eyebrow" id="cd-mobile-right-now-title">Right now</div>
         <p class="cd-mobile-context-copy">Your current focus helps the right people find you.</p>
         <div class="cd-mobile-intent-list">${rows || '<div class="cd-mobile-intent-empty">Nothing shared yet. Add a focus from your profile.</div>'}</div>
-        <button type="button" class="cd-mobile-context-link" data-open-profile-intent>Update in Profile</button>`;
+        <button type="button" class="cd-mobile-context-link" data-open-profile-intent>Update in You</button>`;
       card.querySelector('[data-open-profile-intent]')?.addEventListener('click', () => {
         window.openProfileModal?.();
         window.setTimeout(() => {
@@ -118,7 +134,7 @@
       });
     } catch (error) {
       console.warn('[MobileNav] current intent load failed:', error);
-      card.innerHTML = '<div class="cd-mobile-context-eyebrow" id="cd-mobile-right-now-title">Right now</div><div class="cd-mobile-intent-empty">Your current focus is unavailable. You can update it from Profile.</div>';
+      card.innerHTML = '<div class="cd-mobile-context-eyebrow" id="cd-mobile-right-now-title">Right now</div><div class="cd-mobile-intent-empty">Your current focus is unavailable. You can update it from You.</div>';
     }
   }
 

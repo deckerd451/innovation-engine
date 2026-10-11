@@ -189,6 +189,9 @@ body.reflection-resizing #network-reflection { transition:none; }
   .cd-mobile-intent-row strong { min-width:0; overflow:hidden; color:#fff; font-size:.78rem; text-overflow:ellipsis; white-space:nowrap; }
   .cd-mobile-context-link { margin-top:.65rem; padding:0; border:0; background:transparent; color:#9eefff; font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }
   .cd-mobile-network-history { margin-top:.8rem; }
+  .cd-mobile-discover-mode { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.35rem; margin:.6rem .75rem .15rem; padding:.25rem; border:1px solid rgba(255,255,255,.1); border-radius:10px; background:rgba(255,255,255,.035); }
+  .cd-mobile-discover-mode button { min-height:34px; border:0; border-radius:7px; background:transparent; color:rgba(224,232,255,.58); font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }
+  .cd-mobile-discover-mode button.active { background:rgba(0,224,255,.14); color:#fff; box-shadow:0 0 0 1px rgba(0,224,255,.3); }
   #profile-modal .ch-right-now-card, #profile-modal .ch-nearify-events-panel { display:none !important; }
   #profile-modal .ch-right-now-card.mobile-intent-editor-open { display:block !important; }
   #command-dashboard.cd-mobile-panel .cd-search { display:none!important; }
