@@ -231,6 +231,7 @@ body.reflection-resizing #network-reflection { transition:none; }
     min-width: 44px !important;
     min-height: 44px !important;
   }
+  body:not(.mobile-tab-home) #mobile-header-actions #btn-messages-mobile { display:none !important; }
 
   /* Mobile has one persistent message entry point in the global header.
      Keep the dashboard's desktop identity controls from duplicating it when

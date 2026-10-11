@@ -183,6 +183,10 @@
           if (active) tab.setAttribute('aria-current', 'page');
           else tab.removeAttribute('aria-current');
         });
+        document.body.classList.forEach((className) => {
+          if (className.startsWith('mobile-tab-')) document.body.classList.remove(className);
+        });
+        document.body.classList.add(`mobile-tab-${button.dataset.tab}`);
         tabs[button.dataset.tab]?.();
       });
       button.addEventListener('keydown', (event) => {
@@ -199,6 +203,11 @@
     if (bar) bar.style.display = window.innerWidth >= 1024 ? 'none' : '';
     if (window.innerWidth < 1024) {
       wire();
+      const activeTab = document.querySelector('.mob-tab[data-tab].active')?.dataset.tab || 'home';
+      document.body.classList.forEach((className) => {
+        if (className.startsWith('mobile-tab-')) document.body.classList.remove(className);
+      });
+      document.body.classList.add(`mobile-tab-${activeTab}`);
       if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
     }
   }
