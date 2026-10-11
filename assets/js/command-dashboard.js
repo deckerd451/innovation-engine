@@ -233,7 +233,12 @@ window.CommandDashboard = (() => {
     if (!buttons.length || document.body.dataset.workspaceViewWired === 'true') return;
     document.body.dataset.workspaceViewWired = 'true';
     let initial = 'today';
-    try { initial = sessionStorage.getItem('buildspace-view') || 'today'; } catch (_) {}
+    // Mobile always opens on the actionable Today surface. Network remains a
+    // deliberate destination during the session instead of a persisted trap
+    // that can make returning members land in the denser graph view.
+    if (window.innerWidth >= 1024) {
+      try { initial = sessionStorage.getItem('buildspace-view') || 'today'; } catch (_) {}
+    }
     setWorkspaceView(initial);
     buttons.forEach(button => button.addEventListener('click', () => setWorkspaceView(button.dataset.workspaceView)));
   }
