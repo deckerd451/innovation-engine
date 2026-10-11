@@ -41,29 +41,62 @@
     const stats = new Map();
     (data || []).forEach(row => {
       stats.set(row.capability_id, {
-        total: Number(row.total_attempts || 0),
+        completed: Number(row.completed_attempts || 0),
         success: Number(row.successful_attempts || 0),
-        savedHours: row.median_hours_saved == null ? [] : [Number(row.median_hours_saved)],
-        savedCost: row.median_cost_saved == null ? [] : [Number(row.median_cost_saved)]
+        verifiedSuccess: Number(row.verified_successes || 0),
+        savedHours: (row.hours_saved_values || []).map(Number).filter(Number.isFinite),
+        savedCost: (row.cost_saved_values || []).map(Number).filter(Number.isFinite)
       });
     });
     return stats;
   }
 
+  function median(values) {
+    const sorted = values.filter(Number.isFinite).slice().sort((a, b) => a - b);
+    if (!sorted.length) return null;
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  // Goal relevance is deliberately absent until a member goal is captured.
+  // This score therefore ranks confidence-adjusted observed effectiveness only.
+  function confidenceAdjustedEffectiveness(stat) {
+    const completed = Number(stat?.completed || 0);
+    if (!completed) return 0;
+    const successRate = Number(stat.success || 0) / completed;
+    const verifiedRate = Number(stat.verifiedSuccess || 0) / completed;
+    const sampleConfidence = completed / (completed + 4);
+    const verificationConfidence = 0.5 + (0.5 * verifiedRate);
+    return successRate * sampleConfidence * verificationConfidence;
+  }
+
+  function rankPackages(packages, stats) {
+    return packages.slice().sort((a, b) => {
+      const as = stats.get(a.id) || {};
+      const bs = stats.get(b.id) || {};
+      const scoreDiff = confidenceAdjustedEffectiveness(bs) - confidenceAdjustedEffectiveness(as);
+      if (scoreDiff) return scoreDiff;
+      return (median(bs.savedHours || []) ?? -Infinity) - (median(as.savedHours || []) ?? -Infinity);
+    });
+  }
+
+  function summarizeStats(stats) {
+    const rows = Array.from(stats.values());
+    const completed = rows.reduce((sum, item) => sum + Number(item.completed || 0), 0);
+    const success = rows.reduce((sum, item) => sum + Number(item.success || 0), 0);
+    const verifiedSuccess = rows.reduce((sum, item) => sum + Number(item.verifiedSuccess || 0), 0);
+    return { completed, success, verifiedSuccess, savedHours: median(rows.flatMap(item => item.savedHours || [])) };
+  }
+
   function packageCard(pkg, stats, canUse) {
-    const stat = stats.get(pkg.id) || { total: 0, success: 0, savedHours: [], savedCost: [] };
-    const median = values => {
-      if (!values.length) return null;
-      const sorted = values.slice().sort((a, b) => a - b);
-      return sorted[Math.floor(sorted.length / 2)];
-    };
+    const stat = stats.get(pkg.id) || { completed: 0, success: 0, verifiedSuccess: 0, savedHours: [] };
     const saved = median(stat.savedHours);
-    const evidence = pkg.evidence_status === 'proven' ? 'Proven' : pkg.evidence_status === 'tested' ? 'Tested' : 'New';
+    const evidence = stat.verifiedSuccess >= 2 ? 'Verified' : stat.completed ? 'Self-reported' : 'No results yet';
     return `<article class="cm-package-card" data-package-id="${esc(pkg.id)}">
       <div class="cm-package-head"><div><span class="cm-evidence cm-evidence-${pkg.evidence_status}">${evidence}</span><h4>${esc(pkg.title)}</h4></div><span class="cm-version">v${pkg.version || 1}</span></div>
       <p class="cm-goal">${esc(pkg.goal)}</p>
       ${pkg.summary ? `<p class="cm-summary">${esc(pkg.summary)}</p>` : ''}
-      <div class="cm-stats"><span>${stat.total} reuse${stat.total === 1 ? '' : 's'}</span><span>${stat.total ? `${Math.round((stat.success / stat.total) * 100)}% success` : 'Awaiting first reuse'}</span>${saved != null ? `<span>${saved >= 0 ? `${hours(saved)} saved` : `${hours(Math.abs(saved))} added`}</span>` : ''}</div>
+      <div class="cm-stats"><span>${stat.completed} completed attempt${stat.completed === 1 ? '' : 's'}</span><span>${stat.completed ? `${Math.round((stat.success / stat.completed) * 100)}% success (n=${stat.completed})` : 'No completed attempts'}</span>${saved != null ? `<span>${saved >= 0 ? `${hours(saved)} saved` : `${hours(Math.abs(saved))} added`}</span>` : ''}${stat.verifiedSuccess ? `<span>${stat.verifiedSuccess} independently verified</span>` : ''}</div>
       <details><summary>See the recipe</summary><div class="cm-recipe">
         <strong>Steps</strong><ol>${list(pkg.steps).map(step => `<li>${esc(step)}</li>`).join('') || '<li>Not documented yet</li>'}</ol>
         ${list(pkg.tools).length ? `<strong>Tools</strong><p>${list(pkg.tools).map(tool => esc(tool)).join(' · ')}</p>` : ''}
@@ -110,22 +143,13 @@
     }
     const allPackages = result.data;
     const stats = await fetchAttemptStats(allPackages.map(pkg => pkg.id));
-    // Put methods with demonstrated outcomes first. The member should see the
-    // shortest proven path to a result, not the newest or largest library.
-    const packages = allPackages.slice().sort((a, b) => {
-      const sa = stats.get(a.id); const sb = stats.get(b.id);
-      const score = item => (item?.success || 0) * 100 + (item?.total || 0) * 2 + (item?.evidence_status === 'proven' ? 10 : item?.evidence_status === 'tested' ? 5 : 0);
-      return score(sb) - score(sa);
-    });
-    const totalAttempts = Array.from(stats.values()).reduce((sum, item) => sum + item.total, 0);
-    const totalSuccesses = Array.from(stats.values()).reduce((sum, item) => sum + item.success, 0);
-    const measuredSavings = Array.from(stats.values()).flatMap(item => item.savedHours || []);
-    const medianSavings = measuredSavings.length ? measuredSavings.sort((a, b) => a - b)[Math.floor(measuredSavings.length / 2)] : null;
+    const packages = rankPackages(allPackages, stats);
+    const summary = summarizeStats(stats);
     const canCreate = Boolean(options.canCreate);
     const canUse = Boolean(options.canUse);
     container.innerHTML = `<div class="cm-shell">
-      <div class="cm-intro"><div><h3>Get to the result faster</h3><p>Choose a method that has helped someone complete this kind of work. The goal is progress, not a bigger library.</p></div>${canCreate ? '<button type="button" class="cm-save-btn"><i class="fas fa-bookmark"></i> Save what worked</button>' : ''}</div>
-      ${totalAttempts ? `<div class="cm-outcome-strip"><span><strong>${totalSuccesses}</strong> successful outcomes</span><span><strong>${Math.round((totalSuccesses / totalAttempts) * 100)}%</strong> success rate</span>${medianSavings != null ? `<span><strong>${medianSavings >= 0 ? hours(medianSavings) : hours(Math.abs(medianSavings))}</strong> median time ${medianSavings >= 0 ? 'saved' : 'added'}</span>` : ''}</div>` : ''}
+      <div class="cm-intro"><div><h3>Get to the result faster</h3><p>Choose a method that has helped someone complete this kind of work. The goal is progress, not a bigger library.</p><span class="cm-goal-note">Goal matching is not scored yet.</span></div>${canCreate ? '<button type="button" class="cm-save-btn"><i class="fas fa-bookmark"></i> Save what worked</button>' : ''}</div>
+      ${summary.completed ? `<div class="cm-outcome-strip"><span><strong>${summary.success}/${summary.completed}</strong> successful outcomes (n=${summary.completed})</span><span><strong>${Math.round((summary.success / summary.completed) * 100)}%</strong> completed-attempt success</span>${summary.savedHours != null ? `<span><strong>${summary.savedHours >= 0 ? hours(summary.savedHours) : hours(Math.abs(summary.savedHours))}</strong> median time ${summary.savedHours >= 0 ? 'saved' : 'added'} across attempts</span>` : ''}${summary.verifiedSuccess ? `<span><strong>${summary.verifiedSuccess}</strong> independently verified</span>` : ''}</div>` : ''}
       <div class="cm-form-slot"></div>
       <div class="cm-package-list">${packages.length ? packages.map(pkg => packageCard(pkg, stats, canUse)).join('') : '<div class="cm-empty"><strong>No shared capabilities yet.</strong><p>When this project solves something repeatable, save the recipe here.</p></div>'}</div>
     </div>`;
@@ -179,4 +203,7 @@
   }
 
   window.CapabilityMemory = { mount };
+  // Pure helpers are exposed for deterministic regression tests only. They do
+  // not access Supabase or browser state.
+  window.CapabilityMemoryTesting = { median, confidenceAdjustedEffectiveness, rankPackages, summarizeStats };
 })();
