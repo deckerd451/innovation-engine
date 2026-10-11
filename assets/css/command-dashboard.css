@@ -1762,7 +1762,7 @@ body.reflection-resizing #network-reflection { transition:none; }
     font-size: 0.9rem;
   }
   #command-dashboard.cd-mobile-panel .cd-focus {
-    padding: 0.4rem 0.75rem 0.5rem;
+    display:none!important;
   }
   #command-dashboard.cd-mobile-panel .cd-explore {
     padding: 0.4rem 0.75rem 0.4rem;
