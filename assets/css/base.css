@@ -362,6 +362,7 @@ canvas#neural-bg {
   body {
     max-width: 100vw !important;
     overflow-x: hidden !important;
+    overscroll-behavior-y: none !important;
     position: fixed !important;
     width: 100% !important;
   }

@@ -75,8 +75,8 @@ function runGesture(target) {
   assert.equal(typeof listeners.touchmove, 'function', 'touchmove must be wired on #main-content');
   assert.equal(typeof listeners.touchend, 'function', 'touchend must be wired on #main-content');
 
-  listeners.touchstart({ target, touches: [{ clientY: 100 }] });
-  listeners.touchmove({ touches: [{ clientY: 220 }] }); // 120px downward drag
+  listeners.touchstart({ target, touches: [{ clientX: 180, clientY: 10 }] });
+  listeners.touchmove({ touches: [{ clientX: 180, clientY: 130 }] }); // deliberate 120px edge pull
   listeners.touchend();
 
   return reloadCalls;

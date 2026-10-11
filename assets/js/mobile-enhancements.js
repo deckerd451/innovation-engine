@@ -29,19 +29,31 @@ function isMobile() {
 const PULL_REFRESH_EXCLUDE_SELECTOR =
   'svg, .modal, #node-side-panel, #mobile-tab-bar, button, a, input, textarea, select, [role="button"], [contenteditable]';
 
+// Pull-to-refresh is intentionally conservative because the app canvas is a
+// fixed full-screen surface: a normal downward swipe can start anywhere.
+// Requiring a gesture to begin at the very top edge makes refresh an explicit
+// action while preserving ordinary scrolling and panel gestures.
+const PULL_REFRESH_EDGE_PX = 24;
+const PULL_REFRESH_THRESHOLD_PX = 120;
+const PULL_REFRESH_DIRECTION_SLOP_PX = 12;
+
 function addPullToRefresh() {
   const mainContent = document.getElementById('main-content');
   if (!mainContent) return;
 
   let startY = 0;
+  let startX = 0;
   let currentY = 0;
   let pulling = false;
 
   mainContent.addEventListener('touchstart', (e) => {
     const target = e.target;
     const onExcludedElement = target?.closest?.(PULL_REFRESH_EXCLUDE_SELECTOR);
-    if (window.scrollY === 0 && !onExcludedElement) {
+    const touch = e.touches[0];
+    if (touch && touch.clientY <= PULL_REFRESH_EDGE_PX && !onExcludedElement) {
       startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      currentY = startY;
       pulling = true;
     }
   }, { passive: true });
@@ -51,8 +63,17 @@ function addPullToRefresh() {
     
     currentY = e.touches[0].clientY;
     const diff = currentY - startY;
+    const horizontalDiff = Math.abs(e.touches[0].clientX - startX);
+
+    // Cancel as soon as the gesture is clearly horizontal or not a deliberate
+    // vertical pull. This prevents diagonal navigation gestures from arming it.
+    if (horizontalDiff > diff + PULL_REFRESH_DIRECTION_SLOP_PX || diff < 0) {
+      pulling = false;
+      hidePullIndicator();
+      return;
+    }
     
-    if (diff > 0 && diff < 100) {
+    if (diff > 0 && diff < PULL_REFRESH_THRESHOLD_PX) {
       showPullIndicator(diff);
     }
   }, { passive: true });
@@ -61,7 +82,7 @@ function addPullToRefresh() {
     if (!pulling) return;
     
     const diff = currentY - startY;
-    if (diff > 80) {
+    if (diff >= PULL_REFRESH_THRESHOLD_PX) {
       triggerRefresh();
     }
     
