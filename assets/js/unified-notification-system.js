@@ -239,6 +239,9 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     if (mobileActionsBtn) {
       mobileActionsBtn.setAttribute('data-empty', actionsCount > 0 ? 'false' : 'true');
     }
+    window.dispatchEvent(new CustomEvent('total-unread-messages-updated', {
+      detail: { count: msgUnread }
+    }));
   }
 
   // ================================================================
@@ -1290,6 +1293,12 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
   window.UnifiedNotifications = {
     init,
     refresh: loadAllData,
+    getUnreadMessages: () => unifiedData.messages.slice(0, 3).map(message => ({
+      id: message.id,
+      preview: message.last_message_preview || 'New message',
+      unreadCount: message.unread_count || 0,
+      lastMessageAt: message.last_message_at || null,
+    })),
     // showPanel — action/notification center; Reflection lives only in its rail
     showPanel: showUnifiedNotificationPanel,
     // navigateNotification — smart in-app routing for notification links

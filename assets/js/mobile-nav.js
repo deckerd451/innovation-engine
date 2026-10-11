@@ -126,6 +126,8 @@
       const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
       const unreadBadge = document.getElementById('cd-messages-badge');
       const unread = Number.parseInt(unreadBadge?.textContent || '0', 10) || 0;
+      const unreadMessages = window.UnifiedNotifications?.getUnreadMessages?.() || [];
+      const topMessage = unreadMessages[0] || null;
       const peopleCount = document.querySelector('[data-count-for="people"]')?.textContent?.trim();
       const opportunityCount = document.querySelector('[data-count-for="opportunities"]')?.textContent?.trim();
       const hasPeople = peopleCount && Number.parseInt(peopleCount, 10) > 0;
@@ -133,12 +135,12 @@
       const firstIntent = intents[0]?.subject_label || '';
       const action = unread > 0 ? 'messages' : intents.length ? 'people' : 'profile-intent';
       const headline = unread > 0
-        ? `${unread} conversation${unread === 1 ? '' : 's'} waiting for you`
+        ? (topMessage?.preview || `${unread} conversation${unread === 1 ? '' : 's'} waiting for you`)
         : intents.length
           ? `Find a useful connection around ${firstIntent}`
           : 'Give Buildspace one thing to work with';
       const copy = unread > 0
-        ? 'A reply is the fastest way to keep momentum.'
+        ? `${unread} unread ${unread === 1 ? 'message' : 'messages'} · Reply while the context is fresh.`
         : intents.length
           ? 'Your focus is shared with people who may fit.'
           : 'Share what you need or can offer, and your suggestions get sharper.';
@@ -267,6 +269,9 @@
   window.addEventListener('resize', syncViewport, { passive: true });
   window.addEventListener('orientationchange', syncViewport, { passive: true });
   window.addEventListener('profile-loaded', () => {
+    if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
+  });
+  window.addEventListener('total-unread-messages-updated', () => {
     if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
   });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
