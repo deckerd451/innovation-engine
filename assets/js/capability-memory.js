@@ -16,7 +16,6 @@
   const supa = () => window.supabase;
   const list = (value) => Array.isArray(value) ? value : [];
   const lines = (value) => String(value || '').split('\n').map(s => s.trim()).filter(Boolean);
-  const money = (value) => value == null || value === '' ? '—' : `$${Number(value).toFixed(0)}`;
   const hours = (value) => value == null || value === '' ? '—' : `${Number(value).toFixed(1)}h`;
 
   function notify(message, type = 'info') {
@@ -109,12 +108,24 @@
       container.innerHTML = `<div class="cm-empty"><strong>Capability memory is ready to be connected.</strong><p>Apply the capability memory migration to enable reusable project recipes.</p></div>`;
       return;
     }
-    const packages = result.data;
-    const stats = await fetchAttemptStats(packages.map(pkg => pkg.id));
+    const allPackages = result.data;
+    const stats = await fetchAttemptStats(allPackages.map(pkg => pkg.id));
+    // Put methods with demonstrated outcomes first. The member should see the
+    // shortest proven path to a result, not the newest or largest library.
+    const packages = allPackages.slice().sort((a, b) => {
+      const sa = stats.get(a.id); const sb = stats.get(b.id);
+      const score = item => (item?.success || 0) * 100 + (item?.total || 0) * 2 + (item?.evidence_status === 'proven' ? 10 : item?.evidence_status === 'tested' ? 5 : 0);
+      return score(sb) - score(sa);
+    });
+    const totalAttempts = Array.from(stats.values()).reduce((sum, item) => sum + item.total, 0);
+    const totalSuccesses = Array.from(stats.values()).reduce((sum, item) => sum + item.success, 0);
+    const measuredSavings = Array.from(stats.values()).flatMap(item => item.savedHours || []);
+    const medianSavings = measuredSavings.length ? measuredSavings.sort((a, b) => a - b)[Math.floor(measuredSavings.length / 2)] : null;
     const canCreate = Boolean(options.canCreate);
     const canUse = Boolean(options.canUse);
     container.innerHTML = `<div class="cm-shell">
-      <div class="cm-intro"><div><h3>Reusable capabilities</h3><p>Turn one member’s solved problem into a shorter path for the next member.</p></div>${canCreate ? '<button type="button" class="cm-save-btn"><i class="fas fa-bookmark"></i> Save what worked</button>' : ''}</div>
+      <div class="cm-intro"><div><h3>Get to the result faster</h3><p>Choose a method that has helped someone complete this kind of work. The goal is progress, not a bigger library.</p></div>${canCreate ? '<button type="button" class="cm-save-btn"><i class="fas fa-bookmark"></i> Save what worked</button>' : ''}</div>
+      ${totalAttempts ? `<div class="cm-outcome-strip"><span><strong>${totalSuccesses}</strong> successful outcomes</span><span><strong>${Math.round((totalSuccesses / totalAttempts) * 100)}%</strong> success rate</span>${medianSavings != null ? `<span><strong>${medianSavings >= 0 ? hours(medianSavings) : hours(Math.abs(medianSavings))}</strong> median time ${medianSavings >= 0 ? 'saved' : 'added'}</span>` : ''}</div>` : ''}
       <div class="cm-form-slot"></div>
       <div class="cm-package-list">${packages.length ? packages.map(pkg => packageCard(pkg, stats, canUse)).join('') : '<div class="cm-empty"><strong>No shared capabilities yet.</strong><p>When this project solves something repeatable, save the recipe here.</p></div>'}</div>
     </div>`;
@@ -156,7 +167,7 @@
           const number = key => values.get(key) === '' ? null : Number(values.get(key));
           const { error } = await supa().from('capability_attempts').insert({ capability_id: form.dataset.capabilityId, member_id: memberId, baseline_hours: number('baseline_hours'), actual_hours: number('actual_hours'), baseline_cost: number('baseline_cost'), actual_cost: number('actual_cost'), outcome_status: values.get('outcome_status'), notes: values.get('notes') || null });
           if (error) throw error;
-          notify('Attempt started. Return here when you know what changed.', 'success');
+          notify('Result recorded. Your experience will improve the next member’s starting point.', 'success');
         }
         await mount(container, project, options);
       } catch (error) {
