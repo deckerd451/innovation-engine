@@ -7,8 +7,14 @@
 
   const tabs = {
     home: () => {
+      // Restore the view classes immediately so Home works even if the
+      // dashboard module is still recovering from a delayed load.
+      document.body.classList.add('buildspace-view-today');
+      document.body.classList.remove('buildspace-view-network');
       window.CommandDashboard?.setWorkspaceView?.('today');
-      document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
+      const dashboard = document.getElementById('command-dashboard');
+      dashboard?.classList.remove('cd-mobile-panel');
+      dashboard?.style.removeProperty('display');
       document.getElementById('cd-panel-tab')?.focus();
     },
     people: () => {
