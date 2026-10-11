@@ -465,17 +465,17 @@ window.CommandDashboard = (() => {
       : !profileComplete
         ? 'Add the details people need to find you.'
         : isMobile
-          ? 'Your next useful step starts here.'
+          ? 'Meet one useful person.'
           : '';
     const copy = _unreadMessages > 0
       ? 'Reply while the context is fresh.'
       : !profileComplete
         ? 'Your bio, skills, or interests are missing, so recommendations may stay broad.'
         : isMobile
-          ? 'Explore people, projects, and opportunities matched to your interests.'
+          ? 'See people connected to your skills and interests, then choose one conversation to start.'
           : '';
     const primaryAction = _unreadMessages > 0 ? 'messages' : !profileComplete ? 'profile' : isMobile ? 'explore' : null;
-    const primaryLabel = _unreadMessages > 0 ? 'Reply now' : !profileComplete ? 'Improve profile' : isMobile ? 'Explore now' : '';
+    const primaryLabel = _unreadMessages > 0 ? 'Reply now' : !profileComplete ? 'Improve profile' : isMobile ? 'See people' : '';
     if (!primaryAction) {
       welcome.innerHTML = '';
       focus.style.display = _unreadMessages ? '' : 'none';
