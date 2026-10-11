@@ -3122,6 +3122,7 @@ window.viewProjectDetails = async function(projectId) {
       <div id="pd-tabs" role="tablist" aria-label="Project sections" style="display:flex; gap:0.4rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); flex-wrap:wrap;">
         <button type="button" class="pd-tab-btn" data-tab="overview" role="tab" aria-selected="true" style="background:none; border:none; border-bottom:2px solid #ff6b6b; color:#ff6b6b; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Overview</button>
         ${canViewTasks ? '<button type="button" class="pd-tab-btn" data-tab="tasks" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>' : ''}
+        <button type="button" class="pd-tab-btn" data-tab="capabilities" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Capabilities</button>
         <button type="button" class="pd-tab-btn" data-tab="people" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">People</button>
         <button type="button" class="pd-tab-btn" data-tab="activity" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Activity</button>
       </div>
@@ -3150,6 +3151,9 @@ window.viewProjectDetails = async function(projectId) {
       </div>
 
       ${canViewTasks ? '<!-- Tasks tab --><div id="pd-tab-tasks" role="tabpanel" style="display:none;"></div>' : ''}
+
+      <!-- Capability memory tab -->
+      <div id="pd-tab-capabilities" role="tabpanel" style="display:none;"></div>
 
       <!-- People tab -->
       <div id="pd-tab-people" role="tabpanel" style="display:none;">
@@ -3183,6 +3187,7 @@ window.viewProjectDetails = async function(projectId) {
   const tabPanels = {
     overview: overlay.querySelector('#pd-tab-overview'),
     tasks: overlay.querySelector('#pd-tab-tasks'),
+    capabilities: overlay.querySelector('#pd-tab-capabilities'),
     people: overlay.querySelector('#pd-tab-people'),
     activity: overlay.querySelector('#pd-tab-activity'),
   };
@@ -3226,6 +3231,15 @@ window.viewProjectDetails = async function(projectId) {
             badge.remove();
           }
         },
+      });
+    }
+
+    if (tabName === 'capabilities' && window.CapabilityMemory && tabPanels.capabilities && !tabPanels.capabilities.dataset.mounted) {
+      tabPanels.capabilities.dataset.mounted = 'true';
+      window.CapabilityMemory.mount(tabPanels.capabilities, project, {
+        currentUserProfile,
+        canCreate: canViewTasks,
+        canUse: Boolean(currentUserProfile),
       });
     }
 
