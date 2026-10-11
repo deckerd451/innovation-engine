@@ -1016,7 +1016,6 @@ const MessagingModule = (function () {
                     ? `<img src="${conv.otherUser.avatar}" alt="${escapeHtml(conv.otherUser.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
                     : initials
                 }
-                ${isUnread ? `<span class="conv-unread-dot"></span>` : ""}
               </div>
               <div class="conversation-info">
                 <div class="conversation-name${isUnread ? " conv-name-unread" : ""}">
@@ -1087,8 +1086,8 @@ const MessagingModule = (function () {
             rows="1"
             onkeydown="MessagingModule.handleInputKeydown(event)"></textarea>
         </div>
-        <button class="send-button" onclick="MessagingModule.handleSendClick()">
-          <i class="fas fa-paper-plane"></i> Send
+        <button class="send-button" onclick="MessagingModule.handleSendClick()" aria-label="Send message" title="Send message">
+          <i class="fas fa-paper-plane" aria-hidden="true"></i><span class="send-button-label">Send</span>
         </button>
       </div>
     `;
@@ -1141,7 +1140,7 @@ const MessagingModule = (function () {
     const todayStr = now.toDateString();
     const yesterdayStr = new Date(now - 86400000).toDateString();
 
-    state.messages.forEach((msg) => {
+    state.messages.forEach((msg, index) => {
       const msgDate = new Date(msg.created_at);
       const msgDateStr = msgDate.toDateString();
 
@@ -1160,16 +1159,22 @@ const MessagingModule = (function () {
       const senderName = isSent ? "You" : (msg.sender?.name || "Unknown");
       const initials = senderName.substring(0, 2).toUpperCase();
       const timestamp = formatTime(msg.created_at);
+      const previous = state.messages[index - 1];
+      const next = state.messages[index + 1];
+      const previousDate = previous ? new Date(previous.created_at).toDateString() : null;
+      const nextDate = next ? new Date(next.created_at).toDateString() : null;
+      const continuesGroup = !!previous && previous.sender_id === msg.sender_id && previousDate === msgDateStr;
+      const endsGroup = !next || next.sender_id !== msg.sender_id || nextDate !== msgDateStr;
 
       html += `
-        <div class="message ${isSent ? "sent" : "received"}${isUnread ? " unread" : ""}" data-msg-id="${escapeHtml(String(msg.id))}">
-          <div class="message-avatar">${initials}</div>
+        <div class="message ${isSent ? "sent" : "received"}${isUnread ? " unread" : ""}${continuesGroup ? " continued" : ""}" data-msg-id="${escapeHtml(String(msg.id))}">
+          <div class="message-avatar"${continuesGroup ? ' aria-hidden="true"' : ''}>${continuesGroup ? '' : initials}</div>
           <div class="message-content">
             <div class="message-bubble">
               ${escapeHtml(msg.content)}
               ${isSent ? `<button class="msg-delete-btn" onclick="MessagingModule.deleteMessage('${escapeHtml(String(msg.id))}')" title="Delete">×</button>` : ""}
             </div>
-            <div class="message-timestamp">${timestamp}</div>
+            ${endsGroup ? `<div class="message-timestamp">${timestamp}</div>` : ''}
           </div>
         </div>
       `;

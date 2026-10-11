@@ -377,6 +377,17 @@ function handlePresenceLeave({ leftPresences }) {
 
 // Open messaging interface
 export async function openMessagingInterface(conversationId = null) {
+  // MessagingModule is the canonical conversation UI. Keep this realtime
+  // entry point for older callers, but route them through the same modal so
+  // presence/realtime updates never create a second messaging surface.
+  if (typeof window.openMessagesModal === 'function') {
+    await window.openMessagesModal();
+    if (conversationId && window.MessagingModule?.selectConversationById) {
+      await window.MessagingModule.selectConversationById(conversationId);
+    }
+    return;
+  }
+
   console.log('💬 Opening messaging interface...');
   if (window.Identity) window.Identity.audit('messaging');
 

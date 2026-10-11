@@ -190,6 +190,12 @@
   border-left: 3px solid #00e0ff;
 }
 
+/* One unread signal is enough: the accent rail plus the numeric count. */
+.conversation-item.unread .conversation-preview {
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
 .conversation-header {
   display: flex;
   align-items: center;
@@ -411,6 +417,25 @@
 
 .message.sent .message-timestamp {
   text-align: right;
+}
+
+/* Consecutive messages read as one thought instead of a stack of bubbles. */
+.message.continued {
+  margin-top: -0.65rem;
+}
+
+.message.continued .message-avatar {
+  visibility: hidden;
+}
+
+.message.continued .message-bubble {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.message:not(.continued) + .message.continued .message-bubble {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
 }
 
 /* ===== MESSAGE INPUT ===== */
@@ -713,6 +738,17 @@
   
   .message-input-container {
     padding: 1rem;
+  }
+
+  .send-button {
+    width: 48px;
+    min-width: 48px;
+    padding: 0.75rem;
+    justify-content: center;
+  }
+
+  .send-button-label {
+    display: none;
   }
 }
 //* =========================================================
