@@ -488,10 +488,10 @@ window.CommandDashboard = (() => {
           <h3 id="cd-next-move-title">${title}</h3>
           <p>${copy}</p>
         </div>
-        <div class="cd-next-move-actions">
+        ${isMobile ? '' : `<div class="cd-next-move-actions">
           <button type="button" class="cd-focus-cta" data-welcome-action="${primaryAction}">${primaryLabel}</button>
           ${primaryAction === 'explore' ? '' : '<button type="button" class="cd-next-move-dismiss" data-welcome-action="dismiss" aria-label="Dismiss next move">×</button>'}
-        </div>
+        </div>`}
       </section>`;
     focus.style.display = '';
     welcome.querySelectorAll('[data-welcome-action]').forEach((button) => {
