@@ -117,7 +117,7 @@ DROP POLICY IF EXISTS "Community can view shared capability packages" ON public.
 CREATE POLICY "Community can view shared capability packages"
   ON public.capability_packages FOR SELECT TO authenticated
   USING (
-    permission_mode = 'community'
+    (permission_mode = 'community' AND EXISTS (SELECT 1 FROM public.community WHERE user_id = auth.uid()))
     OR creator_id IN (SELECT id FROM public.community WHERE user_id = auth.uid())
   );
 
@@ -255,7 +255,7 @@ AS $$
   FROM public.capability_attempts a
   JOIN public.capability_packages p ON p.id = a.capability_id
   WHERE a.capability_id = ANY(capability_ids)
-    AND (p.permission_mode = 'community' OR p.creator_id IN (SELECT id FROM public.community WHERE user_id = auth.uid()))
+    AND ((p.permission_mode = 'community' AND EXISTS (SELECT 1 FROM public.community WHERE user_id = auth.uid())) OR p.creator_id IN (SELECT id FROM public.community WHERE user_id = auth.uid()))
   GROUP BY a.capability_id;
 $$;
 

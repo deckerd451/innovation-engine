@@ -18,6 +18,24 @@
   const lines = (value) => String(value || '').split('\n').map(s => s.trim()).filter(Boolean);
   const hours = (value) => value == null || value === '' ? '—' : `${Number(value).toFixed(1)}h`;
 
+  function classifySearchError(error) {
+    const code = String(error?.code || '').toUpperCase();
+    const message = String(error?.message || error || '').toLowerCase();
+    if (['42P01', '42703', '42883', 'PGRST200', 'PGRST204'].includes(code)
+      || /relation .* does not exist|column .* does not exist|schema cache|foreign key relationship/.test(message)) return 'setup';
+    if (['42501', 'PGRST116', 'PGRST301'].includes(code)
+      || /permission denied|row-level security|not authorized|jwt/.test(message)) return 'permission';
+    if (error?.name === 'TypeError' || /network|fetch|failed to connect|offline|timeout/.test(message)) return 'connection';
+    return 'unknown';
+  }
+
+  function searchErrorMessage(reason) {
+    if (reason === 'setup') return 'Capability search needs the Capability Memory database update. Ask an administrator to apply the production migration.';
+    if (reason === 'permission') return 'You do not have permission to search shared capabilities. Sign in with a community profile and try again.';
+    if (reason === 'connection') return 'Capability search could not reach the community database. Check your connection and try again.';
+    return 'Capability search could not be loaded. Try again, or contact an administrator if the problem continues.';
+  }
+
   function notify(message, type = 'info') {
     if (typeof window.showNotification === 'function') window.showNotification(message, type);
     else if (type === 'error') window.alert(message);
@@ -35,11 +53,21 @@
   }
 
   async function fetchSharedPackages() {
-    const { data, error } = await supa().from('capability_packages')
-      .select('id, project_id, creator_id, title, goal, summary, steps, tools, constraints, failure_notes, success_criteria, permission_mode, evidence_status, version, created_at, updated_at, creator:community!capability_packages_creator_id_fkey(id, name), project:projects(id, title)')
-      .eq('permission_mode', 'community').order('updated_at', { ascending: false }).limit(100);
-    if (error) return { data: [], unavailable: true };
-    return { data: data || [], unavailable: false };
+    try {
+      const { data, error } = await supa().from('capability_packages')
+        .select('id, project_id, creator_id, title, goal, summary, steps, tools, constraints, failure_notes, success_criteria, permission_mode, evidence_status, version, created_at, updated_at, creator:community!capability_packages_creator_id_fkey(id, name), project:projects(id, title)')
+        .eq('permission_mode', 'community').order('updated_at', { ascending: false }).limit(100);
+      if (error) {
+        const reason = classifySearchError(error);
+        console.error('[CapabilityMemory] shared package search failed:', { reason, code: error.code, message: error.message });
+        return { data: [], unavailable: true, reason };
+      }
+      return { data: data || [], unavailable: false, reason: null };
+    } catch (error) {
+      const reason = classifySearchError(error);
+      console.error('[CapabilityMemory] shared package search failed:', { reason, message: error?.message });
+      return { data: [], unavailable: true, reason };
+    }
   }
 
   async function fetchOwnAttempts(projectId, memberId) {
@@ -276,7 +304,7 @@
     async function renderGoalResults(goal) {
       results.innerHTML = '<div class="cm-loading">Searching community work…</div>';
       const packageResult = await fetchSharedPackages();
-      if (packageResult.unavailable) { results.innerHTML = '<div class="cm-empty"><strong>Capability search is unavailable.</strong><p>Try again after the capability memory migration is applied.</p></div>'; return; }
+      if (packageResult.unavailable) { results.innerHTML = `<div class="cm-empty cm-search-error" data-error-kind="${esc(packageResult.reason || 'unknown')}"><strong>${esc(searchErrorMessage(packageResult.reason))}</strong><p>Search again after resolving the issue.</p></div>`; return; }
       const packages = packageResult.data;
       const stats = await fetchAttemptStats(packages.map(item => item.id));
       const ranked = rankPackages(packages, stats, goal);
@@ -313,6 +341,7 @@
       const card = use.closest('[data-package-id]');
       const goal = container.querySelector('.cm-goal-form input')?.value.trim();
       const packageResult = await fetchSharedPackages();
+      if (packageResult.unavailable) { notify(searchErrorMessage(packageResult.reason), 'error'); use.disabled = false; return; }
       const pkg = packageResult.data.find(item => item.id === card?.dataset.packageId);
       if (!pkg) return;
       use.disabled = true;
@@ -335,5 +364,5 @@
   window.CapabilityMemory = { mount };
   // Pure helpers are exposed for deterministic regression tests only. They do
   // not access Supabase or browser state.
-  window.CapabilityMemoryTesting = { median, confidenceAdjustedEffectiveness, rankPackages, summarizeStats, goalMatch, buildTaskPlan };
+  window.CapabilityMemoryTesting = { median, confidenceAdjustedEffectiveness, rankPackages, summarizeStats, goalMatch, buildTaskPlan, classifySearchError, searchErrorMessage };
 })();
