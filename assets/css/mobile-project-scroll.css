@@ -1,0 +1,101 @@
+/* Mobile project detail and capability workflow scrolling.
+ * The desktop panel keeps its existing bounded scroll area. On touch
+ * viewports the overlay is the only vertical scroll surface, which prevents
+ * nested containers from trapping long capability and task content. */
+
+@media (max-width: 700px), (pointer: coarse) {
+  #project-detail-overlay.project-detail-overlay {
+    box-sizing: border-box !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100svh !important;
+    max-height: 100dvh !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain;
+    touch-action: pan-y pinch-zoom;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 0
+      calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #project-detail-overlay .project-detail-panel {
+    box-sizing: border-box !important;
+    width: min(100%, 680px) !important;
+    max-width: none !important;
+    min-height: calc(100svh - 12px) !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    overflow: visible !important;
+    padding: 1rem !important;
+    flex: 0 0 auto;
+  }
+
+  #project-detail-overlay #pd-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  #project-detail-overlay #pd-tabs::-webkit-scrollbar { display: none; }
+  #project-detail-overlay #pd-tabs .pd-tab-btn {
+    flex: 0 0 auto !important;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  #project-detail-overlay [role="tabpanel"],
+  #project-detail-overlay .cm-shell,
+  #project-detail-overlay .pt-panel,
+  #project-detail-overlay #pt-groups {
+    min-width: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #project-detail-overlay .cm-package-card,
+  #project-detail-overlay .cm-recipe,
+  #project-detail-overlay .pt-task {
+    overflow-wrap: anywhere;
+  }
+
+  #project-detail-overlay input,
+  #project-detail-overlay textarea,
+  #project-detail-overlay select {
+    font-size: 16px !important;
+    max-width: 100%;
+  }
+
+  #project-detail-overlay .cm-goal-form,
+  #project-detail-overlay .cm-form-actions,
+  #project-detail-overlay .pt-add-actions {
+    flex-wrap: wrap;
+  }
+
+  #project-detail-overlay .cm-goal-form button,
+  #project-detail-overlay .cm-form-actions button,
+  #project-detail-overlay .pt-add-actions button {
+    min-height: 44px;
+  }
+}
+
+@media (min-width: 701px) and (pointer: fine) {
+  #project-detail-overlay.project-detail-overlay {
+    overflow: hidden;
+  }
+
+  #project-detail-overlay .project-detail-panel {
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

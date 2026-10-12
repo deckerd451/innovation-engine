@@ -50,7 +50,9 @@
     }
 
     let startY = 0;
+    let startX = 0;
     let currentY = 0;
+    let currentX = 0;
     let dragging = false;
 
     const originalTransition = el.style.transition;
@@ -62,8 +64,14 @@
       const touch = e.touches[0];
       const rect = el.getBoundingClientRect();
       if (touch.clientY - rect.top > 80) return; // too far down
+      // Reserve the dismiss gesture for the explicit handle. A touch that
+      // starts on the panel's top edge is otherwise indistinguishable from a
+      // normal downward page scroll on mobile.
+      if (!e.target.closest?.('.swipe-handle')) return;
       startY = touch.clientY;
+      startX = touch.clientX;
       currentY = startY;
+      currentX = startX;
       dragging = true;
       el.style.transition = 'none';
     }
@@ -72,12 +80,22 @@
       if (!dragging) return;
       const touch = e.touches[0];
       currentY = touch.clientY;
-      const dy = Math.max(0, currentY - startY); // only downward
+      currentX = touch.clientX;
+      const rawDy = currentY - startY;
+      const rawDx = currentX - startX;
+      // A vertical gesture belongs to the page/panel. Only capture a
+      // downward gesture once it is clearly intentional and not a scroll.
+      if (Math.abs(rawDy) <= Math.abs(rawDx) || rawDy <= 0) {
+        dragging = false;
+        el.style.transition = originalTransition;
+        return;
+      }
+      const dy = rawDy;
       el.style.transform = `translateY(${dy}px)`;
       if (backdrop && backdrop !== el) {
         backdrop.style.opacity = String(Math.max(0, 1 - dy * OPACITY_FACTOR / 100));
       }
-      if (dy > 10) e.preventDefault(); // prevent page scroll while swiping
+      if (dy > 10) e.preventDefault(); // only after a deliberate dismiss drag
     }
 
     function onTouchEnd() {

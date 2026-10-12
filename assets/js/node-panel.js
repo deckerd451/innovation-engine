@@ -3058,6 +3058,7 @@ window.viewProjectDetails = async function(projectId) {
   // --- Build overlay ---
   const overlay = document.createElement('div');
   overlay.id = 'project-detail-overlay';
+  overlay.className = 'project-detail-overlay';
   overlay.style.cssText = `
     position:fixed; top:0; left:0; width:100vw; height:100vh;
     background:rgba(0,0,0,0.75); backdrop-filter:blur(4px);
@@ -3077,7 +3078,7 @@ window.viewProjectDetails = async function(projectId) {
   }
 
   overlay.innerHTML = `
-    <div style="
+    <div class="project-detail-panel" style="
       background:linear-gradient(135deg, rgba(10,14,39,0.98), rgba(26,26,46,0.98));
       border:2px solid rgba(255,107,107,0.4); border-radius:16px;
       width:90%; max-width:680px; max-height:90vh; overflow-y:auto;
@@ -3181,6 +3182,16 @@ window.viewProjectDetails = async function(projectId) {
   `;
 
   document.body.appendChild(overlay);
+
+  // Keep focused fields visible while iOS/Android resizes the visual viewport
+  // for the keyboard. The overlay remains the single mobile scroll surface.
+  overlay.addEventListener('focusin', (event) => {
+    const field = event.target;
+    if (!field || !/^(INPUT|TEXTAREA|SELECT)$/.test(field.tagName)) return;
+    window.requestAnimationFrame(() => {
+      try { field.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }); } catch (_) { /* older WebViews */ }
+    });
+  });
 
   // --- Tabs wiring ---
   const tabButtons = overlay.querySelectorAll('.pd-tab-btn');
