@@ -68,6 +68,6 @@ assert.match(index, /My Space/);
 assert.match(index, /Explore/);
 assert.match(index, /data-surface="community"/);
 assert.match(index, /Community/);
-assert.match(sw, /v11-adoption-shell-20261013/);
+assert.match(sw, /v12-assistance-interventions-20261013/);
 
 console.log('Mobile UX stabilization contracts passed');

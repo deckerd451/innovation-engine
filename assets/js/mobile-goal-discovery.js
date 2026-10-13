@@ -51,8 +51,10 @@
       return;
     }
     lastSearch = result;
-    const direct = result.packages.filter(pkg => window.CapabilityMemoryTesting.goalMatch(pkg, goal).score > 0);
-    results.innerHTML = `<div class="cm-results-title">${direct.length} relevant method${direct.length === 1 ? '' : 's'} found <span>from ${result.packages.length} shared package${result.packages.length === 1 ? '' : 's'}</span></div>${result.packages.length ? result.packages.map(pkg => window.CapabilityMemory.renderPackageCard(pkg, result.stats, goal, { canUse: true, actionLabel: 'Choose a project' })).join('') : '<div class="cm-empty"><strong>No shared methods yet.</strong><p>Try a broader goal or check back after the community shares a result.</p></div>'}`;
+    const relevant = result.packages.filter(pkg => window.CapabilityMemoryTesting.goalMatch(pkg, goal).relevant);
+    const intervention = window.AssistanceInterventions?.interventionFor(goal);
+    results.innerHTML = `${intervention ? window.AssistanceInterventions.render(intervention, escape) : ''}<div class="cm-results-title">${relevant.length} relevant method${relevant.length === 1 ? '' : 's'} found <span>from ${result.packages.length} shared package${result.packages.length === 1 ? '' : 's'}</span></div>${relevant.length ? relevant.map(pkg => window.CapabilityMemory.renderPackageCard(pkg, result.stats, goal, { canUse: true, actionLabel: 'Choose a project' })).join('') : '<div class="cm-empty"><strong>No matching community method yet.</strong><p>The brief above is a useful place to start. You can save the result to a project when you have one.</p></div>'}`;
+    lastSearch = { ...result, packages: relevant };
   }
 
   function mount(container) {
