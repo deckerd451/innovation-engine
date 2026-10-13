@@ -3272,6 +3272,7 @@ window.viewProjectDetails = async function(projectId) {
     }
 
     if (tabName === 'capabilities' && window.CapabilityMemory && tabPanels.capabilities && !tabPanels.capabilities.dataset.mounted) {
+      window.CapabilityJourney?.emit('capability_viewed', { surface: 'project' });
       tabPanels.capabilities.dataset.mounted = 'true';
       window.CapabilityMemory.mount(tabPanels.capabilities, project, {
         currentUserProfile,

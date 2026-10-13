@@ -302,6 +302,7 @@
     }
 
     async function renderGoalResults(goal) {
+      window.CapabilityJourney?.emit('goal_entered', { surface: 'project' });
       results.innerHTML = '<div class="cm-loading">Searching community work…</div>';
       const packageResult = await fetchSharedPackages();
       if (packageResult.unavailable) { results.innerHTML = `<div class="cm-empty cm-search-error" data-error-kind="${esc(packageResult.reason || 'unknown')}"><strong>${esc(searchErrorMessage(packageResult.reason))}</strong><p>Search again after resolving the issue.</p></div>`; return; }
@@ -326,6 +327,7 @@
       if (!taskIds.length) throw new Error('All capability steps already exist as project tasks.');
       const { error } = await supa().from('capability_attempts').insert({ capability_id: pkg.id, member_id: memberId, project_id: project.id, goal, task_ids: taskIds, outcome_status: 'in_progress' });
       if (error) throw error;
+      window.CapabilityJourney?.emit('tasks_imported', { surface: 'project', taskCount: taskIds.length });
       notify(`${taskIds.length} task${taskIds.length === 1 ? '' : 's'} added from this capability.`, 'success');
       await renderActiveAttempts();
     }
@@ -344,6 +346,7 @@
       if (packageResult.unavailable) { notify(searchErrorMessage(packageResult.reason), 'error'); use.disabled = false; return; }
       const pkg = packageResult.data.find(item => item.id === card?.dataset.packageId);
       if (!pkg) return;
+      window.CapabilityJourney?.emit('capability_selected', { surface: 'project' });
       use.disabled = true;
       try { await startCapability(pkg, goal); } catch (error) { notify(error.message || 'Could not create project tasks.', 'error'); use.disabled = false; }
     });
@@ -355,6 +358,7 @@
       const number = key => values.get(key) === '' ? null : Number(values.get(key));
       const { error } = await supa().from('capability_attempts').update({ baseline_hours: number('baseline_hours'), actual_hours: number('actual_hours'), baseline_cost: number('baseline_cost'), actual_cost: number('actual_cost'), outcome_status: values.get('outcome_status'), notes: values.get('notes') || null }).eq('id', form.dataset.attemptId).eq('member_id', memberId);
       if (error) { notify(error.message || 'Could not save outcome.', 'error'); return; }
+      window.CapabilityJourney?.emit('outcome_recorded', { surface: 'project', outcome: values.get('outcome_status') === 'succeeded' ? 'succeeded' : 'other' });
       notify('Outcome recorded. Self-reported results remain distinct from independent verification.', 'success');
       await renderActiveAttempts();
     });
