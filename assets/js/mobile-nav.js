@@ -7,6 +7,7 @@
 
   const tabs = {
     home: () => {
+      window.MobileYou?.hide();
       // Restore the view classes immediately so Home works even if the
       // dashboard module is still recovering from a delayed load.
       document.body.classList.add('buildspace-view-today');
@@ -38,6 +39,7 @@
   };
 
   function setDiscoverMode(mode) {
+    window.MobileYou?.hide();
     const isNetwork = mode === 'network';
     document.body.classList.add('buildspace-view-today');
     document.body.classList.remove('buildspace-view-network');
@@ -226,8 +228,8 @@
   }
 
   function showMobileProfileSheet() {
-    if (typeof window.openProfileModal !== 'function') return;
-    window.openProfileModal();
+    if (window.MobileYou?.show) return window.MobileYou.show();
+    window.openProfileModal?.();
   }
 
   function wire() {
@@ -267,6 +269,7 @@
       });
       document.body.classList.add(`mobile-tab-${activeTab}`);
       if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
+      if (document.querySelector('.mob-tab[data-tab="profile"].active')) window.MobileYou?.show();
     }
   }
   window.addEventListener('resize', syncViewport, { passive: true });

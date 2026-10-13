@@ -1,0 +1,30 @@
+@media (max-width: 1023px), (pointer: coarse) {
+  #mobile-you-screen.mobile-you-screen {
+    position: fixed;
+    inset: 0 0 var(--mobile-tab-bar-height, 68px) 0;
+    z-index: 20;
+    background: linear-gradient(135deg, #0a0e27, #1a1a2e);
+  }
+  #mobile-you-screen[hidden] { display: none !important; }
+  .mobile-you-scroll { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(1.25rem, env(safe-area-inset-top, 0px)) 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); }
+  .mobile-you-content { max-width: 680px; margin: 0 auto; display: grid; gap: .85rem; }
+  .mobile-you-header { display:flex; align-items:center; gap:.8rem; padding:.3rem 0 .6rem; }
+  .mobile-you-avatar { width:52px; height:52px; border-radius:16px; display:grid; place-items:center; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); color:white; font-size:1.4rem; font-weight:800; }
+  .mobile-you-eyebrow { margin:0; color:#00e0ff; font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; }
+  .mobile-you-header h1 { margin:.1rem 0; color:white; font-size:1.45rem; }
+  .mobile-you-header p:last-child { margin:0; color:#9ca7bc; font-size:.82rem; }
+  .mobile-you-card { padding:1rem; border:1px solid rgba(255,255,255,.1); border-radius:14px; background:rgba(255,255,255,.045); }
+  .mobile-you-card h2 { margin:0; color:white; font-size:1rem; }
+  .mobile-you-card p { color:#c7cfdd; line-height:1.5; }
+  .mobile-you-section-heading { display:flex; justify-content:space-between; align-items:center; }
+  .mobile-you-section-heading span { color:#00e0ff; font-weight:700; }
+  .mobile-you-project { width:100%; display:flex; justify-content:space-between; gap:.75rem; text-align:left; padding:.75rem 0; color:white; background:none; border:0; border-top:1px solid rgba(255,255,255,.08); cursor:pointer; }
+  .mobile-you-project span, .mobile-you-muted { color:#98a2b5; font-size:.84rem; }
+  .mobile-you-secondary, .mobile-you-logout, .mobile-you-retry { min-height:44px; padding:.65rem .85rem; border-radius:9px; cursor:pointer; font-weight:700; }
+  .mobile-you-secondary { color:#00e0ff; background:rgba(0,224,255,.08); border:1px solid rgba(0,224,255,.25); }
+  .mobile-you-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+  .mobile-you-logout { width:100%; color:#ff9a9a; background:rgba(255,107,107,.08); border:1px solid rgba(255,107,107,.3); }
+  .mobile-you-state { color:#c7cfdd; padding:2rem .5rem; text-align:center; }
+  .mobile-you-state h1 { color:white; }
+}
+@media (min-width: 1024px) and (pointer: fine) { #mobile-you-screen { display:none !important; } }
