@@ -2922,7 +2922,7 @@ window.joinProjectFromPanel = async function(projectId) {
   }
 };
 
-window.viewProjectDetails = async function(projectId) {
+window.viewProjectDetails = async function(projectId, initialTab = null) {
   console.log(`[Project Detail] opened: ${projectId}`);
 
   if (!supabase) supabase = window.supabase;
@@ -3122,8 +3122,9 @@ window.viewProjectDetails = async function(projectId) {
       <!-- Tabs -->
       <div id="pd-tabs" role="tablist" aria-label="Project sections" style="display:flex; gap:0.4rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); flex-wrap:wrap;">
         <button type="button" class="pd-tab-btn" data-tab="overview" role="tab" aria-selected="true" style="background:none; border:none; border-bottom:2px solid #ff6b6b; color:#ff6b6b; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Overview</button>
-        ${canViewTasks ? '<button type="button" class="pd-tab-btn" data-tab="tasks" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>' : ''}
-        <button type="button" class="pd-tab-btn" data-tab="capabilities" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Capabilities</button>
+        <button type="button" class="pd-tab-btn pd-mobile-work-tab" data-tab="work" role="tab" aria-selected="false" style="display:none; background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Work</button>
+        ${canViewTasks ? '<button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="tasks" role="tab" aria-selected="false" aria-label="Tasks" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>' : ''}
+        <button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="capabilities" role="tab" aria-selected="false" aria-label="Capabilities" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Capabilities</button>
         <button type="button" class="pd-tab-btn" data-tab="people" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">People</button>
         <button type="button" class="pd-tab-btn" data-tab="activity" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Activity</button>
       </div>
@@ -3149,6 +3150,23 @@ window.viewProjectDetails = async function(projectId) {
             <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${tagsHTML}</div>
           </div>
         ` : ''}
+        <section class="pd-activity-summary" aria-labelledby="pd-activity-summary-title">
+          <div class="pd-activity-summary-heading"><h4 id="pd-activity-summary-title">Recent activity</h4><button type="button" class="pd-activity-history-btn" data-tab-focus="activity">View full history</button></div>
+          <div id="pd-activity-summary-content" class="pd-activity-summary-content">Loading recent activity…</div>
+        </section>
+      </div>
+
+      <!-- Mobile Work tab. The legacy panels below remain for desktop and callers. -->
+      <div id="pd-tab-work" role="tabpanel" style="display:none;">
+        <div class="pd-work-next" aria-live="polite"><strong>Work</strong><span>Open a section when you are ready to continue.</span></div>
+        <details class="pd-work-section" data-work-section="capabilities">
+          <summary>Goals &amp; community capabilities</summary>
+          <div id="pd-work-capabilities"></div>
+        </details>
+        ${canViewTasks ? `<details class="pd-work-section" data-work-section="tasks">
+          <summary>Project tasks</summary>
+          <div id="pd-work-tasks"></div>
+        </details>` : ''}
       </div>
 
       ${canViewTasks ? '<!-- Tasks tab --><div id="pd-tab-tasks" role="tabpanel" style="display:none;"></div>' : ''}
@@ -3227,11 +3245,33 @@ window.viewProjectDetails = async function(projectId) {
     capabilities: overlay.querySelector('#pd-tab-capabilities'),
     people: overlay.querySelector('#pd-tab-people'),
     activity: overlay.querySelector('#pd-tab-activity'),
+    work: overlay.querySelector('#pd-tab-work'),
   };
   let tasksMounted = false;
   let activityLoaded = false;
+  let activityHistoryRequested = false;
+  let pendingWorkFocus = null;
+  const isMobileProject = () => window.matchMedia?.('(max-width: 700px), (pointer: coarse)').matches === true;
+  const workTarget = (name) => isMobileProject()
+    ? overlay.querySelector(`#pd-work-${name}`)
+    : tabPanels[name];
+
+  function openWorkSection(section) {
+    const details = overlay.querySelector(`details[data-work-section="${section}"]`);
+    if (details) details.open = true;
+    const target = workTarget(section);
+    if (target) window.setTimeout(() => target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
+  }
 
   function activateTab(tabName) {
+    if (isMobileProject() && tabName === 'activity') {
+      activityHistoryRequested = true;
+      tabName = 'overview';
+      pendingWorkFocus = 'activity';
+    } else if (isMobileProject() && (tabName === 'tasks' || tabName === 'capabilities')) {
+      pendingWorkFocus = tabName;
+      tabName = 'work';
+    }
     tabButtons.forEach(btn => {
       const active = btn.dataset.tab === tabName;
       btn.style.color = active ? '#ff6b6b' : '#999';
@@ -3242,7 +3282,7 @@ window.viewProjectDetails = async function(projectId) {
       if (el) el.style.display = name === tabName ? 'block' : 'none';
     });
 
-    if (canViewTasks && tabName === 'tasks' && !tasksMounted && window.ProjectTasks) {
+    if (canViewTasks && (tabName === 'tasks' || tabName === 'work') && !tasksMounted && window.ProjectTasks) {
       tasksMounted = true;
       const members = [];
       const seen = new Set();
@@ -3250,7 +3290,7 @@ window.viewProjectDetails = async function(projectId) {
       activeMembers.forEach(m => {
         if (m.user?.id && !seen.has(m.user.id)) { members.push(m.user); seen.add(m.user.id); }
       });
-      window.ProjectTasks.mountTasksPanel(tabPanels.tasks, project, {
+      window.ProjectTasks.mountTasksPanel(workTarget('tasks'), project, {
         currentUserProfile,
         canEdit: true,
         canDelete: rel.isCreator,
@@ -3271,10 +3311,10 @@ window.viewProjectDetails = async function(projectId) {
       });
     }
 
-    if (tabName === 'capabilities' && window.CapabilityMemory && tabPanels.capabilities && !tabPanels.capabilities.dataset.mounted) {
+    if ((tabName === 'capabilities' || tabName === 'work') && window.CapabilityMemory && workTarget('capabilities') && !workTarget('capabilities').dataset.mounted) {
       window.CapabilityJourney?.emit('capability_viewed', { surface: 'project' });
-      tabPanels.capabilities.dataset.mounted = 'true';
-      window.CapabilityMemory.mount(tabPanels.capabilities, project, {
+      workTarget('capabilities').dataset.mounted = 'true';
+      window.CapabilityMemory.mount(workTarget('capabilities'), project, {
         currentUserProfile,
         canCreate: canViewTasks,
         canUse: Boolean(currentUserProfile),
@@ -3282,14 +3322,29 @@ window.viewProjectDetails = async function(projectId) {
       });
     }
 
-    if (tabName === 'activity' && !activityLoaded) {
+    if ((tabName === 'activity' || tabName === 'overview') && !activityLoaded) {
       activityLoaded = true;
       loadProjectActivity(project.id, tabPanels.activity);
+      loadProjectActivity(project.id, overlay.querySelector('#pd-activity-summary-content'), activityHistoryRequested ? 20 : 3);
     }
+    if (tabName === 'work') openWorkSection(pendingWorkFocus || 'tasks');
+    if (pendingWorkFocus === 'activity') {
+      pendingWorkFocus = null;
+      overlay.querySelector('[data-tab-focus="activity"]')?.focus();
+    } else if (tabName === 'work') pendingWorkFocus = null;
   }
 
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+  });
+  overlay.querySelector('[data-tab-focus="activity"]')?.addEventListener('click', () => {
+    activityHistoryRequested = true;
+    activateTab('overview');
+    const summary = overlay.querySelector('#pd-activity-summary-content');
+    if (summary) loadProjectActivity(project.id, summary, 20);
+    const button = overlay.querySelector('[data-tab-focus="activity"]');
+    if (button) button.textContent = 'Showing full history';
+    window.setTimeout(() => summary?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
   });
 
   overlay.querySelectorAll('.pd-remove-member-btn').forEach(btn => {
@@ -3312,6 +3367,7 @@ window.viewProjectDetails = async function(projectId) {
       document.removeEventListener('keydown', _escHandler);
     }
   });
+  activateTab(initialTab || 'overview');
 };
 
 window.removeProjectMember = async function(projectId, memberId, memberName = 'this member') {
@@ -3355,7 +3411,7 @@ window.removeProjectMember = async function(projectId, memberId, memberName = 't
 // in this schema; we just filter it by project_id and format the
 // task-related action types Tasks writes).
 // ================================================================
-async function loadProjectActivity(projectId, container) {
+async function loadProjectActivity(projectId, container, limit = 20) {
   if (!container) return;
   const esc = window.escapeHtml || (s => s);
   const ACTION_LABELS = {
@@ -3371,7 +3427,7 @@ async function loadProjectActivity(projectId, container) {
       .select('auth_user_id, action_type, details, created_at')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(limit);
 
     if (error || !rows || rows.length === 0) {
       container.innerHTML = '<div style="color:#777; font-size:0.85rem;">No recent activity.</div>';

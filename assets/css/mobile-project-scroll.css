@@ -54,6 +54,49 @@
     white-space: nowrap;
   }
 
+  /* Mobile exposes the smaller information architecture while retaining the
+   * legacy buttons in the DOM for deep links and programmatic callers. */
+  #project-detail-overlay #pd-tabs .pd-legacy-tab { display: none !important; }
+  #project-detail-overlay #pd-tabs .pd-mobile-work-tab { display: block !important; }
+  #project-detail-overlay #pd-tab-work { display: none; }
+  #project-detail-overlay .pd-work-section {
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px;
+    margin: 0 0 .75rem;
+    background: rgba(255,255,255,.025);
+  }
+  #project-detail-overlay .pd-work-section > summary {
+    cursor: pointer;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: .75rem .85rem;
+    color: #fff;
+    font-weight: 700;
+    list-style-position: inside;
+  }
+  #project-detail-overlay .pd-work-section > div { padding: 0 .75rem .85rem; }
+  #project-detail-overlay .pd-work-next {
+    display: grid;
+    gap: .2rem;
+    margin: 0 0 .9rem;
+    padding: .75rem .85rem;
+    border-radius: 10px;
+    background: rgba(0,224,255,.06);
+    border: 1px solid rgba(0,224,255,.18);
+    color: #c8d5e5;
+  }
+  #project-detail-overlay .pd-work-next strong { color: #00e0ff; }
+  #project-detail-overlay .pd-activity-summary {
+    margin-top: 1.25rem;
+    padding-top: .9rem;
+    border-top: 1px solid rgba(255,255,255,.08);
+  }
+  #project-detail-overlay .pd-activity-summary-heading { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
+  #project-detail-overlay .pd-activity-summary h4 { margin:0; color:rgba(255,255,255,.6); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; }
+  #project-detail-overlay .pd-activity-history-btn { min-height: 40px; color:#00e0ff; background:none; border:0; cursor:pointer; font-weight:700; }
+  #project-detail-overlay .pd-activity-summary-content { color:#aaa; font-size:.82rem; margin-top:.5rem; }
+
   #project-detail-overlay [role="tabpanel"],
   #project-detail-overlay .cm-shell,
   #project-detail-overlay .pt-panel,
