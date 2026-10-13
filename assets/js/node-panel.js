@@ -3126,7 +3126,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
         ${canViewTasks ? '<button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="tasks" role="tab" aria-selected="false" aria-label="Tasks" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>' : ''}
         <button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="capabilities" role="tab" aria-selected="false" aria-label="Capabilities" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Capabilities</button>
         <button type="button" class="pd-tab-btn" data-tab="people" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">People</button>
-        <button type="button" class="pd-tab-btn" data-tab="activity" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Activity</button>
+        <button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="activity" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Activity</button>
       </div>
 
       <!-- Overview tab -->
@@ -3158,7 +3158,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
 
       <!-- Mobile Work tab. The legacy panels below remain for desktop and callers. -->
       <div id="pd-tab-work" role="tabpanel" style="display:none;">
-        <div class="pd-work-next" aria-live="polite"><strong>Work</strong><span>Open a section when you are ready to continue.</span></div>
+        <div class="pd-work-next" aria-live="polite"><strong>Continue your work</strong><span>${canViewTasks ? 'Start with your project tasks.' : 'Choose a community method for this project.'}</span></div>
         <details class="pd-work-section" data-work-section="capabilities">
           <summary>Ways to make progress</summary>
           <div id="pd-work-capabilities"></div>
@@ -3263,6 +3263,17 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
     if (target) window.setTimeout(() => target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
   }
 
+  function updateWorkNext() {
+    const next = overlay.querySelector('.pd-work-next');
+    const firstTask = overlay.querySelector('#pd-work-tasks .pt-task-title');
+    if (!next || !firstTask) return;
+    const title = firstTask.textContent.trim();
+    if (title) {
+      next.innerHTML = '<strong>Continue your work</strong><span></span>';
+      next.querySelector('span').textContent = `Next: ${title}`;
+    }
+  }
+
   function activateTab(tabName) {
     if (isMobileProject() && tabName === 'activity') {
       activityHistoryRequested = true;
@@ -3309,6 +3320,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
           }
         },
       });
+      window.setTimeout(updateWorkNext, 0);
     }
 
     if ((tabName === 'capabilities' || tabName === 'work') && window.CapabilityMemory && workTarget('capabilities') && !workTarget('capabilities').dataset.mounted) {

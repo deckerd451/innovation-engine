@@ -193,6 +193,11 @@ body.reflection-resizing #network-reflection { transition:none; }
   .cd-mobile-context-link { margin-top:.65rem; padding:0; border:0; background:transparent; color:#9eefff; font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }
   .cd-mobile-context-action { display:inline-flex; align-items:center; justify-content:space-between; width:100%; margin-top:.8rem; min-height:40px; padding:.55rem .7rem; border:1px solid rgba(0,224,255,.34); border-radius:9px; background:rgba(0,224,255,.1); color:#dffbff; font:inherit; font-size:.78rem; font-weight:800; cursor:pointer; }
   .cd-mobile-context-action span { color:#00e0ff; font-size:1rem; }
+  .cd-mobile-secondary-links { margin-top:.7rem; border-top:1px solid rgba(255,255,255,.1); padding-top:.55rem; }
+  .cd-mobile-secondary-links summary { color:#9eefff; cursor:pointer; font-size:.76rem; font-weight:800; min-height:36px; display:flex; align-items:center; }
+  .cd-mobile-secondary-links-body { display:grid; gap:.45rem; color:rgba(224,232,255,.62); font-size:.72rem; }
+  .cd-mobile-secondary-links-body .cd-mobile-intent-list { margin-top:.1rem; }
+  .cd-mobile-secondary-links-body button { justify-self:start; min-height:38px; padding:.45rem .65rem; border:1px solid rgba(0,224,255,.28); border-radius:8px; background:rgba(0,224,255,.08); color:#dffbff; font:inherit; font-weight:800; cursor:pointer; }
   .cd-mobile-network-history { margin-top:.8rem; }
   .cd-mobile-discover-mode { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.35rem; margin:.6rem .75rem .15rem; padding:.25rem; border:1px solid rgba(255,255,255,.1); border-radius:10px; background:rgba(255,255,255,.035); }
   .cd-mobile-discover-mode button { min-height:34px; border:0; border-radius:7px; background:transparent; color:rgba(224,232,255,.58); font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }
@@ -363,6 +368,37 @@ body.reflection-resizing #network-reflection { transition:none; }
    is added (injected into the split-view bottom pane).
    ============================================================ */
 @media (max-width: 1023px) {
+  /* Mobile destinations share a dashboard mount. Keep inactive surfaces out
+     of the visual, touch, and accessibility trees so stale Today content
+     cannot bleed through Discover or You. */
+  body.mobile-surface-you #command-dashboard,
+  body.mobile-surface-you #synapse-main-view {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  body.mobile-surface-today #mobile-you-screen,
+  body.mobile-surface-discover #mobile-you-screen {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  body.mobile-surface-discover #command-dashboard.cd-mobile-panel #cd-focus {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  body.mobile-surface-discover #command-dashboard.cd-mobile-panel #cd-explore {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+  body.mobile-surface-today #command-dashboard:not(.cd-mobile-panel) #cd-focus {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
   #command-dashboard:not(.cd-mobile-panel) {
     display: none !important;
   }

@@ -8,6 +8,7 @@
   const tabs = {
     home: () => {
       window.MobileYou?.hide();
+      setMobileSurface('today');
       // Restore the view classes immediately so Home works even if the
       // dashboard module is still recovering from a delayed load.
       document.body.classList.add('buildspace-view-today');
@@ -40,6 +41,7 @@
 
   function setDiscoverMode(mode) {
     window.MobileYou?.hide();
+    setMobileSurface('discover');
     const isNetwork = mode === 'network';
     document.body.classList.add('buildspace-view-today');
     document.body.classList.remove('buildspace-view-network');
@@ -138,7 +140,7 @@
       const hasPeople = peopleCount && Number.parseInt(peopleCount, 10) > 0;
       const hasOpportunities = opportunityCount && Number.parseInt(opportunityCount, 10) > 0;
       const firstIntent = intents[0]?.subject_label || '';
-      const action = unread > 0 ? 'messages' : intents.length ? 'people' : 'profile-intent';
+      const action = unread > 0 ? 'messages' : '';
       const headline = unread > 0
         ? (topMessage?.preview || `${unread} conversation${unread === 1 ? '' : 's'} waiting for you`)
         : intents.length
@@ -149,18 +151,19 @@
         : intents.length
           ? 'Your focus is shared with people who may fit.'
           : 'Share what you need or can offer, and your suggestions get sharper.';
-      const actionLabel = unread > 0 ? 'Open messages' : intents.length ? 'Find people' : 'Set your focus';
-      const counts = hasPeople || hasOpportunities
-        ? `<div class="cd-mobile-brief-meta">${hasPeople ? `${escape(peopleCount)} people` : ''}${hasPeople && hasOpportunities ? ' · ' : ''}${hasOpportunities ? `${escape(opportunityCount)} opportunities` : ''}</div>`
+      const actionLabel = unread > 0 ? 'Open messages' : '';
+      const countCopy = hasPeople || hasOpportunities
+        ? `${hasPeople ? `${escape(peopleCount)} people` : ''}${hasPeople && hasOpportunities ? ' · ' : ''}${hasOpportunities ? `${escape(opportunityCount)} opportunities` : ''}`
+        : '';
+      const community = hasPeople || hasOpportunities || intents.length
+        ? `<details class="cd-mobile-secondary-links"><summary>Community around you</summary><div class="cd-mobile-secondary-links-body">${rows || '<span>See who can help with your current focus.</span>'}${countCopy ? `<span>${countCopy}</span>` : ''}<button type="button" data-mobile-today-action="people">Find people</button></div></details>`
         : '';
       card.innerHTML = `<div class="cd-mobile-context-eyebrow" id="cd-mobile-right-now-title">Today</div>
         <div class="cd-mobile-greeting">${escape(greeting)}${name ? `, ${escape(name)}` : ''}</div>
         <div class="cd-mobile-next-headline">${escape(headline)}</div>
         <p class="cd-mobile-context-copy">${escape(copy)}</p>
-        ${rows ? `<div class="cd-mobile-intent-list">${rows}</div>` : ''}
-        ${counts}
-        <button type="button" class="cd-mobile-context-action" data-mobile-today-action="${action}">${escape(actionLabel)} <span aria-hidden="true">→</span></button>`;
-      card.querySelector('[data-mobile-today-action]')?.addEventListener('click', (event) => {
+        ${unread > 0 ? `<button type="button" class="cd-mobile-context-action" data-mobile-today-action="${action}">${escape(actionLabel)} <span aria-hidden="true">→</span></button>` : community}`;
+      card.querySelectorAll('[data-mobile-today-action]').forEach((button) => button.addEventListener('click', (event) => {
         const nextAction = event.currentTarget.dataset.mobileTodayAction;
         if (nextAction === 'messages') {
           tabs.messages();
@@ -175,7 +178,7 @@
             intentCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }, 80);
         }
-      });
+      }));
     } catch (error) {
       console.warn('[MobileNav] current intent load failed:', error);
       card.innerHTML = '<div class="cd-mobile-context-eyebrow" id="cd-mobile-right-now-title">Right now</div><div class="cd-mobile-intent-empty">Your current focus is unavailable. You can update it from You.</div>';
@@ -228,8 +231,22 @@
   }
 
   function showMobileProfileSheet() {
+    setMobileSurface('you');
     if (window.MobileYou?.show) return window.MobileYou.show();
     window.openProfileModal?.();
+  }
+
+  function setMobileSurface(surface) {
+    const surfaces = ['today', 'discover', 'you'];
+    surfaces.forEach((name) => document.body.classList.toggle(`mobile-surface-${name}`, name === surface));
+    const dashboard = document.getElementById('command-dashboard');
+    const focus = document.getElementById('cd-focus');
+    const explore = document.getElementById('cd-explore');
+    const you = document.getElementById('mobile-you-screen');
+    if (dashboard) dashboard.inert = surface === 'you';
+    if (you) { you.inert = surface !== 'you'; you.setAttribute('aria-hidden', surface === 'you' ? 'false' : 'true'); }
+    if (focus) focus.inert = surface === 'discover';
+    if (explore) explore.inert = surface !== 'discover';
   }
 
   function wire() {
@@ -268,6 +285,7 @@
         if (className.startsWith('mobile-tab-')) document.body.classList.remove(className);
       });
       document.body.classList.add(`mobile-tab-${activeTab}`);
+      setMobileSurface(activeTab === 'profile' ? 'you' : activeTab === 'home' ? 'today' : 'discover');
       if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
       if (document.querySelector('.mob-tab[data-tab="profile"].active')) window.MobileYou?.show();
     }
