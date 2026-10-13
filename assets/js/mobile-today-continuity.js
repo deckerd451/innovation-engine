@@ -6,6 +6,30 @@
   const escape = (value) => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ch]));
   let loading = false;
 
+  function taskScore(task, now = Date.now()) {
+    let score = task.status === 'in_progress' ? 40 : 0;
+    const priority = String(task.priority || '').toLowerCase();
+    score += priority === 'high' || priority === 'urgent' ? 24 : priority === 'medium' ? 12 : 0;
+    if (task.due_date) {
+      const due = new Date(task.due_date).getTime();
+      if (Number.isFinite(due)) {
+        if (due < now) score += 35;
+        else if (due - now <= 48 * 60 * 60 * 1000) score += 18;
+      }
+    }
+    // When equally urgent, resume the task that has been waiting longest.
+    const created = new Date(task.created_at || 0).getTime();
+    return { score, created: Number.isFinite(created) ? created : 0 };
+  }
+
+  function chooseNextTask(tasks, now = Date.now()) {
+    return (tasks || []).slice().sort((a, b) => {
+      const as = taskScore(a, now);
+      const bs = taskScore(b, now);
+      return bs.score - as.score || as.created - bs.created || String(a.id).localeCompare(String(b.id));
+    })[0] || null;
+  }
+
   async function load(profileId) {
     if (!profileId || !window.supabase || loading) return;
     loading = true;
@@ -34,9 +58,9 @@
     let card = document.getElementById('cd-mobile-continuity');
     if (!card) { card = document.createElement('section'); card.id = 'cd-mobile-continuity'; card.className = 'cd-mobile-continuity'; focus.appendChild(card); }
     if (!tasks && !attempts) { card.innerHTML = ''; return; }
-    const task = tasks?.slice().sort((a, b) => (a.status === 'in_progress' ? -1 : 1) - (b.status === 'in_progress' ? -1 : 1))[0];
+    const task = chooseNextTask(tasks);
     const attempt = attempts?.[0];
-    card.innerHTML = `${task ? `<div class="cd-continuity-label">Continue your work</div><h3>${escape(task.title)}</h3><p>${escape(task.project?.title || 'Project task')} · ${task.status === 'in_progress' ? 'In progress' : 'Ready to start'}</p><button type="button" data-continuity-project="${escape(task.project_id)}" data-continuity-tab="tasks">Open task</button>` : '<div class="cd-continuity-empty">No open project tasks yet.</div>'}${attempt ? `<div class="cd-continuity-reminder"><strong>Report one result</strong><span>${escape(attempt.goal || 'Your capability attempt is still in progress')}</span><button type="button" data-continuity-project="${escape(attempt.project_id)}" data-continuity-tab="capabilities">Record outcome</button></div>` : ''}`;
+    card.innerHTML = `${task ? `<div class="cd-continuity-label">Your next step</div><h3>${escape(task.title)}</h3><p>${escape(task.project?.title || 'Project task')} · ${task.status === 'in_progress' ? 'In progress' : 'Ready to start'}</p><button type="button" data-continuity-project="${escape(task.project_id)}" data-continuity-tab="tasks">Continue</button>` : '<div class="cd-continuity-empty">No open project tasks yet.</div>'}${attempt ? `<div class="cd-continuity-reminder"><strong>Ready to record a result?</strong><span>${escape(attempt.goal || 'Your work is still in progress')}</span><button type="button" data-continuity-project="${escape(attempt.project_id)}" data-continuity-tab="capabilities">Record result</button></div>` : ''}`;
     card.querySelectorAll('[data-continuity-project]').forEach(button => button.addEventListener('click', () => {
       window.viewProjectDetails?.(button.dataset.continuityProject);
       setTimeout(() => document.querySelector(`#project-detail-overlay [data-tab="${button.dataset.continuityTab}"]`)?.click(), 250);
@@ -45,6 +69,7 @@
 
   function refresh() { if (document.querySelector('.mob-tab[data-tab="home"].active')) load(window.currentUserProfile?.id); }
   window.MobileTodayContinuity = { load, refresh };
+  window.MobileTodayContinuityTesting = { taskScore, chooseNextTask };
   window.addEventListener('profile-loaded', refresh);
   window.addEventListener('mobile-today-entered', refresh);
   window.addEventListener('project-task-updated', refresh);

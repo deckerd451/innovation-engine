@@ -158,23 +158,23 @@
   function packageCard(pkg, stats, canUse, goal, canEdit, cardOptions = {}) {
     const stat = stats.get(pkg.id) || { completed: 0, success: 0, verifiedSuccess: 0, savedHours: [] };
     const saved = median(stat.savedHours);
-    const evidence = stat.verifiedSuccess >= 2 ? 'Verified' : stat.completed ? 'Self-reported' : 'No results yet';
+    const evidence = stat.verifiedSuccess >= 2 ? 'Verified by members' : stat.completed ? 'Reported by members' : 'No results yet';
     const match = goalMatch(pkg, goal);
     const prerequisites = Object.entries(pkg.constraints || {}).map(([key, value]) => `${key}: ${value}`).join(' · ');
     return `<article class="cm-package-card" data-package-id="${esc(pkg.id)}">
       <div class="cm-package-head"><div><span class="cm-evidence cm-evidence-${pkg.evidence_status}">${evidence}</span><h4>${esc(pkg.title)}</h4></div><span class="cm-version">v${pkg.version || 1}</span></div>
-      ${goal ? `<p class="cm-relevance"><i class="fas fa-bullseye"></i> ${match.matched.length ? `Matches: ${esc(match.matched.join(', '))}` : 'No direct goal terms matched'}</p>` : ''}
+      ${goal ? `<p class="cm-relevance"><i class="fas fa-bullseye"></i> ${match.matched.length ? `Fits your goal: ${esc(match.matched.join(', '))}` : 'No close match yet'}</p>` : ''}
       <p class="cm-goal">${esc(pkg.goal)}</p>
       ${pkg.summary ? `<p class="cm-summary">${esc(pkg.summary)}</p>` : ''}
-      <div class="cm-stats"><span>${stat.completed} completed attempt${stat.completed === 1 ? '' : 's'}</span><span>${stat.completed ? `${Math.round((stat.success / stat.completed) * 100)}% success (n=${stat.completed})` : 'No completed attempts'}</span>${saved != null ? `<span>${saved >= 0 ? `${hours(saved)} saved` : `${hours(Math.abs(saved))} added`}</span>` : ''}${stat.verifiedSuccess ? `<span>${stat.verifiedSuccess} independently verified</span>` : ''}</div>
-      <details><summary>See the recipe</summary><div class="cm-recipe">
+      <div class="cm-stats"><span>${stat.completed} finished attempt${stat.completed === 1 ? '' : 's'}</span><span>${stat.completed ? `${Math.round((stat.success / stat.completed) * 100)}% reported success (sample of ${stat.completed})` : 'No finished attempts yet'}</span>${saved != null ? `<span>${saved >= 0 ? `${hours(saved)} reported saved` : `${hours(Math.abs(saved))} reported added`}</span>` : ''}${stat.verifiedSuccess ? `<span>${stat.verifiedSuccess} verified by members</span>` : ''}</div>
+      <details><summary>See how it works</summary><div class="cm-recipe">
         <strong>Steps</strong><ol>${list(pkg.steps).map(step => `<li>${esc(step)}</li>`).join('') || '<li>Not documented yet</li>'}</ol>
-        ${list(pkg.tools).length ? `<strong>Tools</strong><p>${list(pkg.tools).map(tool => esc(tool)).join(' · ')}</p>` : ''}
-        ${prerequisites ? `<strong>Prerequisites</strong><p>${esc(prerequisites)}</p>` : ''}
-        ${pkg.failure_notes ? `<strong>Known failure</strong><p>${esc(pkg.failure_notes)}</p>` : ''}
+        ${list(pkg.tools).length ? `<strong>You'll need</strong><p>${list(pkg.tools).map(tool => esc(tool)).join(' · ')}</p>` : ''}
+        ${prerequisites ? `<strong>Before you start</strong><p>${esc(prerequisites)}</p>` : ''}
+        ${pkg.failure_notes ? `<strong>Watch for</strong><p>${esc(pkg.failure_notes)}</p>` : ''}
         <p class="cm-attribution">Created by ${esc(pkg.creator?.name || 'a community member')} · ${esc(pkg.project?.title || 'another project')} · version ${pkg.version || 1}</p>
       </div></details>
-      ${canUse && (canEdit || cardOptions.actionLabel) ? `<button class="cm-use-btn" type="button" data-action="use"><i class="fas fa-play"></i> ${esc(cardOptions.actionLabel || 'Turn steps into tasks')}</button>` : canUse ? '<p class="cm-form-help">Join this project to turn the steps into tasks.</p>' : ''}
+      ${canUse && (canEdit || cardOptions.actionLabel) ? `<button class="cm-use-btn" type="button" data-action="use"><i class="fas fa-play"></i> ${esc(cardOptions.actionLabel || 'Use this method')}</button>` : canUse ? '<p class="cm-form-help">Join this project to use this method.</p>' : ''}
     </article>`;
   }
 
@@ -195,7 +195,7 @@
 
   async function importCapability(pkg, goal, targetProject, memberId) {
     if (!memberId || !targetProject?.id || !window.ProjectTasks?.createTask) {
-      throw new Error('You need project access before turning a capability into tasks.');
+      throw new Error('You need access to this project before using this method.');
     }
     const existing = await window.ProjectTasks.fetchTasks(targetProject.id);
     const existingTitles = new Set(existing.map(task => String(task.title || '').trim().toLowerCase()));
@@ -206,7 +206,7 @@
       existingTitles.add(title.toLowerCase());
       taskIds.push(task.id);
     }
-    if (!taskIds.length) throw new Error('All capability steps already exist as project tasks.');
+    if (!taskIds.length) throw new Error('These steps are already in the project task list.');
     const { error } = await supa().from('capability_attempts').insert({ capability_id: pkg.id, member_id: memberId, project_id: targetProject.id, goal, task_ids: taskIds, outcome_status: 'in_progress' });
     if (error) throw error;
     window.CapabilityJourney?.emit('tasks_imported', { surface: 'discover', taskCount: taskIds.length });
@@ -220,7 +220,7 @@
       <p class="cm-form-help">Add the baseline and result when you finish. Estimates are fine; this is how the community learns what truly helped.</p>
       <div class="cm-two-col"><label>Usual hours <input type="number" name="baseline_hours" min="0" step="0.1" inputmode="decimal"></label><label>Actual hours <input type="number" name="actual_hours" min="0" step="0.1" inputmode="decimal"></label></div>
       <div class="cm-two-col"><label>Usual cost <input type="number" name="baseline_cost" min="0" step="1" inputmode="decimal"></label><label>Actual cost <input type="number" name="actual_cost" min="0" step="1" inputmode="decimal"></label></div>
-      <label>Outcome <select name="outcome_status"><option value="succeeded">Succeeded</option><option value="not_succeeded">Did not succeed</option><option value="in_progress">Still in progress</option></select></label>
+      <label>Did it help? <select name="outcome_status"><option value="succeeded">Yes, it helped</option><option value="not_succeeded">No, it did not help</option><option value="in_progress">I am still working</option></select></label>
       <label>What changed? <textarea name="notes" rows="2" maxlength="500" placeholder="A short, honest result"></textarea></label>
       <div class="cm-form-actions"><button type="button" class="cm-cancel-btn">Cancel</button><button type="submit" class="cm-primary-btn">Record result</button></div>
     </form>`;
@@ -303,7 +303,7 @@
     const canUse = Boolean(options.canUse);
     const canEdit = Boolean(options.canEdit);
     container.innerHTML = `<div class="cm-shell cm-goal-flow">
-      <div class="cm-intro"><div><h3>What are you trying to accomplish?</h3><p>Describe the result in your own words. We’ll look across community-shared project work and explain why each method matches.</p></div></div>
+      <div class="cm-intro"><div><h3>Find a way forward</h3><p>Describe the result in your own words. We’ll show methods members have tried and explain why they may fit.</p></div></div>
       <form class="cm-goal-form"><input name="goal" required maxlength="280" autocomplete="off" placeholder="e.g. Validate my business idea this week"><button type="submit" class="cm-primary-btn"><i class="fas fa-search"></i> Find useful methods</button></form>
       <div class="cm-active-attempts"></div><div class="cm-goal-results"><div class="cm-empty"><strong>Start with a concrete outcome.</strong><p>Matching and evidence will appear here.</p></div></div>
     </div>`;
@@ -312,8 +312,8 @@
 
     function outcomeForm(item) {
       const status = item.outcome_status || 'in_progress';
-      const option = value => `<option value="${value}"${status === value ? ' selected' : ''}>${value === 'succeeded' ? 'Succeeded' : value === 'not_succeeded' ? 'Did not succeed' : 'Still in progress'}</option>`;
-      return `<form class="cm-form cm-outcome-form" data-attempt-id="${esc(item.id)}"><div class="cm-form-title">Record the result for “${esc(item.goal || 'this goal')}”</div><p class="cm-form-help">Keep the plan open while you work. Record the result when the project tasks are complete.</p><div class="cm-two-col"><label>Usual hours <input type="number" name="baseline_hours" min="0" step="0.1" value="${item.baseline_hours ?? ''}"></label><label>Actual hours <input type="number" name="actual_hours" min="0" step="0.1" value="${item.actual_hours ?? ''}"></label></div><div class="cm-two-col"><label>Usual cost <input type="number" name="baseline_cost" min="0" step="1" value="${item.baseline_cost ?? ''}"></label><label>Actual cost <input type="number" name="actual_cost" min="0" step="1" value="${item.actual_cost ?? ''}"></label></div><label>Outcome <select name="outcome_status">${option('succeeded')}${option('not_succeeded')}${option('in_progress')}</select></label><label>What changed? <textarea name="notes" rows="2" maxlength="500">${esc(item.notes || '')}</textarea></label><button type="submit" class="cm-primary-btn">Save outcome</button></form>`;
+      const option = value => `<option value="${value}"${status === value ? ' selected' : ''}>${value === 'succeeded' ? 'Yes, it helped' : value === 'not_succeeded' ? 'No, it did not help' : 'I am still working'}</option>`;
+      return `<form class="cm-form cm-outcome-form" data-attempt-id="${esc(item.id)}"><div class="cm-form-title">How did “${esc(item.goal || 'this goal')}” go?</div><p class="cm-form-help">Record what happened after you finish the project tasks.</p><div class="cm-two-col"><label>Typical hours <input type="number" name="baseline_hours" min="0" step="0.1" value="${item.baseline_hours ?? ''}"></label><label>Your hours <input type="number" name="actual_hours" min="0" step="0.1" value="${item.actual_hours ?? ''}"></label></div><div class="cm-two-col"><label>Typical cost <input type="number" name="baseline_cost" min="0" step="1" value="${item.baseline_cost ?? ''}"></label><label>Your cost <input type="number" name="actual_cost" min="0" step="1" value="${item.actual_cost ?? ''}"></label></div><label>Did it help? <select name="outcome_status">${option('succeeded')}${option('not_succeeded')}${option('in_progress')}</select></label><label>What changed? <textarea name="notes" rows="2" maxlength="500">${esc(item.notes || '')}</textarea></label><button type="submit" class="cm-primary-btn">Save result</button></form>`;
     }
 
     async function renderActiveAttempts() {
@@ -335,7 +335,7 @@
     }
 
     async function startCapability(pkg, goal) {
-      if (!memberId || !canEdit || !window.ProjectTasks?.createTask) throw new Error('You need project access before turning a capability into tasks.');
+      if (!memberId || !canEdit || !window.ProjectTasks?.createTask) throw new Error('You need access to this project before using this method.');
       const { taskIds } = await importCapability(pkg, goal, project, memberId);
       await renderActiveAttempts();
     }

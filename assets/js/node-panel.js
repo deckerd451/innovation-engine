@@ -3160,7 +3160,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
       <div id="pd-tab-work" role="tabpanel" style="display:none;">
         <div class="pd-work-next" aria-live="polite"><strong>Work</strong><span>Open a section when you are ready to continue.</span></div>
         <details class="pd-work-section" data-work-section="capabilities">
-          <summary>Goals &amp; community capabilities</summary>
+          <summary>Ways to make progress</summary>
           <div id="pd-work-capabilities"></div>
         </details>
         ${canViewTasks ? `<details class="pd-work-section" data-work-section="tasks">
