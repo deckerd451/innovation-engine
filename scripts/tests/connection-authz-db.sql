@@ -3,6 +3,7 @@
 --   scripts/tests/fixtures/notification-connection-prod-baseline.sql
 --   scripts/tests/fixtures/authz-test-helpers.sql
 --   supabase/sql/migrations/20261013_notification_connection_authz.sql
+--   supabase/sql/migrations/20261013b_membership_and_proximity_authz.sql
 -- Exercises the writes through ALL of production's permissive connection
 -- policies at once. Must FAIL without the migration. All rows roll back.
 \set ON_ERROR_STOP on
@@ -91,15 +92,9 @@ RESET ROLE;
 SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000a', 'connection_accepted'), 1, 'genuine acceptance notifies the sender once');
 
 -- ---------------------------------------------------------------------------
--- Trusted server-side writers keep working (BLE/Nearify promotion, service)
+-- Trusted server-side writers keep working. (Proximity promotion is covered
+-- with its consent rules in membership-authz-db.sql.)
 -- ---------------------------------------------------------------------------
-INSERT INTO public.interaction_edges (id, from_user_id, to_user_id, status) VALUES
-  ('70000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', '10000000-0000-4000-8000-00000000000e', 'confirmed');
-SELECT t.act('a0000000-0000-4000-8000-00000000000c');
-SET LOCAL ROLE authenticated;
-SELECT t.allowed($$SELECT public.promote_edge_to_connection('70000000-0000-4000-8000-000000000001')$$, 'member promotes a confirmed BLE edge (SECURITY DEFINER)');
-RESET ROLE;
-SELECT t.eq((SELECT count(*) FROM public.connections WHERE from_user_id = '10000000-0000-4000-8000-00000000000c' AND to_user_id = '10000000-0000-4000-8000-00000000000e' AND status = 'accepted'), 1, 'BLE promotion still creates the accepted connection');
 SELECT t.act(NULL, 'service_role');
 SET LOCAL ROLE service_role;
 SELECT t.allowed($$INSERT INTO public.connections (from_user_id, to_user_id, status) VALUES ('10000000-0000-4000-8000-00000000000d', '10000000-0000-4000-8000-00000000000e', 'accepted')$$, 'service_role creates an accepted connection');

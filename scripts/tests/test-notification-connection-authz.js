@@ -68,4 +68,31 @@ assert.match(rollback, /DROP TRIGGER IF EXISTS enforce_connection_authorization/
 assert.match(rollback, /CREATE POLICY "System can create notifications"/);
 console.log('✅ Migration revokes, pins, replaces policies and adds triggers; rollback reverses them');
 
+// 4. Membership and proximity paths (20261013b migration).
+// Reachable self-join flows ask to join instead of granting membership.
+assert.match(read('assets/js/dashboardPane.js'), /window\.joinProject = async function[\s\S]{0,1200}role: "pending"/, 'dashboardPane joinProject must ask to join');
+assert.match(read('assets/js/dashboard-actions.js'), /async function joinOrganization[\s\S]{0,2500}status: 'pending'/, 'joinOrganization must ask to join');
+for (const write of writesTo('organization_members').filter(item => item.op === 'insert')) {
+  const payload = write.window.slice(0, 400);
+  if (/community_id:\s*(currentUser\.id|_userId|userId)\b/.test(payload) && /role:\s*'member'/.test(payload)) {
+    assert.match(payload, /status:\s*'pending'/, `${write.file}:${write.line} self-joins an organization without asking`);
+  }
+}
+// Proximity "Connect" callers report a request until the other person agrees.
+assert.match(read('assets/js/ble-passive-networking.js'), /data\?\.status === 'accepted' \? 'Connected!' : 'Connection request sent'/);
+assert.match(read('assets/js/nearify-events-panel.js'), /result\.status === 'accepted'/);
+const membershipMigration = read('supabase/sql/migrations/20261013b_membership_and_proximity_authz.sql');
+for (const required of [
+  /REVOKE ALL ON FUNCTION public\.ingest_nearify_interaction\([^)]*\) FROM PUBLIC, anon, authenticated;/,
+  /REVOKE ALL ON FUNCTION public\.promote_edge_to_connection\(uuid\) FROM PUBLIC, anon;/,
+  /DROP POLICY IF EXISTS allow_insert ON public\.organization_members;/,
+  /DROP POLICY IF EXISTS "System can add project members" ON public\.project_members;/,
+  /DROP POLICY IF EXISTS "Users can update their own membership" ON public\.project_members;/,
+  /CREATE TRIGGER enforce_organization_member_authorization/,
+  /CREATE TRIGGER enforce_project_member_authorization/,
+  /CREATE TRIGGER enforce_organization_creator/,
+]) assert.match(membershipMigration, required);
+assert.doesNotMatch(membershipMigration, /INSERT INTO connections[^;]*'accepted'/, 'proximity promotion must not create accepted connections');
+console.log('✅ Browser asks to join; proximity Connect sends requests; membership migration covers each path');
+
 console.log('notification/connection authorization static checks passed');

@@ -3079,15 +3079,17 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         return;
       }
 
+      // Ask to join. The project creator approves team membership; the
+      // database refuses a member adding themself to a team.
       const { error } = await state.supabase.from("project_members").insert({
         project_id: projectId,
         user_id: state.communityProfile.id,
-        role: "member",
+        role: "pending",
       });
 
       if (error) throw error;
 
-      alert(`✓ Successfully joined ${projectName}!`);
+      alert(`✓ Request sent to join ${projectName}. The project creator will review it.`);
 
       if (window.refreshSynapseProjectCircles) {
         await window.refreshSynapseProjectCircles();

@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
-# Notification and connection authorization tests against a throwaway local
-# PostgreSQL cluster. Never touches a Supabase project: it creates its own
-# cluster in a fresh temporary directory, listens on 127.0.0.1 only, and
-# removes the directory on exit.
+# Authorization tests (notifications, connections, memberships, proximity
+# connections) against a throwaway local PostgreSQL cluster. Never touches a
+# Supabase project: it creates its own cluster in a fresh temporary
+# directory, listens on 127.0.0.1 only, and removes the directory on exit.
 #
 #   scripts/tests/run-authz-db.sh            # needs initdb/pg_ctl/psql on PATH
 #
 # Checks:
-#   1. Negative control: both test files FAIL on the production baseline.
-#   2. The migration applies, and applies again (idempotent).
-#   3. Both test files PASS after the migration.
-#   4. The rollback restores the baseline catalog exactly.
+#   1. Negative control: every test file FAILS on the production baseline.
+#   2. Both migrations apply in order, and apply again (idempotent).
+#   3. Every test file PASSES after the migrations.
+#   4. Undoing any single protection makes a test fail.
+#   5. Each rollback restores the catalog it started from, exactly.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BASELINE="$ROOT/scripts/tests/fixtures/notification-connection-prod-baseline.sql"
+BASELINES=("$ROOT/scripts/tests/fixtures/notification-connection-prod-baseline.sql" "$ROOT/scripts/tests/fixtures/membership-edge-prod-baseline.sql")
 HELPERS="$ROOT/scripts/tests/fixtures/authz-test-helpers.sql"
-MIGRATION="$ROOT/supabase/sql/migrations/20261013_notification_connection_authz.sql"
-ROLLBACK="$ROOT/supabase/sql/rollback/20261013_notification_connection_authz_rollback.sql"
-TESTS=("$ROOT/scripts/tests/notification-authz-db.sql" "$ROOT/scripts/tests/connection-authz-db.sql")
+M1="$ROOT/supabase/sql/migrations/20261013_notification_connection_authz.sql"
+M2="$ROOT/supabase/sql/migrations/20261013b_membership_and_proximity_authz.sql"
+R1="$ROOT/supabase/sql/rollback/20261013_notification_connection_authz_rollback.sql"
+R2="$ROOT/supabase/sql/rollback/20261013b_membership_and_proximity_authz_rollback.sql"
+TESTS=(notification-authz-db.sql connection-authz-db.sql membership-authz-db.sql)
 PORT="${AUTHZ_PG_PORT:-54331}"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/ie-authz-XXXXXX")"
@@ -34,11 +37,13 @@ pg_ctl -D "$WORK/data" -l "$WORK/log" -w \
   -o "-p $PORT -c listen_addresses=127.0.0.1 -c unix_socket_directories=''" start >/dev/null
 
 PSQL=(psql -h 127.0.0.1 -p "$PORT" -U postgres -X -q -v ON_ERROR_STOP=1)
-fresh_db() {
-  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS $1" -c "CREATE DATABASE $1" >/dev/null 2>&1
-  "${PSQL[@]}" -d "$1" -f "$BASELINE" >/dev/null
-  "${PSQL[@]}" -d "$1" -f "$HELPERS" >/dev/null
+apply() { "${PSQL[@]}" -d "$1" -f "$2" >/dev/null 2>&1; }
+fresh_db() { # name, then migrations to apply
+  local db="$1"; shift
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS $db" -c "CREATE DATABASE $db" >/dev/null 2>&1
+  for f in "${BASELINES[@]}" "$HELPERS" "$@"; do apply "$db" "$f"; done
 }
+first_failure() { grep -m1 -oE '(NOT DENIED|NOT BLOCKED|FAILED|BLOCKED LEGITIMATE ACTION|UNEXPECTED ROW COUNT)[^"]*' <<<"$1" || tail -1 <<<"$1"; }
 snapshot() {
   "${PSQL[@]}" -d "$1" -At <<'SQL'
 SELECT 'policy|' || tablename || '|' || policyname || '|' || cmd || '|' || array_to_string(roles, ',') || '|' || coalesce(qual, '') || '|' || coalesce(with_check, '')
@@ -65,37 +70,34 @@ fail=0
 echo "1. Negative control: tests must fail on the production baseline"
 fresh_db authz_baseline
 for test in "${TESTS[@]}"; do
-  if out="$("${PSQL[@]}" -d authz_baseline -f "$test" 2>&1)"; then
-    echo "   UNEXPECTED PASS: $(basename "$test") passed without the migration"; fail=1
+  if out="$("${PSQL[@]}" -d authz_baseline -f "$ROOT/scripts/tests/$test" 2>&1)"; then
+    echo "   UNEXPECTED PASS: $test passed without the migrations"; fail=1
   else
-    echo "   expected failure: $(basename "$test"): $(grep -m1 -oE '(NOT DENIED|FAILED|BLOCKED LEGITIMATE ACTION|UNEXPECTED ROW COUNT)[^"]*' <<<"$out" || tail -1 <<<"$out")"
+    echo "   expected failure: $test: $(first_failure "$out")"
   fi
 done
 
-echo "2. Migration applies twice"
-fresh_db authz_migrated
-"${PSQL[@]}" -d authz_migrated -f "$MIGRATION" >/dev/null 2>&1
-"${PSQL[@]}" -d authz_migrated -f "$MIGRATION" >/dev/null 2>&1
+echo "2. Migrations apply in order, twice"
+fresh_db authz_migrated "$M1" "$M2" "$M1" "$M2"
 echo "   ok"
 
-echo "3. Tests pass after the migration"
+echo "3. Tests pass after the migrations"
 for test in "${TESTS[@]}"; do
-  if out="$("${PSQL[@]}" -d authz_migrated -f "$test" 2>&1)"; then
+  if out="$("${PSQL[@]}" -d authz_migrated -f "$ROOT/scripts/tests/$test" 2>&1)"; then
     echo "   $out"
   else
-    echo "   FAILED: $(basename "$test")"; echo "$out" | sed 's/^/     /'; fail=1
+    echo "   FAILED: $test"; echo "$out" | sed 's/^/     /'; fail=1
   fi
 done
 
 echo "4. Each protection is load-bearing: undoing it alone makes a test fail"
 sabotage() { # label, test file, SQL that undoes one protection
-  fresh_db authz_sabotage
-  "${PSQL[@]}" -d authz_sabotage -f "$MIGRATION" >/dev/null 2>&1
+  fresh_db authz_sabotage "$M1" "$M2"
   "${PSQL[@]}" -d authz_sabotage -c "$3" >/dev/null 2>&1
   if out="$("${PSQL[@]}" -d authz_sabotage -f "$ROOT/scripts/tests/$2" 2>&1)"; then
     echo "   NOT CAUGHT: $1"; fail=1
   else
-    echo "   caught: $1 -> $(grep -m1 -oE '(NOT DENIED|FAILED|BLOCKED LEGITIMATE ACTION|UNEXPECTED ROW COUNT)[^"]*' <<<"$out" || tail -1 <<<"$out")"
+    echo "   caught: $1 -> $(first_failure "$out")"
   fi
 }
 sabotage "connection trigger disabled" connection-authz-db.sql \
@@ -106,24 +108,37 @@ sabotage "column-level notification UPDATE widened" notification-authz-db.sql \
   "GRANT UPDATE ON public.notifications TO authenticated"
 sabotage "create_notification executable by members" notification-authz-db.sql \
   "GRANT EXECUTE ON FUNCTION public.create_notification(uuid, text, text, text, text, jsonb) TO authenticated"
-sabotage "project invite guard removed" notification-authz-db.sql \
-  "$(sed -n '/^CREATE OR REPLACE FUNCTION public.notify_project_invite/,/^\$function\$;/p' "$ROLLBACK")"
 sabotage "join-request notification triggers dropped" notification-authz-db.sql \
   "DROP TRIGGER notify_project_request ON public.project_requests; DROP TRIGGER notify_organization_join_request ON public.organization_members"
+sabotage "organization membership trigger disabled" membership-authz-db.sql \
+  "ALTER TABLE public.organization_members DISABLE TRIGGER enforce_organization_member_authorization"
+sabotage "organization creator trigger disabled" membership-authz-db.sql \
+  "ALTER TABLE public.organizations DISABLE TRIGGER enforce_organization_creator"
+sabotage "project membership trigger disabled" membership-authz-db.sql \
+  "ALTER TABLE public.project_members DISABLE TRIGGER enforce_project_member_authorization"
+sabotage "self-update policy restored and project trigger disabled" membership-authz-db.sql \
+  "CREATE POLICY p ON public.project_members FOR UPDATE TO public USING (user_id = get_community_id_from_auth()); ALTER TABLE public.project_members DISABLE TRIGGER enforce_project_member_authorization"
+sabotage "ingest_nearify_interaction executable by members" membership-authz-db.sql \
+  "GRANT EXECUTE ON FUNCTION public.ingest_nearify_interaction(uuid, uuid, uuid, uuid, uuid, text, numeric, timestamp with time zone, jsonb, text, text) TO anon, authenticated"
+sabotage "promote_edge_to_connection consent removed" membership-authz-db.sql \
+  "$(sed -n '/^CREATE OR REPLACE FUNCTION public.promote_edge_to_connection/,/^\$function\$;/p' "$R2" | sed "s/SET status = 'promoted', updated_at = now()/SET status = 'accepted'/")"
 
-echo "5. Rollback restores the baseline catalog"
+echo "5. Rollbacks restore the catalog they started from"
 fresh_db authz_rollback
-before="$(snapshot authz_rollback)"
-"${PSQL[@]}" -d authz_rollback -f "$MIGRATION" >/dev/null 2>&1
-during="$(snapshot authz_rollback)"
-"${PSQL[@]}" -d authz_rollback -f "$ROLLBACK" >/dev/null 2>&1
-after="$(snapshot authz_rollback)"
-if [ "$before" = "$during" ]; then echo "   migration changed nothing?"; fail=1; fi
-if [ "$before" = "$after" ]; then
-  echo "   ok ($(wc -l <<<"$before" | tr -d ' ') catalog entries identical)"
-else
-  echo "   FAILED: catalog differs after rollback"; diff <(echo "$before") <(echo "$after") | sed 's/^/     /'; fail=1
-fi
+s0="$(snapshot authz_rollback)"
+apply authz_rollback "$M1"; s1="$(snapshot authz_rollback)"
+apply authz_rollback "$M2"; s2="$(snapshot authz_rollback)"
+apply authz_rollback "$R2"; s1b="$(snapshot authz_rollback)"
+apply authz_rollback "$R1"; s0b="$(snapshot authz_rollback)"
+if [ "$s1" = "$s2" ] || [ "$s0" = "$s1" ]; then echo "   a migration changed nothing?"; fail=1; fi
+for pair in "s1:s1b:membership rollback" "s0:s0b:notification rollback"; do
+  IFS=: read -r a b label <<<"$pair"
+  if [ "${!a}" = "${!b}" ]; then
+    echo "   ok: $label ($(wc -l <<<"${!a}" | tr -d ' ') catalog entries identical)"
+  else
+    echo "   FAILED: $label"; diff <(echo "${!a}") <(echo "${!b}") | sed 's/^/     /'; fail=1
+  fi
+done
 
 if [ "$fail" -ne 0 ]; then echo "authorization database checks FAILED"; exit 1; fi
 echo "authorization database checks passed"

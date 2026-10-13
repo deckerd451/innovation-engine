@@ -3,6 +3,7 @@
 --   scripts/tests/fixtures/notification-connection-prod-baseline.sql
 --   scripts/tests/fixtures/authz-test-helpers.sql
 --   supabase/sql/migrations/20261013_notification_connection_authz.sql
+--   supabase/sql/migrations/20261013b_membership_and_proximity_authz.sql
 -- Must FAIL without the migration (negative control). All rows roll back.
 \set ON_ERROR_STOP on
 \set QUIET on
@@ -105,17 +106,14 @@ SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000b', 'message'), 0, 'mess
 SELECT t.act('a0000000-0000-4000-8000-00000000000b');
 SET LOCAL ROLE authenticated;
 SELECT t.allowed($$UPDATE public.connections SET status = 'accepted' WHERE id = '60000000-0000-4000-8000-0000000000ab' AND status = 'pending'$$, 'Bob accepts Alice''s request');
--- A team member can add someone else to the project.
-SELECT t.allowed($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000e', 'member')$$, 'Bob (team member) adds Eli');
 RESET ROLE;
 SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000a', 'connection_accepted'), 1, 'connection accepted notification');
-SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000e', 'project_invite'), 1, 'project invite notification from a team member');
 
 SELECT t.act('a0000000-0000-4000-8000-00000000000c');
 SET LOCAL ROLE authenticated;
 SELECT t.allowed($$INSERT INTO public.project_requests (project_id, user_id, status, message) VALUES ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'pending', 'I can help')$$, 'Carol asks to join Alice''s project');
 SELECT t.allowed($$INSERT INTO public.organization_members (organization_id, community_id, role, status) VALUES ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'member', 'pending')$$, 'Carol asks to join Dana''s organization');
-SELECT t.allowed($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'member')$$, 'Carol joins an open project herself');
+SELECT t.allowed($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'pending')$$, 'Carol asks to join through project_members');
 RESET ROLE;
 SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000a', 'project_request'), 1, 'project join request reaches the project creator');
 SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000d', 'org_join_request'), 1, 'organization join request reaches the organization owner');
@@ -132,20 +130,20 @@ SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000d', 'project_invite'), 1
 -- ---------------------------------------------------------------------------
 SELECT t.act('a0000000-0000-4000-8000-00000000000c');
 SET LOCAL ROLE authenticated;
--- The open project_members INSERT policy still accepts this row (reported,
--- out of scope); the point here is that it no longer notifies the victim.
-SELECT t.allowed($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-00000000000b', 'member')$$, 'Carol inserts Bob into a project she has no role in');
+-- The membership migration refuses these rows outright; the invite
+-- notification guard remains as a second layer behind it.
+SELECT t.denied($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-00000000000b', 'member')$$, 'Carol inserts Bob into a project she has no role in');
 SELECT t.denied($$INSERT INTO public.project_requests (project_id, user_id, status) VALUES ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-00000000000b', 'pending')$$, 'Carol files a project request as Bob');
-SELECT t.allowed($$INSERT INTO public.organization_members (organization_id, community_id, role, status) VALUES ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000b', 'member', 'pending')$$, 'Carol files an organization request as Bob (open policy)');
+SELECT t.denied($$INSERT INTO public.organization_members (organization_id, community_id, role, status) VALUES ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000b', 'member', 'pending')$$, 'Carol files an organization request as Bob');
 RESET ROLE;
 SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000b', 'project_invite'), 1, 'third party cannot send Bob a project invite notification');
 SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000d', 'org_join_request'), 1, 'request filed for someone else does not notify the owner');
 
 SELECT t.act(NULL, 'anon');
 SET LOCAL ROLE anon;
-SELECT t.allowed($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-00000000000e', 'member')$$, 'anonymous caller inserts Eli into a project (open policy)');
+SELECT t.denied($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-00000000000e', 'member')$$, 'anonymous caller inserts Eli into a project');
 RESET ROLE;
-SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000e', 'project_invite'), 1, 'anonymous caller cannot send a project invite notification');
+SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000e', 'project_invite'), 0, 'anonymous caller cannot send a project invite notification');
 
 ROLLBACK;
 \echo 'notification authorization checks passed'

@@ -88,9 +88,12 @@ CREATE POLICY "projects readable" ON public.projects FOR SELECT USING (true);
 CREATE TABLE public.project_members (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL,
+  user_id uuid NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
   role text DEFAULT 'member',
-  joined_at timestamptz DEFAULT now()
+  contribution_notes text,
+  joined_at timestamptz DEFAULT now(),
+  left_at timestamptz,
+  CONSTRAINT project_members_project_id_user_id_key UNIQUE (project_id, user_id)
 );
 
 CREATE TABLE public.project_requests (
@@ -117,7 +120,13 @@ CREATE TABLE public.organization_members (
   organization_id uuid REFERENCES public.organizations(id) ON DELETE CASCADE,
   community_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
   role text DEFAULT 'member',
+  title text,
+  can_post_opportunities boolean DEFAULT false,
+  can_manage_members boolean DEFAULT false,
+  can_edit_profile boolean DEFAULT false,
   status text DEFAULT 'active',
+  joined_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
   UNIQUE (organization_id, community_id)
 );
 
@@ -144,11 +153,29 @@ CREATE TABLE public.messages (
   created_at timestamptz DEFAULT now()
 );
 
+-- interaction_edges exactly as in production: there is no updated_at
+-- column, the status CHECK does not include 'confirmed' or 'promoted', and
+-- no unique index matches ingest_nearify_interaction's ON CONFLICT target.
 CREATE TABLE public.interaction_edges (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  from_user_id uuid,
-  to_user_id uuid,
-  status text,
+  from_user_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
+  to_user_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  status text DEFAULT 'suggested',
+  type text DEFAULT 'ble_proximity',
+  beacon_id uuid,
+  overlap_seconds integer DEFAULT 0,
+  confidence numeric DEFAULT 0.5,
+  meta jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT interaction_edges_status_check CHECK (status = ANY (ARRAY['suggested', 'accepted', 'ignored', 'blocked']))
+);
+CREATE INDEX interaction_edges_status_idx ON public.interaction_edges (status, created_at DESC);
+CREATE INDEX interaction_edges_users_idx ON public.interaction_edges (from_user_id, to_user_id, created_at DESC);
+CREATE TABLE public.nearify_identity_map (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  community_id uuid UNIQUE REFERENCES public.community(id),
+  nearify_user_id text,
+  linked_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
 
@@ -158,6 +185,8 @@ GRANT ALL ON public.community, public.connections, public.notifications, public.
   public.project_members, public.project_requests, public.organizations, public.organization_members,
   public.endorsements, public.conversations, public.messages, public.interaction_edges
   TO anon, authenticated, service_role;
+GRANT SELECT, REFERENCES, TRIGGER, TRUNCATE ON public.nearify_identity_map TO anon, authenticated;
+GRANT ALL ON public.nearify_identity_map TO service_role;
 
 -- Identity helper (production definition)
 CREATE OR REPLACE FUNCTION public.get_community_id_from_auth()
@@ -415,6 +444,14 @@ CREATE POLICY "Anyone can view project members" ON public.project_members FOR SE
 CREATE POLICY "Creators can add project members" ON public.project_members FOR INSERT TO public
   WITH CHECK (EXISTS (SELECT 1 FROM projects WHERE projects.id = project_members.project_id AND projects.creator_id = auth.uid()));
 CREATE POLICY "System can add project members" ON public.project_members FOR INSERT TO public WITH CHECK (true);
+CREATE POLICY "Project members are viewable by everyone" ON public.project_members FOR SELECT TO public USING (true);
+CREATE POLICY "Project creators can delete members" ON public.project_members FOR DELETE TO authenticated
+  USING ((EXISTS (SELECT 1 FROM (projects p JOIN community c ON ((c.id = p.creator_id))) WHERE ((p.id = project_members.project_id) AND (c.user_id = auth.uid()))))
+      OR (user_id IN (SELECT community.id FROM community WHERE (community.user_id = auth.uid()))));
+CREATE POLICY "Project creators can manage members" ON public.project_members FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM (projects p JOIN community c ON ((c.id = p.creator_id))) WHERE ((p.id = project_members.project_id) AND (c.user_id = auth.uid()))));
+CREATE POLICY "Users can update their own membership" ON public.project_members FOR UPDATE TO public
+  USING (user_id = get_community_id_from_auth());
 
 ALTER TABLE public.project_requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Project creators can view requests for their projects" ON public.project_requests FOR SELECT TO authenticated
@@ -429,6 +466,25 @@ CREATE POLICY "Users can join organizations" ON public.organization_members FOR 
   WITH CHECK (community_id IN (SELECT community.id FROM community WHERE community.user_id = auth.uid()));
 CREATE POLICY allow_insert ON public.organization_members FOR INSERT TO public WITH CHECK (true);
 CREATE POLICY allow_select ON public.organization_members FOR SELECT TO public USING (true);
+CREATE POLICY allow_update ON public.organization_members FOR UPDATE TO public USING (true);
+CREATE POLICY allow_delete ON public.organization_members FOR DELETE TO public USING (true);
+CREATE POLICY "Organization members are viewable by everyone" ON public.organization_members FOR SELECT TO public USING (status = 'active');
+CREATE POLICY org_members_select_safe ON public.organization_members FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM community c WHERE ((c.id = organization_members.community_id) AND (c.user_id = auth.uid()))));
+CREATE POLICY "Org admins can update members" ON public.organization_members FOR UPDATE TO public
+  USING (organization_id IN (SELECT om.organization_id FROM (organization_members om JOIN community c ON ((c.id = om.community_id)))
+    WHERE ((c.user_id = auth.uid()) AND (om.role = ANY (ARRAY['owner', 'admin'])) AND (om.status = 'active'))));
+CREATE POLICY "Org admins can remove members" ON public.organization_members FOR DELETE TO public
+  USING ((community_id IN (SELECT community.id FROM community WHERE (community.user_id = auth.uid())))
+      OR (organization_id IN (SELECT om.organization_id FROM (organization_members om JOIN community c ON ((c.id = om.community_id)))
+        WHERE ((c.user_id = auth.uid()) AND (om.role = ANY (ARRAY['owner', 'admin'])) AND (om.status = 'active')))));
+CREATE POLICY "Authenticated users can create organizations" ON public.organizations FOR INSERT TO public WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Organization admins can update" ON public.organizations FOR UPDATE TO public
+  USING (EXISTS (SELECT 1 FROM (organization_members om JOIN community c ON ((c.id = om.community_id)))
+    WHERE ((om.organization_id = organizations.id) AND (c.user_id = auth.uid()) AND (om.role = ANY (ARRAY['owner', 'admin'])) AND (om.status = 'active'))));
+CREATE POLICY "Org owners can deactivate organizations" ON public.organizations FOR DELETE TO public
+  USING (id IN (SELECT om.organization_id FROM (organization_members om JOIN community c ON ((c.id = om.community_id)))
+    WHERE ((c.user_id = auth.uid()) AND (om.role = 'owner') AND (om.status = 'active'))));
 
 ALTER TABLE public.endorsements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view endorsements" ON public.endorsements FOR SELECT USING (true);
@@ -448,4 +504,11 @@ CREATE POLICY users_can_send_messages ON public.messages FOR INSERT TO public
          OR conversations.participant_2_id = (SELECT community.id FROM community WHERE community.user_id = auth.uid() LIMIT 1))));
 
 ALTER TABLE public.interaction_edges ENABLE ROW LEVEL SECURITY;
-CREATE POLICY edges_readable ON public.interaction_edges FOR SELECT USING (true);
+CREATE POLICY interaction_edges_select_involving_me ON public.interaction_edges FOR SELECT TO public
+  USING ((auth.uid() = from_user_id) OR (auth.uid() = to_user_id));
+CREATE POLICY interaction_edges_update_involving_me ON public.interaction_edges FOR UPDATE TO public
+  USING ((auth.uid() = from_user_id) OR (auth.uid() = to_user_id))
+  WITH CHECK ((auth.uid() = from_user_id) OR (auth.uid() = to_user_id));
+ALTER TABLE public.nearify_identity_map ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view their own nearify link" ON public.nearify_identity_map FOR SELECT TO authenticated
+  USING (community_id IN (SELECT community.id FROM community WHERE community.user_id = auth.uid()));

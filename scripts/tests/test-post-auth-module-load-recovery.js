@@ -72,7 +72,9 @@ assert.match(handler, /catch \(error\)[\s\S]*analyticsBtn\.disabled = false/,
 assert.doesNotMatch(handler, /try the button again in a moment|still loading/,
   'the user action must no longer terminate at the asynchronous-loader race');
 
-assert.match(html, /dashboard-actions\.js\?v=admin-analytics-lifecycle-20260822a/,
+// Later releases of dashboard-actions.js keep the repaired lifecycle and
+// carry their own cache-buster (membership-authz-20261013: join requests).
+assert.match(html, /dashboard-actions\.js\?v=membership-authz-20261013/,
   'the production entry script must carry a cache-buster for the repaired lifecycle');
 
 console.log('✅ test-post-auth-module-load-recovery passed');

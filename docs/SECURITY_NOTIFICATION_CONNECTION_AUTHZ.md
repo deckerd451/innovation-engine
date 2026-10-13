@@ -95,9 +95,11 @@ npm test                          # includes test-notification-connection-authz.
 2. **Idempotency:** the migration applies twice.
 3. **Both test files pass after the migration:**
    - `notification-authz-db.sql` covers members, unrelated members, anonymous callers and `service_role`. It shows each legitimate notification still arrives (connection request and acceptance, endorsement, invite from creator and from a team member, self-join, server invite, project request, organization request), and that forged ones don't.
-   - `connection-authz-db.sql` covers valid and invalid transitions for sender, recipient, an unrelated member and an anonymous caller. It also covers BLE promotion through the real `promote_edge_to_connection`, `service_role` writes, and the full Collaboration Concierge journey.
+   - `connection-authz-db.sql` covers valid and invalid transitions for sender, recipient, an unrelated member and an anonymous caller. It also covers `service_role` writes and the full Collaboration Concierge journey. Proximity promotion is tested in `membership-authz-db.sql`.
+
+   **Correction:** an earlier version of this suite reported that BLE promotion was "preserved". The fixture behind that result simplified `interaction_edges`. In production, `promote_edge_to_connection` fails on every call: the table has no `updated_at` column, and the status CHECK has no `'promoted'`. It was never a working flow to preserve. See `docs/SECURITY_MEMBERSHIP_PROXIMITY_AUTHZ.md`.
 4. **Each protection is load-bearing:** undoing any single protection makes a test fail. The protections checked are the trigger, the INSERT policy, column UPDATE, the function grant, the invite guard, and the request triggers.
-5. **Rollback** restores the baseline catalog exactly (233 entries).
+5. **Rollback:** each rollback restores the catalog it started from exactly. The runner now also covers the membership migration; see `docs/SECURITY_MEMBERSHIP_PROXIMITY_AUTHZ.md`.
 
 ## Deployment plan (requires explicit authorization; not done)
 
@@ -124,7 +126,7 @@ Ordering: **database first, then browser.** Both orders are safe, but database-f
      - project join request, then organization join request;
      - creator invites a teammate;
      - the Collaboration Concierge sequence: invite, accept, schedule, complete, outcome;
-     - BLE edge promotion.
+     - Proximity Connect, covered by the membership migration's checklist.
 
 ## Rollback plan
 
@@ -140,6 +142,10 @@ Ordering: **database first, then browser.** Both orders are safe, but database-f
 - **Untrusted inserts with no signed-in member.** These no longer produce a project invite notification.
 
 ## Found but not fixed here (need separate decisions)
+
+Items 1 to 4 are addressed by `20261013b_membership_and_proximity_authz.sql`; see `docs/SECURITY_MEMBERSHIP_PROXIMITY_AUTHZ.md`. Two corrections:
+- The shipped Nearify iOS app calls `nearify-prod`, not this project.
+- Both proximity functions currently fail at runtime in production.
 
 1. **`ingest_nearify_interaction` (highest risk).** It is `SECURITY DEFINER` and executable by `anon` and `authenticated`. With `p_signal_type = 'qr_confirmed'` it creates or promotes an **accepted** connection between any two community IDs. The Nearify iOS app calls it (`NearifyIngestionService.swift`), so restricting it needs coordinated app changes.
 2. **`promote_edge_to_connection`.** It is executable by `anon` and `authenticated`, and promotes any interaction edge to an accepted connection without checking that the caller is one of its members. The browser BLE flows use it.

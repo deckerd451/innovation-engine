@@ -51,6 +51,24 @@ BEGIN
   RETURN n;
 END $$;
 
+-- The write must not take effect: either row-level security filters it to
+-- zero rows, or a grant/trigger refuses it. Use where either layer is a
+-- correct outcome.
+CREATE OR REPLACE FUNCTION t.blocked(p_sql text, p_label text) RETURNS void
+LANGUAGE plpgsql AS $$
+DECLARE n int;
+BEGIN
+  BEGIN
+    EXECUTE p_sql;
+    GET DIAGNOSTICS n = ROW_COUNT;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RETURN;
+  END;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'NOT BLOCKED: % (% row(s) changed)', p_label, n;
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION t.eq(p_actual bigint, p_expected bigint, p_label text) RETURNS void
 LANGUAGE plpgsql AS $$
 BEGIN

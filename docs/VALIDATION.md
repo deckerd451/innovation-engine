@@ -70,7 +70,10 @@ migration; the migration is idempotent; members, unrelated members and
 anonymous callers cannot forge notifications or connection state while every
 legitimate notification and the Collaboration Concierge journey still work;
 undoing any single protection is caught; and the rollback restores the
-baseline exactly. See docs/SECURITY_NOTIFICATION_CONNECTION_AUTHZ.md.
+baseline exactly. The same runner covers organization/project membership
+and proximity connections (membership-authz-db.sql). See
+docs/SECURITY_NOTIFICATION_CONNECTION_AUTHZ.md and
+docs/SECURITY_MEMBERSHIP_PROXIMITY_AUTHZ.md.
 
 ## Known gaps
 
