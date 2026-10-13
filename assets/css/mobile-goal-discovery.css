@@ -1,0 +1,32 @@
+/* Goal-first Discover is mobile-only in this phase. */
+#mgd-goal-discovery { display: none; }
+@media (min-width: 1024px) {
+  .cd-mobile-browse { display: contents; }
+  .cd-mobile-browse > summary { display: none; }
+  .cd-mobile-browse-body { display: contents; }
+}
+@media (max-width: 1023px) {
+  #mgd-goal-discovery { display: block; }
+  .mgd-goal-surface { padding: 1rem; border-bottom: 1px solid rgba(0,224,255,.14); }
+  .mgd-eyebrow { color: #00e0ff; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .mgd-goal-heading h3 { margin: .3rem 0 .35rem; color: #fff; font-size: 1.18rem; }
+  .mgd-goal-heading p, .mgd-choice-card p, .mgd-choice-success p { margin: 0 0 .8rem; color: rgba(255,255,255,.68); font-size: .84rem; line-height: 1.45; }
+  .mgd-goal-form { display: flex; gap: .5rem; align-items: stretch; }
+  .mgd-goal-form input { min-width: 0; flex: 1; border: 1px solid rgba(0,224,255,.35); border-radius: 9px; background: rgba(0,0,0,.2); color: #fff; padding: .75rem; font-size: 16px; }
+  .mgd-goal-form button, .mgd-choice-success button { border: 0; border-radius: 9px; padding: .65rem .8rem; min-height: 44px; background: #00e0ff; color: #061018; font-weight: 800; }
+  .mgd-project-choice { margin-top: .75rem; }
+  .mgd-choice-card { padding: .85rem; border: 1px solid rgba(0,224,255,.25); border-radius: 10px; background: rgba(0,224,255,.06); }
+  .mgd-project-options { display: grid; gap: .5rem; margin: .75rem 0; }
+  .mgd-project-options button { display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: .65rem .75rem; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: rgba(0,0,0,.22); color: #fff; text-align: left; }
+  .mgd-project-options small { color: rgba(255,255,255,.58); }
+  .mgd-cancel-choice { border: 0; background: transparent; color: rgba(255,255,255,.7); padding: .4rem 0; }
+  .mgd-choice-success { padding: .85rem; border-radius: 10px; background: rgba(67,214,142,.12); color: #fff; }
+  .mgd-choice-success button { margin-top: .4rem; background: #43d68e; }
+  .cd-mobile-browse { margin: .4rem 1rem 0; border-top: 1px solid rgba(255,255,255,.1); }
+  .cd-mobile-browse summary { cursor: pointer; list-style: none; padding: .8rem 0; color: rgba(255,255,255,.8); font-weight: 800; }
+  .cd-mobile-browse summary::-webkit-details-marker { display: none; }
+  .cd-mobile-browse summary::after { content: '＋'; float: right; color: #00e0ff; }
+  .cd-mobile-browse[open] summary::after { content: '−'; }
+  .cd-mobile-browse-body { padding-bottom: .7rem; }
+}
+@media (max-width: 390px) { .mgd-goal-form { flex-direction: column; } .mgd-goal-form button { width: 100%; } }

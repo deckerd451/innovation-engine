@@ -155,7 +155,7 @@
     return { completed, success, verifiedSuccess, savedHours: median(rows.flatMap(item => item.savedHours || [])) };
   }
 
-  function packageCard(pkg, stats, canUse, goal, canEdit) {
+  function packageCard(pkg, stats, canUse, goal, canEdit, cardOptions = {}) {
     const stat = stats.get(pkg.id) || { completed: 0, success: 0, verifiedSuccess: 0, savedHours: [] };
     const saved = median(stat.savedHours);
     const evidence = stat.verifiedSuccess >= 2 ? 'Verified' : stat.completed ? 'Self-reported' : 'No results yet';
@@ -174,7 +174,7 @@
         ${pkg.failure_notes ? `<strong>Known failure</strong><p>${esc(pkg.failure_notes)}</p>` : ''}
         <p class="cm-attribution">Created by ${esc(pkg.creator?.name || 'a community member')} · ${esc(pkg.project?.title || 'another project')} · version ${pkg.version || 1}</p>
       </div></details>
-      ${canUse && canEdit ? `<button class="cm-use-btn" type="button" data-action="use"><i class="fas fa-play"></i> Turn steps into tasks</button>` : canUse ? '<p class="cm-form-help">Join this project to turn the steps into tasks.</p>' : ''}
+      ${canUse && (canEdit || cardOptions.actionLabel) ? `<button class="cm-use-btn" type="button" data-action="use"><i class="fas fa-play"></i> ${esc(cardOptions.actionLabel || 'Turn steps into tasks')}</button>` : canUse ? '<p class="cm-form-help">Join this project to turn the steps into tasks.</p>' : ''}
     </article>`;
   }
 
@@ -191,6 +191,27 @@
       <label class="cm-check"><input type="checkbox" name="permission_mode"> Share with CharlestonHacks members</label>
       <div class="cm-form-actions"><button type="button" class="cm-cancel-btn">Cancel</button><button type="submit" class="cm-primary-btn">Save capability</button></div>
     </form>`;
+  }
+
+  async function importCapability(pkg, goal, targetProject, memberId) {
+    if (!memberId || !targetProject?.id || !window.ProjectTasks?.createTask) {
+      throw new Error('You need project access before turning a capability into tasks.');
+    }
+    const existing = await window.ProjectTasks.fetchTasks(targetProject.id);
+    const existingTitles = new Set(existing.map(task => String(task.title || '').trim().toLowerCase()));
+    const taskIds = [];
+    const provenance = `From “${pkg.title}” v${pkg.version || 1}, created by ${pkg.creator?.name || 'a community member'}.`;
+    for (const title of buildTaskPlan(pkg.steps, existingTitles)) {
+      const task = await window.ProjectTasks.createTask(targetProject.id, { title, description: provenance }, memberId);
+      existingTitles.add(title.toLowerCase());
+      taskIds.push(task.id);
+    }
+    if (!taskIds.length) throw new Error('All capability steps already exist as project tasks.');
+    const { error } = await supa().from('capability_attempts').insert({ capability_id: pkg.id, member_id: memberId, project_id: targetProject.id, goal, task_ids: taskIds, outcome_status: 'in_progress' });
+    if (error) throw error;
+    window.CapabilityJourney?.emit('tasks_imported', { surface: 'discover', taskCount: taskIds.length });
+    notify(`${taskIds.length} task${taskIds.length === 1 ? '' : 's'} added from this capability.`, 'success');
+    return { taskIds, project: targetProject };
   }
 
   function attemptMarkup(pkg) {
@@ -315,20 +336,7 @@
 
     async function startCapability(pkg, goal) {
       if (!memberId || !canEdit || !window.ProjectTasks?.createTask) throw new Error('You need project access before turning a capability into tasks.');
-      const existing = await window.ProjectTasks.fetchTasks(project.id);
-      const existingTitles = new Set(existing.map(task => String(task.title || '').trim().toLowerCase()));
-      const taskIds = [];
-      const provenance = `From “${pkg.title}” v${pkg.version || 1}, created by ${pkg.creator?.name || 'a community member'}.`;
-      for (const title of buildTaskPlan(pkg.steps, existingTitles)) {
-        const task = await window.ProjectTasks.createTask(project.id, { title, description: provenance }, memberId);
-        existingTitles.add(title.toLowerCase());
-        taskIds.push(task.id);
-      }
-      if (!taskIds.length) throw new Error('All capability steps already exist as project tasks.');
-      const { error } = await supa().from('capability_attempts').insert({ capability_id: pkg.id, member_id: memberId, project_id: project.id, goal, task_ids: taskIds, outcome_status: 'in_progress' });
-      if (error) throw error;
-      window.CapabilityJourney?.emit('tasks_imported', { surface: 'project', taskCount: taskIds.length });
-      notify(`${taskIds.length} task${taskIds.length === 1 ? '' : 's'} added from this capability.`, 'success');
+      const { taskIds } = await importCapability(pkg, goal, project, memberId);
       await renderActiveAttempts();
     }
 
@@ -359,13 +367,25 @@
       const { error } = await supa().from('capability_attempts').update({ baseline_hours: number('baseline_hours'), actual_hours: number('actual_hours'), baseline_cost: number('baseline_cost'), actual_cost: number('actual_cost'), outcome_status: values.get('outcome_status'), notes: values.get('notes') || null }).eq('id', form.dataset.attemptId).eq('member_id', memberId);
       if (error) { notify(error.message || 'Could not save outcome.', 'error'); return; }
       window.CapabilityJourney?.emit('outcome_recorded', { surface: 'project', outcome: values.get('outcome_status') === 'succeeded' ? 'succeeded' : 'other' });
+      window.dispatchEvent(new CustomEvent('capability-outcome-recorded'));
       notify('Outcome recorded. Self-reported results remain distinct from independent verification.', 'success');
       await renderActiveAttempts();
     });
     await renderActiveAttempts();
   }
 
-  window.CapabilityMemory = { mount };
+  async function searchGoal(goal) {
+    const packageResult = await fetchSharedPackages();
+    if (packageResult.unavailable) return packageResult;
+    const stats = await fetchAttemptStats(packageResult.data.map(item => item.id));
+    return { ...packageResult, goal, stats, packages: rankPackages(packageResult.data, stats, goal) };
+  }
+
+  function renderPackageCard(pkg, stats, goal, options = {}) {
+    return packageCard(pkg, stats, options.canUse !== false, goal, Boolean(options.canEdit), options);
+  }
+
+  window.CapabilityMemory = { mount, searchGoal, renderPackageCard, importCapability };
   // Pure helpers are exposed for deterministic regression tests only. They do
   // not access Supabase or browser state.
   window.CapabilityMemoryTesting = { median, confidenceAdjustedEffectiveness, rankPackages, summarizeStats, goalMatch, buildTaskPlan, classifySearchError, searchErrorMessage };
