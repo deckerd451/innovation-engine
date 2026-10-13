@@ -41,6 +41,13 @@
     return `<section class="mta-help"><h2>Related project knowledge</h2>${projects.map(project => `<button type="button" class="mta-project" data-mta-project="${esc(project.id)}"><strong>${esc(project.title || 'Project')}</strong><span>${esc(project.description || project.status || 'Related community work')}</span></button>`).join('')}</section>`;
   }
 
+  function nextMove(task) {
+    const title = String(task?.title || '').toLowerCase();
+    if (/speaker|speakers/.test(title)) return { copy: 'Start a shortlist by checking people you already know who may fit the kind of speaker you need.', label: 'Check connected people', target: 'people' };
+    if (/interview|customer|user research/.test(title)) return { copy: 'Write the first open question you will ask, then use the people section to find someone who has done this before.', label: 'Find relevant people', target: 'people' };
+    return { copy: 'Take the smallest concrete step described by this task, then record what you learn.', label: 'Review available help', target: 'methods' };
+  }
+
   async function renderHelp(root, objective, project, canWork) {
     const methods = root.querySelector('[data-mta-methods]');
     const people = root.querySelector('[data-mta-people]');
@@ -49,7 +56,10 @@
       const result = await window.CapabilityMemory.searchGoal(objective);
       if (result?.unavailable) methods.innerHTML = empty('Methods are temporarily unavailable.', 'Continue with the task, or try again later.');
       else {
-        const packages = (result?.packages || []).slice(0, 3);
+        const packages = (result?.packages || []).filter(pkg => {
+          const matcher = window.CapabilityMemoryTesting?.goalMatch;
+          return matcher ? matcher(pkg, objective).relevant : false;
+        }).slice(0, 3);
         root._mtaPackages = packages;
         methods.innerHTML = packages.length
           ? `<section class="mta-help"><h2>Methods members have tried</h2><p class="mta-note">These are ordered by fit and evidence. “Reported” means member-reported; “Verified” means independently checked.</p>${packages.map(pkg => window.CapabilityMemory.renderPackageCard(pkg, result.stats, objective, { canUse: canWork, canEdit: canWork, actionLabel: 'Use this method' })).join('')}</section>`
@@ -83,12 +93,15 @@
     const { data: membership } = memberId ? await db.from('project_members').select('user_id,role').eq('project_id', projectId).eq('user_id', memberId).maybeSingle() : { data: null };
     const canWork = Boolean(memberId && (project.creator_id === memberId || membership?.role !== 'pending'));
     const objective = [task.title, task.description, project.title].filter(Boolean).join(' — ');
-    panel.innerHTML = `<header class="mta-header"><button type="button" class="mta-back" data-mta-back>‹ My Space</button><button type="button" class="mta-close" aria-label="Close" data-mta-close>×</button></header><p class="mta-context">${esc(project.title || 'Project')}</p><h1 id="mta-title">${esc(task.title)}</h1>${task.description ? `<p class="mta-description">${esc(task.description)}</p>` : ''}<section class="mta-next"><p class="mta-eyebrow">Your next action</p><p>${task.status === 'in_progress' ? 'Continue this task.' : 'Start this task and keep the result visible to your team.'}</p>${canWork && task.status !== 'done' ? `<button type="button" class="mta-primary" data-mta-status="${task.status === 'open' ? 'in_progress' : 'done'}">${task.status === 'open' ? 'Start task' : 'Mark complete'}</button>` : task.status === 'done' ? '<p class="mta-complete">Completed</p>' : '<p class="mta-note">You can view this task, but your project role does not allow updates.</p>'}</section><div data-mta-methods>${empty('Finding methods…', 'Checking shared community work.')}</div><div data-mta-people>${empty('Finding people…', 'Checking accepted connections.')}</div><div data-mta-projects>${empty('Finding related projects…', 'Checking accessible project knowledge.')}</div>`;
+    const move = nextMove(task);
+    panel.innerHTML = `<header class="mta-header"><button type="button" class="mta-back" data-mta-back>‹ My Space</button><button type="button" class="mta-close" aria-label="Close" data-mta-close>×</button></header><p class="mta-context">${esc(project.title || 'Project')}</p><h1 id="mta-title">${esc(task.title)}</h1>${task.description ? `<p class="mta-description">${esc(task.description)}</p>` : ''}<section class="mta-next"><p class="mta-eyebrow">One useful next move</p><p>${esc(move.copy)}</p><button type="button" class="mta-primary" data-mta-jump="${move.target}">${esc(move.label)}</button><div class="mta-status-controls">${canWork && task.status !== 'done' ? `<button type="button" class="mta-secondary-action" data-mta-status="${task.status === 'open' ? 'in_progress' : 'done'}">${task.status === 'open' ? 'Start task' : 'Mark complete'}</button>` : task.status === 'done' ? '<p class="mta-complete">Task marked complete</p>' : '<p class="mta-note">View-only: your project role does not allow updates.</p>'}</div>${canWork ? '<details class="mta-outcome"><summary>Add an optional outcome note</summary><p class="mta-note">This records your note with the task. It does not verify that the objective was achieved.</p><textarea rows="3" maxlength="500" data-mta-note placeholder="What did you learn or decide?"></textarea><button type="button" class="mta-secondary-action" data-mta-save-note>Save note</button></details>' : ''}</section><div data-mta-methods>${empty('Finding methods…', 'Checking shared community work.')}</div><div data-mta-people>${empty('Finding people…', 'Checking accepted connections.')}</div><div data-mta-projects>${empty('Finding related projects…', 'Checking accessible project knowledge.')}</div>`;
     const back = () => { close(); document.querySelector('.mob-tab[data-tab="home"]')?.click(); };
     root.addEventListener('click', async event => {
       if (event.target.closest('[data-mta-back]')) return back();
       if (event.target.closest('[data-mta-close]')) return close();
       if (event.target.closest('[data-mta-community]')) { close(); document.querySelector('.mob-tab[data-tab="community"], .mob-tab[data-tab="network"]')?.click(); return; }
+      const jump = event.target.closest('[data-mta-jump]');
+      if (jump) return root.querySelector(`[data-mta-${jump.dataset.mtaJump}]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const related = event.target.closest('[data-mta-project]');
       if (related) return window.viewProjectDetails?.(related.dataset.mtaProject);
       const use = event.target.closest('[data-action="use"]');
@@ -113,6 +126,18 @@
         status.disabled = true;
         try { await window.ProjectTasks.updateTask(task, { status: status.dataset.mtaStatus }, memberId); task.status = status.dataset.mtaStatus; status.replaceWith(document.createElement('p')); panel.querySelector('.mta-next p:nth-of-type(2)').textContent = task.status === 'done' ? 'Completed.' : 'Continue this task.'; window.dispatchEvent(new CustomEvent('project-task-updated')); }
         catch (error) { status.disabled = false; status.textContent = 'Try again'; console.warn('[MobileTaskAssistance] task update failed', error); }
+      }
+      const saveNote = event.target.closest('[data-mta-save-note]');
+      if (saveNote && window.ProjectTasks?.updateTask) {
+        const note = root.querySelector('[data-mta-note]')?.value.trim();
+        if (!note) return;
+        saveNote.disabled = true;
+        try {
+          const original = task.description ? `${task.description}\n\n` : '';
+          await window.ProjectTasks.updateTask(task, { description: `${original}Outcome note: ${note}` }, memberId);
+          task.description = `${original}Outcome note: ${note}`;
+          saveNote.textContent = 'Note saved';
+        } catch (error) { saveNote.disabled = false; saveNote.textContent = 'Try again'; console.warn('[MobileTaskAssistance] outcome note failed', error); }
       }
     });
     await renderHelp(root, objective, project, canWork);

@@ -36,6 +36,8 @@ assert.equal(Object.prototype.hasOwnProperty.call(ranked[0], 'goalRelevance'), f
 
 const matched = goalMatch({ title: 'Interview customers', goal: 'Validate demand', steps: ['Run customer interviews'], tools: [] }, 'validate customer demand');
 assert.equal(Array.from(matched.matched).join(','), 'validate,customer,demand', 'goal matching should explain matched terms');
+const speakerMatch = goalMatch({ title: 'Validate a business idea through customer interviews', goal: 'Determine whether potential customers have a real problem worth solving', steps: ['Identify five potential customers', 'Interview the customers'], tools: [] }, 'Select speaker(s) for Harborhack 2026 prep');
+assert.equal(speakerMatch.relevant, false, 'customer-interview method must not match a speaker-selection task through incidental project words');
 assert.equal(rankPackages([{ id: 'unrelated', title: 'Deploy servers', goal: 'Ship code' }, { id: 'matched', title: 'Interview customers', goal: 'Validate demand' }], new Map(), 'validate customer demand')[0].id, 'matched', 'goal relevance should be the first ranking dimension when a goal exists');
 
 assert.deepEqual(buildTaskPlan(['Define scope', 'define scope', 'Run test'], new Set(['Run test'])), ['Define scope'], 'task import should prevent duplicate tasks');

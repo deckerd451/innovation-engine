@@ -79,7 +79,8 @@
   }
 
   function goalTokens(goal) {
-    return Array.from(new Set(String(goal || '').toLowerCase().match(/[a-z0-9]{3,}/g) || []));
+    const incidental = new Set(['about', 'build', 'create', 'doing', 'find', 'help', 'make', 'need', 'plan', 'prep', 'project', 'ready', 'start', 'task', 'thing', 'work', 'year']);
+    return Array.from(new Set((String(goal || '').toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter(token => !incidental.has(token) && !/^\d+$/.test(token))));
   }
 
   function goalMatch(pkg, goal) {
@@ -87,7 +88,8 @@
     if (!tokens.length) return { score: 0, matched: [] };
     const fields = [pkg.title, pkg.goal, pkg.summary, ...(list(pkg.steps)), ...(list(pkg.tools))].join(' ').toLowerCase();
     const matched = tokens.filter(token => fields.includes(token));
-    return { score: matched.length / tokens.length, matched };
+    const score = matched.length / tokens.length;
+    return { score, matched, relevant: matched.length > 0 && score >= 0.25 };
   }
 
   function buildTaskPlan(steps, existingTitles) {
@@ -330,7 +332,7 @@
       const packages = packageResult.data;
       const stats = await fetchAttemptStats(packages.map(item => item.id));
       const ranked = rankPackages(packages, stats, goal);
-      const directMatches = ranked.filter(item => goalMatch(item, goal).score > 0);
+      const directMatches = ranked.filter(item => goalMatch(item, goal).relevant);
       results.innerHTML = `<div class="cm-results-title">${directMatches.length} relevant method${directMatches.length === 1 ? '' : 's'} found <span>from ${packages.length} shared package${packages.length === 1 ? '' : 's'}</span></div>${ranked.length ? ranked.map(item => packageCard(item, stats, canUse, goal, canEdit)).join('') : '<div class="cm-empty"><strong>No shared methods yet.</strong><p>Try a broader goal, or create the first reusable result in this project.</p></div>'}`;
     }
 
