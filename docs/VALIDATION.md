@@ -24,6 +24,39 @@ modules inside a `node:vm` sandbox / fake-global stubs (fake `window`,
 `document`, `localStorage`, `supabase` client) -- never a real browser and
 never a live database or network call.
 
+## Rendered mobile journey (needs Google Chrome)
+
+```
+npm run test:browser   # or: node scripts/tests/browser/run-assistance-journey.mjs <screenshotDir>
+```
+
+Serves the repo locally and drives the real `index.html` in headless Chrome
+at iPhone size over the DevTools protocol (Node built-ins only). Only
+`supabaseClient.js` is replaced, by a stub backed by the test-only fake
+client and fixtures in `scripts/tests/fixtures/` (placeholder names, never
+seeded anywhere). Taps are dispatched at element coordinates, so a control
+covered by another surface or the tab bar fails. Screenshots are written for
+human review; external CDNs are blocked, so the graph shows its fallback
+toast. It verifies the My Space → assistance → progress → return journey,
+tab isolation, permission states and a desktop regression smoke. It does not
+exercise real Supabase auth or RLS.
+
+## Assistance permission boundary against PostgreSQL
+
+On a disposable local database only:
+
+```
+psql -d ie_test -f scripts/tests/fixtures/supabase-minimal-bootstrap.sql
+psql -d ie_test -f supabase/sql/tables/PROJECT_TASKS_SCHEMA.sql
+psql -d ie_test -f supabase/sql/migrations/20261011_capability_memory.sql
+psql -d ie_test -f scripts/tests/assistance-rls-db.sql
+```
+
+Runs the repository's real RLS policies and triggers as the `authenticated`
+role: private packages, another team's tasks and the stats RPC stay hidden;
+new learning cannot be forged or claim evidence; shared learning is readable
+by a later member. All rows are rolled back.
+
 ## Known gaps
 
 - **No `npm run build`.** This is a static HTML/CSS/JS site with no bundler

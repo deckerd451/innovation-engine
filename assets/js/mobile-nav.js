@@ -248,6 +248,9 @@
       if (button.dataset.mobileNavWired === 'true') return;
       button.dataset.mobileNavWired = 'true';
       button.addEventListener('click', () => {
+        // Focused assistance is an overlay owned by whichever tab opened it;
+        // switching destinations must never leave it behind the new screen.
+        window.MobileTaskAssistance?.close?.();
         document.querySelectorAll('.mob-tab[data-tab]').forEach((tab) => {
           const active = tab === button;
           tab.classList.toggle('active', active);

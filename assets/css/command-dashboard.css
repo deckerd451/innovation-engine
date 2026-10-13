@@ -2134,3 +2134,11 @@ body.reflection-resizing #network-reflection { transition:none; }
   #command-dashboard.cd-mobile-panel .udc-resource-name { font-size:.9rem; }
   #command-dashboard.cd-mobile-panel .udc-resource-meta { font-size:.78rem; }
 }
+
+/* Mobile Explore/Community navigate with the bottom tabs and the
+   Discover / My network control; the desktop Today/Network switcher is a
+   duplicate, mislabelled navigation layer there. */
+@media (max-width: 1023px), (pointer: coarse) {
+  body.mobile-surface-discover #command-dashboard .buildspace-view-switcher,
+  body.mobile-surface-community #command-dashboard .buildspace-view-switcher { display: none !important; }
+}

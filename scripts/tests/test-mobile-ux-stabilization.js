@@ -40,16 +40,15 @@ assert.match(today, /data-continuity-tab="tasks"/);
 assert.match(nav, /cd-mobile-secondary-links/);
 assert.match(nav, /unread > 0/);
 
-// You remains a real destination and explains contribution counts in plain language.
+// My Space leads with one next move and objective entry; the profile
+// biography/intent is never presented as the member's objective.
 assert.match(you, /Your projects/);
-assert.match(you, /Your progress/);
 assert.match(you, /mobile-you-goal-discovery/);
 assert.match(you, /data-next-project/);
-assert.match(you, /What are you working on\?/);
-assert.match(you, /What do you want to accomplish next\?/);
-assert.match(you, /profile\.intent/);
-assert.doesNotMatch(you, /const focus = profile\.bio/);
-assert.match(you, /target\.dataset\.compact = 'true'/);
+assert.match(you, /Pick up where you left off/);
+assert.match(you, /What do you want to accomplish\?/);
+assert.match(you, /Get help with this/);
+assert.doesNotMatch(you, /profile\.(bio|intent)/);
 assert.match(youCss, /z-index: 700/);
 
 // The project overlay retains safe-area and dynamic viewport clearance.
@@ -59,15 +58,14 @@ assert.match(projectCss, /scroll-padding-bottom/);
 
 // The isolation fix must actually reach clients; stale asset URLs were the
 // production failure mode that allowed the pre-fix shell to remain visible.
-assert.match(index, /command-dashboard\.css\?v=adoption-shell-20261013/);
-assert.match(index, /mobile-nav\.js\?v=adoption-shell-20261013/);
-assert.match(index, /mobile-you\.css\?v=adoption-space-20261013/);
-assert.match(index, /mobile-you\.js\?v=adoption-space-20261013/);
-assert.match(index, /mobile-goal-discovery\.js\?v=adoption-goal-20261013/);
+const shellTag = (sw.match(/const VERSION = "v\d+-([^"]+)"/) || [])[1];
+assert.ok(shellTag, 'service worker must declare a versioned shell');
+for (const asset of ['command-dashboard.css', 'mobile-nav.js', 'mobile-you.css', 'mobile-you.js', 'mobile-goal-discovery.js', 'mobile-task-assistance.js', 'mobile-task-assistance.css', 'assistance-interventions.js', 'assistance-interventions.css', 'capability-memory.js']) {
+  assert.match(index, new RegExp(`${asset.replace('.', '\\.')}\\?v=${shellTag}`), `${asset} must be cache-busted with the current shell version`);
+}
 assert.match(index, /My Space/);
 assert.match(index, /Explore/);
 assert.match(index, /data-surface="community"/);
 assert.match(index, /Community/);
-assert.match(sw, /v12-assistance-interventions-20261013/);
 
 console.log('Mobile UX stabilization contracts passed');

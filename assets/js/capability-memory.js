@@ -52,11 +52,18 @@
     return { data: data || [], unavailable: false };
   }
 
+  // Row-level security is the real boundary; this filter keeps the query
+  // explicit so a policy regression cannot widen what search returns.
+  function sharedOrOwnFilter() {
+    const me = window.currentUserProfile?.id;
+    return /^[0-9a-f-]{36}$/i.test(String(me || '')) ? `permission_mode.eq.community,creator_id.eq.${me}` : 'permission_mode.eq.community';
+  }
+
   async function fetchSharedPackages() {
     try {
       const { data, error } = await supa().from('capability_packages')
         .select('id, project_id, creator_id, title, goal, summary, steps, tools, constraints, failure_notes, success_criteria, permission_mode, evidence_status, version, created_at, updated_at, creator:community!capability_packages_creator_id_fkey(id, name), project:projects(id, title)')
-        .eq('permission_mode', 'community').order('updated_at', { ascending: false }).limit(100);
+        .or(sharedOrOwnFilter()).order('updated_at', { ascending: false }).limit(100);
       if (error) {
         const reason = classifySearchError(error);
         console.error('[CapabilityMemory] shared package search failed:', { reason, code: error.code, message: error.message });
@@ -79,17 +86,28 @@
   }
 
   function goalTokens(goal) {
-    const incidental = new Set(['about', 'build', 'create', 'doing', 'find', 'help', 'make', 'need', 'plan', 'prep', 'project', 'ready', 'start', 'task', 'thing', 'work', 'year']);
+    const incidental = new Set(['about', 'build', 'choose', 'create', 'doing', 'find', 'for', 'help', 'identify', 'make', 'need', 'plan', 'prep', 'project', 'ready', 'select', 'start', 'task', 'the', 'thing', 'this', 'with', 'work', 'year', 'your']);
     return Array.from(new Set((String(goal || '').toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter(token => !incidental.has(token) && !/^\d+$/.test(token))));
   }
 
+  // Relevance is owned by AssistanceEngine when it is loaded: same kind of
+  // objective, or several distinctive shared terms in what the method is
+  // about. The token fallback below requires the same strength of overlap.
   function goalMatch(pkg, goal) {
     const tokens = goalTokens(goal);
-    if (!tokens.length) return { score: 0, matched: [] };
-    const fields = [pkg.title, pkg.goal, pkg.summary, ...(list(pkg.steps)), ...(list(pkg.tools))].join(' ').toLowerCase();
+    if (!tokens.length) return { score: 0, matched: [], relevant: false, reason: '' };
+    const about = [pkg.title, pkg.goal, pkg.summary].join(' ').toLowerCase();
+    const fields = [about, ...(list(pkg.steps)), ...(list(pkg.tools))].join(' ').toLowerCase();
     const matched = tokens.filter(token => fields.includes(token));
     const score = matched.length / tokens.length;
-    return { score, matched, relevant: matched.length > 0 && score >= 0.25 };
+    const engine = window.AssistanceEngine?.methodRelevance;
+    if (engine) {
+      const verdict = engine(pkg, goal);
+      return { score: verdict.relevant ? Math.max(score, 0.5) : Math.min(score, 0.1), matched, relevant: verdict.relevant, reason: verdict.reason };
+    }
+    const aboutMatches = tokens.filter(token => about.includes(token));
+    const relevant = aboutMatches.length >= Math.min(2, tokens.length) && score >= 0.25;
+    return { score, matched, relevant, reason: relevant ? `Its goal shares: ${aboutMatches.join(', ')}` : '' };
   }
 
   function buildTaskPlan(steps, existingTitles) {
@@ -160,12 +178,13 @@
   function packageCard(pkg, stats, canUse, goal, canEdit, cardOptions = {}) {
     const stat = stats.get(pkg.id) || { completed: 0, success: 0, verifiedSuccess: 0, savedHours: [] };
     const saved = median(stat.savedHours);
-    const evidence = stat.verifiedSuccess >= 2 ? 'Verified by members' : stat.completed ? 'Reported by members' : 'No results yet';
+    const demonstration = Boolean(pkg.constraints?.demonstration) || /^DEMONSTRATION CONTENT/.test(pkg.summary || '');
+    const evidence = demonstration ? 'Demonstration example · untested' : stat.verifiedSuccess >= 2 ? 'Verified by members' : stat.completed ? 'Results reported by members (not verified)' : 'Untested · no results yet';
     const match = goalMatch(pkg, goal);
     const prerequisites = Object.entries(pkg.constraints || {}).map(([key, value]) => `${key}: ${value}`).join(' · ');
     return `<article class="cm-package-card" data-package-id="${esc(pkg.id)}">
       <div class="cm-package-head"><div><span class="cm-evidence cm-evidence-${pkg.evidence_status}">${evidence}</span><h4>${esc(pkg.title)}</h4></div><span class="cm-version">v${pkg.version || 1}</span></div>
-      ${goal ? `<p class="cm-relevance"><i class="fas fa-bullseye"></i> ${match.matched.length ? `Fits your goal: ${esc(match.matched.join(', '))}` : 'No close match yet'}</p>` : ''}
+      ${goal ? `<p class="cm-relevance"><i class="fas fa-bullseye"></i> ${match.relevant ? `Why it may fit: ${esc(match.reason || match.matched.join(', '))}` : 'Not a close match for this goal'}</p>` : ''}
       <p class="cm-goal">${esc(pkg.goal)}</p>
       ${pkg.summary ? `<p class="cm-summary">${esc(pkg.summary)}</p>` : ''}
       <div class="cm-stats"><span>${stat.completed} finished attempt${stat.completed === 1 ? '' : 's'}</span><span>${stat.completed ? `${Math.round((stat.success / stat.completed) * 100)}% reported success (sample of ${stat.completed})` : 'No finished attempts yet'}</span>${saved != null ? `<span>${saved >= 0 ? `${hours(saved)} reported saved` : `${hours(Math.abs(saved))} reported added`}</span>` : ''}${stat.verifiedSuccess ? `<span>${stat.verifiedSuccess} verified by members</span>` : ''}</div>
@@ -376,6 +395,37 @@
     await renderActiveAttempts();
   }
 
+  // Authoring path for reusable learning. Packages start private unless the
+  // member explicitly shares them; evidence_status is always recomputed by
+  // the database trigger, so a new package can never claim to be proven.
+  async function savePackage(fields, memberId) {
+    if (!memberId || !fields?.project_id) throw new Error('Save this to a project you belong to before sharing it.');
+    const steps = list(fields.steps).map(step => String(step || '').trim()).filter(Boolean);
+    if (!String(fields.title || '').trim() || !String(fields.goal || '').trim() || !steps.length) throw new Error('Add a title, the goal, and at least one step.');
+    const { data, error } = await supa().from('capability_packages').insert({
+      project_id: fields.project_id, creator_id: memberId, title: String(fields.title).trim().slice(0, 100), goal: String(fields.goal).trim().slice(0, 280),
+      summary: fields.summary ? String(fields.summary).trim().slice(0, 500) : null, steps, tools: list(fields.tools), failure_notes: fields.failure_notes || null,
+      permission_mode: fields.share === true ? 'community' : 'private', evidence_status: 'untested',
+    }).select('id, permission_mode, evidence_status').single();
+    if (error) throw error;
+    window.CapabilityJourney?.emit('capability_saved', { surface: 'assistance', shared: fields.share === true });
+    return data;
+  }
+
+  async function findOpenAttemptForTask(taskId, memberId) {
+    if (!taskId || !memberId) return null;
+    const { data, error } = await supa().from('capability_attempts').select('id, capability_id, goal, outcome_status, task_ids').eq('member_id', memberId).contains('task_ids', [taskId]).in('outcome_status', ['planned', 'in_progress']).limit(1);
+    return error ? null : (data || [])[0] || null;
+  }
+
+  async function recordAttemptOutcome(attemptId, memberId, outcomeStatus, notes) {
+    if (!['succeeded', 'not_succeeded', 'in_progress'].includes(outcomeStatus)) throw new Error('Unknown outcome');
+    const { error } = await supa().from('capability_attempts').update({ outcome_status: outcomeStatus, notes: notes || null }).eq('id', attemptId).eq('member_id', memberId);
+    if (error) throw error;
+    window.CapabilityJourney?.emit('outcome_recorded', { surface: 'assistance', outcome: outcomeStatus === 'succeeded' ? 'succeeded' : 'other' });
+    window.dispatchEvent(new CustomEvent('capability-outcome-recorded'));
+  }
+
   async function searchGoal(goal) {
     const packageResult = await fetchSharedPackages();
     if (packageResult.unavailable) return packageResult;
@@ -387,7 +437,7 @@
     return packageCard(pkg, stats, options.canUse !== false, goal, Boolean(options.canEdit), options);
   }
 
-  window.CapabilityMemory = { mount, searchGoal, renderPackageCard, importCapability };
+  window.CapabilityMemory = { mount, searchGoal, renderPackageCard, importCapability, savePackage, findOpenAttemptForTask, recordAttemptOutcome };
   // Pure helpers are exposed for deterministic regression tests only. They do
   // not access Supabase or browser state.
   window.CapabilityMemoryTesting = { median, confidenceAdjustedEffectiveness, rankPackages, summarizeStats, goalMatch, buildTaskPlan, classifySearchError, searchErrorMessage };
