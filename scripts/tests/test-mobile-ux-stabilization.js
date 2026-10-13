@@ -16,9 +16,9 @@ const sw = read('sw.js');
 // One active mobile surface owns visibility, touch, and focus state.
 assert.match(nav, /function setMobileSurface\(surface\)/);
 assert.match(nav, /`mobile-surface-\$\{name\}`/);
-assert.match(nav, /setMobileSurface\('today'\)/);
-assert.match(nav, /setMobileSurface\('discover'\)/);
 assert.match(nav, /setMobileSurface\('you'\)/);
+assert.match(nav, /surface = mode === 'network' \? 'community' : 'discover'/);
+assert.match(nav, /community: \(\) => setDiscoverMode\('network', 'community'\)/);
 assert.match(nav, /\.inert = surface/);
 assert.match(dashboardCss, /body\.mobile-surface-discover #command-dashboard\.cd-mobile-panel #cd-focus/);
 assert.match(dashboardCss, /pointer-events: none !important/);
@@ -52,10 +52,14 @@ assert.match(projectCss, /scroll-padding-bottom/);
 
 // The isolation fix must actually reach clients; stale asset URLs were the
 // production failure mode that allowed the pre-fix shell to remain visible.
-assert.match(index, /command-dashboard\.css\?v=mobile-shell-isolation-20261013/);
-assert.match(index, /mobile-nav\.js\?v=mobile-shell-isolation-20261013/);
+assert.match(index, /command-dashboard\.css\?v=mobile-nav-stage2-20261013/);
+assert.match(index, /mobile-nav\.js\?v=mobile-nav-stage2-20261013/);
 assert.match(index, /mobile-you\.css\?v=my-space-stage1-20261013/);
-assert.match(index, /mobile-you\.js\?v=my-space-stage1-20261013/);
-assert.match(sw, /v9-mobile-shell-isolation-20261013/);
+assert.match(index, /mobile-you\.js\?v=my-space-stage2-20261013/);
+assert.match(index, /My Space/);
+assert.match(index, /Explore/);
+assert.match(index, /data-surface="community"/);
+assert.match(index, /Community/);
+assert.match(sw, /v10-mobile-nav-stage2-20261013/);
 
 console.log('Mobile UX stabilization contracts passed');

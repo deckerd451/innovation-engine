@@ -378,17 +378,20 @@ body.reflection-resizing #network-reflection { transition:none; }
     pointer-events: none !important;
   }
   body.mobile-surface-today #mobile-you-screen,
-  body.mobile-surface-discover #mobile-you-screen {
+  body.mobile-surface-discover #mobile-you-screen,
+  body.mobile-surface-community #mobile-you-screen {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
   }
-  body.mobile-surface-discover #command-dashboard.cd-mobile-panel #cd-focus {
+  body.mobile-surface-discover #command-dashboard.cd-mobile-panel #cd-focus,
+  body.mobile-surface-community #command-dashboard.cd-mobile-panel #cd-focus {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
   }
-  body.mobile-surface-discover #command-dashboard.cd-mobile-panel #cd-explore {
+  body.mobile-surface-discover #command-dashboard.cd-mobile-panel #cd-explore,
+  body.mobile-surface-community #command-dashboard.cd-mobile-panel #cd-explore {
     display: block !important;
     visibility: visible !important;
     pointer-events: auto !important;

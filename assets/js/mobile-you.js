@@ -118,7 +118,8 @@
 
   window.MobileYou = { show: render, hide, refresh: render };
   window.addEventListener('profile-loaded', () => {
-    if (document.querySelector('.mob-tab[data-tab="profile"].active')) render();
+    if (document.body.classList.contains('mobile-surface-you')) render();
   });
   window.addEventListener('user-logged-out', () => { hide(); signedOut(); });
+  if (document.body.classList.contains('mobile-surface-you')) render();
 })();

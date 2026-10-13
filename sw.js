@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v9-mobile-shell-isolation-20261013";
+const VERSION = "v10-mobile-nav-stage2-20261013";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.

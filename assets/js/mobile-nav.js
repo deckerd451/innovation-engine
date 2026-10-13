@@ -7,27 +7,17 @@
 
   const tabs = {
     home: () => {
-      window.MobileYou?.hide();
-      setMobileSurface('today');
-      // Restore the view classes immediately so Home works even if the
-      // dashboard module is still recovering from a delayed load.
-      document.body.classList.add('buildspace-view-today');
-      document.body.classList.remove('buildspace-view-network');
-      window.CommandDashboard?.setWorkspaceView?.('today');
-      const dashboard = document.getElementById('command-dashboard');
-      dashboard?.classList.remove('cd-mobile-panel');
-      dashboard?.style.removeProperty('display');
-      document.body.classList.remove('mobile-network-list');
-      setMobileMapButton(false);
-      removeMobileNetworkHistory();
-      renderMobileRightNow();
+      setMobileSurface('you');
+      window.MobileYou?.show();
+      // Preserve the existing lifecycle signal for integrations that use the
+      // Today entry as a cue to refresh continuity data.
       window.dispatchEvent(new CustomEvent('mobile-today-entered'));
-      document.getElementById('cd-panel-tab')?.focus();
     },
     discover: () => setDiscoverMode('explore'),
+    community: () => setDiscoverMode('network', 'community'),
     // Kept as an internal compatibility path for existing callers; Network
     // is now a mode inside Discover rather than a separate destination.
-    network: () => setDiscoverMode('network'),
+    network: () => setDiscoverMode('network', 'community'),
     'event-mode': () => window.NearifyMobileContext?.showEvent(),
     suggestions: () => window.NearifyMobileContext?.showNearby(),
     themes: () => typeof window.openThemeDiscoveryModal === 'function'
@@ -39,9 +29,9 @@
     profile: showMobileProfileSheet,
   };
 
-  function setDiscoverMode(mode) {
+  function setDiscoverMode(mode, surface = mode === 'network' ? 'community' : 'discover') {
     window.MobileYou?.hide();
-    setMobileSurface('discover');
+    setMobileSurface(surface);
     const isNetwork = mode === 'network';
     document.body.classList.add('buildspace-view-today');
     document.body.classList.remove('buildspace-view-network');
@@ -168,7 +158,7 @@
         if (nextAction === 'messages') {
           tabs.messages();
         } else if (nextAction === 'people') {
-          setDiscoverMode('network');
+          setDiscoverMode('network', 'community');
           document.querySelector('[data-resource="people"]')?.click();
         } else {
           window.openProfileModal?.();
@@ -237,7 +227,7 @@
   }
 
   function setMobileSurface(surface) {
-    const surfaces = ['today', 'discover', 'you'];
+    const surfaces = ['today', 'discover', 'community', 'you'];
     surfaces.forEach((name) => document.body.classList.toggle(`mobile-surface-${name}`, name === surface));
     const dashboard = document.getElementById('command-dashboard');
     const focus = document.getElementById('cd-focus');
@@ -245,8 +235,8 @@
     const you = document.getElementById('mobile-you-screen');
     if (dashboard) dashboard.inert = surface === 'you';
     if (you) { you.inert = surface !== 'you'; you.setAttribute('aria-hidden', surface === 'you' ? 'false' : 'true'); }
-    if (focus) focus.inert = surface === 'discover';
-    if (explore) explore.inert = surface !== 'discover';
+    if (focus) focus.inert = surface === 'discover' || surface === 'community';
+    if (explore) explore.inert = surface !== 'discover' && surface !== 'community';
   }
 
   function wire() {
@@ -263,8 +253,9 @@
         document.body.classList.forEach((className) => {
           if (className.startsWith('mobile-tab-')) document.body.classList.remove(className);
         });
-        document.body.classList.add(`mobile-tab-${button.dataset.tab}`);
-        tabs[button.dataset.tab]?.();
+        const destination = button.dataset.surface || button.dataset.tab;
+        document.body.classList.add(`mobile-tab-${destination}`);
+        tabs[destination]?.();
       });
       button.addEventListener('keydown', (event) => {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -280,23 +271,24 @@
     if (bar) bar.style.display = window.innerWidth >= 1024 ? 'none' : '';
     if (window.innerWidth < 1024) {
       wire();
-      const activeTab = document.querySelector('.mob-tab[data-tab].active')?.dataset.tab || 'home';
+      const activeButton = document.querySelector('.mob-tab[data-tab].active');
+      const activeTab = activeButton?.dataset.tab || 'home';
+      const destination = activeButton?.dataset.surface || (activeTab === 'home' ? 'you' : activeTab === 'profile' ? 'you' : 'discover');
       document.body.classList.forEach((className) => {
         if (className.startsWith('mobile-tab-')) document.body.classList.remove(className);
       });
-      document.body.classList.add(`mobile-tab-${activeTab}`);
-      setMobileSurface(activeTab === 'profile' ? 'you' : activeTab === 'home' ? 'today' : 'discover');
-      if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
-      if (document.querySelector('.mob-tab[data-tab="profile"].active')) window.MobileYou?.show();
+      document.body.classList.add(`mobile-tab-${destination}`);
+      setMobileSurface(destination);
+      if (destination === 'you') window.MobileYou?.show();
     }
   }
   window.addEventListener('resize', syncViewport, { passive: true });
   window.addEventListener('orientationchange', syncViewport, { passive: true });
   window.addEventListener('profile-loaded', () => {
-    if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
+    if (document.body.classList.contains('mobile-surface-you')) window.MobileYou?.refresh?.();
   });
   window.addEventListener('total-unread-messages-updated', () => {
-    if (document.querySelector('.mob-tab[data-tab="home"].active')) renderMobileRightNow();
+    if (document.body.classList.contains('mobile-surface-you')) window.MobileYou?.refresh?.();
   });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
   syncViewport();
