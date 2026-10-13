@@ -371,8 +371,8 @@ body.reflection-resizing #network-reflection { transition:none; }
   /* Mobile destinations share a dashboard mount. Keep inactive surfaces out
      of the visual, touch, and accessibility trees so stale Today content
      cannot bleed through Discover or You. */
-  body.mobile-surface-you #command-dashboard,
-  body.mobile-surface-you #synapse-main-view {
+  html body.mobile-surface-you #command-dashboard,
+  html body.mobile-surface-you #synapse-main-view {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;

@@ -56,7 +56,8 @@
     const focus = document.getElementById('cd-focus');
     if (!focus || !document.querySelector('.mob-tab[data-tab="home"].active')) return;
     let card = document.getElementById('cd-mobile-continuity');
-    if (!card) { card = document.createElement('section'); card.id = 'cd-mobile-continuity'; card.className = 'cd-mobile-continuity'; focus.appendChild(card); }
+    if (!card) { card = document.createElement('section'); card.id = 'cd-mobile-continuity'; card.className = 'cd-mobile-continuity'; focus.prepend(card); }
+    else if (focus.firstElementChild !== card) focus.prepend(card);
     if (!tasks && !attempts) { card.innerHTML = ''; return; }
     const task = chooseNextTask(tasks);
     const attempt = attempts?.[0];
